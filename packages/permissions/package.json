@@ -1,0 +1,32 @@
+{
+  "name": "@rcln/permissions",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@rcln/config": "workspace:*",
+    "@types/jest": "^30.0.0",
+    "@types/node": "catalog:",
+    "eslint": "^9.39.2",
+    "jest": "^30.2.0",
+    "prettier": "^3.8.0",
+    "ts-jest": "^29.4.6",
+    "typescript": "catalog:"
+  }
+}

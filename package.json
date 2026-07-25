@@ -1,0 +1,63 @@
+{
+  "name": "rcln",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant healthcare management SaaS",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=10.0.0"
+  },
+  "packageManager": "pnpm@10.18.2",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@rcln/api",
+    "dev:web": "turbo run dev --filter=@rcln/web",
+    "dev:worker": "turbo run dev --filter=@rcln/worker",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md}\"",
+    "validate": "pnpm run typecheck && pnpm run lint && pnpm run test",
+    "db:generate": "pnpm --filter @rcln/db run generate",
+    "db:migrate": "pnpm --filter @rcln/db run migrate",
+    "db:migrate:prod": "pnpm --filter @rcln/db run migrate:prod",
+    "db:seed": "pnpm --filter @rcln/db run seed",
+    "db:studio": "pnpm --filter @rcln/db run studio",
+    "db:reset": "pnpm --filter @rcln/db run reset",
+    "db:rls:check": "pnpm --filter @rcln/db run rls:check",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:logs": "docker compose logs -f",
+    "infra:nuke": "docker compose down -v",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky",
+    "commit": "cz"
+  },
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.0",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@rcln/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.base.js",
+    "./eslint-node": "./eslint.node.js",
+    "./tsconfig-node": "./tsconfig.node.json",
+    "./tsconfig-lib": "./tsconfig.lib.json"
+  },
+  "files": [
+    "eslint.base.js",
+    "eslint.node.js",
+    "tsconfig.node.json",
+    "tsconfig.lib.json"
+  ],
+  "dependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "typescript-eslint": "^8.53.0"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.2",
+    "prettier": "^3.8.0"
+  }
+}

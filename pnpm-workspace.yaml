@@ -1,0 +1,21 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 10 blocks postinstall scripts unless listed here. These genuinely need
+# them: prisma downloads its query engine, esbuild/sharp/unrs-resolver fetch
+# platform binaries. @scarf/scarf is analytics only and is deliberately omitted.
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - esbuild
+  - msgpackr-extract
+  - prisma
+  - sharp
+  - unrs-resolver
+
+# Keep these versions identical across every workspace package.
+catalog:
+  typescript: ^5.9.3
+  zod: ^4.3.5
+  '@types/node': ^25.0.8

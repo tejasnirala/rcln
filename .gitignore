@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js generates this on every dev/build and marks it "do not edit".
+# create-next-app gitignores it by default; the app-level .gitignore was folded
+# into this one during the monorepo restructure.
+apps/web/next-env.d.ts
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Generated Prisma client
+packages/db/generated/
+
+# Environment — NEVER commit real secrets
+.env
+.env.*
+!.env.example
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Turbo
+.turbo/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

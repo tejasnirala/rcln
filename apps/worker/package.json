@@ -1,0 +1,40 @@
+{
+  "name": "@rcln/worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BullMQ processors \u2014 notifications, documents, billing, inventory, reports",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "test": "echo \"no worker tests yet\" && exit 0",
+    "clean": "rm -rf dist *.tsbuildinfo"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "@rcln/contracts": "workspace:*",
+    "@rcln/db": "workspace:*",
+    "@rcln/permissions": "workspace:*",
+    "bullmq": "^5.61.0",
+    "dotenv": "^17.2.3",
+    "ioredis": "^5.9.0",
+    "pino": "^9.13.1",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@rcln/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "^9.39.2",
+    "pino-pretty": "^13.1.2",
+    "prettier": "^3.8.0",
+    "tsx": "^4.21.0",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.18.2'
+
+jobs:
+  # ===========================================================================
+  # Lint, typecheck, format — no services needed
+  # ===========================================================================
+  static:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The generated Prisma client is gitignored, so nothing typechecks without it.
+      - run: pnpm db:generate
+
+      - run: pnpm --filter "./packages/*" run build
+      - run: pnpm run typecheck
+      - run: pnpm run lint
+      - run: pnpm run format:check
+
+  # ===========================================================================
+  # Database: migrations, RLS enforcement, tenant isolation.
+  #
+  # This job must never be made optional. RLS fails silently — a missing policy
+  # produces no error and breaks no single-tenant test. It simply starts
+  # returning other clinics' patient records.
+  # ===========================================================================
+  database:
+    name: Migrations & Tenant Isolation
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rcln
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DIRECT_DATABASE_URL: postgresql://rcln_owner:owner_password@localhost:5432/rcln?schema=public
+      DATABASE_URL: postgresql://rcln_app:app_password@localhost:5432/rcln?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-only-secret-at-least-32-characters-long
+      SUPERADMIN_EMAIL: superadmin@rcln.local
+      SUPERADMIN_PASSWORD: CiOnlyPassword!1234
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Recreate the owner/app role split that the local init script provides.
+      - name: Create database roles
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d rcln \
+            -f infra/postgres/init/01-roles-and-extensions.sql
+
+      # CI writes .env because every package resolves config from the repo root.
+      - name: Write .env
+        run: |
+          {
+            echo "DATABASE_URL=$DATABASE_URL"
+            echo "DIRECT_DATABASE_URL=$DIRECT_DATABASE_URL"
+            echo "REDIS_URL=$REDIS_URL"
+            echo "JWT_SECRET=$JWT_SECRET"
+            echo "SUPERADMIN_EMAIL=$SUPERADMIN_EMAIL"
+            echo "SUPERADMIN_PASSWORD=$SUPERADMIN_PASSWORD"
+            echo "ROOT_DOMAIN=lvh.me"
+          } > .env
+
+      - run: pnpm db:generate
+      - run: pnpm --filter @rcln/permissions --filter @rcln/contracts --filter @rcln/db run build
+      - run: pnpm --filter @rcln/db exec prisma migrate deploy
+      - run: pnpm db:seed
+
+      # Fails if any table with organization_id lacks a policy, or if the
+      # application role could bypass RLS.
+      - run: pnpm db:rls:check
+
+      - name: Tests
+        run: pnpm --filter @rcln/api run test

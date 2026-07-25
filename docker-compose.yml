@@ -1,0 +1,70 @@
+name: rcln
+
+# Local infrastructure only. The apps run on the host via `pnpm dev` so you get
+# hot reload; only the stateful services live in Docker.
+
+services:
+  # ==========================================================================
+  # PostgreSQL 16 — RLS, partitioning, gist exclusion constraints, pg_trgm
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: rcln-postgres
+    restart: unless-stopped
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_ROOT_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-rcln}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Runs once on first boot: creates the owner/app role split RLS depends on.
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d ${DB_NAME:-rcln}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [rcln]
+
+  # ==========================================================================
+  # Redis 7 — tenant cache, permission cache, rate limits, locks, BullMQ
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: rcln-redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    # noeviction: a BullMQ job evicted under memory pressure is a lost
+    # notification. Cache keys carry TTLs instead of relying on eviction.
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [rcln]
+
+  # ==========================================================================
+  # Mailpit — catches every outbound email in dev. UI: http://localhost:8025
+  # ==========================================================================
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: rcln-mailpit
+    restart: unless-stopped
+    ports:
+      - '8025:8025'
+      - '1025:1025'
+    networks: [rcln]
+
+networks:
+  rcln:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

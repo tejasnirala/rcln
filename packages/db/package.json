@@ -1,0 +1,54 @@
+{
+  "name": "@rcln/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./unsafe": {
+      "types": "./dist/unsafe.d.ts",
+      "default": "./dist/unsafe.js"
+    },
+    "./generated": {
+      "types": "./generated/prisma/index.d.ts",
+      "default": "./generated/prisma/index.js"
+    }
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "migrate": "prisma migrate dev",
+    "migrate:prod": "prisma migrate deploy",
+    "seed": "tsx prisma/seed.ts",
+    "studio": "prisma studio",
+    "reset": "prisma migrate reset",
+    "rls:check": "tsx scripts/check-rls.ts",
+    "clean": "rm -rf dist generated *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "pg": "^8.17.1"
+  },
+  "devDependencies": {
+    "@node-rs/argon2": "^2.0.2",
+    "@rcln/config": "workspace:*",
+    "@rcln/permissions": "workspace:*",
+    "@types/node": "catalog:",
+    "@types/pg": "^8.16.0",
+    "dotenv": "^17.2.3",
+    "eslint": "^9.39.2",
+    "prettier": "^3.8.0",
+    "prisma": "^7.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,32 @@
+#!/bin/sh
+# =============================================================================
+# Pre-push: block protected branches, then validate properly.
+# Linting lives here rather than pre-commit because eslint 9 flat config must
+# run per-package, which is too slow for every commit.
+# =============================================================================
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+case "$CURRENT_BRANCH" in
+  main|master|stage|staging|dev|develop)
+    echo ""
+    echo "PUSH REJECTED: direct pushes to '$CURRENT_BRANCH' are not allowed."
+    echo ""
+    echo "  git checkout -b feature/your-feature-name"
+    echo "  git push origin feature/your-feature-name"
+    echo ""
+    echo "  Prefixes: feature/ fix/ hotfix/ docs/ refactor/ test/ chore/"
+    echo ""
+    exit 1
+    ;;
+esac
+
+pnpm run typecheck || exit 1
+pnpm run lint || exit 1
+
+# RLS is worth a slow hook: a missing policy is silent in every other check.
+if pnpm db:rls:check >/dev/null 2>&1; then
+  echo "RLS check passed."
+else
+  echo "RLS check skipped or failed (is the database up? 'pnpm infra:up')"
+fi

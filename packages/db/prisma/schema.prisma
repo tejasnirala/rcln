@@ -1,0 +1,807 @@
+// =============================================================================
+// rcln — Multi-tenant healthcare SaaS
+//
+// PHASE 0 SCOPE: tenancy, subscriptions, identity, RBAC, settings, audit.
+// Clinical / lab / pharmacy / inventory / billing land in later phases —
+// see docs/schema/schema-design.md for the full target design.
+//
+// Conventions:
+//   - uuid PKs, snake_case columns via @map, plural table names
+//   - organizationId on every tenant table (RLS predicate + composite FK target)
+//   - deletedAt for soft delete, never an is_deleted boolean
+//   - tenant tables carry @@unique([organizationId, id]) so children can
+//     reference (organization_id, id) and make cross-tenant rows unrepresentable
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+// Prisma 7 no longer accepts `url` here.
+//   - Migrations / seeds  -> DIRECT_DATABASE_URL (owner role), set in prisma.config.ts
+//   - Running application -> DATABASE_URL (app role, RLS enforced), passed to
+//     PrismaClient via the pg adapter in src/client.ts
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum OrganizationStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum OrganizationType {
+  CLINIC
+  HOSPITAL
+  CHAIN
+  LAB
+}
+
+enum BranchType {
+  CLINIC
+  HOSPITAL
+  LAB
+  PHARMACY
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum FeatureValueType {
+  INT
+  BOOL
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum SubscriptionInvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  LOCKED
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum RoleScopeLevel {
+  PLATFORM
+  ORGANIZATION
+  BRANCH
+}
+
+enum OverrideEffect {
+  GRANT
+  DENY
+}
+
+enum AuthTokenPurpose {
+  LOGIN_OTP
+  PASSWORD_RESET
+  VERIFY_EMAIL
+  VERIFY_PHONE
+  INVITE_ACCEPT
+}
+
+enum SettingScopeType {
+  PLATFORM
+  ORGANIZATION
+  BRANCH
+  USER
+  PATIENT
+  DOCTOR
+}
+
+enum SettingDataType {
+  STRING
+  INT
+  BOOL
+  DECIMAL
+  JSON
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  SWITCH_BRANCH
+  IMPERSONATE
+  PERMISSION_CHANGE
+}
+
+// =============================================================================
+// TENANCY
+// =============================================================================
+
+/// The tenant. A single-location clinic and a 3-branch hospital are the same
+/// shape: one organization, one or three branches.
+model Organization {
+  id          String             @id @default(uuid()) @db.Uuid
+  /// Subdomain label. `alpha` -> alpha.xyz.com
+  slug        String             @unique @db.VarChar(63)
+  legalName   String             @map("legal_name") @db.VarChar(255)
+  displayName String             @map("display_name") @db.VarChar(255)
+  orgType     OrganizationType   @default(CLINIC) @map("org_type")
+  status      OrganizationStatus @default(PENDING)
+  currency    String             @default("INR") @db.Char(3)
+  timezone    String             @default("Asia/Kolkata") @db.VarChar(64)
+  countryCode String             @default("IN") @map("country_code") @db.Char(2)
+  gstNumber   String?            @map("gst_number") @db.VarChar(20)
+  ownerUserId String?            @map("owner_user_id") @db.Uuid
+  onboardedAt DateTime?          @map("onboarded_at") @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(6)
+
+  owner                User?                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  domains              OrganizationDomain[]
+  branches             Branch[]
+  memberships          Membership[]
+  roles                Role[]
+  invitations          Invitation[]
+  subscriptions        Subscription[]
+  subscriptionInvoices SubscriptionInvoice[]
+  usageCounters        UsageCounter[]
+  files                StoredFile[]
+  auditLogs            AuditLog[]
+
+  @@unique([id, slug])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("organizations")
+}
+
+/// Every host the tenant is reachable on. The platform subdomain is created at
+/// registration; custom domains (portal.pmcs.com) are verified later.
+model OrganizationDomain {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  domain         String    @unique @db.VarChar(255)
+  isPrimary      Boolean   @default(false) @map("is_primary")
+  isPlatformSub  Boolean   @default(true) @map("is_platform_subdomain")
+  verifiedAt     DateTime? @map("verified_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("organization_domains")
+}
+
+/// A physical location. PMCS branch A / B / C are three rows here.
+model Branch {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  code           String       @db.VarChar(32)
+  name           String       @db.VarChar(255)
+  branchType     BranchType   @default(CLINIC) @map("branch_type")
+  timezone       String       @default("Asia/Kolkata") @db.VarChar(64)
+  phone          String?      @db.VarChar(20)
+  email          String?      @db.VarChar(255)
+  addressLine1   String?      @map("address_line1") @db.VarChar(255)
+  addressLine2   String?      @map("address_line2") @db.VarChar(255)
+  city           String?      @db.VarChar(100)
+  state          String?      @db.VarChar(100)
+  pincode        String?      @db.VarChar(10)
+  gstNumber      String?      @map("gst_number") @db.VarChar(20)
+  isPrimary      Boolean      @default(false) @map("is_primary")
+  status         BranchStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  organization        Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  operatingHours      BranchOperatingHour[]
+  closures            BranchClosure[]
+  membershipRoles     MembershipRole[]
+  membershipOverrides MembershipPermissionOverride[]
+  invitationBranches  InvitationBranch[]
+  sessions            Session[]
+
+  @@unique([organizationId, code])
+  /// Composite-FK target: children reference (organization_id, id) so a row can
+  /// never point at a branch belonging to a different tenant.
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+  @@map("branches")
+}
+
+model BranchOperatingHour {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  dayOfWeek   Int      @map("day_of_week") @db.SmallInt
+  opensAt     DateTime @map("opens_at") @db.Time(0)
+  closesAt    DateTime @map("closes_at") @db.Time(0)
+  isClosed    Boolean  @default(false) @map("is_closed")
+  slotMinutes Int      @default(15) @map("slot_minutes") @db.SmallInt
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, dayOfWeek])
+  @@map("branch_operating_hours")
+}
+
+model BranchClosure {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  closureDate DateTime @map("closure_date") @db.Date
+  reason      String?  @db.VarChar(255)
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, closureDate])
+  @@map("branch_closures")
+}
+
+// =============================================================================
+// SUBSCRIPTIONS (the platform bills the clinic)
+// =============================================================================
+
+model Plan {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(64)
+  name      String   @db.VarChar(255)
+  tagline   String?  @db.VarChar(255)
+  trialDays Int      @default(14) @map("trial_days") @db.SmallInt
+  isPublic  Boolean  @default(true) @map("is_public")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  prices        PlanPrice[]
+  features      PlanFeature[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model PlanPrice {
+  id              String          @id @default(uuid()) @db.Uuid
+  planId          String          @map("plan_id") @db.Uuid
+  currency        String          @default("INR") @db.Char(3)
+  billingInterval BillingInterval @map("billing_interval")
+  amount          Decimal         @db.Decimal(14, 2)
+  isActive        Boolean         @default(true) @map("is_active")
+
+  plan          Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@unique([planId, currency, billingInterval])
+  @@map("plan_prices")
+}
+
+/// Entitlements. Runtime resolution order:
+/// subscription_feature_overrides -> plan_features -> hard default in code.
+model PlanFeature {
+  id         String           @id @default(uuid()) @db.Uuid
+  planId     String           @map("plan_id") @db.Uuid
+  featureKey String           @map("feature_key") @db.VarChar(64)
+  valueType  FeatureValueType @map("value_type")
+  intValue   Int?             @map("int_value")
+  boolValue  Boolean?         @map("bool_value")
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureKey])
+  @@map("plan_features")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @map("organization_id") @db.Uuid
+  planId             String             @map("plan_id") @db.Uuid
+  planPriceId        String             @map("plan_price_id") @db.Uuid
+  status             SubscriptionStatus @default(TRIALING)
+  trialEndsAt        DateTime?          @map("trial_ends_at") @db.Timestamptz(6)
+  currentPeriodStart DateTime           @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd   DateTime           @map("current_period_end") @db.Timestamptz(6)
+  cancelAt           DateTime?          @map("cancel_at") @db.Timestamptz(6)
+  canceledAt         DateTime?          @map("canceled_at") @db.Timestamptz(6)
+  seatQuantity       Int                @default(1) @map("seat_quantity")
+  gatewayRef         String?            @map("gateway_ref") @db.VarChar(128)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization     Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan             Plan                          @relation(fields: [planId], references: [id])
+  planPrice        PlanPrice                     @relation(fields: [planPriceId], references: [id])
+  featureOverrides SubscriptionFeatureOverride[]
+  invoices         SubscriptionInvoice[]
+
+  @@index([organizationId, status])
+  @@index([currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+model SubscriptionFeatureOverride {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  featureKey     String   @map("feature_key") @db.VarChar(64)
+  intValue       Int?     @map("int_value")
+  boolValue      Boolean? @map("bool_value")
+  reason         String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, featureKey])
+  @@map("subscription_feature_overrides")
+}
+
+model SubscriptionInvoice {
+  id             String                    @id @default(uuid()) @db.Uuid
+  organizationId String                    @map("organization_id") @db.Uuid
+  subscriptionId String                    @map("subscription_id") @db.Uuid
+  invoiceNumber  String                    @unique @map("invoice_number") @db.VarChar(64)
+  periodStart    DateTime                  @map("period_start") @db.Date
+  periodEnd      DateTime                  @map("period_end") @db.Date
+  currency       String                    @default("INR") @db.Char(3)
+  subtotal       Decimal                   @db.Decimal(14, 2)
+  taxAmount      Decimal                   @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  total          Decimal                   @db.Decimal(14, 2)
+  status         SubscriptionInvoiceStatus @default(DRAFT)
+  dueDate        DateTime?                 @map("due_date") @db.Date
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription              @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  lines        SubscriptionInvoiceLine[]
+  payments     SubscriptionPayment[]
+
+  @@index([organizationId, status])
+  @@map("subscription_invoices")
+}
+
+model SubscriptionInvoiceLine {
+  id                    String  @id @default(uuid()) @db.Uuid
+  subscriptionInvoiceId String  @map("subscription_invoice_id") @db.Uuid
+  description           String  @db.VarChar(255)
+  quantity              Decimal @default(1) @db.Decimal(14, 3)
+  unitAmount            Decimal @map("unit_amount") @db.Decimal(14, 2)
+  lineTotal             Decimal @map("line_total") @db.Decimal(14, 2)
+
+  invoice SubscriptionInvoice @relation(fields: [subscriptionInvoiceId], references: [id], onDelete: Cascade)
+
+  @@map("subscription_invoice_lines")
+}
+
+model SubscriptionPayment {
+  id                    String        @id @default(uuid()) @db.Uuid
+  subscriptionInvoiceId String        @map("subscription_invoice_id") @db.Uuid
+  amount                Decimal       @db.Decimal(14, 2)
+  method                String?       @db.VarChar(32)
+  gateway               String?       @db.VarChar(32)
+  gatewayPaymentId      String?       @map("gateway_payment_id") @db.VarChar(128)
+  status                PaymentStatus @default(PENDING)
+  paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  invoice SubscriptionInvoice @relation(fields: [subscriptionInvoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([gateway, gatewayPaymentId])
+  @@map("subscription_payments")
+}
+
+/// Enforces plan limits (max_branches, max_users) at write time.
+model UsageCounter {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  featureKey     String   @map("feature_key") @db.VarChar(64)
+  periodStart    DateTime @map("period_start") @db.Date
+  usedValue      Decimal  @default(0) @map("used_value") @db.Decimal(14, 2)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, featureKey, periodStart])
+  @@map("usage_counters")
+}
+
+// =============================================================================
+// IDENTITY
+// =============================================================================
+
+/// ONE table for every human: super admin, doctor, receptionist, patient.
+/// Deliberately global (not org-scoped) so one person can hold memberships in
+/// several organizations with a single login. There is NO role column here —
+/// roles live on membership_roles, scoped per branch.
+model User {
+  id              String     @id @default(uuid()) @db.Uuid
+  email           String?    @unique @db.VarChar(255)
+  phone           String?    @unique @db.VarChar(20)
+  passwordHash    String?    @map("password_hash") @db.VarChar(255)
+  fullName        String     @map("full_name") @db.VarChar(255)
+  avatarFileId    String?    @map("avatar_file_id") @db.Uuid
+  status          UserStatus @default(INVITED)
+  /// The seeded platform operator. Bypasses membership checks entirely and can
+  /// enter any tenant — every such action is written to audit_logs.
+  isPlatformAdmin Boolean    @default(false) @map("is_platform_admin")
+  mfaEnabled      Boolean    @default(false) @map("mfa_enabled")
+  mfaSecret       String?    @map("mfa_secret") @db.VarChar(255)
+  locale          String     @default("en") @db.VarChar(10)
+  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz(6)
+  phoneVerifiedAt DateTime?  @map("phone_verified_at") @db.Timestamptz(6)
+  lastLoginAt     DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  failedAttempts  Int        @default(0) @map("failed_login_attempts") @db.SmallInt
+  lockedUntil     DateTime?  @map("locked_until") @db.Timestamptz(6)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  identities         UserIdentity[]
+  sessions           Session[]
+  authTokens         AuthToken[]
+  memberships        Membership[]
+  ownedOrganizations Organization[] @relation("OrganizationOwner")
+  invitationsSent    Invitation[]   @relation("InvitedBy")
+  auditLogs          AuditLog[]
+  uploadedFiles      StoredFile[]
+
+  @@index([status])
+  @@index([isPlatformAdmin])
+  @@map("users")
+}
+
+model UserIdentity {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  provider    String   @db.VarChar(32)
+  providerUid String   @map("provider_uid") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUid])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+/// Where branch switching physically lives. Changing the active branch is an
+/// UPDATE here plus a re-issued access token — never a re-login.
+model Session {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @map("user_id") @db.Uuid
+  activeOrganizationId String?   @map("active_organization_id") @db.Uuid
+  activeBranchId       String?   @map("active_branch_id") @db.Uuid
+  impersonatedByUserId String?   @map("impersonated_by_user_id") @db.Uuid
+  /// Opaque 256-bit token, hashed. Rotated on every refresh; presenting an
+  /// already-rotated token revokes the whole family (theft signal).
+  refreshTokenHash     String    @unique @map("refresh_token_hash") @db.VarChar(255)
+  previousTokenHash    String?   @map("previous_token_hash") @db.VarChar(255)
+  ipAddress            String?   @map("ip_address") @db.Inet
+  userAgent            String?   @map("user_agent") @db.VarChar(512)
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt            DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt           DateTime? @map("last_used_at") @db.Timestamptz(6)
+
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeBranch Branch? @relation(fields: [activeBranchId], references: [id], onDelete: SetNull)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// OTP and one-shot links. Phone-first login is non-negotiable in Indian
+/// healthcare, so this carries attempt counting and hard expiry.
+model AuthToken {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String?          @map("user_id") @db.Uuid
+  purpose    AuthTokenPurpose
+  identifier String           @db.VarChar(255)
+  codeHash   String           @map("code_hash") @db.VarChar(255)
+  attempts   Int              @default(0) @db.SmallInt
+  expiresAt  DateTime         @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?        @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([identifier, purpose])
+  @@index([expiresAt])
+  @@map("auth_tokens")
+}
+
+// =============================================================================
+// ACCESS CONTROL
+// =============================================================================
+
+/// user × organization. The join that makes one login work across tenants.
+model Membership {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  status         MembershipStatus @default(INVITED)
+  invitedBy      String?          @map("invited_by") @db.Uuid
+  joinedAt       DateTime?        @map("joined_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz(6)
+
+  user         User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roles        MembershipRole[]
+  overrides    MembershipPermissionOverride[]
+  staffProfile StaffProfile?
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, status])
+  @@map("memberships")
+}
+
+/// System roles have organizationId = null and are never edited by a tenant.
+/// A tenant clones one into an org-scoped custom role instead.
+model Role {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String?        @map("organization_id") @db.Uuid
+  code           String         @db.VarChar(64)
+  name           String         @db.VarChar(128)
+  description    String?        @db.VarChar(512)
+  scopeLevel     RoleScopeLevel @map("scope_level")
+  isSystem       Boolean        @default(false) @map("is_system")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions  RolePermission[]
+  assignments  MembershipRole[]
+  invitations  Invitation[]
+
+  @@unique([organizationId, code])
+  @@index([isSystem])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(128)
+  module      String   @db.VarChar(64)
+  action      String   @db.VarChar(64)
+  description String?  @db.VarChar(512)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  roles     RolePermission[]
+  overrides MembershipPermissionOverride[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// The heart of the access model.
+///
+///   branchId NULL  -> the role applies to EVERY branch in the organization
+///   branchId set   -> the role applies to that branch only
+///
+/// One admin over all three branches  = 1 row, branchId null
+/// A separate admin per branch        = 1 row each, branchId set
+/// Admin over A and B, another over A = 2 rows + 1 row
+model MembershipRole {
+  id           String    @id @default(uuid()) @db.Uuid
+  membershipId String    @map("membership_id") @db.Uuid
+  /// Denormalised from membership so RLS can filter without a join, and so the
+  /// composite FK to branches can be enforced.
+  organizationId String  @map("organization_id") @db.Uuid
+  roleId       String    @map("role_id") @db.Uuid
+  branchId     String?   @map("branch_id") @db.Uuid
+  validFrom    DateTime? @map("valid_from") @db.Timestamptz(6)
+  validTo      DateTime? @map("valid_to") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  branch     Branch?    @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([membershipId, roleId, branchId])
+  @@index([organizationId, branchId])
+  @@index([membershipId])
+  @@map("membership_roles")
+}
+
+/// Per-person exceptions. DENY always beats GRANT, and both beat role grants.
+model MembershipPermissionOverride {
+  id             String         @id @default(uuid()) @db.Uuid
+  membershipId   String         @map("membership_id") @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  permissionId   String         @map("permission_id") @db.Uuid
+  branchId       String?        @map("branch_id") @db.Uuid
+  effect         OverrideEffect
+  reason         String?        @db.VarChar(512)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  branch     Branch?    @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([membershipId, permissionId, branchId])
+  @@index([organizationId])
+  @@map("membership_permission_overrides")
+}
+
+model Invitation {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  email          String    @db.VarChar(255)
+  phone          String?   @db.VarChar(20)
+  roleId         String    @map("role_id") @db.Uuid
+  token          String    @unique @db.VarChar(255)
+  invitedBy      String    @map("invited_by") @db.Uuid
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz(6)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role               @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  inviter      User               @relation("InvitedBy", fields: [invitedBy], references: [id])
+  branches     InvitationBranch[]
+
+  @@index([organizationId, email])
+  @@map("invitations")
+}
+
+model InvitationBranch {
+  id           String @id @default(uuid()) @db.Uuid
+  invitationId String @map("invitation_id") @db.Uuid
+  branchId     String @map("branch_id") @db.Uuid
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([invitationId, branchId])
+  @@map("invitation_branches")
+}
+
+/// Employment facts are per-organization, so this keys on membership, not user.
+model StaffProfile {
+  id           String    @id @default(uuid()) @db.Uuid
+  membershipId String    @unique @map("membership_id") @db.Uuid
+  employeeCode String?   @map("employee_code") @db.VarChar(64)
+  department   String?   @db.VarChar(128)
+  designation  String?   @db.VarChar(128)
+  joinedOn     DateTime? @map("joined_on") @db.Date
+  relievedOn   DateTime? @map("relieved_on") @db.Date
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@map("staff_profiles")
+}
+
+// =============================================================================
+// SETTINGS / FILES / AUDIT
+// =============================================================================
+
+/// Adding a new setting is an INSERT here — no migration, no new column.
+model SettingDefinition {
+  key              String          @id @db.VarChar(128)
+  module           String          @db.VarChar(64)
+  dataType         SettingDataType @map("data_type")
+  defaultValue     Json            @map("default_value")
+  allowedScopes    Json            @map("allowed_scopes")
+  isTenantEditable Boolean         @default(true) @map("is_tenant_editable")
+  description      String?         @db.VarChar(512)
+
+  values SettingValue[]
+
+  @@index([module])
+  @@map("setting_definitions")
+}
+
+/// Resolution, most specific wins:
+/// USER/PATIENT -> BRANCH -> ORGANIZATION -> PLATFORM -> definition default.
+model SettingValue {
+  id         String           @id @default(uuid()) @db.Uuid
+  settingKey String           @map("setting_key") @db.VarChar(128)
+  scopeType  SettingScopeType @map("scope_type")
+  /// null only when scopeType = PLATFORM
+  scopeId    String?          @map("scope_id") @db.Uuid
+  value      Json
+  updatedBy  String?          @map("updated_by") @db.Uuid
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  definition SettingDefinition @relation(fields: [settingKey], references: [key], onDelete: Cascade)
+
+  @@unique([settingKey, scopeType, scopeId])
+  @@index([scopeType, scopeId])
+  @@map("setting_values")
+}
+
+/// Metadata only. Bytes live in S3; downloads go out as short-lived signed URLs.
+model StoredFile {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  branchId       String?   @map("branch_id") @db.Uuid
+  storageKey     String    @unique @map("storage_key") @db.VarChar(512)
+  originalName   String    @map("original_name") @db.VarChar(255)
+  mimeType       String    @map("mime_type") @db.VarChar(128)
+  sizeBytes      BigInt    @map("size_bytes")
+  checksum       String?   @db.VarChar(128)
+  uploadedBy     String?   @map("uploaded_by") @db.Uuid
+  uploadedAt     DateTime  @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader     User?         @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, branchId])
+  @@map("files")
+}
+
+/// Written on every mutation by Prisma middleware. Partition by month once this
+/// grows — retrofitting partitioning onto a large table is painful.
+model AuditLog {
+  id                   String      @id @default(uuid()) @db.Uuid
+  organizationId       String?     @map("organization_id") @db.Uuid
+  branchId             String?     @map("branch_id") @db.Uuid
+  actorUserId          String?     @map("actor_user_id") @db.Uuid
+  impersonatedByUserId String?     @map("impersonated_by_user_id") @db.Uuid
+  action               AuditAction
+  entityType           String      @map("entity_type") @db.VarChar(64)
+  entityId             String?     @map("entity_id") @db.Uuid
+  beforeData           Json?       @map("before_data")
+  afterData            Json?       @map("after_data")
+  ipAddress            String?     @map("ip_address") @db.Inet
+  userAgent            String?     @map("user_agent") @db.VarChar(512)
+  occurredAt           DateTime    @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?         @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@map("audit_logs")
+}
