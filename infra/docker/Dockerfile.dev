@@ -1,0 +1,48 @@
+# =============================================================================
+# Development image — shared by api, web and worker.
+#
+# ONE image for all three because in dev they need the identical workspace:
+# the same node_modules tree, the same generated Prisma client, the same
+# packages/*. Only the CMD differs, which compose supplies per service.
+#
+# Source is NOT copied in. compose bind-mounts the repo at /app so edits on the
+# host are visible instantly, and node_modules is masked by a named volume so
+# the container's linux binaries are never shadowed by the host's.
+#
+# Build from the repo root:
+#   docker build -f infra/docker/Dockerfile.dev .
+# =============================================================================
+
+FROM node:22-alpine
+
+# libc6-compat: Prisma's engine and @node-rs/argon2 are glibc-linked prebuilds;
+# alpine ships musl. Without this they fail to load at runtime.
+# curl is used by the compose healthchecks.
+RUN apk add --no-cache libc6-compat curl \
+  && corepack enable pnpm
+
+WORKDIR /app
+
+# The husky prepare script runs on install and needs git, which this image
+# deliberately does not carry. Hooks belong on the host, not in the container.
+ENV HUSKY=0
+
+# Manifests only. This layer is cached until a package.json or the lockfile
+# changes, so editing source never triggers a reinstall.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/api/package.json             apps/api/
+COPY apps/web/package.json             apps/web/
+COPY apps/worker/package.json          apps/worker/
+COPY packages/db/package.json          packages/db/
+COPY packages/contracts/package.json   packages/contracts/
+COPY packages/permissions/package.json packages/permissions/
+COPY packages/config/package.json      packages/config/
+
+# Full install (dev dependencies included — tsx, prisma CLI, next all live there).
+RUN pnpm install --frozen-lockfile
+
+# The entrypoint reconciles dependencies on boot and waits for the database.
+COPY infra/docker/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
+RUN chmod +x /usr/local/bin/dev-entrypoint.sh
+
+ENTRYPOINT ["dev-entrypoint.sh"]

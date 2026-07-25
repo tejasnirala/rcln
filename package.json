@@ -31,13 +31,21 @@
     "db:studio": "pnpm --filter @rcln/db run studio",
     "db:reset": "pnpm --filter @rcln/db run reset",
     "db:rls:check": "pnpm --filter @rcln/db run rls:check",
-    "infra:up": "docker compose up -d",
-    "infra:down": "docker compose down",
-    "infra:logs": "docker compose logs -f",
-    "infra:nuke": "docker compose down -v",
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky",
-    "commit": "cz"
+    "commit": "cz",
+    "up": "docker compose up",
+    "up:d": "docker compose up -d",
+    "down": "docker compose down",
+    "nuke": "docker compose down -v",
+    "logs": "docker compose logs -f",
+    "rebuild": "docker compose build --no-cache",
+    "sh": "docker compose exec api sh",
+    "docker:build:api": "docker build -f apps/api/Dockerfile -t rcln-api .",
+    "docker:build:web": "docker build -f apps/web/Dockerfile -t rcln-web .",
+    "docker:build:worker": "docker build -f apps/worker/Dockerfile -t rcln-worker .",
+    "infra": "docker compose up -d postgres redis mailpit",
+    "infra:stop": "docker compose stop postgres redis mailpit"
   },
   "config": {
     "commitizen": {
