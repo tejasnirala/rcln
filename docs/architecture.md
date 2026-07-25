@@ -15,7 +15,7 @@ Companion to `docs/schema/schema-design.md`. Assumes India-first (GST, HSN, ABHA
 | Pooling                    | **PgBouncer** (transaction mode)                     | Node + Prisma opens connections greedily; RDS Postgres tops out ~500                                                                                   |
 | Cache / locks / rate limit | **Redis 7 (Valkey)**                                 | See §7 — five distinct jobs, not just caching                                                                                                          |
 | Queue                      | **BullMQ** (on the same Redis)                       | See §8                                                                                                                                                 |
-| Frontend                   | **Next.js 15 (App Router) + React 19 + TypeScript**  | Middleware-based subdomain routing is the single feature that makes tenant resolution trivial. See §3.                                                 |
+| Frontend                   | **Next.js 16 (App Router) + React 19 + TypeScript**  | Proxy-based subdomain routing is the single feature that makes tenant resolution trivial. See §3.                                                      |
 | UI                         | **Tailwind + shadcn/ui + TanStack Table + Recharts** | Copy-in components, no runtime dependency you can't patch                                                                                              |
 | Client data                | **TanStack Query**                                   | Cache invalidation on branch switch is one `queryClient.clear()`                                                                                       |
 | Object storage             | **S3 (ap-south-1)** + CloudFront signed URLs         | Lab reports and scans never touch the app server                                                                                                       |
@@ -71,11 +71,11 @@ rcln/
 
 **Reserved subdomains.** Block at registration: `www admin api app static cdn mail smtp ftp blog docs status help support dev staging test demo`. A tenant claiming `api` breaks your platform.
 
-**Next.js middleware** resolves the tenant before any page renders:
+**The Next.js proxy** resolves the tenant before any page renders. Note that Next 16 renamed `middleware.ts` to `proxy.ts`; behaviour is unchanged:
 
 ```ts
-// apps/web/middleware.ts
-export function middleware(req: NextRequest) {
+// apps/web/src/proxy.ts   (was middleware.ts before Next 16)
+export function proxy(req: NextRequest) {
   const host = req.headers.get('host')!.split(':')[0];
   const sub = host.endsWith(ROOT_DOMAIN) ? host.slice(0, -(ROOT_DOMAIN.length + 1)) : null;
 
