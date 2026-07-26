@@ -4,14 +4,25 @@ Multi-tenant healthcare management SaaS. A clinic registers, gets its own
 subdomain (`alpha.xyz.com`), and runs appointments, prescriptions, lab, pharmacy
 and billing across one or many branches.
 
-- **How it works — the tour** — [`docs/how-it-works.md`](docs/how-it-works.md)
-- **Status — what is built, what is next** — [`docs/STATUS.md`](docs/STATUS.md)
+**All documentation lives in [`.kb/`](.kb/README.md)** — 17 numbered documents
+plus generated indexes of every symbol, endpoint, table and permission. The old
+`docs/` directory is pointer stubs.
+
+- **Start here** — [`.kb/README.md`](.kb/README.md)
+- **How it works — the tour** — [`.kb/Architecture/how-it-works.md`](.kb/Architecture/how-it-works.md)
+- **Status — what is built, what is next** — [`.kb/STATUS.md`](.kb/STATUS.md)
 - **Phase 1 completion plan (in progress)** — [`PHASE-1-PLAN.md`](PHASE-1-PLAN.md)
-- **Schema design** — [`docs/schema/schema-design.md`](docs/schema/schema-design.md)
-- **Architecture** — [`docs/architecture.md`](docs/architecture.md)
-- **Decisions (ADRs)** — [`docs/decisions/`](docs/decisions/)
-- **Conventions** — [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)
-- **Known pitfalls** — [`docs/PITFALLS.md`](docs/PITFALLS.md)
+- **Schema design** — [`.kb/Database/schema-design.md`](.kb/Database/schema-design.md)
+- **Architecture (target design)** — [`.kb/Architecture/architecture.md`](.kb/Architecture/architecture.md)
+- **Decisions (ADRs)** — [`.kb/Architecture/decisions/`](.kb/Architecture/decisions/README.md)
+- **Conventions** — [`.kb/Architecture/CONVENTIONS.md`](.kb/Architecture/CONVENTIONS.md)
+- **Known pitfalls** — [`.kb/Architecture/PITFALLS.md`](.kb/Architecture/PITFALLS.md)
+
+Looking for an existing function, component, route or column?
+
+```bash
+pnpm kb:find <name>        # search the symbol index before writing anything
+```
 
 ---
 
@@ -434,5 +445,5 @@ identity/RBAC/settings/audit, RLS with CI enforcement, tenant resolution,
 seeded system roles and super admin.
 
 Phase 1 is auth endpoints, org registration, branch CRUD and the branch
-switcher. See §17 of [`docs/architecture.md`](docs/architecture.md) for the
+switcher. See §17 of [`.kb/Architecture/architecture.md`](.kb/Architecture/architecture.md) for the
 full sequence.

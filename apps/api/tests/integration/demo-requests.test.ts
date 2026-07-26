@@ -1,7 +1,7 @@
 /**
  * The public demo form.
  *
- * Noted in docs/STATUS.md as verified by hand but untested. The behaviour worth
+ * Noted in .kb/STATUS.md as verified by hand but untested. The behaviour worth
  * pinning is the part that is deliberately counter-intuitive: spam, duplicates
  * and genuine submissions all get the SAME response, because telling them apart
  * would turn this into a way to ask whether a given clinic is talking to rcln.

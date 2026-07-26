@@ -42,3 +42,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Knowledge base: the index is committed, the dirty marker is not.
+.kb/.dirty

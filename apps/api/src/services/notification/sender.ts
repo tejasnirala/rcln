@@ -6,7 +6,7 @@ import { logger } from '../../utils/logger.js';
  *
  * There is no SMS provider wired yet, and that is not an oversight: TRAI DLT
  * registration (entity, header, and one approval per template) is a 1–2 week
- * external process listed under "Blocked / needs a human" in docs/STATUS.md.
+ * external process listed under "Blocked / needs a human" in .kb/STATUS.md.
  * Sending an unregistered SMS in India does not fail softly — it is dropped by
  * the carrier.
  *
@@ -16,7 +16,7 @@ import { logger } from '../../utils/logger.js';
  * the one line in `sender` below. No call site changes.
  *
  * Email is in the same position for a different reason: SES is still in the
- * sandbox until the sending domain is verified (docs/STATUS.md), so a real send
+ * sandbox until the sending domain is verified (.kb/STATUS.md), so a real send
  * would be accepted and then silently dropped for any address we have not
  * pre-verified. Same treatment — the invitation row, the hashed token and the
  * expiry are real; the message is logged.

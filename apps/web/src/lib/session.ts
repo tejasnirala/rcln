@@ -17,7 +17,7 @@ import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_MAX_AGE, baseCookie } from './se
  *   A cookie with `domain=.rcln.com` is sent to EVERY subdomain, so a session
  *   minted at alpha.rcln.com would be handed to beta.rcln.com — one clinic's
  *   credentials delivered to another clinic's host. Omitting `domain` entirely
- *   makes the cookie host-only, which is the isolation docs/architecture.md §3
+ *   makes the cookie host-only, which is the isolation .kb/Architecture/architecture.md §3
  *   asks for: "a session at alpha.xyz.com is useless at beta.xyz.com".
  *
  *   This is also why the apex cannot sign anyone in, and why registration ends
@@ -35,7 +35,7 @@ import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_MAX_AGE, baseCookie } from './se
  *   outright. `getSession` used to renew an expired token and write the result,
  *   which meant every clinic page 500'd fifteen minutes after sign-in, and the
  *   spent refresh token stayed in the browser to be replayed into the API's
- *   reuse detection — revoking the whole session family. See docs/PITFALLS.md.
+ *   reuse detection — revoking the whole session family. See .kb/Architecture/PITFALLS.md.
  *
  *   Renewal therefore happens in `proxy.ts`, which runs before the render and
  *   CAN set cookies. The readers below never write: they either find a usable

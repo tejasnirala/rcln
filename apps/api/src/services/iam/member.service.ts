@@ -482,7 +482,7 @@ export async function revokeRole(
  *
  * Idempotent on (membership, permission, branch): setting an existing override
  * to the other effect flips it rather than failing. The unique index there is
- * `NULLS NOT DISTINCT`, and per docs/PITFALLS.md Prisma cannot `upsert` against
+ * `NULLS NOT DISTINCT`, and per .kb/Architecture/PITFALLS.md Prisma cannot `upsert` against
  * a compound unique containing a NULL — so this is findFirst then create or
  * update, the same shape `prisma/seed.ts` uses.
  */

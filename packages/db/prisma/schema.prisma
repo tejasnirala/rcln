@@ -3,7 +3,7 @@
 //
 // PHASE 0 SCOPE: tenancy, subscriptions, identity, RBAC, settings, audit.
 // Clinical / lab / pharmacy / inventory / billing land in later phases —
-// see docs/schema/schema-design.md for the full target design.
+// see .kb/Database/schema-design.md for the full target design.
 //
 // Conventions:
 //   - uuid PKs, snake_case columns via @map, plural table names

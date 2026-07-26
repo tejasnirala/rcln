@@ -35,7 +35,7 @@ The whole security model. Three independent layers, and a finding in any one is 
 - **Audit every PHI read**, not just mutations. "Who looked at this patient's file" is the post-incident question; a read path with no `data_access_logs` entry is a finding.
 - ABHA/ABDM identifiers are regulated PHI. Session state belongs in Redis, not Postgres.
 - Soft delete (`deletedAt`) means deleted rows still exist — verify every read filters them and that a "deleted" patient is not returned by search.
-- DPDP erasure vs medical retention is unresolved (see `docs/STATUS.md`). Flag, do not silently implement a hard delete.
+- DPDP erasure vs medical retention is unresolved (see `.kb/STATUS.md`). Flag, do not silently implement a hard delete.
 
 ## 4. Injection & input handling
 

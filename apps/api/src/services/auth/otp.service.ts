@@ -18,7 +18,7 @@ import { sender } from '../notification/sender.js';
  * DELIVERY IS STUBBED, THE LOGIC IS NOT. Every control that makes an OTP safe —
  * hashing, single use, hard expiry, attempt counting, per-phone rate limiting —
  * is real here. Only the send goes through the logging stub, because TRAI DLT
- * registration is an external blocker (docs/STATUS.md).
+ * registration is an external blocker (.kb/STATUS.md).
  */
 
 /** Requesting a code must never reveal whether the number has an account. */

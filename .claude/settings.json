@@ -79,7 +79,26 @@
         "hooks": [
           {
             "type": "command",
-            "command": "file=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$file\" == *\"packages/db/prisma/schema.prisma\" ]]; then echo 'REMINDER: schema.prisma changed. A new tenant table needs (1) organizationId + @@unique([organizationId, id]), (2) an entry in prisma/rls/enable-rls.sql, (3) that SQL appended to the generated migration, (4) pnpm db:rls:check, (5) a case in apps/api/tests/integration/tenant-isolation.test.ts. See docs/CONVENTIONS.md.'; fi"
+            "command": "file=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$file\" == *\"packages/db/prisma/schema.prisma\" ]]; then echo 'REMINDER: schema.prisma changed. A new tenant table needs (1) organizationId + @@unique([organizationId, id]), (2) an entry in prisma/rls/enable-rls.sql, (3) that SQL appended to the generated migration, (4) pnpm db:rls:check, (5) a case in apps/api/tests/integration/tenant-isolation.test.ts. See .kb/Architecture/CONVENTIONS.md.'; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CLAUDE_PROJECT_DIR:-/Users/tejasnirala/learning/rcln}\"; file=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; case \"$file\" in *.ts|*.tsx|*.mts|*.cts|*.prisma) ;; *) exit 0 ;; esac; rel=\"${file#\"$root\"/}\"; case \"$rel\" in apps/*|packages/*) touch \"$root/.kb/.dirty\" ;; esac; exit 0"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"${CLAUDE_PROJECT_DIR:-/Users/tejasnirala/learning/rcln}\"; [ -f \"$root/.kb/.dirty\" ] || exit 0; rm -f \"$root/.kb/.dirty\"; node \"$root/.kb/generate.mjs\" --quiet 2>&1 || echo 'WARNING: .kb regeneration failed — run pnpm kb'; exit 0"
           }
         ]
       }

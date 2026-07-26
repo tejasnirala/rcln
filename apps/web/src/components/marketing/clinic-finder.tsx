@@ -10,7 +10,7 @@ import { describedBy, Field } from '@/components/ui/field';
  * The apex domain cannot sign anybody in.
  *
  * A session cookie is scoped to the exact subdomain so that a session at
- * alpha.rcln.com is useless at beta.rcln.com (docs/architecture.md §3). There is
+ * alpha.rcln.com is useless at beta.rcln.com (.kb/Architecture/architecture.md §3). There is
  * therefore no such thing as "logged in at rcln.com" — this screen's only job is
  * to work out which clinic you mean and hand you to its own address.
  *

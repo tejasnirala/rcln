@@ -34,16 +34,47 @@ healthcare platform. Concretely:
 
 ## Where things are
 
-| Doc                                                            | Read it when                                                                                                |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| [`docs/STATUS.md`](docs/STATUS.md)                             | **Start here.** What is built, what is next                                                                 |
-| [`docs/how-it-works.md`](docs/how-it-works.md)                 | New to the system — the running tour: who signs in where, what happens to a request, how tenants stay apart |
-| [`docs/decisions/`](docs/decisions/)                           | Before changing anything structural — these are the load-bearing choices                                    |
-| [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)                   | Writing any code                                                                                            |
-| [`docs/PITFALLS.md`](docs/PITFALLS.md)                         | Something behaves strangely — it may already be documented                                                  |
-| [`docs/schema/schema-design.md`](docs/schema/schema-design.md) | Touching the database. Full ERD for all domains                                                             |
-| [`docs/architecture.md`](docs/architecture.md)                 | Infrastructure, deployment, third-party choices                                                             |
-| [`README.md`](README.md)                                       | Setup and day-to-day commands                                                                               |
+**All project documentation lives in [`.kb/`](.kb/README.md).** The old `docs/`
+directory is pointer stubs.
+
+| Doc                                                                    | Read it when                                                                              |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [`.kb/AI/Agent_Instructions.md`](.kb/AI/Agent_Instructions.md)         | **Start here.** How to think, build, verify and what you may not change                   |
+| [`.kb/AI/Project_Context.md`](.kb/AI/Project_Context.md)               | The minimum context: what exists, what does not, the request path                         |
+| [`.kb/STATUS.md`](.kb/STATUS.md)                                       | What is built, what is next — the honest ledger                                           |
+| [`.kb/Architecture/how-it-works.md`](.kb/Architecture/how-it-works.md) | New to the system — the running tour                                                      |
+| [`.kb/Architecture/decisions/`](.kb/Architecture/decisions/README.md)  | Before changing anything structural                                                       |
+| [`.kb/Architecture/CONVENTIONS.md`](.kb/Architecture/CONVENTIONS.md)   | Writing any code                                                                          |
+| [`.kb/Architecture/PITFALLS.md`](.kb/Architecture/PITFALLS.md)         | Something behaves strangely — it may already be documented                                |
+| [`.kb/Database/schema-design.md`](.kb/Database/schema-design.md)       | Touching the database. Full ERD for all domains                                           |
+| [`.kb/Architecture/architecture.md`](.kb/Architecture/architecture.md) | The **target** infrastructure design — mostly not built. Cite it as intent, never as fact |
+| [`.kb/README.md`](.kb/README.md)                                       | The KnowledgeBase index — 17 numbered documents plus the generated indexes                |
+| [`README.md`](README.md)                                               | Setup and day-to-day commands                                                             |
+
+## Before you write a function, look for it
+
+`.kb/` indexes every symbol in `apps/` and `packages/`. Before adding **any**
+function, constant, component, hook, Zod schema or type:
+
+```bash
+pnpm kb:find <what-you-would-call-it>    # add --export, --kind fn to narrow
+```
+
+If something already does the job, use it or extend it. A second
+`hashInviteToken` is the exact failure this index exists to prevent — and the
+one a grep of the diff will never catch.
+
+`.kb/INDEX.md` maps every module to its symbol table;
+`.kb/APIs/_index.md` is the HTTP surface with middleware chains and permission
+gates; `.kb/Database/_index.md` is every model, column and RLS status;
+`.kb/09_Roles_and_Permissions.md` is the 12 × 83 access matrix. Read those
+instead of crawling directories.
+
+**Keeping it current is not optional.** `pnpm kb` regenerates in under a second
+and runs automatically — a `Stop` hook after any session that touched
+`.ts`/`.tsx`/`.prisma`, and the pre-push hook, which rejects a push whose `.kb`
+was stale. Never hand-edit a file carrying the generated banner; edit the
+source, `.kb/modules.json`, or `.kb/generate.mjs`.
 
 ## The five invariants
 
@@ -52,32 +83,32 @@ choice. Each has an ADR explaining why; read it before arguing with it.
 
 1. **Organization is the tenant, branch is the place.** A solo clinic and a
    three-branch hospital are the same shape. There is no "clinic" entity.
-   → [ADR-0001](docs/decisions/0001-organization-is-the-tenant.md)
+   → [ADR-0001](.kb/Architecture/decisions/0001-organization-is-the-tenant.md)
 
 2. **No role column on `users`.** Roles live on
    `membership_roles (membership × role × branch_id NULLABLE)`, where NULL means
-   every branch in the org. → [ADR-0002](docs/decisions/0002-roles-live-on-membership.md)
+   every branch in the org. → [ADR-0002](.kb/Architecture/decisions/0002-roles-live-on-membership.md)
 
 3. **Tenant isolation is enforced by Postgres.** RLS policies + composite FKs +
    application scoping, three independent layers. The app connects as
    `rcln_app` (RLS enforced); migrations use `rcln_owner` (RLS bypassed).
-   → [ADR-0003](docs/decisions/0003-rls-enable-not-force.md),
-   [ADR-0004](docs/decisions/0004-composite-foreign-keys.md)
+   → [ADR-0003](.kb/Architecture/decisions/0003-rls-enable-not-force.md),
+   [ADR-0004](.kb/Architecture/decisions/0004-composite-foreign-keys.md)
 
 4. **Never import the raw Prisma client.** Use `withTenant(ctx, …)` from
    `@rcln/db`. An eslint rule enforces it; `@rcln/db/unsafe` is the audited
-   escape hatch. → [ADR-0005](docs/decisions/0005-tenant-scoped-prisma-client.md)
+   escape hatch. → [ADR-0005](.kb/Architecture/decisions/0005-tenant-scoped-prisma-client.md)
 
    Two narrow exceptions exist, both for genuinely pre-tenant identity work, and
    neither is a general-purpose door: `withUserIdentity()` reads only your own
-   `memberships` rows (→ [ADR-0011](docs/decisions/0011-own-membership-identity-bootstrap.md)),
+   `memberships` rows (→ [ADR-0011](.kb/Architecture/decisions/0011-own-membership-identity-bootstrap.md)),
    and `setTenantContext()` lets registration adopt the organization it just
    created, mid-transaction. Nothing in the type system stops you misusing
    either.
 
 5. **No JSON arrays of foreign keys.** Real join tables. Per-specialty variation
    goes through versioned form templates — JSONB as a document, never as a
-   foreign key. → [ADR-0006](docs/decisions/0006-no-json-id-arrays.md)
+   foreign key. → [ADR-0006](.kb/Architecture/decisions/0006-no-json-id-arrays.md)
 
 ## Running it
 
@@ -158,14 +189,16 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
 - Never interpolate user input into `$queryRaw` — parameterize.
 - Never add a dependency without calling it out and justifying it.
 - Never claim something is verified when you only edited it.
+- Never write a helper without checking `pnpm kb:find` first, and never
+  hand-edit a generated file under `.kb/`.
 
 ## Working agreements
 
 - **Verify, do not assume.** This codebase has already produced several bugs
-  that typecheck cleanly and fail only at runtime (see `docs/PITFALLS.md`).
+  that typecheck cleanly and fail only at runtime (see `.kb/Architecture/PITFALLS.md`).
   Run the thing. Curl the endpoint. Check the container actually stayed up.
 - **`apps/web` is Next.js 16**, which renamed `middleware.ts` → `proxy.ts` and
   removed the `eslint` config key. Read `node_modules/next/dist/docs/` before
   writing Next code — `apps/web/AGENTS.md` says so for good reason.
 - **Do not commit or push** unless asked.
-- Update `docs/STATUS.md` when you finish a phase or change direction.
+- Update `.kb/STATUS.md` when you finish a phase or change direction.

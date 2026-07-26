@@ -25,7 +25,7 @@ import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_MAX_AGE, baseCookie } from '@/li
  *   `cookies().set()` throws in a Server Component. Doing it in `getSession`
  *   meant every clinic page 500'd fifteen minutes after sign-in AND left the
  *   spent refresh token in the browser to be replayed into the API's reuse
- *   detection, which revokes the whole session family. See docs/PITFALLS.md.
+ *   detection, which revokes the whole session family. See .kb/Architecture/PITFALLS.md.
  *
  *   Next 16 runs Proxy in the Node.js runtime, so the fetch below is ordinary
  *   server-to-server traffic on the internal network.

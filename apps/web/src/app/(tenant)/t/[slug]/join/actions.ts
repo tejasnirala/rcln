@@ -21,7 +21,7 @@ import { setSessionCookies } from '@/lib/session';
  *
  * A Server Action's redirect is resolved against the route tree rather than
  * through the proxy rewrite, so `/` lands on the marketing page and a refresh
- * "fixes" it — the signature of the trap in docs/PITFALLS.md. The form does a
+ * "fixes" it — the signature of the trap in .kb/Architecture/PITFALLS.md. The form does a
  * real browser navigation on this status instead. See lib/hard-navigate.ts.
  */
 export type JoinFormState = {
