@@ -1,11 +1,65 @@
 name: rcln
 
-# Local infrastructure only. The apps run on the host via `pnpm dev` so you get
-# hot reload; only the stateful services live in Docker.
+# =============================================================================
+# Full development stack. Nothing needs to be installed on the host except
+# Docker itself — no node, no pnpm, no postgres.
+#
+#   docker compose up              start everything
+#   docker compose logs -f api     follow one service
+#   docker compose exec api sh     shell inside a container
+#   docker compose down -v         wipe volumes and start clean
+#
+# Source is bind-mounted, so editing in VS Code reloads the running service.
+#
+# THE NODE_MODULES RULE
+# Every service declares named volumes over each node_modules path. Without
+# them the bind mount of the repo would shadow the container's node_modules
+# with the host's — which is either empty (nothing runs) or macOS binaries
+# (native modules segfault in a linux container). The volumes win because a
+# more specific mount path takes precedence over a less specific one.
+# =============================================================================
+
+# api, web, worker and migrate all run the SAME image — identical workspace,
+# only the command differs. Sharing one `image:` tag means compose builds it
+# once instead of producing four near-identical images, and it removes a real
+# footgun: `docker compose build api` would otherwise leave the other three
+# services running a stale image.
+x-dev-image: &dev-image rcln-dev:local
+
+x-dev-build: &dev-build
+  context: .
+  dockerfile: infra/docker/Dockerfile.dev
+
+x-dev-env: &dev-env
+  NODE_ENV: development
+  # pnpm aborts rather than touch node_modules when it cannot prompt.
+  CI: 'true'
+  # Service names, not localhost — these override whatever .env says.
+  DATABASE_URL: postgresql://rcln_app:app_password@postgres:5432/rcln?schema=public
+  DIRECT_DATABASE_URL: postgresql://rcln_owner:owner_password@postgres:5432/rcln?schema=public
+  REDIS_URL: redis://redis:6379
+  ROOT_DOMAIN: ${ROOT_DOMAIN:-lvh.me}
+  LOG_LEVEL: ${LOG_LEVEL:-debug}
+  # Confirms any email address or phone number, because neither SES nor TRAI DLT
+  # can deliver a real one yet. It lives on the DEV anchor deliberately: nothing
+  # outside this file sets it, the API refuses to boot with it in production, and
+  # it logs nobody in. The web reads it only to print the hint on /verify.
+  DEV_MASTER_VERIFICATION_CODE: ${DEV_MASTER_VERIFICATION_CODE:-123456}
+  # File watching: OFF by default.
+  #
+  # Polling was the default here and it OOM-killed the web container — a polling
+  # watcher stats the whole bind-mounted tree on every tick, and Turbopack's
+  # compile on top of that exceeded the container's memory. Docker Desktop's
+  # VirtioFS propagates native fs events correctly, so polling is not needed.
+  #
+  # Turn it on only if edits genuinely stop triggering reloads:
+  #   WATCH_POLL=true docker compose up
+  CHOKIDAR_USEPOLLING: ${WATCH_POLL:-false}
+  WATCHPACK_POLLING: ${WATCH_POLL:-false}
 
 services:
   # ==========================================================================
-  # PostgreSQL 16 — RLS, partitioning, gist exclusion constraints, pg_trgm
+  # Postgres 16 — RLS, partitioning, gist exclusion constraints, pg_trgm
   # ==========================================================================
   postgres:
     image: postgres:16-alpine
@@ -61,6 +115,162 @@ services:
       - '1025:1025'
     networks: [rcln]
 
+  # ==========================================================================
+  # Migrate + seed. Runs to completion, then exits.
+  #
+  # A one-shot service rather than something baked into the api's startup:
+  # migrations must run exactly once, not once per replica, and they connect as
+  # the OWNER role while the api connects as the app role.
+  # ==========================================================================
+  migrate:
+    build: *dev-build
+    image: *dev-image
+    container_name: rcln-migrate
+    environment:
+      <<: *dev-env
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-at-least-32-characters-long}
+      SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL:-superadmin@rcln.local}
+      SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD:-ChangeMe!SuperAdmin1}
+      SUPERADMIN_NAME: ${SUPERADMIN_NAME:-Platform Super Admin}
+    volumes:
+      - .:/app
+      - workspace_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+      - worker_node_modules:/app/apps/worker/node_modules
+      - db_node_modules:/app/packages/db/node_modules
+      - contracts_node_modules:/app/packages/contracts/node_modules
+      - permissions_node_modules:/app/packages/permissions/node_modules
+      - config_node_modules:/app/packages/config/node_modules
+      - db_generated:/app/packages/db/generated
+    command: >
+      sh -c "pnpm --filter @rcln/db exec prisma migrate deploy &&
+             pnpm --filter @rcln/db run seed &&
+             pnpm --filter @rcln/db run rls:check"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    networks: [rcln]
+
+  # ==========================================================================
+  # API — Express 5, hot reloaded by tsx watch
+  # ==========================================================================
+  api:
+    build: *dev-build
+    image: *dev-image
+    container_name: rcln-api
+    environment:
+      <<: *dev-env
+      PORT: 5000
+      HOST: 0.0.0.0
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-at-least-32-characters-long}
+      WEB_URL: http://${ROOT_DOMAIN:-lvh.me}:3000
+      CORS_ORIGINS: http://localhost:3000,http://${ROOT_DOMAIN:-lvh.me}:3000
+    ports:
+      - '${API_PORT:-5000}:5000'
+    volumes:
+      - .:/app
+      - workspace_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+      - worker_node_modules:/app/apps/worker/node_modules
+      - db_node_modules:/app/packages/db/node_modules
+      - contracts_node_modules:/app/packages/contracts/node_modules
+      - permissions_node_modules:/app/packages/permissions/node_modules
+      - config_node_modules:/app/packages/config/node_modules
+      - db_generated:/app/packages/db/generated
+    command: pnpm --filter @rcln/api run dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:5000/api/v1/health']
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    mem_limit: 1g
+    networks: [rcln]
+
+  # ==========================================================================
+  # Web — Next.js 16 dev server
+  # ==========================================================================
+  web:
+    build: *dev-build
+    image: *dev-image
+    container_name: rcln-web
+    environment:
+      <<: *dev-env
+      PORT: 3000
+      NEXT_PUBLIC_ROOT_DOMAIN: ${ROOT_DOMAIN:-lvh.me}
+      # Resolved by the BROWSER, which runs on the host — so localhost, not the
+      # compose service name.
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-5000}
+      # Resolved by the WEB CONTAINER — Server Actions run here, where localhost
+      # is this container and not the API. Same string, different machine, which
+      # is why it needs its own variable instead of reusing the public one.
+      API_INTERNAL_URL: http://api:5000
+      WAIT_FOR_DB: 'false'
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+    volumes:
+      - .:/app
+      - workspace_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+      - worker_node_modules:/app/apps/worker/node_modules
+      - db_node_modules:/app/packages/db/node_modules
+      - contracts_node_modules:/app/packages/contracts/node_modules
+      - permissions_node_modules:/app/packages/permissions/node_modules
+      - config_node_modules:/app/packages/config/node_modules
+      - db_generated:/app/packages/db/generated
+      # .next is huge and container-owned; keeping it off the bind mount is a
+      # large win for rebuild speed on macOS.
+      - web_next:/app/apps/web/.next
+    command: pnpm --filter @rcln/web run dev
+    depends_on:
+      api:
+        condition: service_started
+    # Turbopack is the memory-hungry process in this stack. Capping each service
+    # means an over-eager build fails one container instead of the whole host.
+    mem_limit: 3g
+    networks: [rcln]
+
+  # ==========================================================================
+  # Worker — BullMQ processors
+  # ==========================================================================
+  worker:
+    build: *dev-build
+    image: *dev-image
+    container_name: rcln-worker
+    environment:
+      <<: *dev-env
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-at-least-32-characters-long}
+    volumes:
+      - .:/app
+      - workspace_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+      - worker_node_modules:/app/apps/worker/node_modules
+      - db_node_modules:/app/packages/db/node_modules
+      - contracts_node_modules:/app/packages/contracts/node_modules
+      - permissions_node_modules:/app/packages/permissions/node_modules
+      - config_node_modules:/app/packages/config/node_modules
+      - db_generated:/app/packages/db/generated
+    command: pnpm --filter @rcln/worker run dev
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 768m
+    networks: [rcln]
+
 networks:
   rcln:
     driver: bridge
@@ -68,3 +278,13 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  web_next:
+  db_generated:
+  workspace_node_modules:
+  api_node_modules:
+  web_node_modules:
+  worker_node_modules:
+  db_node_modules:
+  contracts_node_modules:
+  permissions_node_modules:
+  config_node_modules:

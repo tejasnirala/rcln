@@ -31,6 +31,20 @@ if (isProduction && jwtSecret.includes('change-me')) {
   throw new Error('JWT_SECRET is still the placeholder value — generate one before deploying');
 }
 
+/**
+ * A master verification code must never reach production, so its presence there
+ * is fatal rather than ignored. Ignoring it would leave a variable named
+ * DEV_MASTER_VERIFICATION_CODE sitting in a production environment looking like
+ * it does something — and the next person to read `config` would have to prove
+ * that it does not.
+ */
+if (isProduction && process.env['DEV_MASTER_VERIFICATION_CODE']) {
+  throw new Error(
+    'DEV_MASTER_VERIFICATION_CODE is set in production. It is a development-only ' +
+      'backdoor for email and phone verification; remove it from the environment.'
+  );
+}
+
 const databaseUrl = getEnvVar('DATABASE_URL');
 if (isProduction && /rcln_owner|\/\/postgres:/.test(databaseUrl)) {
   // Cheap string check; assertRlsActive() does the authoritative check at boot.
@@ -71,6 +85,37 @@ export const config = {
     length: getEnvNumber('OTP_LENGTH', 6),
     ttlSeconds: getEnvNumber('OTP_TTL_SECONDS', 300),
     maxAttempts: getEnvNumber('OTP_MAX_ATTEMPTS', 5),
+  },
+
+  verification: {
+    /**
+     * Longer than a login OTP on purpose. That one goes to a handset already in
+     * the user's hand; this one has to survive a mail queue, a spam filter and
+     * somebody finishing with a patient before they read it. The attempt cap
+     * and the code length are shared with `otp` — same generator, same table.
+     */
+    ttlSeconds: getEnvNumber('VERIFICATION_TTL_SECONDS', 900),
+
+    /**
+     * A code that always confirms an email address or a phone number.
+     *
+     * ⚠️ THIS IS A BACKDOOR, AND IT IS NULL IN PRODUCTION BY CONSTRUCTION.
+     *   Neither channel can actually deliver a message yet — SES is unverified
+     *   and TRAI DLT registration is pending (.kb/STATUS.md) — so the only way
+     *   to reach a verified account outside the API log is a code that is known
+     *   in advance. That is a development affordance and nothing else.
+     *
+     *   It is not read from the environment in production, so no deployment can
+     *   turn it on by setting a variable. Setting one anyway aborts the boot
+     *   (see the assertion below) rather than being silently ignored, because a
+     *   variable named this appearing in a production environment is a mistake
+     *   somebody needs told about.
+     *
+     * IT DOES NOT UNLOCK LOGIN. `verifyOtp` never consults it — verifying an
+     * address you already control is a different thing from proving who you are,
+     * and only the first one is stubbed here. See verification.service.ts.
+     */
+    masterCode: isProduction ? null : getEnvVar('DEV_MASTER_VERIFICATION_CODE', '123456'),
   },
 
   cors: {

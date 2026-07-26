@@ -24,6 +24,22 @@ esac
 pnpm run typecheck || exit 1
 pnpm run lint || exit 1
 
+# The .kb index is committed, so a stale one must not reach the remote. Cheap
+# enough (sub-second, no database, no network) to just run rather than check.
+if ! pnpm kb --quiet; then
+  echo "PUSH REJECTED: .kb generation failed."
+  exit 1
+fi
+if ! git diff --quiet -- .kb; then
+  echo ""
+  echo "PUSH REJECTED: .kb was stale and has been regenerated."
+  echo "Review and commit it, then push again:"
+  echo ""
+  echo "  git add .kb && git commit -m 'chore(kb): refresh index'"
+  echo ""
+  exit 1
+fi
+
 # RLS is worth a slow hook: a missing policy is silent in every other check.
 if pnpm db:rls:check >/dev/null 2>&1; then
   echo "RLS check passed."

@@ -2,7 +2,7 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalDependencies": [".env"],
-  "globalEnv": ["NODE_ENV"],
+  "globalEnv": ["NODE_ENV", "CI"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -42,5 +42,38 @@
     "clean": {
       "cache": false
     }
-  }
+  },
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "DIRECT_DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "JWT_ACCESS_TOKEN_EXPIRES_IN",
+    "JWT_REFRESH_TOKEN_EXPIRES_IN",
+    "SUPERADMIN_EMAIL",
+    "SUPERADMIN_PASSWORD",
+    "SUPERADMIN_NAME",
+    "ROOT_DOMAIN",
+    "WEB_URL",
+    "API_URL",
+    "CORS_ORIGINS",
+    "LOG_LEVEL",
+    "PORT",
+    "HOST",
+    "DATABASE_POOL_SIZE",
+    "REDIS_CACHE_DB",
+    "REDIS_QUEUE_DB",
+    "OTP_LENGTH",
+    "OTP_TTL_SECONDS",
+    "OTP_MAX_ATTEMPTS",
+    "RATE_LIMIT_WINDOW_MS",
+    "RATE_LIMIT_MAX_REQUESTS",
+    "RATE_LIMIT_AUTH_MAX_REQUESTS",
+    "NEXT_PUBLIC_ROOT_DOMAIN",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_OUTPUT_STANDALONE",
+    "WAIT_FOR_DB",
+    "CHOKIDAR_USEPOLLING",
+    "WATCHPACK_POLLING"
+  ]
 }

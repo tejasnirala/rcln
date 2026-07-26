@@ -1,0 +1,332 @@
+[
+  {
+    "name": "Tenancy",
+    "layer": "api + db",
+    "status": "shipped",
+    "purpose": "Resolves which organization a request belongs to, and keeps every other tenant's rows unreachable. The layer every other module sits on.",
+    "paths": [
+      "apps/api/src/middleware/tenant.middleware.ts",
+      "apps/api/src/services/organization/",
+      "packages/db/src/"
+    ],
+    "features": [
+      "Host header → organization lookup, Redis-cached with negative caching for unknown hosts",
+      "`withTenant(ctx, …)` / `forTenant(ctx)` set transaction-local Postgres session vars, so a pooled connection cannot leak context between requests",
+      "`setTenantContext()` adopts an organization mid-transaction, for registration only",
+      "`withUserIdentity()` reads only the caller's own `memberships` rows, pre-tenant",
+      "`assertRlsActive()` refuses to boot the app on an owner (RLS-bypassing) connection",
+      "Self-serve registration: organization + domain + first branch + owner + membership + ORG_OWNER grant + trial subscription in one transaction"
+    ],
+    "userActions": [
+      "Register a clinic from the apex domain (4-step signup with live slug availability)",
+      "Be provisioned by a platform admin, optionally converting a demo request"
+    ],
+    "businessRules": ["BR-TEN-001", "BR-TEN-002", "BR-TEN-003", "BR-TEN-004", "BR-TEN-005"],
+    "tables": ["Organization", "OrganizationDomain", "Subscription", "UsageCounter"],
+    "permissions": ["organization.read", "organization.update", "platform.organization.manage"],
+    "limitations": [
+      "Custom domains are modelled (`organization_domains.isPlatformSub`) but there is no verification flow",
+      "`organizations` and `organization_domains` are deliberately outside RLS — the host→tenant lookup cannot require the context it establishes",
+      "Slug availability is a customer-list oracle by construction; mitigated only by rate limiting"
+    ]
+  },
+  {
+    "name": "Authentication",
+    "layer": "api + web",
+    "status": "shipped",
+    "purpose": "Proves who a caller is and issues the session they act under. Password and phone-OTP, refresh rotation with reuse detection.",
+    "paths": [
+      "apps/api/src/services/auth/",
+      "apps/api/src/routes/v1/auth.routes.ts",
+      "apps/api/src/middleware/auth.middleware.ts",
+      "apps/web/src/lib/session.ts",
+      "apps/web/src/lib/session-cookie.ts"
+    ],
+    "features": [
+      "Password login by email or phone, constant-time failure, one message for every cause including 'not a member here'",
+      "Phone OTP: hashed at rest, single-use, attempt-capped",
+      "Access token is a 15-minute stateless JWT; refresh token is an opaque 256-bit string stored only as a SHA-256 hash",
+      "Refresh rotation — replaying a rotated token revokes the whole family",
+      "Account lockout after 5 failed attempts",
+      "Branch and organization switching without re-authenticating",
+      "Sessions in httpOnly host-only cookies; Next is the BFF, tokens never reach client JS"
+    ],
+    "userActions": [
+      "Sign in with a password or a one-time code",
+      "Switch active branch or organization",
+      "Sign out"
+    ],
+    "businessRules": [
+      "BR-AUTH-001",
+      "BR-AUTH-002",
+      "BR-AUTH-003",
+      "BR-AUTH-004",
+      "BR-AUTH-005",
+      "BR-AUTH-006"
+    ],
+    "tables": ["User", "UserIdentity", "Session", "AuthToken", "Membership"],
+    "permissions": [],
+    "limitations": [
+      "OTP delivery is a logging stub behind `services/notification/sender.ts`, pending TRAI DLT registration",
+      "`emailVerifiedAt` is never set — there is no email verification flow",
+      "`user_identities` exists for SSO but no provider is wired"
+    ]
+  },
+  {
+    "name": "IAM",
+    "layer": "api + web",
+    "status": "shipped",
+    "purpose": "Who may do what, where. Roles cloned from the system set, granted per branch or clinic-wide, with per-person exceptions.",
+    "paths": [
+      "apps/api/src/services/iam/",
+      "apps/api/src/routes/v1/roles.routes.ts",
+      "apps/api/src/routes/v1/members.routes.ts",
+      "packages/permissions/src/",
+      "apps/web/src/components/tenant/role-list.tsx",
+      "apps/web/src/components/tenant/member-list.tsx"
+    ],
+    "features": [
+      "Resolution order DENY > GRANT > role grants, branch-scoped, with validity windows",
+      "A NULL `branch_id` on a `membership_roles` row means every branch in the organization",
+      "Custom roles are clones of read-only system roles; a database trigger stops a tenant shadowing a system role code",
+      "Per-person GRANT/DENY overrides on top of role defaults",
+      "Member suspension and restoration",
+      "Three privilege-escalation guards in `services/iam/guards.ts` (STATUS.md says four; the file header says three)"
+    ],
+    "userActions": [
+      "Create a custom role by cloning a system role",
+      "Grant or take away a role, for one branch or all",
+      "Add or clear a per-person permission exception",
+      "Suspend or restore a colleague"
+    ],
+    "businessRules": [
+      "BR-IAM-001",
+      "BR-IAM-002",
+      "BR-IAM-003",
+      "BR-IAM-004",
+      "BR-IAM-005",
+      "BR-IAM-006",
+      "BR-IAM-007"
+    ],
+    "tables": [
+      "Role",
+      "Permission",
+      "RolePermission",
+      "MembershipRole",
+      "MembershipPermissionOverride",
+      "Membership",
+      "StaffProfile"
+    ],
+    "permissions": [
+      "iam.user.read",
+      "iam.user.invite",
+      "iam.user.update",
+      "iam.user.suspend",
+      "iam.role.read",
+      "iam.role.manage",
+      "iam.permission.assign"
+    ],
+    "limitations": [
+      "The escalation guards are application-level only — the database does not enforce them, and two of them cannot be, because the database has no idea what its caller is allowed to do. A direct SQL write bypasses them",
+      "Resolved access is cached in Redis; every write must call `invalidateUserAccess` or a revoked role keeps working until the TTL"
+    ]
+  },
+  {
+    "name": "Branches",
+    "layer": "api + web",
+    "status": "shipped",
+    "purpose": "The places a clinic operates from. One organization, one or many branches — a solo clinic and a hospital group are the same shape.",
+    "paths": [
+      "apps/api/src/services/branch/",
+      "apps/api/src/routes/v1/branches.routes.ts",
+      "apps/web/src/components/tenant/branch-list.tsx"
+    ],
+    "features": [
+      "Branch CRUD with a tenant-qualified `code`",
+      "Weekly operating hours with per-day slot minutes",
+      "Closure dates",
+      "Soft delete via `deletedAt`, never a boolean"
+    ],
+    "userActions": [
+      "Open a branch",
+      "Edit branch details and GST number",
+      "Set the opening-hours week strip",
+      "Retire a branch"
+    ],
+    "businessRules": ["BR-BR-001", "BR-BR-002", "BR-BR-003"],
+    "tables": ["Branch", "BranchOperatingHour", "BranchClosure"],
+    "permissions": ["branch.read", "branch.create", "branch.update", "branch.delete"],
+    "limitations": [
+      "Closures are modelled but no screen manages them",
+      "`branch_operating_hours` and `branch_closures` have no `organization_id`; they are protected by a parent-scoped RLS policy through `branches`"
+    ]
+  },
+  {
+    "name": "Invitations",
+    "layer": "api + web",
+    "status": "shipped",
+    "purpose": "How a colleague gets into a clinic. Issue, revoke, resend, and an unauthenticated accept page.",
+    "paths": [
+      "apps/api/src/services/invitation/",
+      "apps/api/src/routes/v1/invitations.routes.ts",
+      "apps/web/src/components/tenant/invitation-list.tsx",
+      "apps/web/src/components/tenant/join-form.tsx"
+    ],
+    "features": [
+      "Token hashed at rest, same treatment as a refresh token",
+      "Invitation carries the role and the branches it will grant",
+      "Revoke and resend",
+      "Unauthenticated `/join` page that creates the user, membership and role grant on accept"
+    ],
+    "userActions": [
+      "Invite someone by email or phone, choosing role and branches",
+      "Revoke or resend a pending invitation",
+      "Accept an invitation and set a password"
+    ],
+    "businessRules": ["BR-INV-001", "BR-INV-002", "BR-INV-003", "BR-INV-004"],
+    "tables": ["Invitation", "InvitationBranch"],
+    "permissions": ["iam.user.invite", "iam.user.read"],
+    "limitations": [
+      "Delivery is the same logging stub as OTP — the invitation link is only visible in the API logs",
+      "No expiry sweep; expired invitations are filtered at read time, never deleted"
+    ]
+  },
+  {
+    "name": "Audit",
+    "layer": "api",
+    "status": "shipped",
+    "purpose": "An append-only record of who changed what. Ids and permission codes only — never a name, never PHI.",
+    "paths": ["apps/api/src/services/audit/"],
+    "features": [
+      "Structured before/after diff of the changed fields",
+      "Actor, organization, branch, action and target on every row",
+      "Written inside the same transaction as the change it records"
+    ],
+    "userActions": [],
+    "businessRules": ["BR-AUD-001", "BR-AUD-002"],
+    "tables": ["AuditLog"],
+    "permissions": ["platform.audit.read"],
+    "limitations": [
+      "No viewer — rows are only readable via SQL",
+      "`data_access_logs` for PHI reads is planned but does not exist",
+      "Nothing enforces append-only at the database level; it is a convention"
+    ]
+  },
+  {
+    "name": "PlatformConsole",
+    "layer": "api + web",
+    "status": "partial",
+    "purpose": "What the platform operator sees. Demo-request pipeline, provisioning, and eventually impersonation.",
+    "paths": [
+      "apps/api/src/routes/v1/platform.routes.ts",
+      "apps/web/src/app/(platform)/",
+      "apps/web/src/components/platform/"
+    ],
+    "features": [
+      "Demo-request list with status pipeline",
+      "Provision an organization from a demo request or from scratch",
+      "Platform admin login, separate from any tenant"
+    ],
+    "userActions": [
+      "Review incoming demo requests",
+      "Provision a clinic",
+      "Sign in to the platform console at the `admin.` subdomain"
+    ],
+    "businessRules": ["BR-PLT-001", "BR-PLT-002"],
+    "tables": ["DemoRequest", "Organization"],
+    "permissions": [
+      "platform.organization.read",
+      "platform.organization.manage",
+      "platform.organization.suspend",
+      "platform.impersonate",
+      "platform.audit.read"
+    ],
+    "limitations": [
+      "Impersonation is not implemented. The session it mints must carry a real branch scope — a platform admin has no membership, so `loadUserAccess` returns null and every branch-scoped write would be refused",
+      "No plan or subscription management screens"
+    ]
+  },
+  {
+    "name": "Marketing",
+    "layer": "web",
+    "status": "shipped",
+    "purpose": "The apex domain. Landing page, signup, legal pages and the demo form — everything that happens before a tenant exists.",
+    "paths": ["apps/web/src/app/(marketing)/", "apps/web/src/components/marketing/"],
+    "features": [
+      "Landing page: hero, six-station journey rail, modules, multi-branch, isolation, India-first, pricing, demo form",
+      "The design system every later screen inherits — surgical-green palette, IBM Plex, spacing and radius scale, in `apps/web/src/app/globals.css`",
+      "4-step signup with live slug availability checking",
+      "Demo form: rate-limited, honeypot plus timing check, silent discard, deduplicated",
+      "Measured accessibility pass — 4.5:1 contrast, 24×24 targets, skip link, rail pause control, `aria-describedby` on every field"
+    ],
+    "userActions": [
+      "Read about the product",
+      "Book a demo",
+      "Register a clinic",
+      "Read the privacy policy, terms and DPA"
+    ],
+    "businessRules": ["BR-MKT-001", "BR-MKT-002"],
+    "tables": ["DemoRequest"],
+    "permissions": [],
+    "limitations": [
+      "Legal pages are unreviewed drafts with ~30 unfilled placeholders and a visible 'not yet in force' banner",
+      "`src/lib/analytics.ts` is a no-op seam pending a DPDP consent decision",
+      "No real OG image; footer brand facts are placeholders",
+      "Screen-reader behaviour in a real AT and the OS reduced-motion toggle are implemented but never exercised end to end"
+    ]
+  },
+  {
+    "name": "Notifications",
+    "layer": "api + worker",
+    "status": "stub",
+    "purpose": "The seam every outbound message goes through. Real logic, no delivery.",
+    "paths": ["apps/api/src/services/notification/"],
+    "features": [
+      "One `sender.ts` seam for OTP codes and invitation links",
+      "Logs the message instead of sending it"
+    ],
+    "userActions": [],
+    "businessRules": ["BR-NOT-001"],
+    "tables": [],
+    "permissions": [],
+    "limitations": [
+      "Nothing is delivered. Blocked on TRAI DLT registration for SMS and Meta template approval for WhatsApp",
+      "No notification templates table, no provider abstraction, no delivery-status tracking"
+    ]
+  },
+  {
+    "name": "Worker",
+    "layer": "worker",
+    "status": "stub",
+    "purpose": "Background jobs on BullMQ. Every queue is registered; only stubs process them.",
+    "paths": ["apps/worker/src/"],
+    "features": ["Redis connection and queue registration"],
+    "userActions": [],
+    "businessRules": [],
+    "tables": [],
+    "permissions": [],
+    "limitations": [
+      "No processors exist — queues accept jobs that nothing consumes",
+      "No scheduled jobs, no dead-letter handling, no metrics rollup"
+    ]
+  },
+  {
+    "name": "Contracts",
+    "layer": "package",
+    "status": "shipped",
+    "purpose": "Zod schemas shared by API and web. The request/response shape is written once and both sides import it.",
+    "paths": ["packages/contracts/src/"],
+    "features": [
+      "Validation and inferred TypeScript types from the same declaration",
+      "Grouped by domain: common, auth, tenancy, marketing"
+    ],
+    "userActions": [],
+    "businessRules": [],
+    "tables": [],
+    "permissions": [],
+    "limitations": [
+      "No runtime response validation on the web side — contracts type the response but nothing parses it",
+      "Chosen over tRPC/ts-rest deliberately; revisit if a mobile client appears"
+    ]
+  }
+]

@@ -20,6 +20,19 @@ export const logger = pino({
       'req.body.code',
       'req.body.phone',
       'req.body.email',
+      // Public demo form: a person's name, and free text they may put anything
+      // into. Not PHI by design, but not something to keep in log storage.
+      'req.body.contactName',
+      'req.body.message',
+      // Registration nests the owner's credentials one level down. pino's redact
+      // paths are literal, not recursive: 'req.body.password' does NOT cover
+      // 'req.body.owner.password', so the whole signup payload would otherwise
+      // be logged in clear. Every nested secret needs its own path.
+      'req.body.owner.password',
+      'req.body.owner.email',
+      'req.body.owner.phone',
+      'req.body.owner.fullName',
+      'req.body.branch.phone',
       '*.passwordHash',
       '*.mfaSecret',
       '*.abhaNumber',

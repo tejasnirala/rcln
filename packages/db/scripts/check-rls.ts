@@ -1,9 +1,13 @@
 /**
- * CI guard. Two things must hold, or tenant isolation is fiction:
+ * CI guard. Three things must hold, or tenant isolation is fiction:
  *
  *   1. every table with an `organization_id` column has RLS enabled and at
  *      least one policy — unless it is on the EXEMPT list with a stated reason
- *   2. the application role owns nothing, is not a superuser, and does not have
+ *   2. every table on the PARENT_SCOPED list — one with no organization_id of
+ *      its own, isolated through its parent instead — likewise. These are
+ *      invisible to check 1 precisely because they lack the column, which is
+ *      how they sat unprotected while looking accounted for
+ *   3. the application role owns nothing, is not a superuser, and does not have
  *      BYPASSRLS — because policies are ENABLE, not FORCE, so an owner or
  *      superuser connection silently ignores every one of them
  *
@@ -41,11 +45,25 @@ const EXEMPT: Record<string, string> = {
   subscription_payments: 'child of subscription_invoices; reached via scoped parent',
   setting_definitions: 'static catalogue',
   setting_values: 'scoped by (scope_type, scope_id), not organization_id',
-  branch_operating_hours: 'child of branches; reached via scoped parent',
-  branch_closures: 'child of branches; reached via scoped parent',
-  invitation_branches: 'child of invitations; reached via scoped parent',
-  staff_profiles: 'child of memberships; reached via scoped parent',
+  demo_requests:
+    'public marketing form — submitted before any organization exists, so there is no organization_id to scope by',
   _prisma_migrations: 'prisma internal',
+};
+
+/**
+ * Tables with no organization_id, isolated through a parent that has one.
+ *
+ * These need listing explicitly because the has_org_column test below cannot
+ * see them, so they neither fail the check nor appear in it — which is exactly
+ * how all four sat with RLS switched off while reading as "handled" in EXEMPT.
+ *
+ * Keep in sync with the parent_scoped array in prisma/rls/enable-rls.sql.
+ */
+const PARENT_SCOPED: Record<string, string> = {
+  branch_operating_hours: 'branches',
+  branch_closures: 'branches',
+  invitation_branches: 'invitations',
+  staff_profiles: 'memberships',
 };
 
 interface TableRow {
@@ -113,12 +131,22 @@ async function main(): Promise<void> {
 
   for (const t of rows) {
     if (EXEMPT[t.table_name]) continue;
-    if (!t.has_org_column) continue;
+
+    const parent = PARENT_SCOPED[t.table_name];
+    if (!t.has_org_column && !parent) continue;
 
     checked++;
-    if (!t.rls_enabled) failures.push(`${t.table_name}: RLS not enabled`);
+    const label = parent ? `${t.table_name} (via ${parent})` : t.table_name;
+    if (!t.rls_enabled) failures.push(`${label}: RLS not enabled`);
     else if (t.policy_count === 0)
-      failures.push(`${t.table_name}: RLS enabled but no policy — denies everything`);
+      failures.push(`${label}: RLS enabled but no policy — denies everything`);
+  }
+
+  // A parent-scoped table that was renamed or dropped would otherwise stop being
+  // checked without anyone noticing.
+  for (const name of Object.keys(PARENT_SCOPED)) {
+    if (!rows.some((r) => r.table_name === name))
+      failures.push(`${name}: listed in PARENT_SCOPED but the table does not exist`);
   }
 
   // A table that has org_id but was silently added to EXEMPT should be noticed.

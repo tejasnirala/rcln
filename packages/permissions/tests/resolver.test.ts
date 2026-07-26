@@ -9,6 +9,7 @@ import {
   can,
   effectivePermissions,
   accessibleBranchIds,
+  ALL_PERMISSIONS,
   PERMISSIONS,
   type AccessContext,
   type RoleAssignment,
@@ -219,6 +220,32 @@ describe('platform super admin', () => {
 
   it('sees every branch', () => {
     expect(accessibleBranchIds(superAdmin, ALL_BRANCHES)).toEqual(ALL_BRANCHES);
+  });
+
+  /*
+   * `can` and `effectivePermissions` must not disagree. An impersonating admin
+   * (ADR-0012) holds no membership in the clinic they are standing in, so the
+   * role loop finds nothing — and the shell would render no navigation in front
+   * of someone every endpoint is about to say yes to.
+   */
+  it('holds every permission in the catalogue, not an empty list', () => {
+    const perms = effectivePermissions(superAdmin);
+    expect(perms).toHaveLength(ALL_PERMISSIONS.length);
+    expect(perms).toContain(PERMISSIONS.PATIENT_READ);
+    expect(perms).toContain(PERMISSIONS.PLATFORM_IMPERSONATE);
+  });
+
+  it('is not overruled by a DENY override', () => {
+    const denied = ctx({
+      isPlatformAdmin: true,
+      roleAssignments: [],
+      overrides: [
+        { permission: PERMISSIONS.PATIENT_READ, branchId: null, effect: 'DENY' as const },
+      ],
+    });
+    // Matching `can`, which returns true before it ever looks at an override.
+    expect(can(denied, PERMISSIONS.PATIENT_READ)).toBe(true);
+    expect(effectivePermissions(denied)).toContain(PERMISSIONS.PATIENT_READ);
   });
 });
 

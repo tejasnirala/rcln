@@ -1,26 +1,203 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * rcln design tokens.
+ *
+ * This is the whole product's palette and type scale, not the landing page's.
+ * apps/web/AGENTS.md: the direction is decided once and every screen after it
+ * inherits these tokens. Add to this file; do not start a second system.
+ *
+ * The palette is anchored on operating-theatre drape green rather than the
+ * generic hospital blue. `signal` is the only warm colour and it means exactly
+ * one thing — the thing that is live right now (the token being served, the
+ * appointment in progress). Spending it anywhere else makes it stop working.
+ *
+ * Tailwind v4 is configured CSS-first. There is no tailwind.config.ts and there
+ * should not be one.
+ */
+
+@theme {
+  /* Surgical-green ramp. Structure, text, chrome. */
+  --color-ink: #0e1f1a;
+  --color-ink-soft: #1c332c;
+  --color-drape: #2f5d52;
+  --color-drape-deep: #23483f;
+  --color-drape-tint: #e3ece9;
+  --color-paper: #f3f5f2;
+  --color-card: #ffffff;
+  --color-muted: #5f716c;
+  --color-rule: #d9e1dd;
+
+  /*
+   * Live-state accent. Means one thing: the thing that is happening now.
+   *
+   * `signal` is tuned to clear 4.5:1 as TEXT on every light surface we put it
+   * on — 4.83 on signal-tint, 5.51 on card, 5.02 on paper. The obvious brighter
+   * orange fails all three at small sizes, which is why this one looks burnt.
+   * `signal-bright` is the inverse: 6.29:1 against ink, for marks and focus
+   * rings on the dark section where the dark orange would disappear.
+   */
+  --color-signal: #a94f10;
+  --color-signal-bright: #e8833a;
+  --color-signal-tint: #fbeee2;
+
+  /*
+   * IBM Plex, three roles used semantically:
+   *   display — headlines only
+   *   sans    — everything readable
+   *   mono    — identifiers only (token, MRN, GSTIN, HSN, batch, invoice no.)
+   *
+   * Chosen over the Geist default partly because Plex has a metrically matched
+   * Devanagari sibling (IBM Plex Sans Devanagari) for when the UI is localised.
+   * Not loaded yet — there is no Hindi content to set.
+   */
+  --font-display: var(--font-plex-serif), ui-serif, Georgia, serif;
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* Display sizes. Clamped so the hero does not need a breakpoint of its own. */
+  /* Floor is set for a 320px screen, where 2.5rem crowded the gutters. */
+  --text-display: clamp(2.125rem, 1.35rem + 4.6vw, 5.25rem);
+  --text-display--line-height: 0.98;
+  --text-display--letter-spacing: -0.028em;
+  --text-title: clamp(1.75rem, 1.3rem + 2.2vw, 3rem);
+  --text-title--line-height: 1.08;
+  --text-title--letter-spacing: -0.02em;
+  --text-lead: clamp(1.0625rem, 1rem + 0.4vw, 1.3125rem);
+  --text-lead--line-height: 1.55;
+
+  /*
+   * Tight radii. A clinical tool should read as a precision instrument, not a
+   * consumer app — but not as a brutalist zero-radius broadsheet either.
+   */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.625rem;
+
+  /* One shared vertical rhythm, so section paddings cannot fight each other. */
+  --spacing-section: clamp(4rem, 2.5rem + 7vw, 8.5rem);
+  --spacing-gutter: clamp(1.25rem, 0.75rem + 2.5vw, 3rem);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* The marketing surface commits to light. */
+    color-scheme: light;
+  }
 
-@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+   * An eyebrow, a token, an MRN — anything the system generated rather than a
+   * person wrote — is set in mono. Tabular figures so columns of ids and money
+   * line up without extra classes.
+   */
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * One focus indicator, but the accent that clears 3:1 on paper disappears on
+   * ink and vice versa. `--focus-ring` is re-pointed by `.on-ink` (see below)
+   * so a keyboard user can always see where they are, on any surface.
+   */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --focus-ring: var(--color-signal);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 3px;
+    border-radius: var(--radius-xs);
+  }
+
+  /*
+   * Interactive text needs 24x24 of hit area (WCAG 2.5.8). Nav and footer links
+   * are ~19px tall from line-height alone, so give every inline link in a list
+   * or nav enough vertical padding to clear it without changing the visual
+   * rhythm.
+   */
+  nav a,
+  footer a {
+    padding-block: 0.25rem;
+  }
+
+  ::selection {
+    background-color: var(--color-drape);
+    color: var(--color-paper);
+  }
+
+  /* Respect the OS setting everywhere, once, rather than per component. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * Applied to the dark section. Swaps the focus ring to the bright accent, which
+ * is 6.29:1 against ink where the default is 3.1:1.
+ */
+@utility on-ink {
+  --focus-ring: var(--color-signal-bright);
+}
+
+/*
+ * Skip link. Hidden until focused, then the first thing a keyboard user lands
+ * on — WCAG 2.4.1. Not `sr-only`, because it has to become visible.
+ */
+@utility skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  translate: 0 -150%;
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  &:focus-visible {
+    translate: 0 0;
+  }
+}
+
+/* The station rail scrolls sideways on small screens; the bar is noise there. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
 }

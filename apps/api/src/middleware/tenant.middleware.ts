@@ -33,6 +33,40 @@ function normaliseHost(hostHeader: string | undefined): string | null {
   return host && host.length > 0 ? host : null;
 }
 
+/**
+ * Which host this request is *for*, which is not always the host it arrived on.
+ *
+ * WHY THIS IS NOT JUST `req.headers.host`
+ *   Every browser request reaches the API through the Next BFF, and that hop is
+ *   a server-side `fetch`. `Host` is a forbidden header name in the fetch spec,
+ *   so undici silently drops any attempt to set it — the request arrives as
+ *   `api:5000` and resolves to no tenant at all.
+ *
+ *   That failed silently for the whole of Phase 1: no route was behind
+ *   requireTenant, and the one place it mattered — login — reads
+ *   `req.tenant?.organizationId ?? null` and simply issued a session scoped to
+ *   no organization. supertest sets `Host` normally, so the integration suite
+ *   never saw it either.
+ *
+ * THE TRUST BOUNDARY
+ *   `x-forwarded-host` is the standard way a proxy says "the client asked for
+ *   this host", and it is what Express's own `req.hostname` prefers when
+ *   `trust proxy` is on. Honouring it means the API must not be reachable
+ *   except through the BFF or an ingress that OVERWRITES this header — an
+ *   attacker who can reach the API directly could otherwise address any tenant.
+ *
+ *   What that would and would not get them: `authenticate` answers 404 when a
+ *   token's organization does not match the resolved tenant, so a spoofed host
+ *   grants nothing without credentials that are already valid for that clinic.
+ *   It is still a tenancy control, and the deployment must keep the API private.
+ */
+function requestedHost(req: Request): string | null {
+  const forwarded = req.headers['x-forwarded-host'];
+  // A chain of proxies appends; the original client host is the first entry.
+  const claimed = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
+  return normaliseHost(claimed) ?? normaliseHost(req.headers.host);
+}
+
 async function lookupTenant(host: string): Promise<ResolvedTenant | null> {
   const cached = await redis.get(cacheKey(host));
   if (cached) {
@@ -84,7 +118,7 @@ export async function resolveTenant(
   _res: Response,
   next: NextFunction
 ): Promise<void> {
-  const host = normaliseHost(req.headers.host);
+  const host = requestedHost(req);
 
   // The bare platform domain and the admin console have no tenant. Requests
   // there are handled by the platform routes, which require is_platform_admin.

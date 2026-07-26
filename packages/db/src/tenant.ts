@@ -45,10 +45,79 @@ function encodeBranchScope(branchIds: string[]): string {
   return `{${branchIds.join(',')}}`;
 }
 
-type TxClient = Omit<
+/**
+ * The client handed to a `withTenant` callback.
+ *
+ * Exported so a helper can accept the transaction rather than opening its own —
+ * an audit row that can commit independently of the mutation it describes is
+ * worse than no audit row.
+ */
+export type TxClient = Omit<
   PrismaClient,
   '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'
 >;
+
+/**
+ * Run a unit of work identified as a USER but scoped to no organization.
+ *
+ * THE PROBLEM IT SOLVES
+ *   "Which organizations do I belong to?" is inherently cross-tenant — it is
+ *   the question whose answer tells you what tenants exist for you. But
+ *   `memberships` is org-scoped and RLS-enforced, so reading it with no context
+ *   fails closed and returns nothing, and reading it inside withTenant requires
+ *   already knowing the organization.
+ *
+ * HOW THIS IS SAFE
+ *   It sets ONLY `app.current_user`, leaving `app.current_org` unset. The
+ *   matching policy on memberships is
+ *       USING (user_id = app_current_user() AND app_current_org() IS NULL)
+ *   so it grants exactly one thing: your own membership rows, and only in a
+ *   transaction that has claimed no tenant. It cannot widen a normal request,
+ *   because a normal request always has app.current_org set, which switches
+ *   this policy off entirely.
+ *
+ *   It is emphatically NOT a way to read tenant data without a tenant. Every
+ *   other org-scoped table still sees a NULL app.current_org and returns
+ *   nothing.
+ */
+export async function withUserIdentity<T>(
+  userId: string,
+  fn: (tx: TxClient) => Promise<T>
+): Promise<T> {
+  const prisma = getDbClient();
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SELECT set_config('app.current_user', $1, true)`, userId);
+    return fn(tx as TxClient);
+  });
+}
+
+/**
+ * Apply the tenant session variables to a transaction already in flight.
+ *
+ * `withTenant` is the right tool whenever the tenant is known before the work
+ * starts, which is almost always. The exception is organization registration:
+ * the tenant does not exist yet, and the rows that create it span both
+ * RLS-exempt tables (organizations, users) and RLS-enforced ones (branches,
+ * memberships, membership_roles, subscriptions). That transaction has to insert
+ * the organization first and only then adopt it — which is this function.
+ *
+ * It is exported so there is exactly one copy of the SQL. Do NOT reach for it
+ * to avoid `withTenant`; the eslint rule will not stop you, and neither will
+ * the type system.
+ */
+export async function setTenantContext(
+  tx: Pick<TxClient, '$executeRawUnsafe'>,
+  ctx: TenantContext
+): Promise<void> {
+  await tx.$executeRawUnsafe(
+    SET_TENANT_SQL,
+    ctx.organizationId,
+    encodeBranchScope(ctx.branchIds),
+    ctx.userId,
+    ctx.impersonatedByUserId ?? ''
+  );
+}
 
 /**
  * Run a unit of work with tenant session variables applied.

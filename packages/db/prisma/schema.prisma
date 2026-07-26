@@ -3,7 +3,7 @@
 //
 // PHASE 0 SCOPE: tenancy, subscriptions, identity, RBAC, settings, audit.
 // Clinical / lab / pharmacy / inventory / billing land in later phases —
-// see docs/schema/schema-design.md for the full target design.
+// see .kb/Database/schema-design.md for the full target design.
 //
 // Conventions:
 //   - uuid PKs, snake_case columns via @map, plural table names
@@ -726,6 +726,9 @@ model StaffProfile {
 // =============================================================================
 
 /// Adding a new setting is an INSERT here — no migration, no new column.
+///
+/// This is a PLATFORM CATALOGUE, not tenant data: no organization_id, no RLS
+/// policy, EXEMPT in check-rls.ts. Every clinic reads the same twelve rows.
 model SettingDefinition {
   key              String          @id @db.VarChar(128)
   module           String          @db.VarChar(64)
@@ -733,7 +736,18 @@ model SettingDefinition {
   defaultValue     Json            @map("default_value")
   allowedScopes    Json            @map("allowed_scopes")
   isTenantEditable Boolean         @default(true) @map("is_tenant_editable")
+  /// The short human name. What the settings screen puts on the row.
   description      String?         @db.VarChar(512)
+  /// What the setting is for, and what changing it does. Prose, one or two
+  /// sentences, written for whoever runs the clinic rather than for us.
+  helpText         String?         @map("help_text") @db.VarChar(1024)
+  /// A closed set of choices: `[{ "value": …, "label": … }]`.
+  ///
+  /// Null means "any value of `data_type`". Present means the API refuses
+  /// anything else and the screen renders a select instead of a text box — one
+  /// source, so the two cannot disagree. JSONB as a DOCUMENT, never as foreign
+  /// keys (ADR-0006): these are literal setting values, not row ids.
+  allowedValues    Json?           @map("allowed_values")
 
   values SettingValue[]
 
@@ -804,4 +818,52 @@ model AuditLog {
   @@index([organizationId, entityType, entityId, occurredAt])
   @@index([actorUserId, occurredAt])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Marketing (apex domain, pre-tenant)
+// ---------------------------------------------------------------------------
+
+enum DemoRequestStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  SPAM
+}
+
+/// A demo request from the public landing page at the apex domain.
+///
+/// Deliberately NOT tenant-scoped, and this is the one model where that is the
+/// correct answer rather than an oversight: the person submitting it has no
+/// organization yet, so there is no `organization_id` to put on the row and no
+/// tenant context for an RLS policy to read. Giving it a policy requiring
+/// `app.current_org` would make the table permanently unwritable.
+///
+/// Recorded as an exemption in prisma/rls/enable-rls.sql and in the EXEMPT list
+/// in scripts/check-rls.ts. Access is gated in the application layer: one
+/// public, rate-limited, write-only endpoint, and reads restricted to platform
+/// admins.
+///
+/// Contact details, never clinical data.
+model DemoRequest {
+  id          String            @id @default(uuid()) @db.Uuid
+  clinicName  String            @map("clinic_name") @db.VarChar(255)
+  contactName String            @map("contact_name") @db.VarChar(255)
+  email       String            @db.VarChar(255)
+  phone       String            @db.VarChar(20)
+  city        String?           @db.VarChar(100)
+  branchCount Int?              @map("branch_count")
+  specialty   String?           @db.VarChar(120)
+  message     String?           @db.Text
+  /// Referrer or campaign label. Must never carry anything identifying.
+  source      String?           @db.VarChar(255)
+  status      DemoRequestStatus @default(NEW)
+  handledAt   DateTime?         @map("handled_at") @db.Timestamptz(6)
+  notes       String?           @db.Text
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@map("demo_requests")
 }

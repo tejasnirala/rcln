@@ -15,6 +15,13 @@ declare global {
         branchId: string | null;
         branchScope: string[];
         impersonatedByUserId: string | null;
+        /**
+         * The session row's hard stop, off the row `authenticate` already read.
+         * Only the impersonation banner uses it — an ordinary session renews, so
+         * "when does this end" is not a question its user can be given a useful
+         * answer to.
+         */
+        sessionExpiresAt: Date;
       };
     }
   }
