@@ -15,7 +15,22 @@ import type { NextConfig } from 'next';
  */
 const isStandaloneBuild = process.env['NEXT_OUTPUT_STANDALONE'] === '1';
 
+/**
+ * The dev server is initialised on `localhost`, but every URL in this product is
+ * a hostname off the root domain — `lvh.me:3000` for marketing, `alpha.lvh.me`
+ * for a tenant. Next 16 blocks cross-origin requests to dev-only assets, so
+ * without this the HMR and client chunks are refused and **nothing hydrates**:
+ * pages render, look completely correct, and no button works.
+ *
+ * The failure is silent in the browser — the only evidence is a "Blocked
+ * cross-origin request to Next.js dev resource" line in the dev server log.
+ * Development only; production serves same-origin and ignores this.
+ */
+const rootDomain = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me';
+
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [rootDomain, `*.${rootDomain}`],
+
   ...(isStandaloneBuild
     ? {
         output: 'standalone' as const,

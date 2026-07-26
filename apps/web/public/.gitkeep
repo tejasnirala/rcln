@@ -1,0 +1,5 @@
+# Keeps apps/web/public/ in the repo.
+#
+# The Dockerfile COPYs this directory unconditionally, so an empty-but-absent
+# public/ fails the production image build. Next's own favicon lives at
+# src/app/favicon.ico via the file convention, not here.

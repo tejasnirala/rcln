@@ -117,6 +117,98 @@ END
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Parent-scoped children: tables with no organization_id of their own.
+--
+-- These hang off a tenant table and were originally exempt, on the reasoning
+-- that they are only ever reached through a scoped parent. That reasoning is
+-- true of the code as written and enforced by nothing: one
+--
+--   tx.branchOperatingHour.update({ where: { id } })
+--
+-- written later is a cross-tenant write that raises no error and fails no
+-- single-tenant test. So the reasoning is moved into the database, where it
+-- holds regardless of how the service layer is written.
+--
+-- The predicate is an EXISTS against the parent's organization_id. Note the
+-- subquery is itself subject to the parent's RLS — which asks the same
+-- question, so the two agree rather than fighting.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  i int;
+  child text;
+  parent text;
+  fk text;
+  -- child, parent, foreign key on the child
+  parent_scoped text[][] := ARRAY[
+    ARRAY['branch_operating_hours', 'branches',    'branch_id'],
+    ARRAY['branch_closures',        'branches',    'branch_id'],
+    ARRAY['invitation_branches',    'invitations', 'invitation_id'],
+    ARRAY['staff_profiles',         'memberships', 'membership_id']
+  ];
+BEGIN
+  FOR i IN 1 .. array_length(parent_scoped, 1) LOOP
+    child  := parent_scoped[i][1];
+    parent := parent_scoped[i][2];
+    fk     := parent_scoped[i][3];
+
+    EXECUTE format('ALTER TABLE %I ENABLE   ROW LEVEL SECURITY', child);
+    EXECUTE format('ALTER TABLE %I NO FORCE ROW LEVEL SECURITY', child);
+    EXECUTE format('DROP POLICY IF EXISTS parent_isolation ON %I', child);
+    EXECUTE format($f$
+      CREATE POLICY parent_isolation ON %1$I
+        USING      (EXISTS (SELECT 1 FROM %2$I p
+                            WHERE p.id = %1$I.%3$I
+                              AND p.organization_id = app_current_org()))
+        WITH CHECK (EXISTS (SELECT 1 FROM %2$I p
+                            WHERE p.id = %1$I.%3$I
+                              AND p.organization_id = app_current_org()))
+    $f$, child, parent, fk);
+  END LOOP;
+END
+$$;
+
+-- invitation_branches points at two tenant tables, and its branch_id is a plain
+-- FK to branches(id) — not one of the composite (organization_id, id) FKs that
+-- make a cross-tenant reference unrepresentable elsewhere (ADR-0004). So the
+-- invitation being in your org does not by itself prove the branch is. Check the
+-- second parent too, RESTRICTIVE so it ANDs with parent_isolation above.
+DROP POLICY IF EXISTS branch_in_same_org ON invitation_branches;
+CREATE POLICY branch_in_same_org ON invitation_branches AS RESTRICTIVE
+  USING      (EXISTS (SELECT 1 FROM branches b
+                      WHERE b.id = invitation_branches.branch_id
+                        AND b.organization_id = app_current_org()))
+  WITH CHECK (EXISTS (SELECT 1 FROM branches b
+                      WHERE b.id = invitation_branches.branch_id
+                        AND b.organization_id = app_current_org()));
+
+-- ---------------------------------------------------------------------------
+-- Identity bootstrap: your own membership rows.
+--
+-- "Which organizations do I belong to?" is the question whose answer tells you
+-- which tenants exist for you, so it cannot itself be tenant-scoped. Under
+-- tenant_isolation alone it is unanswerable: with no app.current_org the read
+-- returns nothing, and setting one requires already knowing the answer. That is
+-- the same circularity organization_domains has, but memberships must NOT be
+-- exempted outright — the rows carry who works where, across every clinic.
+--
+-- So the policy is narrowed on both axes instead:
+--
+--   user_id = app_current_user()   your own rows, never anybody else's
+--   app_current_org() IS NULL      and only in a transaction claiming no tenant
+--
+-- The second condition is what makes this safe to add. PERMISSIVE policies OR
+-- together, so without it this would widen every ordinary request. With it, the
+-- policy switches OFF the moment a tenant context exists — which is always,
+-- except inside withUserIdentity() in packages/db/src/tenant.ts.
+--
+-- Read-only: no WITH CHECK, so this grants no ability to write a membership.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS own_membership ON memberships;
+CREATE POLICY own_membership ON memberships FOR SELECT
+  USING (user_id = app_current_user() AND app_current_org() IS NULL);
+
+-- ---------------------------------------------------------------------------
 -- Deliberately NOT tenant-scoped, with the reason recorded.
 --
 --   organizations       resolved by hostname BEFORE a tenant context exists
@@ -135,7 +227,13 @@ $$;
 --   role_permissions   joins two non-tenant tables
 --   plans / plan_*     platform-wide product catalogue
 --   setting_*          scoped by (scope_type, scope_id), not organization_id
---   branch_*           child of branches; reached only via a scoped parent
+--   demo_requests      submitted from the public marketing site by someone who
+--                      has no organization yet. There is no organization_id to
+--                      scope by, and a policy requiring app.current_org would
+--                      make the table unwritable by the only endpoint that
+--                      writes it. Gated in the application layer instead: one
+--                      public, rate-limited, write-only route; reads are for
+--                      platform admins. Contact details only, never PHI.
 --
 -- Access to these is gated in the application layer. `check-rls.ts` holds the
 -- same list, so adding a table without a policy fails CI until it is either

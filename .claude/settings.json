@@ -1,0 +1,88 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm lint*)",
+      "Bash(pnpm test*)",
+      "Bash(pnpm validate*)",
+      "Bash(pnpm format:check*)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm db:generate*)",
+      "Bash(pnpm db:rls:check*)",
+      "Bash(pnpm db:studio*)",
+      "Bash(pnpm --filter *)",
+      "Bash(turbo run *)",
+      "Bash(docker compose ps*)",
+      "Bash(docker compose logs*)",
+      "Bash(docker compose exec *)",
+      "Bash(docker compose up*)",
+      "Bash(docker compose down)",
+      "Bash(docker compose restart*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(curl -i http://localhost:*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git status*)",
+      "Bash(git show*)",
+      "Bash(ls*)",
+      "Bash(find*)",
+      "Bash(cat*)"
+    ],
+    "deny": [
+      "Bash(git push*)",
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf*)",
+      "Bash(pnpm db:reset*)",
+      "Bash(pnpm nuke*)",
+      "Bash(docker compose down -v*)",
+      "Read(./.env)",
+      "Read(./apps/api/.env)",
+      "Read(./apps/web/.env)",
+      "Read(./apps/web/.env.local)",
+      "Read(./apps/worker/.env)",
+      "Read(./packages/db/.env)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$file\" == *\".env\"* ]] && [[ \"$file\" != *\".env.example\"* ]]; then echo 'BLOCKED: Direct edits to .env files are not allowed. Modify .env.example instead and update your local .env manually.' && exit 1; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$file\" == *\"/prisma/migrations/\"* ]] && [[ \"$file\" == *.sql ]]; then echo 'NOTE: editing an existing migration. Applied migrations must never be edited in place — Prisma checksums them and CI will fail. If this migration has already been applied anywhere, create a new one instead.'; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; case \"$file\" in *.ts|*.tsx|*.mjs) ;; *) exit 0 ;; esac; rel=\"${file#/Users/tejasnirala/learning/rcln/}\"; case \"$rel\" in apps/*/*|packages/*/*) ;; *) exit 0 ;; esac; ws=\"$(printf '%s' \"$rel\" | cut -d/ -f1,2)\"; sub=\"${rel#\"$ws\"/}\"; docker compose -f /Users/tejasnirala/learning/rcln/docker-compose.yml exec -T -w \"/app/$ws\" api npx eslint \"$sub\" 2>/dev/null || true"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_TOOL_INPUT_FILE_PATH\"; if [[ \"$file\" == *\"packages/db/prisma/schema.prisma\" ]]; then echo 'REMINDER: schema.prisma changed. A new tenant table needs (1) organizationId + @@unique([organizationId, id]), (2) an entry in prisma/rls/enable-rls.sql, (3) that SQL appended to the generated migration, (4) pnpm db:rls:check, (5) a case in apps/api/tests/integration/tenant-isolation.test.ts. See docs/CONVENTIONS.md.'; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

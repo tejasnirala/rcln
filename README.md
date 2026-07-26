@@ -4,7 +4,9 @@ Multi-tenant healthcare management SaaS. A clinic registers, gets its own
 subdomain (`alpha.xyz.com`), and runs appointments, prescriptions, lab, pharmacy
 and billing across one or many branches.
 
+- **How it works — the tour** — [`docs/how-it-works.md`](docs/how-it-works.md)
 - **Status — what is built, what is next** — [`docs/STATUS.md`](docs/STATUS.md)
+- **Phase 1 completion plan (in progress)** — [`PHASE-1-PLAN.md`](PHASE-1-PLAN.md)
 - **Schema design** — [`docs/schema/schema-design.md`](docs/schema/schema-design.md)
 - **Architecture** — [`docs/architecture.md`](docs/architecture.md)
 - **Decisions (ADRs)** — [`docs/decisions/`](docs/decisions/)

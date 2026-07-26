@@ -5,7 +5,15 @@ export {
   disconnectDb,
   type DbConfig,
 } from './client.js';
-export { withTenant, forTenant, type TenantContext, type TenantClient } from './tenant.js';
+export {
+  withTenant,
+  forTenant,
+  setTenantContext,
+  withUserIdentity,
+  type TenantContext,
+  type TenantClient,
+  type TxClient,
+} from './tenant.js';
 
 // Re-export the generated client: enums, model types, and `Prisma` (error
 // classes, input types). Consumers should never import @prisma/client directly.

@@ -27,9 +27,30 @@ import routes from './routes/index.js';
 export const createApp = (): Express => {
   const app = express();
 
-  // Behind an ALB/Cloudflare, req.ip must come from X-Forwarded-For or every
-  // rate limit keys on the proxy's address and applies to all users at once.
-  app.set('trust proxy', config.isProduction ? 1 : false);
+  /**
+   * Trust exactly one hop, in every environment.
+   *
+   * `req.ip` is what every rate limit keys on, and EVERY request from the web
+   * app is server-to-server — so without this the API sees the BFF's address on
+   * behalf of every user of every clinic, and the ten-per-fifteen-minutes auth
+   * budget becomes ten for the whole platform. That is not theoretical: it was
+   * observed as `rl:auth:172.19.0.7` with a count of 14, and it surfaces as
+   * "wrong password" and "this invitation expired" for whoever arrives eleventh.
+   *
+   * Previously `false` outside production, which is why development behaved
+   * differently from the thing being developed.
+   *
+   * `1`, not `true`: trust the single proxy in front of us (the BFF, or the
+   * ingress in production) and no further, so `req.ip` is the leftmost address
+   * that proxy vouches for. `true` would trust the whole chain and let a client
+   * pick its own address by prepending one.
+   *
+   * SAME TRUST BOUNDARY AS x-forwarded-host, and it is worth stating plainly:
+   * anything that can reach this API directly can now choose the address it is
+   * rate-limited as. The deployment must keep the API private, behind an ingress
+   * that OVERWRITES both headers. See the header of tenant.middleware.ts.
+   */
+  app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
   app.use(

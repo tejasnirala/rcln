@@ -206,6 +206,10 @@ services:
       # Resolved by the BROWSER, which runs on the host — so localhost, not the
       # compose service name.
       NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-5000}
+      # Resolved by the WEB CONTAINER — Server Actions run here, where localhost
+      # is this container and not the API. Same string, different machine, which
+      # is why it needs its own variable instead of reusing the public one.
+      API_INTERNAL_URL: http://api:5000
       WAIT_FOR_DB: 'false'
     ports:
       - '${WEB_PORT:-3000}:3000'

@@ -1,0 +1,51 @@
+import type { Metadata } from 'next';
+import type { MemberListResponse } from '@rcln/contracts';
+import { api } from '@/lib/api';
+import { getAccessToken } from '@/lib/session';
+import { Alert } from '@/components/ui/alert';
+import { MemberList } from '@/components/tenant/member-list';
+
+export const metadata: Metadata = {
+  title: 'Staff',
+};
+
+/**
+ * <slug>.rcln.com/members
+ *
+ * The auth guard, header and branch switcher come from the `(app)` layout.
+ *
+ * One request answers the whole screen, including the branches the assign form
+ * offers. Those come from here rather than from `/branches` on purpose:
+ * `iam.user.read` does not imply `branch.read`, and the list is already narrowed
+ * to the caller's own reach — offering a branch they cannot assign into would
+ * only produce a 404 on submit.
+ */
+export default async function MembersPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+
+  const members = await api<MemberListResponse>('/api/v1/members', {
+    slug,
+    accessToken: await getAccessToken(),
+  });
+
+  if (!members.ok || !members.data) {
+    return (
+      <Alert tone="error">
+        {members.status === 403
+          ? 'You do not have access to the staff list. Ask an administrator at this clinic.'
+          : (members.message ?? 'The staff list could not be loaded.')}
+      </Alert>
+    );
+  }
+
+  return (
+    <MemberList
+      slug={slug}
+      members={members.data.members}
+      roles={members.data.roles}
+      branches={members.data.branches}
+      grantableCodes={members.data.grantableCodes}
+      canAssignOrgWide={members.data.canAssignOrgWide}
+    />
+  );
+}

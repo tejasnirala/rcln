@@ -8,6 +8,37 @@ import { sendError } from '../utils/response.js';
 type ValidationSource = 'body' | 'query' | 'params';
 
 /**
+ * Write the parsed value back onto the request.
+ *
+ * `req.body` is a plain property and assigns normally. `req.query` in Express 5
+ * is a GETTER WITH NO SETTER, and because this file is not in strict mode the
+ * assignment fails *silently* — no throw, no warning, and `req.query` keeps the
+ * raw string values.
+ *
+ * That is invisible until a schema does real work: `paginationQuery` uses
+ * `z.coerce.number()` and `.default()`, so a handler would read the string "2"
+ * where it expects the number 2, and read `undefined` where it expects a
+ * default. It typechecks perfectly, because the cast below erases the evidence.
+ *
+ * defineProperty replaces the accessor outright, which is the only assignment
+ * Express 5 respects.
+ */
+function assignParsed(req: Request, source: ValidationSource, value: unknown): void {
+  if (source === 'query') {
+    Object.defineProperty(req, 'query', {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+    return;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (req as any)[source] = value;
+}
+
+/**
  * Validation middleware factory
  *
  * @example
@@ -21,8 +52,7 @@ export const validate = (schema: ZodSchema, source: ValidationSource = 'body') =
       const validated: unknown = await schema.parseAsync(data);
 
       // Replace with validated/transformed data
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (req as any)[source] = validated;
+      assignParsed(req, source, validated);
 
       next();
     } catch (error) {
@@ -61,8 +91,7 @@ export const validateMultiple = (schemas: Partial<Record<ValidationSource, ZodSc
         if (schema) {
           const data: unknown = req[source as ValidationSource];
           const validated: unknown = await schema.parseAsync(data);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (req as any)[source] = validated;
+          assignParsed(req, source as ValidationSource, validated);
         }
       }
       next();

@@ -1,0 +1,11 @@
+# Vendored agent skill. Pinned by content hash in skills-lock.json — reformatting
+# it changes the hash and breaks upstream sync. Leave it exactly as shipped.
+.claude/skills/vercel-react-best-practices/
+.agents/skills/vercel-react-best-practices/
+
+# Generated
+packages/db/generated/
+**/dist/
+**/.next/
+**/coverage/
+pnpm-lock.yaml
