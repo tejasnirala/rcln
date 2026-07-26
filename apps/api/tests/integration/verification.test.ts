@@ -124,9 +124,7 @@ async function verifiedAt(userId: string): Promise<{ email: Date | null; phone: 
   return { email: rows[0]?.email_verified_at ?? null, phone: rows[0]?.phone_verified_at ?? null };
 }
 
-async function auditRows(
-  userId: string
-): Promise<
+async function auditRows(userId: string): Promise<
   {
     organization_id: string | null;
     before_data: Record<string, unknown>;
