@@ -10,7 +10,7 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `accessibleBranchIds` | `(ctx: Pick<AccessContext, 'roleAssignments' \| 'isPlatformAdm…, allOrgBranchIds: string[], now): string[]` | `packages/permissions/src/resolver.ts:128` | The branches this user may act in — i.e. what the UI branch switcher lists. A null branchId on any assignment means "all branches", so the caller substitutes t… |
+| `accessibleBranchIds` | `(ctx: Pick<AccessContext, 'roleAssignments' \| 'isPlatformAdm…, allOrgBranchIds: string[], now): string[]` | `packages/permissions/src/resolver.ts:141` | The branches this user may act in — i.e. what the UI branch switcher lists. A null branchId on any assignment means "all branches", so the caller substitutes t… |
 | `can` | `(ctx: AccessContext, permission: PermissionCode, now): boolean` | `packages/permissions/src/resolver.ts:61` |  |
 | `canAll` | `(ctx: AccessContext, permissions: PermissionCode[], now): boolean` | `packages/permissions/src/resolver.ts:80` |  |
 | `canAny` | `(ctx: AccessContext, permissions: PermissionCode[], now): boolean` | `packages/permissions/src/resolver.ts:88` |  |

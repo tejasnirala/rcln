@@ -36,7 +36,7 @@ One file per model in this directory; the tables below are the overview.
 | [`Invitation`](Invitation.md) | `invitations` | yes | org | `id` `organizationId` `email` `phone` `roleId` `token` `invitedBy` `expiresAt` `acceptedAt` `revokedAt` `createdAt` |
 | [`InvitationBranch`](InvitationBranch.md) | `invitation_branches` | — | parent | `id` `invitationId` `branchId` |
 | [`StaffProfile`](StaffProfile.md) | `staff_profiles` | — | parent | `id` `membershipId` `employeeCode` `department` `designation` `joinedOn` `relievedOn` |
-| [`SettingDefinition`](SettingDefinition.md) | `setting_definitions` | — | exempt | `key` `module` `dataType` `defaultValue` `allowedScopes` `isTenantEditable` `description` |
+| [`SettingDefinition`](SettingDefinition.md) | `setting_definitions` | — | exempt | `key` `module` `dataType` `defaultValue` `allowedScopes` `isTenantEditable` `description` `helpText` `allowedValues` |
 | [`SettingValue`](SettingValue.md) | `setting_values` | — | exempt | `id` `settingKey` `scopeType` `scopeId` `value` `updatedBy` `updatedAt` |
 | [`StoredFile`](StoredFile.md) | `files` | yes | explicit | `id` `organizationId` `branchId` `storageKey` `originalName` `mimeType` `sizeBytes` `checksum` `uploadedBy` `uploadedAt` `deletedAt` |
 | [`AuditLog`](AuditLog.md) | `audit_logs` | yes | org | `id` `organizationId` `branchId` `actorUserId` `impersonatedByUserId` `action` `entityType` `entityId` `beforeData` `afterData` `ipAddress` `userAgent` `occurredAt` |

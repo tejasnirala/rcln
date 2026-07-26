@@ -30,8 +30,10 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 
 | method | path | at |
 | --- | --- | --- |
-| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:40` |
-| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:78` |
+| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:48` |
+| GET | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:99` |
+| POST | `/organizations/:organizationId/impersonate` | `apps/api/src/routes/v1/platform.routes.ts:161` |
+| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:186` |
 
 ## Database impact
 
@@ -48,14 +50,18 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 
 - `apps/api/src/routes/v1/platform.routes.ts`
 - `apps/web/src/app/(platform)/platform/actions.ts`
+- `apps/web/src/app/(platform)/platform/layout.tsx`
+- `apps/web/src/app/(platform)/platform/organizations/actions.ts`
+- `apps/web/src/app/(platform)/platform/organizations/page.tsx`
 - `apps/web/src/app/(platform)/platform/page.tsx`
 - `apps/web/src/components/platform/demo-request-list.tsx`
+- `apps/web/src/components/platform/organization-list.tsx`
 - `apps/web/src/components/platform/platform-login.tsx`
 - `apps/web/src/components/platform/platform-sign-out.tsx`
 
 ## Workspace dependencies
 
-`@rcln/contracts` · `@rcln/db/unsafe`
+`@rcln/contracts` · `@rcln/db/unsafe` · `@rcln/permissions`
 
 ## Known limitations
 
@@ -68,12 +74,17 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 | --- | --- | --- |
 | `DemoRequest` | interface | `apps/web/src/components/platform/demo-request-list.tsx:16` |
 | `DemoRequestList` | component | `apps/web/src/components/platform/demo-request-list.tsx:39` |
-| `metadata` | var | `apps/web/src/app/(platform)/platform/page.tsx:8` |
-| `PlatformHome` | component | `apps/web/src/app/(platform)/platform/page.tsx:24` |
+| `ImpersonateState` | type | `apps/web/src/app/(platform)/platform/organizations/actions.ts:23` |
+| `metadata` | var | `apps/web/src/app/(platform)/platform/layout.tsx:7` |
+| `OrganizationList` | component | `apps/web/src/components/platform/organization-list.tsx:26` |
+| `PlatformHome` | component | `apps/web/src/app/(platform)/platform/page.tsx:16` |
+| `PlatformLayout` | component | `apps/web/src/app/(platform)/platform/layout.tsx:35` |
 | `PlatformLogin` | component | `apps/web/src/components/platform/platform-login.tsx:10` |
 | `PlatformLoginState` | type | `apps/web/src/app/(platform)/platform/actions.ts:22` |
+| `PlatformOrganizations` | component | `apps/web/src/app/(platform)/platform/organizations/page.tsx:13` |
 | `platformSignIn` | action | `apps/web/src/app/(platform)/platform/actions.ts:33` |
 | `platformSignOut` | action | `apps/web/src/app/(platform)/platform/actions.ts:86` |
 | `PlatformSignOut` | component | `apps/web/src/components/platform/platform-sign-out.tsx:14` |
 | `provisionClinic` | action | `apps/web/src/app/(platform)/platform/actions.ts:109` |
 | `ProvisionState` | type | `apps/web/src/app/(platform)/platform/actions.ts:96` |
+| `startImpersonation` | action | `apps/web/src/app/(platform)/platform/organizations/actions.ts:33` |

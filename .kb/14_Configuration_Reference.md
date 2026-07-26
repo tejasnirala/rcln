@@ -88,14 +88,16 @@ Every variable in `.env.example`, grouped as the file groups them.
 
 ### Auth
 
-| Variable                       | Default        | Notes                                             |
-| ------------------------------ | -------------- | ------------------------------------------------- |
-| `JWT_SECRET`                   | — **required** | ≥32 chars. `openssl rand -base64 48`              |
-| `JWT_ACCESS_TOKEN_EXPIRES_IN`  | `15m`          | Short because a stateless token cannot be revoked |
-| `JWT_REFRESH_TOKEN_EXPIRES_IN` | `30d`          |                                                   |
-| `OTP_LENGTH`                   | `6`            |                                                   |
-| `OTP_TTL_SECONDS`              | `300`          |                                                   |
-| `OTP_MAX_ATTEMPTS`             | `5`            |                                                   |
+| Variable                       | Default        | Notes                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_SECRET`                   | — **required** | ≥32 chars. `openssl rand -base64 48`                                                                                                                                                                                                                                                                                             |
+| `JWT_ACCESS_TOKEN_EXPIRES_IN`  | `15m`          | Short because a stateless token cannot be revoked                                                                                                                                                                                                                                                                                |
+| `JWT_REFRESH_TOKEN_EXPIRES_IN` | `30d`          |                                                                                                                                                                                                                                                                                                                                  |
+| `OTP_LENGTH`                   | `6`            |                                                                                                                                                                                                                                                                                                                                  |
+| `OTP_TTL_SECONDS`              | `300`          |                                                                                                                                                                                                                                                                                                                                  |
+| `OTP_MAX_ATTEMPTS`             | `5`            |                                                                                                                                                                                                                                                                                                                                  |
+| `VERIFICATION_TTL_SECONDS`     | `900`          | Email/phone verification codes. Longer than an OTP — it has to survive a mail queue                                                                                                                                                                                                                                              |
+| `DEV_MASTER_VERIFICATION_CODE` | `123456`       | ⚠️ **Development only.** Confirms any email address or phone number, because neither SES nor TRAI DLT can deliver a real code yet. Never read when `NODE_ENV=production`, and the API **refuses to boot** if it is set there. Does **not** log anyone in — only `/auth/verify/*` consults it. Delete it when a real sender lands |
 
 ### CORS
 

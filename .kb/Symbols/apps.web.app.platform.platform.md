@@ -4,13 +4,14 @@
 
 > The super-admin console.
 
-Files: `apps/web/src/app/(platform)/platform/actions.ts` · `apps/web/src/app/(platform)/platform/page.tsx`
+Files: `apps/web/src/app/(platform)/platform/actions.ts` · `apps/web/src/app/(platform)/platform/layout.tsx` · `apps/web/src/app/(platform)/platform/page.tsx`
 
 ## component
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PlatformHome` | `()` | `apps/web/src/app/(platform)/platform/page.tsx:24` |  |
+| `PlatformHome` | `()` | `apps/web/src/app/(platform)/platform/page.tsx:16` |  |
+| `PlatformLayout` | `({ children }: { children: React.ReactNode })` | `apps/web/src/app/(platform)/platform/layout.tsx:35` |  |
 
 ## action
 
@@ -24,7 +25,7 @@ Files: `apps/web/src/app/(platform)/platform/actions.ts` · `apps/web/src/app/(p
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(platform)/platform/page.tsx:8` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(platform)/platform/layout.tsx:7` |  |
 
 ## type
 

@@ -6,57 +6,78 @@
 
 Files: `packages/contracts/src/auth.ts` · `packages/contracts/src/common.ts` · `packages/contracts/src/index.ts` · `packages/contracts/src/marketing.ts` · `packages/contracts/src/tenancy.ts`
 
+## fn
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `knownCurrency` <sub>local</sub> | `(value: string): boolean` | `packages/contracts/src/common.ts:108` |  |
+
 ## zod
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `acceptInviteRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:87` |  |
-| `apiError` | `z.object(…)` | `packages/contracts/src/common.ts:86` |  |
+| `apiError` | `z.object(…)` | `packages/contracts/src/common.ts:146` |  |
 | `assignRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:145` |  |
-| `authSession` | `z.object(…)` | `packages/contracts/src/auth.ts:122` |  |
+| `authSession` | `z.object(…)` | `packages/contracts/src/auth.ts:200` |  |
 | `branchClosureRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:94` |  |
-| `branchDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:264` |  |
-| `branchListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:283` |  |
+| `branchDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:308` |  |
+| `branchListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:327` |  |
 | `branchOperatingHoursRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:90` |  |
-| `branchSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:105` |  |
+| `branchSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:183` |  |
 | `changePasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:50` |  |
-| `checkSlugQuery` | `z.object(…)` | `packages/contracts/src/tenancy.ts:228` |  |
+| `checkSlugQuery` | `z.object(…)` | `packages/contracts/src/tenancy.ts:272` |  |
 | `createBranchRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:47` |  |
 | `createRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:180` |  |
 | `demoRequestInput` | `z.object(…)` | `packages/contracts/src/marketing.ts:17` |  |
 | `demoRequestResponse` | `z.object(…)` | `packages/contracts/src/marketing.ts:48` |  |
 | `email` | `z.email().max(255).toLowerCase(…)` | `packages/contracts/src/common.ts:62` |  |
 | `forgotPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:41` |  |
-| `invitationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:320` |  |
-| `invitationPreview` | `z.object(…)` | `packages/contracts/src/auth.ts:152` |  |
-| `invitationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:299` |  |
+| `impersonateRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:130` |  |
+| `impersonationClaimRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:155` | Redeeming the ticket, at the clinic's own host. |
+| `impersonationGrant` | `z.object(…)` | `packages/contracts/src/auth.ts:146` |  |
+| `impersonationStopResult` | `z.object(…)` | `packages/contracts/src/auth.ts:159` |  |
+| `invitationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:364` |  |
+| `invitationPreview` | `z.object(…)` | `packages/contracts/src/auth.ts:255` |  |
+| `invitationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:343` |  |
 | `invitationTokenRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:62` |  |
 | `inviteMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:112` |  |
 | `loginRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:10` |  |
-| `memberDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:406` |  |
-| `memberListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:433` |  |
-| `memberOverride` | `z.object(…)` | `packages/contracts/src/tenancy.ts:390` |  |
-| `memberRoleAssignment` | `z.object(…)` | `packages/contracts/src/tenancy.ts:378` | One row of `membership_roles`, named so a person can read it. |
-| `membershipSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:113` |  |
+| `memberDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:450` |  |
+| `memberListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:477` |  |
+| `memberOverride` | `z.object(…)` | `packages/contracts/src/tenancy.ts:434` |  |
+| `memberRoleAssignment` | `z.object(…)` | `packages/contracts/src/tenancy.ts:422` | One row of `membership_roles`, named so a person can read it. |
+| `membershipSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:191` |  |
 | `memberStatusRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:224` | Suspending or restoring someone. The reason is for the audit row only. |
 | `operatingHour` | `z.object(…)` | `packages/contracts/src/tenancy.ts:70` | 0 = Sunday, matching Postgres `extract(dow)` and JS `Date#getDay`. |
+| `organizationProfile` | `z.object(…)` | `packages/contracts/src/tenancy.ts:507` |  |
 | `otpRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:16` |  |
 | `otpVerifyRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:20` |  |
-| `paginationQuery` | `z.object(…)` | `packages/contracts/src/common.ts:72` |  |
+| `paginationQuery` | `z.object(…)` | `packages/contracts/src/common.ts:132` |  |
 | `permissionOverrideRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:161` |  |
+| `platformOrganizationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:616` |  |
+| `platformOrganizationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:606` |  |
 | `refreshRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:25` |  |
 | `registerOrganizationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:12` |  |
-| `registerOrganizationResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:240` |  |
+| `registerOrganizationResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:284` |  |
 | `resetPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:45` |  |
 | `revokeInvitationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:123` | Revoking is an action on an invitation, not a payload — the id is in the path. The reason is optional and lands on the audit row, never on an email. |
-| `roleDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:341` |  |
-| `roleListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:353` |  |
-| `slugAvailabilityResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:252` | Deliberately thin. This endpoint is unauthenticated and answers questions about which clinics exist, so it returns a boolean and nothing else — no name, no sta… |
+| `roleDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:385` |  |
+| `roleListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:397` |  |
+| `settingChoice` | `z.object(…)` | `packages/contracts/src/tenancy.ts:553` |  |
+| `settingItem` | `z.object(…)` | `packages/contracts/src/tenancy.ts:558` |  |
+| `settingListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:585` |  |
+| `settingValueRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:268` |  |
+| `slugAvailabilityResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:296` | Deliberately thin. This endpoint is unauthenticated and answers questions about which clinics exist, so it returns a boolean and nothing else — no name, no sta… |
 | `switchBranchRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:33` | Branch switching. Validated against the caller's own membership_roles — a branch they hold no assignment for is rejected, and the switch is audited. |
 | `switchOrganizationRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:37` |  |
 | `updateMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:215` |  |
+| `updateOrganizationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:244` |  |
 | `updateRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:200` |  |
 | `uuid` | `z.uuid(…)` | `packages/contracts/src/common.ts:3` |  |
+| `verificationConfirmRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:117` |  |
+| `verificationRequestResult` | `z.object(…)` | `packages/contracts/src/auth.ts:165` |  |
+| `verificationResult` | `z.object(…)` | `packages/contracts/src/auth.ts:178` |  |
 
 ## const
 
@@ -69,60 +90,78 @@ Files: `packages/contracts/src/auth.ts` · `packages/contracts/src/common.ts` ·
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `availableSlug` | `slug.refine(…)` | `packages/contracts/src/common.ts:52` |  |
-| `password` | `z .string() .min(12, 'at least 12 characters') .max(128) .r…` | `packages/contracts/src/common.ts:64` |  |
+| `currencyCode` | `z .string() .length(3) .regex(/^[A-Za-z]{3}$/, 'three lette…` | `packages/contracts/src/common.ts:117` |  |
+| `currencySet` <sub>local</sub> | `: Set<string> \| null \| undefined` | `packages/contracts/src/common.ts:106` |  |
+| `password` | `z .string() .min(12, 'at least 12 characters') .max(128) .r…` | `packages/contracts/src/common.ts:124` |  |
 | `phone` | `z .string() .regex(…)` | `packages/contracts/src/common.ts:58` | E.164, which is what every Indian SMS/WhatsApp provider expects. |
 | `slug` | `z .string() .min(3) .max(63) .regex(/^[a-z0-9]([a-z0-9-]*[a…` | `packages/contracts/src/common.ts:6` | Subdomain label: what becomes `alpha` in alpha.xyz.com. |
+| `timezone` | `z .string() .min(1) .max(64) .refine(…)` | `packages/contracts/src/common.ts:75` |  |
 | `updateBranchRequest` | `createBranchRequest.partial().extend(…)` | `packages/contracts/src/tenancy.ts:65` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `Paginated` | `{ data, meta }` | `packages/contracts/src/common.ts:81` |  |
+| `Paginated` | `{ data, meta }` | `packages/contracts/src/common.ts:141` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AcceptInviteRequest` | `z.infer<typeof acceptInviteRequest>` | `packages/contracts/src/auth.ts:168` |  |
-| `ApiError` | `z.infer<typeof apiError>` | `packages/contracts/src/common.ts:94` |  |
-| `AssignRoleRequest` | `z.infer<typeof assignRoleRequest>` | `packages/contracts/src/tenancy.ts:481` |  |
-| `AuthSession` | `z.infer<typeof authSession>` | `packages/contracts/src/auth.ts:169` |  |
-| `BranchClosureRequest` | `z.infer<typeof branchClosureRequest>` | `packages/contracts/src/tenancy.ts:473` |  |
-| `BranchDetail` | `z.infer<typeof branchDetail>` | `packages/contracts/src/tenancy.ts:470` |  |
-| `BranchListResponse` | `z.infer<typeof branchListResponse>` | `packages/contracts/src/tenancy.ts:471` |  |
-| `BranchOperatingHoursRequest` | `z.infer<typeof branchOperatingHoursRequest>` | `packages/contracts/src/tenancy.ts:472` |  |
-| `BranchSummary` | `z.infer<typeof branchSummary>` | `packages/contracts/src/auth.ts:171` |  |
-| `CheckSlugQuery` | `z.infer<typeof checkSlugQuery>` | `packages/contracts/src/tenancy.ts:456` |  |
-| `CreateBranchRequest` | `z.infer<typeof createBranchRequest>` | `packages/contracts/src/tenancy.ts:478` |  |
-| `CreateRoleRequest` | `z.infer<typeof createRoleRequest>` | `packages/contracts/src/tenancy.ts:482` |  |
+| `AcceptInviteRequest` | `z.infer<typeof acceptInviteRequest>` | `packages/contracts/src/auth.ts:271` |  |
+| `ApiError` | `z.infer<typeof apiError>` | `packages/contracts/src/common.ts:154` |  |
+| `AssignRoleRequest` | `z.infer<typeof assignRoleRequest>` | `packages/contracts/src/tenancy.ts:653` |  |
+| `AuthSession` | `z.infer<typeof authSession>` | `packages/contracts/src/auth.ts:279` |  |
+| `BranchClosureRequest` | `z.infer<typeof branchClosureRequest>` | `packages/contracts/src/tenancy.ts:645` |  |
+| `BranchDetail` | `z.infer<typeof branchDetail>` | `packages/contracts/src/tenancy.ts:642` |  |
+| `BranchListResponse` | `z.infer<typeof branchListResponse>` | `packages/contracts/src/tenancy.ts:643` |  |
+| `BranchOperatingHoursRequest` | `z.infer<typeof branchOperatingHoursRequest>` | `packages/contracts/src/tenancy.ts:644` |  |
+| `BranchSummary` | `z.infer<typeof branchSummary>` | `packages/contracts/src/auth.ts:281` |  |
+| `CheckSlugQuery` | `z.infer<typeof checkSlugQuery>` | `packages/contracts/src/tenancy.ts:622` |  |
+| `CreateBranchRequest` | `z.infer<typeof createBranchRequest>` | `packages/contracts/src/tenancy.ts:650` |  |
+| `CreateRoleRequest` | `z.infer<typeof createRoleRequest>` | `packages/contracts/src/tenancy.ts:654` |  |
 | `DemoRequestInput` | `z.infer<typeof demoRequestInput>` | `packages/contracts/src/marketing.ts:46` |  |
 | `DemoRequestResponse` | `z.infer<typeof demoRequestResponse>` | `packages/contracts/src/marketing.ts:57` |  |
-| `InvitationListResponse` | `z.infer<typeof invitationListResponse>` | `packages/contracts/src/tenancy.ts:467` |  |
-| `InvitationPreview` | `z.infer<typeof invitationPreview>` | `packages/contracts/src/auth.ts:163` |  |
-| `InvitationSummary` | `z.infer<typeof invitationSummary>` | `packages/contracts/src/tenancy.ts:466` |  |
-| `InvitationTokenRequest` | `z.infer<typeof invitationTokenRequest>` | `packages/contracts/src/auth.ts:162` |  |
-| `InviteMemberRequest` | `z.infer<typeof inviteMemberRequest>` | `packages/contracts/src/tenancy.ts:480` |  |
-| `LoginRequest` | `z.infer<typeof loginRequest>` | `packages/contracts/src/auth.ts:161` |  |
-| `MemberDetail` | `z.infer<typeof memberDetail>` | `packages/contracts/src/tenancy.ts:462` |  |
-| `MemberListResponse` | `z.infer<typeof memberListResponse>` | `packages/contracts/src/tenancy.ts:463` |  |
-| `MemberOverride` | `z.infer<typeof memberOverride>` | `packages/contracts/src/tenancy.ts:461` |  |
-| `MemberRoleAssignment` | `z.infer<typeof memberRoleAssignment>` | `packages/contracts/src/tenancy.ts:460` |  |
-| `MembershipSummary` | `z.infer<typeof membershipSummary>` | `packages/contracts/src/auth.ts:170` |  |
-| `MemberStatusRequest` | `z.infer<typeof memberStatusRequest>` | `packages/contracts/src/tenancy.ts:465` |  |
-| `OperatingHour` | `z.infer<typeof operatingHour>` | `packages/contracts/src/tenancy.ts:469` |  |
-| `OtpRequest` | `z.infer<typeof otpRequest>` | `packages/contracts/src/auth.ts:164` |  |
-| `OtpVerifyRequest` | `z.infer<typeof otpVerifyRequest>` | `packages/contracts/src/auth.ts:165` |  |
-| `PaginationQuery` | `z.infer<typeof paginationQuery>` | `packages/contracts/src/common.ts:79` |  |
-| `PermissionOverrideRequest` | `z.infer<typeof permissionOverrideRequest>` | `packages/contracts/src/tenancy.ts:483` |  |
-| `RefreshRequest` | `z.infer<typeof refreshRequest>` | `packages/contracts/src/auth.ts:166` |  |
-| `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:477` |  |
-| `RegisterOrganizationResponse` | `z.infer<typeof registerOrganizationResponse>` | `packages/contracts/src/tenancy.ts:474` |  |
-| `RevokeInvitationRequest` | `z.infer<typeof revokeInvitationRequest>` | `packages/contracts/src/tenancy.ts:468` |  |
-| `RoleDetail` | `z.infer<typeof roleDetail>` | `packages/contracts/src/tenancy.ts:457` |  |
-| `RoleListResponse` | `z.infer<typeof roleListResponse>` | `packages/contracts/src/tenancy.ts:458` |  |
-| `SlugAvailabilityResponse` | `z.infer<typeof slugAvailabilityResponse>` | `packages/contracts/src/tenancy.ts:475` |  |
-| `SwitchBranchRequest` | `z.infer<typeof switchBranchRequest>` | `packages/contracts/src/auth.ts:167` |  |
-| `UpdateBranchRequest` | `z.infer<typeof updateBranchRequest>` | `packages/contracts/src/tenancy.ts:479` |  |
-| `UpdateMemberRequest` | `z.infer<typeof updateMemberRequest>` | `packages/contracts/src/tenancy.ts:464` |  |
-| `UpdateRoleRequest` | `z.infer<typeof updateRoleRequest>` | `packages/contracts/src/tenancy.ts:459` |  |
+| `ImpersonateRequest` | `z.infer<typeof impersonateRequest>` | `packages/contracts/src/auth.ts:275` |  |
+| `ImpersonationClaimRequest` | `z.infer<typeof impersonationClaimRequest>` | `packages/contracts/src/auth.ts:277` |  |
+| `ImpersonationGrant` | `z.infer<typeof impersonationGrant>` | `packages/contracts/src/auth.ts:276` |  |
+| `ImpersonationStopResult` | `z.infer<typeof impersonationStopResult>` | `packages/contracts/src/auth.ts:278` |  |
+| `InvitationListResponse` | `z.infer<typeof invitationListResponse>` | `packages/contracts/src/tenancy.ts:639` |  |
+| `InvitationPreview` | `z.infer<typeof invitationPreview>` | `packages/contracts/src/auth.ts:266` |  |
+| `InvitationSummary` | `z.infer<typeof invitationSummary>` | `packages/contracts/src/tenancy.ts:638` |  |
+| `InvitationTokenRequest` | `z.infer<typeof invitationTokenRequest>` | `packages/contracts/src/auth.ts:265` |  |
+| `InviteMemberRequest` | `z.infer<typeof inviteMemberRequest>` | `packages/contracts/src/tenancy.ts:652` |  |
+| `LoginRequest` | `z.infer<typeof loginRequest>` | `packages/contracts/src/auth.ts:264` |  |
+| `MemberDetail` | `z.infer<typeof memberDetail>` | `packages/contracts/src/tenancy.ts:634` |  |
+| `MemberListResponse` | `z.infer<typeof memberListResponse>` | `packages/contracts/src/tenancy.ts:635` |  |
+| `MemberOverride` | `z.infer<typeof memberOverride>` | `packages/contracts/src/tenancy.ts:633` |  |
+| `MemberRoleAssignment` | `z.infer<typeof memberRoleAssignment>` | `packages/contracts/src/tenancy.ts:632` |  |
+| `MembershipSummary` | `z.infer<typeof membershipSummary>` | `packages/contracts/src/auth.ts:280` |  |
+| `MemberStatusRequest` | `z.infer<typeof memberStatusRequest>` | `packages/contracts/src/tenancy.ts:637` |  |
+| `OperatingHour` | `z.infer<typeof operatingHour>` | `packages/contracts/src/tenancy.ts:641` |  |
+| `OrganizationProfile` | `z.infer<typeof organizationProfile>` | `packages/contracts/src/tenancy.ts:624` |  |
+| `OtpRequest` | `z.infer<typeof otpRequest>` | `packages/contracts/src/auth.ts:267` |  |
+| `OtpVerifyRequest` | `z.infer<typeof otpVerifyRequest>` | `packages/contracts/src/auth.ts:268` |  |
+| `PaginationQuery` | `z.infer<typeof paginationQuery>` | `packages/contracts/src/common.ts:139` |  |
+| `PermissionOverrideRequest` | `z.infer<typeof permissionOverrideRequest>` | `packages/contracts/src/tenancy.ts:655` |  |
+| `PlatformOrganizationListResponse` | `z.infer<typeof platformOrganizationListResponse>` | `packages/contracts/src/tenancy.ts:621` |  |
+| `PlatformOrganizationSummary` | `z.infer<typeof platformOrganizationSummary>` | `packages/contracts/src/tenancy.ts:620` |  |
+| `RefreshRequest` | `z.infer<typeof refreshRequest>` | `packages/contracts/src/auth.ts:269` |  |
+| `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:649` |  |
+| `RegisterOrganizationResponse` | `z.infer<typeof registerOrganizationResponse>` | `packages/contracts/src/tenancy.ts:646` |  |
+| `RevokeInvitationRequest` | `z.infer<typeof revokeInvitationRequest>` | `packages/contracts/src/tenancy.ts:640` |  |
+| `RoleDetail` | `z.infer<typeof roleDetail>` | `packages/contracts/src/tenancy.ts:629` |  |
+| `RoleListResponse` | `z.infer<typeof roleListResponse>` | `packages/contracts/src/tenancy.ts:630` |  |
+| `SettingChoice` | `z.infer<typeof settingChoice>` | `packages/contracts/src/tenancy.ts:626` |  |
+| `SettingItem` | `z.infer<typeof settingItem>` | `packages/contracts/src/tenancy.ts:627` |  |
+| `SettingListResponse` | `z.infer<typeof settingListResponse>` | `packages/contracts/src/tenancy.ts:628` |  |
+| `SettingValueRequest` | `z.infer<typeof settingValueRequest>` | `packages/contracts/src/tenancy.ts:625` |  |
+| `SlugAvailabilityResponse` | `z.infer<typeof slugAvailabilityResponse>` | `packages/contracts/src/tenancy.ts:647` |  |
+| `SwitchBranchRequest` | `z.infer<typeof switchBranchRequest>` | `packages/contracts/src/auth.ts:270` |  |
+| `UpdateBranchRequest` | `z.infer<typeof updateBranchRequest>` | `packages/contracts/src/tenancy.ts:651` |  |
+| `UpdateMemberRequest` | `z.infer<typeof updateMemberRequest>` | `packages/contracts/src/tenancy.ts:636` |  |
+| `UpdateOrganizationRequest` | `z.infer<typeof updateOrganizationRequest>` | `packages/contracts/src/tenancy.ts:623` |  |
+| `UpdateRoleRequest` | `z.infer<typeof updateRoleRequest>` | `packages/contracts/src/tenancy.ts:631` |  |
+| `VerificationConfirmRequest` | `z.infer<typeof verificationConfirmRequest>` | `packages/contracts/src/auth.ts:272` |  |
+| `VerificationRequestResult` | `z.infer<typeof verificationRequestResult>` | `packages/contracts/src/auth.ts:273` |  |
+| `VerificationResult` | `z.infer<typeof verificationResult>` | `packages/contracts/src/auth.ts:274` |  |

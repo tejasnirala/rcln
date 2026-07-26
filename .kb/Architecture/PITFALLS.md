@@ -10,6 +10,41 @@ behaves oddly, look here before debugging from scratch.
 
 ## Postgres and RLS
 
+### Prisma generates ids in the client, so raw SQL inserts violate NOT NULL
+
+**Symptom:** a test that stages a row with `owner.query('INSERT INTO …')` fails
+with `null value in column "id" … violates not-null constraint`, even though
+every model has `@default(uuid())`.
+**Cause:** `@default(uuid())` is a **Prisma-side** default. The column carries
+`NOT NULL` and no `DEFAULT` at all, so anything that does not go through the
+client — a test fixture, a psql session, a hand-written migration — must supply
+one.
+**Fix:** `gen_random_uuid()` in the insert.
+**Why it matters beyond the error:** this is how a guard measurement silently
+measures nothing. A "does this test fail without the guard?" check that fails
+identically in both states looks like proof and is not — the guard was never
+reached. Read the failure message, not just the red tick. Found while pinning
+the `userId` check in `verification.service.ts`.
+
+### An unscoped `_count` over a scoped table returns 0 for every row
+
+**Symptom:** the platform console's clinic list reported `branchCount: 0` and
+`memberCount: 0` for a clinic with two branches and four members. 200, no error,
+no log line.
+**Cause:** `organizations` is on the RLS exemption list — it is the table the
+tenant is resolved FROM — so `unsafeDbClient().organization.findMany()` is
+correct and returns real rows. But `branches` and `memberships` are **not**
+exempt, and the unscoped client sets no session variables, so their policies
+evaluate against a NULL `app.current_org` and match nothing. A `_count` over a
+relation therefore counts zero, and a count of zero is a plausible-looking
+number rather than an error.
+**Fix:** the counts were dropped from `platformOrganizationSummary`. Real ones
+would need one `withTenant` round trip per organization.
+**The general shape:** the exemption is per TABLE, not per query. A join or a
+`_count` from an exempt table into a scoped one silently crosses back into RLS,
+and aggregates fail closed to a number rather than to an error. Found by curling
+the endpoint; nothing in the type system or the test suite would have.
+
 ### `FORCE ROW LEVEL SECURITY` breaks migrations
 
 **Symptom:** seeds and migrations insert nothing, apparently succeeding.
@@ -71,6 +106,30 @@ permits many rows with `organization_id = NULL`.
 **Fix:** `NULLS NOT DISTINCT` (Postgres 15+), added as raw SQL in migration
 `20260725060000`.
 
+### `Intl.NumberFormat` does not validate a currency code
+
+**Symptom:** `currency: "XYZ"` is accepted and stored.
+**Cause:** `new Intl.NumberFormat('en', { style: 'currency', currency })` throws
+only when the code is not three ASCII letters. It does **not** check the code
+against ISO 4217, so it is useless as a validator — unlike
+`new Intl.DateTimeFormat('en', { timeZone })`, which really does throw on an
+unknown zone. The two look like the same trick and are not.
+**Fix:** `Intl.supportedValuesOf('currency')`. See `packages/contracts/src/common.ts`,
+where `timezone` uses the constructor and `currencyCode` deliberately does not.
+Both were checked against a deliberately invalid value; the currency one passed
+until it was.
+
+### A bare `null` cannot clear a nullable Json column
+
+**Symptom:** `Argument 'allowedValues': Invalid value provided` on an update
+that sets a Json field to `null`.
+**Cause:** for a `Json?` column Prisma cannot tell "the SQL NULL" from "the JSON
+literal `null`", both of which are storable, so it refuses the bare value.
+**Fix:** `Prisma.DbNull` for the column being NULL, `Prisma.JsonNull` for the
+JSON value. This bites in two directions in the settings code — the seed clears
+`allowed_values` with `DbNull`, and `setting.service.ts` writes a JSON null value
+with `JsonNull`.
+
 ### Prisma cannot target a compound unique containing NULL
 
 **Symptom:** `Argument 'organizationId' must not be null` in an `upsert`.
@@ -78,6 +137,37 @@ permits many rows with `organization_id = NULL`.
 component.
 **Fix:** `findFirst` then `create`/`update`. Uniqueness is still guaranteed by
 the `NULLS NOT DISTINCT` index. See `prisma/seed.ts`.
+
+### `audit_logs.entity_id` is a `uuid`, so a non-uuid identifier 500s the write
+
+**Symptom:** an endpoint answers `{"success": false, "message": "Database error"}`
+with no field named, and the log shows the failure inside `tx.auditLog.create`,
+not inside the mutation you were making.
+**Cause:** `recordAudit` takes `entityId` as a `string` because that is what a
+uuid is in TypeScript. `audit_logs.entity_id` is `@db.Uuid`, so anything else —
+a setting key, a permission code, a slug — fails the cast at the database. It
+typechecks perfectly and only the audit row is at fault, which is why the error
+message points nowhere useful.
+**Fix:** pass the ROW's id. If the natural identifier is not a uuid, put it in
+the snapshot instead. Found writing `setting.service.ts`.
+
+**And a second trap in the same call:** `recordAudit` keeps only the fields whose
+value moved, so a snapshot of `{ key, value }` loses `key` on every update — the
+row then says "20 became 30" about nothing in particular. Name the FIELD after
+the subject (`{ [key]: value }`) and both the identity and the diff survive.
+
+### RLS-exempt tables have no second line of defence, and no test will say so
+
+**Symptom:** none. That is the entry.
+**Cause:** `organizations`, `setting_values`, `users`, `roles` and the rest of
+the `EXEMPT` list in `packages/db/scripts/check-rls.ts` carry no policy, for
+reasons that are each individually good. A `where` that forgets the tenant on one
+of these returns another clinic's row, commits another clinic's update, and
+passes every single-tenant test. `db:rls:check` counts them as handled.
+**Fix:** a service touching one states the rule in a header comment, never takes
+the scoping id from a request, and ships a two-organization integration case that
+is _measured_ to fail with the filter removed. `setting.service.ts` and
+`settings.test.ts` are the worked example.
 
 ### A RESTRICTIVE policy fails two different ways, and one of them is silent
 
@@ -228,6 +318,44 @@ with the host's.
 `middleware.ts` is now **`proxy.ts`**, and the `eslint` config key was
 **removed**. `apps/web/AGENTS.md` says to read `node_modules/next/dist/docs/`
 before writing Next code. Both of these were hit by not doing so.
+
+### `request.url` in a Route Handler follows the connection, not the Host header
+
+**Symptom:** `NextResponse.redirect(new URL('/', request.url))` in the
+impersonation handoff handler answered `Location: http://localhost:3000/` for a
+request carrying `Host: northwind.lvh.me`.
+**Cause:** `NextRequest.url` is built from the address the server was reached on,
+not from the header the app resolves its tenant with. Everything in this product
+is addressed by subdomain, so the two differ whenever the connection is
+terminated anywhere else.
+**Why it is worse here than a wrong-looking URL:** that response carries the
+session cookie. Cookies are host-only by design, so a redirect that leaves the
+clinic's origin drops the session the redirect exists to deliver — and the user
+lands signed out, on the wrong host, with nothing in any log.
+**Fix:** a relative `Location`. It is legal HTTP and the browser resolves it
+against the address it actually asked for, which is the only host that can be
+right:
+
+```ts
+new NextResponse(null, { status: 303, headers: { location: '/' } });
+```
+
+### `react-hooks/purity` and `set-state-in-effect` rule out the obvious clock
+
+**Symptom:** three separate lint failures building one countdown. `Date.now()`
+during render is `react-hooks/purity` — **including in a Server Component**, the
+rule does not distinguish. Seeding the state from the effect body is
+`react-hooks/set-state-in-effect`. Computing it in the layout and passing it down
+fails the first rule in the layout instead.
+**Fix, in the end, not a workaround:** pass the ISO instant down and render the
+absolute end time — `new Date(iso).toLocaleTimeString()` is pure, needs no state,
+no effect and no interval, and it is the fact someone plans around anyway. The
+server and the browser format it in different zones, which is a hydration
+difference on purpose: `suppressHydrationWarning` on the `<time>`, because the
+reader's clock is the correct one.
+**When a ticking value is genuinely needed:** anchor an absolute deadline inside
+the effect and set state only from the interval callback — never from the effect
+body, and never by decrementing, which drifts when the tab is throttled.
 
 ### Build-only config affects `next dev`
 

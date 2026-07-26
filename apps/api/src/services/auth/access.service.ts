@@ -209,6 +209,37 @@ export async function invalidateOrganizationAccess(organizationId: string): Prom
   } while (cursor !== '0');
 }
 
+/**
+ * Every active branch in an organization, for a caller who has no membership to
+ * derive a scope from.
+ *
+ * ONE CALLER, AND IT IS NOT A SHORTCUT AROUND `loadUserAccess`
+ *   A platform admin impersonating a clinic (ADR-0012) holds no membership
+ *   there, so `loadUserAccess` returns null and `branchScope` comes out empty.
+ *   An empty scope is not "no restriction" — `branch_isolation` is RESTRICTIVE,
+ *   so every branch-scoped read returns nothing and every branch-scoped write
+ *   silently matches nothing. Full access would present as an empty clinic.
+ *
+ *   Safe for the same reason step 1 of `load()` is: `branches` carries the
+ *   org-scoped policy only, so an empty scope still lists the organization's own
+ *   branches and nobody else's. Not cached — impersonation is rare and short,
+ *   and a stale branch list here is a stale authorisation scope.
+ */
+export async function organizationBranchIds(
+  organizationId: string,
+  userId: string
+): Promise<string[]> {
+  const branches = await withTenant({ organizationId, branchIds: [], userId }, async (tx) =>
+    tx.branch.findMany({
+      where: { status: 'ACTIVE', deletedAt: null },
+      orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
+      select: { id: true },
+    })
+  );
+
+  return branches.map((b) => b.id);
+}
+
 export function toAccessContext(
   access: UserAccess,
   userId: string,

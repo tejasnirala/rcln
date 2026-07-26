@@ -171,6 +171,41 @@ export const inviteLimiter = rateLimit({
 });
 
 /**
+ * Email and phone verification, metered per ACCOUNT and per channel.
+ *
+ * Not per address, for the same reason as `identityLimiter`: a clinic arrives
+ * through one office NAT, and half a dozen people verifying their email on a
+ * Monday morning must not lock the rest of the practice out of doing the same.
+ *
+ * These routes sit behind `authenticate` + `requireAuth`, so `req.auth` is
+ * always present by the time this runs — the address fallback exists only
+ * because the type does not say so.
+ *
+ * The path is part of the key so that requesting a code, confirming one, and
+ * doing either for the other channel are four separate budgets. Sharing one
+ * would mean a user who mistyped a code four times could no longer ask for a
+ * replacement, which is precisely when they need it.
+ *
+ * Ten per hour is roomy for a person and hopeless for a script; a wrong code is
+ * separately capped at `OTP_MAX_ATTEMPTS` tries by challenge.service.ts, which
+ * burns the token rather than the budget.
+ */
+export const verificationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: store('rl:verification:'),
+  keyGenerator: (req, res) => {
+    const userId = req.auth?.userId ?? ipKeyGenerator(req.ip ?? '', 56) ?? String(res.statusCode);
+    return `${userId}:${req.path}`;
+  },
+  handler: (_req, res) => {
+    sendError(res, 'Too many verification attempts. Try again in a little while.', 429);
+  },
+});
+
+/**
  * OTP sending is metered per phone number, not per IP — an attacker rotating
  * IPs must not be able to spam one person's handset (and burn your SMS credit).
  */

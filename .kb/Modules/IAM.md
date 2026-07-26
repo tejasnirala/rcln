@@ -96,7 +96,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | name | kind | at |
 | --- | --- | --- |
 | `AccessContext` | interface | `packages/permissions/src/resolver.ts:37` |
-| `accessibleBranchIds` | fn | `packages/permissions/src/resolver.ts:128` |
+| `accessibleBranchIds` | fn | `packages/permissions/src/resolver.ts:141` |
 | `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:141` |
 | `assertBranchAssignable` | fn | `apps/api/src/services/iam/guards.ts:127` |
 | `assertGrantable` | fn | `apps/api/src/services/iam/guards.ts:90` |

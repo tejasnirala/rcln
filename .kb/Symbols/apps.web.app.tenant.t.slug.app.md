@@ -12,12 +12,12 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx` · `apps/web/src/ap
 | --- | --- | --- | --- |
 | `Entry` <sub>local</sub> | `({ href, label, detail }: { href: string; label: string; det…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:134` |  |
 | `Stat` <sub>local</sub> | `({ label, value, detail }: { label: string; value: string; d…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:124` |  |
-| `TenantAppLayout` | `({ children, params, }: { children: React.ReactNode; params:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:30` |  |
+| `TenantAppLayout` | `({ children, params, }: { children: React.ReactNode; params:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:32` |  |
 | `TenantHome` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:24` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:6` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:8` |  |
 | `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:7` |  |

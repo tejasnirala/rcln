@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
+import { ImpersonationBanner } from '@/components/tenant/impersonation-banner';
 import { TenantHeader } from '@/components/tenant/tenant-header';
+import { VerifyPrompt } from '@/components/tenant/verify-prompt';
 
 export const metadata: Metadata = {
   // A tenant surface must never be indexed — it would publish the customer list.
@@ -21,8 +23,8 @@ export const metadata: Metadata = {
  *
  * Every screen added from here on — branches, members, roles, settings — is a
  * page inside this group and inherits the guard, the header and the branch
- * switcher without repeating any of it. The impersonation banner will mount
- * here too, so it cannot be missing from one screen.
+ * switcher without repeating any of it. The impersonation banner mounts here for
+ * the same reason: it must not be missing from one screen.
  *
  * `getSession` is memoised per request, so a page calling it again for its own
  * content costs nothing.
@@ -39,9 +41,23 @@ export default async function TenantAppLayout({
 
   if (!session) redirect('/login');
 
+  const impersonation = session.impersonation;
+
   return (
     <div className="min-h-dvh">
+      {impersonation ? (
+        <ImpersonationBanner
+          slug={slug}
+          organizationName={impersonation.organizationName}
+          adminName={impersonation.adminName}
+          expiresAt={impersonation.expiresAt}
+        />
+      ) : null}
       <TenantHeader slug={slug} session={session} />
+      {/* Renders nothing once both channels are confirmed. It lives here rather
+          than on one page so it cannot be missing from a screen — the same
+          reason the impersonation banner is above. */}
+      <VerifyPrompt session={session} />
       <main id="main" className="px-gutter mx-auto max-w-7xl py-12">
         {children}
       </main>

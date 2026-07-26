@@ -171,6 +171,25 @@ export async function signOut(slug: string): Promise<void> {
   await clearSessionCookies();
 }
 
+/**
+ * Leave a clinic a super admin walked into.
+ *
+ * Revoking server-side matters more here than it does for an ordinary sign-out:
+ * clearing the cookie only stops this browser, and the token this session issued
+ * is the one credential in the product that can write into a clinic nobody at
+ * that clinic authorised. The caller navigates back to the console itself —
+ * that is another host, so no redirect from here could reach it.
+ */
+export async function stopImpersonation(slug: string): Promise<void> {
+  const accessToken = await getAccessToken();
+
+  if (accessToken) {
+    await api('/api/v1/auth/impersonation/stop', { method: 'POST', slug, accessToken });
+  }
+
+  await clearSessionCookies();
+}
+
 export async function switchBranch(slug: string, branchId: string): Promise<void> {
   const accessToken = await getAccessToken();
   if (!accessToken) return;

@@ -40,6 +40,11 @@ x-dev-env: &dev-env
   REDIS_URL: redis://redis:6379
   ROOT_DOMAIN: ${ROOT_DOMAIN:-lvh.me}
   LOG_LEVEL: ${LOG_LEVEL:-debug}
+  # Confirms any email address or phone number, because neither SES nor TRAI DLT
+  # can deliver a real one yet. It lives on the DEV anchor deliberately: nothing
+  # outside this file sets it, the API refuses to boot with it in production, and
+  # it logs nobody in. The web reads it only to print the hint on /verify.
+  DEV_MASTER_VERIFICATION_CODE: ${DEV_MASTER_VERIFICATION_CODE:-123456}
   # File watching: OFF by default.
   #
   # Polling was the default here and it OOM-killed the web container — a polling

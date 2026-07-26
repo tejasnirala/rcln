@@ -3,7 +3,11 @@ import type { TenantContext } from '@rcln/db';
 import type { PermissionCode } from '@rcln/permissions';
 import { verifyAccessToken } from '../services/auth/token.service.js';
 import { findLiveSession } from '../services/auth/session.service.js';
-import { hasPermission, loadUserAccess } from '../services/auth/access.service.js';
+import {
+  hasPermission,
+  loadUserAccess,
+  organizationBranchIds,
+} from '../services/auth/access.service.js';
 import { AuthenticationError, AuthorizationError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
@@ -98,7 +102,24 @@ export async function authenticate(
       if (!access && !claims.isPlatformAdmin) {
         throw new AuthenticationError('Your access to this organization has been removed.');
       }
+
+      /**
+       * An impersonating platform admin has no membership here — that is what
+       * makes it impersonation — so there is nothing for `loadUserAccess` to
+       * derive a branch scope from, and an empty scope is not "unrestricted".
+       * `branch_isolation` is RESTRICTIVE: every branch-scoped read would return
+       * nothing and every branch-scoped write would silently match nothing, so
+       * full access (ADR-0012) would present as an empty clinic.
+       *
+       * The scope is therefore the organization's own branches, resolved fresh.
+       * Note the condition: a platform admin who is NOT impersonating and has no
+       * membership keeps the empty scope, because they have not asked to be
+       * inside this clinic and nothing has been audited to say they are.
+       */
       branchScope = access?.branchIds ?? [];
+      if (!access && claims.isPlatformAdmin && claims.impersonatedByUserId) {
+        branchScope = await organizationBranchIds(claims.organizationId, claims.userId);
+      }
     }
 
     req.auth = {
@@ -110,6 +131,7 @@ export async function authenticate(
       branchId: claims.branchId,
       branchScope,
       impersonatedByUserId: claims.impersonatedByUserId,
+      sessionExpiresAt: session.expiresAt,
     };
 
     next();

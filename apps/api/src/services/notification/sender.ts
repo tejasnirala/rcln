@@ -22,8 +22,8 @@ import { logger } from '../../utils/logger.js';
  * expiry are real; the message is logged.
  */
 
-export type SmsTemplate = 'LOGIN_OTP';
-export type EmailTemplate = 'INVITE' | 'INVITE_REMINDER';
+export type SmsTemplate = 'LOGIN_OTP' | 'VERIFY_PHONE';
+export type EmailTemplate = 'INVITE' | 'INVITE_REMINDER' | 'VERIFY_EMAIL';
 
 export interface NotificationSender {
   sendSms(to: string, template: SmsTemplate, vars: Record<string, string>): Promise<void>;
@@ -80,5 +80,15 @@ export const loggingSender: NotificationSender = {
   },
 };
 
-/** Swap this for the MSG91 implementation once DLT registration completes. */
+/**
+ * Swap this for the MSG91 implementation once DLT registration completes.
+ *
+ * ⚠️ WHEN YOU DO, DELETE THE MASTER VERIFICATION CODE TOO.
+ *   Because nothing here is delivered, `confirmVerification` accepts
+ *   `config.verification.masterCode` outside production so the flow can be
+ *   tested in a browser at all. It is null in production and the API refuses to
+ *   boot with it set there — but a real sender removes the last reason for it to
+ *   exist, and a backdoor with no remaining justification is just a backdoor.
+ *   See services/auth/verification.service.ts and .env.example.
+ */
 export const sender: NotificationSender = loggingSender;

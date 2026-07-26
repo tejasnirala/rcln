@@ -8,19 +8,22 @@ Source: `apps/api/src/routes/v1/platform.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `authenticate` → `requirePlatformAdmin` | `apps/api/src/routes/v1/platform.routes.ts:27` |
-| POST | `/organizations` | `validate(provisionRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:40` |
-| GET | `/demo-requests` | `validate(demoRequestQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:78` |
+| USE | `*` | `authenticate` → `requirePlatformAdmin` | `apps/api/src/routes/v1/platform.routes.ts:35` |
+| POST | `/organizations` | `validate(provisionRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:48` |
+| GET | `/organizations` | `authorize(PERMISSIONS.PLATFORM_ORG_READ)` → `validate(organizationQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:99` |
+| POST | `/organizations/:organizationId/impersonate` | `authorize(PERMISSIONS.PLATFORM_IMPERSONATE)` → `validate(…)` → `validate(impersonateRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:161` |
+| GET | `/demo-requests` | `validate(demoRequestQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:186` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `demoRequestQuery` | `apps/api/src/routes/v1/platform.routes.ts:72` |
+| `organizationQuery` | `apps/api/src/routes/v1/platform.routes.ts:93` |
+| `demoRequestQuery` | `apps/api/src/routes/v1/platform.routes.ts:180` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`RegisterOrganizationResponse` · `registerOrganizationRequest`
+`ImpersonateRequest` · `PlatformOrganizationListResponse` · `RegisterOrganizationResponse` · `impersonateRequest` · `registerOrganizationRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

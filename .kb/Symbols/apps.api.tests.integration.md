@@ -4,43 +4,66 @@
 
 > Authentication over real HTTP, through the real middleware chain.
 
-Files: `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/tenant-isolation.test.ts`
+Files: `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/tenant-isolation.test.ts` · `apps/api/tests/integration/verification.test.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `as` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/verification.test.ts:87` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/branches.test.ts:79` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/invitations.test.ts:94` |  |
 | `asTenant` <sub>local</sub> | `(organizationId: string, branchIds: string[], fn: () => Promise<T>): Promise<T>` | `apps/api/tests/integration/registration.test.ts:45` | Run a query with the tenant session variables set, exactly as withTenant does. `branchIds` matters: membership_roles carries a RESTRICTIVE branch policy on top… |
 | `asTenant` <sub>local</sub> | `(organizationId: string, fn: () => Promise<T>): Promise<T>` | `apps/api/tests/integration/tenant-isolation.test.ts:29` | Run a unit of work with the tenant session variables set, as the app does. |
 | `asUser` <sub>local</sub> | `(slug: string, token: () => string)` | `apps/api/tests/integration/iam.test.ts:91` | Every call in this suite carries a Host and a bearer token; nothing else. |
+| `asUser` <sub>local</sub> | `(slug: string, token: () => string)` | `apps/api/tests/integration/settings.test.ts:92` |  |
 | `atHost` <sub>local</sub> | `(slug: string)` | `apps/api/tests/integration/invitations.test.ts:115` | The accept side is unauthenticated and lives on the auth router. |
+| `auditRows` <sub>local</sub> | `(userId: string): Promise< { organization_id: string \| null; before_data: Rec…` | `apps/api/tests/integration/verification.test.ts:127` |  |
+| `claimAt` <sub>local</sub> | `(slug: string, handoffToken: string)` | `apps/api/tests/integration/impersonation.test.ts:106` | Spend a ticket at a clinic's own host, which is the only place it works. |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/auth.test.ts:63` | The rate limiters are Redis-backed and shared, so a busy suite trips them. |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/branches.test.ts:65` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/demo-requests.test.ts:44` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/iam.test.ts:85` |  |
+| `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/impersonation.test.ts:79` | Suites share one Redis, so a deliberate 429 in one is another's flake. Every login and every claim clears the buckets first — see the PITFALLS entry on `maxWor… |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/invitations.test.ts:80` |  |
+| `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/settings.test.ts:87` |  |
+| `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/verification.test.ts:73` |  |
 | `countFor` <sub>local</sub> | `(email: string): Promise<number>` | `apps/api/tests/integration/demo-requests.test.ts:54` |  |
 | `emailFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/auth.test.ts:38` |  |
+| `enter` <sub>local</sub> | `(slug: string, organizationId: string, reason?: string): Promise<string>` | `apps/api/tests/integration/impersonation.test.ts:115` | Start to finish: ticket, claim, access token. |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/auth.test.ts:29` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/branches.test.ts:32` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/iam.test.ts:49` |  |
+| `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/impersonation.test.ts:40` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/invitations.test.ts:44` |  |
+| `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/settings.test.ts:49` |  |
+| `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/verification.test.ts:38` |  |
+| `inside` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/impersonation.test.ts:127` |  |
 | `joinAs` <sub>local</sub> | `(email: string, fullName: string, roleId: string, branchIds: string[]): Promise<string>` | `apps/api/tests/integration/iam.test.ts:143` | Invite, accept, sign in — the way a real member comes into existence. |
+| `joinAs` <sub>local</sub> | `(email: string, fullName: string, roleId: string): Promise<string>` | `apps/api/tests/integration/settings.test.ts:141` | Invite, accept, sign in — the way a real member comes into existence. |
 | `login` <sub>local</sub> | `(slug: string, body: Record<string, unknown>)` | `apps/api/tests/integration/auth.test.ts:68` |  |
 | `login` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/iam.test.ts:114` |  |
+| `login` <sub>local</sub> | `(host: string, identifier: string): Promise<string>` | `apps/api/tests/integration/impersonation.test.ts:84` |  |
+| `login` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/settings.test.ts:117` |  |
 | `membershipIdFor` <sub>local</sub> | `(email: string): Promise<string>` | `apps/api/tests/integration/iam.test.ts:178` |  |
 | `newSession` <sub>local</sub> | `()` | `apps/api/tests/integration/session-rotation.test.ts:64` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/auth.test.ts:40` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/branches.test.ts:43` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/iam.test.ts:63` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/impersonation.test.ts:52` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/invitations.test.ts:58` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/registration.test.ts:66` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/settings.test.ts:65` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string, phone: string)` | `apps/api/tests/integration/verification.test.ts:51` |  |
+| `plantCode` <sub>local</sub> | `(userId: string, purpose: string, code): Promise<void>` | `apps/api/tests/integration/verification.test.ts:107` |  |
 | `post` <sub>local</sub> | `(body: Record<string, unknown>)` | `apps/api/tests/integration/demo-requests.test.ts:49` |  |
 | `roleId` <sub>local</sub> | `(client: ReturnType<typeof asOrg>, code: string): Promise<string>` | `apps/api/tests/integration/invitations.test.ts:137` |  |
 | `roleIdFor` <sub>local</sub> | `(code: string): Promise<string>` | `apps/api/tests/integration/iam.test.ts:171` |  |
+| `settingsOf` <sub>local</sub> | `(who: typeof A): Promise<Map<string, Setting>>` | `apps/api/tests/integration/settings.test.ts:176` |  |
 | `submission` <sub>local</sub> | `(overrides: Record<string, unknown>)` | `apps/api/tests/integration/demo-requests.test.ts:28` |  |
+| `ticketFor` <sub>local</sub> | `(organizationId: string, reason)` | `apps/api/tests/integration/impersonation.test.ts:97` | Ask for a ticket into `organizationId`, as the platform admin. |
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/branches.test.ts:70` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/invitations.test.ts:85` |  |
+| `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/verification.test.ts:78` |  |
 | `tokenSentTo` <sub>local</sub> | `(email: string): string` | `apps/api/tests/integration/invitations.test.ts:129` | The last link sent to this address, reduced to the token in its query. |
+| `verifiedAt` <sub>local</sub> | `(userId: string): Promise<{ email: Date \| null; phone: Date \| null }>` | `apps/api/tests/integration/verification.test.ts:119` |  |

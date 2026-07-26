@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { availableSlug, email, password, phone, uuid } from './common.js';
+import { availableSlug, currencyCode, email, password, phone, timezone, uuid } from './common.js';
 
 /**
  * Clinic self-registration. Creates, in one transaction:
@@ -223,6 +223,50 @@ export const updateMemberRequest = z.object({
 /** Suspending or restoring someone. The reason is for the audit row only. */
 export const memberStatusRequest = z.object({
   reason: z.string().max(255).optional(),
+});
+
+/**
+ * The clinic's own particulars.
+ *
+ * `slug` is absent, and this is the reason: the subdomain is the tenant's
+ * address. `organization_domains` keys on it, `resolveTenant` caches host ->
+ * tenant for 300 seconds, and every session cookie is host-only — so renaming it
+ * signs out every member and breaks every link anyone has bookmarked. It is a
+ * platform-side operation, not a settings field.
+ *
+ * `orgType` and `countryCode` are absent for a duller reason: nothing yet reads
+ * them, and a field that can be changed but changes nothing is a lie.
+ *
+ * Every field is optional (a PATCH), and `gstNumber` is additionally nullable —
+ * a clinic below the registration threshold clearing a number it entered by
+ * mistake has to be distinguishable from not mentioning it.
+ */
+export const updateOrganizationRequest = z.object({
+  legalName: z.string().min(2).max(255).optional(),
+  displayName: z.string().min(2).max(255).optional(),
+  gstNumber: z
+    .string()
+    .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/, 'invalid GSTIN')
+    .nullable()
+    .optional(),
+  timezone: timezone.optional(),
+  currency: currencyCode.optional(),
+});
+
+/**
+ * One setting, set at the organization scope.
+ *
+ * `value` is a bare JSON value because the shape it must take is not knowable
+ * here — it comes from `setting_definitions.data_type`, a row, not a type. The
+ * service checks it against that definition and answers 400 with the type it
+ * expected. Zod's job on this route is to establish that a value was sent at
+ * all and that it is JSON.
+ *
+ * Clearing an override is a DELETE, not `{ value: null }`: null is a legitimate
+ * JSON value, so it cannot also mean "unset".
+ */
+export const settingValueRequest = z.object({
+  value: z.json(),
 });
 
 export const checkSlugQuery = z.object({ slug: availableSlug });
@@ -453,7 +497,135 @@ export const memberListResponse = z.object({
   canAssignOrgWide: z.boolean(),
 });
 
+/**
+ * The clinic as its own settings screen sees it.
+ *
+ * `slug` and `status` are shown and not editable — where you are and whether the
+ * subscription is live are facts about this clinic that its administrator needs
+ * to be able to read back, and neither is changed from here.
+ */
+export const organizationProfile = z.object({
+  id: uuid,
+  slug: z.string(),
+  legalName: z.string(),
+  displayName: z.string(),
+  orgType: z.enum(['CLINIC', 'HOSPITAL', 'CHAIN', 'LAB']),
+  status: z.enum(['PENDING', 'ACTIVE', 'SUSPENDED', 'CANCELLED']),
+  gstNumber: z.string().nullable(),
+  timezone: z.string(),
+  currency: z.string(),
+  countryCode: z.string(),
+  onboardedAt: z.iso.datetime().nullable(),
+});
+
+/**
+ * One setting, resolved for this clinic.
+ *
+ * WHAT THE THREE VALUES MEAN
+ *   Resolution is USER -> BRANCH -> ORGANIZATION -> PLATFORM -> the definition's
+ *   default, most specific wins. This screen sits at the ORGANIZATION scope, so
+ *   it reports two of those and collapses the rest:
+ *
+ *     value          what applies at this clinic today
+ *     inheritedValue what would apply if the clinic override were cleared
+ *     isOverridden   whether this clinic has set one at all
+ *
+ *   `inheritedFrom` names where `inheritedValue` came from, because "the
+ *   platform decided this" and "nobody has ever decided this" are different
+ *   answers to "why is it 15".
+ *
+ *   Branch- and user-level values are deliberately NOT folded in. A branch that
+ *   sets its own slot length still overrules this row, and pretending otherwise
+ *   would make the screen lie to a clinic with three branches.
+ *
+ * `editable` is `isTenantEditable` AND the definition allowing an ORGANIZATION
+ * value at all. Both are properties of the setting, not of the caller — the
+ * permission check is separate and happens at the route.
+ */
+/**
+ * One choice on a setting whose values are a closed set.
+ *
+ * The value keeps its real type — 4, not "4", for the month a financial year
+ * starts — because that is what the column stores and what any arithmetic
+ * downstream expects. The label is the only thing a human should ever see:
+ * nobody picks "4" from a list, they pick April.
+ */
+export const settingChoice = z.object({
+  value: z.json(),
+  label: z.string(),
+});
+
+export const settingItem = z.object({
+  key: z.string(),
+  module: z.string(),
+  dataType: z.enum(['STRING', 'INT', 'BOOL', 'DECIMAL', 'JSON']),
+  /** The short name for the row. */
+  description: z.string().nullable(),
+  /** What the setting is for, and what changing it does. */
+  helpText: z.string().nullable(),
+  /**
+   * The values this setting will accept, or null for "anything of `dataType`".
+   *
+   * Comes from `setting_definitions.allowed_values`, so the select the screen
+   * renders and the set the API enforces are the same list — a screen offering
+   * three options while the API takes any string is how a clinic ends up with
+   * a delivery channel nothing can send to.
+   */
+  choices: z.array(settingChoice).nullable(),
+  allowedScopes: z.array(z.string()),
+  editable: z.boolean(),
+  value: z.json(),
+  isOverridden: z.boolean(),
+  inheritedValue: z.json(),
+  inheritedFrom: z.enum(['PLATFORM', 'DEFAULT']),
+  /** When this clinic last set it. Null when it never has. */
+  updatedAt: z.iso.datetime().nullable(),
+});
+
+export const settingListResponse = z.object({
+  settings: z.array(settingItem),
+});
+
+/**
+ * One clinic as the PLATFORM console sees it — every tenant on the system.
+ *
+ * Deliberately thin. This is the only list in the product that crosses the
+ * tenant boundary, so it carries what an rcln operator needs to find an account
+ * and nothing that belongs to the clinic: no owner, no member names, no
+ * addresses, and obviously nothing clinical.
+ *
+ * NO BRANCH OR MEMBER COUNTS, AND THAT IS NOT AN OVERSIGHT
+ *   `organizations` is RLS-exempt — it is the table the tenant is resolved FROM
+ *   — but `branches` and `memberships` are not, and the unscoped client sets no
+ *   session variables, so their policies evaluate against a NULL organization
+ *   and match nothing. A `_count` here returns 0 for every clinic, with no error
+ *   and nothing in the log. Getting real numbers would mean one `withTenant`
+ *   round trip per organization; they are not worth that, and a silent zero is
+ *   worse than an absent column.
+ */
+export const platformOrganizationSummary = z.object({
+  id: uuid,
+  slug: z.string(),
+  displayName: z.string(),
+  legalName: z.string(),
+  status: z.string(),
+  orgType: z.string(),
+  createdAt: z.iso.datetime(),
+});
+
+export const platformOrganizationListResponse = z.object({
+  organizations: z.array(platformOrganizationSummary),
+});
+
+export type PlatformOrganizationSummary = z.infer<typeof platformOrganizationSummary>;
+export type PlatformOrganizationListResponse = z.infer<typeof platformOrganizationListResponse>;
 export type CheckSlugQuery = z.infer<typeof checkSlugQuery>;
+export type UpdateOrganizationRequest = z.infer<typeof updateOrganizationRequest>;
+export type OrganizationProfile = z.infer<typeof organizationProfile>;
+export type SettingValueRequest = z.infer<typeof settingValueRequest>;
+export type SettingChoice = z.infer<typeof settingChoice>;
+export type SettingItem = z.infer<typeof settingItem>;
+export type SettingListResponse = z.infer<typeof settingListResponse>;
 export type RoleDetail = z.infer<typeof roleDetail>;
 export type RoleListResponse = z.infer<typeof roleListResponse>;
 export type UpdateRoleRequest = z.infer<typeof updateRoleRequest>;

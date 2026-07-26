@@ -1571,8 +1571,10 @@ erDiagram
     string data_type "STRING|INT|BOOL|JSON|DECIMAL"
     jsonb default_value
     jsonb allowed_scopes "[PLATFORM,ORGANIZATION,BRANCH,USER,PATIENT]"
+    jsonb allowed_values "null = open; else [{value,label}]"
     boolean is_tenant_editable
-    string description
+    string description "short name for the row"
+    string help_text "what it is for, in prose"
   }
   SETTING_VALUES {
     uuid id PK
@@ -1685,6 +1687,10 @@ USER/PATIENT value → BRANCH value → ORGANIZATION value → PLATFORM value �
 ```
 
 Adding a new setting is an `INSERT` into `setting_definitions`. No migration, no new column, and the same mechanism serves clinic-level and doctor-level preferences.
+
+`allowed_values` is what keeps that true for a setting whose values are a closed set. NULL means "any value of `data_type`". Otherwise it holds `[{ "value": …, "label": … }]`, and that one column does both jobs: the API refuses anything not in the list, and the settings screen renders a `<select>` from it. Adding a delivery channel or a batch-selection strategy stays an INSERT rather than becoming a code change in two places that can disagree. The value keeps its real type — `4`, not `"4"`, for the month a financial year opens — because that is what the column stores and what date arithmetic downstream expects; the label is the only thing a human sees. JSONB as a document, never as foreign keys (ADR-0006): these are literal setting values, not row ids.
+
+`help_text` is the explanation the settings screen puts under each row, written for whoever runs the clinic. `description` stays the short name. Two fields because a row needs a heading and a paragraph, and one field doing both ends up too long to scan and too short to explain.
 
 `audit_logs` and `data_access_logs` should be `PARTITION BY RANGE (occurred_at)` monthly from day one — retrofitting partitioning onto a large table is painful.
 

@@ -10,10 +10,11 @@ Source: `apps/api/src/routes/index.ts`
 | USE | `/health` | `healthRoutes` | `apps/api/src/routes/v1/index.ts:14` |
 | USE | `/auth` | `authRoutes` | `apps/api/src/routes/v1/index.ts:18` |
 | USE | `/public` | `publicRoutes` | `apps/api/src/routes/v1/index.ts:22` |
-| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:26` |
-| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:30` |
-| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:34` |
-| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:39` |
-| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:40` |
+| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:28` |
+| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:32` |
+| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:36` |
+| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:41` |
+| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:42` |
+| USE | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts:48` |
 
 Symbols in this module: [apps.api.routes.md](../Symbols/apps.api.routes.md)

@@ -47,7 +47,9 @@ Resolves which organization a request belongs to, and keeps every other tenant's
 ## Source files
 
 - `apps/api/src/middleware/tenant.middleware.ts`
+- `apps/api/src/services/organization/organization.service.ts`
 - `apps/api/src/services/organization/register.service.ts`
+- `apps/api/src/services/organization/setting.service.ts`
 - `packages/db/src/client.ts`
 - `packages/db/src/tenant.ts`
 
@@ -66,23 +68,30 @@ Resolves which organization a request belongs to, and keeps every other tenant's
 | name | kind | at |
 | --- | --- | --- |
 | `assertRlsActive` | fn | `packages/db/src/client.ts:61` |
+| `clearSetting` | fn | `apps/api/src/services/organization/setting.service.ts:353` |
 | `createDbClient` | fn | `packages/db/src/client.ts:23` |
 | `DbConfig` | interface | `packages/db/src/client.ts:13` |
 | `disconnectDb` | fn | `packages/db/src/client.ts:106` |
 | `forTenant` | fn | `packages/db/src/tenant.ts:160` |
 | `getDbClient` | fn | `packages/db/src/client.ts:43` |
+| `getOrganization` | fn | `apps/api/src/services/organization/organization.service.ts:79` |
 | `invalidateTenantCache` | fn | `apps/api/src/middleware/tenant.middleware.ts:167` |
 | `isSlugAvailable` | fn | `apps/api/src/services/organization/register.service.ts:83` |
+| `listSettings` | fn | `apps/api/src/services/organization/setting.service.ts:212` |
+| `OrganizationActionOptions` | interface | `apps/api/src/services/organization/organization.service.ts:38` |
 | `RegisterOptions` | interface | `apps/api/src/services/organization/register.service.ts:49` |
 | `registerOrganization` | fn | `apps/api/src/services/organization/register.service.ts:94` |
 | `RegisterResult` | interface | `apps/api/src/services/organization/register.service.ts:56` |
 | `requireTenant` | fn | `apps/api/src/middleware/tenant.middleware.ts:147` |
 | `ResolvedTenant` | interface | `apps/api/src/middleware/tenant.middleware.ts:18` |
 | `resolveTenant` | fn | `apps/api/src/middleware/tenant.middleware.ts:116` |
+| `setSetting` | fn | `apps/api/src/services/organization/setting.service.ts:248` |
 | `setTenantContext` | fn | `packages/db/src/tenant.ts:109` |
+| `SettingActionOptions` | interface | `apps/api/src/services/organization/setting.service.ts:39` |
 | `TenantClient` | type | `packages/db/src/tenant.ts:184` |
 | `TenantContext` | interface | `packages/db/src/tenant.ts:24` |
 | `tenantHost` | fn | `apps/api/src/services/organization/register.service.ts:65` |
 | `TxClient` | type | `packages/db/src/tenant.ts:55` |
+| `updateOrganization` | fn | `apps/api/src/services/organization/organization.service.ts:93` |
 | `withTenant` | fn | `packages/db/src/tenant.ts:135` |
 | `withUserIdentity` | fn | `packages/db/src/tenant.ts:83` |

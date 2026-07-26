@@ -726,6 +726,9 @@ model StaffProfile {
 // =============================================================================
 
 /// Adding a new setting is an INSERT here — no migration, no new column.
+///
+/// This is a PLATFORM CATALOGUE, not tenant data: no organization_id, no RLS
+/// policy, EXEMPT in check-rls.ts. Every clinic reads the same twelve rows.
 model SettingDefinition {
   key              String          @id @db.VarChar(128)
   module           String          @db.VarChar(64)
@@ -733,7 +736,18 @@ model SettingDefinition {
   defaultValue     Json            @map("default_value")
   allowedScopes    Json            @map("allowed_scopes")
   isTenantEditable Boolean         @default(true) @map("is_tenant_editable")
+  /// The short human name. What the settings screen puts on the row.
   description      String?         @db.VarChar(512)
+  /// What the setting is for, and what changing it does. Prose, one or two
+  /// sentences, written for whoever runs the clinic rather than for us.
+  helpText         String?         @map("help_text") @db.VarChar(1024)
+  /// A closed set of choices: `[{ "value": …, "label": … }]`.
+  ///
+  /// Null means "any value of `data_type`". Present means the API refuses
+  /// anything else and the screen renders a select instead of a text box — one
+  /// source, so the two cannot disagree. JSONB as a DOCUMENT, never as foreign
+  /// keys (ADR-0006): these are literal setting values, not row ids.
+  allowedValues    Json?           @map("allowed_values")
 
   values SettingValue[]
 

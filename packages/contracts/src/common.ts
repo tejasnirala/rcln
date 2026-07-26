@@ -61,6 +61,66 @@ export const phone = z
 
 export const email = z.email().max(255).toLowerCase();
 
+/**
+ * A real IANA time zone, checked by asking the platform rather than by listing.
+ *
+ * `Intl` throws `RangeError` on an unknown identifier, which is a cheaper and
+ * far more durable check than a hard-coded list that goes stale every time a
+ * country changes its mind about DST. The screen offers a short curated select
+ * — this is what stops anything else, including a typo arriving over the API.
+ *
+ * The constructor really does throw here, unlike the currency case below. Both
+ * were checked against a deliberately invalid value.
+ */
+export const timezone = z
+  .string()
+  .min(1)
+  .max(64)
+  .refine((value) => {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: value });
+      return true;
+    } catch {
+      return false;
+    }
+  }, 'not a time zone, e.g. Asia/Kolkata');
+
+/**
+ * ISO 4217, from the platform's own list.
+ *
+ * NOT the `Intl.NumberFormat` constructor trick that `timezone` uses above:
+ * `new Intl.NumberFormat('en', { currency: 'XYZ' })` does NOT throw. It only
+ * checks that the code is three ASCII letters, so that version accepted `XYZ`
+ * and stored it — measured, not assumed. `supportedValuesOf` is the API that
+ * actually knows the currency list.
+ *
+ * Built once, lazily, because it is a few hundred strings and most requests
+ * never look at a currency. If the runtime is old enough not to have
+ * `supportedValuesOf` the check degrades to the three-letter shape rather than
+ * rejecting every currency — failing open on a display preference, where the
+ * alternative is a clinic that cannot save its own name.
+ *
+ * Uppercased first, so `inr` from a form is stored as `INR`: the column is
+ * `char(3)` and a lowercase copy compares unequal to every other row.
+ */
+let currencySet: Set<string> | null | undefined;
+
+function knownCurrency(value: string): boolean {
+  if (currencySet === undefined) {
+    const supported = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] })
+      .supportedValuesOf;
+    currencySet = supported ? new Set(supported('currency')) : null;
+  }
+  return currencySet === null || currencySet.has(value);
+}
+
+export const currencyCode = z
+  .string()
+  .length(3)
+  .regex(/^[A-Za-z]{3}$/, 'three letters, e.g. INR')
+  .toUpperCase()
+  .refine(knownCurrency, 'not a currency code, e.g. INR');
+
 export const password = z
   .string()
   .min(12, 'at least 12 characters')

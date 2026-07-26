@@ -24,7 +24,8 @@ export function PlatformSignOut() {
           hardNavigate('/');
         });
       }}
-      className="text-drape hover:text-drape-deep py-1 text-[0.8125rem] underline underline-offset-2 disabled:opacity-60"
+      // Sits on the console's ink header, where `drape` is unreadable.
+      className="text-signal-bright hover:text-paper py-1 text-[0.8125rem] underline underline-offset-2 disabled:opacity-60"
     >
       {pending ? 'Signing out…' : 'Sign out'}
     </button>

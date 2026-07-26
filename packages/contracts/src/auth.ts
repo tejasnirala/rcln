@@ -100,7 +100,85 @@ export const acceptInviteRequest = z.object({
   password: z.string().min(1).max(128),
 });
 
+/**
+ * Confirming an email address or a phone number.
+ *
+ * There is no field naming whose account this is. The user id comes off the
+ * access token, so verification is self-service by construction rather than by a
+ * permission check — which is also why no permission code exists for it.
+ *
+ * The channel is in the path (`/auth/verify/email/confirm`) rather than the
+ * body: it selects the route, not the data, and putting it in the payload would
+ * make one handler that has to branch on validated input.
+ *
+ * Same 4–8 digit shape as `otpVerifyRequest` — one generator, one length
+ * setting, one `auth_tokens` table behind all of them.
+ */
+export const verificationConfirmRequest = z.object({
+  code: z.string().regex(/^\d{4,8}$/),
+});
+
+/**
+ * Entering a clinic as rcln staff.
+ *
+ * A REASON IS PART OF THE CREDENTIAL, NOT PART OF THE UI
+ *   Impersonation is full access — read, write and delete, no elevation step
+ *   (ADR-0012). The audit trail is the only control on it, and an audit row that
+ *   says "a super admin was in your clinic on Tuesday" without saying why is not
+ *   a control. Ten characters is the floor because "test" is not a reason.
+ */
+export const impersonateRequest = z.object({
+  reason: z.string().trim().min(10, 'Say why you are entering this clinic').max(500),
+});
+
+/**
+ * The answer to `POST /platform/organizations/:id/impersonate`.
+ *
+ * NOT A SESSION — A ONE-TIME TICKET FOR ONE HOST
+ *   Session cookies are host-only by design (apps/web/src/lib/session.ts), so
+ *   admin.<root> cannot write a cookie for alpha.<root>. Something has to cross
+ *   the host boundary, and it is this: 256 random bits, held in Redis for two
+ *   minutes, spent exactly once, and only redeemable at the clinic it names.
+ *
+ *   `handoffToken` therefore travels in a POST BODY, never in a URL — the same
+ *   rule invitation tokens follow, for the same reason.
+ */
+export const impersonationGrant = z.object({
+  organizationSlug: z.string(),
+  organizationName: z.string(),
+  handoffToken: z.string(),
+  /** Seconds the ticket stays redeemable. The session it buys lives longer. */
+  expiresInSeconds: z.number().int(),
+});
+
+/** Redeeming the ticket, at the clinic's own host. */
+export const impersonationClaimRequest = z.object({
+  handoffToken: z.string().min(32),
+});
+
+export const impersonationStopResult = z.object({
+  stopped: z.literal(true),
+});
+
 // -- responses ---------------------------------------------------------------
+
+export const verificationRequestResult = z.object({
+  sent: z.boolean(),
+  /**
+   * The channel was already verified, so nothing was sent. Not an error: the
+   * caller asked for a state that already holds. OTP login sets
+   * `phoneVerifiedAt` as a side effect, so this is reachable without anyone ever
+   * having used this flow.
+   */
+  alreadyVerified: z.boolean(),
+  /** How long the code just sent stays usable, so the screen can say so. */
+  expiresInSeconds: z.number().int(),
+});
+
+export const verificationResult = z.object({
+  verified: z.literal(true),
+  alreadyVerified: z.boolean(),
+});
 
 export const branchSummary = z.object({
   id: uuid,
@@ -130,6 +208,13 @@ export const authSession = z.object({
     phone: z.string().nullable(),
     isPlatformAdmin: z.boolean(),
     mfaEnabled: z.boolean(),
+    /**
+     * Booleans, not the timestamps behind them. When someone proved they own
+     * their address is an audit question; the shell only needs to know whether
+     * to prompt, and a date shipped to the browser is a date somebody renders.
+     */
+    emailVerified: z.boolean(),
+    phoneVerified: z.boolean(),
   }),
   activeOrganizationId: uuid.nullable(),
   activeBranchId: uuid.nullable(),
@@ -139,6 +224,24 @@ export const authSession = z.object({
    * the instant a role changes, and it is far too large for a header.
    */
   permissions: z.array(z.string()),
+  /**
+   * Non-null only while a platform admin is inside a clinic.
+   *
+   * The shell renders a banner from this and cannot be allowed to miss it, so it
+   * rides on the session rather than being fetched separately. The organization
+   * NAME is here because `memberships` cannot supply it: an impersonating admin
+   * holds no membership in the clinic they are standing in — that is what makes
+   * it impersonation.
+   */
+  impersonation: z
+    .object({
+      organizationName: z.string(),
+      /** The real person behind the session. Also its `user`, see ADR-0012. */
+      adminName: z.string(),
+      /** When the session hard-expires. There is no refresh token to extend it. */
+      expiresAt: z.iso.datetime(),
+    })
+    .nullable(),
 });
 
 /**
@@ -166,6 +269,13 @@ export type OtpVerifyRequest = z.infer<typeof otpVerifyRequest>;
 export type RefreshRequest = z.infer<typeof refreshRequest>;
 export type SwitchBranchRequest = z.infer<typeof switchBranchRequest>;
 export type AcceptInviteRequest = z.infer<typeof acceptInviteRequest>;
+export type VerificationConfirmRequest = z.infer<typeof verificationConfirmRequest>;
+export type VerificationRequestResult = z.infer<typeof verificationRequestResult>;
+export type VerificationResult = z.infer<typeof verificationResult>;
+export type ImpersonateRequest = z.infer<typeof impersonateRequest>;
+export type ImpersonationGrant = z.infer<typeof impersonationGrant>;
+export type ImpersonationClaimRequest = z.infer<typeof impersonationClaimRequest>;
+export type ImpersonationStopResult = z.infer<typeof impersonationStopResult>;
 export type AuthSession = z.infer<typeof authSession>;
 export type MembershipSummary = z.infer<typeof membershipSummary>;
 export type BranchSummary = z.infer<typeof branchSummary>;

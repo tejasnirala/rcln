@@ -35,6 +35,12 @@ export interface SessionRecord {
   activeOrganizationId: string | null;
   activeBranchId: string | null;
   impersonatedByUserId: string | null;
+  /**
+   * The hard stop. Thirty days for an ordinary session; thirty MINUTES for an
+   * impersonation, which is the only thing bounding it — there is no refresh
+   * token to rotate and therefore nothing to revoke on rotation.
+   */
+  expiresAt: Date;
 }
 
 export interface IssuedSession extends SessionRecord {
@@ -53,6 +59,12 @@ export interface CreateSessionInput {
   impersonatedByUserId?: string | null;
   ipAddress?: string | undefined;
   userAgent?: string | undefined;
+  /**
+   * Override the 30-day default. An impersonation session gets ~30 MINUTES and
+   * is never rotated, so this column is its only hard stop — see
+   * impersonation.service.ts.
+   */
+  expiresAt?: Date | undefined;
 }
 
 export async function createSession(input: CreateSessionInput): Promise<IssuedSession> {
@@ -66,7 +78,7 @@ export async function createSession(input: CreateSessionInput): Promise<IssuedSe
       activeBranchId: input.activeBranchId,
       impersonatedByUserId: input.impersonatedByUserId ?? null,
       refreshTokenHash: hashRefreshToken(refreshToken),
-      expiresAt: expiryDate(),
+      expiresAt: input.expiresAt ?? expiryDate(),
       // exactOptionalPropertyTypes: an explicit `undefined` is not assignable,
       // so absent values must be omitted from the object entirely.
       ...(input.ipAddress !== undefined ? { ipAddress: input.ipAddress } : {}),
@@ -78,6 +90,7 @@ export async function createSession(input: CreateSessionInput): Promise<IssuedSe
       activeOrganizationId: true,
       activeBranchId: true,
       impersonatedByUserId: true,
+      expiresAt: true,
     },
   });
 
@@ -96,6 +109,7 @@ export async function findLiveSession(sessionId: string): Promise<SessionRecord 
       activeOrganizationId: true,
       activeBranchId: true,
       impersonatedByUserId: true,
+      expiresAt: true,
     },
   });
 }
@@ -135,6 +149,7 @@ export async function rotateRefreshToken(presentedToken: string): Promise<Issued
       activeOrganizationId: true,
       activeBranchId: true,
       impersonatedByUserId: true,
+      expiresAt: true,
     },
   });
 

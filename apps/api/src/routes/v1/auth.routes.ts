@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from 'express';
 import {
   acceptInviteRequest,
+  impersonationClaimRequest,
   invitationTokenRequest,
   loginRequest,
   otpRequest,
@@ -8,13 +9,16 @@ import {
   refreshRequest,
   switchBranchRequest,
   switchOrganizationRequest,
+  verificationConfirmRequest,
   type AcceptInviteRequest,
+  type ImpersonationClaimRequest,
   type InvitationTokenRequest,
   type LoginRequest,
   type OtpRequest,
   type OtpVerifyRequest,
   type RefreshRequest,
   type SwitchBranchRequest,
+  type VerificationConfirmRequest,
 } from '@rcln/contracts';
 import { withTenant } from '@rcln/db';
 import { unsafeDbClient } from '@rcln/db/unsafe';
@@ -23,6 +27,7 @@ import {
   authLimiter,
   identityLimiter,
   otpLimiter,
+  verificationLimiter,
 } from '../../middleware/rateLimiter.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import {
@@ -33,9 +38,18 @@ import {
 } from '../../services/auth/login.service.js';
 import { requestOtp, verifyOtp } from '../../services/auth/otp.service.js';
 import {
+  confirmVerification,
+  requestVerification,
+} from '../../services/auth/verification.service.js';
+import {
   acceptInvitation,
   previewInvitation,
 } from '../../services/invitation/invitation.service.js';
+import {
+  claimImpersonation,
+  describeImpersonation,
+  stopImpersonation,
+} from '../../services/platform/impersonation.service.js';
 import {
   findLiveSession,
   revokeSession,
@@ -196,7 +210,15 @@ router.post(
       user.id,
       rotated.activeOrganizationId,
       rotated.activeBranchId,
-      { accessToken, refreshToken: rotated.refreshToken }
+      { accessToken, refreshToken: rotated.refreshToken },
+      // Unreachable today — an impersonation session's refresh token is
+      // discarded at creation, so nothing can present one. Carried through
+      // anyway so this endpoint is not the one place the banner disappears.
+      await describeImpersonation(
+        rotated.activeOrganizationId,
+        rotated.impersonatedByUserId,
+        rotated.expiresAt
+      )
     );
 
     sendSuccess(res, session, 'Session refreshed');
@@ -287,6 +309,163 @@ router.post(
   }
 );
 
+/**
+ * Verifying your own email address and phone number.
+ *
+ * NO PERMISSION CODE, AND THAT IS NOT AN OVERSIGHT
+ *   Nothing here names an account. The user id comes off the access token, so
+ *   these four routes can only ever act on the caller's own row — there is no
+ *   input for an escalation guard to check, and inventing a permission would
+ *   only create a way for an administrator to lock someone out of confirming
+ *   their own address.
+ *
+ * NOT BEHIND `requireTenant` EITHER
+ *   The rest of this router is not, and these belong with it: a platform admin
+ *   on admin.<root> has no organization, and they are the one account that
+ *   cannot ask a colleague to do it for them.
+ *
+ * `authLimiter` is deliberately absent. It meters per address, and a clinic
+ * arrives through one office NAT; `verificationLimiter` meters the account and
+ * the channel, which is the thing actually worth rationing here.
+ */
+function verifyRoutes(channel: 'email' | 'phone'): void {
+  router.post(
+    `/verify/${channel}/request`,
+    authenticate,
+    requireAuth,
+    verificationLimiter,
+    async (req: Request, res: Response) => {
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const outcome = await requestVerification(auth.userId, channel);
+
+      sendSuccess(
+        res,
+        outcome,
+        outcome.alreadyVerified
+          ? `Your ${channel === 'email' ? 'email address' : 'phone number'} is already verified.`
+          : 'Code sent.'
+      );
+    }
+  );
+
+  router.post(
+    `/verify/${channel}/confirm`,
+    authenticate,
+    requireAuth,
+    verificationLimiter,
+    validate(verificationConfirmRequest, 'body'),
+    async (req: Request, res: Response) => {
+      const auth = req.auth as NonNullable<Request['auth']>;
+      const { code } = req.body as VerificationConfirmRequest;
+
+      const result = await confirmVerification({
+        userId: auth.userId,
+        channel,
+        code,
+        // Present only inside a clinic. See the note on ConfirmVerificationInput
+        // for why a missing organization is a skipped audit row and not a 403.
+        ...(auth.organizationId ? { tenant: tenantContextFrom(req) } : {}),
+        ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
+        ...(req.get('user-agent') !== undefined
+          ? { userAgent: req.get('user-agent') as string }
+          : {}),
+      });
+
+      logger.info({ userId: auth.userId, channel }, 'contact verified');
+      sendSuccess(
+        res,
+        result,
+        result.alreadyVerified
+          ? 'That was already verified.'
+          : `Your ${channel === 'email' ? 'email address' : 'phone number'} is verified.`
+      );
+    }
+  );
+}
+
+verifyRoutes('email');
+verifyRoutes('phone');
+
+/**
+ * Impersonation, the two ends that have to live on a TENANT host.
+ *
+ * WHY THEY ARE HERE AND NOT ON /platform
+ *   `claim` is the request that receives the session cookie, and a session
+ *   cookie is host-only by design. It therefore has to be made to the clinic's
+ *   own subdomain, where `resolveTenant` has already decided which organization
+ *   this is — which is exactly what makes the cross-host check possible. It is
+ *   unauthenticated for the same reason `/invitations/accept` is: the credential
+ *   IS the ticket, and the caller holds nothing else on this host yet.
+ *
+ *   `stop` is authenticated by the impersonation session it is ending, which
+ *   also only exists here.
+ *
+ * `authLimiter` on both: an unauthenticated endpoint that mints a session is
+ * worth metering, even though the ticket it wants is 256 random bits with a
+ * two-minute life.
+ */
+router.post(
+  '/impersonation/claim',
+  authLimiter,
+  validate(impersonationClaimRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const organizationId = req.tenant?.organizationId;
+    if (!organizationId) {
+      // The apex and admin.<root> resolve to no tenant, so there is nothing to
+      // redeem a ticket against. 404, like requireTenant.
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
+      return;
+    }
+
+    const { handoffToken } = req.body as ImpersonationClaimRequest;
+
+    const session = await claimImpersonation({
+      organizationId,
+      handoffToken,
+      ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
+      ...(req.get('user-agent') !== undefined
+        ? { userAgent: req.get('user-agent') as string }
+        : {}),
+    });
+
+    sendSuccess(res, session, 'Signed in', 201);
+  }
+);
+
+router.post(
+  '/impersonation/stop',
+  authenticate,
+  requireAuth,
+  async (req: Request, res: Response) => {
+    const auth = req.auth as NonNullable<Request['auth']>;
+
+    /*
+     * Only an impersonation session can be stopped. An ordinary member calling
+     * this has not been given a way to revoke their own session by another name
+     * — that is /auth/logout, and conflating the two would put an audit row
+     * claiming an impersonation ended on a session that never was one.
+     */
+    if (!auth.impersonatedByUserId || !auth.organizationId) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
+      return;
+    }
+
+    await stopImpersonation({
+      sessionId: auth.sessionId,
+      organizationId: auth.organizationId,
+      adminUserId: auth.impersonatedByUserId,
+      branchId: auth.branchId,
+      branchIds: auth.branchScope,
+      ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
+      ...(req.get('user-agent') !== undefined
+        ? { userAgent: req.get('user-agent') as string }
+        : {}),
+    });
+
+    sendSuccess(res, { stopped: true as const }, 'Left the clinic');
+  }
+);
+
 router.post('/logout', authenticate, requireAuth, async (req: Request, res: Response) => {
   const auth = req.auth;
   if (auth) {
@@ -305,13 +484,25 @@ router.post('/logout', authenticate, requireAuth, async (req: Request, res: Resp
 router.get('/session', authenticate, requireAuth, async (req: Request, res: Response) => {
   const auth = req.auth as NonNullable<Request['auth']>;
 
-  const session = await describeSession(auth.userId, auth.organizationId, auth.branchId, {
-    // The caller already holds these; echoing the access token keeps the
-    // response shape identical to login, and no new refresh token is minted
-    // (that only happens on rotation).
-    accessToken: (req.get('authorization') ?? '').replace(/^Bearer\s+/i, ''),
-    refreshToken: '',
-  });
+  const session = await describeSession(
+    auth.userId,
+    auth.organizationId,
+    auth.branchId,
+    {
+      // The caller already holds these; echoing the access token keeps the
+      // response shape identical to login, and no new refresh token is minted
+      // (that only happens on rotation).
+      accessToken: (req.get('authorization') ?? '').replace(/^Bearer\s+/i, ''),
+      refreshToken: '',
+    },
+    // This is the call the shell makes on every render, so it is what keeps the
+    // impersonation banner on screen for the whole visit.
+    await describeImpersonation(
+      auth.organizationId,
+      auth.impersonatedByUserId,
+      auth.sessionExpiresAt
+    )
+  );
 
   sendSuccess(res, session, 'Session');
 });
@@ -386,10 +577,17 @@ router.post(
       })
     );
 
-    const session = await describeSession(auth.userId, auth.organizationId, branchId, {
-      accessToken,
-      refreshToken: '',
-    });
+    const session = await describeSession(
+      auth.userId,
+      auth.organizationId,
+      branchId,
+      { accessToken, refreshToken: '' },
+      await describeImpersonation(
+        auth.organizationId,
+        auth.impersonatedByUserId,
+        auth.sessionExpiresAt
+      )
+    );
 
     sendSuccess(res, session, 'Branch switched');
   }
@@ -434,10 +632,13 @@ router.post(
       impersonatedByUserId: auth.impersonatedByUserId,
     });
 
-    const described = await describeSession(auth.userId, organizationId, branchId, {
-      accessToken,
-      refreshToken: '',
-    });
+    const described = await describeSession(
+      auth.userId,
+      organizationId,
+      branchId,
+      { accessToken, refreshToken: '' },
+      await describeImpersonation(organizationId, auth.impersonatedByUserId, auth.sessionExpiresAt)
+    );
 
     sendSuccess(
       res,

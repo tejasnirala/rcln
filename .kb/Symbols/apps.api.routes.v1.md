@@ -4,7 +4,7 @@
 
 > Authentication.
 
-Files: `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/branches.routes.ts` · `apps/api/src/routes/v1/health.routes.ts` · `apps/api/src/routes/v1/index.ts` · `apps/api/src/routes/v1/invitations.routes.ts` · `apps/api/src/routes/v1/members.routes.ts` · `apps/api/src/routes/v1/platform.routes.ts` · `apps/api/src/routes/v1/public.routes.ts` · `apps/api/src/routes/v1/roles.routes.ts`
+Files: `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/branches.routes.ts` · `apps/api/src/routes/v1/health.routes.ts` · `apps/api/src/routes/v1/index.ts` · `apps/api/src/routes/v1/invitations.routes.ts` · `apps/api/src/routes/v1/members.routes.ts` · `apps/api/src/routes/v1/organization.routes.ts` · `apps/api/src/routes/v1/platform.routes.ts` · `apps/api/src/routes/v1/public.routes.ts` · `apps/api/src/routes/v1/roles.routes.ts`
 
 ## fn
 
@@ -13,20 +13,24 @@ Files: `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/branch
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/branches.routes.ts:54` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/invitations.routes.ts:49` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/members.routes.ts:63` |  |
+| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/organization.routes.ts:58` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/roles.routes.ts:44` |  |
-| `invitedOrganizationId` <sub>local</sub> | `(req: Request, res: Response): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:229` |  |
+| `invitedOrganizationId` <sub>local</sub> | `(req: Request, res: Response): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:251` |  |
 | `refererHost` <sub>local</sub> | `(req: Request): string \| undefined` | `apps/api/src/routes/v1/public.routes.ts:54` | The referring site, host only. Never the full URL: a referrer's path and query can carry anything the other site put there, and this column is not the place to… |
-| `targetOrganizationId` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:74` | The tenant this request is signing in to, or null on the apex/admin host. |
+| `targetOrganizationId` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:88` | The tenant this request is signing in to, or null on the apex/admin host. |
+| `verifyRoutes` <sub>local</sub> | `(channel: 'email' \| 'phone'): void` | `apps/api/src/routes/v1/auth.routes.ts:331` |  |
 
 ## zod
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `branchParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/branches.routes.ts:52` |  |
-| `demoRequestQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:72` |  |
+| `demoRequestQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:180` |  |
 | `invitationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/invitations.routes.ts:47` |  |
 | `memberParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/members.routes.ts:59` |  |
+| `organizationQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:93` |  |
 | `roleParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/roles.routes.ts:42` |  |
+| `settingParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/organization.routes.ts:56` | `setting_definitions.key` is a VarChar(128), not a uuid. |
 
 ## const
 
@@ -41,13 +45,14 @@ Files: `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/branch
 | --- | --- | --- | --- |
 | `assignmentParams` <sub>local</sub> | `memberParams.extend(…)` | `apps/api/src/routes/v1/members.routes.ts:60` |  |
 | `overrideParams` <sub>local</sub> | `memberParams.extend(…)` | `apps/api/src/routes/v1/members.routes.ts:61` |  |
-| `provisionRequest` <sub>local</sub> | `registerOrganizationRequest.extend(…)` | `apps/api/src/routes/v1/platform.routes.ts:35` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/auth.routes.ts:71` |  |
+| `provisionRequest` <sub>local</sub> | `registerOrganizationRequest.extend(…)` | `apps/api/src/routes/v1/platform.routes.ts:43` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/auth.routes.ts:85` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/branches.routes.ts:48` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/health.routes.ts:7` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:11` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:12` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/invitations.routes.ts:43` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/members.routes.ts:55` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/platform.routes.ts:25` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/organization.routes.ts:51` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/platform.routes.ts:33` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/public.routes.ts:40` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/roles.routes.ts:38` |  |

@@ -1,6 +1,7 @@
 import { unsafeDbClient } from '@rcln/db/unsafe';
 import { withTenant } from '@rcln/db';
 import type { AuthSession } from '@rcln/contracts';
+import { ALL_PERMISSIONS } from '@rcln/permissions';
 import { AuthenticationError } from '../../utils/errors.js';
 import { logger } from '../../utils/logger.js';
 import {
@@ -30,6 +31,15 @@ export interface AuthenticatedUser {
   phone: string | null;
   isPlatformAdmin: boolean;
   mfaEnabled: boolean;
+  /**
+   * Derived from `emailVerifiedAt` / `phoneVerifiedAt`, and flattened to
+   * booleans here because that is the whole of what a client may do with them —
+   * the shell decides whether to prompt. The timestamps stay on the row for the
+   * audit trail. Kept in step with `authSession.user`, which this shape is
+   * returned as verbatim by `describeSession`.
+   */
+  emailVerified: boolean;
+  phoneVerified: boolean;
 }
 
 /**
@@ -135,11 +145,19 @@ export async function loadAuthenticatedUser(userId: string): Promise<Authenticat
       phone: true,
       isPlatformAdmin: true,
       mfaEnabled: true,
+      emailVerifiedAt: true,
+      phoneVerifiedAt: true,
     },
   });
 
   if (!user) throw new AuthenticationError(INVALID_CREDENTIALS);
-  return user;
+
+  const { emailVerifiedAt, phoneVerifiedAt, ...rest } = user;
+  return {
+    ...rest,
+    emailVerified: emailVerifiedAt !== null,
+    phoneVerified: phoneVerifiedAt !== null,
+  };
 }
 
 /**
@@ -248,12 +266,32 @@ export async function buildAuthSession(input: BuildSessionInput): Promise<AuthSe
       phone: user.phone,
       isPlatformAdmin: user.isPlatformAdmin,
       mfaEnabled: user.mfaEnabled,
+      emailVerified: user.emailVerified,
+      phoneVerified: user.phoneVerified,
     },
     activeOrganizationId: organizationId,
     activeBranchId,
     memberships,
     permissions,
+    // Ordinary sign-in is never impersonation: this path always mints a session
+    // for the person who presented the credential. See impersonation.service.ts,
+    // which is the only thing that sets it.
+    impersonation: null,
   };
+}
+
+/**
+ * The banner's content while a platform admin is inside a clinic.
+ *
+ * Resolved by the impersonation service — `describeSession` only carries it
+ * through, because the organization name is not something a session response
+ * otherwise knows: an impersonating admin holds no membership in the clinic they
+ * are standing in, so `memberships` cannot supply it.
+ */
+export interface ImpersonationDescriptor {
+  organizationName: string;
+  adminName: string;
+  expiresAt: Date;
 }
 
 /**
@@ -264,7 +302,8 @@ export async function describeSession(
   userId: string,
   organizationId: string | null,
   branchId: string | null,
-  tokens: { accessToken: string; refreshToken: string }
+  tokens: { accessToken: string; refreshToken: string },
+  impersonation: ImpersonationDescriptor | null = null
 ): Promise<AuthSession> {
   const user = await loadAuthenticatedUser(userId);
 
@@ -273,6 +312,16 @@ export async function describeSession(
     const access = await loadUserAccess(userId, organizationId);
     if (access) {
       permissions = permissionsFor(access, userId, branchId, user.isPlatformAdmin);
+    } else if (user.isPlatformAdmin) {
+      /*
+       * No membership, and none expected — this is an impersonating admin
+       * (ADR-0012). `permissionsFor` needs a `UserAccess` to build a context
+       * from and there is none, so the bypass is applied directly. The list is
+       * the whole catalogue either way: `can` returns true for a platform admin
+       * before it looks at anything else, so reporting less would only make the
+       * shell hide controls the API is about to allow.
+       */
+      permissions = [...ALL_PERMISSIONS];
     }
   }
 
@@ -285,5 +334,8 @@ export async function describeSession(
     activeBranchId: branchId,
     memberships: await listMemberships(userId),
     permissions,
+    impersonation: impersonation
+      ? { ...impersonation, expiresAt: impersonation.expiresAt.toISOString() }
+      : null,
   };
 }

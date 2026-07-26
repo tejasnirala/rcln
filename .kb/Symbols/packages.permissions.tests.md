@@ -10,5 +10,5 @@ Files: `packages/permissions/tests/resolver.test.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `assignment` <sub>local</sub> | `(branchId: string \| null, permissions): RoleAssignment` | `packages/permissions/tests/resolver.test.ts:36` |  |
-| `ctx` <sub>local</sub> | `(overrides: Partial<AccessContext>): AccessContext` | `packages/permissions/tests/resolver.test.ts:24` |  |
+| `assignment` <sub>local</sub> | `(branchId: string \| null, permissions): RoleAssignment` | `packages/permissions/tests/resolver.test.ts:37` |  |
+| `ctx` <sub>local</sub> | `(overrides: Partial<AccessContext>): AccessContext` | `packages/permissions/tests/resolver.test.ts:25` |  |

@@ -18,7 +18,7 @@ Files: `apps/api/src/services/notification/sender.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `loggingSender` | `: NotificationSender` | `apps/api/src/services/notification/sender.ts:54` |  |
-| `sender` | `: NotificationSender` | `apps/api/src/services/notification/sender.ts:84` | Swap this for the MSG91 implementation once DLT registration completes. |
+| `sender` | `: NotificationSender` | `apps/api/src/services/notification/sender.ts:94` |  |
 
 ## interface
 
@@ -30,5 +30,5 @@ Files: `apps/api/src/services/notification/sender.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `EmailTemplate` | `'INVITE' \| 'INVITE_REMINDER'` | `apps/api/src/services/notification/sender.ts:26` |  |
-| `SmsTemplate` | `'LOGIN_OTP'` | `apps/api/src/services/notification/sender.ts:25` |  |
+| `EmailTemplate` | `'INVITE' \| 'INVITE_REMINDER' \| 'VERIFY_EMAIL'` | `apps/api/src/services/notification/sender.ts:26` |  |
+| `SmsTemplate` | `'LOGIN_OTP' \| 'VERIFY_PHONE'` | `apps/api/src/services/notification/sender.ts:25` |  |

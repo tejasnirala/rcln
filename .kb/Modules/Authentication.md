@@ -38,16 +38,20 @@ Proves who a caller is and issues the session they act under. Password and phone
 
 | method | path | at |
 | --- | --- | --- |
-| POST | `/login` | `apps/api/src/routes/v1/auth.routes.ts:78` |
-| POST | `/otp/request` | `apps/api/src/routes/v1/auth.routes.ts:105` |
-| POST | `/otp/verify` | `apps/api/src/routes/v1/auth.routes.ts:123` |
-| POST | `/refresh` | `apps/api/src/routes/v1/auth.routes.ts:158` |
-| POST | `/invitations/preview` | `apps/api/src/routes/v1/auth.routes.ts:238` |
-| POST | `/invitations/accept` | `apps/api/src/routes/v1/auth.routes.ts:260` |
-| POST | `/logout` | `apps/api/src/routes/v1/auth.routes.ts:290` |
-| GET | `/session` | `apps/api/src/routes/v1/auth.routes.ts:305` |
-| POST | `/switch-branch` | `apps/api/src/routes/v1/auth.routes.ts:325` |
-| POST | `/switch-organization` | `apps/api/src/routes/v1/auth.routes.ts:405` |
+| POST | `/login` | `apps/api/src/routes/v1/auth.routes.ts:92` |
+| POST | `/otp/request` | `apps/api/src/routes/v1/auth.routes.ts:119` |
+| POST | `/otp/verify` | `apps/api/src/routes/v1/auth.routes.ts:137` |
+| POST | `/refresh` | `apps/api/src/routes/v1/auth.routes.ts:172` |
+| POST | `/invitations/preview` | `apps/api/src/routes/v1/auth.routes.ts:260` |
+| POST | `/invitations/accept` | `apps/api/src/routes/v1/auth.routes.ts:282` |
+| POST | `*` | `apps/api/src/routes/v1/auth.routes.ts:332` |
+| POST | `*` | `apps/api/src/routes/v1/auth.routes.ts:351` |
+| POST | `/impersonation/claim` | `apps/api/src/routes/v1/auth.routes.ts:407` |
+| POST | `/impersonation/stop` | `apps/api/src/routes/v1/auth.routes.ts:435` |
+| POST | `/logout` | `apps/api/src/routes/v1/auth.routes.ts:469` |
+| GET | `/session` | `apps/api/src/routes/v1/auth.routes.ts:484` |
+| POST | `/switch-branch` | `apps/api/src/routes/v1/auth.routes.ts:516` |
+| POST | `/switch-organization` | `apps/api/src/routes/v1/auth.routes.ts:603` |
 
 ## Database impact
 
@@ -64,11 +68,13 @@ Proves who a caller is and issues the session they act under. Password and phone
 - `apps/api/src/middleware/auth.middleware.ts`
 - `apps/api/src/routes/v1/auth.routes.ts`
 - `apps/api/src/services/auth/access.service.ts`
+- `apps/api/src/services/auth/challenge.service.ts`
 - `apps/api/src/services/auth/login.service.ts`
 - `apps/api/src/services/auth/otp.service.ts`
 - `apps/api/src/services/auth/password.service.ts`
 - `apps/api/src/services/auth/session.service.ts`
 - `apps/api/src/services/auth/token.service.ts`
+- `apps/api/src/services/auth/verification.service.ts`
 - `apps/web/src/lib/session-cookie.ts`
 - `apps/web/src/lib/session.ts`
 
@@ -88,67 +94,79 @@ Proves who a caller is and issues the session they act under. Password and phone
 | --- | --- | --- |
 | `ACCESS_COOKIE` | const | `apps/web/src/lib/session-cookie.ts:15` |
 | `AccessTokenClaims` | interface | `apps/api/src/services/auth/token.service.ts:29` |
-| `accessTokenLifetimeSeconds` | fn | `apps/api/src/services/auth/token.service.ts:99` |
-| `authenticate` | fn | `apps/api/src/middleware/auth.middleware.ts:43` |
-| `AuthenticatedUser` | interface | `apps/api/src/services/auth/login.service.ts:26` |
-| `authorize` | fn | `apps/api/src/middleware/auth.middleware.ts:137` |
+| `accessTokenLifetimeSeconds` | fn | `apps/api/src/services/auth/token.service.ts:109` |
+| `authenticate` | fn | `apps/api/src/middleware/auth.middleware.ts:47` |
+| `AuthenticatedUser` | interface | `apps/api/src/services/auth/login.service.ts:27` |
+| `authorize` | fn | `apps/api/src/middleware/auth.middleware.ts:159` |
 | `baseCookie` | var | `apps/web/src/lib/session-cookie.ts:21` |
-| `buildAuthSession` | fn | `apps/api/src/services/auth/login.service.ts:185` |
-| `BuildSessionInput` | interface | `apps/api/src/services/auth/login.service.ts:170` |
-| `callerFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:232` |
-| `CallerIdentity` | interface | `apps/api/src/middleware/auth.middleware.ts:227` |
+| `buildAuthSession` | fn | `apps/api/src/services/auth/login.service.ts:203` |
+| `BuildSessionInput` | interface | `apps/api/src/services/auth/login.service.ts:188` |
+| `callerFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:254` |
+| `CallerIdentity` | interface | `apps/api/src/middleware/auth.middleware.ts:249` |
 | `clearSessionCookies` | fn | `apps/web/src/lib/session.ts:75` |
-| `createSession` | fn | `apps/api/src/services/auth/session.service.ts:58` |
-| `CreateSessionInput` | interface | `apps/api/src/services/auth/session.service.ts:49` |
-| `describeSession` | fn | `apps/api/src/services/auth/login.service.ts:263` |
+| `confirmVerification` | fn | `apps/api/src/services/auth/verification.service.ts:154` |
+| `ConfirmVerificationInput` | interface | `apps/api/src/services/auth/verification.service.ts:135` |
+| `consumeChallenge` | fn | `apps/api/src/services/auth/challenge.service.ts:98` |
+| `createSession` | fn | `apps/api/src/services/auth/session.service.ts:70` |
+| `CreateSessionInput` | interface | `apps/api/src/services/auth/session.service.ts:55` |
+| `describeSession` | fn | `apps/api/src/services/auth/login.service.ts:301` |
 | `dummyHash` | fn | `apps/api/src/services/auth/password.service.ts:54` |
 | `fakeVerify` | fn | `apps/api/src/services/auth/password.service.ts:63` |
-| `findLiveSession` | fn | `apps/api/src/services/auth/session.service.ts:88` |
-| `findUserByIdentifier` | fn | `apps/api/src/services/auth/login.service.ts:44` |
-| `generateInviteToken` | fn | `apps/api/src/services/auth/token.service.ts:144` |
-| `generateOtpCode` | fn | `apps/api/src/services/auth/token.service.ts:154` |
-| `generateRefreshToken` | fn | `apps/api/src/services/auth/token.service.ts:111` |
+| `findLiveSession` | fn | `apps/api/src/services/auth/session.service.ts:101` |
+| `findUserByIdentifier` | fn | `apps/api/src/services/auth/login.service.ts:54` |
+| `generateInviteToken` | fn | `apps/api/src/services/auth/token.service.ts:154` |
+| `generateOtpCode` | fn | `apps/api/src/services/auth/token.service.ts:164` |
+| `generateRefreshToken` | fn | `apps/api/src/services/auth/token.service.ts:121` |
 | `getAccessToken` | fn | `apps/web/src/lib/session.ts:81` |
-| `getPlatformSession` | fn | `apps/web/src/lib/session.ts:124` |
+| `getPlatformSession` | var | `apps/web/src/lib/session.ts:128` |
 | `getRefreshToken` | fn | `apps/web/src/lib/session.ts:85` |
 | `getSession` | var | `apps/web/src/lib/session.ts:103` |
-| `hashesMatch` | fn | `apps/api/src/services/auth/token.service.ts:127` |
-| `hashInviteToken` | fn | `apps/api/src/services/auth/token.service.ts:149` |
-| `hashOtpCode` | fn | `apps/api/src/services/auth/token.service.ts:163` |
+| `hashesMatch` | fn | `apps/api/src/services/auth/token.service.ts:137` |
+| `hashInviteToken` | fn | `apps/api/src/services/auth/token.service.ts:159` |
+| `hashOtpCode` | fn | `apps/api/src/services/auth/token.service.ts:173` |
 | `hashPassword` | fn | `apps/api/src/services/auth/password.service.ts:25` |
-| `hashRefreshToken` | fn | `apps/api/src/services/auth/token.service.ts:122` |
-| `hasPermission` | fn | `apps/api/src/services/auth/access.service.ts:237` |
+| `hashRefreshToken` | fn | `apps/api/src/services/auth/token.service.ts:132` |
+| `hasPermission` | fn | `apps/api/src/services/auth/access.service.ts:268` |
+| `ImpersonationDescriptor` | interface | `apps/api/src/services/auth/login.service.ts:291` |
 | `invalidateOrganizationAccess` | fn | `apps/api/src/services/auth/access.service.ts:201` |
 | `invalidateUserAccess` | fn | `apps/api/src/services/auth/access.service.ts:181` |
 | `isLockedOut` | fn | `apps/api/src/services/auth/password.service.ts:67` |
-| `IssuedSession` | interface | `apps/api/src/services/auth/session.service.ts:40` |
-| `listMemberships` | fn | `apps/api/src/services/auth/access.service.ts:269` |
-| `loadAuthenticatedUser` | fn | `apps/api/src/services/auth/login.service.ts:126` |
+| `isMasterVerificationCode` | fn | `apps/api/src/services/auth/challenge.service.ts:49` |
+| `issueChallenge` | fn | `apps/api/src/services/auth/challenge.service.ts:68` |
+| `IssuedChallenge` | interface | `apps/api/src/services/auth/challenge.service.ts:54` |
+| `IssuedSession` | interface | `apps/api/src/services/auth/session.service.ts:46` |
+| `listMemberships` | fn | `apps/api/src/services/auth/access.service.ts:300` |
+| `loadAuthenticatedUser` | fn | `apps/api/src/services/auth/login.service.ts:136` |
 | `loadUserAccess` | fn | `apps/api/src/services/auth/access.service.ts:160` |
 | `LOCKOUT_MINUTES` | const | `apps/api/src/services/auth/password.service.ts:23` |
 | `lockoutUntil` | fn | `apps/api/src/services/auth/password.service.ts:75` |
 | `MAX_FAILED_ATTEMPTS` | const | `apps/api/src/services/auth/password.service.ts:19` |
-| `MembershipSummaryRow` | interface | `apps/api/src/services/auth/access.service.ts:261` |
-| `OtpRequestOutcome` | interface | `apps/api/src/services/auth/otp.service.ts:25` |
-| `permissionsFor` | fn | `apps/api/src/services/auth/access.service.ts:228` |
+| `MembershipSummaryRow` | interface | `apps/api/src/services/auth/access.service.ts:292` |
+| `organizationBranchIds` | fn | `apps/api/src/services/auth/access.service.ts:228` |
+| `OtpRequestOutcome` | interface | `apps/api/src/services/auth/otp.service.ts:24` |
+| `permissionsFor` | fn | `apps/api/src/services/auth/access.service.ts:259` |
 | `REFRESH_COOKIE` | const | `apps/web/src/lib/session-cookie.ts:16` |
 | `REFRESH_MAX_AGE` | const | `apps/web/src/lib/session-cookie.ts:19` |
-| `refreshTokenMaxAgeSeconds` | var | `apps/api/src/services/auth/session.service.ts:202` |
-| `refreshTokenTtlSetting` | var | `apps/api/src/services/auth/session.service.ts:205` |
-| `requestOtp` | fn | `apps/api/src/services/auth/otp.service.ts:30` |
-| `requireAuth` | fn | `apps/api/src/middleware/auth.middleware.ts:122` |
-| `requirePlatformAdmin` | fn | `apps/api/src/middleware/auth.middleware.ts:191` |
-| `revokeFamily` | fn | `apps/api/src/services/auth/session.service.ts:169` |
-| `revokeSession` | fn | `apps/api/src/services/auth/session.service.ts:160` |
-| `rotateRefreshToken` | fn | `apps/api/src/services/auth/session.service.ts:109` |
+| `refreshTokenMaxAgeSeconds` | var | `apps/api/src/services/auth/session.service.ts:217` |
+| `refreshTokenTtlSetting` | var | `apps/api/src/services/auth/session.service.ts:220` |
+| `requestOtp` | fn | `apps/api/src/services/auth/otp.service.ts:29` |
+| `requestVerification` | fn | `apps/api/src/services/auth/verification.service.ts:98` |
+| `requireAuth` | fn | `apps/api/src/middleware/auth.middleware.ts:144` |
+| `requirePlatformAdmin` | fn | `apps/api/src/middleware/auth.middleware.ts:213` |
+| `revokeFamily` | fn | `apps/api/src/services/auth/session.service.ts:184` |
+| `revokeSession` | fn | `apps/api/src/services/auth/session.service.ts:175` |
+| `rotateRefreshToken` | fn | `apps/api/src/services/auth/session.service.ts:123` |
 | `SessionRecord` | interface | `apps/api/src/services/auth/session.service.ts:32` |
-| `setActiveScope` | fn | `apps/api/src/services/auth/session.service.ts:185` |
+| `setActiveScope` | fn | `apps/api/src/services/auth/session.service.ts:200` |
 | `setSessionCookies` | fn | `apps/web/src/lib/session.ts:49` |
-| `signAccessToken` | fn | `apps/api/src/services/auth/token.service.ts:50` |
-| `tenantContextFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:239` |
-| `toAccessContext` | fn | `apps/api/src/services/auth/access.service.ts:212` |
+| `signAccessToken` | fn | `apps/api/src/services/auth/token.service.ts:58` |
+| `tenantContextFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:261` |
+| `toAccessContext` | fn | `apps/api/src/services/auth/access.service.ts:243` |
 | `UserAccess` | interface | `apps/api/src/services/auth/access.service.ts:41` |
-| `verifyAccessToken` | fn | `apps/api/src/services/auth/token.service.ts:81` |
-| `verifyCredentials` | fn | `apps/api/src/services/auth/login.service.ts:76` |
-| `verifyOtp` | fn | `apps/api/src/services/auth/otp.service.ts:73` |
+| `VerificationChannel` | type | `apps/api/src/services/auth/verification.service.ts:40` |
+| `VerificationRequest` | interface | `apps/api/src/services/auth/verification.service.ts:42` |
+| `VerificationResult` | interface | `apps/api/src/services/auth/verification.service.ts:49` |
+| `verifyAccessToken` | fn | `apps/api/src/services/auth/token.service.ts:91` |
+| `verifyCredentials` | fn | `apps/api/src/services/auth/login.service.ts:86` |
+| `verifyOtp` | fn | `apps/api/src/services/auth/otp.service.ts:68` |
 | `verifyPassword` | fn | `apps/api/src/services/auth/password.service.ts:35` |

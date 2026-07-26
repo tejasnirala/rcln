@@ -2,9 +2,10 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-07-26 · **Current phase:** 0 complete, 1 substantially
-complete (onboarding, auth, branch CRUD, invitations and role/member management
-shipped; verification, org settings and impersonation still open)
+**Last updated:** 2026-07-26 · **Current phase:** 0 complete, **1 complete
+except the legal sign-off** (onboarding, auth, branch CRUD, invitations,
+role/member management, email/phone verification, org settings and super-admin
+impersonation all shipped)
 
 ---
 
@@ -124,6 +125,11 @@ design system every later screen inherits.
       pending TRAI DLT; all the logic is real
 - [x] `POST /auth/refresh` — rotation, and replaying a rotated token revokes the
       whole family
+- [x] `POST /auth/verify/{email,phone}/{request,confirm}` — self-service, no
+      permission code, metered per account and channel. Shares the code
+      mechanics with OTP login via `services/auth/challenge.service.ts`, and is
+      idempotent with the `phoneVerifiedAt` that a successful OTP login already
+      writes
 - [x] `POST /auth/logout`, `GET /auth/session`, `POST /auth/switch-branch`,
       `POST /auth/switch-organization`
 - [x] Account lockout after 5 failures
@@ -149,9 +155,22 @@ design system every later screen inherits.
 - [x] 7 `POST /public/demo-requests` cases (the gap noted here previously)
 - [x] 23 branch cases, 25 invitation cases, 40 role/member cases — all over real
       HTTP through the full middleware chain
+- [x] 17 verification cases, including the one measured to return 200 without the
+      `userId` pin on the challenge lookup, the OTP-login idempotency sequence run
+      for real rather than simulated, and the master code proven not to satisfy
+      `/auth/otp/verify` while a live LOGIN_OTP token is waiting
+- [x] 40 org-settings cases, of which four were measured to fail with the
+      `scopeId` pin removed — `setting_values` and `organizations` are both
+      RLS-exempt, so those four are the entire tenant boundary on that screen
+- [x] 20 impersonation cases, two of which were measured by deleting the guard
+      first: without the cross-host check on the handoff ticket, clinic A's
+      ticket opens a working session inside clinic B and files an audit row
+      there; without the branch-scope resolution in `authenticate`, the clinic
+      reads as empty
 - [x] 8 audit-diff unit cases
-- **200 tests, all green** (175 API + 25 permissions). `db:rls:check` green,
-  14 protected tables
+- **279 tests, all green** (252 API + 27 permissions). `db:rls:check` green,
+  14 protected tables — impersonation added no tenant table, and its cross-host
+  boundary is application code by necessity
 - [ ] Not verified by machine: the signup → login flow in a real browser
 
 ---
@@ -168,11 +187,40 @@ design system every later screen inherits.
       exceptions, suspension. Four escalation guards, none of which the database
       enforces; see `services/iam/guards.ts` and the PITFALLS entry on
       RESTRICTIVE policies
-- [ ] Super-admin impersonation with audit trail and a persistent UI banner.
-      ⚠️ The session it mints must carry a real branch scope — a platform admin
-      has no membership, so `loadUserAccess` returns null and every
-      branch-scoped write would be refused
-- [ ] Web: org settings
+- [x] Super-admin impersonation — `POST /platform/organizations/:id/impersonate`
+      (reason required, min 10 chars), redeemed at the clinic's own host by
+      `POST /auth/impersonation/claim`, ended by `POST /auth/impersonation/stop`.
+      A platform console layout, a `/organizations` screen, and a
+      non-dismissible ink banner in the `(app)` shell.
+      **Full access, no write block, no elevation step — this overrules
+      `architecture.md` §6.** → [ADR-0012](Architecture/decisions/0012-impersonation-is-full-access-and-audited.md)
+      ⚠️ Three things hold it together and each is load-bearing:
+      the session is 30 minutes with **no refresh token**, so nothing can renew
+      it; `authenticate` resolves a branch scope from the organization's own
+      branches, because a platform admin has no membership and an empty scope
+      under RESTRICTIVE `branch_isolation` presents as an empty clinic rather
+      than as full access; and the handoff between hosts is a single-use Redis
+      ticket bound to one organization, because session cookies are host-only
+      and `admin.<root>` cannot write one for a clinic's subdomain.
+      `effectivePermissions` now bypasses for a platform admin, matching `can` —
+      it previously returned `[]` for a caller every endpoint says yes to
+- [x] Org settings — `GET/PATCH /organization` and
+      `GET/PUT/DELETE /organization/settings[/:key]`, plus a `/settings` screen
+      whose signature is the inheritance line: every row states whether the
+      clinic set the value, rcln set it, or nobody did, and what clearing would
+      restore. ⚠️ **Both tables are RLS-EXEMPT** — `organizations` because the
+      tenant is resolved from it, `setting_values` because it is keyed by
+      `(scope_type, scope_id)` — so the explicit `where` in
+      `organization.service.ts` / `setting.service.ts` is the only isolation
+      there is, and `db:rls:check` will never notice a missing one. Editing the
+      org drops the host → tenant cache, because currency and timezone live in
+      it. The slug is deliberately not editable.
+      Settings whose values are a closed set carry `allowed_values` on
+      `setting_definitions` (migration `20260726100316`), so the API refuses an
+      off-list value and the screen renders its `<select>` from the same column
+      — adding a choice stays an INSERT. `help_text` is the per-setting
+      explanation. Time zone and currency are validated against `Intl` rather
+      than a hand-kept list
 - [x] Legal pages — `/legal/{privacy,terms,dpa}` written and linked from the
       footer and the signup consent checkbox. **Drafts.** Each carries a visible
       "not yet in force" banner and 30 unfilled placeholders; they are structured
@@ -182,8 +230,13 @@ design system every later screen inherits.
       registered address, DPO, grievance contact, notice periods, real
       subprocessor list, uptime target. Then remove the draft banner.
       `grep -rn "Placeholder>" "apps/web/src/app/(marketing)/legal"`
-- [ ] Email/phone verification. `emailVerifiedAt` stays null at signup;
-      `phoneVerifiedAt` is set only by a successful OTP login
+- [x] Email/phone verification — four routes on the auth router, a `/verify`
+      screen and a prompt in the `(app)` shell. ⚠️ `users` is RLS-EXEMPT, so the
+      explicit `where id = :userId` in `verification.service.ts` is the only
+      isolation there is. Delivery is the same logging stub, so a
+      **development-only master code** (`DEV_MASTER_VERIFICATION_CODE`, default
+      `123456`) confirms either channel — null in production, fatal at boot if
+      set there, and it logs nobody in. Delete it with the stub
 
 ### Phase 2 — Subscriptions
 

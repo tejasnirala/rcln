@@ -1,10 +1,18 @@
 import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { registerOrganizationRequest, type RegisterOrganizationResponse } from '@rcln/contracts';
+import {
+  impersonateRequest,
+  registerOrganizationRequest,
+  type ImpersonateRequest,
+  type PlatformOrganizationListResponse,
+  type RegisterOrganizationResponse,
+} from '@rcln/contracts';
 import { unsafeDbClient } from '@rcln/db/unsafe';
-import { authenticate, requirePlatformAdmin } from '../../middleware/auth.middleware.js';
+import { PERMISSIONS } from '@rcln/permissions';
+import { authenticate, authorize, requirePlatformAdmin } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import { registerOrganization } from '../../services/organization/register.service.js';
+import { startImpersonation } from '../../services/platform/impersonation.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 /**
@@ -66,6 +74,106 @@ router.post(
     };
 
     sendSuccess(res, body, 'Clinic provisioned', 201);
+  }
+);
+
+/**
+ * Every clinic on the platform.
+ *
+ * The one list in the product that crosses the tenant boundary, which is why it
+ * lives here and nowhere else. An rcln operator needs to find an account, not to
+ * read its staff directory.
+ *
+ * `organizations` is RLS-exempt, so the unscoped client can read it. Do NOT add
+ * a `_count` over `branches` or `memberships` here: those tables are not exempt,
+ * this client sets no session variables, and their policies would evaluate
+ * against a NULL organization and return 0 for every clinic — silently. See the
+ * note on `platformOrganizationSummary`.
+ */
+const organizationQuery = z.object({
+  /** Matches slug, display name or legal name. */
+  search: z.string().trim().min(1).max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+router.get(
+  '/organizations',
+  authorize(PERMISSIONS.PLATFORM_ORG_READ),
+  validate(organizationQuery, 'query'),
+  async (req: Request, res: Response) => {
+    const { search, limit } = req.query as unknown as z.infer<typeof organizationQuery>;
+
+    const organizations = await unsafeDbClient().organization.findMany({
+      where: {
+        deletedAt: null,
+        ...(search
+          ? {
+              OR: [
+                { slug: { contains: search, mode: 'insensitive' as const } },
+                { displayName: { contains: search, mode: 'insensitive' as const } },
+                { legalName: { contains: search, mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        slug: true,
+        displayName: true,
+        legalName: true,
+        status: true,
+        orgType: true,
+        createdAt: true,
+      },
+    });
+
+    const body: PlatformOrganizationListResponse = {
+      organizations: organizations.map((org) => ({
+        id: org.id,
+        slug: org.slug,
+        displayName: org.displayName,
+        legalName: org.legalName,
+        status: org.status,
+        orgType: org.orgType,
+        createdAt: org.createdAt.toISOString(),
+      })),
+    };
+
+    sendSuccess(res, body, 'Clinics');
+  }
+);
+
+/**
+ * Enter a clinic as rcln staff.
+ *
+ * ANSWERS A TICKET, NOT A SESSION. Session cookies are host-only, so this host
+ * cannot write one for a clinic's subdomain — the browser carries the ticket
+ * across and `POST /auth/impersonation/claim` on the clinic's own host redeems
+ * it. See the header of impersonation.service.ts.
+ *
+ * `authorize` here is belt and braces: `requirePlatformAdmin` already ran, and
+ * `authorize` bypasses for a platform admin. It is written out anyway so the
+ * permission code that governs this appears at the route, where a reader looks
+ * for it, rather than only in the seed.
+ */
+router.post(
+  '/organizations/:organizationId/impersonate',
+  authorize(PERMISSIONS.PLATFORM_IMPERSONATE),
+  validate(z.object({ organizationId: z.uuid() }), 'params'),
+  validate(impersonateRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const auth = req.auth as NonNullable<Request['auth']>;
+    const { reason } = req.body as ImpersonateRequest;
+
+    const grant = await startImpersonation({
+      organizationId: req.params['organizationId'] as string,
+      adminUserId: auth.userId,
+      reason,
+    });
+
+    sendSuccess(res, grant, 'Ready to enter', 201);
   }
 );
 

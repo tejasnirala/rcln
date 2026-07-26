@@ -47,7 +47,15 @@ interface JwtPayload {
   imp: string | null;
 }
 
-export function signAccessToken(claims: AccessTokenClaims): string {
+/**
+ * @param lifetimeSeconds Override the configured 15 minutes.
+ *
+ * Exists for one caller: an impersonation session, which carries NO refresh
+ * token (see impersonation.service.ts). Nothing can renew it, so its access
+ * token has to cover the whole session or the admin is thrown out fifteen
+ * minutes into a thirty-minute window with no way back in.
+ */
+export function signAccessToken(claims: AccessTokenClaims, lifetimeSeconds?: number): string {
   const payload: JwtPayload = {
     sub: claims.userId,
     sid: claims.sessionId,
@@ -63,7 +71,9 @@ export function signAccessToken(claims: AccessTokenClaims): string {
   // not on the property lookup — the latter still includes `undefined`.
   const options: jwt.SignOptions = {
     algorithm: 'HS256',
-    expiresIn: config.jwt.accessTokenExpiresIn as NonNullable<jwt.SignOptions['expiresIn']>,
+    expiresIn: (lifetimeSeconds ?? config.jwt.accessTokenExpiresIn) as NonNullable<
+      jwt.SignOptions['expiresIn']
+    >,
     issuer: 'rcln',
   };
 

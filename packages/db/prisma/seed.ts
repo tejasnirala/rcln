@@ -15,7 +15,7 @@ import { hash } from '@node-rs/argon2';
 loadEnv({ path: new URL('../../../.env', import.meta.url).pathname });
 
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../generated/prisma/index.js';
+import { Prisma, PrismaClient } from '../generated/prisma/index.js';
 import {
   ALL_PERMISSIONS,
   SYSTEM_ROLE_DEFINITIONS,
@@ -99,6 +99,38 @@ async function seedSystemRoles(permissionIds: Map<PermissionCode, string>): Prom
   console.warn(`  system roles     ${SYSTEM_ROLE_DEFINITIONS.length}`);
 }
 
+/**
+ * The twelve months, as the financial-year setting offers them.
+ *
+ * Numbers, because that is what the column holds and what any date arithmetic
+ * downstream will do with it — but nobody picks "4" from a list, they pick
+ * April. This is exactly the case `allowed_values` exists for.
+ */
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+].map((label, index) => ({ value: index + 1, label }));
+
+/**
+ * The setting catalogue.
+ *
+ * `description` is the short name the settings screen puts on the row.
+ * `helpText` is what it is FOR — written for whoever runs the clinic, saying
+ * what changing it actually does, because "Fallback tax rate when a billable
+ * item defines none" is a description of the column, not an explanation.
+ * `allowedValues` closes the set: present means the API refuses anything else
+ * and the screen renders a select. Omit it for genuinely open values.
+ */
 async function seedSettingDefinitions(): Promise<void> {
   const defs = [
     {
@@ -107,7 +139,11 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'INT' as const,
       defaultValue: 15,
       allowedScopes: ['ORGANIZATION', 'BRANCH', 'DOCTOR'],
-      description: 'Default consultation slot length in minutes',
+      description: 'Consultation length',
+      helpText:
+        'How long one appointment blocks out in the calendar, in minutes. It decides how many slots a doctor’s day is divided into. A doctor who needs longer can be given their own length.',
+      // Deliberately open: a physiotherapist booking 45 minutes and a screening
+      // camp booking 5 are both real, and a list would have to guess.
     },
     {
       key: 'appointment.allow_online_booking',
@@ -115,7 +151,9 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'BOOL' as const,
       defaultValue: true,
       allowedScopes: ['ORGANIZATION', 'BRANCH', 'DOCTOR'],
-      description: 'Patients may self-book from the portal',
+      description: 'Patient self-booking',
+      helpText:
+        'Whether patients can book themselves an appointment from the portal. Turn it off and every appointment has to be made by your staff. Existing bookings are not affected.',
     },
     {
       key: 'appointment.reminder_hours_before',
@@ -123,7 +161,9 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'JSON' as const,
       defaultValue: [24, 2],
       allowedScopes: ['ORGANIZATION', 'BRANCH'],
-      description: 'Hours before the appointment at which reminders fire',
+      description: 'Appointment reminders',
+      helpText:
+        'How many hours before an appointment each reminder goes out. [24, 2] sends one the day before and one two hours ahead. An empty list sends none.',
     },
     {
       key: 'billing.invoice_prefix',
@@ -131,7 +171,9 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'STRING' as const,
       defaultValue: 'INV',
       allowedScopes: ['ORGANIZATION', 'BRANCH'],
-      description: 'Prefix for generated invoice numbers',
+      description: 'Invoice number prefix',
+      helpText:
+        'The letters in front of every invoice number this clinic issues — INV becomes INV-000123. Changing it does not renumber invoices you have already raised.',
     },
     {
       key: 'billing.default_tax_percent',
@@ -139,7 +181,9 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'DECIMAL' as const,
       defaultValue: 0,
       allowedScopes: ['ORGANIZATION', 'BRANCH'],
-      description: 'Fallback tax rate when a billable item defines none',
+      description: 'Default tax rate',
+      helpText:
+        'The GST rate applied to a billable item that does not carry one of its own. Most clinical services are exempt, which is why this starts at 0. Items with their own rate ignore it.',
     },
     {
       key: 'billing.financial_year_start_month',
@@ -147,7 +191,10 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'INT' as const,
       defaultValue: 4,
       allowedScopes: ['ORGANIZATION'],
-      description: 'Month the financial year starts. 4 = April (India)',
+      description: 'Financial year starts',
+      helpText:
+        'The month your books open. Indian practices run April to March, which is the default. It decides how invoice series are numbered and where reports draw the year boundary.',
+      allowedValues: MONTHS,
     },
     {
       key: 'inventory.expiry_alert_days',
@@ -155,7 +202,9 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'JSON' as const,
       defaultValue: [90, 60, 30, 7],
       allowedScopes: ['ORGANIZATION', 'BRANCH'],
-      description: 'Days before expiry at which alerts fire',
+      description: 'Expiry warnings',
+      helpText:
+        'How many days before a batch expires you want warning. [90, 60, 30, 7] warns four times, with the last a week out. Earlier warnings are what let stock be returned or used first.',
     },
     {
       key: 'inventory.batch_selection_strategy',
@@ -163,7 +212,13 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'STRING' as const,
       defaultValue: 'FEFO',
       allowedScopes: ['ORGANIZATION', 'BRANCH'],
-      description: 'FEFO (first expiry first out) or FIFO',
+      description: 'Which batch to dispense',
+      helpText:
+        'Which batch the pharmacy is offered first. First expiry, first out sends the stock closest to expiring — this is what you want for medicines. First in, first out sends the oldest delivery.',
+      allowedValues: [
+        { value: 'FEFO', label: 'First expiry, first out' },
+        { value: 'FIFO', label: 'First in, first out' },
+      ],
     },
     {
       key: 'notification.default_channel',
@@ -171,7 +226,14 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'STRING' as const,
       defaultValue: 'WHATSAPP',
       allowedScopes: ['ORGANIZATION', 'BRANCH', 'USER', 'PATIENT'],
-      description: 'Preferred delivery channel',
+      description: 'How messages are sent',
+      helpText:
+        'Where reminders, receipts and reports go by default. A patient who has asked for something else gets that instead — this is only the starting point.',
+      allowedValues: [
+        { value: 'WHATSAPP', label: 'WhatsApp' },
+        { value: 'SMS', label: 'SMS' },
+        { value: 'EMAIL', label: 'Email' },
+      ],
     },
     {
       key: 'patient.uhid_prefix',
@@ -179,7 +241,9 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'STRING' as const,
       defaultValue: 'P',
       allowedScopes: ['ORGANIZATION'],
-      description: 'Prefix for generated patient UHIDs',
+      description: 'Patient number prefix',
+      helpText:
+        'The letters in front of every patient’s hospital number — P becomes P-000451. Patients already registered keep the number they have, so changing this splits your records into two shapes.',
     },
     {
       key: 'security.session_idle_timeout_minutes',
@@ -187,7 +251,16 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'INT' as const,
       defaultValue: 60,
       allowedScopes: ['PLATFORM', 'ORGANIZATION'],
-      description: 'Idle minutes before a session is invalidated',
+      description: 'Sign out when idle',
+      helpText:
+        'How long a signed-in session survives with nobody using it. Shorter is safer on a shared front-desk machine; longer interrupts a doctor mid-consultation less often.',
+      allowedValues: [
+        { value: 15, label: '15 minutes' },
+        { value: 30, label: '30 minutes' },
+        { value: 60, label: '1 hour' },
+        { value: 120, label: '2 hours' },
+        { value: 480, label: '8 hours — a full shift' },
+      ],
     },
     {
       key: 'security.require_mfa_for_admins',
@@ -195,7 +268,9 @@ async function seedSettingDefinitions(): Promise<void> {
       dataType: 'BOOL' as const,
       defaultValue: false,
       allowedScopes: ['PLATFORM', 'ORGANIZATION'],
-      description: 'Force TOTP for org owners and admins',
+      description: 'Second step for administrators',
+      helpText:
+        'Whether owners and administrators must enter a code from an authenticator app as well as their password. It protects the accounts that can see every patient record and change everyone’s access.',
     },
   ];
 
@@ -208,6 +283,13 @@ async function seedSettingDefinitions(): Promise<void> {
         defaultValue: d.defaultValue,
         allowedScopes: d.allowedScopes,
         description: d.description,
+        helpText: d.helpText,
+        // `Prisma.DbNull`, not a bare `null`: on a nullable Json column a plain
+        // null is ambiguous between "the SQL NULL" and "the JSON literal null",
+        // and Prisma refuses it outright. This has to actually clear the
+        // column — a setting that STOPS being a closed set would otherwise keep
+        // its old choices and the API would keep refusing values it now allows.
+        allowedValues: d.allowedValues ?? Prisma.DbNull,
       },
       create: d,
     });

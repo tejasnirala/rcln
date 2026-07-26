@@ -105,7 +105,15 @@ export function TenantHeader({ slug, session }: { slug: string; session: AuthSes
         ) : null}
 
         <div className="ml-auto flex items-center gap-4">
-          <span className="text-muted text-[0.8125rem]">{session.user.fullName}</span>
+          {/* The person's own account, kept out of the "Clinic settings" nav
+              below — that row is what this clinic does, this is who you are.
+              Reachable whether or not the verification prompt is showing. */}
+          <Link
+            href="/verify"
+            className="text-muted hover:text-drape py-1 text-[0.8125rem] underline-offset-2 hover:underline"
+          >
+            {session.user.fullName}
+          </Link>
           {/* Bound server-side, like every other action here, so the browser
               cannot substitute another clinic's slug. The navigation is ours
               rather than the action's: `/login` is this clinic's sign-in page
@@ -144,11 +152,19 @@ export function TenantHeader({ slug, session }: { slug: string; session: AuthSes
  */
 function TenantNav({ permissions }: { permissions: string[] }) {
   const links = [
-    { href: 'branches', label: 'Branches', permission: 'branch.read' },
-    { href: 'members', label: 'Staff', permission: 'iam.user.read' },
-    { href: 'roles', label: 'Roles', permission: 'iam.role.read' },
-    { href: 'invitations', label: 'Invitations', permission: 'iam.user.read' },
-  ].filter((link) => permissions.includes(link.permission));
+    { href: 'branches', label: 'Branches', permission: ['branch.read'] },
+    { href: 'members', label: 'Staff', permission: ['iam.user.read'] },
+    { href: 'roles', label: 'Roles', permission: ['iam.role.read'] },
+    { href: 'invitations', label: 'Invitations', permission: ['iam.user.read'] },
+    // Two codes, either of which makes the screen worth opening: it holds the
+    // clinic's particulars and its defaults behind separate permissions, and
+    // renders whichever half the API answered.
+    {
+      href: 'settings',
+      label: 'Clinic',
+      permission: ['organization.read', 'settings.organization.read'],
+    },
+  ].filter((link) => link.permission.some((code) => permissions.includes(code)));
 
   if (links.length === 0) return null;
 

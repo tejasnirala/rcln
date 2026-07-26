@@ -175,7 +175,7 @@ What to build:
 - **Branch switch**: `POST /auth/switch-branch` → validate the target branch is in the user's `membership_roles` → update `sessions.active_branch_id` → issue new access token → client calls `queryClient.clear()`. Write an `audit_logs` row every time.
 - **OTP login** for patients and front-desk staff via `auth_tokens` — phone-first is non-negotiable in Indian healthcare. Rate-limit hard: 3 sends per phone per 15 min, 5 verify attempts per token, exponential backoff.
 - **MFA (TOTP)** mandatory for `is_platform_admin` and org owners. `otplib`.
-- **Impersonation** for super admin: separate short-lived token, `sessions.impersonated_by_user_id` set, a persistent banner in the UI, every request audited, and a hard block on write operations unless explicitly elevated.
+- **Impersonation** for super admin: separate short-lived session (30 min, no refresh token, so nothing can renew it), `sessions.impersonated_by_user_id` set, a persistent banner in the UI, a required reason on the audit row, and every mutation stamped with both actor ids. **Built, and one line of this recommendation was overruled: there is no write block.** Impersonation is full access, because `authorize()` has always bypassed for a platform admin and a support engineer who can look but not fix is not a support engineer. The audit trail is the control instead. → [ADR-0012](decisions/0012-impersonation-is-full-access-and-audited.md)
 
 **Buy instead if:** an enterprise hospital chain demands SAML/SCIM. Then add WorkOS _just_ for the SSO handshake and keep your own membership model behind it.
 

@@ -34,5 +34,5 @@ The seam every outbound message goes through. Real logic, no delivery.
 | `EmailTemplate` | type | `apps/api/src/services/notification/sender.ts:26` |
 | `loggingSender` | var | `apps/api/src/services/notification/sender.ts:54` |
 | `NotificationSender` | interface | `apps/api/src/services/notification/sender.ts:28` |
-| `sender` | var | `apps/api/src/services/notification/sender.ts:84` |
+| `sender` | var | `apps/api/src/services/notification/sender.ts:94` |
 | `SmsTemplate` | type | `apps/api/src/services/notification/sender.ts:25` |

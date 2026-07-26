@@ -1,4 +1,4 @@
-import type { PermissionCode } from './codes.js';
+import { ALL_PERMISSIONS, type PermissionCode } from './codes.js';
 
 /**
  * Effective-permission resolution.
@@ -99,6 +99,19 @@ export function canAny(
  * far too large for a header. Serve it from an endpoint, cache it in Redis.
  */
 export function effectivePermissions(ctx: AccessContext, now = new Date()): PermissionCode[] {
+  /*
+   * The same bypass `can` applies, for the same reason — and it has to be here
+   * too, or the two disagree.
+   *
+   * `can` is what the API enforces; this is what the UI renders from. A platform
+   * admin inside a clinic (ADR-0012) holds no membership there, so the role loop
+   * below finds nothing and returns an empty list — a shell with no navigation,
+   * in front of someone every endpoint is about to say yes to. The screen would
+   * be hiding controls the API would have allowed, which is the worst of both:
+   * no security gained, and a console that looks broken.
+   */
+  if (ctx.isPlatformAdmin) return [...ALL_PERMISSIONS];
+
   const granted = new Set<PermissionCode>();
 
   for (const a of ctx.roleAssignments) {

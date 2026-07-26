@@ -13,7 +13,8 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/actions.ts`
 | `otpSignIn` | `(slug: string, _previous: LoginFormState, formData: FormData): Promise<LoginFormState>` | `apps/web/src/app/(tenant)/t/[slug]/actions.ts:87` |  |
 | `signIn` | `(slug: string, _previous: LoginFormState, formData: FormData): Promise<LoginFormState>` | `apps/web/src/app/(tenant)/t/[slug]/actions.ts:41` |  |
 | `signOut` | `(slug: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/actions.ts:162` |  |
-| `switchBranch` | `(slug: string, branchId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/actions.ts:174` |  |
+| `stopImpersonation` | `(slug: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/actions.ts:183` |  |
+| `switchBranch` | `(slug: string, branchId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/actions.ts:193` |  |
 
 ## const
 

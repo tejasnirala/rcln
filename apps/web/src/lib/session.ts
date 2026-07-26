@@ -120,8 +120,12 @@ export const getSession = cache(async (slug: string): Promise<AuthSession | null
  * Returns null for a signed-in user who is NOT a platform admin: being logged in
  * is not the same as being allowed in here, and the console must not render for
  * an ordinary clinic account that wandered over.
+ *
+ * Memoised per request like `getSession`, for the same reason: the console's
+ * layout resolves it to decide whether to render the gate, and every page under
+ * it needs the same answer.
  */
-export async function getPlatformSession(): Promise<AuthSession | null> {
+export const getPlatformSession = cache(async (): Promise<AuthSession | null> => {
   const accessToken = await getAccessToken();
   if (!accessToken) return null;
 
@@ -132,4 +136,4 @@ export async function getPlatformSession(): Promise<AuthSession | null> {
 
   if (!result.ok || !result.data) return null;
   return result.data.user.isPlatformAdmin ? result.data : null;
-}
+});
