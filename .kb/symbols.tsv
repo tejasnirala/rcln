@@ -118,7 +118,7 @@ canAny	fn	export	packages/permissions/src/resolver.ts:88	packages/permissions	(c
 CataloguePermission	type	local	apps/web/src/components/tenant/role-list.tsx:19	apps/web/components/tenant	PermissionCatalogue[number]	
 changePasswordRequest	zod	export	packages/contracts/src/auth.ts:50	packages/contracts	z.object(…)	
 Channel	interface	local	apps/web/src/components/tenant/contact-verification.tsx:32	apps/web/components/tenant	{ channel, label, destination, verified }	
-ChannelRow	component	local	apps/web/src/components/tenant/contact-verification.tsx:93	apps/web/components/tenant	({ slug, channel, label, destination, verified, }: Channel &…)	
+ChannelRow	component	local	apps/web/src/components/tenant/contact-verification.tsx:93	apps/web/components/tenant	({ slug, channel, label, destination, verified }: Channel & …)	
 CHANNELS	const	local	apps/api/src/services/auth/verification.service.ts:56	apps/api/services/auth	{ email: { purpose: 'VERIFY_EMAIL', field: 'emailVerifiedAt', /** The user-facing name of…	Everything that differs between the two channels, in one place.
 checkSlug	action/async	export	apps/web/src/app/(marketing)/signup/actions.ts:38	apps/web/app/(marketing)/signup	(slug: string): Promise<{ available: boolean; message?: string }>	
 checkSlugQuery	zod	export	packages/contracts/src/tenancy.ts:272	packages/contracts	z.object(…)	
@@ -145,7 +145,7 @@ client	var	local	packages/db/src/client.ts:21	packages/db	: PrismaClient | undef
 clientAddress	fn/async	local	apps/web/src/lib/api.ts:66	apps/web/lib	(): Promise<string | undefined>	
 clientAddress	fn	local	apps/web/src/proxy.ts:97	apps/web	(request: NextRequest): Record<string, string>	The browser's address, as a header to pass on — or nothing if we do not know it. A chain of proxies appends, so the ori…
 ClinicFinder	component	export	apps/web/src/components/marketing/clinic-finder.tsx:23	apps/web/components/marketing	()	
-ClinicSettings	component	export	apps/web/src/components/tenant/clinic-settings.tsx:400	apps/web/components/tenant	({ slug, organization, settings, canEditOrganization, canEdi…)	
+ClinicSettings	component	export	apps/web/src/components/tenant/clinic-settings.tsx:402	apps/web/components/tenant	({ slug, organization, settings, canEditOrganization, canEdi…)	
 cn	fn	export	apps/web/src/lib/cn.ts:9	apps/web/lib	(inputs: ClassValue[]): string	Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be ov…
 CodeForm	component	local	apps/web/src/components/tenant/login-form.tsx:207	apps/web/components/tenant	({ slug }: { slug: string })	
 COLUMNS	component	local	apps/web/src/components/marketing/site-footer.tsx:11	apps/web/components/marketing	[ { title: 'Product', links: [ { href: '#product', label: 'What it runs' }, { href: '#bra…	
@@ -155,7 +155,7 @@ config	var	export	apps/web/src/proxy.ts:245	apps/web	{ // Skip API routes, Next 
 config	var	local	packages/permissions/jest.config.ts:3	packages/permissions	: Config	
 Config	type	export	apps/api/src/config/index.ts:141	apps/api/config	typeof config	
 confirmVerification	fn/async	export	apps/api/src/services/auth/verification.service.ts:154	apps/api/services/auth	(input: ConfirmVerificationInput): Promise<VerificationResult>	
-confirmVerificationCode	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:74	apps/web/app/(tenant)/t/[slug]/(app)/verify	(channel: VerifyChannel, slug: string, _previous: VerifyFormState, formData: FormData): Promise<VerifyFormState>	
+confirmVerificationCode	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:77	apps/web/app/(tenant)/t/[slug]/(app)/verify	(channel: VerifyChannel, slug: string, _previous: VerifyFormState, formData: FormData): Promise<VerifyFormState>	
 ConfirmVerificationInput	interface	export	apps/api/src/services/auth/verification.service.ts:135	apps/api/services/auth	{ userId, channel, code, tenant, ipAddress, userAgent }	
 ConflictError	class	export	apps/api/src/utils/errors.ts:75	apps/api/utils	{ }	409 - Conflict Error
 connection	var	local	apps/worker/src/index.ts:24	apps/worker	createRedisConnection(…)	
@@ -488,7 +488,7 @@ Optional	type	export	apps/api/src/types/index.ts:6	apps/api/types	T | undefined
 ORGANIZATION_SELECT	const	local	apps/api/src/services/organization/organization.service.ts:44	apps/api/services/organization	{ id: true, slug: true, legalName: true, displayName: true, orgType: true, status: true, …	What Prisma is asked for, so the read and the write paths cannot drift.
 OrganizationActionOptions	interface	export	apps/api/src/services/organization/organization.service.ts:38	apps/api/services/organization	{ ipAddress, userAgent }	Request metadata carried onto the audit row. Same shape as the branch service.
 organizationBranchIds	fn/async	export	apps/api/src/services/auth/access.service.ts:228	apps/api/services/auth	(organizationId: string, userId: string): Promise<string[]>	
-OrganizationForm	component	local	apps/web/src/components/tenant/clinic-settings.tsx:255	apps/web/components/tenant	({ slug, organization, canEdit, }: { slug: string; organizat…)	
+OrganizationForm	component	local	apps/web/src/components/tenant/clinic-settings.tsx:257	apps/web/components/tenant	({ slug, organization, canEdit, }: { slug: string; organizat…)	
 OrganizationList	component	export	apps/web/src/components/platform/organization-list.tsx:26	apps/web/components/platform	({ organizations, }: { organizations: PlatformOrganizationSu…)	
 organizationProfile	zod	export	packages/contracts/src/tenancy.ts:507	packages/contracts	z.object(…)	
 OrganizationProfile	type	export	packages/contracts/src/tenancy.ts:624	packages/contracts	z.infer<typeof organizationProfile>	
@@ -611,7 +611,7 @@ resendInvitation	fn/async	export	apps/api/src/services/invitation/invitation.ser
 resendInvitation	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invitations/actions.ts:112	apps/web/app/(tenant)/t/[slug]/(app)/invitations	(slug: string, invitationId: string, _previous: InviteFormState): Promise<InviteFormState>	Send it again — with a new link. Worth saying in the UI, because it is not what "resend" usually means: the previous li…
 RESERVED	const	local	apps/web/src/proxy.ts:42	apps/web	new Set(…)	Subdomains the platform keeps. A tenant claiming `api` or `admin` would break routing for everyone, so registration rej…
 RESERVED_SLUGS	const	export	packages/contracts/src/common.ts:17	packages/contracts	new Set(…)	Subdomains the platform keeps for itself. A tenant claiming `api` or `admin` would break routing for everyone, so this …
-ResetButton	component	local	apps/web/src/components/tenant/clinic-settings.tsx:237	apps/web/components/tenant	({ slug, settingKey }: { slug: string; settingKey: string })	
+ResetButton	component	local	apps/web/src/components/tenant/clinic-settings.tsx:239	apps/web/components/tenant	({ slug, settingKey }: { slug: string; settingKey: string })	
 resetPasswordRequest	zod	export	packages/contracts/src/auth.ts:45	packages/contracts	z.object(…)	
 resetSetting	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/settings/actions.ts:152	apps/web/app/(tenant)/t/[slug]/(app)/settings	(slug: string, key: string, _previous: SettingsFormState): Promise<SettingsFormState>	Drop this clinic's value and go back to whatever it was overruling.
 ResolvedTenant	interface	export	apps/api/src/middleware/tenant.middleware.ts:18	apps/api/middleware	{ organizationId, slug, status, currency, timezone }	
@@ -739,7 +739,7 @@ startImpersonation	action/async	export	apps/web/src/app/(platform)/platform/orga
 StartImpersonationInput	interface	export	apps/api/src/services/platform/impersonation.service.ts:81	apps/api/services/platform	{ organizationId, adminUserId, reason }	
 startServer	fn/async	local	apps/api/src/index.ts:9	apps/api	(): Promise<void>	
 Stat	component	local	apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:124	apps/web/app/(tenant)/t/[slug]/(app)	({ label, value, detail }: { label: string; value: string; d…)	
-StateChip	component	local	apps/web/src/components/tenant/contact-verification.tsx:199	apps/web/components/tenant	({ verified }: { verified: boolean })	
+StateChip	component	local	apps/web/src/components/tenant/contact-verification.tsx:193	apps/web/components/tenant	({ verified }: { verified: boolean })	
 Station	type	local	apps/web/src/components/marketing/journey-rail.tsx:19	apps/web/components/marketing	{ key: string; short: string; label: string; time: string; actor: string; headline: string; rows: Row[]; }	
 STATIONS	component	local	apps/web/src/components/marketing/journey-rail.tsx:29	apps/web/components/marketing	: Station[]	
 STATUS_LABEL	const	local	apps/web/src/components/platform/demo-request-list.tsx:32	apps/web/components/platform	: Record<string, string>	

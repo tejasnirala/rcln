@@ -15,9 +15,9 @@ Files: `apps/web/src/components/tenant/branch-list.tsx` · `apps/web/src/compone
 | `BranchCard` <sub>local</sub> | `({ slug, branch }: { slug: string; branch: BranchDetail })` | `apps/web/src/components/tenant/branch-list.tsx:151` |  |
 | `BranchChoice` <sub>local</sub> | `({ name, branches, canAssignOrgWide, }: { name: string; bran…)` | `apps/web/src/components/tenant/member-list.tsx:344` |  |
 | `BranchList` | `({ slug, branches }: { slug: string; branches: BranchDetail[…)` | `apps/web/src/components/tenant/branch-list.tsx:107` |  |
-| `ChannelRow` <sub>local</sub> | `({ slug, channel, label, destination, verified, }: Channel &…)` | `apps/web/src/components/tenant/contact-verification.tsx:93` |  |
+| `ChannelRow` <sub>local</sub> | `({ slug, channel, label, destination, verified }: Channel & …)` | `apps/web/src/components/tenant/contact-verification.tsx:93` |  |
 | `ClearExceptionButton` <sub>local</sub> | `({ slug, member, overrideId, }: { slug: string; member: Memb…)` | `apps/web/src/components/tenant/member-list.tsx:643` |  |
-| `ClinicSettings` | `({ slug, organization, settings, canEditOrganization, canEdi…)` | `apps/web/src/components/tenant/clinic-settings.tsx:400` |  |
+| `ClinicSettings` | `({ slug, organization, settings, canEditOrganization, canEdi…)` | `apps/web/src/components/tenant/clinic-settings.tsx:402` |  |
 | `CodeForm` <sub>local</sub> | `({ slug }: { slug: string })` | `apps/web/src/components/tenant/login-form.tsx:207` |  |
 | `ContactVerification` | `({ slug, channels, masterCode, }: { slug: string; channels: …)` | `apps/web/src/components/tenant/contact-verification.tsx:40` |  |
 | `ContinueLink` <sub>local</sub> | `({ state }: { state: LoginFormState })` | `apps/web/src/components/tenant/login-form.tsx:93` |  |
@@ -48,7 +48,7 @@ Files: `apps/web/src/components/tenant/branch-list.tsx` · `apps/web/src/compone
 | `MemberCard` <sub>local</sub> | `({ slug, member, roles, branches, grantableCodes, canAssignO…)` | `apps/web/src/components/tenant/member-list.tsx:224` |  |
 | `MemberList` | `({ slug, members, roles, branches, grantableCodes, canAssign…)` | `apps/web/src/components/tenant/member-list.tsx:146` |  |
 | `ModuleStrip` <sub>local</sub> | `({ role }: { role: RoleDetail })` | `apps/web/src/components/tenant/role-list.tsx:45` |  |
-| `OrganizationForm` <sub>local</sub> | `({ slug, organization, canEdit, }: { slug: string; organizat…)` | `apps/web/src/components/tenant/clinic-settings.tsx:255` |  |
+| `OrganizationForm` <sub>local</sub> | `({ slug, organization, canEdit, }: { slug: string; organizat…)` | `apps/web/src/components/tenant/clinic-settings.tsx:257` |  |
 | `PasswordForm` <sub>local</sub> | `({ slug }: { slug: string })` | `apps/web/src/components/tenant/login-form.tsx:136` |  |
 | `PermissionPicker` <sub>local</sub> | `({ permissions, grantable, selected, }: { permissions: Permi…)` | `apps/web/src/components/tenant/role-list.tsx:80` |  |
 | `Provenance` <sub>local</sub> | `({ setting }: { setting: SettingItem })` | `apps/web/src/components/tenant/clinic-settings.tsx:62` |  |
@@ -57,13 +57,13 @@ Files: `apps/web/src/components/tenant/branch-list.tsx` · `apps/web/src/compone
 | `RemoveButton` <sub>local</sub> | `({ slug, role }: { slug: string; role: RoleDetail })` | `apps/web/src/components/tenant/role-list.tsx:354` |  |
 | `RemoveRoleButton` <sub>local</sub> | `({ slug, member, assignmentId, }: { slug: string; member: Me…)` | `apps/web/src/components/tenant/member-list.tsx:615` |  |
 | `ResendButton` <sub>local</sub> | `({ slug, invitation }: { slug: string; invitation: Invitatio…)` | `apps/web/src/components/tenant/invitation-list.tsx:194` |  |
-| `ResetButton` <sub>local</sub> | `({ slug, settingKey }: { slug: string; settingKey: string })` | `apps/web/src/components/tenant/clinic-settings.tsx:237` |  |
+| `ResetButton` <sub>local</sub> | `({ slug, settingKey }: { slug: string; settingKey: string })` | `apps/web/src/components/tenant/clinic-settings.tsx:239` |  |
 | `RestoreButton` <sub>local</sub> | `({ slug, member }: { slug: string; member: MemberDetail })` | `apps/web/src/components/tenant/member-list.tsx:708` |  |
 | `RevokeButton` <sub>local</sub> | `({ slug, invitation }: { slug: string; invitation: Invitatio…)` | `apps/web/src/components/tenant/invitation-list.tsx:217` |  |
 | `RoleCard` <sub>local</sub> | `({ slug, role, permissions, grantable, onDuplicate, }: { slu…)` | `apps/web/src/components/tenant/role-list.tsx:261` |  |
 | `RoleList` | `({ slug, roles, permissions, grantableCodes, }: { slug: stri…)` | `apps/web/src/components/tenant/role-list.tsx:167` |  |
 | `SettingRow` <sub>local</sub> | `({ slug, setting, canEdit, }: { slug: string; setting: Setti…)` | `apps/web/src/components/tenant/clinic-settings.tsx:93` |  |
-| `StateChip` <sub>local</sub> | `({ verified }: { verified: boolean })` | `apps/web/src/components/tenant/contact-verification.tsx:199` |  |
+| `StateChip` <sub>local</sub> | `({ verified }: { verified: boolean })` | `apps/web/src/components/tenant/contact-verification.tsx:193` |  |
 | `StatusChip` <sub>local</sub> | `({ branch }: { branch: BranchDetail })` | `apps/web/src/components/tenant/branch-list.tsx:91` |  |
 | `StatusChip` <sub>local</sub> | `({ status }: { status: InvitationSummary['status'] })` | `apps/web/src/components/tenant/invitation-list.tsx:50` |  |
 | `StatusChip` <sub>local</sub> | `({ status }: { status: MemberDetail['status'] })` | `apps/web/src/components/tenant/member-list.tsx:31` |  |

@@ -16,7 +16,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts` · `apps/web
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `confirmVerificationCode` | `(channel: VerifyChannel, slug: string, _previous: VerifyFormState, formData: FormData): Promise<VerifyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:74` |  |
+| `confirmVerificationCode` | `(channel: VerifyChannel, slug: string, _previous: VerifyFormState, formData: FormData): Promise<VerifyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:77` |  |
 | `sendVerificationCode` | `(channel: VerifyChannel, slug: string, _previous: VerifyFormState): Promise<VerifyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:40` |  |
 
 ## fn

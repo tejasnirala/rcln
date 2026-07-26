@@ -92,14 +92,14 @@
   "Symbols/apps.web.app.tenant.t.slug.app.members.md": "01e5e89fb6c9",
   "Symbols/apps.web.app.tenant.t.slug.app.roles.md": "9657c3acce74",
   "Symbols/apps.web.app.tenant.t.slug.app.settings.md": "cbc8d9af28cc",
-  "Symbols/apps.web.app.tenant.t.slug.app.verify.md": "a3d60d7691d8",
+  "Symbols/apps.web.app.tenant.t.slug.app.verify.md": "3777560f8bd7",
   "Symbols/apps.web.app.tenant.t.slug.impersonate.md": "85a17218a3ce",
   "Symbols/apps.web.app.tenant.t.slug.join.md": "a1ec822abc85",
   "Symbols/apps.web.app.tenant.t.slug.login.md": "e48dde3e7e64",
   "Symbols/apps.web.app.tenant.t.slug.md": "d5de6ee30606",
   "Symbols/apps.web.components.marketing.md": "2afe3aa53c49",
   "Symbols/apps.web.components.platform.md": "808939c7c9a9",
-  "Symbols/apps.web.components.tenant.md": "418e0cf0d474",
+  "Symbols/apps.web.components.tenant.md": "f527bbd4e97c",
   "Symbols/apps.web.components.ui.md": "1312f00151d4",
   "Symbols/apps.web.lib.md": "2b09f01a9d80",
   "Symbols/apps.web.md": "6cc591e7b82f",
@@ -110,5 +110,5 @@
   "Symbols/packages.db.scripts.md": "964aff0792e1",
   "Symbols/packages.permissions.md": "8067e680b819",
   "Symbols/packages.permissions.tests.md": "16e83d1bf46d",
-  "symbols.tsv": "3f387afbdf03"
+  "symbols.tsv": "13b36dd31a79"
 }
