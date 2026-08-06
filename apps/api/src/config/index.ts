@@ -12,6 +12,19 @@ const getEnvVar = (key: string, defaultValue?: string): string => {
   return value;
 };
 
+/**
+ * An optional variable, where BLANK MEANS UNSET.
+ *
+ * `.env` files are written with the keys present and the values empty —
+ * `CASHFREE_WEBHOOK_SECRET=` — so `process.env[key]` is `''`, not `undefined`,
+ * and `?? fallback` never fires. That cost a live 401 on every webhook: an
+ * empty signing secret read as "a secret is configured".
+ */
+const getOptionalEnvVar = (key: string): string | undefined => {
+  const value = process.env[key]?.trim();
+  return value === undefined || value === '' ? undefined : value;
+};
+
 const getEnvNumber = (key: string, defaultValue: number): number => {
   const raw = process.env[key];
   if (!raw) return defaultValue;
@@ -136,6 +149,124 @@ export const config = {
   log: {
     level: getEnvVar('LOG_LEVEL', 'info'),
   },
+
+  /**
+   * Payments.
+   *
+   * WHICH ACQUIRER IS A DEPLOYMENT DECISION, NOT A CODE ONE
+   *   `PAYMENT_PROVIDER` selects an adapter in `@rcln/payments`. Nothing outside
+   *   that package names one, so switching is this variable plus its credentials
+   *   — no migration, no contract change, no screen.
+   *
+   * `mock` IS THE DEVELOPMENT DEFAULT, AND IT IS REAL
+   *   It signs its webhooks with the same HMAC scheme, redirects to a sandbox
+   *   page an operator has to interact with, and can be told to decline or to
+   *   deliver an event twice. The whole subscription lifecycle runs end to end
+   *   without a gateway account. It is refused in production below.
+   */
+  payments: {
+    provider: getEnvVar('PAYMENT_PROVIDER', isProduction ? 'cashfree' : 'mock'),
+
+    /**
+     * Where providers POST outcomes.
+     *
+     * Must be publicly reachable, which `localhost` is not — use a tunnel in
+     * development, or stay on the mock provider, whose "webhook" is generated
+     * in-process by the sandbox route and never leaves the network.
+     */
+    webhookBaseUrl: getEnvVar(
+      'PAYMENTS_WEBHOOK_BASE_URL',
+      getEnvVar('API_URL', 'http://localhost:5000')
+    ),
+
+    cashfree: {
+      appId: getOptionalEnvVar('CASHFREE_APP_ID') ?? '',
+      secretKey: getOptionalEnvVar('CASHFREE_SECRET_KEY') ?? '',
+      /**
+       * Cashfree signs with the API secret unless a separate one is configured.
+       * Blank means unset — see `getOptionalEnvVar`; a `''` here silently
+       * became the signing key and refused every delivery.
+       */
+      webhookSecret: getOptionalEnvVar('CASHFREE_WEBHOOK_SECRET'),
+      environment: (getEnvVar('CASHFREE_ENVIRONMENT', isProduction ? 'production' : 'sandbox') ===
+      'production'
+        ? 'production'
+        : 'sandbox') as 'sandbox' | 'production',
+    },
+
+    /**
+     * Whether a customer-present checkout redirects to the provider or mounts
+     * its widget on our own page.
+     *
+     * A DEPLOYMENT DECISION, NOT A CUSTOMER'S — there is no request field for
+     * it, deliberately. `embedded` degrades to `redirect` on a provider that
+     * declares no widget (`presentationFor` in @rcln/billing), so this and
+     * `PAYMENT_PROVIDER` can be changed independently without either becoming a
+     * broken checkout.
+     */
+    checkoutPresentation: (getEnvVar('PAYMENTS_CHECKOUT_PRESENTATION', 'embedded') === 'redirect'
+      ? 'redirect'
+      : 'embedded') as 'redirect' | 'embedded',
+
+    razorpay: {
+      keyId: getOptionalEnvVar('RAZORPAY_KEY_ID') ?? '',
+      keySecret: getOptionalEnvVar('RAZORPAY_KEY_SECRET') ?? '',
+      /**
+       * ⚠️ NOT the API secret, and there is no fallback.
+       *
+       * Razorpay's signing secret is whatever the merchant typed into the
+       * dashboard when creating the webhook. The adapter refuses to construct
+       * without it, so a blank here fails the boot rather than 401-ing every
+       * delivery — which is the whole point of `getOptionalEnvVar`.
+       */
+      webhookSecret: getOptionalEnvVar('RAZORPAY_WEBHOOK_SECRET') ?? '',
+      /**
+       * Declared, and checked against the key's `rzp_test_` / `rzp_live_`
+       * prefix at construction. Razorpay serves test and live from the SAME
+       * URL, so this variable is the only thing that can catch a live key in a
+       * staging deployment before it charges a real card.
+       */
+      environment: (getEnvVar('RAZORPAY_ENVIRONMENT', isProduction ? 'production' : 'sandbox') ===
+      'production'
+        ? 'production'
+        : 'sandbox') as 'sandbox' | 'production',
+      /** Which recurring rail a mandate is taken on. See `RazorpayConfig`. */
+      mandateMethod: (getEnvVar('RAZORPAY_MANDATE_METHOD', 'upi') === 'emandate'
+        ? 'emandate'
+        : getEnvVar('RAZORPAY_MANDATE_METHOD', 'upi') === 'card'
+          ? 'card'
+          : 'upi') as 'upi' | 'emandate' | 'card',
+      /**
+       * What the authorisation transaction itself charges, in paise. Zero is a
+       * real zero-amount authorisation and is what UPI Autopay uses; some card
+       * issuers need ₹1 (`100`), which Razorpay refunds automatically.
+       */
+      mandateAuthAmountMinor: getEnvNumber('RAZORPAY_MANDATE_AUTH_AMOUNT_MINOR', 0),
+    },
+
+    mock: {
+      /**
+       * Signs the mock's webhooks. Not protecting money — it is protecting the
+       * shape of the code path, so that a signature failure in development means
+       * the same thing it means in production.
+       */
+      webhookSecret: getEnvVar('MOCK_PAYMENTS_SECRET', 'mock-payments-development-secret'),
+    },
+  },
 } as const;
+
+/**
+ * The mock provider must never bill anybody.
+ *
+ * Fatal rather than ignored, for the same reason as the master verification
+ * code above: a production deployment quietly running the mock would report
+ * every subscription as paid and take nothing, and the first symptom would be a
+ * revenue report that looks fine.
+ */
+if (isProduction && config.payments.provider === 'mock') {
+  throw new Error(
+    'PAYMENT_PROVIDER=mock in production. The mock provider simulates payments and collects no money.'
+  );
+}
 
 export type Config = typeof config;

@@ -2,8 +2,9 @@
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
 import type { BranchDetail, OperatingHour } from '@rcln/contracts';
-import { Field, inputClass } from '@/components/ui/field';
+import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { RecordHistory } from '@/components/tenant/record-history';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import {
   createBranch,
@@ -14,6 +15,28 @@ import {
 } from '@/app/(tenant)/t/[slug]/(app)/branches/actions';
 
 const IDLE: BranchFormState = { status: 'idle' };
+
+/** What kind of place this is. The API enum, named the way a clinic says it. */
+const BRANCH_TYPES: SelectOption[] = [
+  { value: 'CLINIC', label: 'Clinic' },
+  { value: 'HOSPITAL', label: 'Hospital' },
+  { value: 'LAB', label: 'Lab' },
+  { value: 'PHARMACY', label: 'Pharmacy' },
+];
+
+/** "Open/Paused/Closed", not ACTIVE/INACTIVE/CLOSED — nobody pauses a branch by
+ *  setting it inactive. */
+const BRANCH_STATUSES: SelectOption[] = [
+  { value: 'ACTIVE', label: 'Open' },
+  { value: 'INACTIVE', label: 'Paused' },
+  { value: 'CLOSED', label: 'Closed' },
+];
+
+/** Appointment slot lengths, in minutes. */
+const SLOT_LENGTHS: SelectOption[] = [10, 15, 20, 30, 45, 60].map((minutes) => ({
+  value: String(minutes),
+  label: `${String(minutes)} min`,
+}));
 
 /**
  * Sunday first, matching `dayOfWeek` 0–6 in the contract, which in turn matches
@@ -104,7 +127,15 @@ function StatusChip({ branch }: { branch: BranchDetail }) {
   );
 }
 
-export function BranchList({ slug, branches }: { slug: string; branches: BranchDetail[] }) {
+export function BranchList({
+  slug,
+  branches,
+  canReadHistory,
+}: {
+  slug: string;
+  branches: BranchDetail[];
+  canReadHistory: boolean;
+}) {
   const [adding, setAdding] = useState(false);
   // Stable, so CreateForm's "collapse once saved" effect does not re-fire on
   // every parent render.
@@ -134,7 +165,7 @@ export function BranchList({ slug, branches }: { slug: string; branches: BranchD
 
       <ul className="mt-8 grid gap-4">
         {branches.map((branch) => (
-          <BranchCard key={branch.id} slug={slug} branch={branch} />
+          <BranchCard key={branch.id} slug={slug} branch={branch} canReadHistory={canReadHistory} />
         ))}
       </ul>
     </>
@@ -148,7 +179,15 @@ export function BranchList({ slug, branches }: { slug: string; branches: BranchD
  * established expand-in-place for row-level actions. A second pattern for the
  * same job is worse than this one being imperfect.
  */
-function BranchCard({ slug, branch }: { slug: string; branch: BranchDetail }) {
+function BranchCard({
+  slug,
+  branch,
+  canReadHistory,
+}: {
+  slug: string;
+  branch: BranchDetail;
+  canReadHistory: boolean;
+}) {
   const [panel, setPanel] = useState<'none' | 'details' | 'hours'>('none');
   const toggle = (next: 'details' | 'hours') => setPanel((p) => (p === next ? 'none' : next));
 
@@ -169,7 +208,17 @@ function BranchCard({ slug, branch }: { slug: string; branch: BranchDetail }) {
           </p>
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 items-center gap-2">
+          {/* A reference rather than an action, so it is a quiet link beside the
+              buttons rather than a third one competing with them. */}
+          {canReadHistory ? (
+            <RecordHistory
+              slug={slug}
+              entityType="branch"
+              entityId={branch.id}
+              label={branch.name}
+            />
+          ) : null}
           <Button
             size="sm"
             variant="secondary"
@@ -225,39 +274,39 @@ function CreateForm({ slug, onDone }: { slug: string; onDone: () => void }) {
       <h2 className="text-ink text-[0.9375rem] font-medium">Add a branch</h2>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field name="name" label="Branch name" errors={err('name')}>
-          <input name="name" className={inputClass} required autoComplete="off" />
-        </Field>
-        <Field
+        <Input name="name" label="Branch name" errors={err('name')} required autoComplete="off" />
+        <Input
           name="code"
           label="Short code"
           hint="Used on invoices and reports. Letters and numbers, no spaces."
           errors={err('code')}
-        >
-          <input
-            name="code"
-            className={`${inputClass} font-mono uppercase`}
-            required
-            autoComplete="off"
-          />
-        </Field>
-        <Field name="branchType" label="Type" errors={err('branchType')}>
-          <select name="branchType" className={inputClass} defaultValue="CLINIC">
-            <option value="CLINIC">Clinic</option>
-            <option value="HOSPITAL">Hospital</option>
-            <option value="LAB">Lab</option>
-            <option value="PHARMACY">Pharmacy</option>
-          </select>
-        </Field>
-        <Field name="phone" label="Phone" hint="Optional" errors={err('phone')}>
-          <input name="phone" type="tel" className={inputClass} autoComplete="off" />
-        </Field>
-        <Field name="addressLine1" label="Address" hint="Optional" errors={err('addressLine1')}>
-          <input name="addressLine1" className={inputClass} autoComplete="off" />
-        </Field>
-        <Field name="city" label="City" hint="Optional" errors={err('city')}>
-          <input name="city" className={inputClass} autoComplete="off" />
-        </Field>
+          className="font-mono uppercase"
+          required
+          autoComplete="off"
+        />
+        <Select
+          name="branchType"
+          label="Type"
+          errors={err('branchType')}
+          defaultValue="CLINIC"
+          options={BRANCH_TYPES}
+        />
+        <Input
+          name="phone"
+          label="Phone"
+          hint="Optional"
+          errors={err('phone')}
+          type="tel"
+          autoComplete="off"
+        />
+        <Input
+          name="addressLine1"
+          label="Address"
+          hint="Optional"
+          errors={err('addressLine1')}
+          autoComplete="off"
+        />
+        <Input name="city" label="City" hint="Optional" errors={err('city')} autoComplete="off" />
       </div>
 
       {state.status === 'error' ? (
@@ -296,36 +345,52 @@ function EditForm({
   return (
     <form ref={formRef} action={action} noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field name={`name-${branch.id}`} label="Branch name" errors={err('name')}>
-          <input name="name" className={inputClass} defaultValue={branch.name} required />
-        </Field>
-        <Field name={`status-${branch.id}`} label="Status" errors={err('status')}>
-          <select name="status" className={inputClass} defaultValue={branch.status}>
-            <option value="ACTIVE">Open</option>
-            <option value="INACTIVE">Paused</option>
-            <option value="CLOSED">Closed</option>
-          </select>
-        </Field>
-        <Field name={`phone-${branch.id}`} label="Phone" errors={err('phone')}>
-          <input name="phone" type="tel" className={inputClass} defaultValue={branch.phone ?? ''} />
-        </Field>
-        <Field name={`addressLine1-${branch.id}`} label="Address" errors={err('addressLine1')}>
-          <input
-            name="addressLine1"
-            className={inputClass}
-            defaultValue={branch.addressLine1 ?? ''}
-          />
-        </Field>
-        <Field name={`city-${branch.id}`} label="City" errors={err('city')}>
-          <input name="city" className={inputClass} defaultValue={branch.city ?? ''} />
-        </Field>
-        <Field name={`pincode-${branch.id}`} label="PIN code" errors={err('pincode')}>
-          <input
-            name="pincode"
-            className={`${inputClass} font-mono`}
-            defaultValue={branch.pincode ?? ''}
-          />
-        </Field>
+        <Input
+          id={`name-${branch.id}`}
+          name="name"
+          label="Branch name"
+          errors={err('name')}
+          defaultValue={branch.name}
+          required
+        />
+        <Select
+          id={`status-${branch.id}`}
+          name="status"
+          label="Status"
+          errors={err('status')}
+          defaultValue={branch.status}
+          options={BRANCH_STATUSES}
+        />
+        <Input
+          id={`phone-${branch.id}`}
+          name="phone"
+          label="Phone"
+          errors={err('phone')}
+          type="tel"
+          defaultValue={branch.phone ?? ''}
+        />
+        <Input
+          id={`addressLine1-${branch.id}`}
+          name="addressLine1"
+          label="Address"
+          errors={err('addressLine1')}
+          defaultValue={branch.addressLine1 ?? ''}
+        />
+        <Input
+          id={`city-${branch.id}`}
+          name="city"
+          label="City"
+          errors={err('city')}
+          defaultValue={branch.city ?? ''}
+        />
+        <Input
+          id={`pincode-${branch.id}`}
+          name="pincode"
+          label="PIN code"
+          errors={err('pincode')}
+          className="font-mono"
+          defaultValue={branch.pincode ?? ''}
+        />
       </div>
 
       {state.status !== 'idle' && state.message ? (
@@ -426,39 +491,34 @@ function HoursForm({ slug, branch }: { slug: string; branch: BranchDetail }) {
               <label className="text-muted flex items-center gap-2 text-[0.75rem]">
                 <span className="sr-only">{day.full} opens at</span>
                 <span aria-hidden="true">from</span>
-                <input
+                <Input
                   type="time"
                   name={`opensAt-${String(index)}`}
                   defaultValue={hour?.opensAt ?? '09:00'}
-                  className={`${inputClass} font-mono`}
+                  className="font-mono"
                 />
               </label>
 
               <label className="text-muted flex items-center gap-2 text-[0.75rem]">
                 <span className="sr-only">{day.full} closes at</span>
                 <span aria-hidden="true">to</span>
-                <input
+                <Input
                   type="time"
                   name={`closesAt-${String(index)}`}
                   defaultValue={hour?.closesAt ?? '17:00'}
-                  className={`${inputClass} font-mono`}
+                  className="font-mono"
                 />
               </label>
 
               <label className="text-muted flex items-center gap-2 text-[0.75rem]">
                 <span className="sr-only">{day.full} slot length in minutes</span>
                 <span aria-hidden="true">slots</span>
-                <select
+                <Select
                   name={`slotMinutes-${String(index)}`}
                   defaultValue={String(hour?.slotMinutes ?? 15)}
-                  className={`${inputClass} font-mono`}
-                >
-                  {[10, 15, 20, 30, 45, 60].map((minutes) => (
-                    <option key={minutes} value={minutes}>
-                      {minutes} min
-                    </option>
-                  ))}
-                </select>
+                  className="font-mono"
+                  options={SLOT_LENGTHS}
+                />
               </label>
             </div>
           );

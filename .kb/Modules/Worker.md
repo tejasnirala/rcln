@@ -15,12 +15,14 @@ Background jobs on BullMQ. Every queue is registered; only stubs process them.
 
 ## Source files
 
+- `apps/worker/src/billing/processor.ts`
+- `apps/worker/src/billing/runtime.ts`
 - `apps/worker/src/index.ts`
 - `apps/worker/src/queues.ts`
 
 ## Workspace dependencies
 
-`@rcln/db`
+`@rcln/billing` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/payments`
 
 ## Known limitations
 
@@ -31,13 +33,22 @@ Background jobs on BullMQ. Every queue is registered; only stubs process them.
 
 | name | kind | at |
 | --- | --- | --- |
-| `BillingJob` | interface | `apps/worker/src/queues.ts:72` |
+| `BILLING_SWEEP_CRON` | const | `apps/worker/src/queues.ts:105` |
+| `BILLING_SWEEP_JOB` | const | `apps/worker/src/queues.ts:94` |
+| `BillingJob` | interface | `apps/worker/src/queues.ts:80` |
+| `BillingProcessorDeps` | interface | `apps/worker/src/billing/processor.ts:49` |
 | `createQueues` | fn | `apps/worker/src/queues.ts:43` |
 | `createRedisConnection` | fn | `apps/worker/src/queues.ts:35` |
 | `DEFAULT_JOB_OPTIONS` | const | `apps/worker/src/queues.ts:27` |
+| `disconnectPayments` | fn | `apps/worker/src/billing/runtime.ts:98` |
 | `DocumentJob` | interface | `apps/worker/src/queues.ts:65` |
-| `InventoryJob` | interface | `apps/worker/src/queues.ts:79` |
-| `jobId` | var | `apps/worker/src/queues.ts:86` |
+| `initialisePayments` | fn | `apps/worker/src/billing/runtime.ts:69` |
+| `InventoryJob` | interface | `apps/worker/src/queues.ts:107` |
+| `jobId` | var | `apps/worker/src/queues.ts:122` |
 | `NotificationJob` | interface | `apps/worker/src/queues.ts:55` |
+| `processBillingJob` | fn | `apps/worker/src/billing/processor.ts:137` |
 | `QUEUE` | const | `apps/worker/src/queues.ts:15` |
 | `QueueName` | type | `apps/worker/src/queues.ts:25` |
+| `runtimeFactory` | fn | `apps/worker/src/billing/runtime.ts:111` |
+| `sweepDueSubscriptions` | fn | `apps/worker/src/billing/processor.ts:71` |
+| `WorkerPaymentsConfig` | interface | `apps/worker/src/billing/runtime.ts:28` |

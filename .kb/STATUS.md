@@ -2,10 +2,12 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-07-26 · **Current phase:** 0 complete, **1 complete
-except the legal sign-off** (onboarding, auth, branch CRUD, invitations,
-role/member management, email/phone verification, org settings and super-admin
-impersonation all shipped)
+**Last updated:** 2026-08-05 · **Current phase:** 0 complete; 1 complete except
+the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
+management, email/phone verification, org settings, super-admin impersonation,
+one unified shell, remembered scope and per-record history); **2 complete except
+usage enforcement, notifications and tax** — subscriptions, payments, pro-rata
+upgrades, cancellation and recurring billing all run end to end
 
 ---
 
@@ -52,7 +54,7 @@ those changes on an audit row carrying ids and permission codes, never names.
 - [x] RLS policies on all 10 tenant tables, failing closed with no context
 - [x] `rcln_owner` / `rcln_app` role split; `assertRlsActive()` refuses to boot on an owner connection
 - [x] `db:rls:check` — CI guard against a tenant table shipping without a policy
-- [x] Seed: 83 permissions, 12 system roles, 12 setting definitions, 3 plans, super admin
+- [x] Seed: 84 permissions, 12 system roles, 12 setting definitions, 3 plans, super admin
 
 ### Application
 
@@ -162,14 +164,25 @@ design system every later screen inherits.
 - [x] 40 org-settings cases, of which four were measured to fail with the
       `scopeId` pin removed — `setting_values` and `organizations` are both
       RLS-exempt, so those four are the entire tenant boundary on that screen
-- [x] 20 impersonation cases, two of which were measured by deleting the guard
+- [x] 23 impersonation cases, two of which were measured by deleting the guard
       first: without the cross-host check on the handoff ticket, clinic A's
       ticket opens a working session inside clinic B and files an audit row
       there; without the branch-scope resolution in `authenticate`, the clinic
-      reads as empty
+      reads as empty. Two more measure the session ceiling added with the
+      remembered-clinic work — a renewal slides to 30 minutes from now (NOT to the
+      ceiling: the first clamp took `min(ceiling, 30 days)`, which always picked the
+      ceiling and silently deleted the idle window), the ceiling trims a renewal on
+      a session backdated to 7h50m, and an ordinary session still gets 30 days
 - [x] 8 audit-diff unit cases
-- **279 tests, all green** (252 API + 27 permissions). `db:rls:check` green,
-  14 protected tables — impersonation added no tenant table, and its cross-host
+- [x] 8 audit-history cases over HTTP, one of which was measured by disabling RLS
+      on `audit_logs` first: without the policy, clinic B reads clinic A's trail
+      given only the record id
+- [x] 6 append-only cases at the database — the app is refused UPDATE and DELETE
+      both by grant and by trigger, in its OWN tenant with the row visible (an
+      out-of-context attempt reports 0 rows and proves nothing), and the owner
+      exemption still permits the `SET NULL` a user deletion depends on
+- **297 tests, all green** (270 API + 27 permissions). `db:rls:check` green,
+  14 protected tables, plus the audit-immutability guard — impersonation added no tenant table, and its cross-host
   boundary is application code by necessity
 - [ ] Not verified by machine: the signup → login flow in a real browser
 
@@ -190,18 +203,55 @@ design system every later screen inherits.
 - [x] Super-admin impersonation — `POST /platform/organizations/:id/impersonate`
       (reason required, min 10 chars), redeemed at the clinic's own host by
       `POST /auth/impersonation/claim`, ended by `POST /auth/impersonation/stop`.
-      A platform console layout, a `/organizations` screen, and a
-      non-dismissible ink banner in the `(app)` shell.
+      A `/organizations` screen and a non-dismissible ink strip in the `(app)`
+      shell.
       **Full access, no write block, no elevation step — this overrules
       `architecture.md` §6.** → [ADR-0012](Architecture/decisions/0012-impersonation-is-full-access-and-audited.md)
       ⚠️ Three things hold it together and each is load-bearing:
-      the session is 30 minutes with **no refresh token**, so nothing can renew
-      it; `authenticate` resolves a branch scope from the organization's own
-      branches, because a platform admin has no membership and an empty scope
-      under RESTRICTIVE `branch_isolation` presents as an empty clinic rather
-      than as full access; and the handoff between hosts is a single-use Redis
-      ticket bound to one organization, because session cookies are host-only
-      and `admin.<root>` cannot write one for a clinic's subdomain.
+      the session renews but is capped at **8 hours from `created_at`**, clamped
+      in `rotateRefreshToken` — which is the one function that extends a session
+      and therefore the one place it can be bounded (**amended**; it was 30
+      minutes with no refresh token at all); `authenticate` resolves a branch
+      scope from the organization's own branches, because a platform admin has no
+      membership and an empty scope under RESTRICTIVE `branch_isolation` presents
+      as an empty clinic rather than as full access; and the handoff between hosts
+      is a single-use Redis ticket bound to one organization, because session
+      cookies are host-only and `admin.<root>` cannot write one for a clinic's
+      subdomain.
+- [x] **One shell for the whole application** — `components/shell/`: `AppHeader`,
+      `AppNav`, `ScopeSwitcher`/`ScopeLabel`, `SignOutButton`, `PlatformStrip`.
+      The platform console had its own dark-header layout; it now wears the same
+      light header a clinic does, with the dark strip above it. The header's left
+      edge is a **scope chain** — one segment per level of the tenancy model, and
+      how many you get is decided by who you are: a branch for a doctor, clinic +
+      branch for an owner, a _switchable_ clinic + branch for a super admin.
+      `TenantHeader` is no longer a client component; only the switcher and the
+      sign-out button are
+- [x] **Remembered scope** — a clinic selector in the console header, and two
+      nullable columns behind it (`memberships.last_branch_id`,
+      `users.last_platform_organization_id`). Both are preferences, never trusted
+      on read: `defaultBranchId` filters the remembered branch through the scope
+      freshly derived from `membership_roles` and re-checks it is ACTIVE.
+      Pre-selected, **not** pre-entered — entering still asks why, because signing
+      in is not a stated reason
+- [x] **Per-record history** — `GET /api/v1/audit?entityType=&entityId=` behind the
+      new `audit.record.read` code, and one `RecordHistory` drawer reused on
+      branches, staff and custom roles. Shows what moved field by field, who did
+      it, and — when it was rcln staff inside the clinic — who was really behind
+      it. Actor names are joined on the way out; the row stores an id only.
+      ⚠️ **`audit_logs` is append-only, enforced by Postgres in two independent
+      layers**: `rcln_app` holds no UPDATE or DELETE (the blanket grant in
+      `infra/postgres/init` is carved out), and a trigger refuses both even if that
+      grant is restored — which a re-run of the init script would do silently. The
+      trigger exempts the table owner, deliberately: `actor_user_id` is ON DELETE
+      SET NULL from `users` and `organization_id` is ON DELETE CASCADE, so a
+      blanket refusal would make deleting any user who ever touched a record fail.
+      `db:rls:check` asserts both layers. There is deliberately **no delete path
+      through the application, for anyone including a platform admin** — removing
+      history is an owner-credential operation, outside the app. A super admin can
+      enter any clinic and change anything (ADR-0012), and this trail is the only
+      control over that; a button that erases it would be handed to exactly the
+      actor it exists to constrain
       `effectivePermissions` now bypasses for a platform admin, matching `can` —
       it previously returned `[]` for a caller every endpoint says yes to
 - [x] Org settings — `GET/PATCH /organization` and
@@ -240,10 +290,111 @@ design system every later screen inherits.
 
 ### Phase 2 — Subscriptions
 
-- [ ] Razorpay integration (UPI Autopay / e-mandate; Stripe is weak for Indian recurring)
-- [ ] Entitlement gate: `subscription_feature_overrides` → `plan_features` → default
-- [ ] Usage counters enforcing `max_branches` / `max_users` at write time
-- [ ] Dunning: retry d1/d3/d7 → `PAST_DUE` → 7-day grace → `SUSPENDED` (read-only, never delete)
+**Built and verified end to end against the mock provider.** Registration →
+checkout → webhook → active; pro-rata upgrade; mandate authorisation;
+auto-renewal debited off-session by the worker; cancel and resume. A replayed
+webhook is refused by the ledger, and a declined charge grants nothing.
+
+- [x] **Provider abstraction** (`@rcln/payments`). `PaymentProvider` is the only
+      seam: normalised statuses, no provider strings above it, integer minor
+      units, no FX. Swapping acquirer is one file under `providers/`, one line
+      in the registry and an environment variable — no migration, no contract
+      change, no screen
+- [x] **Cashfree adapter** — orders for hosted checkout, `ON_DEMAND`
+      subscriptions used purely as mandate holders, refunds, HMAC webhook
+      verification with replay protection. ⚠️ Written from the documentation and
+      **not yet exercised against a live sandbox**; reconcile the field names
+      before pointing production at it
+- [x] **Razorpay adapter** — payment links for hosted checkout, auth links
+      (`frequency: as_presented`) as mandate holders, recurring debits against
+      the resulting token, refunds, and hex-HMAC webhook verification. Amounts
+      are already minor units, so there is no decimal round-trip. Three things
+      differ from Cashfree and each is a guard: test and live share one URL, so
+      the key prefix is checked against `RAZORPAY_ENVIRONMENT` at construction;
+      the webhook secret is separate from the API secret with **no fallback**, so
+      a blank one fails the boot; and the signature covers no timestamp, so
+      replay protection is the `(provider, provider_event_id)` ledger rather than
+      a time window. ⚠️ Same caveat as Cashfree — **request shapes are from the
+      documentation, not a live sandbox**. The signature scheme and the event
+      mapping _are_ covered by tests
+- [x] **Checkout on our own page** (`PAYMENTS_CHECKOUT_PRESENTATION=embedded`,
+      the default). The provider's widget is mounted on the clinic's own billing
+      screen instead of the browser being sent away. Card entry still happens
+      inside the provider's overlay, so cardholder data never touches our markup
+      or our servers and **PCI DSS stays at SAQ-A** — Razorpay's Custom Checkout,
+      which would put those fields in our markup, is deliberately not used.
+      A provider that declares no widget degrades to the hosted page on its own
+      (`presentationFor`), so this and `PAYMENT_PROVIDER` move independently. The
+      widget's own success callback is **not** treated as evidence; the return
+      page reconciles against the provider exactly as before. `apps/web` learns
+      which acquirer is configured in one component directory
+      (`components/tenant/checkout/`) and nowhere else
+- [x] **Tax**, built for many countries and charging in none of them yet.
+      `resolveTax` starts from `tax_registrations` — which is empty and
+      deliberately unseeded — so every supply resolves to `NOT_REGISTERED`, no
+      tax is charged, and the reason is recorded on the invoice. Registering
+      somewhere is then a data change, not a deploy. India GST is implemented
+      properly (CGST/SGST within our own state, IGST across, zero-rated exports,
+      halves that sum exactly); VAT does reverse charge on a **validated** number
+      only. Cross-border EU consumer VAT and US sales tax **refuse to guess** —
+      they return nothing charged with a reason naming the missing tax provider,
+      because a plausible invoice at the wrong rate remitted to the wrong
+      authority is worse than an untaxed one. Rates, place of supply and both
+      tax numbers are snapshotted onto the invoice, never re-read
+- [x] **Tax registrations are managed from the platform console** (`/taxes`,
+      `platform.tax.manage`). Country-wide and region-specific are both
+      first-class — one national VAT number, or a GSTIN per Indian state — and
+      the screen lists them as the hierarchy the engine actually resolves, with
+      regions indented under their country. Adding one starts charging on the
+      next checkout with no publish step, which the copy states plainly;
+      `effectiveFrom`/`effectiveTo` schedule a change, and removal is soft so an
+      already-issued invoice can still explain its number. A second registration
+      for the same place is refused by the unique index with a readable message
+- [x] **Country and time zone are asked for at signup**, and the billing
+      currency is derived from the country against the currencies the plan
+      actually publishes (`currencyForCountry`). Before this, `country_code` had
+      no field on the register contract at all, so every organization took the
+      column default `IN` and the hard `INR` default — every clinic looked Indian
+      for tax and was billed in rupees, and none of the other six published
+      currencies could be reached. Verified: a clinic registering as `IE` now
+      lands EUR / Europe/Dublin. The zone is defaulted from the country and stays
+      editable; the currency is shown on the form but decided server-side, so the
+      client cannot pick one the catalogue has no price in
+- [x] **Mock provider** — not a stub. Same HMAC scheme, a real sandbox page an
+      operator clicks, and it can decline, stall, abandon, or deliver the same
+      event twice. `PAYMENT_PROVIDER=mock` is the tested path
+- [x] **Billing engine** (`@rcln/billing`) — period arithmetic with a
+      non-drifting anchor, proration, upgrade classification by entitlement,
+      invoice numbering, entitlement resolution, and the state machine. In
+      `packages/` because the worker runs the same engine the API does
+- [x] Entitlement gate: `subscription_feature_overrides` → `plan_features` →
+      hard default, resolved in one place (`resolveEntitlements`). `isEntitled`
+      reads the clock as well as the status, so a trial that ended an hour ago
+      is not entitled even before the sweep runs
+- [x] **Upgrade only, prorated, renewal date unmoved** (ADR-0014). Direction is
+      decided by comparing entitlements, never prices — a monthly→annual switch
+      is otherwise a downgrade in one direction and an upgrade in the other
+- [x] **Cancel** at period end (default) or immediately, and **resume**
+- [x] **Recurring**: hourly BullMQ sweep → per-subscription jobs. Dunning
+      d1/d3/d7/d12 → `PAST_DUE` → **14-day** grace → `EXPIRED`, never deleted.
+      Fourteen not seven, because what is behind this paywall is a waiting room
+- [x] **Country → currency**, seven published currencies, priced per currency
+      rather than converted. A subscription's currency is fixed at first payment
+- [x] Webhook ingestion: signature verified over the raw bytes, global
+      deduplication ledger, and a narrow `SELECT`-only RLS policy so a verified
+      delivery can find the one intent it names and nothing else
+- [x] Tenant billing screen, checkout return page, platform-console read view
+- [ ] Usage counters enforcing `max_branches` / `max_users` at write time —
+      the entitlement values resolve, but nothing consults them on a branch or
+      membership create yet
+- [ ] Notifications: the invoice email, the dunning emails and the
+      "your card is about to expire" nudge. The engine reaches the right states;
+      nothing tells the customer about them, because delivery is still a stub
+- [ ] Tax. Invoice lines carry a `TAX` kind and `tax_amount` is on the invoice,
+      both deliberately unused — GST for Indian clinics is a real calculation
+      and faking it as a flat percentage would be worse than leaving it at zero
+- [ ] Refunds are implemented at the provider seam and not wired to a route.
+      There is no downgrade, so nothing currently needs one
 
 ### Phase 3 — Core clinical
 

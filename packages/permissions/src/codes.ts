@@ -21,6 +21,7 @@ export const MODULES = [
   'billing',
   'report',
   'settings',
+  'audit',
 ] as const;
 
 export type Module = (typeof MODULES)[number];
@@ -31,6 +32,15 @@ export const PERMISSIONS = {
   PLATFORM_ORG_MANAGE: 'platform.organization.manage',
   PLATFORM_ORG_SUSPEND: 'platform.organization.suspend',
   PLATFORM_PLAN_MANAGE: 'platform.plan.manage',
+  /**
+   * Add, change and retire the jurisdictions rcln collects tax in.
+   *
+   * Separate from PLAN_MANAGE because it is a different kind of claim: a plan
+   * price is a commercial decision, a tax registration asserts that we are
+   * registered with a revenue authority. Getting the second one wrong collects
+   * money from customers that cannot be remitted to anybody.
+   */
+  PLATFORM_TAX_MANAGE: 'platform.tax.manage',
   PLATFORM_SUBSCRIPTION_MANAGE: 'platform.subscription.manage',
   PLATFORM_IMPERSONATE: 'platform.impersonate',
   PLATFORM_AUDIT_READ: 'platform.audit.read',
@@ -134,6 +144,19 @@ export const PERMISSIONS = {
   SETTINGS_BRANCH_READ: 'settings.branch.read',
   SETTINGS_BRANCH_WRITE: 'settings.branch.write',
   SETTINGS_USER_WRITE: 'settings.user.write',
+
+  /*
+   * -- audit ------------------------------------------------------------------
+   *
+   * Reading a record's own history: who changed it, what moved, and when. The
+   * clinic's counterpart to `platform.audit.read`, which spans every tenant.
+   *
+   * THERE IS NO WRITE, AND NO DELETE. `audit_logs` is append-only, and that is
+   * enforced by Postgres rather than by the absence of a code — `rcln_app` holds
+   * no UPDATE or DELETE on the table (see the `audit_immutability` migration). A
+   * permission to edit history would be a permission to make the trail lie.
+   */
+  AUDIT_READ: 'audit.record.read',
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

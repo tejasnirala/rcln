@@ -10,21 +10,21 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `SettingsPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/page.tsx:28` |  |
+| `SettingsPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/page.tsx:29` |  |
 
 ## action
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `resetSetting` | `(slug: string, key: string, _previous: SettingsFormState): Promise<SettingsFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/actions.ts:152` | Drop this clinic's value and go back to whatever it was overruling. |
+| `resetSetting` | `(slug: string, key: string, _previous: SettingsFormState): Promise<SettingsFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/actions.ts:159` | Drop this clinic's value and go back to whatever it was overruling. |
 | `saveOrganization` | `(slug: string, _previous: SettingsFormState, formData: FormData): Promise<SettingsFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/actions.ts:30` |  |
-| `saveSetting` | `(slug: string, key: string, dataType: SettingItem['dataType'], _previous: SettingsFormState, formData: FormData): Promise<SettingsFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/actions.ts:85` |  |
+| `saveSetting` | `(slug: string, key: string, dataType: SettingItem['dataType'], _previous: SettingsFormState, formData: FormData): Promise<SettingsFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/actions.ts:92` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/page.tsx:8` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/settings/page.tsx:9` |  |
 
 ## type
 

@@ -1,8 +1,13 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { getPlatformSession } from '@/lib/session';
+import { listPlatformOrganizations } from '@/lib/platform';
 import { PlatformLogin } from '@/components/platform/platform-login';
-import { PlatformSignOut } from '@/components/platform/platform-sign-out';
+import { ClinicSwitcher } from '@/components/platform/clinic-switcher';
+import { AppHeader } from '@/components/shell/app-header';
+import { PlatformStrip } from '@/components/shell/platform-strip';
+import { SignOutButton } from '@/components/shell/sign-out-button';
+import { ScopeLabel } from '@/components/shell/scope-switcher';
+import { platformSignOut } from './actions';
 
 export const metadata: Metadata = {
   title: 'Platform',
@@ -14,20 +19,17 @@ export const metadata: Metadata = {
 /**
  * The super-admin console, served from admin.<root-domain>.
  *
- * DEFERRED FROM SLICE 0 ON PURPOSE
- *   The console was one page with an inline sign-in gate, and a layout for one
- *   page is speculation. It has two pages now — the demo pipeline and the clinic
- *   list — and one of them can put an admin inside somebody's clinic, so the
- *   gate and the chrome belong somewhere neither page can forget them.
+ * THIS IS THE SAME SHELL AS A CLINIC'S
+ *   It used to be its own design — a dark header with its own nav — which said
+ *   the console was a different kind of place. It is not. A super admin opens the
+ *   same screens as an owner and can change the same records (ADR-0012), so a
+ *   second shell only meant two places to add the next nav entry and two chances
+ *   to add it to one of them. `AppHeader` is now the one header in the
+ *   application; this fills it in with the console's scopes and nav.
  *
- * THE DARK BAR
- *   This header is `ink`, the only dark chrome in the product, and the
- *   impersonation banner inside a clinic is the same surface. That is the one
- *   idea these two screens share: the dark bar is rcln's, and it follows you in.
- *   When you are looking at a clinic's own shell there is a light header above
- *   you; when the bar above you is dark, you are somewhere your account does not
- *   belong. `on-ink` re-points the focus ring so a keyboard user does not lose
- *   it against the dark.
+ *   What a super admin gets that an owner does not is the dark strip above it.
+ *   That is the difference, and it is the whole of it: the shell says what you
+ *   are looking at, the strip says whose it is.
  *
  * The session is read here rather than in each page. `getPlatformSession` is
  * memoised per request, so a page re-reading it for its own content is free.
@@ -57,42 +59,49 @@ export default async function PlatformLayout({ children }: { children: React.Rea
     );
   }
 
+  /*
+   * The selector's options. Memoised per request, so the clinics page asking for
+   * the same list on this render costs nothing (lib/platform.ts).
+   *
+   * A failure here is not worth breaking the console over — every other screen
+   * still works without a clinic selector, and the clinics page says so properly
+   * with its own error. The chain simply loses that segment.
+   */
+  const organizations = (await listPlatformOrganizations()).data?.organizations ?? [];
+
   return (
     <div className="min-h-dvh">
-      <header className="on-ink bg-ink text-paper">
-        <div className="px-gutter mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-3 py-4">
-          <span className="font-display text-lg">rcln</span>
-          <span className="bg-signal-bright/15 text-signal-bright rounded-sm px-1.5 py-0.5 font-mono text-[0.6875rem]">
-            platform
-          </span>
-          <div className="ml-auto flex items-center gap-4">
-            <span className="text-paper/80 text-[0.8125rem]">{session.user.fullName}</span>
-            <PlatformSignOut />
-          </div>
-        </div>
+      <PlatformStrip mode="console" />
+      <AppHeader
+        /*
+         * The chain, one segment longer than an owner's: a super admin picks a
+         * clinic where an owner simply has one. `ScopeLabel` holds the position
+         * when there is nothing to pick from, so the chain never renders empty.
+         */
+        scopes={[
+          organizations.length > 0 ? (
+            <ClinicSwitcher
+              key="clinic"
+              organizations={organizations}
+              lastOrganizationId={session.user.lastPlatformOrganizationId}
+            />
+          ) : (
+            <ScopeLabel key="clinic" label="Scope" name="platform" />
+          ),
+        ]}
+        user={{ name: session.user.fullName }}
+        signOut={<SignOutButton action={platformSignOut} redirectTo="/" />}
+        nav={{
+          label: 'Platform console',
+          links: [
+            { href: '/', label: 'Demo requests' },
+            { href: '/organizations', label: 'Clinics' },
+            { href: '/taxes', label: 'Tax' },
+          ],
+        }}
+      />
 
-        <nav aria-label="Platform console" className="border-paper/15 border-t">
-          <ul className="px-gutter mx-auto flex max-w-6xl gap-1 py-1">
-            {[
-              { href: '/', label: 'Demo requests' },
-              { href: '/organizations', label: 'Clinics' },
-            ].map((link) => (
-              <li key={link.href}>
-                {/* py-2 keeps the target above the 24px minimum; an inline link
-                    is about 19px from line-height alone (apps/web/AGENTS.md). */}
-                <Link
-                  href={link.href}
-                  className="text-paper/75 hover:text-paper hover:bg-paper/10 inline-block rounded-sm px-3 py-2 text-[0.8125rem] transition-colors"
-                >
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </header>
-
-      <main id="main" className="px-gutter mx-auto max-w-6xl py-12">
+      <main id="main" className="px-gutter mx-auto max-w-7xl py-12">
         {children}
       </main>
     </div>

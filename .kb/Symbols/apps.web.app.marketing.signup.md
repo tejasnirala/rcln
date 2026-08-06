@@ -16,8 +16,23 @@ Files: `apps/web/src/app/(marketing)/signup/actions.ts` · `apps/web/src/app/(ma
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `checkSlug` | `(slug: string): Promise<{ available: boolean; message?: string }>` | `apps/web/src/app/(marketing)/signup/actions.ts:38` |  |
-| `registerClinic` | `(_previous: SignupFormState, formData: FormData): Promise<SignupFormState>` | `apps/web/src/app/(marketing)/signup/actions.ts:60` |  |
+| `checkSlug` | `(slug: string): Promise<{ available: boolean; message?: string }>` | `apps/web/src/app/(marketing)/signup/actions.ts:80` |  |
+| `lookupPostalCode` | `(countryCode: string, postalCode: string): Promise<PostalLookup \| null>` | `apps/web/src/app/(marketing)/signup/actions.ts:137` |  |
+| `registerClinic` | `(_previous: SignupFormState, formData: FormData): Promise<SignupFormState>` | `apps/web/src/app/(marketing)/signup/actions.ts:239` |  |
+
+## fn
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `lookupIndiaPost` <sub>local</sub> | `(pincode: string): Promise<PostalLookup \| null>` | `apps/web/src/app/(marketing)/signup/actions.ts:180` |  |
+| `lookupZippopotam` <sub>local</sub> | `(country: string, postalCode: string): Promise<PostalLookup \| null>` | `apps/web/src/app/(marketing)/signup/actions.ts:207` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `LOOKUP_TIMEOUT_MS` <sub>local</sub> | `4000` | `apps/web/src/app/(marketing)/signup/actions.ts:115` | How long we will wait for a third party before giving up and letting the customer type. |
+| `PRESERVED` <sub>local</sub> | `[ 'countryCode', 'regionCode', 'timezone', 'displayName', 'legalName', 'orgType', 'slug',…` | `apps/web/src/app/(marketing)/signup/actions.ts:53` | The fields worth carrying back. `password` is deliberately absent. |
 
 ## var
 
@@ -25,8 +40,14 @@ Files: `apps/web/src/app/(marketing)/signup/actions.ts` · `apps/web/src/app/(ma
 | --- | --- | --- | --- |
 | `metadata` | `: Metadata` | `apps/web/src/app/(marketing)/signup/page.tsx:5` |  |
 
+## interface
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `PostalLookup` | `{ city, region, regionCode }` | `apps/web/src/app/(marketing)/signup/actions.ts:106` | What a postcode told us about where it is. Every field optional — a lookup that resolves the state but not the city is still worth having. |
+
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `SignupFormState` | `{ status: 'idle' \| 'error' \| 'registered'; message?: string; fieldErrors?: Record<string, string[]>; /** Where to send the browser once the clinic exists. */ l…` | `apps/web/src/app/(marketing)/signup/actions.ts:22` |  |
+| `SignupFormState` | `{ status: 'idle' \| 'error' \| 'registered'; message?: string; fieldErrors?: Record<string, string[]>; /** Where to send the browser once the clinic exists. */ l…` | `apps/web/src/app/(marketing)/signup/actions.ts:25` |  |

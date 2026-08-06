@@ -33,10 +33,11 @@ An append-only record of who changed what. Ids and permission codes only — nev
 ## Source files
 
 - `apps/api/src/services/audit/audit.service.ts`
+- `apps/api/src/services/audit/history.service.ts`
 
 ## Workspace dependencies
 
-`@rcln/db`
+`@rcln/contracts` · `@rcln/db` · `@rcln/db/unsafe`
 
 ## Known limitations
 
@@ -49,6 +50,8 @@ An append-only record of who changed what. Ids and permission codes only — nev
 | name | kind | at |
 | --- | --- | --- |
 | `AuditEntry` | interface | `apps/api/src/services/audit/audit.service.ts:53` |
+| `AuditHistoryInput` | interface | `apps/api/src/services/audit/history.service.ts:60` |
 | `AuditSnapshot` | type | `apps/api/src/services/audit/audit.service.ts:51` |
 | `diffSnapshots` | fn | `apps/api/src/services/audit/audit.service.ts:105` |
+| `readHistory` | fn | `apps/api/src/services/audit/history.service.ts:66` |
 | `recordAudit` | fn | `apps/api/src/services/audit/audit.service.ts:144` |

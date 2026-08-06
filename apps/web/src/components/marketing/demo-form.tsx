@@ -3,8 +3,7 @@
 import { useActionState, useEffect, useRef } from 'react';
 import { bookDemo, type DemoFormState } from '@/app/(marketing)/actions';
 import { track } from '@/lib/analytics';
-import { cn } from '@/lib/cn';
-import { describedBy, Field, inputClass } from '@/components/ui/field';
+import { Input, Textarea } from '@/components/ui/field';
 
 const INITIAL: DemoFormState = { status: 'idle' };
 
@@ -74,126 +73,79 @@ export function DemoForm() {
       noValidate
     >
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field name="clinicName" label="Clinic name" errors={state.fieldErrors?.['clinicName']}>
-          <input
-            id="clinicName"
-            name="clinicName"
-            required
-            autoComplete="organization"
-            className={inputClass}
-            placeholder="Sunrise Clinic"
-            aria-invalid={Boolean(state.fieldErrors?.['clinicName'])}
-            aria-describedby={describedBy(
-              'clinicName',
-              false,
-              Boolean(state.fieldErrors?.['clinicName'])
-            )}
-          />
-        </Field>
+        <Input
+          name="clinicName"
+          label="Clinic name"
+          errors={state.fieldErrors?.['clinicName']}
+          required
+          autoComplete="organization"
+          placeholder="Sunrise Clinic"
+        />
 
-        <Field name="contactName" label="Your name" errors={state.fieldErrors?.['contactName']}>
-          <input
-            id="contactName"
-            name="contactName"
-            required
-            autoComplete="name"
-            className={inputClass}
-            placeholder="Who should we ask for?"
-            aria-invalid={Boolean(state.fieldErrors?.['contactName'])}
-            aria-describedby={describedBy(
-              'contactName',
-              false,
-              Boolean(state.fieldErrors?.['contactName'])
-            )}
-          />
-        </Field>
+        <Input
+          name="contactName"
+          label="Your name"
+          errors={state.fieldErrors?.['contactName']}
+          required
+          autoComplete="name"
+          placeholder="Who should we ask for?"
+        />
 
-        <Field name="email" label="Email" errors={state.fieldErrors?.['email']}>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className={inputClass}
-            placeholder="you@clinic.in"
-            aria-invalid={Boolean(state.fieldErrors?.['email'])}
-            aria-describedby={describedBy('email', false, Boolean(state.fieldErrors?.['email']))}
-          />
-        </Field>
+        <Input
+          name="email"
+          label="Email"
+          errors={state.fieldErrors?.['email']}
+          type="email"
+          required
+          autoComplete="email"
+          placeholder="you@clinic.in"
+        />
 
         {/* No hint here: the placeholder already demonstrates the format, and a
             hint on one field of a two-column row pushes its input off the
             baseline its neighbour sits on. */}
-        <Field name="phone" label="Phone" errors={state.fieldErrors?.['phone']}>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            required
-            autoComplete="tel"
-            className={cn(inputClass, 'font-mono')}
-            placeholder="+919876543210"
-            aria-invalid={Boolean(state.fieldErrors?.['phone'])}
-            aria-describedby={describedBy('phone', false, Boolean(state.fieldErrors?.['phone']))}
-          />
-        </Field>
+        <Input
+          name="phone"
+          label="Phone"
+          errors={state.fieldErrors?.['phone']}
+          type="tel"
+          required
+          autoComplete="tel"
+          className="font-mono"
+          placeholder="+919876543210"
+        />
 
-        <Field name="city" label="City" errors={state.fieldErrors?.['city']}>
-          <input
-            id="city"
-            name="city"
-            autoComplete="address-level2"
-            className={inputClass}
-            placeholder="Pune"
-            aria-invalid={Boolean(state.fieldErrors?.['city'])}
-            aria-describedby={describedBy('city', false, Boolean(state.fieldErrors?.['city']))}
-          />
-        </Field>
+        <Input
+          name="city"
+          label="City"
+          errors={state.fieldErrors?.['city']}
+          autoComplete="address-level2"
+          placeholder="Pune"
+        />
 
-        <Field
+        <Input
           name="branchCount"
           label="How many branches?"
           errors={state.fieldErrors?.['branchCount']}
-        >
-          <input
-            id="branchCount"
-            name="branchCount"
-            type="number"
-            min={1}
-            max={500}
-            inputMode="numeric"
-            className={cn(inputClass, 'font-mono tabular-nums')}
-            placeholder="1"
-            aria-invalid={Boolean(state.fieldErrors?.['branchCount'])}
-            aria-describedby={describedBy(
-              'branchCount',
-              false,
-              Boolean(state.fieldErrors?.['branchCount'])
-            )}
-          />
-        </Field>
+          type="number"
+          min={1}
+          max={500}
+          inputMode="numeric"
+          className="font-mono tabular-nums"
+          placeholder="1"
+        />
       </div>
 
-      <div className="mt-5">
-        <Field
-          name="message"
-          label="Anything we should know?"
-          hint="How the day runs, what you use now, what keeps breaking. Please leave patient details out."
-          errors={state.fieldErrors?.['message']}
-        >
-          <textarea
-            id="message"
-            name="message"
-            rows={4}
-            maxLength={2000}
-            className={cn(inputClass, 'resize-y')}
-            placeholder="Two doctors, one pharmacy counter, billing in a register."
-            aria-invalid={Boolean(state.fieldErrors?.['message'])}
-            aria-describedby={describedBy('message', true, Boolean(state.fieldErrors?.['message']))}
-          />
-        </Field>
-      </div>
+      <Textarea
+        name="message"
+        label="Anything we should know?"
+        hint="How the day runs, what you use now, what keeps breaking. Please leave patient details out."
+        errors={state.fieldErrors?.['message']}
+        fieldClassName="mt-5"
+        rows={4}
+        maxLength={2000}
+        placeholder="Two doctors, one pharmacy counter, billing in a register."
+      />
 
       {/*
        * Bot trap. `inert` — not `aria-hidden` — because aria-hidden wrapped

@@ -298,6 +298,22 @@ async function seedSettingDefinitions(): Promise<void> {
   console.warn(`  settings         ${defs.length}`);
 }
 
+/*
+ * `tax_registrations` IS DELIBERATELY NOT SEEDED, AND THAT IS THE FEATURE.
+ *
+ * A row in that table is an assertion that rcln is registered to collect a tax
+ * in a jurisdiction — a legal claim, not a default. Seeding a plausible-looking
+ * Indian GST row would make every development and staging invoice carry 18% GST
+ * against a GSTIN that does not exist, and the first person to copy the seed
+ * into production would start collecting tax nobody can remit.
+ *
+ * An empty table means every supply resolves to NOT_REGISTERED and nothing is
+ * taxed, with the reason recorded on each invoice. That is the correct state for
+ * a business that has not registered anywhere yet. Add rows when a registration
+ * actually exists — through a platform admin, not through this file.
+ *
+ * See the model comment in schema.prisma and `resolveTax` in @rcln/billing.
+ */
 async function seedPlans(): Promise<void> {
   const plans = [
     {
@@ -306,7 +322,7 @@ async function seedPlans(): Promise<void> {
       tagline: 'A single clinic finding its feet',
       trialDays: 14,
       sortOrder: 1,
-      amount: 1499,
+      prices: { INR: 1499, USD: 19, EUR: 19, GBP: 16, AED: 69, SGD: 25, AUD: 29 },
       features: {
         max_branches: 1,
         max_users: 10,
@@ -323,7 +339,7 @@ async function seedPlans(): Promise<void> {
       tagline: 'Multi-branch, pharmacy and lab included',
       trialDays: 14,
       sortOrder: 2,
-      amount: 4999,
+      prices: { INR: 4999, USD: 59, EUR: 55, GBP: 49, AED: 219, SGD: 79, AUD: 89 },
       features: {
         max_branches: 5,
         max_users: 50,
@@ -340,7 +356,7 @@ async function seedPlans(): Promise<void> {
       tagline: 'Hospital chains, unlimited branches',
       trialDays: 30,
       sortOrder: 3,
-      amount: 14999,
+      prices: { INR: 14999, USD: 179, EUR: 169, GBP: 149, AED: 659, SGD: 239, AUD: 269 },
       features: {
         max_branches: -1,
         max_users: -1,
@@ -366,22 +382,39 @@ async function seedPlans(): Promise<void> {
       },
     });
 
-    // Monthly, plus annual at ten months' price.
-    for (const [interval, amount] of [
-      ['MONTH', p.amount],
-      ['YEAR', p.amount * 10],
-    ] as const) {
-      await prisma.planPrice.upsert({
-        where: {
-          planId_currency_billingInterval: {
-            planId: plan.id,
-            currency: 'INR',
-            billingInterval: interval,
+    /*
+     * Priced per currency, and NOT converted from the rupee figure.
+     *
+     * A published price is a commercial decision, not an exchange-rate
+     * calculation: $59 is a price somebody chose, and ₹4999 at today's rate is
+     * not. Converting here would also make every plan's price move whenever the
+     * rate did, which is not something a customer or a finance team can work
+     * with. `@rcln/payments` deliberately contains no FX for the same reason.
+     *
+     * A currency a plan has no row for is simply not purchasable in that
+     * currency — `listPlans` omits the plan rather than showing a price that
+     * would fail at checkout.
+     *
+     * Annual is ten months' price in every currency: two months free, which is
+     * the discount the marketing page states.
+     */
+    for (const [currency, monthly] of Object.entries(p.prices)) {
+      for (const [interval, amount] of [
+        ['MONTH', monthly],
+        ['YEAR', monthly * 10],
+      ] as const) {
+        await prisma.planPrice.upsert({
+          where: {
+            planId_currency_billingInterval: {
+              planId: plan.id,
+              currency,
+              billingInterval: interval,
+            },
           },
-        },
-        update: { amount },
-        create: { planId: plan.id, currency: 'INR', billingInterval: interval, amount },
-      });
+          update: { amount },
+          create: { planId: plan.id, currency, billingInterval: interval, amount },
+        });
+      }
     }
 
     for (const [featureKey, value] of Object.entries(p.features)) {

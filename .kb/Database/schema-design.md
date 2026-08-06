@@ -38,6 +38,17 @@ membership_roles     membership × role × branch_id NULLABLE
 
 **Branch switching** = the session's `active_branch_id` changes. The UI branch picker is literally `SELECT branch FROM membership_roles WHERE membership.user_id = me`. Super admin (`users.is_platform_admin`) bypasses membership and can impersonate any org/branch — every such switch is written to `audit_logs`.
 
+**Remembered scope** is two nullable columns, and neither one grants anything:
+
+| Column                               | Remembers                                 | Why there                                                                                                              |
+| ------------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `memberships.last_branch_id`         | a member's last branch, **per org**       | Someone working at two clinics has a different answer at each, and a membership _is_ the (user × org) pair              |
+| `users.last_platform_organization_id` | a super admin's last clinic               | The person it describes belongs to no tenant — that is what makes them a platform admin                                |
+
+`last_branch_id` carries a **composite** FK to `branches (organization_id, id)` (ADR-0004), so it cannot name another clinic's branch. `ON DELETE NO ACTION` deliberately: `CASCADE` would delete the membership when a branch is hard-deleted, and `SET NULL` on a composite FK nulls `organization_id` too, which is NOT NULL. Nothing in the app hard-deletes a branch.
+
+Both are re-validated on read and never trusted — sign-in filters the remembered branch through the scope freshly derived from `membership_roles` and re-checks it is ACTIVE, so a closed or un-assigned branch is inert rather than a way back in. See `defaultBranchId` in `login.service.ts`.
+
 ### D3 — Tenant isolation is enforced by the database, not by the ORM.
 
 Two mechanisms, both non-optional:

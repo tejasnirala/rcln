@@ -20,6 +20,8 @@ why matters more than the conclusion.
 | [0010](0010-next-standalone-build-only.md)               | Next standalone output is build-only                         | Accepted, corrected once               |
 | [0011](0011-own-membership-identity-bootstrap.md)        | A user may read their own membership rows outside any tenant | Accepted                               |
 | [0012](0012-impersonation-is-full-access-and-audited.md) | Impersonation is full access; the audit trail is the control | Accepted, overrules architecture.md §6 |
+| [0013](0013-we-own-the-billing-clock.md)                 | We own the billing clock; the provider only moves money      | Accepted                               |
+| [0014](0014-upgrades-only-no-self-serve-downgrade.md)    | Upgrades are self-serve; downgrades are not                  | Accepted                               |
 
 ## Format
 

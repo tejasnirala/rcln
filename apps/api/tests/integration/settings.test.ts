@@ -69,6 +69,7 @@ function payload(slug: string, label: string) {
       displayName: label,
       slug,
       orgType: 'CLINIC' as const,
+      countryCode: 'IN',
       timezone: 'Asia/Kolkata',
       currency: 'INR',
     },
@@ -298,6 +299,32 @@ describe('the organization profile', () => {
     const b = await B.get('/api/v1/organization');
     expect(b.body.data.legalName).toBe('Set B Pvt Ltd');
     expect(b.body.data.displayName).toBe('Set B');
+  });
+
+  /**
+   * A clinic that corrects its country during the trial is quoted in the new
+   * currency — and the subscription row is what does the quoting.
+   *
+   * Left behind, it said INR while the organization said EUR, and the billing
+   * screen believed the subscription: catalogue, current plan and upgrade quote
+   * all in rupees for a clinic that had just told us it was in Ireland.
+   * Untouched once money has moved — see `realignUnbilledCurrency`.
+   */
+  it('moves an unbilled subscription onto the new currency, price and all', async () => {
+    await A.patch('/api/v1/organization', { countryCode: 'IE', currency: 'EUR' });
+
+    const { rows } = await owner.query<{ currency: string; price_currency: string }>(
+      `SELECT s.currency, pp.currency AS price_currency
+       FROM subscriptions s
+       JOIN plan_prices pp ON pp.id = s.plan_price_id
+       WHERE s.organization_id = $1`,
+      [orgA.organizationId]
+    );
+
+    expect(rows[0]?.currency.trim()).toBe('EUR');
+    expect(rows[0]?.price_currency.trim()).toBe('EUR');
+
+    await A.patch('/api/v1/organization', { countryCode: 'IN', currency: 'INR' });
   });
 
   it('normalises the currency code to upper case', async () => {

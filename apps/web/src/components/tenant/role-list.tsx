@@ -2,8 +2,9 @@
 
 import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RoleDetail, RoleListResponse } from '@rcln/contracts';
-import { Field, inputClass } from '@/components/ui/field';
+import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { RecordHistory } from '@/components/tenant/record-history';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { moduleLabel, moduleOf } from '@/lib/permission-labels';
 import {
@@ -14,6 +15,12 @@ import {
 } from '@/app/(tenant)/t/[slug]/(app)/roles/actions';
 
 const IDLE: RoleFormState = { status: 'idle' };
+
+/** Named by what the role reaches, not by the enum the API stores. */
+const SCOPE_LEVELS: SelectOption[] = [
+  { value: 'BRANCH', label: 'One branch at a time' },
+  { value: 'ORGANIZATION', label: 'The whole clinic' },
+];
 
 type PermissionCatalogue = RoleListResponse['permissions'];
 type CataloguePermission = PermissionCatalogue[number];
@@ -169,11 +176,13 @@ export function RoleList({
   roles,
   permissions,
   grantableCodes,
+  canReadHistory,
 }: {
   slug: string;
   roles: RoleDetail[];
   permissions: PermissionCatalogue;
   grantableCodes: string[];
+  canReadHistory: boolean;
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const closeDraft = useCallback(() => setDraft(null), []);
@@ -231,6 +240,7 @@ export function RoleList({
                 permissions={permissions}
                 grantable={grantable}
                 onDuplicate={setDraft}
+                canReadHistory={canReadHistory}
               />
             ))}
           </ul>
@@ -250,6 +260,7 @@ export function RoleList({
               permissions={permissions}
               grantable={grantable}
               onDuplicate={setDraft}
+              canReadHistory={canReadHistory}
             />
           ))}
         </ul>
@@ -264,12 +275,14 @@ function RoleCard({
   permissions,
   grantable,
   onDuplicate,
+  canReadHistory,
 }: {
   slug: string;
   role: RoleDetail;
   permissions: PermissionCatalogue;
   grantable: Set<string>;
   onDuplicate: (draft: Draft) => void;
+  canReadHistory: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const closeEdit = useCallback(() => setEditing(false), []);
@@ -302,7 +315,15 @@ function RoleCard({
           </p>
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {/* Custom roles only. A built-in role is a platform row with
+              `organization_id NULL` — no clinic ever edits one, so its history in
+              this tenant is empty by construction and the button would be a
+              promise of nothing. Duplicating one creates a row that DOES have a
+              history. */}
+          {canReadHistory && !role.isSystem ? (
+            <RecordHistory slug={slug} entityType="role" entityId={role.id} label={role.name} />
+          ) : null}
           <Button
             size="sm"
             variant="secondary"
@@ -416,51 +437,39 @@ function CreateForm({
       </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field name="name" label="Name" errors={err('name')}>
-          <input
-            id="name"
-            name="name"
-            className={inputClass}
-            defaultValue={draft.name}
-            required
-            autoComplete="off"
-          />
-        </Field>
-        <Field name="code" label="Code" hint="UPPER_SNAKE_CASE" errors={err('code')}>
-          <input
-            id="code"
-            name="code"
-            className={`${inputClass} font-mono`}
-            defaultValue={draft.code}
-            required
-            autoComplete="off"
-          />
-        </Field>
-        <Field name="description" label="Description" errors={err('description')}>
-          <input
-            id="description"
-            name="description"
-            className={inputClass}
-            defaultValue={draft.description}
-            autoComplete="off"
-          />
-        </Field>
-        <Field
+        <Input
+          name="name"
+          label="Name"
+          errors={err('name')}
+          defaultValue={draft.name}
+          required
+          autoComplete="off"
+        />
+        <Input
+          name="code"
+          label="Code"
+          hint="UPPER_SNAKE_CASE"
+          errors={err('code')}
+          className="font-mono"
+          defaultValue={draft.code}
+          required
+          autoComplete="off"
+        />
+        <Input
+          name="description"
+          label="Description"
+          errors={err('description')}
+          defaultValue={draft.description}
+          autoComplete="off"
+        />
+        <Select
           name="scopeLevel"
           label="Where it applies"
           hint="Per branch, or across the whole clinic"
           errors={err('scopeLevel')}
-        >
-          <select
-            id="scopeLevel"
-            name="scopeLevel"
-            className={inputClass}
-            defaultValue={draft.scopeLevel}
-          >
-            <option value="BRANCH">One branch at a time</option>
-            <option value="ORGANIZATION">The whole clinic</option>
-          </select>
-        </Field>
+          defaultValue={draft.scopeLevel}
+          options={SCOPE_LEVELS}
+        />
       </div>
 
       <PermissionPicker permissions={permissions} grantable={grantable} selected={selected} />
@@ -510,25 +519,23 @@ function EditForm({
   return (
     <form ref={formRef} action={action} noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field name={`name-${role.id}`} label="Name" errors={err('name')}>
-          <input
-            id={`name-${role.id}`}
-            name="name"
-            className={inputClass}
-            defaultValue={role.name}
-            required
-            autoComplete="off"
-          />
-        </Field>
-        <Field name={`description-${role.id}`} label="Description" errors={err('description')}>
-          <input
-            id={`description-${role.id}`}
-            name="description"
-            className={inputClass}
-            defaultValue={role.description ?? ''}
-            autoComplete="off"
-          />
-        </Field>
+        <Input
+          id={`name-${role.id}`}
+          name="name"
+          label="Name"
+          errors={err('name')}
+          defaultValue={role.name}
+          required
+          autoComplete="off"
+        />
+        <Input
+          id={`description-${role.id}`}
+          name="description"
+          label="Description"
+          errors={err('description')}
+          defaultValue={role.description ?? ''}
+          autoComplete="off"
+        />
       </div>
 
       <p className="text-muted mt-4 text-[0.8125rem] leading-relaxed">

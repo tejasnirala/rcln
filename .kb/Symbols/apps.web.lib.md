@@ -4,26 +4,30 @@
 
 > Analytics seam.
 
-Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts`
+Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `actionLabel` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:46` |  |
+| `actionLabel` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:47` |  |
 | `api` | `(path: string, request: ApiRequest): Promise<ApiResult<T>>` | `apps/web/src/lib/api.ts:99` |  |
 | `clearSessionCookies` | `(): Promise<void>` | `apps/web/src/lib/session.ts:75` |  |
 | `clientAddress` <sub>local</sub> | `(): Promise<string \| undefined>` | `apps/web/src/lib/api.ts:66` |  |
 | `cn` | `(inputs: ClassValue[]): string` | `apps/web/src/lib/cn.ts:9` | Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be overridden by its caller without specifici… |
 | `fieldErrorsFrom` | `(issues: { path: PropertyKey[]; message: string }[]): Record<string, string[]>` | `apps/web/src/lib/api.ts:153` | Flatten Zod issues into the `fieldErrors` shape the forms render. |
+| `formatCount` | `(value: number): string` | `apps/web/src/lib/format.ts:60` |  |
+| `formatDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:39` | `25 Jul 2026`. For dense rows, tables and the period strip. |
+| `formatLongDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:47` | `25 July 2026`. For prose, where the month should not be abbreviated. |
 | `getAccessToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:81` |  |
 | `getRefreshToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:85` |  |
 | `hardNavigate` | `(path: string): void` | `apps/web/src/lib/hard-navigate.ts:32` |  |
-| `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:35` |  |
-| `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:31` |  |
+| `listTaxRegistrations` | `(): Promise<ApiResult<TaxRegistrationListResponse>>` | `apps/web/src/lib/platform.ts:44` |  |
+| `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:36` |  |
+| `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:32` |  |
 | `setSessionCookies` | `(session: AuthSession): Promise<void>` | `apps/web/src/lib/session.ts:49` |  |
 | `track` | `(event: AnalyticsEvent, props?: Record<string, string \| number>): void` | `apps/web/src/lib/analytics.ts:24` |  |
-| `withCurrent` | `(options: LocaleOption[], current: string): LocaleOption[]` | `apps/web/src/lib/locale-options.ts:57` |  |
+| `withCurrent` | `(options: LocaleOption[], current: string): LocaleOption[]` | `apps/web/src/lib/locale-options.ts:59` |  |
 
 ## const
 
@@ -32,7 +36,8 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `ACCESS_COOKIE` | `'rcln_at'` | `apps/web/src/lib/session-cookie.ts:15` |  |
 | `ADMIN_HOST` | ``admin.${ROOT_DOMAIN}`` | `apps/web/src/lib/api.ts:92` | The admin console's host. `resolveTenant` matches this exactly and skips it. |
 | `API_URL` <sub>local</sub> | `process.env['API_INTERNAL_URL'] ?? 'http://api:5000'` | `apps/web/src/lib/api.ts:31` |  |
-| `CURRENCIES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:38` |  |
+| `BILLING_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:36` |  |
+| `CURRENCIES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:40` |  |
 | `MODULE_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/lib/permission-labels.ts:16` |  |
 | `REFRESH_COOKIE` | `'rcln_rt'` | `apps/web/src/lib/session-cookie.ts:16` |  |
 | `REFRESH_MAX_AGE` | `30 * 24 * 60 * 60` | `apps/web/src/lib/session-cookie.ts:19` | Refresh tokens live 30 days server-side; the cookie must not outlive that. |
@@ -46,6 +51,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `baseCookie` | `{ httpOnly: true, // Lax, not Strict: Strict would drop the cookie on the cross-host redi…` | `apps/web/src/lib/session-cookie.ts:21` |  |
 | `getPlatformSession` | `cache(…)` | `apps/web/src/lib/session.ts:128` |  |
 | `getSession` | `cache(…)` | `apps/web/src/lib/session.ts:103` |  |
+| `listPlatformOrganizations` | `cache(…)` | `apps/web/src/lib/platform.ts:26` |  |
 
 ## interface
 

@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef } from 'react';
 import type { InvitationPreview } from '@rcln/contracts';
-import { Field, inputClass } from '@/components/ui/field';
+import { Input } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { hardNavigate } from '@/lib/hard-navigate';
@@ -51,37 +51,23 @@ export function JoinForm({
     <form ref={formRef} action={action} noValidate>
       {invitation.needsAccount ? (
         <div className="grid gap-5">
-          <Field
+          <Input
             name="fullName"
             label="Your name"
             hint="How colleagues will see you in schedules and notes."
             errors={err('fullName')}
-          >
-            <input
-              id="fullName"
-              name="fullName"
-              className={inputClass}
-              required
-              autoComplete="name"
-              aria-describedby="fullName-hint"
-            />
-          </Field>
-          <Field
+            required
+            autoComplete="name"
+          />
+          <Input
             name="password"
             label="Choose a password"
             hint="At least 12 characters, with an uppercase letter and a digit."
             errors={err('password')}
-          >
-            <input
-              id="password"
-              name="password"
-              type="password"
-              className={inputClass}
-              required
-              autoComplete="new-password"
-              aria-describedby="password-hint"
-            />
-          </Field>
+            type="password"
+            required
+            autoComplete="new-password"
+          />
         </div>
       ) : (
         <div className="grid gap-5">
@@ -89,16 +75,14 @@ export function JoinForm({
             You already have an rcln account for this address. Confirm your password and this clinic
             is added to it — you keep one login for both.
           </p>
-          <Field name="password" label="Your rcln password" errors={err('password')}>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              className={inputClass}
-              required
-              autoComplete="current-password"
-            />
-          </Field>
+          <Input
+            name="password"
+            label="Your rcln password"
+            errors={err('password')}
+            type="password"
+            required
+            autoComplete="current-password"
+          />
         </div>
       )}
 

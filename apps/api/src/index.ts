@@ -3,6 +3,7 @@ import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { initDatabase, disconnectDb } from './db/prisma.js';
 import { disconnectRedis } from './utils/redis.js';
+import { initialisePayments } from './services/billing/provider.js';
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
@@ -12,6 +13,11 @@ const startServer = async (): Promise<void> => {
     // not, this throws and the process never serves a request — which is the
     // point: silently-disabled tenant isolation is worse than being down.
     await initDatabase();
+
+    // Same reasoning, applied to money: missing gateway credentials should stop
+    // a deployment, not surface at 09:00 as "payment failed" for the first
+    // clinic that tries to subscribe. Throws on a misconfiguration.
+    initialisePayments();
 
     const app = createApp();
     const server = app.listen(config.port, config.host, () => {

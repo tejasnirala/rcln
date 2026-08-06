@@ -1,189 +1,105 @@
-'use client';
-
-import { useState, useTransition } from 'react';
-import Link from 'next/link';
 import type { AuthSession } from '@rcln/contracts';
-import { signOut, switchBranch } from '@/app/(tenant)/t/[slug]/actions';
-import { cn } from '@/lib/cn';
-import { hardNavigate } from '@/lib/hard-navigate';
-import { Wordmark } from '@/components/marketing/wordmark';
+import { signOut } from '@/app/(tenant)/t/[slug]/actions';
+import { AppHeader } from '@/components/shell/app-header';
+import type { NavLink } from '@/components/shell/app-nav';
+import { ScopeLabel } from '@/components/shell/scope-switcher';
+import { SignOutButton } from '@/components/shell/sign-out-button';
+import { BranchSwitcher } from './branch-switcher';
 
 /**
- * The signed-in shell.
+ * The clinic's shell — `AppHeader` filled in with this clinic's scopes and nav.
  *
- * The branch switcher is the one control here that carries real weight: which
- * branch you are in decides what you can see and what you can do, so it names
- * the current branch in full rather than hiding it behind an icon, and the
- * switch is a server round trip (a re-issued token), not a client-side filter.
+ * There is one header in the application now (components/shell/app-header.tsx);
+ * this decides what goes in it for someone standing inside a clinic. A super
+ * admin who has walked in gets the same thing, with the dark `PlatformStrip`
+ * above it.
+ *
+ * A SERVER COMPONENT. Only the branch switcher and the sign-out button need to be
+ * client components, and they are. This whole file used to be `'use client'`
+ * because of the one dropdown, which shipped the nav and every label to the
+ * browser for no reason.
  */
 export function TenantHeader({ slug, session }: { slug: string; session: AuthSession }) {
-  const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
-
   const membership = session.memberships.find(
     (m) => m.organizationId === session.activeOrganizationId
   );
   const branches = membership?.branches ?? [];
-  const active = branches.find((b) => b.id === session.activeBranchId);
+
+  /*
+   * THE SCOPE CHAIN
+   *   The clinic first, then the branch inside it. The clinic segment is a plain
+   *   label here because this session belongs to one clinic — a super admin's
+   *   session does not, and their layout passes a switcher in this position
+   *   instead. Same chain, one more degree of freedom.
+   *
+   *   Under impersonation `memberships` is the admin's own and is almost always
+   *   empty, so there are no branches to switch between and the strip above names
+   *   the clinic. The segment is dropped rather than rendered empty.
+   */
+  const scopes = [
+    <ScopeLabel key="clinic" label="Clinic" name={slug} />,
+    ...(branches.length > 0
+      ? [
+          <BranchSwitcher
+            key="branch"
+            slug={slug}
+            branches={branches}
+            activeBranchId={session.activeBranchId}
+          />,
+        ]
+      : []),
+  ];
 
   return (
-    <header className="border-rule bg-card border-b">
-      <div className="px-gutter mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-3 py-4">
-        <span className="text-ink">
-          <Wordmark />
-        </span>
-
-        <span className="text-muted font-mono text-[0.8125rem]">{slug}</span>
-
-        {branches.length > 0 ? (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpen((v) => !v)}
-              disabled={pending || branches.length === 1}
-              aria-expanded={open}
-              aria-haspopup="listbox"
-              className={cn(
-                'border-rule text-ink hover:border-drape flex items-center gap-2 rounded-md border px-3 py-2 text-[0.875rem] transition-colors',
-                branches.length === 1 && 'cursor-default opacity-90'
-              )}
-            >
-              <span className="text-muted text-[0.75rem]">Branch</span>
-              <span className="font-medium">{active?.name ?? 'Choose a branch'}</span>
-              {branches.length > 1 ? <span aria-hidden="true">▾</span> : null}
-            </button>
-
-            {open && branches.length > 1 ? (
-              <ul
-                role="listbox"
-                aria-label="Switch branch"
-                className="border-rule bg-card absolute z-10 mt-1 min-w-56 rounded-md border py-1 shadow-lg"
-              >
-                {branches.map((branch) => {
-                  const current = branch.id === session.activeBranchId;
-                  return (
-                    <li key={branch.id}>
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={current}
-                        disabled={pending}
-                        onClick={() => {
-                          setOpen(false);
-                          startTransition(async () => {
-                            await switchBranch(slug, branch.id);
-                            // The action no longer redirects: a router
-                            // navigation to `/` resolves against the route tree
-                            // and lands on the marketing page, because the
-                            // rewrite only applies to real requests. Reloading
-                            // also re-reads every server component under the
-                            // new branch. See lib/hard-navigate.ts.
-                            hardNavigate('/');
-                          });
-                        }}
-                        className={cn(
-                          'hover:bg-paper flex w-full flex-col items-start px-3 py-2 text-left text-[0.875rem] transition-colors',
-                          current && 'bg-drape-tint/40'
-                        )}
-                      >
-                        <span className="text-ink font-medium">
-                          {branch.name}
-                          {/* Colour and highlight alone must not carry meaning. */}
-                          {current ? <span className="sr-only"> (current branch)</span> : null}
-                        </span>
-                        <span className="text-muted font-mono text-[0.75rem]">
-                          {branch.code}
-                          {branch.city ? ` · ${branch.city}` : ''}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="ml-auto flex items-center gap-4">
-          {/* The person's own account, kept out of the "Clinic settings" nav
-              below — that row is what this clinic does, this is who you are.
-              Reachable whether or not the verification prompt is showing. */}
-          <Link
-            href="/verify"
-            className="text-muted hover:text-drape py-1 text-[0.8125rem] underline-offset-2 hover:underline"
-          >
-            {session.user.fullName}
-          </Link>
-          {/* Bound server-side, like every other action here, so the browser
-              cannot substitute another clinic's slug. The navigation is ours
-              rather than the action's: `/login` is this clinic's sign-in page
-              only after the proxy rewrite, and the apex serves a clinic finder
-              at the same path. */}
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => {
-              startTransition(async () => {
-                await signOut(slug);
-                hardNavigate('/login');
-              });
-            }}
-            className="text-drape hover:text-drape-deep py-1 text-[0.8125rem] underline underline-offset-2 disabled:opacity-60"
-          >
-            {pending ? 'Signing out…' : 'Sign out'}
-          </button>
-        </div>
-      </div>
-
-      <TenantNav permissions={session.permissions} />
-    </header>
+    <AppHeader
+      scopes={scopes}
+      user={{ name: session.user.fullName, href: '/verify' }}
+      signOut={
+        // Bound server-side, like every other action here, so the browser cannot
+        // substitute another clinic's slug. The navigation is ours rather than the
+        // action's: `/login` is this clinic's sign-in page only after the proxy
+        // rewrite, and the apex serves a clinic finder at the same path.
+        <SignOutButton action={signOut.bind(null, slug)} redirectTo="/login" />
+      }
+      nav={{ label: 'Clinic', links: clinicNav(session.permissions) }}
+    />
   );
 }
 
 /**
- * Where you can go from here.
+ * Where you can go from inside a clinic.
  *
  * Each destination names the permission that makes it usable, and a link the
- * caller cannot use is not rendered — following it would only produce a 403 at
- * the API. This grows as Phase 1 lands; it is not a placeholder.
+ * caller cannot use is not rendered — following it would only produce a 403 at the
+ * API. This grows as later phases land; it is not a placeholder.
  *
- * Permissions are resolved fresh per request by the API, never read from the
- * JWT, so this reflects a role change on the next page load.
+ * Permissions are resolved fresh per request by the API, never read from the JWT,
+ * so this reflects a role change on the next page load. A platform admin comes
+ * back holding the whole catalogue, which is why they see every entry.
  */
-function TenantNav({ permissions }: { permissions: string[] }) {
-  const links = [
-    { href: 'branches', label: 'Branches', permission: ['branch.read'] },
-    { href: 'members', label: 'Staff', permission: ['iam.user.read'] },
-    { href: 'roles', label: 'Roles', permission: ['iam.role.read'] },
-    { href: 'invitations', label: 'Invitations', permission: ['iam.user.read'] },
+function clinicNav(permissions: string[]): NavLink[] {
+  return [
+    { href: '/branches', label: 'Branches', permission: ['branch.read'] },
+    { href: '/members', label: 'Staff', permission: ['iam.user.read'] },
+    { href: '/roles', label: 'Roles', permission: ['iam.role.read'] },
+    { href: '/invitations', label: 'Invitations', permission: ['iam.user.read'] },
     // Two codes, either of which makes the screen worth opening: it holds the
     // clinic's particulars and its defaults behind separate permissions, and
     // renders whichever half the API answered.
     {
-      href: 'settings',
+      href: '/settings',
       label: 'Clinic',
       permission: ['organization.read', 'settings.organization.read'],
     },
-  ].filter((link) => link.permission.some((code) => permissions.includes(code)));
-
-  if (links.length === 0) return null;
-
-  return (
-    <nav aria-label="Clinic settings" className="border-rule bg-paper border-t">
-      <ul className="px-gutter mx-auto flex max-w-7xl gap-1 py-1">
-        {links.map((link) => (
-          <li key={link.href}>
-            {/* py-2 keeps the target above the 24px minimum; an inline link is
-                about 19px from line-height alone (apps/web/AGENTS.md). */}
-            <Link
-              href={`/${link.href}`}
-              className="text-muted hover:text-drape hover:bg-drape-tint/50 inline-block rounded-sm px-3 py-2 text-[0.8125rem] transition-colors"
-            >
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
+    // Reading the plan and the invoices is a different permission from changing
+    // them; either one makes the screen worth opening, and the screen itself
+    // renders only the controls the caller may use.
+    {
+      href: '/billing',
+      label: 'Billing',
+      permission: ['organization.billing.read', 'organization.billing.manage'],
+    },
+  ]
+    .filter((link) => link.permission.some((code) => permissions.includes(code)))
+    .map(({ href, label }) => ({ href, label }));
 }

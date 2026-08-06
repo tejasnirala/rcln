@@ -193,6 +193,31 @@
   }
 }
 
+/*
+ * The chevron a <select> draws for itself, redrawn.
+ *
+ * ⚠️ THIS IS A BACKGROUND IMAGE, NOT AN ABSOLUTELY POSITIONED SVG. A sibling
+ *   element over the control would swallow the click on the exact spot people
+ *   aim at, and `pointer-events-none` on it then breaks the outline. Painted on
+ *   the select itself, the whole box stays one hit target and the arrow cannot
+ *   drift out of alignment with it.
+ *
+ * The native arrow it replaces sits hard against the border — the offset here
+ * is what buys it breathing room, and it is one number rather than one per
+ * platform (Chrome, Safari and Firefox each inset their own by a different
+ * amount). `appearance: none` on the control is what removes the original;
+ * without it you get two arrows.
+ *
+ * Colour is `muted` (#5f716c), the same as a hint — the arrow is an affordance,
+ * not content, and it must not compete with the value it sits beside.
+ */
+@utility field-chevron {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%235f716c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.25 1.75 6 6.25l4.75-4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  background-size: 0.75rem 0.5rem;
+}
+
 @utility eyebrow {
   font-family: var(--font-mono);
   font-size: 0.6875rem;

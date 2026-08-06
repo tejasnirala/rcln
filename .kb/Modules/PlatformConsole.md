@@ -30,10 +30,15 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 
 | method | path | at |
 | --- | --- | --- |
-| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:48` |
-| GET | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:99` |
-| POST | `/organizations/:organizationId/impersonate` | `apps/api/src/routes/v1/platform.routes.ts:161` |
-| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:186` |
+| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:60` |
+| GET | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:111` |
+| POST | `/organizations/:organizationId/impersonate` | `apps/api/src/routes/v1/platform.routes.ts:173` |
+| GET | `/organizations/:organizationId/subscription` | `apps/api/src/routes/v1/platform.routes.ts:211` |
+| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:243` |
+| GET | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:292` |
+| POST | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:300` |
+| PATCH | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:312` |
+| DELETE | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:327` |
 
 ## Database impact
 
@@ -54,14 +59,18 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 - `apps/web/src/app/(platform)/platform/organizations/actions.ts`
 - `apps/web/src/app/(platform)/platform/organizations/page.tsx`
 - `apps/web/src/app/(platform)/platform/page.tsx`
+- `apps/web/src/app/(platform)/platform/taxes/actions.ts`
+- `apps/web/src/app/(platform)/platform/taxes/page.tsx`
+- `apps/web/src/components/platform/clinic-switcher.tsx`
 - `apps/web/src/components/platform/demo-request-list.tsx`
+- `apps/web/src/components/platform/enter-clinic.tsx`
 - `apps/web/src/components/platform/organization-list.tsx`
 - `apps/web/src/components/platform/platform-login.tsx`
-- `apps/web/src/components/platform/platform-sign-out.tsx`
+- `apps/web/src/components/platform/tax-registration-list.tsx`
 
 ## Workspace dependencies
 
-`@rcln/contracts` · `@rcln/db/unsafe` · `@rcln/permissions`
+`@rcln/billing` · `@rcln/contracts` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/permissions`
 
 ## Known limitations
 
@@ -72,19 +81,26 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 
 | name | kind | at |
 | --- | --- | --- |
+| `ClinicSwitcher` | component | `apps/web/src/components/platform/clinic-switcher.tsx:42` |
 | `DemoRequest` | interface | `apps/web/src/components/platform/demo-request-list.tsx:16` |
-| `DemoRequestList` | component | `apps/web/src/components/platform/demo-request-list.tsx:39` |
+| `DemoRequestList` | component | `apps/web/src/components/platform/demo-request-list.tsx:46` |
+| `EnterClinic` | component | `apps/web/src/components/platform/enter-clinic.tsx:28` |
 | `ImpersonateState` | type | `apps/web/src/app/(platform)/platform/organizations/actions.ts:23` |
-| `metadata` | var | `apps/web/src/app/(platform)/platform/layout.tsx:7` |
-| `OrganizationList` | component | `apps/web/src/components/platform/organization-list.tsx:26` |
+| `metadata` | var | `apps/web/src/app/(platform)/platform/layout.tsx:12` |
+| `metadata` | var | `apps/web/src/app/(platform)/platform/taxes/page.tsx:7` |
+| `OrganizationList` | component | `apps/web/src/components/platform/organization-list.tsx:27` |
 | `PlatformHome` | component | `apps/web/src/app/(platform)/platform/page.tsx:16` |
-| `PlatformLayout` | component | `apps/web/src/app/(platform)/platform/layout.tsx:35` |
+| `PlatformLayout` | component | `apps/web/src/app/(platform)/platform/layout.tsx:37` |
 | `PlatformLogin` | component | `apps/web/src/components/platform/platform-login.tsx:10` |
 | `PlatformLoginState` | type | `apps/web/src/app/(platform)/platform/actions.ts:22` |
-| `PlatformOrganizations` | component | `apps/web/src/app/(platform)/platform/organizations/page.tsx:13` |
+| `PlatformOrganizations` | component | `apps/web/src/app/(platform)/platform/organizations/page.tsx:12` |
 | `platformSignIn` | action | `apps/web/src/app/(platform)/platform/actions.ts:33` |
 | `platformSignOut` | action | `apps/web/src/app/(platform)/platform/actions.ts:86` |
-| `PlatformSignOut` | component | `apps/web/src/components/platform/platform-sign-out.tsx:14` |
+| `PlatformTaxes` | component | `apps/web/src/app/(platform)/platform/taxes/page.tsx:21` |
 | `provisionClinic` | action | `apps/web/src/app/(platform)/platform/actions.ts:109` |
 | `ProvisionState` | type | `apps/web/src/app/(platform)/platform/actions.ts:96` |
+| `removeTaxRegistration` | action | `apps/web/src/app/(platform)/platform/taxes/actions.ts:116` |
+| `saveTaxRegistration` | action | `apps/web/src/app/(platform)/platform/taxes/actions.ts:61` |
 | `startImpersonation` | action | `apps/web/src/app/(platform)/platform/organizations/actions.ts:33` |
+| `TaxFormState` | type | `apps/web/src/app/(platform)/platform/taxes/actions.ts:21` |
+| `TaxRegistrationList` | component | `apps/web/src/components/platform/tax-registration-list.tsx:43` |

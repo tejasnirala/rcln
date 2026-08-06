@@ -10,7 +10,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BranchesPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/page.tsx:22` |  |
+| `BranchesPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/page.tsx:23` |  |
 
 ## action
 
@@ -32,7 +32,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/page.tsx:8` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/page.tsx:9` |  |
 
 ## type
 

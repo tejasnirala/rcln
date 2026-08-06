@@ -22,8 +22,10 @@
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
+    "@rcln/billing": "workspace:*",
     "@rcln/contracts": "workspace:*",
     "@rcln/db": "workspace:*",
+    "@rcln/payments": "workspace:*",
     "@rcln/permissions": "workspace:*",
     "compression": "^1.8.1",
     "cors": "^2.8.5",

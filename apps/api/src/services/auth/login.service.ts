@@ -40,6 +40,11 @@ export interface AuthenticatedUser {
    */
   emailVerified: boolean;
   phoneVerified: boolean;
+  /**
+   * The clinic this platform admin last asked to enter. Null for everyone else.
+   * A preference the console reads to pre-select a clinic; it grants nothing.
+   */
+  lastPlatformOrganizationId: string | null;
 }
 
 /**
@@ -147,42 +152,82 @@ export async function loadAuthenticatedUser(userId: string): Promise<Authenticat
       mfaEnabled: true,
       emailVerifiedAt: true,
       phoneVerifiedAt: true,
+      lastPlatformOrganizationId: true,
     },
   });
 
   if (!user) throw new AuthenticationError(INVALID_CREDENTIALS);
 
-  const { emailVerifiedAt, phoneVerifiedAt, ...rest } = user;
+  const { emailVerifiedAt, phoneVerifiedAt, lastPlatformOrganizationId, ...rest } = user;
   return {
     ...rest,
     emailVerified: emailVerifiedAt !== null,
     phoneVerified: phoneVerifiedAt !== null,
+    /*
+     * Only ever handed to a platform admin. The column is null for everyone else
+     * anyway, but a preference naming a specific clinic has no business being on
+     * an ordinary user's session even as a null-shaped field they could inspect.
+     */
+    lastPlatformOrganizationId: user.isPlatformAdmin ? lastPlatformOrganizationId : null,
   };
 }
 
 /**
- * Which branch a freshly-signed-in user lands on.
+ * Which branch a user lands on when they arrive in an organization.
  *
- * The primary branch if they can reach it, otherwise the first branch they can.
- * A user with org-wide access to a three-branch hospital has to start somewhere,
- * and "somewhere" should be the main location rather than alphabetical luck.
+ * Where they were last, if that is still a place they can go. Otherwise the
+ * primary branch, otherwise the first branch they can reach — a user with
+ * org-wide access to a three-branch hospital has to start somewhere, and
+ * "somewhere" should be the main location rather than alphabetical luck.
+ *
+ * THE REMEMBERED BRANCH IS NEVER TRUSTED
+ *   `memberships.last_branch_id` is a preference, and a preference that decided
+ *   access would be a way back into a branch somebody has been removed from. So
+ *   it is filtered through `branchIds` — the scope `loadUserAccess` just derived
+ *   from `membership_roles` — and then re-checked for being ACTIVE and not
+ *   deleted. A branch that was closed, or that this person no longer holds an
+ *   assignment for, falls through to the default as though nothing was stored.
+ *
+ * READ FRESH, NOT FROM `UserAccess`
+ *   `loadUserAccess` is Redis-cached for 60 seconds. A preference cached there
+ *   would be up to a minute stale, and writing it on every branch switch would
+ *   mean invalidating that cache on a path that has no other reason to. This is
+ *   one indexed lookup, once per sign-in.
  */
-async function defaultBranchId(
+export async function defaultBranchId(
   organizationId: string,
   userId: string,
-  branchIds: string[]
+  branchIds: string[],
+  membershipId: string
 ): Promise<string | null> {
   if (branchIds.length === 0) return null;
 
-  const branch = await withTenant({ organizationId, branchIds, userId }, async (tx) =>
-    tx.branch.findFirst({
+  return withTenant({ organizationId, branchIds, userId }, async (tx) => {
+    const membership = await tx.membership.findUnique({
+      where: { id: membershipId },
+      select: { lastBranchId: true },
+    });
+
+    const remembered = membership?.lastBranchId;
+
+    // `includes` is the scope check, and it comes first: a branch outside the
+    // caller's scope is not looked up at all.
+    if (remembered != null && branchIds.includes(remembered)) {
+      const open = await tx.branch.findFirst({
+        where: { id: remembered, status: 'ACTIVE', deletedAt: null },
+        select: { id: true },
+      });
+      if (open) return open.id;
+    }
+
+    const branch = await tx.branch.findFirst({
       where: { id: { in: branchIds }, status: 'ACTIVE', deletedAt: null },
       orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
       select: { id: true },
-    })
-  );
+    });
 
-  return branch?.id ?? null;
+    return branch?.id ?? null;
+  });
 }
 
 export interface BuildSessionInput {
@@ -225,7 +270,12 @@ export async function buildAuthSession(input: BuildSessionInput): Promise<AuthSe
     } else {
       membershipId = access.membershipId;
       branchIds = access.branchIds;
-      activeBranchId = await defaultBranchId(organizationId, user.id, branchIds);
+      activeBranchId = await defaultBranchId(
+        organizationId,
+        user.id,
+        branchIds,
+        access.membershipId
+      );
       permissions = permissionsFor(access, user.id, activeBranchId, user.isPlatformAdmin);
     }
   }
@@ -268,6 +318,7 @@ export async function buildAuthSession(input: BuildSessionInput): Promise<AuthSe
       mfaEnabled: user.mfaEnabled,
       emailVerified: user.emailVerified,
       phoneVerified: user.phoneVerified,
+      lastPlatformOrganizationId: user.lastPlatformOrganizationId,
     },
     activeOrganizationId: organizationId,
     activeBranchId,

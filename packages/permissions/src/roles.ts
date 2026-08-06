@@ -118,6 +118,15 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.SETTINGS_BRANCH_READ,
       P.SETTINGS_BRANCH_WRITE,
       P.SETTINGS_USER_WRITE,
+      /*
+       * History on the records they manage. Deliberately NOT given to the
+       * clinical and front-desk roles below: the trail names who suspended whom
+       * and whose permissions changed, which is a manager's business rather than
+       * everyone's. A clinic that wants a specific person to see it can grant
+       * this code to them directly — that is what the per-person override
+       * mechanism is for, and it is a smaller decision than a role change.
+       */
+      P.AUDIT_READ,
     ],
   },
   {

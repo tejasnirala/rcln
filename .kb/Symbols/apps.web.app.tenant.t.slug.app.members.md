@@ -10,7 +10,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `MembersPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/page.tsx:23` |  |
+| `MembersPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/page.tsx:24` |  |
 
 ## action
 
@@ -34,7 +34,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/page.tsx:8` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/page.tsx:9` |  |
 
 ## type
 

@@ -26,6 +26,7 @@ const MODULE_LABEL: Record<string, string> = {
   billing: 'Billing',
   report: 'Reports',
   settings: 'Settings',
+  audit: 'History',
 };
 
 export function moduleOf(code: string): string {

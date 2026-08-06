@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useRef } from 'react';
-import { Field, inputClass } from '@/components/ui/field';
+import { Input } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import {
@@ -153,21 +153,19 @@ function ChannelRow({ slug, channel, label, destination, verified }: Channel & {
           ) : null}
 
           <div className="mt-3 flex flex-wrap items-end gap-3">
-            <Field name={`code-${channel}`} label="Code" errors={codeError}>
-              <input
-                id={`code-${channel}`}
-                name="code"
-                // `numeric` brings up the digit keypad on a phone without
-                // rejecting a paste, which `type="number"` does.
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={8}
-                required
-                aria-invalid={codeError ? true : undefined}
-                aria-describedby={codeError ? `code-${channel}-error` : undefined}
-                className={`${inputClass} w-40 font-mono tracking-[0.3em]`}
-              />
-            </Field>
+            <Input
+              id={`code-${channel}`}
+              name="code"
+              label="Code"
+              errors={codeError}
+              // `numeric` brings up the digit keypad on a phone without
+              // rejecting a paste, which `type="number"` does.
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={8}
+              required
+              className="w-40 font-mono tracking-[0.3em]"
+            />
             <Button type="submit" disabled={confirming} className="mb-[1px]">
               {confirming ? 'Confirming…' : 'Confirm code'}
             </Button>

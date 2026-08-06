@@ -61,6 +61,9 @@ DECLARE
     'invitations',
     'subscriptions',
     'subscription_invoices',
+    'subscription_changes',
+    'payment_mandates',
+    'payment_intents',
     'usage_counters',
     'audit_logs'
   ];
@@ -144,7 +147,16 @@ DECLARE
     ARRAY['branch_operating_hours', 'branches',    'branch_id'],
     ARRAY['branch_closures',        'branches',    'branch_id'],
     ARRAY['invitation_branches',    'invitations', 'invitation_id'],
-    ARRAY['staff_profiles',         'memberships', 'membership_id']
+    ARRAY['staff_profiles',         'memberships', 'membership_id'],
+    -- The billing children. These sat on the EXEMPT list reading "reached via a
+    -- scoped parent", which was the same true-of-the-code-as-written reasoning
+    -- the branch children were exempted on — and it is enforced by nothing. An
+    -- invoice line carries what a clinic paid and for what; a payment row
+    -- carries the tail of the instrument it paid with. Both are answerable by
+    -- primary key, so both are now answered by the database instead.
+    ARRAY['subscription_invoice_lines',      'subscription_invoices', 'subscription_invoice_id'],
+    ARRAY['subscription_payments',           'subscription_invoices', 'subscription_invoice_id'],
+    ARRAY['subscription_feature_overrides',  'subscriptions',         'subscription_id']
   ];
 BEGIN
   FOR i IN 1 .. array_length(parent_scoped, 1) LOOP
@@ -227,6 +239,25 @@ CREATE POLICY own_membership ON memberships FOR SELECT
 --   role_permissions   joins two non-tenant tables
 --   plans / plan_*     platform-wide product catalogue
 --   setting_*          scoped by (scope_type, scope_id), not organization_id
+--   payment_webhook_events
+--                      a provider POSTs these to a public endpoint with no
+--                      host, no session and no tenant. WHICH organization a
+--                      delivery concerns is only known after the signature
+--                      verifies and the reference resolves, so a policy
+--                      requiring app.current_org would make the table
+--                      unwritable by the only endpoint that writes it — the
+--                      same circularity as organization_domains.
+--
+--                      Deduplication must be global for the same reason: a
+--                      replayed delivery has to collide on
+--                      (provider, provider_event_id) whether or not we can
+--                      work out whose it is. That unique index is the only
+--                      thing between a re-sent charge.succeeded and a second
+--                      free month.
+--
+--                      It carries an organization_id, resolved after the fact
+--                      for the console — a label, not a scoping column. No
+--                      tenant-facing route reads this table.
 --   demo_requests      submitted from the public marketing site by someone who
 --                      has no organization yet. There is no organization_id to
 --                      scope by, and a policy requiring app.current_org would
@@ -234,8 +265,94 @@ CREATE POLICY own_membership ON memberships FOR SELECT
 --                      writes it. Gated in the application layer instead: one
 --                      public, rate-limited, write-only route; reads are for
 --                      platform admins. Contact details only, never PHI.
+--   tax_registrations  describes the SUPPLIER — rcln — and not any clinic. One
+--                      set of rows for the whole platform, exactly like `plans`.
+--                      There is no organization_id because the question it
+--                      answers ("where are WE registered to collect tax?") has
+--                      nothing to do with whose invoice is being raised.
+--
+--                      Scoping it would be worse than pointless: the tax engine
+--                      runs inside a tenant transaction, so a policy requiring a
+--                      matching organization_id would return zero rows, and zero
+--                      rows means NOT_REGISTERED, which means every invoice
+--                      silently comes out untaxed. Read-only to the application;
+--                      rows are written by seed and by platform admins.
 --
 -- Access to these is gated in the application layer. `check-rls.ts` holds the
 -- same list, so adding a table without a policy fails CI until it is either
 -- given one or consciously added to the exemption list.
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- Webhook reference lookup: the one payment intent a verified webhook names.
+--
+-- Same shape and same reasoning as own_membership above. A provider POSTs to a
+-- public endpoint with no host, no session and no user; the organization the
+-- delivery concerns is written on an RLS-enforced row we therefore cannot read.
+-- Narrowed on both axes rather than exempted:
+--
+--   id = app_payment_reference()   the single row whose uuid you already have
+--   app_current_org() IS NULL      and only in a transaction claiming no tenant
+--
+-- The second condition switches the policy off for every ordinary request, which
+-- is what makes it safe to add alongside tenant_isolation. FOR SELECT only, so
+-- it grants no ability to write — the handler re-enters through withTenant once
+-- it knows the organization. See withPaymentReference() in src/tenant.ts.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION app_payment_reference() RETURNS uuid
+  LANGUAGE sql STABLE PARALLEL SAFE AS
+$$ SELECT NULLIF(current_setting('app.payment_reference', true), '')::uuid $$;
+
+DROP POLICY IF EXISTS webhook_reference_lookup ON payment_intents;
+CREATE POLICY webhook_reference_lookup ON payment_intents FOR SELECT
+  USING (app_current_org() IS NULL AND id = app_payment_reference());
+
+DROP POLICY IF EXISTS webhook_reference_lookup ON payment_mandates;
+CREATE POLICY webhook_reference_lookup ON payment_mandates FOR SELECT
+  USING (app_current_org() IS NULL AND id = app_payment_reference());
+
+-- ---------------------------------------------------------------------------
+-- The billing scheduler's one cross-tenant question.
+--
+-- `subscriptions` is RLS-enforced, so the worker's hourly sweep — which by
+-- definition has no tenant — matched nothing and renewals silently never ran.
+-- Answered by a SECURITY DEFINER function rather than by widening a policy or
+-- handing the worker an owner connection: it returns three columns for only the
+-- rows that are actually due, and takes no argument that widens it. `rcln_app`
+-- keeps NOBYPASSRLS. The alternatives, and why each was rejected, are recorded
+-- in the 20260805140000_billing_due_sweep_function migration.
+--
+-- `search_path` is pinned: without it, anyone able to create objects could
+-- shadow `subscriptions` and have the owner read their table instead.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION billing_due_subscriptions(
+  at_time    timestamptz,
+  row_limit  int DEFAULT 200
+)
+RETURNS TABLE (id uuid, organization_id uuid, reason text)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+  SELECT s.id,
+         s.organization_id,
+         CASE
+           WHEN s.cancel_at_period_end AND s.current_period_end <= at_time THEN 'CANCEL'
+           WHEN s.status = 'TRIALING' AND s.trial_ends_at IS NOT NULL
+                AND s.trial_ends_at <= at_time THEN 'TRIAL_END'
+           WHEN s.status = 'PAST_DUE' AND s.grace_period_end IS NOT NULL
+                AND s.grace_period_end <= at_time THEN 'SUSPEND'
+           WHEN s.status = 'PAST_DUE' THEN 'DUNNING'
+           ELSE 'RENEWAL'
+         END AS reason
+    FROM subscriptions s
+   WHERE (s.status = 'ACTIVE'   AND s.current_period_end <= at_time)
+      OR (s.status = 'PAST_DUE')
+      OR (s.status = 'TRIALING' AND s.trial_ends_at IS NOT NULL AND s.trial_ends_at <= at_time)
+   ORDER BY s.current_period_end ASC
+   LIMIT row_limit
+$fn$;
+
+REVOKE ALL ON FUNCTION billing_due_subscriptions(timestamptz, int) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION billing_due_subscriptions(timestamptz, int) TO rcln_app;

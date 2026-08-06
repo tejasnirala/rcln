@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import type { OrganizationProfile, SettingListResponse } from '@rcln/contracts';
+import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
 import { getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -55,6 +56,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
       settings={settings.data?.settings ?? null}
       canEditOrganization={permissions.includes('organization.update')}
       canEditSettings={permissions.includes('settings.organization.write')}
+      canReadHistory={permissions.includes(PERMISSIONS.AUDIT_READ)}
     />
   );
 }

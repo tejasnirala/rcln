@@ -10,7 +10,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/roles/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `RolesPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/roles/page.tsx:21` |  |
+| `RolesPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/roles/page.tsx:22` |  |
 
 ## action
 
@@ -24,7 +24,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/roles/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/roles/page.tsx:8` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/roles/page.tsx:9` |  |
 
 ## type
 

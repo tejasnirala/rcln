@@ -29,8 +29,14 @@
  *   that did not change.
  */
 import { withTenant, type TenantContext } from '@rcln/db';
-import type { OrganizationProfile, UpdateOrganizationRequest } from '@rcln/contracts';
-import { NotFoundError } from '../../utils/errors.js';
+import { realignUnbilledCurrency } from '@rcln/billing';
+import {
+  isValidTaxId,
+  taxIdFormatFor,
+  type OrganizationProfile,
+  type UpdateOrganizationRequest,
+} from '@rcln/contracts';
+import { NotFoundError, ValidationError } from '../../utils/errors.js';
 import { invalidateTenantCache } from '../../middleware/tenant.middleware.js';
 import { recordAudit } from '../audit/audit.service.js';
 
@@ -52,6 +58,7 @@ const ORGANIZATION_SELECT = {
   timezone: true,
   currency: true,
   countryCode: true,
+  regionCode: true,
   onboardedAt: true,
 } as const;
 
@@ -66,6 +73,7 @@ interface OrganizationRow {
   timezone: string;
   currency: string;
   countryCode: string;
+  regionCode: string | null;
   onboardedAt: Date | null;
 }
 
@@ -102,6 +110,30 @@ export async function updateOrganization(
     });
     if (!before) throw new NotFoundError('Organization');
 
+    /*
+     * The tax registration number, checked against the country it belongs to.
+     *
+     * ⚠️ THIS CANNOT LIVE IN THE ZOD CONTRACT, and that is why it is here.
+     *   `updateOrganizationRequest` is a PATCH: `countryCode` may be absent, in
+     *   which case the country is whatever the row already says, and it may be
+     *   in the same request, in which case the number has to satisfy the NEW
+     *   country. A field-level regex sees neither. The contract used to carry a
+     *   hard GSTIN pattern instead, which meant an Irish clinic could never
+     *   save its VAT number from settings — the number was correct and the
+     *   check was Indian.
+     */
+    const country = input.countryCode ?? before.countryCode;
+    if (input.gstNumber != null && !isValidTaxId(country, input.gstNumber)) {
+      const format = taxIdFormatFor(country);
+      throw new ValidationError('Validation failed', {
+        gstNumber: [
+          format
+            ? `does not look like a valid ${format.label}, e.g. ${format.example}`
+            : 'invalid tax registration number',
+        ],
+      });
+    }
+
     const after = await tx.organization.update({
       where: { id: ctx.organizationId },
       // Only the keys the caller actually sent. The request is a partial, so an
@@ -110,6 +142,22 @@ export async function updateOrganization(
       data: Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined)),
       select: ORGANIZATION_SELECT,
     });
+
+    /*
+     * A clinic that corrects its country is quoted in the currency that country
+     * bills in — but only while nothing has been charged yet.
+     *
+     * The subscription row carries its own currency, denormalised from the price
+     * (see the schema comment), and every billing read quotes from it. So a
+     * trial opened in INR kept the whole billing screen in rupees after the
+     * clinic told us it was in Ireland: the catalogue, the current plan and the
+     * upgrade quote. `realignUnbilledCurrency` refuses to touch a subscription
+     * that has ever been charged, which is where "fixed at subscribe time"
+     * genuinely binds.
+     */
+    if (after.currency !== before.currency) {
+      await realignUnbilledCurrency(tx, ctx, after.currency);
+    }
 
     await recordAudit(tx, ctx, {
       action: 'UPDATE',

@@ -215,6 +215,17 @@ export const authSession = z.object({
      */
     emailVerified: z.boolean(),
     phoneVerified: z.boolean(),
+    /**
+     * The clinic this platform admin last asked to enter, so the console can
+     * offer it again instead of making them find it.
+     *
+     * Null for everyone who is not a platform admin, which is almost everyone —
+     * and null for an admin who has never entered one. A PREFERENCE, NOT A GRANT:
+     * entering still goes through the handoff, which re-checks the flag and wants
+     * a reason (ADR-0012). An id only, so it is useless to anyone who cannot
+     * already list clinics.
+     */
+    lastPlatformOrganizationId: uuid.nullable(),
   }),
   activeOrganizationId: uuid.nullable(),
   activeBranchId: uuid.nullable(),

@@ -4,7 +4,7 @@
 
 > The outcome of an action, announced.
 
-Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/button.tsx` · `apps/web/src/components/ui/field.tsx`
+Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/button.tsx` · `apps/web/src/components/ui/field.tsx` · `apps/web/src/components/ui/password-control.tsx` · `apps/web/src/components/ui/phone-input.tsx`
 
 ## component
 
@@ -12,8 +12,16 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 | --- | --- | --- | --- |
 | `Alert` | `({ tone, children, className, }: { tone: 'error' \| 'info'; c…)` | `apps/web/src/components/ui/alert.tsx:14` |  |
 | `Button` | `({ variant = 'primary', size = 'md', fullWidth, className, t…)` | `apps/web/src/components/ui/button.tsx:31` |  |
-| `Field` | `({ name, label, hint, errors, action, children, }: { name: s…)` | `apps/web/src/components/ui/field.tsx:20` |  |
+| `EyeIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:84` | Currently hidden — this shows it. |
+| `EyeOffIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:99` | Currently visible — this hides it. Same eye, struck through. |
+| `Field` | `({ name, label, hint, errors, action, className, children }:…)` | `apps/web/src/components/ui/field.tsx:56` |  |
+| `FieldError` | `({ name, message }: { name: string; message: string })` | `apps/web/src/components/ui/field.tsx:88` |  |
+| `Input` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:253` |  |
+| `PasswordControl` | `({ className, disabled, ...rest }: React.ComponentPropsWitho…)` | `apps/web/src/components/ui/password-control.tsx:32` |  |
+| `PhoneInput` | `({ id, name, countryCode, national, onNationalChange, onCoun…)` | `apps/web/src/components/ui/phone-input.tsx:33` |  |
+| `Select` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:313` |  |
 | `SIZES` <sub>local</sub> | `{ // py-3 clears the 24px minimum target from WCAG 2.5.8 on its own. md: 'px-5 py-3 text-…` | `apps/web/src/components/ui/button.tsx:25` |  |
+| `Textarea` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:363` | Free text over several lines. `rows` sets the starting height. |
 | `VARIANTS` <sub>local</sub> | `: Record<Variant, string>` | `apps/web/src/components/ui/button.tsx:18` |  |
 
 ## hook
@@ -26,16 +34,36 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `describedBy` | `(name: string, hint: boolean, invalid: boolean): string \| undefined` | `apps/web/src/components/ui/field.tsx:15` | The ids a field's hint and error are published under, so the input can point at them with aria-describedby. Without this the error is on screen and a screen re… |
+| `controlProps` <sub>local</sub> | `(fieldId: string, hint: string \| undefined, invalid: boolean): { id: string; 'aria-invalid': boolean; 'aria-describedby': …` | `apps/web/src/components/ui/field.tsx:199` |  |
+| `describedBy` | `(name: string, hint: boolean, invalid: boolean): string \| undefined` | `apps/web/src/components/ui/field.tsx:30` |  |
+| `identify` <sub>local</sub> | `(id: string \| undefined, name: string \| undefined): string` | `apps/web/src/components/ui/field.tsx:415` |  |
+| `renderOption` <sub>local</sub> | `(option: SelectOption): React.ReactElement` | `apps/web/src/components/ui/field.tsx:400` |  |
+| `withShell` <sub>local</sub> | `(fieldId: string, { label, hint, errors, action, fieldClassName }: ControlShe…, control: React.ReactNode): React.ReactElement` | `apps/web/src/components/ui/field.tsx:220` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `inputClass` | `'w-full rounded-md border border-rule bg-card px-3.5 py-2.5…` | `apps/web/src/components/ui/field.tsx:61` |  |
+| `inputClass` | `'w-full rounded-md border border-rule bg-card px-3.5 py-2.5…` | `apps/web/src/components/ui/field.tsx:124` |  |
+| `selectClass` | `'field-chevron w-full cursor-pointer appearance-none rounde…` | `apps/web/src/components/ui/field.tsx:146` |  |
+| `textareaClass` | ``${inputClass} resize-y`` | `apps/web/src/components/ui/field.tsx:150` | A textarea is an input that grew; only the height and the grabber differ. |
+
+## interface
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `ControlShell` <sub>local</sub> | `{ label, hint, errors, action, fieldClassName }` | `apps/web/src/components/ui/field.tsx:177` |  |
+| `FieldProps` <sub>local</sub> | `{ name, label, hint, errors, action, className, children }` | `apps/web/src/components/ui/field.tsx:108` |  |
+| `SelectOption` | `{ value, label, disabled }` | `apps/web/src/components/ui/field.tsx:387` |  |
+| `SelectOptionGroup` | `{ label, options }` | `apps/web/src/components/ui/field.tsx:393` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `ControlIdentity` <sub>local</sub> | `{ id: string; name?: string } \| { id?: string; name: string }` | `apps/web/src/components/ui/field.tsx:175` |  |
+| `InputElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'input'>` | `apps/web/src/components/ui/field.tsx:419` |  |
+| `SelectElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'select'>` | `apps/web/src/components/ui/field.tsx:420` |  |
+| `SelectItem` | `SelectOption \| SelectOptionGroup` | `apps/web/src/components/ui/field.tsx:398` |  |
+| `TextareaElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'textarea'>` | `apps/web/src/components/ui/field.tsx:421` |  |
 | `Variant` <sub>local</sub> | `'primary' \| 'secondary' \| 'danger' \| 'ghost'` | `apps/web/src/components/ui/button.tsx:16` |  |

@@ -55,7 +55,7 @@ Resolves which organization a request belongs to, and keeps every other tenant's
 
 ## Workspace dependencies
 
-`@rcln/contracts` · `@rcln/db` · `@rcln/db/generated` · `@rcln/db/unsafe` · `@rcln/permissions`
+`@rcln/billing` · `@rcln/contracts` · `@rcln/db` · `@rcln/db/generated` · `@rcln/db/unsafe` · `@rcln/payments` · `@rcln/permissions`
 
 ## Known limitations
 
@@ -72,26 +72,27 @@ Resolves which organization a request belongs to, and keeps every other tenant's
 | `createDbClient` | fn | `packages/db/src/client.ts:23` |
 | `DbConfig` | interface | `packages/db/src/client.ts:13` |
 | `disconnectDb` | fn | `packages/db/src/client.ts:106` |
-| `forTenant` | fn | `packages/db/src/tenant.ts:160` |
+| `forTenant` | fn | `packages/db/src/tenant.ts:200` |
 | `getDbClient` | fn | `packages/db/src/client.ts:43` |
-| `getOrganization` | fn | `apps/api/src/services/organization/organization.service.ts:79` |
+| `getOrganization` | fn | `apps/api/src/services/organization/organization.service.ts:87` |
 | `invalidateTenantCache` | fn | `apps/api/src/middleware/tenant.middleware.ts:167` |
-| `isSlugAvailable` | fn | `apps/api/src/services/organization/register.service.ts:83` |
+| `isSlugAvailable` | fn | `apps/api/src/services/organization/register.service.ts:84` |
 | `listSettings` | fn | `apps/api/src/services/organization/setting.service.ts:212` |
-| `OrganizationActionOptions` | interface | `apps/api/src/services/organization/organization.service.ts:38` |
-| `RegisterOptions` | interface | `apps/api/src/services/organization/register.service.ts:49` |
-| `registerOrganization` | fn | `apps/api/src/services/organization/register.service.ts:94` |
-| `RegisterResult` | interface | `apps/api/src/services/organization/register.service.ts:56` |
+| `OrganizationActionOptions` | interface | `apps/api/src/services/organization/organization.service.ts:44` |
+| `RegisterOptions` | interface | `apps/api/src/services/organization/register.service.ts:50` |
+| `registerOrganization` | fn | `apps/api/src/services/organization/register.service.ts:95` |
+| `RegisterResult` | interface | `apps/api/src/services/organization/register.service.ts:57` |
 | `requireTenant` | fn | `apps/api/src/middleware/tenant.middleware.ts:147` |
 | `ResolvedTenant` | interface | `apps/api/src/middleware/tenant.middleware.ts:18` |
 | `resolveTenant` | fn | `apps/api/src/middleware/tenant.middleware.ts:116` |
 | `setSetting` | fn | `apps/api/src/services/organization/setting.service.ts:248` |
-| `setTenantContext` | fn | `packages/db/src/tenant.ts:109` |
+| `setTenantContext` | fn | `packages/db/src/tenant.ts:149` |
 | `SettingActionOptions` | interface | `apps/api/src/services/organization/setting.service.ts:39` |
-| `TenantClient` | type | `packages/db/src/tenant.ts:184` |
+| `TenantClient` | type | `packages/db/src/tenant.ts:224` |
 | `TenantContext` | interface | `packages/db/src/tenant.ts:24` |
-| `tenantHost` | fn | `apps/api/src/services/organization/register.service.ts:65` |
+| `tenantHost` | fn | `apps/api/src/services/organization/register.service.ts:66` |
 | `TxClient` | type | `packages/db/src/tenant.ts:55` |
-| `updateOrganization` | fn | `apps/api/src/services/organization/organization.service.ts:93` |
-| `withTenant` | fn | `packages/db/src/tenant.ts:135` |
+| `updateOrganization` | fn | `apps/api/src/services/organization/organization.service.ts:101` |
+| `withPaymentReference` | fn | `packages/db/src/tenant.ts:123` |
+| `withTenant` | fn | `packages/db/src/tenant.ts:175` |
 | `withUserIdentity` | fn | `packages/db/src/tenant.ts:83` |

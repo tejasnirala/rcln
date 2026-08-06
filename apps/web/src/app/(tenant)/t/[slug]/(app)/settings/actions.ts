@@ -39,6 +39,13 @@ export async function saveOrganization(
   const parsed = updateOrganizationRequest.safeParse({
     legalName: String(formData.get('legalName') ?? '').trim(),
     displayName: String(formData.get('displayName') ?? '').trim(),
+    countryCode: String(formData.get('countryCode') ?? '').trim(),
+    /*
+     * Blank is meaningful: it clears the state back to "not set", which falls
+     * the clinic to IGST. Sent as an empty string so the contract's transform
+     * turns it into null, the same way `gstNumber` is cleared below.
+     */
+    regionCode: String(formData.get('regionCode') ?? '').trim(),
     timezone: String(formData.get('timezone') ?? '').trim(),
     currency: String(formData.get('currency') ?? '').trim(),
     // An empty box is an instruction to clear it. The contract makes this field

@@ -11,7 +11,7 @@ Files: `apps/web/src/app/(platform)/platform/actions.ts` · `apps/web/src/app/(p
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `PlatformHome` | `()` | `apps/web/src/app/(platform)/platform/page.tsx:16` |  |
-| `PlatformLayout` | `({ children }: { children: React.ReactNode })` | `apps/web/src/app/(platform)/platform/layout.tsx:35` |  |
+| `PlatformLayout` | `({ children }: { children: React.ReactNode })` | `apps/web/src/app/(platform)/platform/layout.tsx:37` |  |
 
 ## action
 
@@ -25,7 +25,7 @@ Files: `apps/web/src/app/(platform)/platform/actions.ts` · `apps/web/src/app/(p
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(platform)/platform/layout.tsx:7` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(platform)/platform/layout.tsx:12` |  |
 
 ## type
 
