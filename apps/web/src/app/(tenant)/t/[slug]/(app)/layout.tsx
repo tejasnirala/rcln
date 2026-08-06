@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
-import { ImpersonationBanner } from '@/components/tenant/impersonation-banner';
+import { PlatformStrip } from '@/components/shell/platform-strip';
 import { TenantHeader } from '@/components/tenant/tenant-header';
 import { VerifyPrompt } from '@/components/tenant/verify-prompt';
 
@@ -45,8 +45,11 @@ export default async function TenantAppLayout({
 
   return (
     <div className="min-h-dvh">
+      {/* The same dark strip the console wears, in its `inside` mode. The bar is
+          rcln's and it follows you in. */}
       {impersonation ? (
-        <ImpersonationBanner
+        <PlatformStrip
+          mode="inside"
           slug={slug}
           organizationName={impersonation.organizationName}
           adminName={impersonation.adminName}

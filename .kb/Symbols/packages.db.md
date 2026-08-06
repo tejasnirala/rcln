@@ -14,10 +14,11 @@ Files: `packages/db/prisma.config.ts` · `packages/db/src/client.ts` · `package
 | `createDbClient` | `(config: DbConfig): PrismaClient` | `packages/db/src/client.ts:23` |  |
 | `disconnectDb` | `(): Promise<void>` | `packages/db/src/client.ts:106` |  |
 | `encodeBranchScope` <sub>local</sub> | `(branchIds: string[]): string` | `packages/db/src/tenant.ts:43` |  |
-| `forTenant` | `(ctx: TenantContext): ReturnType<PrismaClient['$extends']>` | `packages/db/src/tenant.ts:160` |  |
+| `forTenant` | `(ctx: TenantContext): ReturnType<PrismaClient['$extends']>` | `packages/db/src/tenant.ts:200` |  |
 | `getDbClient` | `(): PrismaClient` | `packages/db/src/client.ts:43` |  |
-| `setTenantContext` | `(tx: Pick<TxClient, '$executeRawUnsafe'>, ctx: TenantContext): Promise<void>` | `packages/db/src/tenant.ts:109` |  |
-| `withTenant` | `(ctx: TenantContext, fn: (tx: TxClient) => Promise<T>): Promise<T>` | `packages/db/src/tenant.ts:135` |  |
+| `setTenantContext` | `(tx: Pick<TxClient, '$executeRawUnsafe'>, ctx: TenantContext): Promise<void>` | `packages/db/src/tenant.ts:149` |  |
+| `withPaymentReference` | `(reference: string, fn: (tx: TxClient) => Promise<T>): Promise<T>` | `packages/db/src/tenant.ts:123` |  |
+| `withTenant` | `(ctx: TenantContext, fn: (tx: TxClient) => Promise<T>): Promise<T>` | `packages/db/src/tenant.ts:175` |  |
 | `withUserIdentity` | `(userId: string, fn: (tx: TxClient) => Promise<T>): Promise<T>` | `packages/db/src/tenant.ts:83` |  |
 
 ## const
@@ -44,5 +45,5 @@ Files: `packages/db/prisma.config.ts` · `packages/db/src/client.ts` · `package
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `TenantClient` | `ReturnType<typeof forTenant>` | `packages/db/src/tenant.ts:184` |  |
+| `TenantClient` | `ReturnType<typeof forTenant>` | `packages/db/src/tenant.ts:224` |  |
 | `TxClient` | `Omit< PrismaClient, '$connect' \| '$disconnect' \| '$on' \| '$transaction' \| '$extends' >` | `packages/db/src/tenant.ts:55` |  |

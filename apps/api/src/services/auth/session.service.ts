@@ -29,6 +29,48 @@ import { generateRefreshToken, hashRefreshToken } from './token.service.js';
 
 const REFRESH_TTL_DAYS = 30;
 
+/**
+ * The hard ceiling on an impersonation session, measured from when it started.
+ *
+ * WHY A SECOND KIND OF EXPIRY EXISTS AT ALL
+ *   `expires_at` is a SLIDING window: `rotateRefreshToken` pushes it forward on
+ *   every refresh. That is right for an ordinary session — someone using the
+ *   product should not be signed out mid-sentence — and it is exactly wrong as
+ *   the only bound on a super admin standing inside a clinic, because a tab left
+ *   open would renew itself indefinitely.
+ *
+ *   So an impersonation session has two deadlines. `expires_at` is the idle
+ *   timeout: stop working for half an hour and it is over. This is the absolute
+ *   one: eight hours after it began it ends, however busy the admin has been.
+ *
+ *   Derived from `sessions.created_at` rather than stored in its own column,
+ *   because it is a constant of the session type and not a property of the row —
+ *   a stored copy could disagree with the constant, and only one of the two would
+ *   be enforced.
+ *
+ * A WORKING DAY, DELIBERATELY. Long enough that nobody is interrupted while
+ * fixing something; short enough that it cannot become how someone works.
+ * ADR-0012 records why this replaced a flat thirty minutes with no renewal.
+ */
+export const IMPERSONATION_ABSOLUTE_TTL_SECONDS = 8 * 60 * 60;
+
+/**
+ * The idle window for an impersonation session: stop working for this long and it
+ * is over, whatever the ceiling says.
+ *
+ * HERE, not in impersonation.service.ts, because two places need the same number —
+ * `createSession` sets it and `rotateRefreshToken` re-applies it. It previously
+ * lived only in the service that creates the session, and the refresh path
+ * therefore never knew about it: the window was applied once and then replaced by
+ * the ordinary thirty-day slide on the first renewal. See `rotateRefreshToken`.
+ */
+export const IMPERSONATION_IDLE_TTL_SECONDS = 30 * 60;
+
+/** When an impersonation session that started at `startedAt` must end. */
+export function impersonationDeadline(startedAt: Date): Date {
+  return new Date(startedAt.getTime() + IMPERSONATION_ABSOLUTE_TTL_SECONDS * 1000);
+}
+
 export interface SessionRecord {
   id: string;
   userId: string;
@@ -36,11 +78,16 @@ export interface SessionRecord {
   activeBranchId: string | null;
   impersonatedByUserId: string | null;
   /**
-   * The hard stop. Thirty days for an ordinary session; thirty MINUTES for an
-   * impersonation, which is the only thing bounding it — there is no refresh
-   * token to rotate and therefore nothing to revoke on rotation.
+   * The idle timeout, and a SLIDING one — `rotateRefreshToken` pushes it forward
+   * on every refresh. Thirty days for an ordinary session, thirty minutes for an
+   * impersonation.
+   *
+   * For an impersonation this is NOT the last word: see
+   * `IMPERSONATION_ABSOLUTE_TTL_SECONDS`, which bounds it from `createdAt`.
    */
   expiresAt: Date;
+  /** When the session began. The anchor for the impersonation ceiling. */
+  createdAt: Date;
 }
 
 export interface IssuedSession extends SessionRecord {
@@ -60,9 +107,9 @@ export interface CreateSessionInput {
   ipAddress?: string | undefined;
   userAgent?: string | undefined;
   /**
-   * Override the 30-day default. An impersonation session gets ~30 MINUTES and
-   * is never rotated, so this column is its only hard stop — see
-   * impersonation.service.ts.
+   * Override the 30-day default. An impersonation session gets thirty MINUTES as
+   * its idle window, on top of the absolute ceiling `rotateRefreshToken` applies
+   * — see `IMPERSONATION_ABSOLUTE_TTL_SECONDS` and impersonation.service.ts.
    */
   expiresAt?: Date | undefined;
 }
@@ -91,6 +138,7 @@ export async function createSession(input: CreateSessionInput): Promise<IssuedSe
       activeBranchId: true,
       impersonatedByUserId: true,
       expiresAt: true,
+      createdAt: true,
     },
   });
 
@@ -110,6 +158,7 @@ export async function findLiveSession(sessionId: string): Promise<SessionRecord 
       activeBranchId: true,
       impersonatedByUserId: true,
       expiresAt: true,
+      createdAt: true,
     },
   });
 }
@@ -150,12 +199,52 @@ export async function rotateRefreshToken(presentedToken: string): Promise<Issued
       activeBranchId: true,
       impersonatedByUserId: true,
       expiresAt: true,
+      createdAt: true,
     },
   });
 
   if (!session) {
     throw new AuthenticationError('Session expired. Please sign in again.');
   }
+
+  /*
+   * BOTH DEADLINES, RE-APPLIED. An impersonation session renews like any other,
+   * but its idle window is thirty minutes rather than thirty days, and it can
+   * never pass eight hours from when it started.
+   *
+   * This is the one function that moves expiry forward, so it is the one place
+   * either bound can be enforced. That cuts both ways, and the first version of
+   * this clamp got it wrong in a way worth recording:
+   *
+   *   It took `min(ceiling, expiryDate())`. But `expiryDate()` is unconditionally
+   *   `now + 30 days`, so for an impersonation session the minimum was ALWAYS the
+   *   ceiling — `created_at + 8h` is earlier than `now + 30d` for the session's
+   *   whole life. The thirty-minute idle window was applied once, by
+   *   `createSession`, and then silently discarded by the first refresh. An
+   *   abandoned session held full access to a clinic's records for eight hours
+   *   instead of dying half an hour after last use, which is precisely the
+   *   exposure the ceiling was added to bound.
+   *
+   * So the SLIDING term is what varies by session type; the ceiling only trims it.
+   * The idle constant lives in this file rather than in impersonation.service.ts
+   * because both the create path and this one have to read the same number — them
+   * living in different modules is how the two drifted apart.
+   *
+   * Once `now` passes the ceiling the clamped `expires_at` is already in the past,
+   * so the `expiresAt: { gt: new Date() }` filter above stops matching and the
+   * session is simply gone — the same answer as any other expired session.
+   */
+  const impersonating = session.impersonatedByUserId !== null;
+
+  const slidingMs = impersonating
+    ? IMPERSONATION_IDLE_TTL_SECONDS * 1000
+    : REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+  const ceilingMs = impersonating
+    ? impersonationDeadline(session.createdAt).getTime()
+    : Number.POSITIVE_INFINITY;
+
+  const nextExpiry = new Date(Math.min(Date.now() + slidingMs, ceilingMs));
 
   const nextToken = generateRefreshToken();
 
@@ -165,7 +254,7 @@ export async function rotateRefreshToken(presentedToken: string): Promise<Issued
       refreshTokenHash: hashRefreshToken(nextToken),
       previousTokenHash: presentedHash,
       lastUsedAt: new Date(),
-      expiresAt: expiryDate(),
+      expiresAt: nextExpiry,
     },
   });
 

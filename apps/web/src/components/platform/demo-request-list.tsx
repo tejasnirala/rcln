@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { provisionClinic, type ProvisionState } from '@/app/(platform)/platform/actions';
 import { cn } from '@/lib/cn';
-import { describedBy, Field, inputClass } from '@/components/ui/field';
+import { Input, Select, type SelectOption } from '@/components/ui/field';
 
 /**
  * The lead pipeline, and the one action that can be taken on it.
@@ -28,6 +28,13 @@ export interface DemoRequest {
 }
 
 const INITIAL: ProvisionState = { status: 'idle' };
+
+/** The plans a clinic can be provisioned onto. Codes are the API's. */
+const PLAN_CODES: SelectOption[] = [
+  { value: 'STARTER', label: 'Starter' },
+  { value: 'GROWTH', label: 'Growth' },
+  { value: 'ENTERPRISE', label: 'Enterprise' },
+];
 
 const STATUS_LABEL: Record<string, string> = {
   NEW: 'New',
@@ -172,165 +179,87 @@ function ProvisionForm({ request, onDone }: { request: DemoRequest; onDone: () =
       <input type="hidden" name="demoRequestId" value={request.id} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          name={`displayName-${request.id}`}
+        <Input
+          id={`displayName-${request.id}`}
+          name="displayName"
           label="Clinic name"
           errors={err('organization.displayName')}
-        >
-          <input
-            id={`displayName-${request.id}`}
-            name="displayName"
-            defaultValue={request.clinicName}
-            className={inputClass}
-            aria-invalid={Boolean(err('organization.displayName'))}
-            aria-describedby={describedBy(
-              `displayName-${request.id}`,
-              false,
-              Boolean(err('organization.displayName'))
-            )}
-          />
-        </Field>
+          defaultValue={request.clinicName}
+        />
 
-        <Field
-          name={`legalName-${request.id}`}
+        <Input
+          id={`legalName-${request.id}`}
+          name="legalName"
           label="Registered name"
           errors={err('organization.legalName')}
-        >
-          <input
-            id={`legalName-${request.id}`}
-            name="legalName"
-            defaultValue={request.clinicName}
-            className={inputClass}
-            aria-invalid={Boolean(err('organization.legalName'))}
-            aria-describedby={describedBy(
-              `legalName-${request.id}`,
-              false,
-              Boolean(err('organization.legalName'))
-            )}
-          />
-        </Field>
+          defaultValue={request.clinicName}
+        />
 
-        <Field
-          name={`slug-${request.id}`}
+        <Input
+          id={`slug-${request.id}`}
+          name="slug"
           label="Subdomain"
           hint="Confirm with the clinic before provisioning — it does not change later."
           errors={err('organization.slug')}
-        >
-          <input
-            id={`slug-${request.id}`}
-            name="slug"
-            defaultValue={suggestSlug(request.clinicName)}
-            className={cn(inputClass, 'font-mono')}
-            aria-invalid={Boolean(err('organization.slug'))}
-            aria-describedby={describedBy(
-              `slug-${request.id}`,
-              true,
-              Boolean(err('organization.slug'))
-            )}
-          />
-        </Field>
+          defaultValue={suggestSlug(request.clinicName)}
+          className="font-mono"
+        />
 
-        <Field name={`branchName-${request.id}`} label="First location" errors={err('branch.name')}>
-          <input
-            id={`branchName-${request.id}`}
-            name="branchName"
-            defaultValue={request.clinicName}
-            className={inputClass}
-            aria-invalid={Boolean(err('branch.name'))}
-            aria-describedby={describedBy(
-              `branchName-${request.id}`,
-              false,
-              Boolean(err('branch.name'))
-            )}
-          />
-        </Field>
+        <Input
+          id={`branchName-${request.id}`}
+          name="branchName"
+          label="First location"
+          errors={err('branch.name')}
+          defaultValue={request.clinicName}
+        />
 
-        <Field name={`fullName-${request.id}`} label="Owner name" errors={err('owner.fullName')}>
-          <input
-            id={`fullName-${request.id}`}
-            name="fullName"
-            defaultValue={request.contactName}
-            className={inputClass}
-            aria-invalid={Boolean(err('owner.fullName'))}
-            aria-describedby={describedBy(
-              `fullName-${request.id}`,
-              false,
-              Boolean(err('owner.fullName'))
-            )}
-          />
-        </Field>
+        <Input
+          id={`fullName-${request.id}`}
+          name="fullName"
+          label="Owner name"
+          errors={err('owner.fullName')}
+          defaultValue={request.contactName}
+        />
 
-        <Field name={`email-${request.id}`} label="Owner email" errors={err('owner.email')}>
-          <input
-            id={`email-${request.id}`}
-            name="email"
-            type="email"
-            defaultValue={request.email}
-            className={inputClass}
-            aria-invalid={Boolean(err('owner.email'))}
-            aria-describedby={describedBy(
-              `email-${request.id}`,
-              false,
-              Boolean(err('owner.email'))
-            )}
-          />
-        </Field>
+        <Input
+          id={`email-${request.id}`}
+          name="email"
+          label="Owner email"
+          errors={err('owner.email')}
+          type="email"
+          defaultValue={request.email}
+        />
 
-        <Field name={`phone-${request.id}`} label="Owner mobile" errors={err('owner.phone')}>
-          <input
-            id={`phone-${request.id}`}
-            name="phone"
-            type="tel"
-            defaultValue={request.phone}
-            className={cn(inputClass, 'font-mono')}
-            aria-invalid={Boolean(err('owner.phone'))}
-            aria-describedby={describedBy(
-              `phone-${request.id}`,
-              false,
-              Boolean(err('owner.phone'))
-            )}
-          />
-        </Field>
+        <Input
+          id={`phone-${request.id}`}
+          name="phone"
+          label="Owner mobile"
+          errors={err('owner.phone')}
+          type="tel"
+          defaultValue={request.phone}
+          className="font-mono"
+        />
 
-        <Field
-          name={`password-${request.id}`}
+        <Input
+          id={`password-${request.id}`}
+          name="password"
           label="Temporary password"
           hint="At least 12 characters, an uppercase letter and a digit. Send it to them separately."
           errors={err('owner.password')}
-        >
-          <input
-            id={`password-${request.id}`}
-            name="password"
-            type="text"
-            autoComplete="off"
-            className={cn(inputClass, 'font-mono')}
-            aria-invalid={Boolean(err('owner.password'))}
-            aria-describedby={describedBy(
-              `password-${request.id}`,
-              true,
-              Boolean(err('owner.password'))
-            )}
-          />
-        </Field>
+          type="text"
+          autoComplete="off"
+          className="font-mono"
+        />
 
-        <Field name={`city-${request.id}`} label="City" errors={err('branch.city')}>
-          <input
-            id={`city-${request.id}`}
-            name="city"
-            defaultValue={request.city ?? ''}
-            className={inputClass}
-            aria-invalid={Boolean(err('branch.city'))}
-            aria-describedby={describedBy(`city-${request.id}`, false, Boolean(err('branch.city')))}
-          />
-        </Field>
+        <Input
+          id={`city-${request.id}`}
+          name="city"
+          label="City"
+          errors={err('branch.city')}
+          defaultValue={request.city ?? ''}
+        />
 
-        <Field name={`planCode-${request.id}`} label="Plan">
-          <select id={`planCode-${request.id}`} name="planCode" className={inputClass}>
-            <option value="STARTER">Starter</option>
-            <option value="GROWTH">Growth</option>
-            <option value="ENTERPRISE">Enterprise</option>
-          </select>
-        </Field>
+        <Select id={`planCode-${request.id}`} name="planCode" label="Plan" options={PLAN_CODES} />
       </div>
 
       {state.status === 'error' && state.message ? (

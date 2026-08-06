@@ -11,19 +11,19 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `accessTokenLifetimeSeconds` | `(): number` | `apps/api/src/services/auth/token.service.ts:109` | Seconds until an access token expires, for the `expiresIn` field of authSession. |
-| `buildAuthSession` | `(input: BuildSessionInput): Promise<AuthSession>` | `apps/api/src/services/auth/login.service.ts:203` |  |
+| `buildAuthSession` | `(input: BuildSessionInput): Promise<AuthSession>` | `apps/api/src/services/auth/login.service.ts:248` |  |
 | `cacheKey` <sub>local</sub> | `(userId: string, organizationId: string): string` | `apps/api/src/services/auth/access.service.ts:51` |  |
 | `confirmVerification` | `(input: ConfirmVerificationInput): Promise<VerificationResult>` | `apps/api/src/services/auth/verification.service.ts:154` |  |
 | `consumeChallenge` | `(input: { purpose: AuthTokenPurpose; identifier: string; cod…): Promise<string>` | `apps/api/src/services/auth/challenge.service.ts:98` |  |
 | `contactState` <sub>local</sub> | `(userId: string, channel: VerificationChannel): Promise<ContactState>` | `apps/api/src/services/auth/verification.service.ts:76` |  |
-| `createSession` | `(input: CreateSessionInput): Promise<IssuedSession>` | `apps/api/src/services/auth/session.service.ts:70` |  |
-| `defaultBranchId` <sub>local</sub> | `(organizationId: string, userId: string, branchIds: string[]): Promise<string \| null>` | `apps/api/src/services/auth/login.service.ts:170` |  |
-| `describeSession` | `(userId: string, organizationId: string \| null, branchId: string \| null, tokens: { accessToken: string; refreshToken: string }, impersonation: ImpersonationDescriptor \| null): Promise<AuthSession>` | `apps/api/src/services/auth/login.service.ts:301` | Re-assemble the session response for an already-authenticated caller, without minting new tokens. Backs GET /auth/session and the switch endpoints. |
+| `createSession` | `(input: CreateSessionInput): Promise<IssuedSession>` | `apps/api/src/services/auth/session.service.ts:117` |  |
+| `defaultBranchId` | `(organizationId: string, userId: string, branchIds: string[], membershipId: string): Promise<string \| null>` | `apps/api/src/services/auth/login.service.ts:197` |  |
+| `describeSession` | `(userId: string, organizationId: string \| null, branchId: string \| null, tokens: { accessToken: string; refreshToken: string }, impersonation: ImpersonationDescriptor \| null): Promise<AuthSession>` | `apps/api/src/services/auth/login.service.ts:352` | Re-assemble the session response for an already-authenticated caller, without minting new tokens. Backs GET /auth/session and the switch endpoints. |
 | `dummyHash` | `(): Promise<string>` | `apps/api/src/services/auth/password.service.ts:54` |  |
-| `expiryDate` <sub>local</sub> | `(): Date` | `apps/api/src/services/auth/session.service.ts:51` |  |
+| `expiryDate` <sub>local</sub> | `(): Date` | `apps/api/src/services/auth/session.service.ts:98` |  |
 | `fakeVerify` | `(plain: string): Promise<void>` | `apps/api/src/services/auth/password.service.ts:63` | Burn the same work as a real verification, for a user that does not exist. The result is discarded; only the elapsed time matters. |
-| `findLiveSession` | `(sessionId: string): Promise<SessionRecord \| null>` | `apps/api/src/services/auth/session.service.ts:101` | Load a live session by id. Returns null if revoked, expired or absent. |
-| `findUserByIdentifier` | `(identifier: string): Promise<{ id: string; passwordHash: string \| null; status: …` | `apps/api/src/services/auth/login.service.ts:54` |  |
+| `findLiveSession` | `(sessionId: string): Promise<SessionRecord \| null>` | `apps/api/src/services/auth/session.service.ts:149` | Load a live session by id. Returns null if revoked, expired or absent. |
+| `findUserByIdentifier` | `(identifier: string): Promise<{ id: string; passwordHash: string \| null; status: …` | `apps/api/src/services/auth/login.service.ts:59` |  |
 | `generateInviteToken` | `(): string` | `apps/api/src/services/auth/token.service.ts:154` |  |
 | `generateOtpCode` | `(): string` | `apps/api/src/services/auth/token.service.ts:164` | A numeric OTP of the configured length, zero-padded, uniformly random. |
 | `generateRefreshToken` | `(): string` | `apps/api/src/services/auth/token.service.ts:121` | 256 bits of entropy, url-safe. Returned to the caller exactly once. |
@@ -33,6 +33,7 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | `hashPassword` | `(plain: string): Promise<string>` | `apps/api/src/services/auth/password.service.ts:25` |  |
 | `hashRefreshToken` | `(token: string): string` | `apps/api/src/services/auth/token.service.ts:132` |  |
 | `hasPermission` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean, permission: PermissionCode): boolean` | `apps/api/src/services/auth/access.service.ts:268` |  |
+| `impersonationDeadline` | `(startedAt: Date): Date` | `apps/api/src/services/auth/session.service.ts:70` | When an impersonation session that started at `startedAt` must end. |
 | `invalidateOrganizationAccess` | `(organizationId: string): Promise<void>` | `apps/api/src/services/auth/access.service.ts:201` |  |
 | `invalidateUserAccess` | `(userId: string, organizationId: string): Promise<void>` | `apps/api/src/services/auth/access.service.ts:181` | Call after any write to membership_roles or membership_permission_overrides. |
 | `isLockedOut` | `(lockedUntil: Date \| null): boolean` | `apps/api/src/services/auth/password.service.ts:67` |  |
@@ -40,7 +41,7 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | `issueChallenge` | `(input: { userId: string; purpose: AuthTokenPurpose; /** The…): Promise<IssuedChallenge>` | `apps/api/src/services/auth/challenge.service.ts:68` |  |
 | `listMemberships` | `(userId: string): Promise<MembershipSummaryRow[]>` | `apps/api/src/services/auth/access.service.ts:300` |  |
 | `load` <sub>local</sub> | `(userId: string, organizationId: string): Promise<UserAccess \| null>` | `apps/api/src/services/auth/access.service.ts:73` |  |
-| `loadAuthenticatedUser` | `(userId: string): Promise<AuthenticatedUser>` | `apps/api/src/services/auth/login.service.ts:136` |  |
+| `loadAuthenticatedUser` | `(userId: string): Promise<AuthenticatedUser>` | `apps/api/src/services/auth/login.service.ts:141` |  |
 | `loadUserAccess` | `(userId: string, organizationId: string): Promise<UserAccess \| null>` | `apps/api/src/services/auth/access.service.ts:160` |  |
 | `lockoutUntil` | `(failedAttempts: number): Date \| null` | `apps/api/src/services/auth/password.service.ts:75` | The next value for `users.locked_until` after a failed attempt, given the failure count that includes this one. Null means "not locked yet". |
 | `organizationBranchIds` | `(organizationId: string, userId: string): Promise<string[]>` | `apps/api/src/services/auth/access.service.ts:228` |  |
@@ -48,14 +49,14 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | `requestOtp` | `(phone: string): Promise<OtpRequestOutcome>` | `apps/api/src/services/auth/otp.service.ts:29` |  |
 | `requestVerification` | `(userId: string, channel: VerificationChannel): Promise<VerificationRequest>` | `apps/api/src/services/auth/verification.service.ts:98` |  |
 | `revive` <sub>local</sub> | `(cached: CachedAccess): UserAccess` | `apps/api/src/services/auth/access.service.ts:62` |  |
-| `revokeFamily` | `(userId: string): Promise<void>` | `apps/api/src/services/auth/session.service.ts:184` | Every live session for one user. The response to a suspected token theft. |
-| `revokeSession` | `(sessionId: string): Promise<void>` | `apps/api/src/services/auth/session.service.ts:175` |  |
-| `rotateRefreshToken` | `(presentedToken: string): Promise<IssuedSession>` | `apps/api/src/services/auth/session.service.ts:123` | Exchange a refresh token for a new one. Throws `AuthenticationError` on anything suspicious, having first revoked the family when the token was a rotated one. |
-| `setActiveScope` | `(sessionId: string, organizationId: string \| null, branchId: string \| null): Promise<void>` | `apps/api/src/services/auth/session.service.ts:200` |  |
+| `revokeFamily` | `(userId: string): Promise<void>` | `apps/api/src/services/auth/session.service.ts:273` | Every live session for one user. The response to a suspected token theft. |
+| `revokeSession` | `(sessionId: string): Promise<void>` | `apps/api/src/services/auth/session.service.ts:264` |  |
+| `rotateRefreshToken` | `(presentedToken: string): Promise<IssuedSession>` | `apps/api/src/services/auth/session.service.ts:172` | Exchange a refresh token for a new one. Throws `AuthenticationError` on anything suspicious, having first revoked the family when the token was a rotated one. |
+| `setActiveScope` | `(sessionId: string, organizationId: string \| null, branchId: string \| null): Promise<void>` | `apps/api/src/services/auth/session.service.ts:289` |  |
 | `signAccessToken` | `(claims: AccessTokenClaims, lifetimeSeconds?: number): string` | `apps/api/src/services/auth/token.service.ts:58` |  |
 | `toAccessContext` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean): AccessContext` | `apps/api/src/services/auth/access.service.ts:243` |  |
 | `verifyAccessToken` | `(token: string): AccessTokenClaims` | `apps/api/src/services/auth/token.service.ts:91` |  |
-| `verifyCredentials` | `(identifier: string, password: string): Promise<string>` | `apps/api/src/services/auth/login.service.ts:86` | Verify a password, applying and maintaining the lockout counter. Returns the user id. Throws `AuthenticationError` for every failure mode, always with the same… |
+| `verifyCredentials` | `(identifier: string, password: string): Promise<string>` | `apps/api/src/services/auth/login.service.ts:91` | Verify a password, applying and maintaining the lockout counter. Returns the user id. Throws `AuthenticationError` for every failure mode, always with the same… |
 | `verifyOtp` | `(phone: string, code: string): Promise<string>` | `apps/api/src/services/auth/otp.service.ts:68` |  |
 | `verifyPassword` | `(plain: string, passwordHash: string): Promise<boolean>` | `apps/api/src/services/auth/password.service.ts:35` | Verify a password against a stored hash. Returns false rather than throwing on a malformed hash: a corrupt row must fail the login, not 500 the endpoint. |
 
@@ -66,7 +67,9 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | `ARGON2` <sub>local</sub> | `{ memoryCost: 19_456, timeCost: 2, parallelism: 1, } as const` | `apps/api/src/services/auth/password.service.ts:12` |  |
 | `CACHE_TTL_SECONDS` <sub>local</sub> | `60` | `apps/api/src/services/auth/access.service.ts:50` |  |
 | `CHANNELS` <sub>local</sub> | `{ email: { purpose: 'VERIFY_EMAIL', field: 'emailVerifiedAt', /** The user-facing name of…` | `apps/api/src/services/auth/verification.service.ts:56` | Everything that differs between the two channels, in one place. |
-| `INVALID_CREDENTIALS` <sub>local</sub> | `'Those credentials are not valid.'` | `apps/api/src/services/auth/login.service.ts:52` |  |
+| `IMPERSONATION_ABSOLUTE_TTL_SECONDS` | `8 * 60 * 60` | `apps/api/src/services/auth/session.service.ts:55` |  |
+| `IMPERSONATION_IDLE_TTL_SECONDS` | `30 * 60` | `apps/api/src/services/auth/session.service.ts:67` |  |
+| `INVALID_CREDENTIALS` <sub>local</sub> | `'Those credentials are not valid.'` | `apps/api/src/services/auth/login.service.ts:57` |  |
 | `LOCKOUT_MINUTES` | `15` | `apps/api/src/services/auth/password.service.ts:23` | How long a lockout lasts. Long enough to kill online guessing, short enough that a real user who fat-fingered their password is not calling support. |
 | `MAX_FAILED_ATTEMPTS` | `5` | `apps/api/src/services/auth/password.service.ts:19` | Lock the account after this many consecutive failures. |
 | `REFRESH_TTL_DAYS` <sub>local</sub> | `30` | `apps/api/src/services/auth/session.service.ts:30` |  |
@@ -76,27 +79,27 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `dummyHashPromise` <sub>local</sub> | `: Promise<string> \| null` | `apps/api/src/services/auth/password.service.ts:52` |  |
-| `refreshTokenMaxAgeSeconds` | `REFRESH_TTL_DAYS * 24 * 60 * 60` | `apps/api/src/services/auth/session.service.ts:217` | Cookie/expiry hint for the web BFF. |
-| `refreshTokenTtlSetting` | `config.jwt.refreshTokenExpiresIn` | `apps/api/src/services/auth/session.service.ts:220` | Kept for symmetry with config; the TTL is not currently env-tunable. |
+| `refreshTokenMaxAgeSeconds` | `REFRESH_TTL_DAYS * 24 * 60 * 60` | `apps/api/src/services/auth/session.service.ts:306` | Cookie/expiry hint for the web BFF. |
+| `refreshTokenTtlSetting` | `config.jwt.refreshTokenExpiresIn` | `apps/api/src/services/auth/session.service.ts:309` | Kept for symmetry with config; the TTL is not currently env-tunable. |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `AccessTokenClaims` | `{ userId, sessionId, isPlatformAdmin, membershipId, organizationId, branchId, impersonatedByUserId }` | `apps/api/src/services/auth/token.service.ts:29` |  |
-| `AuthenticatedUser` | `{ id, fullName, email, phone, isPlatformAdmin, mfaEnabled, emailVerified, phoneVerified }` | `apps/api/src/services/auth/login.service.ts:27` |  |
-| `BuildSessionInput` | `{ user, organizationId, ipAddress, userAgent }` | `apps/api/src/services/auth/login.service.ts:188` |  |
+| `AuthenticatedUser` | `{ id, fullName, email, phone, isPlatformAdmin, mfaEnabled, emailVerified, phoneVerified, lastPlatformOrganizationId }` | `apps/api/src/services/auth/login.service.ts:27` |  |
+| `BuildSessionInput` | `{ user, organizationId, ipAddress, userAgent }` | `apps/api/src/services/auth/login.service.ts:233` |  |
 | `CachedAccess` <sub>local</sub> | `{ roleAssignments }` | `apps/api/src/services/auth/access.service.ts:55` | Dates do not survive JSON, so validity windows are revived on read. |
 | `ConfirmVerificationInput` | `{ userId, channel, code, tenant, ipAddress, userAgent }` | `apps/api/src/services/auth/verification.service.ts:135` |  |
 | `ContactState` <sub>local</sub> | `{ destination, verifiedAt }` | `apps/api/src/services/auth/verification.service.ts:70` |  |
-| `CreateSessionInput` | `{ userId, activeOrganizationId, activeBranchId, impersonatedByUserId, ipAddress, userAgent, expiresAt }` | `apps/api/src/services/auth/session.service.ts:55` |  |
-| `ImpersonationDescriptor` | `{ organizationName, adminName, expiresAt }` | `apps/api/src/services/auth/login.service.ts:291` |  |
+| `CreateSessionInput` | `{ userId, activeOrganizationId, activeBranchId, impersonatedByUserId, ipAddress, userAgent, expiresAt }` | `apps/api/src/services/auth/session.service.ts:102` |  |
+| `ImpersonationDescriptor` | `{ organizationName, adminName, expiresAt }` | `apps/api/src/services/auth/login.service.ts:342` |  |
 | `IssuedChallenge` | `{ code, expiresAt }` | `apps/api/src/services/auth/challenge.service.ts:54` |  |
-| `IssuedSession` | `{ refreshToken }` | `apps/api/src/services/auth/session.service.ts:46` |  |
+| `IssuedSession` | `{ refreshToken }` | `apps/api/src/services/auth/session.service.ts:93` |  |
 | `JwtPayload` <sub>local</sub> | `{ sub, sid, pa, mid, oid, bid, imp }` | `apps/api/src/services/auth/token.service.ts:40` | Short keys: this rides on every request, and headers have size limits. |
 | `MembershipSummaryRow` | `{ organizationId, organizationName, organizationSlug, roles, branches }` | `apps/api/src/services/auth/access.service.ts:292` |  |
 | `OtpRequestOutcome` | `{ accepted }` | `apps/api/src/services/auth/otp.service.ts:24` | Requesting a code must never reveal whether the number has an account. |
-| `SessionRecord` | `{ id, userId, activeOrganizationId, activeBranchId, impersonatedByUserId, expiresAt }` | `apps/api/src/services/auth/session.service.ts:32` |  |
+| `SessionRecord` | `{ id, userId, activeOrganizationId, activeBranchId, impersonatedByUserId, expiresAt, createdAt }` | `apps/api/src/services/auth/session.service.ts:74` |  |
 | `UserAccess` | `{ membershipId, organizationId, branchIds, roleAssignments, overrides }` | `apps/api/src/services/auth/access.service.ts:41` |  |
 | `VerificationRequest` | `{ sent, alreadyVerified, expiresInSeconds }` | `apps/api/src/services/auth/verification.service.ts:42` |  |
 | `VerificationResult` | `{ verified, alreadyVerified }` | `apps/api/src/services/auth/verification.service.ts:49` |  |

@@ -93,6 +93,46 @@ export async function withUserIdentity<T>(
 }
 
 /**
+ * Run a unit of work that may read ONE payment intent, by an id it already has.
+ *
+ * THE PROBLEM IT SOLVES
+ *   A payment provider POSTs a webhook to a public endpoint. There is no host to
+ *   resolve a tenant from, no session, and no user — and `payment_intents` is
+ *   RLS-enforced, so a read with no context returns nothing. Which organization
+ *   the webhook concerns is written on the intent row we cannot read. That is
+ *   the same circularity `withUserIdentity` solves for memberships.
+ *
+ * HOW THIS IS SAFE
+ *   It sets ONLY `app.payment_reference`, leaving `app.current_org` unset. The
+ *   matching policy is
+ *       USING (app_current_org() IS NULL AND id = app_payment_reference())
+ *   so it grants exactly one row: the one whose uuid you already named, and only
+ *   in a transaction that has claimed no tenant. It cannot enumerate — there is
+ *   no predicate that matches more than a single primary key — and it cannot
+ *   widen an ordinary request, because a normal request always has
+ *   app.current_org set, which switches the policy off entirely.
+ *
+ *   It is SELECT-only at the database. Nothing is writable through it.
+ *
+ * ⚠️ CALL IT ONLY WITH A REFERENCE FROM A VERIFIED WEBHOOK.
+ *   The uuid is the capability. It is random, it is known only to us and to the
+ *   provider, and the route that supplies it has already checked the signature
+ *   over the exact bytes. Passing a reference straight from an unauthenticated
+ *   request body would turn this into an oracle for "does this id exist".
+ */
+export async function withPaymentReference<T>(
+  reference: string,
+  fn: (tx: TxClient) => Promise<T>
+): Promise<T> {
+  const prisma = getDbClient();
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SELECT set_config('app.payment_reference', $1, true)`, reference);
+    return fn(tx as TxClient);
+  });
+}
+
+/**
  * Apply the tenant session variables to a transaction already in flight.
  *
  * `withTenant` is the right tool whenever the tenant is known before the work

@@ -14,7 +14,10 @@
  *        cross-tenant case, and the ticket is the only thing that crosses a host
  *        boundary anywhere in this product.
  *     4. Every write carries BOTH actor ids.
- *     5. The session cannot outlive its half hour, and nothing can renew it.
+ *     5. The session renews while it is used, but cannot outlive its ceiling —
+ *        eight hours from when it started, thirty minutes idle. ADR-0012 named a
+ *        refresh token as the way to break this, so the clamp that makes one safe
+ *        is measured here rather than trusted.
  *
  * TWO ORGANIZATIONS, for the same reason settings.test.ts uses two: a
  * single-tenant version of case 3 passes whether or not the check exists.
@@ -56,6 +59,7 @@ function payload(slug: string, label: string) {
       displayName: label,
       slug,
       orgType: 'CLINIC' as const,
+      countryCode: 'IN',
       timezone: 'Asia/Kolkata',
       currency: 'INR',
     },
@@ -109,6 +113,19 @@ async function claimAt(slug: string, handoffToken: string) {
     .post('/api/v1/auth/impersonation/claim')
     .set('Host', hostFor(slug))
     .send({ handoffToken });
+}
+
+/**
+ * Renew a session at a clinic's host. Unauthenticated by design — the access
+ * token is expected to be dead, which is why the caller is here — but still
+ * metered by `authLimiter`, hence the bucket clear.
+ */
+async function refreshAt(slug: string, refreshToken: string) {
+  await clearRateLimits();
+  return request(app)
+    .post('/api/v1/auth/refresh')
+    .set('Host', hostFor(slug))
+    .send({ refreshToken });
 }
 
 /** Start to finish: ticket, claim, access token. */
@@ -347,12 +364,18 @@ describe('the session it buys', () => {
     expect(session.body.data.impersonation.organizationName).toBe('Imp A');
   });
 
-  it('hands back NO refresh token, and expires in thirty minutes', async () => {
+  it('hands back a refresh token, and a thirty-minute idle window', async () => {
     const granted = await ticketFor(orgA.organizationId);
     const claimed = await claimAt(SLUG_A, granted.body.data.handoffToken);
 
-    expect(claimed.body.data.refreshToken).toBe('');
-    expect(claimed.body.data.expiresIn).toBe(1800);
+    /*
+     * This used to assert the opposite — no refresh token at all — and that WAS
+     * the guarantee: `sessions.expires_at` was the whole of the session's life.
+     * ADR-0012 was amended because a half-hour unrenewable session is not a
+     * control, it is a reason to keep a second tab open. The bound is now the
+     * ceiling, pinned by the test below.
+     */
+    expect(claimed.body.data.refreshToken).not.toBe('');
 
     const row = await owner.query(
       `SELECT round(extract(epoch FROM (expires_at - created_at))) AS ttl,
@@ -362,10 +385,122 @@ describe('the session it buys', () => {
         ORDER BY created_at DESC LIMIT 1`,
       [adminUserId]
     );
-    // 30 minutes, not the 30 days an ordinary session gets.
+    // The IDLE window: 30 minutes, not the 30 days an ordinary session gets.
     expect(Number(row.rows[0].ttl)).toBe(1800);
     // The admin acts as themselves; the second id is what marks the session.
     expect(row.rows[0].impersonated_by_user_id).toBe(row.rows[0].user_id);
+  });
+
+  /**
+   * A REFRESH KEEPS THE IDLE WINDOW AT THIRTY MINUTES.
+   *
+   * `rotateRefreshToken` sets `expires_at` to thirty DAYS for an ordinary session,
+   * which ADR-0012 named as the way to break impersonation. The first version of
+   * the clamp took `min(ceiling, thirty days)` — and since the ceiling is always
+   * nearer than thirty days, every refresh silently promoted the session to the
+   * full eight hours and the idle window stopped existing. This measures the thing
+   * that was wrong: after renewing, the session must still die half an hour after
+   * its LAST use, not eight hours after its first.
+   */
+  it('renews to thirty minutes from now, not to the ceiling', async () => {
+    const granted = await ticketFor(orgA.organizationId);
+    const claimed = await claimAt(SLUG_A, granted.body.data.handoffToken);
+
+    const refreshed = await refreshAt(SLUG_A, claimed.body.data.refreshToken as string);
+    expect(refreshed.status).toBe(200);
+
+    const row = await owner.query(
+      `SELECT round(extract(epoch FROM (expires_at - now()))) AS remaining
+         FROM sessions
+        WHERE impersonated_by_user_id = $1
+        ORDER BY created_at DESC LIMIT 1`,
+      [adminUserId]
+    );
+
+    // Thirty minutes from NOW, give or take the second this took to run. Not the
+    // eight-hour ceiling, and emphatically not thirty days.
+    expect(Number(row.rows[0].remaining)).toBeGreaterThan(29 * 60);
+    expect(Number(row.rows[0].remaining)).toBeLessThanOrEqual(30 * 60);
+  });
+
+  /**
+   * THE CEILING, exercised where it actually bites.
+   *
+   * The clamp only has an effect in the last half hour before the deadline, so a
+   * fresh session cannot demonstrate it — which is exactly why the first version of
+   * this test proved nothing. `created_at` is dragged back to seven hours fifty
+   * minutes so the next renewal's thirty-minute window would overshoot, and the
+   * ceiling has to trim it.
+   */
+  it('will not renew past eight hours from when it started', async () => {
+    const granted = await ticketFor(orgA.organizationId);
+    const claimed = await claimAt(SLUG_A, granted.body.data.handoffToken);
+    const refreshToken = claimed.body.data.refreshToken as string;
+
+    /*
+     * Pinned by id, and that matters. Earlier cases in this suite leave their own
+     * un-revoked impersonation sessions behind, so a `WHERE impersonated_by_user_id`
+     * update backdates all of them and `ORDER BY created_at DESC` then returns an
+     * arbitrary one — which is how the first version of this test read 8h20m off a
+     * session it had never refreshed and reported a clamp failure that was its own.
+     */
+    const found = await owner.query(
+      `SELECT id FROM sessions
+        WHERE impersonated_by_user_id = $1 AND revoked_at IS NULL
+        ORDER BY created_at DESC LIMIT 1`,
+      [adminUserId]
+    );
+    const sessionId = found.rows[0].id as string;
+
+    // Old enough that thirty more minutes would breach the ceiling, still inside
+    // its idle window so the renewal itself is legitimate.
+    await owner.query(
+      `UPDATE sessions SET created_at = now() - interval '7 hours 50 minutes' WHERE id = $1`,
+      [sessionId]
+    );
+
+    expect((await refreshAt(SLUG_A, refreshToken)).status).toBe(200);
+
+    const row = await owner.query(
+      `SELECT round(extract(epoch FROM (expires_at - created_at))) AS ttl,
+              round(extract(epoch FROM (expires_at - now()))) AS remaining
+         FROM sessions WHERE id = $1`,
+      [sessionId]
+    );
+
+    // Trimmed to the ceiling: exactly eight hours from creation, and therefore
+    // only the ten minutes that were left rather than a fresh thirty.
+    expect(Number(row.rows[0].ttl)).toBe(8 * 60 * 60);
+    expect(Number(row.rows[0].remaining)).toBeLessThanOrEqual(10 * 60);
+  });
+
+  /**
+   * An ordinary session must NOT have picked up the ceiling. The clamp keys on
+   * `impersonated_by_user_id`, and a clamp that applied to everyone would sign the
+   * whole customer base out every eight hours.
+   */
+  it('leaves an ordinary session on the full thirty days', async () => {
+    await clearRateLimits();
+    const signedIn = await request(app)
+      .post('/api/v1/auth/login')
+      .set('Host', hostFor(SLUG_A))
+      .send({ identifier: `${SLUG_A}@example.test`, password: PASSWORD });
+
+    expect(signedIn.status).toBe(200);
+
+    const refreshed = await refreshAt(SLUG_A, signedIn.body.data.refreshToken as string);
+    expect(refreshed.status).toBe(200);
+
+    const row = await owner.query(
+      `SELECT round(extract(epoch FROM (expires_at - now()))) AS remaining
+         FROM sessions
+        WHERE user_id = $1 AND impersonated_by_user_id IS NULL AND revoked_at IS NULL
+        ORDER BY created_at DESC LIMIT 1`,
+      [orgA.ownerUserId]
+    );
+
+    // Thirty days, give or take the second this took to run.
+    expect(Number(row.rows[0].remaining)).toBeGreaterThan(29 * 24 * 60 * 60);
   });
 
   it('is dead once the row expires, whatever the token says', async () => {

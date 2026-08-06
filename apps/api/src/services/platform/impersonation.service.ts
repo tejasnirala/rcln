@@ -9,7 +9,12 @@ import {
   loadAuthenticatedUser,
   type ImpersonationDescriptor,
 } from '../auth/login.service.js';
-import { createSession, revokeSession } from '../auth/session.service.js';
+import {
+  createSession,
+  impersonationDeadline,
+  revokeSession,
+  IMPERSONATION_IDLE_TTL_SECONDS,
+} from '../auth/session.service.js';
 import { signAccessToken } from '../auth/token.service.js';
 import { redis } from '../../utils/redis.js';
 import { logger } from '../../utils/logger.js';
@@ -56,15 +61,22 @@ import { AuthenticationError, NotFoundError } from '../../utils/errors.js';
  *   record for patient care; the audit row's `impersonated_by_user_id` would
  *   disambiguate it, but only for someone who thought to look.
  *
- * NO REFRESH TOKEN LEAVES THIS FILE
- *   A row in `sessions` needs a `refresh_token_hash`, so one is generated and
- *   immediately discarded. Nothing can rotate this session, `expires_at` is
- *   thirty minutes out, and the access token is signed to match — so the window
- *   closes on its own whether or not anyone remembers to stop.
+ * TWO DEADLINES, AND WHY IT IS NO LONGER ONE
+ *   This session used to have no refresh token at all: a flat thirty minutes,
+ *   unrenewable, which made `expires_at` the only thing bounding it. That was the
+ *   simplest possible guarantee and it stopped being workable once the console
+ *   remembered a clinic and an admin could reasonably spend a morning inside one.
+ *   Being signed out mid-edit, every thirty minutes, is not a security control —
+ *   it is a reason to keep a second tab open.
+ *
+ *   So it renews like any other session, and is bounded twice instead:
+ *     - `expires_at` — thirty minutes, SLIDING. Idle for half an hour and it ends.
+ *     - the ceiling — eight hours from `created_at`, enforced in
+ *       `rotateRefreshToken`, and no amount of activity moves it.
+ *
+ *   ADR-0012 records the amendment. The control was never the session length: it
+ *   is the audit row, the stated reason, and the strip that will not go away.
  */
-
-/** The session's whole life. Long enough to fix something, short enough to end. */
-const SESSION_TTL_SECONDS = 30 * 60;
 
 /** The ticket's life. A browser form post, not a coffee break. */
 const HANDOFF_TTL_SECONDS = 120;
@@ -102,6 +114,24 @@ export async function startImpersonation(
   // 404 rather than a message about deletion: the platform console is gated on
   // the flag, but an id that resolves is still an id that resolves.
   if (!organization) throw new NotFoundError('Organization not found');
+
+  /*
+   * Remember the choice, so the console offers this clinic first next time.
+   *
+   * Written when the ticket is ISSUED rather than when it is redeemed, and that
+   * is deliberate: this records what the admin asked for, and asking is the part
+   * they did. A ticket that expires unspent still tells the console where they
+   * were headed, which is exactly what a "last selected" ought to mean.
+   *
+   * It confers nothing. Entering still requires a fresh ticket, a stated reason,
+   * and `isPlatformAdmin` re-checked at redemption. `unsafeDbClient` for the same
+   * reason as the read above — a platform admin belongs to no tenant, so there is
+   * no organization to scope this write to.
+   */
+  await unsafeDbClient().user.update({
+    where: { id: input.adminUserId },
+    data: { lastPlatformOrganizationId: organization.id },
+  });
 
   const handoffToken = randomBytes(32).toString('base64url');
   const payload: HandoffPayload = {
@@ -199,34 +229,32 @@ export async function claimImpersonation(input: ClaimImpersonationInput): Promis
   const branchIds = await organizationBranchIds(organization.id, admin.id);
   const activeBranchId = branchIds[0] ?? null;
 
-  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
-
   const session = await createSession({
     userId: admin.id,
     activeOrganizationId: organization.id,
     activeBranchId,
     // Both the marker and the record of who. See the header.
     impersonatedByUserId: admin.id,
-    expiresAt,
+    // The idle window. The ceiling is derived from `created_at` and applied by
+    // `rotateRefreshToken`, so it needs nothing here.
+    expiresAt: new Date(Date.now() + IMPERSONATION_IDLE_TTL_SECONDS * 1000),
     ipAddress: input.ipAddress,
     userAgent: input.userAgent,
   });
 
-  const accessToken = signAccessToken(
-    {
-      userId: admin.id,
-      sessionId: session.id,
-      isPlatformAdmin: true,
-      // No membership here, which is the whole point.
-      membershipId: null,
-      organizationId: organization.id,
-      branchId: activeBranchId,
-      impersonatedByUserId: admin.id,
-    },
-    // Signed to the SESSION's life, not the usual fifteen minutes: there is no
-    // refresh token, so a shorter token would end the session early.
-    SESSION_TTL_SECONDS
-  );
+  /** The hard stop, and the one shown to the admin. Activity does not move it. */
+  const endsAt = impersonationDeadline(session.createdAt);
+
+  const accessToken = signAccessToken({
+    userId: admin.id,
+    sessionId: session.id,
+    isPlatformAdmin: true,
+    // No membership here, which is the whole point.
+    membershipId: null,
+    organizationId: organization.id,
+    branchId: activeBranchId,
+    impersonatedByUserId: admin.id,
+  });
 
   /*
    * The audit row lands in the CLINIC's trail, not the platform's, because the
@@ -250,7 +278,7 @@ export async function claimImpersonation(input: ClaimImpersonationInput): Promis
       after: {
         reason: payload.reason,
         organizationId: organization.id,
-        expiresAt: expiresAt.toISOString(),
+        endsAt: endsAt.toISOString(),
       },
       ...(activeBranchId !== null ? { branchId: activeBranchId } : {}),
       ...(input.ipAddress !== undefined ? { ipAddress: input.ipAddress } : {}),
@@ -279,19 +307,22 @@ export async function claimImpersonation(input: ClaimImpersonationInput): Promis
     {
       accessToken,
       /*
-       * Empty, deliberately, and the web BFF is written to skip writing an empty
-       * one (lib/session.ts). Nothing can renew this session: thirty minutes in,
-       * `findLiveSession` stops returning it and the access token expires in the
-       * same breath.
+       * A REAL refresh token now, where this used to send an empty string.
+       *
+       * The web BFF skips writing an empty one, and the `/impersonate` route
+       * handler used to DELETE any refresh cookie already on the clinic's host —
+       * both because nothing was allowed to renew this session. It renews now, so
+       * the route handler SETS this instead. That deletion was load-bearing for a
+       * real reason (a stale refresh cookie from an ordinary sign-in would
+       * otherwise be renewed into that other account's session), and overwriting
+       * it serves the same purpose as deleting it. See the route handler.
        */
-      refreshToken: '',
+      refreshToken: session.refreshToken,
     },
-    { organizationName: organization.displayName, adminName: admin.fullName, expiresAt }
+    { organizationName: organization.displayName, adminName: admin.fullName, expiresAt: endsAt }
   );
 
-  // `describeSession` reports the CONFIGURED access-token life; this token was
-  // signed to the session's instead.
-  return { ...described, expiresIn: SESSION_TTL_SECONDS };
+  return described;
 }
 
 /**
@@ -303,7 +334,15 @@ export async function claimImpersonation(input: ClaimImpersonationInput): Promis
 export async function describeImpersonation(
   organizationId: string | null,
   impersonatedByUserId: string | null,
-  expiresAt: Date
+  /**
+   * When the session began, NOT when it currently expires.
+   *
+   * `sessions.expires_at` slides forward on every refresh, so showing it would put
+   * a deadline on screen that quietly moves whenever the admin does anything —
+   * which is worse than showing nothing, because it looks like a fact. The ceiling
+   * is computed from this and does not move.
+   */
+  sessionStartedAt: Date
 ): Promise<ImpersonationDescriptor | null> {
   if (!organizationId || !impersonatedByUserId) return null;
 
@@ -315,7 +354,11 @@ export async function describeImpersonation(
 
   if (!organization || !admin) return null;
 
-  return { organizationName: organization.displayName, adminName: admin.fullName, expiresAt };
+  return {
+    organizationName: organization.displayName,
+    adminName: admin.fullName,
+    expiresAt: impersonationDeadline(sessionStartedAt),
+  };
 }
 
 /**

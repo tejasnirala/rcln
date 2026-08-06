@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import type { RoleListResponse } from '@rcln/contracts';
+import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/session';
+import { getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { RoleList } from '@/components/tenant/role-list';
 
@@ -36,12 +37,16 @@ export default async function RolesPage({ params }: { params: Promise<{ slug: st
     );
   }
 
+  const session = await getSession(slug);
+  const canReadHistory = session?.permissions.includes(PERMISSIONS.AUDIT_READ) ?? false;
+
   return (
     <RoleList
       slug={slug}
       roles={roles.data.roles}
       permissions={roles.data.permissions}
       grantableCodes={roles.data.grantableCodes}
+      canReadHistory={canReadHistory}
     />
   );
 }

@@ -24,6 +24,8 @@ export interface LocaleOption {
 
 export const TIMEZONES: LocaleOption[] = [
   { value: 'Asia/Kolkata', label: 'India — Asia/Kolkata' },
+  { value: 'Australia/Sydney', label: 'Australia (east) — Australia/Sydney' },
+  { value: 'Europe/Dublin', label: 'Ireland — Europe/Dublin' },
   { value: 'Asia/Kathmandu', label: 'Nepal — Asia/Kathmandu' },
   { value: 'Asia/Colombo', label: 'Sri Lanka — Asia/Colombo' },
   { value: 'Asia/Dhaka', label: 'Bangladesh — Asia/Dhaka' },
@@ -58,3 +60,37 @@ export function withCurrent(options: LocaleOption[], current: string): LocaleOpt
   if (options.some((option) => option.value === current)) return options;
   return [{ value: current, label: current }, ...options];
 }
+
+/**
+ * Where a clinic can say it is, and what that implies.
+ *
+ * ⚠️ THE COUNTRY IS THE LOAD-BEARING CHOICE ON THE SIGNUP FORM.
+ *   It is the place of supply the tax engine resolves against, and the billing
+ *   currency is derived from it. Everything else on that step is a name.
+ *
+ * `timezone` here is the DEFAULT the form fills in, not a constraint — a
+ * clinic in a country with several zones changes it, and the zone select is
+ * right beside the country for exactly that reason. Countries with one
+ * practical zone are the common case in this list.
+ *
+ * `currency` is shown to the customer so the billing currency is visible
+ * BEFORE they reach checkout. The server derives it independently against the
+ * currencies the plan actually has prices in, so this is a preview and never
+ * the decision — see `registerOrganization`.
+ */
+/*
+ * The country table moved to `@rcln/contracts` so the server and every screen
+ * read the same one — signup, clinic settings and the platform tax console all
+ * derive country, region, currency and time zone from it. Re-exported here so
+ * existing imports keep working and there is still one obvious place to look.
+ */
+export {
+  COUNTRIES,
+  countryInfo,
+  defaultTimezoneFor,
+  hasTimezoneChoice,
+  regionsFor,
+  timezoneLabel,
+  type CountryInfo,
+  type Region,
+} from '@rcln/contracts';

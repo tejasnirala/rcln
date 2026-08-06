@@ -12,7 +12,7 @@ Narrative from `.kb/modules.json`; symbol, route and table counts resolved from 
 | [Branches](Modules/Branches.md) | api + web | The places a clinic operates from. One organization, one or many branches — a solo clinic and a hospital group are the same shape. | 6 | 3 |
 | [Invitations](Modules/Invitations.md) | api + web | How a colleague gets into a clinic. Issue, revoke, resend, and an unauthenticated accept page. | 4 | 2 |
 | [Audit](Modules/Audit.md) | api | An append-only record of who changed what. Ids and permission codes only — never a name, never PHI. | 0 | 1 |
-| [PlatformConsole](Modules/PlatformConsole.md) | api + web | What the platform operator sees. Demo-request pipeline, provisioning, and eventually impersonation. | 4 | 2 |
+| [PlatformConsole](Modules/PlatformConsole.md) | api + web | What the platform operator sees. Demo-request pipeline, provisioning, and eventually impersonation. | 9 | 2 |
 | [Marketing](Modules/Marketing.md) | web | The apex domain. Landing page, signup, legal pages and the demo form — everything that happens before a tenant exists. | 0 | 1 |
 | [Notifications](Modules/Notifications.md) | api + worker | The seam every outbound message goes through. Real logic, no delivery. | 0 | 0 |
 | [Worker](Modules/Worker.md) | worker | Background jobs on BullMQ. Every queue is registered; only stubs process them. | 0 | 0 |

@@ -4,13 +4,28 @@
 
 > Login is identifier-based: everyone — super admin, doctor, receptionist, pharmacist, patient — authenticates against the same `users` row.
 
-Files: `packages/contracts/src/auth.ts` · `packages/contracts/src/common.ts` · `packages/contracts/src/index.ts` · `packages/contracts/src/marketing.ts` · `packages/contracts/src/tenancy.ts`
+Files: `packages/contracts/src/audit.ts` · `packages/contracts/src/auth.ts` · `packages/contracts/src/billing.ts` · `packages/contracts/src/common.ts` · `packages/contracts/src/index.ts` · `packages/contracts/src/locale.ts` · `packages/contracts/src/marketing.ts` · `packages/contracts/src/tenancy.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `addressLabels` | `(code: string \| null \| undefined): AddressLabels` | `packages/contracts/src/locale.ts:505` | What this country calls the parts of an address. Falls back to India's. |
+| `countryInfo` | `(code: string \| null \| undefined): CountryInfo \| undefined` | `packages/contracts/src/locale.ts:474` |  |
+| `defaultTimezoneFor` | `(code: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:481` | The zone to assume before anyone has chosen. |
+| `dialFormatFor` | `(code: string \| null \| undefined): DialFormat` | `packages/contracts/src/locale.ts:520` | The calling code and national digit count. Falls back to India's. |
+| `hasTimezoneChoice` | `(code: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:486` | Whether the customer has a decision to make about the zone. |
+| `isValidPostalCode` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:534` |  |
+| `isValidRegion` | `(countryCode: string, regionCode: string \| null): boolean` | `packages/contracts/src/locale.ts:496` | Whether a region code is one this country actually has. |
+| `isValidTaxId` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:560` |  |
 | `knownCurrency` <sub>local</sub> | `(value: string): boolean` | `packages/contracts/src/common.ts:108` |  |
+| `normalizePostalCode` | `(countryCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:546` | Upper-cased, single-spaced. What we store and what we validate. |
+| `postalFormatFor` | `(code: string \| null \| undefined): PostalFormat \| null` | `packages/contracts/src/locale.ts:510` | The postcode format, or null where the country issues none. |
+| `regionsFor` | `(code: string \| null \| undefined): readonly Region[]` | `packages/contracts/src/locale.ts:491` | The subdivisions worth asking about. Empty means country-wide only. |
+| `splitE164` | `(value: string \| null \| undefined): { countryCode: string \| null; national: string; }` | `packages/contracts/src/locale.ts:592` |  |
+| `taxIdFormatFor` | `(code: string \| null \| undefined): TaxIdFormat \| null` | `packages/contracts/src/locale.ts:515` | The tax registration to ask for, or null where there is no single one. |
+| `timezoneLabel` | `(zone: string): string` | `packages/contracts/src/locale.ts:612` | `Asia/Kolkata` -> `Asia/Kolkata (GMT+5:30)`. Display only. |
+| `toE164` | `(countryCode: string \| null \| undefined, national: string): string` | `packages/contracts/src/locale.ts:578` |  |
 
 ## zod
 
@@ -18,17 +33,25 @@ Files: `packages/contracts/src/auth.ts` · `packages/contracts/src/common.ts` ·
 | --- | --- | --- | --- |
 | `acceptInviteRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:87` |  |
 | `apiError` | `z.object(…)` | `packages/contracts/src/common.ts:146` |  |
-| `assignRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:145` |  |
+| `assignRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:234` |  |
+| `auditAction` | `z.enum(…)` | `packages/contracts/src/audit.ts:29` |  |
+| `auditEntry` | `z.object(…)` | `packages/contracts/src/audit.ts:41` |  |
+| `auditFieldChange` | `z.object(…)` | `packages/contracts/src/audit.ts:21` | How a single field moved. `null` on either side is a real value: it was unset. |
+| `auditHistoryQuery` | `z.object(…)` | `packages/contracts/src/audit.ts:83` |  |
+| `auditHistoryResponse` | `z.object(…)` | `packages/contracts/src/audit.ts:72` |  |
 | `authSession` | `z.object(…)` | `packages/contracts/src/auth.ts:200` |  |
-| `branchClosureRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:94` |  |
-| `branchDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:308` |  |
-| `branchListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:327` |  |
-| `branchOperatingHoursRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:90` |  |
+| `billingOverviewQuery` | `z.object(…)` | `packages/contracts/src/billing.ts:88` |  |
+| `branchClosureRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:183` |  |
+| `branchDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:428` |  |
+| `branchListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:447` |  |
+| `branchOperatingHoursRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:179` |  |
 | `branchSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:183` |  |
+| `cancelSubscriptionRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:64` |  |
 | `changePasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:50` |  |
-| `checkSlugQuery` | `z.object(…)` | `packages/contracts/src/tenancy.ts:272` |  |
-| `createBranchRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:47` |  |
-| `createRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:180` |  |
+| `checkSlugQuery` | `z.object(…)` | `packages/contracts/src/tenancy.ts:392` |  |
+| `createBranchRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:136` |  |
+| `createRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:269` |  |
+| `createTaxRegistrationRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:411` |  |
 | `demoRequestInput` | `z.object(…)` | `packages/contracts/src/marketing.ts:17` |  |
 | `demoRequestResponse` | `z.object(…)` | `packages/contracts/src/marketing.ts:48` |  |
 | `email` | `z.email().max(255).toLowerCase(…)` | `packages/contracts/src/common.ts:62` |  |
@@ -37,43 +60,45 @@ Files: `packages/contracts/src/auth.ts` · `packages/contracts/src/common.ts` ·
 | `impersonationClaimRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:155` | Redeeming the ticket, at the clinic's own host. |
 | `impersonationGrant` | `z.object(…)` | `packages/contracts/src/auth.ts:146` |  |
 | `impersonationStopResult` | `z.object(…)` | `packages/contracts/src/auth.ts:159` |  |
-| `invitationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:364` |  |
-| `invitationPreview` | `z.object(…)` | `packages/contracts/src/auth.ts:255` |  |
-| `invitationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:343` |  |
+| `invitationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:484` |  |
+| `invitationPreview` | `z.object(…)` | `packages/contracts/src/auth.ts:266` |  |
+| `invitationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:463` |  |
 | `invitationTokenRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:62` |  |
-| `inviteMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:112` |  |
+| `inviteMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:201` |  |
 | `loginRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:10` |  |
-| `memberDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:450` |  |
-| `memberListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:477` |  |
-| `memberOverride` | `z.object(…)` | `packages/contracts/src/tenancy.ts:434` |  |
-| `memberRoleAssignment` | `z.object(…)` | `packages/contracts/src/tenancy.ts:422` | One row of `membership_roles`, named so a person can read it. |
+| `memberDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:570` |  |
+| `memberListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:597` |  |
+| `memberOverride` | `z.object(…)` | `packages/contracts/src/tenancy.ts:554` |  |
+| `memberRoleAssignment` | `z.object(…)` | `packages/contracts/src/tenancy.ts:542` | One row of `membership_roles`, named so a person can read it. |
 | `membershipSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:191` |  |
-| `memberStatusRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:224` | Suspending or restoring someone. The reason is for the audit row only. |
-| `operatingHour` | `z.object(…)` | `packages/contracts/src/tenancy.ts:70` | 0 = Sunday, matching Postgres `extract(dow)` and JS `Date#getDay`. |
-| `organizationProfile` | `z.object(…)` | `packages/contracts/src/tenancy.ts:507` |  |
+| `memberStatusRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:313` | Suspending or restoring someone. The reason is for the audit row only. |
+| `operatingHour` | `z.object(…)` | `packages/contracts/src/tenancy.ts:159` | 0 = Sunday, matching Postgres `extract(dow)` and JS `Date#getDay`. |
+| `organizationProfile` | `z.object(…)` | `packages/contracts/src/tenancy.ts:627` |  |
 | `otpRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:16` |  |
 | `otpVerifyRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:20` |  |
 | `paginationQuery` | `z.object(…)` | `packages/contracts/src/common.ts:132` |  |
-| `permissionOverrideRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:161` |  |
-| `platformOrganizationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:616` |  |
-| `platformOrganizationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:606` |  |
+| `permissionOverrideRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:250` |  |
+| `platformOrganizationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:737` |  |
+| `platformOrganizationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:727` |  |
 | `refreshRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:25` |  |
-| `registerOrganizationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:12` |  |
-| `registerOrganizationResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:284` |  |
+| `registerOrganizationResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:404` |  |
 | `resetPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:45` |  |
-| `revokeInvitationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:123` | Revoking is an action on an invitation, not a payload — the id is in the path. The reason is optional and lands on the audit row, never on an email. |
-| `roleDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:385` |  |
-| `roleListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:397` |  |
-| `settingChoice` | `z.object(…)` | `packages/contracts/src/tenancy.ts:553` |  |
-| `settingItem` | `z.object(…)` | `packages/contracts/src/tenancy.ts:558` |  |
-| `settingListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:585` |  |
-| `settingValueRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:268` |  |
-| `slugAvailabilityResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:296` | Deliberately thin. This endpoint is unauthenticated and answers questions about which clinics exist, so it returns a boolean and nothing else — no name, no sta… |
+| `revokeInvitationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:212` | Revoking is an action on an invitation, not a payload — the id is in the path. The reason is optional and lands on the audit row, never on an email. |
+| `roleDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:505` |  |
+| `roleListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:517` |  |
+| `setAutoRenewRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:72` | Turn unattended renewal on or off. Turning it on needs a live mandate. |
+| `settingChoice` | `z.object(…)` | `packages/contracts/src/tenancy.ts:674` |  |
+| `settingItem` | `z.object(…)` | `packages/contracts/src/tenancy.ts:679` |  |
+| `settingListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:706` |  |
+| `settingValueRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:388` |  |
+| `slugAvailabilityResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:416` | Deliberately thin. This endpoint is unauthenticated and answers questions about which clinics exist, so it returns a boolean and nothing else — no name, no sta… |
+| `startCheckoutRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:37` |  |
 | `switchBranchRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:33` | Branch switching. Validated against the caller's own membership_roles — a branch they hold no assignment for is rejected, and the switch is audited. |
 | `switchOrganizationRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:37` |  |
-| `updateMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:215` |  |
-| `updateOrganizationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:244` |  |
-| `updateRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:200` |  |
+| `updateMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:304` |  |
+| `updateOrganizationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:344` |  |
+| `updateRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:289` |  |
+| `upgradePreviewRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:44` | What an upgrade would cost. Same shape as applying it, on purpose. |
 | `uuid` | `z.uuid(…)` | `packages/contracts/src/common.ts:3` |  |
 | `verificationConfirmRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:117` |  |
 | `verificationRequestResult` | `z.object(…)` | `packages/contracts/src/auth.ts:165` |  |
@@ -83,7 +108,10 @@ Files: `packages/contracts/src/auth.ts` · `packages/contracts/src/common.ts` ·
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `COUNTRIES` | `: readonly CountryInfo[]` | `packages/contracts/src/locale.ts:217` |  |
+| `INDIA_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:128` | India's states and union territories, by ISO 3166-2 code. |
 | `RESERVED_SLUGS` | `new Set(…)` | `packages/contracts/src/common.ts:17` | Subdomains the platform keeps for itself. A tenant claiming `api` or `admin` would break routing for everyone, so this is checked at registration. |
+| `US_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:168` | US states that levy a sales tax, plus DC. The five that do not are omitted. |
 
 ## var
 
@@ -94,74 +122,118 @@ Files: `packages/contracts/src/auth.ts` · `packages/contracts/src/common.ts` ·
 | `currencySet` <sub>local</sub> | `: Set<string> \| null \| undefined` | `packages/contracts/src/common.ts:106` |  |
 | `password` | `z .string() .min(12, 'at least 12 characters') .max(128) .r…` | `packages/contracts/src/common.ts:124` |  |
 | `phone` | `z .string() .regex(…)` | `packages/contracts/src/common.ts:58` | E.164, which is what every Indian SMS/WhatsApp provider expects. |
+| `registerOrganizationRequest` | `z .object({ organization: z.object({ legalName: z.string().…` | `packages/contracts/src/tenancy.ts:13` |  |
 | `slug` | `z .string() .min(3) .max(63) .regex(/^[a-z0-9]([a-z0-9-]*[a…` | `packages/contracts/src/common.ts:6` | Subdomain label: what becomes `alpha` in alpha.xyz.com. |
 | `timezone` | `z .string() .min(1) .max(64) .refine(…)` | `packages/contracts/src/common.ts:75` |  |
-| `updateBranchRequest` | `createBranchRequest.partial().extend(…)` | `packages/contracts/src/tenancy.ts:65` |  |
+| `updateBranchRequest` | `createBranchRequest.partial().extend(…)` | `packages/contracts/src/tenancy.ts:154` |  |
+| `updateTaxRegistrationRequest` | `createTaxRegistrationRequest.partial(…)` | `packages/contracts/src/billing.ts:466` |  |
+| `upgradeRequest` | `upgradePreviewRequest` | `packages/contracts/src/billing.ts:50` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `AddressLabels` | `{ addressLine1, city, region, postalCode }` | `packages/contracts/src/locale.ts:62` |  |
+| `AutoRenewResponse` | `{ autoRenew }` | `packages/contracts/src/billing.ts:363` |  |
+| `BillingOverviewResponse` | `{ subscription, plans, invoices, currency }` | `packages/contracts/src/billing.ts:194` | Everything the billing screen renders, in one call. |
+| `CancelSubscriptionResponse` | `{ status, endsAt }` | `packages/contracts/src/billing.ts:367` |  |
+| `CheckoutResponse` | `{ intentId, customer, redirectUrl, embedded, purchase, status, amountMinor, currency, invoiceId }` | `packages/contracts/src/billing.ts:263` |  |
+| `CountryInfo` | `{ code, name, currency, timezones, regions, tax, dial, labels, postal, taxId }` | `packages/contracts/src/locale.ts:102` |  |
+| `DialFormat` | `{ code, minDigits, maxDigits, example }` | `packages/contracts/src/locale.ts:92` |  |
+| `EmbeddedCheckout` | `{ provider, publicKey, token }` | `packages/contracts/src/billing.ts:216` |  |
+| `InvoiceLineSummary` | `{ kind, description, amountMinor }` | `packages/contracts/src/billing.ts:171` |  |
+| `InvoiceSummary` | `{ id, invoiceNumber, status, currency, totalMinor, amountPaidMinor, periodStart, periodEnd, issuedAt, paidAt, dueDate, lines }` | `packages/contracts/src/billing.ts:178` |  |
+| `MandateSetupResponse` | `{ mandateId, redirectUrl }` | `packages/contracts/src/billing.ts:322` |  |
+| `MandateStatusResponse` | `{ mandateId, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }` | `packages/contracts/src/billing.ts:335` |  |
+| `MandateSummary` | `{ id, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }` | `packages/contracts/src/billing.ts:125` |  |
 | `Paginated` | `{ data, meta }` | `packages/contracts/src/common.ts:141` |  |
+| `PaymentStatusResponse` | `{ intentId, status, purpose, amountMinor, currency, failureMessage, invoiceId }` | `packages/contracts/src/billing.ts:352` |  |
+| `PlanPriceSummary` | `{ id, currency, interval, amountMinor }` | `packages/contracts/src/billing.ts:105` |  |
+| `PlanSummary` | `{ id, code, name, tagline, trialDays, sortOrder, features, prices }` | `packages/contracts/src/billing.ts:112` |  |
+| `PlatformSubscriptionView` | `{ organizationId, subscription, invoices }` | `packages/contracts/src/billing.ts:384` |  |
+| `PostalFormat` | `{ pattern, example, numeric }` | `packages/contracts/src/locale.ts:69` |  |
+| `ProrationSummary` | `{ periodDays, remainingDays, creditMinor, chargeMinor, amountDueMinor, isFree }` | `packages/contracts/src/billing.ts:287` |  |
+| `PurchaseSummary` | `{ description, periodStart, periodEnd, invoiceNumber, subtotalMinor, taxLines, taxTotalMinor, totalMinor, taxNote }` | `packages/contracts/src/billing.ts:240` |  |
+| `Region` | `{ code, name }` | `packages/contracts/src/locale.ts:46` |  |
+| `ResumeSubscriptionResponse` | `{ nextRenewalAt }` | `packages/contracts/src/billing.ts:373` |  |
+| `SubscriptionSummary` | `{ id, status, isActive, plan, planPriceId, currency, interval, amountMinor, currentPeriodStart, currentPeriodEnd, trialEndsAt, gracePeriodEnd, cancelAtPeriodEnd, cancelAt, autoRenew, entitlements, ma…` | `packages/contracts/src/billing.ts:136` |  |
+| `TaxIdFormat` | `{ label, pattern, example, hint }` | `packages/contracts/src/locale.ts:83` |  |
+| `TaxRegistrationListResponse` | `{ registrations }` | `packages/contracts/src/billing.ts:485` |  |
+| `TaxRegistrationSummary` | `{ id, countryCode, regionCode, scheme, registrationNumber, standardRateBps, effectiveFrom, effectiveTo, isLive, placeOfSupply }` | `packages/contracts/src/billing.ts:469` |  |
+| `UpgradeQuoteResponse` | `{ taxLines, taxTotalMinor, totalDueMinor, taxNote, fromPlan, toPlan, toPlanPriceId, currency, fullAmountMinor, proration, effectiveAt, nextRenewalAt }` | `packages/contracts/src/billing.ts:297` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AcceptInviteRequest` | `z.infer<typeof acceptInviteRequest>` | `packages/contracts/src/auth.ts:271` |  |
+| `AcceptInviteRequest` | `z.infer<typeof acceptInviteRequest>` | `packages/contracts/src/auth.ts:282` |  |
 | `ApiError` | `z.infer<typeof apiError>` | `packages/contracts/src/common.ts:154` |  |
-| `AssignRoleRequest` | `z.infer<typeof assignRoleRequest>` | `packages/contracts/src/tenancy.ts:653` |  |
-| `AuthSession` | `z.infer<typeof authSession>` | `packages/contracts/src/auth.ts:279` |  |
-| `BranchClosureRequest` | `z.infer<typeof branchClosureRequest>` | `packages/contracts/src/tenancy.ts:645` |  |
-| `BranchDetail` | `z.infer<typeof branchDetail>` | `packages/contracts/src/tenancy.ts:642` |  |
-| `BranchListResponse` | `z.infer<typeof branchListResponse>` | `packages/contracts/src/tenancy.ts:643` |  |
-| `BranchOperatingHoursRequest` | `z.infer<typeof branchOperatingHoursRequest>` | `packages/contracts/src/tenancy.ts:644` |  |
-| `BranchSummary` | `z.infer<typeof branchSummary>` | `packages/contracts/src/auth.ts:281` |  |
-| `CheckSlugQuery` | `z.infer<typeof checkSlugQuery>` | `packages/contracts/src/tenancy.ts:622` |  |
-| `CreateBranchRequest` | `z.infer<typeof createBranchRequest>` | `packages/contracts/src/tenancy.ts:650` |  |
-| `CreateRoleRequest` | `z.infer<typeof createRoleRequest>` | `packages/contracts/src/tenancy.ts:654` |  |
+| `AssignRoleRequest` | `z.infer<typeof assignRoleRequest>` | `packages/contracts/src/tenancy.ts:774` |  |
+| `AuditAction` | `z.infer<typeof auditAction>` | `packages/contracts/src/audit.ts:96` |  |
+| `AuditEntry` | `z.infer<typeof auditEntry>` | `packages/contracts/src/audit.ts:97` |  |
+| `AuditFieldChange` | `z.infer<typeof auditFieldChange>` | `packages/contracts/src/audit.ts:95` |  |
+| `AuditHistoryQuery` | `z.infer<typeof auditHistoryQuery>` | `packages/contracts/src/audit.ts:99` |  |
+| `AuditHistoryResponse` | `z.infer<typeof auditHistoryResponse>` | `packages/contracts/src/audit.ts:98` |  |
+| `AuthSession` | `z.infer<typeof authSession>` | `packages/contracts/src/auth.ts:290` |  |
+| `BillingInterval` | `'MONTH' \| 'YEAR'` | `packages/contracts/src/billing.ts:103` |  |
+| `BillingOverviewQuery` | `z.infer<typeof billingOverviewQuery>` | `packages/contracts/src/billing.ts:97` |  |
+| `BranchClosureRequest` | `z.infer<typeof branchClosureRequest>` | `packages/contracts/src/tenancy.ts:766` |  |
+| `BranchDetail` | `z.infer<typeof branchDetail>` | `packages/contracts/src/tenancy.ts:763` |  |
+| `BranchListResponse` | `z.infer<typeof branchListResponse>` | `packages/contracts/src/tenancy.ts:764` |  |
+| `BranchOperatingHoursRequest` | `z.infer<typeof branchOperatingHoursRequest>` | `packages/contracts/src/tenancy.ts:765` |  |
+| `BranchSummary` | `z.infer<typeof branchSummary>` | `packages/contracts/src/auth.ts:292` |  |
+| `CancelSubscriptionRequest` | `z.infer<typeof cancelSubscriptionRequest>` | `packages/contracts/src/billing.ts:69` |  |
+| `CheckSlugQuery` | `z.infer<typeof checkSlugQuery>` | `packages/contracts/src/tenancy.ts:743` |  |
+| `CreateBranchRequest` | `z.infer<typeof createBranchRequest>` | `packages/contracts/src/tenancy.ts:771` |  |
+| `CreateRoleRequest` | `z.infer<typeof createRoleRequest>` | `packages/contracts/src/tenancy.ts:775` |  |
+| `CreateTaxRegistrationRequest` | `z.infer<typeof createTaxRegistrationRequest>` | `packages/contracts/src/billing.ts:461` |  |
 | `DemoRequestInput` | `z.infer<typeof demoRequestInput>` | `packages/contracts/src/marketing.ts:46` |  |
 | `DemoRequestResponse` | `z.infer<typeof demoRequestResponse>` | `packages/contracts/src/marketing.ts:57` |  |
-| `ImpersonateRequest` | `z.infer<typeof impersonateRequest>` | `packages/contracts/src/auth.ts:275` |  |
-| `ImpersonationClaimRequest` | `z.infer<typeof impersonationClaimRequest>` | `packages/contracts/src/auth.ts:277` |  |
-| `ImpersonationGrant` | `z.infer<typeof impersonationGrant>` | `packages/contracts/src/auth.ts:276` |  |
-| `ImpersonationStopResult` | `z.infer<typeof impersonationStopResult>` | `packages/contracts/src/auth.ts:278` |  |
-| `InvitationListResponse` | `z.infer<typeof invitationListResponse>` | `packages/contracts/src/tenancy.ts:639` |  |
-| `InvitationPreview` | `z.infer<typeof invitationPreview>` | `packages/contracts/src/auth.ts:266` |  |
-| `InvitationSummary` | `z.infer<typeof invitationSummary>` | `packages/contracts/src/tenancy.ts:638` |  |
-| `InvitationTokenRequest` | `z.infer<typeof invitationTokenRequest>` | `packages/contracts/src/auth.ts:265` |  |
-| `InviteMemberRequest` | `z.infer<typeof inviteMemberRequest>` | `packages/contracts/src/tenancy.ts:652` |  |
-| `LoginRequest` | `z.infer<typeof loginRequest>` | `packages/contracts/src/auth.ts:264` |  |
-| `MemberDetail` | `z.infer<typeof memberDetail>` | `packages/contracts/src/tenancy.ts:634` |  |
-| `MemberListResponse` | `z.infer<typeof memberListResponse>` | `packages/contracts/src/tenancy.ts:635` |  |
-| `MemberOverride` | `z.infer<typeof memberOverride>` | `packages/contracts/src/tenancy.ts:633` |  |
-| `MemberRoleAssignment` | `z.infer<typeof memberRoleAssignment>` | `packages/contracts/src/tenancy.ts:632` |  |
-| `MembershipSummary` | `z.infer<typeof membershipSummary>` | `packages/contracts/src/auth.ts:280` |  |
-| `MemberStatusRequest` | `z.infer<typeof memberStatusRequest>` | `packages/contracts/src/tenancy.ts:637` |  |
-| `OperatingHour` | `z.infer<typeof operatingHour>` | `packages/contracts/src/tenancy.ts:641` |  |
-| `OrganizationProfile` | `z.infer<typeof organizationProfile>` | `packages/contracts/src/tenancy.ts:624` |  |
-| `OtpRequest` | `z.infer<typeof otpRequest>` | `packages/contracts/src/auth.ts:267` |  |
-| `OtpVerifyRequest` | `z.infer<typeof otpVerifyRequest>` | `packages/contracts/src/auth.ts:268` |  |
+| `ImpersonateRequest` | `z.infer<typeof impersonateRequest>` | `packages/contracts/src/auth.ts:286` |  |
+| `ImpersonationClaimRequest` | `z.infer<typeof impersonationClaimRequest>` | `packages/contracts/src/auth.ts:288` |  |
+| `ImpersonationGrant` | `z.infer<typeof impersonationGrant>` | `packages/contracts/src/auth.ts:287` |  |
+| `ImpersonationStopResult` | `z.infer<typeof impersonationStopResult>` | `packages/contracts/src/auth.ts:289` |  |
+| `InvitationListResponse` | `z.infer<typeof invitationListResponse>` | `packages/contracts/src/tenancy.ts:760` |  |
+| `InvitationPreview` | `z.infer<typeof invitationPreview>` | `packages/contracts/src/auth.ts:277` |  |
+| `InvitationSummary` | `z.infer<typeof invitationSummary>` | `packages/contracts/src/tenancy.ts:759` |  |
+| `InvitationTokenRequest` | `z.infer<typeof invitationTokenRequest>` | `packages/contracts/src/auth.ts:276` |  |
+| `InviteMemberRequest` | `z.infer<typeof inviteMemberRequest>` | `packages/contracts/src/tenancy.ts:773` |  |
+| `LoginRequest` | `z.infer<typeof loginRequest>` | `packages/contracts/src/auth.ts:275` |  |
+| `MemberDetail` | `z.infer<typeof memberDetail>` | `packages/contracts/src/tenancy.ts:755` |  |
+| `MemberListResponse` | `z.infer<typeof memberListResponse>` | `packages/contracts/src/tenancy.ts:756` |  |
+| `MemberOverride` | `z.infer<typeof memberOverride>` | `packages/contracts/src/tenancy.ts:754` |  |
+| `MemberRoleAssignment` | `z.infer<typeof memberRoleAssignment>` | `packages/contracts/src/tenancy.ts:753` |  |
+| `MembershipSummary` | `z.infer<typeof membershipSummary>` | `packages/contracts/src/auth.ts:291` |  |
+| `MemberStatusRequest` | `z.infer<typeof memberStatusRequest>` | `packages/contracts/src/tenancy.ts:758` |  |
+| `OperatingHour` | `z.infer<typeof operatingHour>` | `packages/contracts/src/tenancy.ts:762` |  |
+| `OrganizationProfile` | `z.infer<typeof organizationProfile>` | `packages/contracts/src/tenancy.ts:745` |  |
+| `OtpRequest` | `z.infer<typeof otpRequest>` | `packages/contracts/src/auth.ts:278` |  |
+| `OtpVerifyRequest` | `z.infer<typeof otpVerifyRequest>` | `packages/contracts/src/auth.ts:279` |  |
 | `PaginationQuery` | `z.infer<typeof paginationQuery>` | `packages/contracts/src/common.ts:139` |  |
-| `PermissionOverrideRequest` | `z.infer<typeof permissionOverrideRequest>` | `packages/contracts/src/tenancy.ts:655` |  |
-| `PlatformOrganizationListResponse` | `z.infer<typeof platformOrganizationListResponse>` | `packages/contracts/src/tenancy.ts:621` |  |
-| `PlatformOrganizationSummary` | `z.infer<typeof platformOrganizationSummary>` | `packages/contracts/src/tenancy.ts:620` |  |
-| `RefreshRequest` | `z.infer<typeof refreshRequest>` | `packages/contracts/src/auth.ts:269` |  |
-| `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:649` |  |
-| `RegisterOrganizationResponse` | `z.infer<typeof registerOrganizationResponse>` | `packages/contracts/src/tenancy.ts:646` |  |
-| `RevokeInvitationRequest` | `z.infer<typeof revokeInvitationRequest>` | `packages/contracts/src/tenancy.ts:640` |  |
-| `RoleDetail` | `z.infer<typeof roleDetail>` | `packages/contracts/src/tenancy.ts:629` |  |
-| `RoleListResponse` | `z.infer<typeof roleListResponse>` | `packages/contracts/src/tenancy.ts:630` |  |
-| `SettingChoice` | `z.infer<typeof settingChoice>` | `packages/contracts/src/tenancy.ts:626` |  |
-| `SettingItem` | `z.infer<typeof settingItem>` | `packages/contracts/src/tenancy.ts:627` |  |
-| `SettingListResponse` | `z.infer<typeof settingListResponse>` | `packages/contracts/src/tenancy.ts:628` |  |
-| `SettingValueRequest` | `z.infer<typeof settingValueRequest>` | `packages/contracts/src/tenancy.ts:625` |  |
-| `SlugAvailabilityResponse` | `z.infer<typeof slugAvailabilityResponse>` | `packages/contracts/src/tenancy.ts:647` |  |
-| `SwitchBranchRequest` | `z.infer<typeof switchBranchRequest>` | `packages/contracts/src/auth.ts:270` |  |
-| `UpdateBranchRequest` | `z.infer<typeof updateBranchRequest>` | `packages/contracts/src/tenancy.ts:651` |  |
-| `UpdateMemberRequest` | `z.infer<typeof updateMemberRequest>` | `packages/contracts/src/tenancy.ts:636` |  |
-| `UpdateOrganizationRequest` | `z.infer<typeof updateOrganizationRequest>` | `packages/contracts/src/tenancy.ts:623` |  |
-| `UpdateRoleRequest` | `z.infer<typeof updateRoleRequest>` | `packages/contracts/src/tenancy.ts:631` |  |
-| `VerificationConfirmRequest` | `z.infer<typeof verificationConfirmRequest>` | `packages/contracts/src/auth.ts:272` |  |
-| `VerificationRequestResult` | `z.infer<typeof verificationRequestResult>` | `packages/contracts/src/auth.ts:273` |  |
-| `VerificationResult` | `z.infer<typeof verificationResult>` | `packages/contracts/src/auth.ts:274` |  |
+| `PermissionOverrideRequest` | `z.infer<typeof permissionOverrideRequest>` | `packages/contracts/src/tenancy.ts:776` |  |
+| `PlatformOrganizationListResponse` | `z.infer<typeof platformOrganizationListResponse>` | `packages/contracts/src/tenancy.ts:742` |  |
+| `PlatformOrganizationSummary` | `z.infer<typeof platformOrganizationSummary>` | `packages/contracts/src/tenancy.ts:741` |  |
+| `RefreshRequest` | `z.infer<typeof refreshRequest>` | `packages/contracts/src/auth.ts:280` |  |
+| `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:770` |  |
+| `RegisterOrganizationResponse` | `z.infer<typeof registerOrganizationResponse>` | `packages/contracts/src/tenancy.ts:767` |  |
+| `RevokeInvitationRequest` | `z.infer<typeof revokeInvitationRequest>` | `packages/contracts/src/tenancy.ts:761` |  |
+| `RoleDetail` | `z.infer<typeof roleDetail>` | `packages/contracts/src/tenancy.ts:750` |  |
+| `RoleListResponse` | `z.infer<typeof roleListResponse>` | `packages/contracts/src/tenancy.ts:751` |  |
+| `SetAutoRenewRequest` | `z.infer<typeof setAutoRenewRequest>` | `packages/contracts/src/billing.ts:76` |  |
+| `SettingChoice` | `z.infer<typeof settingChoice>` | `packages/contracts/src/tenancy.ts:747` |  |
+| `SettingItem` | `z.infer<typeof settingItem>` | `packages/contracts/src/tenancy.ts:748` |  |
+| `SettingListResponse` | `z.infer<typeof settingListResponse>` | `packages/contracts/src/tenancy.ts:749` |  |
+| `SettingValueRequest` | `z.infer<typeof settingValueRequest>` | `packages/contracts/src/tenancy.ts:746` |  |
+| `SlugAvailabilityResponse` | `z.infer<typeof slugAvailabilityResponse>` | `packages/contracts/src/tenancy.ts:768` |  |
+| `StartCheckoutRequest` | `z.infer<typeof startCheckoutRequest>` | `packages/contracts/src/billing.ts:41` |  |
+| `SwitchBranchRequest` | `z.infer<typeof switchBranchRequest>` | `packages/contracts/src/auth.ts:281` |  |
+| `UpdateBranchRequest` | `z.infer<typeof updateBranchRequest>` | `packages/contracts/src/tenancy.ts:772` |  |
+| `UpdateMemberRequest` | `z.infer<typeof updateMemberRequest>` | `packages/contracts/src/tenancy.ts:757` |  |
+| `UpdateOrganizationRequest` | `z.infer<typeof updateOrganizationRequest>` | `packages/contracts/src/tenancy.ts:744` |  |
+| `UpdateRoleRequest` | `z.infer<typeof updateRoleRequest>` | `packages/contracts/src/tenancy.ts:752` |  |
+| `UpdateTaxRegistrationRequest` | `z.infer<typeof updateTaxRegistrationRequest>` | `packages/contracts/src/billing.ts:467` |  |
+| `UpgradePreviewRequest` | `z.infer<typeof upgradePreviewRequest>` | `packages/contracts/src/billing.ts:48` |  |
+| `UpgradeRequest` | `UpgradePreviewRequest` | `packages/contracts/src/billing.ts:51` |  |
+| `VerificationConfirmRequest` | `z.infer<typeof verificationConfirmRequest>` | `packages/contracts/src/auth.ts:283` |  |
+| `VerificationRequestResult` | `z.infer<typeof verificationRequestResult>` | `packages/contracts/src/auth.ts:284` |  |
+| `VerificationResult` | `z.infer<typeof verificationResult>` | `packages/contracts/src/auth.ts:285` |  |

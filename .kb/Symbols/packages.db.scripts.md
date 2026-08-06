@@ -10,17 +10,17 @@ Files: `packages/db/scripts/check-rls.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:76` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:80` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `EXEMPT` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:29` | Tables intentionally not tenant-scoped. Keep in sync with prisma/rls/enable-rls.sql. |
-| `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:62` |  |
+| `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:63` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:69` |  |
+| `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:73` |  |

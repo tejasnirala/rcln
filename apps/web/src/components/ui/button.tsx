@@ -35,11 +35,16 @@ export function Button({
   className,
   type = 'button',
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+}: React.ComponentProps<'button'> & {
   variant?: Variant;
   size?: keyof typeof SIZES;
   fullWidth?: boolean;
 }) {
+  // `ComponentProps<'button'>` rather than `ButtonHTMLAttributes` so `ref` is
+  // among the props. React 19 passes a ref to a function component like any
+  // other prop, so it already reached the element through the spread below —
+  // only the type was missing, and callers that need to move focus after a state
+  // change (the checkout card does) could not say so.
   return (
     <button
       // Explicit, because a bare <button> inside a <form> submits it, and most

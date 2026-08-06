@@ -70,6 +70,7 @@ function payload(slug: string, label: string) {
       displayName: label,
       slug,
       orgType: 'CLINIC' as const,
+      countryCode: 'IN',
       timezone: 'Asia/Kolkata',
       currency: 'INR',
     },
@@ -257,5 +258,68 @@ describe('registration refuses to collide', () => {
     duplicate.owner.email = `${SLUG_A}@example.test`;
 
     await expect(registerOrganization(duplicate)).rejects.toThrow(/already exists/i);
+  });
+});
+
+/**
+ * A clinic outside India is billed in its own currency, everywhere.
+ *
+ * Both halves of this failed at once and neither threw. The country never
+ * reached the API, so the column default made every clinic Indian; and the
+ * subscription's own `currency` was left to ITS default, so even a clinic that
+ * did register in Ireland — on a EUR price — carried a row saying INR. Every
+ * billing read quotes from that row, so the whole billing screen came back in
+ * rupees for a clinic in Dublin.
+ */
+describe('registration bills a clinic in its own currency', () => {
+  const SLUG_IE = `reg-ie-${SUFFIX}`;
+  let orgIE: { organizationId: string; ownerUserId: string };
+
+  beforeAll(async () => {
+    const input = payload(SLUG_IE, 'Reg IE');
+    input.organization.countryCode = 'IE';
+    input.organization.timezone = 'Europe/Dublin';
+    // Deliberately absent: the server derives it from the country against the
+    // prices the plan actually publishes. Sending one would prove nothing.
+    delete (input.organization as { currency?: string }).currency;
+
+    orgIE = await registerOrganization(input);
+  }, 30_000);
+
+  afterAll(async () => {
+    if (orgIE) {
+      await owner.query('DELETE FROM audit_logs WHERE organization_id = $1', [
+        orgIE.organizationId,
+      ]);
+      await owner.query('DELETE FROM organizations WHERE id = $1', [orgIE.organizationId]);
+      await owner.query('DELETE FROM users WHERE id = $1', [orgIE.ownerUserId]);
+    }
+  });
+
+  it('stores the country and time zone it was given', async () => {
+    const { rows } = await owner.query<{
+      country_code: string;
+      timezone: string;
+      currency: string;
+    }>('SELECT country_code, timezone, currency FROM organizations WHERE id = $1', [
+      orgIE.organizationId,
+    ]);
+
+    expect(rows[0]?.country_code).toBe('IE');
+    expect(rows[0]?.timezone).toBe('Europe/Dublin');
+    expect(rows[0]?.currency).toBe('EUR');
+  });
+
+  it('puts that currency on the subscription row, not just on the price', async () => {
+    const { rows } = await owner.query<{ currency: string; price_currency: string }>(
+      `SELECT s.currency, pp.currency AS price_currency
+       FROM subscriptions s
+       JOIN plan_prices pp ON pp.id = s.plan_price_id
+       WHERE s.organization_id = $1`,
+      [orgIE.organizationId]
+    );
+
+    expect(rows[0]?.currency.trim()).toBe('EUR');
+    expect(rows[0]?.price_currency.trim()).toBe('EUR');
   });
 });

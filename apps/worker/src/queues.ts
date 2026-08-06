@@ -69,12 +69,40 @@ export interface DocumentJob {
   entityId: string;
 }
 
+/**
+ * One clinic's billing, one job.
+ *
+ * The fan-out from the hourly sweep. One job per subscription rather than one
+ * job per batch, so a single clinic's gateway failure retries on its own
+ * backoff and lands in the dead-letter naming exactly who needs a human — rather
+ * than taking the rest of the batch down with it.
+ */
 export interface BillingJob {
   organizationId: string;
   subscriptionId: string;
-  action: 'RENEW' | 'DUNNING_RETRY' | 'SUSPEND';
+  action: 'RENEW' | 'DUNNING_RETRY' | 'SUSPEND' | 'EXPIRE_TRIAL' | 'FINALISE_CANCELLATION';
   attempt?: number;
 }
+
+/**
+ * The name of the repeatable job that asks which subscriptions are due.
+ *
+ * A name rather than a payload: it carries no organization, because it is the
+ * one piece of billing that deliberately spans every tenant. See the header of
+ * apps/worker/src/billing/processor.ts.
+ */
+export const BILLING_SWEEP_JOB = 'SWEEP';
+
+/**
+ * How often the billing clock ticks.
+ *
+ * Hourly, not nightly. A renewal that fails at 02:00 should get its first retry
+ * the same morning rather than a day later, and a clinic that pays an overdue
+ * invoice should stop being past due within the hour rather than overnight. The
+ * sweep is one indexed query when there is nothing to do, so the cost of the
+ * extra frequency is negligible.
+ */
+export const BILLING_SWEEP_CRON = '0 * * * *';
 
 export interface InventoryJob {
   organizationId: string;
@@ -82,12 +110,23 @@ export interface InventoryJob {
   action: 'EXPIRY_SWEEP' | 'REORDER_CHECK';
 }
 
-/** Deterministic ids. `reminder:<appointmentId>:24h` can only ever fire once. */
+/**
+ * Deterministic ids. `reminder-<appointmentId>-24h` can only ever fire once.
+ *
+ * ⚠️ NO COLONS. BullMQ rejects a custom job id containing `:` — it namespaces
+ *   its own Redis keys with them — and it does so by throwing at `queue.add()`,
+ *   i.e. at runtime, in the producer. These separators were colons; every one of
+ *   them would have failed the first time it was used, and the first one to be
+ *   used (the billing sweep) did exactly that.
+ */
 export const jobId = {
   appointmentReminder: (appointmentId: string, hoursBefore: number): string =>
-    `reminder:${appointmentId}:${hoursBefore}h`,
-  invoicePdf: (invoiceId: string): string => `invoice-pdf:${invoiceId}`,
+    `reminder-${appointmentId}-${String(hoursBefore)}h`,
+  invoicePdf: (invoiceId: string): string => `invoice-pdf-${invoiceId}`,
   subscriptionRenewal: (subscriptionId: string, periodEnd: string): string =>
-    `renew:${subscriptionId}:${periodEnd}`,
-  expirySweep: (branchId: string, date: string): string => `expiry:${branchId}:${date}`,
+    `renew-${subscriptionId}-${periodEnd}`,
+  expirySweep: (branchId: string, date: string): string => `expiry-${branchId}-${date}`,
+  /** One billing action per subscription per day. See the sweep's fan-out. */
+  billingAction: (action: string, subscriptionId: string, day: string): string =>
+    `billing-${action}-${subscriptionId}-${day}`,
 };

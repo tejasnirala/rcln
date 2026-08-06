@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import type { BranchListResponse } from '@rcln/contracts';
+import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/session';
+import { getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { BranchList } from '@/components/tenant/branch-list';
 
@@ -37,5 +38,16 @@ export default async function BranchesPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  return <BranchList slug={slug} branches={result.data.branches} />;
+  /*
+   * Whether to offer the history panel at all. Memoised per request, so this is
+   * the same session object the layout already resolved (lib/session.ts).
+   *
+   * Decided here rather than inside the component: a "History" button that answers
+   * 403 when pressed is worse than no button, and the API is the authority either
+   * way — this only decides what to render.
+   */
+  const session = await getSession(slug);
+  const canReadHistory = session?.permissions.includes(PERMISSIONS.AUDIT_READ) ?? false;
+
+  return <BranchList slug={slug} branches={result.data.branches} canReadHistory={canReadHistory} />;
 }

@@ -26,6 +26,33 @@ Two calibrations for this product, which the skill cannot know:
   screen with its own distinct direction is a bug, not a fresh design. Read what
   the existing screens already do before proposing anything new.
 
+## Form controls come from `components/ui/field.tsx`
+
+`Input`, `Select` and `Textarea` are the whole form vocabulary. Each is `Field`
+plus a native control with the label, hint, error, `aria-describedby` and
+`aria-invalid` already wired, controlled (`value` + `onChange`) or uncontrolled
+(`defaultValue`) exactly as React means it. Every other prop lands on the native
+element, so `type`, `inputMode`, `autoComplete`, `rows` and the rest behave
+normally.
+
+**Do not hand-assemble a `<Field>` around a bare `<input className={inputClass}>`.**
+That is what these replaced, and it is how the app ended up with labels pointing
+at ids that did not exist and `aria-describedby` pointing at hints that had been
+swapped out for an error. `inputClass` and `selectClass` stay exported only for
+the controls the components cannot be — `PhoneInput` and `clinic-finder`, where
+the control sits inside a shared bordered group, and checkboxes, where the label
+wraps the box.
+
+`type="password"` on `Input` renders the field with a reveal toggle, decided by
+the component and not by the call site — there is no `PasswordInput` to reach
+for and no `showToggle` prop to forget. A new password box anywhere gets it.
+
+`Select` renders a real `<select>`. The open list is the operating system's and
+we do not style it; that is the price of keeping platform keyboard navigation,
+type-ahead, the mobile wheel picker and screen-reader support. Options go in as
+data — `options={[{ value, label }]}`, a `{ label, options }` entry for a group,
+`placeholder` for a disabled first row.
+
 ## Accessibility is part of the design, not a pass afterwards
 
 The marketing surface was audited and fixed; the same rules bind every screen

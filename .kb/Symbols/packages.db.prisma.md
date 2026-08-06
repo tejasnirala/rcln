@@ -11,11 +11,11 @@ Files: `packages/db/prisma/seed.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `describe` <sub>local</sub> | `(code: PermissionCode): string` | `packages/db/prisma/seed.ts:36` |  |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:435` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:468` |  |
 | `seedPermissions` <sub>local</sub> | `(): Promise<Map<PermissionCode, string>>` | `packages/db/prisma/seed.ts:41` |  |
-| `seedPlans` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:301` |  |
+| `seedPlans` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:317` |  |
 | `seedSettingDefinitions` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:134` |  |
-| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:405` |  |
+| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:438` |  |
 | `seedSystemRoles` <sub>local</sub> | `(permissionIds: Map<PermissionCode, string>): Promise<void>` | `packages/db/prisma/seed.ts:63` |  |
 
 ## const

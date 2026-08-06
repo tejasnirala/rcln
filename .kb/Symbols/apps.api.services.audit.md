@@ -4,21 +4,26 @@
 
 > The one way to write an audit row.
 
-Files: `apps/api/src/services/audit/audit.service.ts`
+Files: `apps/api/src/services/audit/audit.service.ts` · `apps/api/src/services/audit/history.service.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `changesFrom` <sub>local</sub> | `(before: unknown, after: unknown): AuditFieldChange[]` | `apps/api/src/services/audit/history.service.ts:43` |  |
 | `diffSnapshots` | `(before: AuditSnapshot \| undefined, after: AuditSnapshot \| undefined): Diff` | `apps/api/src/services/audit/audit.service.ts:105` |  |
+| `isRecord` <sub>local</sub> | `(value: unknown): value is Record<string, unknown>` | `apps/api/src/services/audit/history.service.ts:56` |  |
+| `readHistory` | `(ctx: TenantContext, input: AuditHistoryInput): Promise<AuditHistoryResponse>` | `apps/api/src/services/audit/history.service.ts:66` |  |
 | `recordAudit` | `(tx: TxClient, ctx: TenantContext, entry: AuditEntry): Promise<void>` | `apps/api/src/services/audit/audit.service.ts:144` | Write one audit row, inside the caller's transaction. |
 | `redact` <sub>local</sub> | `(snapshot: AuditSnapshot): AuditSnapshot` | `apps/api/src/services/audit/audit.service.ts:68` |  |
+| `resolveActorNames` <sub>local</sub> | `(rows: { actorUserId: string \| null; impersonatedByUserId: s…): Promise<Map<string, { id: string; fullName: string }>>` | `apps/api/src/services/audit/history.service.ts:133` |  |
 | `sameValue` <sub>local</sub> | `(a: unknown, b: unknown): boolean` | `apps/api/src/services/audit/audit.service.ts:83` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `DEFAULT_LIMIT` <sub>local</sub> | `50` | `apps/api/src/services/audit/history.service.ts:31` | One page. A record with more history than this is a scroll, not a page. |
 | `REDACTED` <sub>local</sub> | `'[redacted]'` | `apps/api/src/services/audit/audit.service.ts:48` |  |
 | `REDACTED_KEYS` <sub>local</sub> | `new Set(…)` | `apps/api/src/services/audit/audit.service.ts:38` |  |
 
@@ -27,6 +32,7 @@ Files: `apps/api/src/services/audit/audit.service.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `AuditEntry` | `{ action, entityType, entityId, before, after, branchId, ipAddress, userAgent }` | `apps/api/src/services/audit/audit.service.ts:53` |  |
+| `AuditHistoryInput` | `{ entityType, entityId, limit }` | `apps/api/src/services/audit/history.service.ts:60` |  |
 | `Diff` <sub>local</sub> | `{ before, after }` | `apps/api/src/services/audit/audit.service.ts:94` |  |
 
 ## type

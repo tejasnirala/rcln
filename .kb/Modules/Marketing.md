@@ -38,6 +38,7 @@ The apex domain. Landing page, signup, legal pages and the demo form — everyth
 ## Source files
 
 - `apps/web/src/app/(marketing)/actions.ts`
+- `apps/web/src/app/(marketing)/billing/sandbox/page.tsx`
 - `apps/web/src/app/(marketing)/layout.tsx`
 - `apps/web/src/app/(marketing)/legal/dpa/page.tsx`
 - `apps/web/src/app/(marketing)/legal/privacy/page.tsx`
@@ -73,12 +74,12 @@ The apex domain. Landing page, signup, legal pages and the demo form — everyth
 | name | kind | at |
 | --- | --- | --- |
 | `bookDemo` | action | `apps/web/src/app/(marketing)/actions.ts:24` |
-| `checkSlug` | action | `apps/web/src/app/(marketing)/signup/actions.ts:38` |
+| `checkSlug` | action | `apps/web/src/app/(marketing)/signup/actions.ts:80` |
 | `Clause` | component | `apps/web/src/components/marketing/legal.tsx:82` |
 | `ClinicFinder` | component | `apps/web/src/components/marketing/clinic-finder.tsx:23` |
 | `Cta` | component | `apps/web/src/components/marketing/cta.tsx:19` |
 | `DefinitionList` | component | `apps/web/src/components/marketing/legal.tsx:160` |
-| `DemoForm` | component | `apps/web/src/components/marketing/demo-form.tsx:11` |
+| `DemoForm` | component | `apps/web/src/components/marketing/demo-form.tsx:10` |
 | `DemoFormState` | type | `apps/web/src/app/(marketing)/actions.ts:18` |
 | `DpaPage` | component | `apps/web/src/app/(marketing)/legal/dpa/page.tsx:35` |
 | `HomePage` | component | `apps/web/src/app/(marketing)/page.tsx:161` |
@@ -86,7 +87,9 @@ The apex domain. Landing page, signup, legal pages and the demo form — everyth
 | `LegalDoc` | component | `apps/web/src/components/marketing/legal.tsx:30` |
 | `List` | component | `apps/web/src/components/marketing/legal.tsx:173` |
 | `LoginPage` | component | `apps/web/src/app/(marketing)/login/page.tsx:17` |
+| `lookupPostalCode` | action | `apps/web/src/app/(marketing)/signup/actions.ts:137` |
 | `MarketingLayout` | component | `apps/web/src/app/(marketing)/layout.tsx:8` |
+| `metadata` | var | `apps/web/src/app/(marketing)/billing/sandbox/page.tsx:5` |
 | `metadata` | var | `apps/web/src/app/(marketing)/legal/dpa/page.tsx:17` |
 | `metadata` | var | `apps/web/src/app/(marketing)/legal/privacy/page.tsx:11` |
 | `metadata` | var | `apps/web/src/app/(marketing)/legal/terms/page.tsx:12` |
@@ -94,12 +97,14 @@ The apex domain. Landing page, signup, legal pages and the demo form — everyth
 | `metadata` | var | `apps/web/src/app/(marketing)/page.tsx:7` |
 | `metadata` | var | `apps/web/src/app/(marketing)/signup/page.tsx:5` |
 | `Placeholder` | component | `apps/web/src/components/marketing/legal.tsx:22` |
+| `PostalLookup` | interface | `apps/web/src/app/(marketing)/signup/actions.ts:106` |
 | `PrivacyPolicyPage` | component | `apps/web/src/app/(marketing)/legal/privacy/page.tsx:34` |
-| `registerClinic` | action | `apps/web/src/app/(marketing)/signup/actions.ts:60` |
+| `registerClinic` | action | `apps/web/src/app/(marketing)/signup/actions.ts:239` |
+| `SandboxPage` | component | `apps/web/src/app/(marketing)/billing/sandbox/page.tsx:30` |
 | `Section` | component | `apps/web/src/components/marketing/section.tsx:18` |
 | `SectionHead` | component | `apps/web/src/components/marketing/section.tsx:40` |
-| `SignupForm` | component | `apps/web/src/components/marketing/signup-form.tsx:59` |
-| `SignupFormState` | type | `apps/web/src/app/(marketing)/signup/actions.ts:22` |
+| `SignupForm` | component | `apps/web/src/components/marketing/signup-form.tsx:161` |
+| `SignupFormState` | type | `apps/web/src/app/(marketing)/signup/actions.ts:25` |
 | `SignupPage` | component | `apps/web/src/app/(marketing)/signup/page.tsx:20` |
 | `SiteFooter` | component | `apps/web/src/components/marketing/site-footer.tsx:40` |
 | `SiteHeader` | component | `apps/web/src/components/marketing/site-header.tsx:20` |

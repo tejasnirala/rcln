@@ -32,6 +32,7 @@ import {
 import { validate } from '../../middleware/validate.middleware.js';
 import {
   buildAuthSession,
+  defaultBranchId,
   describeSession,
   loadAuthenticatedUser,
   verifyCredentials,
@@ -211,13 +212,19 @@ router.post(
       rotated.activeOrganizationId,
       rotated.activeBranchId,
       { accessToken, refreshToken: rotated.refreshToken },
-      // Unreachable today — an impersonation session's refresh token is
-      // discarded at creation, so nothing can present one. Carried through
-      // anyway so this endpoint is not the one place the banner disappears.
+      /*
+       * Reachable, and routinely: an impersonation session renews like any other
+       * now, bounded by the ceiling `rotateRefreshToken` applies. This used to be
+       * dead code guarding against the banner vanishing on one endpoint — it is
+       * the path that keeps the strip on screen through a morning's work.
+       *
+       * `createdAt`, not `expiresAt`: the deadline shown is the ceiling, and the
+       * row's `expires_at` has just slid forward.
+       */
       await describeImpersonation(
         rotated.activeOrganizationId,
         rotated.impersonatedByUserId,
-        rotated.expiresAt
+        rotated.createdAt
       )
     );
 
@@ -500,7 +507,7 @@ router.get('/session', authenticate, requireAuth, async (req: Request, res: Resp
     await describeImpersonation(
       auth.organizationId,
       auth.impersonatedByUserId,
-      auth.sessionExpiresAt
+      auth.sessionStartedAt
     )
   );
 
@@ -566,16 +573,33 @@ router.post(
 
     // Auditable: who moved where, and when. Required by CONVENTIONS.md.
     const auditCtx = tenantContextFrom(req);
-    await withTenant(auditCtx, (tx) =>
-      recordAudit(tx, auditCtx, {
+    await withTenant(auditCtx, async (tx) => {
+      /*
+       * Remember it, so the next sign-in returns them here.
+       *
+       * In the same transaction as the audit row, and after the scope checks
+       * above — a remembered branch is only ever one the caller could reach at
+       * the moment they reached it. `membershipId` is null for a platform admin
+       * inside a clinic (they hold no membership, which is what makes it
+       * impersonation), and there is nothing to remember on: the console
+       * remembers the CLINIC for them instead, on `users`.
+       */
+      if (auth.membershipId) {
+        await tx.membership.update({
+          where: { id: auth.membershipId },
+          data: { lastBranchId: branchId },
+        });
+      }
+
+      await recordAudit(tx, auditCtx, {
         action: 'SWITCH_BRANCH',
         entityType: 'session',
         entityId: auth.sessionId,
         before: { branchId: auth.branchId },
         after: { branchId },
         branchId,
-      })
-    );
+      });
+    });
 
     const session = await describeSession(
       auth.userId,
@@ -585,7 +609,7 @@ router.post(
       await describeImpersonation(
         auth.organizationId,
         auth.impersonatedByUserId,
-        auth.sessionExpiresAt
+        auth.sessionStartedAt
       )
     );
 
@@ -619,7 +643,20 @@ router.post(
     const session = await findLiveSession(auth.sessionId);
     if (!session) throw new AuthenticationError('Session expired. Please sign in again.');
 
-    const branchId = access.branchIds[0] ?? null;
+    /*
+     * The branch they were last in at THIS organization, not `branchIds[0]`.
+     *
+     * Someone who works at two clinics keeps a separate last branch at each —
+     * that is why the preference lives on `memberships` rather than on `users`.
+     * Arriving on whichever branch happened to sort first was the old behaviour
+     * and it was arbitrary.
+     */
+    const branchId = await defaultBranchId(
+      organizationId,
+      auth.userId,
+      access.branchIds,
+      access.membershipId
+    );
     await setActiveScope(auth.sessionId, organizationId, branchId);
 
     const accessToken = signAccessToken({
@@ -637,7 +674,7 @@ router.post(
       organizationId,
       branchId,
       { accessToken, refreshToken: '' },
-      await describeImpersonation(organizationId, auth.impersonatedByUserId, auth.sessionExpiresAt)
+      await describeImpersonation(organizationId, auth.impersonatedByUserId, auth.sessionStartedAt)
     );
 
     sendSuccess(

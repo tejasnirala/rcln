@@ -8,20 +8,20 @@ Source: `apps/api/src/routes/v1/auth.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| POST | `/login` | `authLimiter` → `identityLimiter` → `validate(loginRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:92` |
-| POST | `/otp/request` | `authLimiter` → `otpLimiter` → `validate(otpRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:119` |
-| POST | `/otp/verify` | `authLimiter` → `validate(otpVerifyRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:137` |
-| POST | `/refresh` | `authLimiter` → `validate(refreshRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:172` |
-| POST | `/invitations/preview` | `authLimiter` → `validate(invitationTokenRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:260` |
-| POST | `/invitations/accept` | `authLimiter` → `validate(acceptInviteRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:282` |
-| POST | `*` | ``/verify/${channel}/request`` → `authenticate` → `requireAuth` → `verificationLimiter` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:332` |
-| POST | `*` | ``/verify/${channel}/confirm`` → `authenticate` → `requireAuth` → `verificationLimiter` → `validate(verificationConfirmRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:351` |
-| POST | `/impersonation/claim` | `authLimiter` → `validate(impersonationClaimRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:407` |
-| POST | `/impersonation/stop` | `authenticate` → `requireAuth` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:435` |
-| POST | `/logout` | `authenticate` → `requireAuth` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:469` |
-| GET | `/session` | `authenticate` → `requireAuth` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:484` |
-| POST | `/switch-branch` | `authenticate` → `requireAuth` → `validate(switchBranchRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:516` |
-| POST | `/switch-organization` | `authenticate` → `requireAuth` → `validate(switchOrganizationRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:603` |
+| POST | `/login` | `authLimiter` → `identityLimiter` → `validate(loginRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:93` |
+| POST | `/otp/request` | `authLimiter` → `otpLimiter` → `validate(otpRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:120` |
+| POST | `/otp/verify` | `authLimiter` → `validate(otpVerifyRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:138` |
+| POST | `/refresh` | `authLimiter` → `validate(refreshRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:173` |
+| POST | `/invitations/preview` | `authLimiter` → `validate(invitationTokenRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:267` |
+| POST | `/invitations/accept` | `authLimiter` → `validate(acceptInviteRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:289` |
+| POST | `*` | ``/verify/${channel}/request`` → `authenticate` → `requireAuth` → `verificationLimiter` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:339` |
+| POST | `*` | ``/verify/${channel}/confirm`` → `authenticate` → `requireAuth` → `verificationLimiter` → `validate(verificationConfirmRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:358` |
+| POST | `/impersonation/claim` | `authLimiter` → `validate(impersonationClaimRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:414` |
+| POST | `/impersonation/stop` | `authenticate` → `requireAuth` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:442` |
+| POST | `/logout` | `authenticate` → `requireAuth` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:476` |
+| GET | `/session` | `authenticate` → `requireAuth` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:491` |
+| POST | `/switch-branch` | `authenticate` → `requireAuth` → `validate(switchBranchRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:523` |
+| POST | `/switch-organization` | `authenticate` → `requireAuth` → `validate(switchOrganizationRequest)` → `<inline>` | `apps/api/src/routes/v1/auth.routes.ts:627` |
 
 ## Contracts imported from `@rcln/contracts`
 

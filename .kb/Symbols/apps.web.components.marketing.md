@@ -15,23 +15,23 @@ Files: `apps/web/src/components/marketing/clinic-finder.tsx` · `apps/web/src/co
 | `COLUMNS` <sub>local</sub> | `[ { title: 'Product', links: [ { href: '#product', label: 'What it runs' }, { href: '#bra…` | `apps/web/src/components/marketing/site-footer.tsx:11` |  |
 | `Cta` | `({ href, variant = 'primary', event, className, children, }:…)` | `apps/web/src/components/marketing/cta.tsx:19` | A call to action keeps its name for the whole flow: the button that says "Book a demo" leads to a form whose submit says "Book a demo" and a confirmation that … |
 | `DefinitionList` | `({ items }: { items: { term: ReactNode; detail: ReactNode }[…)` | `apps/web/src/components/marketing/legal.tsx:160` |  |
-| `DemoForm` | `()` | `apps/web/src/components/marketing/demo-form.tsx:11` |  |
+| `DemoForm` | `()` | `apps/web/src/components/marketing/demo-form.tsx:10` |  |
 | `DraftNotice` <sub>local</sub> | `()` | `apps/web/src/components/marketing/legal.tsx:66` |  |
-| `INITIAL` <sub>local</sub> | `: DemoFormState` | `apps/web/src/components/marketing/demo-form.tsx:9` |  |
-| `INITIAL` <sub>local</sub> | `: SignupFormState` | `apps/web/src/components/marketing/signup-form.tsx:33` |  |
+| `INITIAL` <sub>local</sub> | `: DemoFormState` | `apps/web/src/components/marketing/demo-form.tsx:8` |  |
+| `INITIAL` <sub>local</sub> | `: SignupFormState` | `apps/web/src/components/marketing/signup-form.tsx:70` |  |
 | `JourneyRail` | `()` | `apps/web/src/components/marketing/journey-rail.tsx:118` |  |
 | `LegalDoc` | `({ title, updated, summary, children, }: { title: string; /*…)` | `apps/web/src/components/marketing/legal.tsx:30` |  |
 | `List` | `({ items }: { items: ReactNode[] })` | `apps/web/src/components/marketing/legal.tsx:173` |  |
 | `NAV` <sub>local</sub> | `[ { href: '#product', label: 'Product' }, { href: '#branches', label: 'Branches' }, { hre…` | `apps/web/src/components/marketing/site-header.tsx:5` |  |
 | `Placeholder` | `({ children }: { children: ReactNode })` | `apps/web/src/components/marketing/legal.tsx:22` |  |
-| `Registered` <sub>local</sub> | `({ loginUrl, slug }: { loginUrl: string; slug: string })` | `apps/web/src/components/marketing/signup-form.tsx:676` |  |
+| `Registered` <sub>local</sub> | `({ loginUrl, slug }: { loginUrl: string; slug: string })` | `apps/web/src/components/marketing/signup-form.tsx:1110` |  |
 | `Section` | `({ id, tone = 'paper', className, children, }: { id?: string…)` | `apps/web/src/components/marketing/section.tsx:18` |  |
 | `SectionHead` | `({ eyebrow, title, lead, tone = 'paper', className, }: { eye…)` | `apps/web/src/components/marketing/section.tsx:40` | A section's opening. `eyebrow` is set in mono because it is a label the interface applies, not prose someone wrote. |
-| `SignupForm` | `()` | `apps/web/src/components/marketing/signup-form.tsx:59` |  |
+| `SignupForm` | `()` | `apps/web/src/components/marketing/signup-form.tsx:161` |  |
 | `SiteFooter` | `()` | `apps/web/src/components/marketing/site-footer.tsx:40` |  |
 | `SiteHeader` | `()` | `apps/web/src/components/marketing/site-header.tsx:20` |  |
 | `STATIONS` <sub>local</sub> | `: Station[]` | `apps/web/src/components/marketing/journey-rail.tsx:29` |  |
-| `STEPS` <sub>local</sub> | `[ { id: 'clinic', label: 'Clinic' }, { id: 'address', label: 'Address' }, { id: 'branch',…` | `apps/web/src/components/marketing/signup-form.tsx:35` |  |
+| `STEPS` <sub>local</sub> | `[ { id: 'clinic', label: 'Clinic' }, { id: 'address', label: 'Address' }, { id: 'branch',…` | `apps/web/src/components/marketing/signup-form.tsx:80` |  |
 | `Table` | `({ head, rows }: { head: string[]; rows: ReactNode[][] })` | `apps/web/src/components/marketing/legal.tsx:120` |  |
 | `Term` | `({ children }: { children: ReactNode })` | `apps/web/src/components/marketing/legal.tsx:111` | A defined term. Capitalised terms are load-bearing in a contract. |
 | `TONES` <sub>local</sub> | `{ paper: 'bg-paper text-ink', card: 'bg-card text-ink', // `on-ink` re-points the focus r…` | `apps/web/src/components/marketing/section.tsx:3` |  |
@@ -42,26 +42,29 @@ Files: `apps/web/src/components/marketing/clinic-finder.tsx` · `apps/web/src/co
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `issuesToErrors` <sub>local</sub> | `(issues: { path: PropertyKey[]; message: string }[], prefix: string): Errors` | `apps/web/src/components/marketing/signup-form.tsx:47` |  |
+| `issuesToErrors` <sub>local</sub> | `(issues: { path: PropertyKey[]; message: string }[], prefix: string): Errors` | `apps/web/src/components/marketing/signup-form.tsx:124` |  |
+| `stepForError` <sub>local</sub> | `(key: string): number` | `apps/web/src/components/marketing/signup-form.tsx:144` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ADVANCE_MS` <sub>local</sub> | `3400` | `apps/web/src/components/marketing/journey-rail.tsx:116` |  |
+| `ERROR_KEYS` <sub>local</sub> | `: Record<string, readonly string[]>` | `apps/web/src/components/marketing/signup-form.tsx:102` |  |
+| `ORG_TYPES` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/marketing/signup-form.tsx:73` | What kind of practice this is, in the words a practice uses for itself. |
 | `ROOT_DOMAIN` <sub>local</sub> | `process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me'` | `apps/web/src/components/marketing/clinic-finder.tsx:21` |  |
-| `ROOT_DOMAIN` <sub>local</sub> | `process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me'` | `apps/web/src/components/marketing/signup-form.tsx:31` |  |
+| `ROOT_DOMAIN` <sub>local</sub> | `process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me'` | `apps/web/src/components/marketing/signup-form.tsx:68` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `shape` <sub>local</sub> | `registerOrganizationRequest.shape` | `apps/web/src/components/marketing/signup-form.tsx:43` | Which schema each step's fields belong to, for validating before advancing. |
+| `shape` <sub>local</sub> | `registerOrganizationRequest.shape` | `apps/web/src/components/marketing/signup-form.tsx:88` | Which schema each step's fields belong to, for validating before advancing. |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `Errors` <sub>local</sub> | `Record<string, string[]>` | `apps/web/src/components/marketing/signup-form.tsx:45` |  |
+| `Errors` <sub>local</sub> | `Record<string, string[]>` | `apps/web/src/components/marketing/signup-form.tsx:90` |  |
 | `Row` <sub>local</sub> | `{ label: string; value: string; mono?: boolean; note?: string }` | `apps/web/src/components/marketing/journey-rail.tsx:17` |  |
 | `Station` <sub>local</sub> | `{ key: string; short: string; label: string; time: string; actor: string; headline: string; rows: Row[]; }` | `apps/web/src/components/marketing/journey-rail.tsx:19` |  |

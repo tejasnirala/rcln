@@ -132,6 +132,7 @@ export async function authenticate(
       branchScope,
       impersonatedByUserId: claims.impersonatedByUserId,
       sessionExpiresAt: session.expiresAt,
+      sessionStartedAt: session.createdAt,
     };
 
     next();

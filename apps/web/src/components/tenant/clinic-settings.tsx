@@ -1,12 +1,15 @@
 'use client';
 
-import { useActionState, useMemo, useRef } from 'react';
+import { useActionState, useMemo, useRef, useState } from 'react';
 import type { OrganizationProfile, SettingItem } from '@rcln/contracts';
-import { Field, inputClass } from '@/components/ui/field';
+import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { RecordHistory } from '@/components/tenant/record-history';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
+import { cn } from '@/lib/cn';
 import { moduleLabel } from '@/lib/permission-labels';
 import { CURRENCIES, TIMEZONES, withCurrent } from '@/lib/locale-options';
+import { COUNTRIES, countryInfo, defaultTimezoneFor, regionsFor } from '@rcln/contracts';
 import {
   resetSetting,
   saveOrganization,
@@ -15,6 +18,12 @@ import {
 } from '@/app/(tenant)/t/[slug]/(app)/settings/actions';
 
 const IDLE: SettingsFormState = { status: 'idle' };
+
+/** A BOOL setting, in the words the row already uses to display it. */
+const BOOL_CHOICES: SelectOption[] = [
+  { value: 'true', label: 'On' },
+  { value: 'false', label: 'Off' },
+];
 
 /** The string form a value goes back into a form field as. */
 function toInput(value: unknown): string {
@@ -152,65 +161,64 @@ function SettingRow({
          */}
         <div className="flex shrink-0 flex-col gap-2">
           <form ref={formRef} action={action} noValidate className="flex flex-col gap-2">
-            <Field
-              name={inputId}
-              label="Value"
-              errors={state.fieldErrors?.['value']}
-              {...(setting.dataType === 'JSON' ? { hint: 'JSON, e.g. [90, 30]' } : {})}
-            >
-              {/*
-               * A closed set is a select, and the options come from the same
-               * column the API validates against — so the screen cannot offer a
-               * value that will be refused, and adding a choice is an INSERT
-               * rather than a change here.
-               *
-               * The option's `value` is the JSON form, which is exactly what the
-               * action parses back by `dataType`: "4" becomes the number 4 for an
-               * INT, "SMS" stays a string. One encoding, both directions.
-               */}
-              {setting.choices ? (
-                <select
-                  id={inputId}
-                  name="value"
-                  aria-label={inputLabel}
-                  className={`${inputClass} sm:w-56`}
-                  defaultValue={toInput(setting.value)}
-                  disabled={!editable}
-                >
-                  {setting.choices.map((choice) => (
-                    <option key={toInput(choice.value)} value={toInput(choice.value)}>
-                      {choice.label}
-                    </option>
-                  ))}
-                </select>
-              ) : setting.dataType === 'BOOL' ? (
-                <select
-                  id={inputId}
-                  name="value"
-                  aria-label={inputLabel}
-                  className={`${inputClass} sm:w-44`}
-                  defaultValue={toInput(setting.value)}
-                  disabled={!editable}
-                >
-                  <option value="true">On</option>
-                  <option value="false">Off</option>
-                </select>
-              ) : (
-                <input
-                  id={inputId}
-                  name="value"
-                  aria-label={inputLabel}
-                  type={
-                    setting.dataType === 'INT' || setting.dataType === 'DECIMAL' ? 'number' : 'text'
-                  }
-                  step={setting.dataType === 'DECIMAL' ? 'any' : undefined}
-                  className={`${inputClass} sm:w-44 ${setting.dataType === 'JSON' ? 'font-mono' : ''}`}
-                  defaultValue={toInput(setting.value)}
-                  disabled={!editable}
-                  autoComplete="off"
-                />
-              )}
-            </Field>
+            {/*
+             * A closed set is a select, and the options come from the same
+             * column the API validates against — so the screen cannot offer a
+             * value that will be refused, and adding a choice is an INSERT
+             * rather than a change here.
+             *
+             * The option's `value` is the JSON form, which is exactly what the
+             * action parses back by `dataType`: "4" becomes the number 4 for an
+             * INT, "SMS" stays a string. One encoding, both directions.
+             *
+             * All three shapes are one field with one id, so whichever renders
+             * carries the same label, the same error and the same wiring.
+             */}
+            {setting.choices ? (
+              <Select
+                id={inputId}
+                name="value"
+                label="Value"
+                aria-label={inputLabel}
+                errors={state.fieldErrors?.['value']}
+                className="sm:w-56"
+                defaultValue={toInput(setting.value)}
+                disabled={!editable}
+                options={setting.choices.map((choice) => ({
+                  value: toInput(choice.value),
+                  label: choice.label,
+                }))}
+              />
+            ) : setting.dataType === 'BOOL' ? (
+              <Select
+                id={inputId}
+                name="value"
+                label="Value"
+                aria-label={inputLabel}
+                errors={state.fieldErrors?.['value']}
+                className="sm:w-44"
+                defaultValue={toInput(setting.value)}
+                disabled={!editable}
+                options={BOOL_CHOICES}
+              />
+            ) : (
+              <Input
+                id={inputId}
+                name="value"
+                label="Value"
+                aria-label={inputLabel}
+                errors={state.fieldErrors?.['value']}
+                {...(setting.dataType === 'JSON' ? { hint: 'JSON, e.g. [90, 30]' } : {})}
+                type={
+                  setting.dataType === 'INT' || setting.dataType === 'DECIMAL' ? 'number' : 'text'
+                }
+                {...(setting.dataType === 'DECIMAL' ? { step: 'any' } : {})}
+                className={cn('sm:w-44', setting.dataType === 'JSON' && 'font-mono')}
+                defaultValue={toInput(setting.value)}
+                disabled={!editable}
+                autoComplete="off"
+              />
+            )}
 
             {editable ? (
               <Button size="sm" type="submit" disabled={pending}>
@@ -263,6 +271,15 @@ function OrganizationForm({
   organization: OrganizationProfile;
   canEdit: boolean;
 }) {
+  /*
+   * Controlled, because country drives the other three. They start from the
+   * clinic's stored values, so opening the screen and saving changes nothing.
+   */
+  const [countryCode, setCountryCode] = useState(organization.countryCode);
+  const [regionCode, setRegionCode] = useState(organization.regionCode ?? '');
+  const [timezone, setTimezone] = useState(organization.timezone);
+  const [currency, setCurrency] = useState(organization.currency);
+
   const [state, action, pending] = useActionState(saveOrganization.bind(null, slug), IDLE);
   const formRef = useRef<HTMLFormElement>(null);
   useOutcomeFocus(state.status, formRef);
@@ -272,53 +289,84 @@ function OrganizationForm({
   return (
     <form ref={formRef} action={action} noValidate>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
+        <Input
           name="legalName"
           label="Registered name"
           hint="As it appears on invoices and filings"
           errors={err('legalName')}
-        >
-          <input
-            id="legalName"
-            name="legalName"
-            className={inputClass}
-            defaultValue={organization.legalName}
-            disabled={!canEdit}
-            required
-            autoComplete="organization"
-          />
-        </Field>
-        <Field
+          defaultValue={organization.legalName}
+          disabled={!canEdit}
+          required
+          autoComplete="organization"
+        />
+        <Input
           name="displayName"
           label="Name patients see"
           hint="As it appears on portal"
           errors={err('displayName')}
-        >
-          <input
-            id="displayName"
-            name="displayName"
-            className={inputClass}
-            defaultValue={organization.displayName}
-            disabled={!canEdit}
-            required
-            autoComplete="off"
-          />
-        </Field>
-        <Field
+          defaultValue={organization.displayName}
+          disabled={!canEdit}
+          required
+          autoComplete="off"
+        />
+        <Input
           name="gstNumber"
           label="GSTIN"
           hint="Leave empty if this clinic is not registered"
           errors={err('gstNumber')}
-        >
-          <input
-            id="gstNumber"
-            name="gstNumber"
-            className={`${inputClass} font-mono`}
-            defaultValue={organization.gstNumber ?? ''}
+          className="font-mono"
+          defaultValue={organization.gstNumber ?? ''}
+          disabled={!canEdit}
+          autoComplete="off"
+        />
+        {/*
+          Country and region, from the same table signup and the platform tax
+          console read. Changing the country re-derives the time zone and the
+          currency below — the same behaviour as signup, so a clinic that moves
+          does not have to know which three fields are connected.
+
+          ⚠️ IT CHANGES THE TAX ON FUTURE INVOICES AND NOTHING ELSE. Place of
+            supply, both tax numbers and every rate are snapshotted onto each
+            invoice when it is raised, so this edit cannot rewrite an issued one.
+        */}
+        {/* Unnamed on purpose — submitted by the hidden input below. */}
+        <Select
+          id="countryCode"
+          label="Country"
+          hint="Where this clinic operates. It decides the tax on your subscription."
+          errors={err('countryCode')}
+          value={countryCode}
+          disabled={!canEdit}
+          onChange={(event) => {
+            const next = event.target.value;
+            setCountryCode(next);
+            setRegionCode('');
+            setTimezone(defaultTimezoneFor(next));
+            setCurrency(countryInfo(next)?.currency ?? currency);
+          }}
+          options={COUNTRIES.map((option) => ({ value: option.code, label: option.name }))}
+        />
+
+        {regionsFor(countryCode).length > 0 ? (
+          /* Unnamed on purpose — submitted by the hidden input below. */
+          <Select
+            id="regionCode"
+            label="State"
+            hint="Where this clinic is registered. It decides whether GST is charged as CGST and SGST, or as IGST."
+            errors={err('regionCode')}
+            value={regionCode}
             disabled={!canEdit}
-            autoComplete="off"
+            onChange={(event) => setRegionCode(event.target.value)}
+            options={[
+              { value: '', label: 'Not set — charged as IGST' },
+              ...regionsFor(countryCode).map((region) => ({
+                value: region.code,
+                label: region.name,
+              })),
+            ]}
           />
-        </Field>
+        ) : null}
+
         {/*
          * Both are selects, and both include whatever the clinic is currently
          * set to even when that is off the list — a select cannot render a
@@ -327,49 +375,57 @@ function OrganizationForm({
          * its GSTIN. The lists are the convenient choices; the contract
          * validates against the platform's full set.
          */}
-        <Field
-          name="timezone"
+        {/* Unnamed on purpose — submitted by the hidden input below. */}
+        <Select
+          id="timezone"
           label="Time zone"
           hint="Appointment times and report dates are read in this zone"
           errors={err('timezone')}
-        >
-          <select
-            id="timezone"
-            name="timezone"
-            className={inputClass}
-            defaultValue={organization.timezone}
-            disabled={!canEdit}
-            required
-          >
-            {withCurrent(TIMEZONES, organization.timezone).map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field
-          name="currency"
+          value={timezone}
+          onChange={(event) => setTimezone(event.target.value)}
+          disabled={!canEdit}
+          required
+          options={withCurrent(TIMEZONES, timezone)}
+        />
+        {/* Unnamed on purpose — submitted by the hidden input below. */}
+        <Select
+          id="currency"
           label="Currency"
           hint="What invoices and price lists are denominated in"
           errors={err('currency')}
-        >
-          <select
-            id="currency"
-            name="currency"
-            className={inputClass}
-            defaultValue={organization.currency}
-            disabled={!canEdit}
-            required
-          >
-            {withCurrent(CURRENCIES, organization.currency).map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </Field>
+          value={currency}
+          onChange={(event) => setCurrency(event.target.value)}
+          disabled={!canEdit}
+          required
+          options={withCurrent(CURRENCIES, currency)}
+        />
       </div>
+
+      {/*
+        ⚠️ THE FOUR SELECTS ABOVE SUBMIT THROUGH THESE, WHICH IS WHY NONE OF THEM
+          CARRIES A `name`.
+
+          React 19 resets the form once the action returns. `form.reset()` puts a
+          control back to its DEFAULT, and for a <select> that is the `selected`
+          ATTRIBUTE on its options — which React never writes, because it drives
+          selection through the DOM property. So a rejected save snaps every
+          select back to its first option while React state, and the screen,
+          still show what was picked; the next save then writes the reverted
+          values with nothing on screen to say so. Registration lost a clinic's
+          country exactly this way. Hidden inputs are immune — React writes their
+          `value` attribute, so a reset restores the value they already had.
+
+          Only when `canEdit`: a disabled control is not submitted, and these
+          stand in for controls that are disabled without it.
+      */}
+      {canEdit ? (
+        <>
+          <input type="hidden" name="countryCode" value={countryCode} />
+          <input type="hidden" name="regionCode" value={regionCode} />
+          <input type="hidden" name="timezone" value={timezone} />
+          <input type="hidden" name="currency" value={currency} />
+        </>
+      ) : null}
 
       {state.status !== 'idle' ? (
         <Alert tone={state.status === 'error' ? 'error' : 'info'} className="mt-5">
@@ -405,12 +461,14 @@ export function ClinicSettings({
   settings,
   canEditOrganization,
   canEditSettings,
+  canReadHistory,
 }: {
   slug: string;
   organization: OrganizationProfile | null;
   settings: SettingItem[] | null;
   canEditOrganization: boolean;
   canEditSettings: boolean;
+  canReadHistory: boolean;
 }) {
   const groups = useMemo(() => {
     const byModule = new Map<string, SettingItem[]>();
@@ -446,9 +504,22 @@ export function ClinicSettings({
           className="border-rule bg-card mt-8 rounded-lg border p-5"
           aria-labelledby="details-heading"
         >
-          <h2 id="details-heading" className="eyebrow text-muted">
-            Details
-          </h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 id="details-heading" className="eyebrow text-muted">
+              Details
+            </h2>
+            {/* The richest trail in the product: the clinic's own particulars are
+                what get corrected most, and "who changed our GST number" is the
+                question this screen gets asked. */}
+            {canReadHistory ? (
+              <RecordHistory
+                slug={slug}
+                entityType="organization"
+                entityId={organization.id}
+                label={organization.displayName}
+              />
+            ) : null}
+          </div>
           <div className="mt-4">
             <OrganizationForm
               slug={slug}

@@ -4,30 +4,39 @@
 
 > Step one, on `admin.<root>`: check the clinic exists and issue the ticket.
 
-Files: `apps/api/src/services/platform/impersonation.service.ts`
+Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/src/services/platform/tax-registration.service.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `claimImpersonation` | `(input: ClaimImpersonationInput): Promise<AuthSession>` | `apps/api/src/services/platform/impersonation.service.ts:147` |  |
-| `describeImpersonation` | `(organizationId: string \| null, impersonatedByUserId: string \| null, expiresAt: Date): Promise<ImpersonationDescriptor \| null>` | `apps/api/src/services/platform/impersonation.service.ts:303` | The banner's content, for the endpoints that re-describe an existing session. Returns null for an ordinary session, so a caller can hand it straight to `descri… |
-| `handoffKey` <sub>local</sub> | `(token: string): string` | `apps/api/src/services/platform/impersonation.service.ts:72` |  |
-| `startImpersonation` | `(input: StartImpersonationInput): Promise<ImpersonationGrant>` | `apps/api/src/services/platform/impersonation.service.ts:94` |  |
-| `stopImpersonation` | `(input: StopImpersonationInput): Promise<void>` | `apps/api/src/services/platform/impersonation.service.ts:339` |  |
+| `claimImpersonation` | `(input: ClaimImpersonationInput): Promise<AuthSession>` | `apps/api/src/services/platform/impersonation.service.ts:177` |  |
+| `conflict` <sub>local</sub> | `(input: { countryCode?: string; regionCode?: string \| null }): ConflictError` | `apps/api/src/services/platform/tax-registration.service.ts:85` |  |
+| `createTaxRegistration` | `(input: CreateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>` | `apps/api/src/services/platform/tax-registration.service.ts:105` |  |
+| `deleteTaxRegistration` | `(id: string): Promise<void>` | `apps/api/src/services/platform/tax-registration.service.ts:185` |  |
+| `describeImpersonation` | `(organizationId: string \| null, impersonatedByUserId: string \| null, sessionStartedAt: Date): Promise<ImpersonationDescriptor \| null>` | `apps/api/src/services/platform/impersonation.service.ts:334` | The banner's content, for the endpoints that re-describe an existing session. Returns null for an ordinary session, so a caller can hand it straight to `descri… |
+| `fromDateOnly` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/platform/tax-registration.service.ts:38` | `2026-08-06`. The inverse, for the wire. |
+| `handoffKey` <sub>local</sub> | `(token: string): string` | `apps/api/src/services/platform/impersonation.service.ts:84` |  |
+| `isUniqueViolation` <sub>local</sub> | `(error: unknown): boolean` | `apps/api/src/services/platform/tax-registration.service.ts:81` |  |
+| `listTaxRegistrations` | `(at): Promise<TaxRegistrationListResponse>` | `apps/api/src/services/platform/tax-registration.service.ts:94` |  |
+| `startImpersonation` | `(input: StartImpersonationInput): Promise<ImpersonationGrant>` | `apps/api/src/services/platform/impersonation.service.ts:106` |  |
+| `stopImpersonation` | `(input: StopImpersonationInput): Promise<void>` | `apps/api/src/services/platform/impersonation.service.ts:382` |  |
+| `toDateOnly` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/platform/tax-registration.service.ts:33` | A `Date` at UTC midnight from `YYYY-MM-DD`, matching the `date` column. |
+| `toSummary` <sub>local</sub> | `(row: Row, at: Date): TaxRegistrationSummary` | `apps/api/src/services/platform/tax-registration.service.ts:53` |  |
+| `updateTaxRegistration` | `(id: string, input: UpdateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>` | `apps/api/src/services/platform/tax-registration.service.ts:129` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `HANDOFF_TTL_SECONDS` <sub>local</sub> | `120` | `apps/api/src/services/platform/impersonation.service.ts:70` | The ticket's life. A browser form post, not a coffee break. |
-| `SESSION_TTL_SECONDS` <sub>local</sub> | `30 * 60` | `apps/api/src/services/platform/impersonation.service.ts:67` | The session's whole life. Long enough to fix something, short enough to end. |
+| `HANDOFF_TTL_SECONDS` <sub>local</sub> | `120` | `apps/api/src/services/platform/impersonation.service.ts:82` | The ticket's life. A browser form post, not a coffee break. |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ClaimImpersonationInput` | `{ organizationId, handoffToken, ipAddress, userAgent }` | `apps/api/src/services/platform/impersonation.service.ts:131` |  |
-| `HandoffPayload` <sub>local</sub> | `{ organizationId, adminUserId, reason }` | `apps/api/src/services/platform/impersonation.service.ts:75` |  |
-| `StartImpersonationInput` | `{ organizationId, adminUserId, reason }` | `apps/api/src/services/platform/impersonation.service.ts:81` |  |
-| `StopImpersonationInput` | `{ sessionId, organizationId, adminUserId, branchId, branchIds, ipAddress, userAgent }` | `apps/api/src/services/platform/impersonation.service.ts:329` |  |
+| `ClaimImpersonationInput` | `{ organizationId, handoffToken, ipAddress, userAgent }` | `apps/api/src/services/platform/impersonation.service.ts:161` |  |
+| `HandoffPayload` <sub>local</sub> | `{ organizationId, adminUserId, reason }` | `apps/api/src/services/platform/impersonation.service.ts:87` |  |
+| `Row` <sub>local</sub> | `{ id, countryCode, regionCode, scheme, registrationNumber, standardRateBps, effectiveFrom, effectiveTo }` | `apps/api/src/services/platform/tax-registration.service.ts:42` |  |
+| `StartImpersonationInput` | `{ organizationId, adminUserId, reason }` | `apps/api/src/services/platform/impersonation.service.ts:93` |  |
+| `StopImpersonationInput` | `{ sessionId, organizationId, adminUserId, branchId, branchIds, ipAddress, userAgent }` | `apps/api/src/services/platform/impersonation.service.ts:372` |  |

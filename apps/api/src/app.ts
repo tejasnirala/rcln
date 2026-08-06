@@ -12,6 +12,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 import { generalLimiter } from './middleware/rateLimiter.middleware.js';
 import { resolveTenant } from './middleware/tenant.middleware.js';
 import routes from './routes/index.js';
+import webhookRoutes from './routes/v1/webhooks.routes.js';
 
 /**
  * Middleware order is the security model. Do not reorder casually:
@@ -91,6 +92,23 @@ export const createApp = (): Express => {
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
     })
   );
+
+  /*
+   * ⚠️ WEBHOOKS GO BEFORE THE BODY PARSERS, AND THE ORDER IS LOAD-BEARING.
+   *
+   * Every payment provider signs the exact bytes it sent. `express.json()`
+   * consumes the request stream and hands on a parsed object; re-serialising it
+   * reorders keys and changes whitespace, so the HMAC no longer matches — and
+   * the failure presents as "wrong secret" rather than as anything to do with
+   * this line. The router owns its own `express.raw()`.
+   *
+   * It is also ahead of `generalLimiter` and `resolveTenant` on purpose: a
+   * provider posts from its own infrastructure, on no host we control, and a
+   * burst of retries must not be throttled into a disabled endpoint. What
+   * protects it is the signature, checked before a single row is read. See the
+   * header of webhooks.routes.ts.
+   */
+  app.use('/api/v1/webhooks', webhookRoutes);
 
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));

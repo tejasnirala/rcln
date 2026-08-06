@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef, useState } from 'react';
 import { otpSignIn, signIn, type LoginFormState } from '@/app/(tenant)/t/[slug]/actions';
 import { cn } from '@/lib/cn';
 import { hardNavigate } from '@/lib/hard-navigate';
-import { describedBy, Field, inputClass } from '@/components/ui/field';
+import { Input } from '@/components/ui/field';
 
 const INITIAL: LoginFormState = { status: 'idle' };
 
@@ -145,42 +145,26 @@ function PasswordForm({ slug }: { slug: string }) {
   return (
     <form ref={formRef} action={formAction} noValidate>
       <div className="grid gap-5">
-        <Field name="identifier" label="Email or phone" errors={state.fieldErrors?.['identifier']}>
-          <input
-            id="identifier"
-            name="identifier"
-            required
-            autoComplete="username"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            className={inputClass}
-            placeholder="you@clinic.in"
-            aria-invalid={Boolean(state.fieldErrors?.['identifier'])}
-            aria-describedby={describedBy(
-              'identifier',
-              false,
-              Boolean(state.fieldErrors?.['identifier'])
-            )}
-          />
-        </Field>
+        <Input
+          name="identifier"
+          label="Email or phone"
+          errors={state.fieldErrors?.['identifier']}
+          required
+          autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="you@clinic.in"
+        />
 
-        <Field name="password" label="Password" errors={state.fieldErrors?.['password']}>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            className={inputClass}
-            aria-invalid={Boolean(state.fieldErrors?.['password'])}
-            aria-describedby={describedBy(
-              'password',
-              false,
-              Boolean(state.fieldErrors?.['password'])
-            )}
-          />
-        </Field>
+        <Input
+          name="password"
+          label="Password"
+          errors={state.fieldErrors?.['password']}
+          type="password"
+          required
+          autoComplete="current-password"
+        />
       </div>
 
       <Alert state={state} />
@@ -216,7 +200,7 @@ function CodeForm({ slug }: { slug: string }) {
 
   return (
     <form ref={formRef} action={formAction} noValidate>
-      <Field
+      <Input
         name="phone"
         label="Mobile number"
         hint={
@@ -225,41 +209,30 @@ function CodeForm({ slug }: { slug: string }) {
             : 'We will send a six-digit code to this number.'
         }
         errors={state.fieldErrors?.['phone']}
-      >
-        <input
-          id="phone"
-          name="phone"
-          type="tel"
-          required
-          autoComplete="tel"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          readOnly={sent}
-          className={cn(inputClass, 'font-mono', sent && 'bg-paper')}
-          placeholder="+919876543210"
-          aria-invalid={Boolean(state.fieldErrors?.['phone'])}
-          aria-describedby={describedBy('phone', true, Boolean(state.fieldErrors?.['phone']))}
-        />
-      </Field>
+        type="tel"
+        required
+        autoComplete="tel"
+        value={phone}
+        onChange={(event) => setPhone(event.target.value)}
+        readOnly={sent}
+        className={cn('font-mono', sent && 'bg-paper')}
+        placeholder="+919876543210"
+      />
 
       {sent ? (
-        <div className="mt-5">
-          <Field name="code" label="Your code" errors={state.fieldErrors?.['code']}>
-            <input
-              id="code"
-              name="code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={8}
-              required
-              autoFocus
-              className={cn(inputClass, 'font-mono tracking-[0.3em] tabular-nums')}
-              placeholder="123456"
-              aria-invalid={Boolean(state.fieldErrors?.['code'])}
-              aria-describedby={describedBy('code', false, Boolean(state.fieldErrors?.['code']))}
-            />
-          </Field>
-        </div>
+        <Input
+          name="code"
+          label="Your code"
+          errors={state.fieldErrors?.['code']}
+          fieldClassName="mt-5"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={8}
+          required
+          autoFocus
+          className="font-mono tracking-[0.3em] tabular-nums"
+          placeholder="123456"
+        />
       ) : null}
 
       <Alert state={state} />

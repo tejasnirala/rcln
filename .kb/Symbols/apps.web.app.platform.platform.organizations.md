@@ -10,7 +10,7 @@ Files: `apps/web/src/app/(platform)/platform/organizations/actions.ts` · `apps/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PlatformOrganizations` | `()` | `apps/web/src/app/(platform)/platform/organizations/page.tsx:13` | Every clinic on the platform. The only list in the product that crosses the tenant boundary, and the way in to impersonation. The gate is in `layout.tsx`; this… |
+| `PlatformOrganizations` | `()` | `apps/web/src/app/(platform)/platform/organizations/page.tsx:12` | Every clinic on the platform. The only list in the product that crosses the tenant boundary, and the way in to impersonation. The gate is in `layout.tsx`; this… |
 
 ## action
 

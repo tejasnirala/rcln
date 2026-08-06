@@ -72,7 +72,7 @@ The places a clinic operates from. One organization, one or many branches — a 
 | name | kind | at |
 | --- | --- | --- |
 | `BranchActionOptions` | interface | `apps/api/src/services/branch/branch.service.ts:35` |
-| `BranchList` | component | `apps/web/src/components/tenant/branch-list.tsx:107` |
+| `BranchList` | component | `apps/web/src/components/tenant/branch-list.tsx:130` |
 | `createBranch` | fn | `apps/api/src/services/branch/branch.service.ts:164` |
 | `deleteBranch` | fn | `apps/api/src/services/branch/branch.service.ts:341` |
 | `getBranch` | fn | `apps/api/src/services/branch/branch.service.ts:150` |

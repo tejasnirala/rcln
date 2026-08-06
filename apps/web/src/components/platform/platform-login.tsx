@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from 'react';
 import { platformSignIn, type PlatformLoginState } from '@/app/(platform)/platform/actions';
 import { hardNavigate } from '@/lib/hard-navigate';
-import { describedBy, Field, inputClass } from '@/components/ui/field';
+import { Input } from '@/components/ui/field';
 
 const INITIAL: PlatformLoginState = { status: 'idle' };
 
@@ -33,40 +33,24 @@ export function PlatformLogin() {
       noValidate
     >
       <div className="grid gap-5">
-        <Field name="identifier" label="Email" errors={state.fieldErrors?.['identifier']}>
-          <input
-            id="identifier"
-            name="identifier"
-            required
-            autoComplete="username"
-            autoCapitalize="none"
-            spellCheck={false}
-            className={inputClass}
-            aria-invalid={Boolean(state.fieldErrors?.['identifier'])}
-            aria-describedby={describedBy(
-              'identifier',
-              false,
-              Boolean(state.fieldErrors?.['identifier'])
-            )}
-          />
-        </Field>
+        <Input
+          name="identifier"
+          label="Email"
+          errors={state.fieldErrors?.['identifier']}
+          required
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+        />
 
-        <Field name="password" label="Password" errors={state.fieldErrors?.['password']}>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            className={inputClass}
-            aria-invalid={Boolean(state.fieldErrors?.['password'])}
-            aria-describedby={describedBy(
-              'password',
-              false,
-              Boolean(state.fieldErrors?.['password'])
-            )}
-          />
-        </Field>
+        <Input
+          name="password"
+          label="Password"
+          errors={state.fieldErrors?.['password']}
+          type="password"
+          required
+          autoComplete="current-password"
+        />
       </div>
 
       {state.status === 'error' && state.message ? (

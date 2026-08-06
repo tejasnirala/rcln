@@ -55,6 +55,7 @@ function payload(slug: string, label: string, phone: string) {
       displayName: label,
       slug,
       orgType: 'CLINIC' as const,
+      countryCode: 'IN',
       timezone: 'Asia/Kolkata',
       currency: 'INR',
     },

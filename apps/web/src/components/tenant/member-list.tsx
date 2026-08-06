@@ -2,8 +2,9 @@
 
 import { useActionState, useCallback, useMemo, useState } from 'react';
 import type { MemberDetail, MemberListResponse } from '@rcln/contracts';
-import { Field, inputClass } from '@/components/ui/field';
+import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { RecordHistory } from '@/components/tenant/record-history';
 import { Alert } from '@/components/ui/alert';
 import { actionLabel, moduleLabel, moduleOf } from '@/lib/permission-labels';
 import {
@@ -18,6 +19,12 @@ import {
 } from '@/app/(tenant)/t/[slug]/(app)/members/actions';
 
 const IDLE: MemberFormState = { status: 'idle' };
+
+/** Named as the act, not the enum: you block a permission, you do not DENY it. */
+const EFFECTS: SelectOption[] = [
+  { value: 'DENY', label: 'Block it' },
+  { value: 'GRANT', label: 'Allow it' },
+];
 
 type RoleOption = MemberListResponse['roles'][number];
 type BranchOption = MemberListResponse['branches'][number];
@@ -150,6 +157,7 @@ export function MemberList({
   branches,
   grantableCodes,
   canAssignOrgWide,
+  canReadHistory,
 }: {
   slug: string;
   members: MemberDetail[];
@@ -157,6 +165,7 @@ export function MemberList({
   branches: BranchOption[];
   grantableCodes: string[];
   canAssignOrgWide: boolean;
+  canReadHistory: boolean;
 }) {
   const working = members.filter((member) => member.status === 'ACTIVE');
   const inactive = members.filter((member) => member.status !== 'ACTIVE');
@@ -191,6 +200,7 @@ export function MemberList({
                 branches={branches}
                 grantableCodes={grantableCodes}
                 canAssignOrgWide={canAssignOrgWide}
+                canReadHistory={canReadHistory}
               />
             ))}
           </ul>
@@ -212,6 +222,7 @@ export function MemberList({
                 branches={branches}
                 grantableCodes={grantableCodes}
                 canAssignOrgWide={canAssignOrgWide}
+                canReadHistory={canReadHistory}
               />
             ))}
           </ul>
@@ -228,6 +239,7 @@ function MemberCard({
   branches,
   grantableCodes,
   canAssignOrgWide,
+  canReadHistory,
 }: {
   slug: string;
   member: MemberDetail;
@@ -235,6 +247,7 @@ function MemberCard({
   branches: BranchOption[];
   grantableCodes: string[];
   canAssignOrgWide: boolean;
+  canReadHistory: boolean;
 }) {
   const [panel, setPanel] = useState<'access' | 'details' | null>(null);
   const toggle = useCallback(
@@ -268,7 +281,18 @@ function MemberCard({
           {employment ? <p className="text-muted mt-1 text-[0.8125rem]">{employment}</p> : null}
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {/* `membership`, not `user`: the audit rows for someone's access are
+              written against their membership in THIS clinic, which is what a
+              membership is (ADR-0001). Their user record is not this clinic's. */}
+          {canReadHistory ? (
+            <RecordHistory
+              slug={slug}
+              entityType="membership"
+              entityId={member.id}
+              label={member.fullName}
+            />
+          ) : null}
           {editable ? (
             <Button
               size="sm"
@@ -342,23 +366,49 @@ function MemberCard({
  * going to be rejected.
  */
 function BranchChoice({
-  name,
+  id,
+  label,
+  hint,
   branches,
   canAssignOrgWide,
+  disabled,
 }: {
-  name: string;
+  id: string;
+  label: string;
+  hint?: string;
   branches: BranchOption[];
   canAssignOrgWide: boolean;
+  /** The chosen role is clinic-wide, so there is nothing to pick. */
+  disabled?: boolean;
 }) {
+  if (disabled) {
+    return (
+      <Select
+        id={id}
+        label={label}
+        {...(hint === undefined ? {} : { hint })}
+        options={[{ value: 'every', label: 'Every branch' }]}
+        defaultValue="every"
+        disabled
+      />
+    );
+  }
+
   return (
-    <select id={name} name="branchId" className={inputClass} defaultValue="">
-      {canAssignOrgWide ? <option value="">Every branch</option> : null}
-      {branches.map((branch) => (
-        <option key={branch.id} value={branch.id}>
-          {branch.name} ({branch.code})
-        </option>
-      ))}
-    </select>
+    <Select
+      id={id}
+      name="branchId"
+      label={label}
+      {...(hint === undefined ? {} : { hint })}
+      defaultValue=""
+      options={[
+        ...(canAssignOrgWide ? [{ value: '', label: 'Every branch' }] : []),
+        ...branches.map((branch) => ({
+          value: branch.id,
+          label: `${branch.name} (${branch.code})`,
+        })),
+      ]}
+    />
   );
 }
 
@@ -391,35 +441,44 @@ function GiveRoleForm({
       </p>
 
       <div className="mt-3 grid gap-3">
-        <Field name={`roleId-${member.id}`} label="Role" errors={state.fieldErrors?.['roleId']}>
-          <select
-            id={`roleId-${member.id}`}
-            name="roleId"
-            className={inputClass}
-            value={roleId}
-            onChange={(event) => setRoleId(event.target.value)}
-          >
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <Select
+          id={`roleId-${member.id}`}
+          name="roleId"
+          label="Role"
+          errors={state.fieldErrors?.['roleId']}
+          value={roleId}
+          onChange={(event) => setRoleId(event.target.value)}
+          options={roles.map((role) => ({ value: role.id, label: role.name }))}
+        />
 
-        {perBranch ? (
-          <Field name={`branchId-${member.id}`} label="Where">
-            <BranchChoice
-              name={`branchId-${member.id}`}
-              branches={branches}
-              canAssignOrgWide={canAssignOrgWide}
-            />
-          </Field>
-        ) : (
-          <p className="text-muted text-[0.8125rem]">
-            {selected?.name} covers the whole clinic, so there is no branch to choose.
-          </p>
-        )}
+        {/*
+         * "Where" is ALWAYS on screen, even when the chosen role makes it
+         * unavailable.
+         *
+         * It used to be rendered only for a branch-scoped role, replaced by a line
+         * of prose otherwise — and the select defaults to the first role
+         * alphabetically, which is `Accountant`, which is clinic-wide. So opening
+         * this panel showed no branch control at all and a sentence saying there
+         * was no branch to choose. The per-branch assignment worked; nothing on
+         * screen suggested it existed.
+         *
+         * Showing the field disabled states the rule instead of hiding it: some
+         * roles are clinic-wide, the rest are given per branch. A disabled control
+         * submits nothing, so the API still receives no `branchId` for a
+         * clinic-wide role — which it rejects outright (see `assignRole`).
+         */}
+        <BranchChoice
+          id={`branchId-${member.id}`}
+          label="Where"
+          hint={
+            perBranch
+              ? 'One branch at a time. Give the same role again to add another.'
+              : `${selected?.name ?? 'This role'} covers every branch, so there is nothing to choose.`
+          }
+          branches={branches}
+          canAssignOrgWide={canAssignOrgWide}
+          disabled={!perBranch}
+        />
       </div>
 
       {state.status === 'error' ? (
@@ -472,65 +531,42 @@ function ExceptionForm({
       </p>
 
       <div className="mt-3 grid gap-3">
-        <Field
-          name={`permissionCode-${member.id}`}
+        <Select
+          id={`permissionCode-${member.id}`}
+          name="permissionCode"
           label="Permission"
           errors={state.fieldErrors?.['permissionCode']}
-        >
-          <select
-            id={`permissionCode-${member.id}`}
-            name="permissionCode"
-            className={inputClass}
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Choose a permission
-            </option>
-            {groups.map(([module, codes]) => (
-              <optgroup key={module} label={moduleLabel(module)}>
-                {codes.map((code) => (
-                  <option key={code} value={code}>
-                    {actionLabel(code)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </Field>
+          defaultValue=""
+          placeholder="Choose a permission"
+          options={groups.map(([module, codes]) => ({
+            label: moduleLabel(module),
+            options: codes.map((code) => ({ value: code, label: actionLabel(code) })),
+          }))}
+        />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field name={`effect-${member.id}`} label="Allow or block">
-            <select
-              id={`effect-${member.id}`}
-              name="effect"
-              className={inputClass}
-              defaultValue="DENY"
-            >
-              <option value="DENY">Block it</option>
-              <option value="GRANT">Allow it</option>
-            </select>
-          </Field>
-          <Field name={`exception-branch-${member.id}`} label="Where">
-            <BranchChoice
-              name={`exception-branch-${member.id}`}
-              branches={branches}
-              canAssignOrgWide={canAssignOrgWide}
-            />
-          </Field>
+          <Select
+            id={`effect-${member.id}`}
+            name="effect"
+            label="Allow or block"
+            defaultValue="DENY"
+            options={EFFECTS}
+          />
+          <BranchChoice
+            id={`exception-branch-${member.id}`}
+            label="Where"
+            branches={branches}
+            canAssignOrgWide={canAssignOrgWide}
+          />
         </div>
 
-        <Field
-          name={`reason-${member.id}`}
+        <Input
+          id={`reason-${member.id}`}
+          name="reason"
           label="Why"
           hint="Recorded in the audit trail. The only record of why this exception exists."
-        >
-          <input
-            id={`reason-${member.id}`}
-            name="reason"
-            className={inputClass}
-            autoComplete="off"
-          />
-        </Field>
+          autoComplete="off"
+        />
       </div>
 
       {state.status === 'error' ? (
@@ -559,42 +595,35 @@ function DetailsForm({ slug, member }: { slug: string; member: MemberDetail }) {
       </p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <Field name={`employeeCode-${member.id}`} label="Employee code">
-          <input
-            id={`employeeCode-${member.id}`}
-            name="employeeCode"
-            className={`${inputClass} font-mono`}
-            defaultValue={member.employeeCode ?? ''}
-            autoComplete="off"
-          />
-        </Field>
-        <Field name={`designation-${member.id}`} label="Designation">
-          <input
-            id={`designation-${member.id}`}
-            name="designation"
-            className={inputClass}
-            defaultValue={member.designation ?? ''}
-            autoComplete="off"
-          />
-        </Field>
-        <Field name={`department-${member.id}`} label="Department">
-          <input
-            id={`department-${member.id}`}
-            name="department"
-            className={inputClass}
-            defaultValue={member.department ?? ''}
-            autoComplete="off"
-          />
-        </Field>
-        <Field name={`joinedOn-${member.id}`} label="Joined on">
-          <input
-            id={`joinedOn-${member.id}`}
-            name="joinedOn"
-            type="date"
-            className={inputClass}
-            defaultValue={member.joinedOn ?? ''}
-          />
-        </Field>
+        <Input
+          id={`employeeCode-${member.id}`}
+          name="employeeCode"
+          label="Employee code"
+          className="font-mono"
+          defaultValue={member.employeeCode ?? ''}
+          autoComplete="off"
+        />
+        <Input
+          id={`designation-${member.id}`}
+          name="designation"
+          label="Designation"
+          defaultValue={member.designation ?? ''}
+          autoComplete="off"
+        />
+        <Input
+          id={`department-${member.id}`}
+          name="department"
+          label="Department"
+          defaultValue={member.department ?? ''}
+          autoComplete="off"
+        />
+        <Input
+          id={`joinedOn-${member.id}`}
+          name="joinedOn"
+          label="Joined on"
+          type="date"
+          defaultValue={member.joinedOn ?? ''}
+        />
       </div>
 
       {state.status !== 'idle' && state.message ? (
@@ -684,10 +713,10 @@ function SuspendButton({ slug, member }: { slug: string; member: MemberDetail })
     <form action={action} className="flex flex-wrap items-center gap-2">
       <label className="text-muted text-[0.75rem]">
         <span className="sr-only">Why this person is being suspended</span>
-        <input
+        <Input
           name="reason"
           placeholder="Reason (optional)"
-          className={`${inputClass} w-44 py-1.5 text-[0.8125rem]`}
+          className="w-44 py-1.5 text-[0.8125rem]"
         />
       </label>
       <Button size="sm" variant="danger" type="submit" disabled={pending}>

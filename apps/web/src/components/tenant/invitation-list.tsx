@@ -2,7 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
 import type { InvitationSummary } from '@rcln/contracts';
-import { Field, inputClass } from '@/components/ui/field';
+import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import {
@@ -233,10 +233,10 @@ function RevokeButton({ slug, invitation }: { slug: string; invitation: Invitati
     <form action={action} className="flex flex-wrap items-center gap-2">
       <label className="text-muted text-[0.75rem]">
         <span className="sr-only">Why this invitation is being cancelled</span>
-        <input
+        <Input
           name="reason"
           placeholder="Reason (optional)"
-          className={`${inputClass} w-44 py-1.5 text-[0.8125rem]`}
+          className="w-44 py-1.5 text-[0.8125rem]"
         />
       </label>
       <Button size="sm" variant="danger" type="submit" disabled={pending}>
@@ -293,31 +293,23 @@ function InviteForm({
       </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field name="email" label="Email address" errors={err('email')}>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            className={`${inputClass} font-mono`}
-            required
-            autoComplete="off"
-          />
-        </Field>
-        <Field name="roleId" label="Role" errors={err('roleId')}>
-          <select
-            id="roleId"
-            name="roleId"
-            className={inputClass}
-            value={roleId}
-            onChange={(event) => setRoleId(event.target.value)}
-          >
-            {roles.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <Input
+          name="email"
+          label="Email address"
+          errors={err('email')}
+          type="email"
+          className="font-mono"
+          required
+          autoComplete="off"
+        />
+        <Select
+          name="roleId"
+          label="Role"
+          errors={err('roleId')}
+          value={roleId}
+          onChange={(event) => setRoleId(event.target.value)}
+          options={roles.map((role) => ({ value: role.id, label: role.name }))}
+        />
       </div>
 
       {branchScoped && branches.length > 0 ? (

@@ -38,11 +38,12 @@ const EXEMPT: Record<string, string> = {
   permissions: 'static catalogue',
   role_permissions: 'joins two non-tenant tables',
   plans: 'platform-wide product catalogue',
+  tax_registrations:
+    'describes the SUPPLIER (rcln), not any clinic — one set of rows for the whole platform, like plans. Scoping it by organization would be meaningless and would hide our own registrations from the engine that has to read them (see enable-rls.sql)',
   plan_prices: 'platform-wide product catalogue',
   plan_features: 'platform-wide product catalogue',
-  subscription_feature_overrides: 'child of subscriptions; reached via scoped parent',
-  subscription_invoice_lines: 'child of subscription_invoices; reached via scoped parent',
-  subscription_payments: 'child of subscription_invoices; reached via scoped parent',
+  payment_webhook_events:
+    'arrives on a public endpoint before the tenant is known — the reference resolves to an organization only after the signature verifies, and deduplication must be global (see enable-rls.sql)',
   setting_definitions: 'static catalogue',
   setting_values: 'scoped by (scope_type, scope_id), not organization_id',
   demo_requests:
@@ -64,6 +65,9 @@ const PARENT_SCOPED: Record<string, string> = {
   branch_closures: 'branches',
   invitation_branches: 'invitations',
   staff_profiles: 'memberships',
+  subscription_invoice_lines: 'subscription_invoices',
+  subscription_payments: 'subscription_invoices',
+  subscription_feature_overrides: 'subscriptions',
 };
 
 interface TableRow {
@@ -116,7 +120,43 @@ async function main(): Promise<void> {
       AND pg_get_userbyid(c.relowner) = 'rcln_app'
   `);
 
+  /*
+   * `audit_logs` must stay append-only for the application.
+   *
+   * Checked here because the failure mode is silent in exactly the way a missing
+   * RLS policy is: the trail keeps working, nothing errors, and history simply
+   * becomes editable. The init script grants UPDATE and DELETE on ALL TABLES and
+   * repeats that as DEFAULT PRIVILEGES, so a re-run of it — or a well-meaning
+   * "fix the permissions" script — undoes the carve-out with no other signal.
+   *
+   * Two layers, both asserted, because either alone can be undone independently:
+   * the grant, and the trigger that does not depend on the grant. See the
+   * `audit_immutability` migration.
+   */
+  const { rows: auditGrant } = await client.query<{ upd: boolean; del: boolean }>(`
+    SELECT has_table_privilege('rcln_app', 'audit_logs', 'UPDATE') AS upd,
+           has_table_privilege('rcln_app', 'audit_logs', 'DELETE') AS del
+  `);
+
+  const { rows: auditTriggers } = await client.query<{ count: string }>(`
+    SELECT count(*) AS count
+    FROM pg_trigger
+    WHERE tgrelid = 'audit_logs'::regclass
+      AND NOT tgisinternal
+      AND tgname IN ('audit_logs_no_update', 'audit_logs_no_delete')
+  `);
+
   await client.end();
+
+  if (auditGrant[0]?.upd)
+    failures.push('rcln_app holds UPDATE on audit_logs — history is editable');
+  if (auditGrant[0]?.del)
+    failures.push('rcln_app holds DELETE on audit_logs — history is deletable');
+  if (Number(auditTriggers[0]?.count ?? 0) !== 2) {
+    failures.push(
+      `audit_logs is missing an append-only trigger (found ${auditTriggers[0]?.count ?? 0} of 2)`
+    );
+  }
 
   if (Number(ownedRows[0]?.count ?? 0) > 0) {
     failures.push(

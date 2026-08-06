@@ -1,6 +1,8 @@
 # ADR-0012 — Impersonation is full access, and the audit trail is the control
 
 **Status:** Accepted. Overrules one line of `architecture.md` §6.
+**Amended 2026-07-26** — the session renews now, bounded by a ceiling. See
+[Amendment: the session renews](#amendment-2026-07-26--the-session-renews).
 
 ## Context
 
@@ -50,10 +52,9 @@ In exchange, four things are non-negotiable:
    `impersonatedByUserId` is taken off the `TenantContext` rather than passed by
    each call site: a service cannot forget to record something it does not know
    about.
-3. **The session hard-expires in thirty minutes** and carries no refresh token.
-   The plaintext is generated to satisfy the NOT NULL column and discarded
-   immediately, so nothing — not the browser, not `proxy.ts`, not a captured
-   token — can rotate it. `sessions.expires_at` is the whole of its life.
+3. **The session is bounded, and cannot be extended indefinitely.** Originally:
+   thirty minutes, no refresh token at all. **Amended** — see below. The bound is
+   now two deadlines rather than one.
 4. **A non-dismissible banner** on every screen in the clinic shell, naming the
    organization, the admin, and the hour the session closes.
 
@@ -119,9 +120,25 @@ a clinic's subdomain, and no arrangement of redirects changes that.
   banner disappears, the branch scope collapses to empty, and `recordAudit`
   stops stamping the second id — leaving writes that look like an ordinary
   member's.
-- **Returning a refresh token from `claimImpersonation`.** `rotateRefreshToken`
-  resets `expires_at` to thirty days on every rotation, so a single refresh
-  would turn a half-hour visit into a month-long one.
+- **Removing the ceiling clamp in `rotateRefreshToken`.** This entry used to read
+  "returning a refresh token from `claimImpersonation`", and it was right about
+  the hazard: `rotateRefreshToken` resets `expires_at` to thirty days on every
+  rotation, so one refresh would turn a visit into a month. The session returns a
+  refresh token now, and the clamp is the only thing standing between that and the
+  month. It keys on `impersonated_by_user_id`; delete it, make it key on something
+  else, or move expiry-extension to a second call site that does not clamp, and
+  the hazard is back with no test failing except the two that measure it.
+- **Letting `/impersonate` return without writing the cookies — on ANY path.** A
+  stale refresh cookie from an ordinary sign-in on the clinic's host is renewed by
+  `proxy.ts` _before this handler runs_, so by the time the handler decides
+  anything, a live access+refresh pair for that employee is already sitting in the
+  response headers. The success path overwrites both, which evicts them. Every
+  failure path must delete both — `abandon()` exists for that, and a bare
+  `seeOther('/login')` on a spent, expired or wrong-clinic ticket would drop the
+  admin onto that clinic's login page **already signed in as the employee**, with
+  no strip on screen and subsequent writes audited under their name. (This was
+  latent before the amendment too: the old `cookies.delete` also sat after the
+  early returns.)
 - **Reaching for `withTenant` around a platform-wide read.** The other half of
   the same mistake: `organizations` is RLS-exempt but `branches` and
   `memberships` are not, so an unscoped `_count` over them returns 0 for every
@@ -130,3 +147,83 @@ a clinic's subdomain, and no arrangement of redirects changes that.
   and two of them were measured by removing the guard first: without the
   cross-host check, clinic A's ticket opens a working session inside clinic B
   and files an audit row there.
+
+## Amendment (2026-07-26) — the session renews
+
+### What changed
+
+The original decision gave the session **thirty minutes and no refresh token**.
+The plaintext was generated to satisfy the NOT NULL column and thrown away, so
+`sessions.expires_at` was the whole of its life and nothing could move it.
+
+It now **renews like any other session**, bounded by two deadlines instead of one:
+
+| Deadline    | Value                              | Behaviour                           |
+| ----------- | ---------------------------------- | ----------------------------------- |
+| Idle window | 30 minutes (`sessions.expires_at`) | **Slides** forward on every refresh |
+| Ceiling     | 8 hours from `sessions.created_at` | **Fixed.** No activity moves it     |
+
+Both bounds are enforced in `rotateRefreshToken` — the one function that extends a
+session, and therefore the one place either can be applied. The ceiling is derived
+from `created_at` rather than stored in its own column: it is a constant of the
+session type, not a property of the row, and a stored copy could disagree with the
+constant with only one of the two being enforced.
+
+> **The first implementation of this was wrong, and the way it was wrong is worth
+> keeping.** It computed `min(ceiling, expiryDate())` — but `expiryDate()` is
+> unconditionally `now + 30 days`, so for an impersonation session the minimum was
+> _always_ the ceiling. The thirty-minute idle window was applied once by
+> `createSession` and then silently discarded by the first refresh, leaving an
+> abandoned session with eight hours of full access instead of thirty minutes —
+> exactly the exposure the ceiling was added to bound. The two constants lived in
+> different modules, which is how they drifted; `IMPERSONATION_IDLE_TTL_SECONDS`
+> now lives beside the clamp so both the create path and the refresh path read one
+> number. **The sliding term is what varies by session type; the ceiling only trims
+> it.**
+
+### Why
+
+The console now remembers the last clinic a super admin worked in
+(`users.last_platform_organization_id`), which makes "spend the morning inside one
+clinic" the expected shape of the work rather than an edge case. Against that, a
+half-hour unrenewable session is not a security control:
+
+- It signs someone out **mid-edit**, repeatedly, with no warning beyond an hour
+  printed in the strip.
+- The workaround is obvious and worse — keep a second tab open, or re-enter every
+  half hour, typing a reason each time. Reasons typed as a formality are reasons
+  nobody reads, which damages the one control this ADR actually rests on.
+- It never bounded the thing worth bounding. Thirty minutes is ample to read a
+  clinic's records; the exposure that matters is a forgotten session, and a
+  ceiling addresses that directly where a short unrenewable window addressed it
+  only by accident.
+
+**What did not change is the part that matters.** The control was never the
+session length. It is the stated reason, the audit row naming both actors, and the
+strip that cannot be dismissed. All three are untouched.
+
+### Consequences
+
+- **`claimImpersonation` returns a real refresh token**, where it returned `''`.
+- **`/impersonate` (the route handler) SETS the refresh cookie** where it deleted
+  it. That deletion was load-bearing — see the second-to-last bullet under "How it
+  can be broken". Overwriting serves the same purpose; leaving it alone does not.
+- **The strip shows the ceiling, not `expires_at`.** A sliding deadline on screen
+  is worse than none: it looks like a fact and it moves. `describeImpersonation`
+  therefore takes the session's `created_at` and computes the deadline itself.
+- **`req.auth.sessionStartedAt`** is new, for that computation.
+- **The clamp must not touch ordinary sessions.** It keys on
+  `impersonated_by_user_id`; a clamp that applied to everyone would sign the whole
+  customer base out every eight hours. Pinned by
+  `leaves an ordinary session on the full thirty days`.
+- **`impersonation.test.ts` grew three cases** and inverted one. The inverted one
+  asserted `refreshToken === ''`. The new ones measure that a refresh renews to
+  thirty minutes **from now** rather than to the ceiling (this is the case that
+  catches the bug above — verified by reverting the fix and watching it fail), that
+  the ceiling trims a renewal on a session backdated to 7h50m, and that an ordinary
+  session still gets thirty days.
+- **A ceiling test must backdate `created_at` to have any force.** The clamp only
+  bites in the last thirty minutes before the deadline, so a fresh session cannot
+  demonstrate it — and it must pin the session **by id**, because earlier cases in
+  the suite leave un-revoked impersonation sessions that a
+  `WHERE impersonated_by_user_id` update would also backdate.

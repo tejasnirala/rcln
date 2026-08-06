@@ -4,30 +4,35 @@
 
 Source: `packages/db/prisma/schema.prisma` · RLS policies: `packages/db/prisma/rls/enable-rls.sql`
 
-32 models · 18 enums · 12 tenant-scoped.
+37 models · 28 enums · 16 tenant-scoped.
 One file per model in this directory; the tables below are the overview.
 
 | model | table | org col | RLS | columns |
 | --- | --- | --- | --- | --- |
-| [`Organization`](Organization.md) | `organizations` | — | exempt | `id` `slug` `legalName` `displayName` `orgType` `status` `currency` `timezone` `countryCode` `gstNumber` `ownerUserId` `onboardedAt` `createdAt` `updatedAt` `deletedAt` |
+| [`Organization`](Organization.md) | `organizations` | — | exempt | `id` `slug` `legalName` `displayName` `orgType` `status` `currency` `timezone` `countryCode` `regionCode` `gstNumber` `taxIdStatus` `ownerUserId` `onboardedAt` `createdAt` `updatedAt` `deletedAt` |
 | [`OrganizationDomain`](OrganizationDomain.md) | `organization_domains` | yes | exempt | `id` `organizationId` `domain` `isPrimary` `isPlatformSub` `verifiedAt` `createdAt` |
 | [`Branch`](Branch.md) | `branches` | yes | org | `id` `organizationId` `code` `name` `branchType` `timezone` `phone` `email` `addressLine1` `addressLine2` `city` `state` `pincode` `gstNumber` `isPrimary` `status` `createdAt` `updatedAt` `deletedAt` |
 | [`BranchOperatingHour`](BranchOperatingHour.md) | `branch_operating_hours` | — | parent | `id` `branchId` `dayOfWeek` `opensAt` `closesAt` `isClosed` `slotMinutes` |
 | [`BranchClosure`](BranchClosure.md) | `branch_closures` | — | parent | `id` `branchId` `closureDate` `reason` |
 | [`Plan`](Plan.md) | `plans` | — | exempt | `id` `code` `name` `tagline` `trialDays` `isPublic` `sortOrder` `createdAt` `updatedAt` |
-| [`PlanPrice`](PlanPrice.md) | `plan_prices` | — | exempt | `id` `planId` `currency` `billingInterval` `amount` `isActive` |
+| [`TaxRegistration`](TaxRegistration.md) | `tax_registrations` | — | exempt | `id` `countryCode` `regionCode` `scheme` `registrationNumber` `standardRateBps` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
+| [`PlanPrice`](PlanPrice.md) | `plan_prices` | — | exempt | `id` `planId` `currency` `billingInterval` `amount` `taxBehavior` `isActive` |
 | [`PlanFeature`](PlanFeature.md) | `plan_features` | — | exempt | `id` `planId` `featureKey` `valueType` `intValue` `boolValue` |
-| [`Subscription`](Subscription.md) | `subscriptions` | yes | org | `id` `organizationId` `planId` `planPriceId` `status` `trialEndsAt` `currentPeriodStart` `currentPeriodEnd` `cancelAt` `canceledAt` `seatQuantity` `gatewayRef` `createdAt` `updatedAt` |
-| [`SubscriptionFeatureOverride`](SubscriptionFeatureOverride.md) | `subscription_feature_overrides` | — | exempt | `id` `subscriptionId` `featureKey` `intValue` `boolValue` `reason` `createdAt` |
-| [`SubscriptionInvoice`](SubscriptionInvoice.md) | `subscription_invoices` | yes | org | `id` `organizationId` `subscriptionId` `invoiceNumber` `periodStart` `periodEnd` `currency` `subtotal` `taxAmount` `total` `status` `dueDate` `createdAt` |
-| [`SubscriptionInvoiceLine`](SubscriptionInvoiceLine.md) | `subscription_invoice_lines` | — | exempt | `id` `subscriptionInvoiceId` `description` `quantity` `unitAmount` `lineTotal` |
-| [`SubscriptionPayment`](SubscriptionPayment.md) | `subscription_payments` | — | exempt | `id` `subscriptionInvoiceId` `amount` `method` `gateway` `gatewayPaymentId` `status` `paidAt` `createdAt` |
+| [`Subscription`](Subscription.md) | `subscriptions` | yes | org | `id` `organizationId` `planId` `planPriceId` `status` `currency` `trialEndsAt` `currentPeriodStart` `currentPeriodEnd` `cancelAt` `canceledAt` `cancelAtPeriodEnd` `cancelReason` `autoRenew` `seatQuantity` `provider` `mandateId` `gracePeriodEnd` `dunningAttempts` `lastRenewalAt` `startedAt` `endedAt` `createdAt` `updatedAt` |
+| [`SubscriptionFeatureOverride`](SubscriptionFeatureOverride.md) | `subscription_feature_overrides` | — | parent | `id` `subscriptionId` `featureKey` `intValue` `boolValue` `reason` `createdAt` |
+| [`SubscriptionInvoice`](SubscriptionInvoice.md) | `subscription_invoices` | yes | org | `id` `organizationId` `subscriptionId` `invoiceNumber` `periodStart` `periodEnd` `currency` `subtotal` `taxAmount` `total` `placeOfSupply` `taxTreatment` `supplierTaxId` `customerTaxId` `amountPaid` `status` `dueDate` `paidAt` `voidedAt` `attemptCount` `createdAt` `updatedAt` |
+| [`SubscriptionInvoiceLine`](SubscriptionInvoiceLine.md) | `subscription_invoice_lines` | — | parent | `id` `subscriptionInvoiceId` `kind` `description` `quantity` `unitAmount` `lineTotal` `periodStart` `periodEnd` `taxRateBps` `taxName` `taxJurisdiction` |
+| [`SubscriptionPayment`](SubscriptionPayment.md) | `subscription_payments` | — | parent | `id` `subscriptionInvoiceId` `paymentIntentId` `amount` `currency` `method` `instrumentLabel` `gateway` `gatewayPaymentId` `status` `failureCode` `failureMessage` `refundedAmount` `paidAt` `createdAt` |
+| [`PaymentMandate`](PaymentMandate.md) | `payment_mandates` | yes | org | `id` `organizationId` `provider` `providerMandateId` `status` `currency` `maxAmount` `method` `instrumentLabel` `activatedAt` `revokedAt` `expiresAt` `createdAt` `updatedAt` |
+| [`PaymentIntent`](PaymentIntent.md) | `payment_intents` | yes | org | `id` `organizationId` `subscriptionId` `invoiceId` `mandateId` `provider` `providerChargeId` `purpose` `status` `amount` `currency` `description` `redirectUrl` `returnUrl` `method` `instrumentLabel` `failureCode` `failureMessage` `settledAt` `expiresAt` `createdAt` `updatedAt` |
+| [`SubscriptionChange`](SubscriptionChange.md) | `subscription_changes` | yes | org | `id` `organizationId` `subscriptionId` `changeType` `fromPlanId` `fromPlanPriceId` `toPlanId` `toPlanPriceId` `currency` `prorationCredit` `prorationCharge` `amountDue` `invoiceId` `effectiveAt` `actorUserId` `reason` `createdAt` |
+| [`PaymentWebhookEvent`](PaymentWebhookEvent.md) | `payment_webhook_events` | yes | exempt | `id` `provider` `providerEventId` `eventType` `reference` `organizationId` `status` `attempts` `error` `payload` `receivedAt` `processedAt` |
 | [`UsageCounter`](UsageCounter.md) | `usage_counters` | yes | org | `id` `organizationId` `featureKey` `periodStart` `usedValue` `updatedAt` |
-| [`User`](User.md) | `users` | — | exempt | `id` `email` `phone` `passwordHash` `fullName` `avatarFileId` `status` `isPlatformAdmin` `mfaEnabled` `mfaSecret` `locale` `emailVerifiedAt` `phoneVerifiedAt` `lastLoginAt` `failedAttempts` `lockedUntil` `createdAt` `updatedAt` `deletedAt` |
+| [`User`](User.md) | `users` | — | exempt | `id` `email` `phone` `passwordHash` `fullName` `avatarFileId` `status` `isPlatformAdmin` `mfaEnabled` `mfaSecret` `locale` `lastPlatformOrganizationId` `emailVerifiedAt` `phoneVerifiedAt` `lastLoginAt` `failedAttempts` `lockedUntil` `createdAt` `updatedAt` `deletedAt` |
 | [`UserIdentity`](UserIdentity.md) | `user_identities` | — | exempt | `id` `userId` `provider` `providerUid` `createdAt` |
 | [`Session`](Session.md) | `sessions` | — | exempt | `id` `userId` `activeOrganizationId` `activeBranchId` `impersonatedByUserId` `refreshTokenHash` `previousTokenHash` `ipAddress` `userAgent` `expiresAt` `revokedAt` `createdAt` `lastUsedAt` |
 | [`AuthToken`](AuthToken.md) | `auth_tokens` | — | exempt | `id` `userId` `purpose` `identifier` `codeHash` `attempts` `expiresAt` `consumedAt` `createdAt` |
-| [`Membership`](Membership.md) | `memberships` | yes | org | `id` `userId` `organizationId` `status` `invitedBy` `joinedAt` `createdAt` `updatedAt` `deletedAt` |
+| [`Membership`](Membership.md) | `memberships` | yes | org | `id` `userId` `organizationId` `status` `invitedBy` `joinedAt` `lastBranchId` `createdAt` `updatedAt` `deletedAt` |
 | [`Role`](Role.md) | `roles` | yes | exempt | `id` `organizationId` `code` `name` `description` `scopeLevel` `isSystem` `createdAt` `updatedAt` |
 | [`Permission`](Permission.md) | `permissions` | — | exempt | `id` `code` `module` `action` `description` `createdAt` |
 | [`RolePermission`](RolePermission.md) | `role_permissions` | — | exempt | `id` `roleId` `permissionId` |
@@ -53,6 +58,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `demo_requests` | public marketing form — submitted before any organization exists, so there is no organization_id to scope by |
 | `organization_domains` | the host -> tenant lookup itself; scoping it would be circular (see enable-rls.sql) |
 | `organizations` | resolved by hostname before a tenant context exists |
+| `payment_webhook_events` | arrives on a public endpoint before the tenant is known — the reference resolves to an organization only after the sign… |
 | `permissions` | static catalogue |
 | `plan_features` | platform-wide product catalogue |
 | `plan_prices` | platform-wide product catalogue |
@@ -62,9 +68,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `sessions` | looked up by refresh-token hash pre-context |
 | `setting_definitions` | static catalogue |
 | `setting_values` | scoped by (scope_type, scope_id), not organization_id |
-| `subscription_feature_overrides` | child of subscriptions; reached via scoped parent |
-| `subscription_invoice_lines` | child of subscription_invoices; reached via scoped parent |
-| `subscription_payments` | child of subscription_invoices; reached via scoped parent |
+| `tax_registrations` | describes the SUPPLIER (rcln), not any clinic — one set of rows for the whole platform, like plans. Scoping it by organ… |
 | `user_identities` | SSO callback happens pre-context |
 | `users` | global identity — one login spans organizations |
 
@@ -72,25 +76,28 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 
 | model | relation fields |
 | --- | --- |
-| `Organization` | `owner: User?` `domains: OrganizationDomain[]` `branches: Branch[]` `memberships: Membership[]` `roles: Role[]` `invitations: Invitation[]` `subscriptions: Subscription[]` `subscriptionInvoices: SubscriptionInvoice[]` `usageCounters: UsageCounter[]` `files: StoredFile[]` `auditLogs: AuditLog[]` |
+| `Organization` | `owner: User?` `domains: OrganizationDomain[]` `branches: Branch[]` `memberships: Membership[]` `roles: Role[]` `invitations: Invitation[]` `subscriptions: Subscription[]` `subscriptionInvoices: SubscriptionInvoice[]` `subscriptionChanges: SubscriptionChange[]` `paymentMandates: PaymentMandate[]` `paymentIntents: PaymentIntent[]` `usageCounters: UsageCounter[]` `files: StoredFile[]` `auditLogs: AuditLog[]` `lastForPlatformAdmins: User[]` |
 | `OrganizationDomain` | `organization: Organization` |
-| `Branch` | `organization: Organization` `operatingHours: BranchOperatingHour[]` `closures: BranchClosure[]` `membershipRoles: MembershipRole[]` `membershipOverrides: MembershipPermissionOverride[]` `invitationBranches: InvitationBranch[]` `sessions: Session[]` |
+| `Branch` | `organization: Organization` `operatingHours: BranchOperatingHour[]` `closures: BranchClosure[]` `membershipRoles: MembershipRole[]` `membershipOverrides: MembershipPermissionOverride[]` `invitationBranches: InvitationBranch[]` `sessions: Session[]` `lastForMemberships: Membership[]` |
 | `BranchOperatingHour` | `branch: Branch` |
 | `BranchClosure` | `branch: Branch` |
 | `Plan` | `prices: PlanPrice[]` `features: PlanFeature[]` `subscriptions: Subscription[]` |
 | `PlanPrice` | `plan: Plan` `subscriptions: Subscription[]` |
 | `PlanFeature` | `plan: Plan` |
-| `Subscription` | `organization: Organization` `plan: Plan` `planPrice: PlanPrice` `featureOverrides: SubscriptionFeatureOverride[]` `invoices: SubscriptionInvoice[]` |
+| `Subscription` | `organization: Organization` `plan: Plan` `planPrice: PlanPrice` `mandate: PaymentMandate?` `featureOverrides: SubscriptionFeatureOverride[]` `invoices: SubscriptionInvoice[]` `intents: PaymentIntent[]` `changes: SubscriptionChange[]` |
 | `SubscriptionFeatureOverride` | `subscription: Subscription` |
-| `SubscriptionInvoice` | `organization: Organization` `subscription: Subscription` `lines: SubscriptionInvoiceLine[]` `payments: SubscriptionPayment[]` |
+| `SubscriptionInvoice` | `organization: Organization` `subscription: Subscription` `lines: SubscriptionInvoiceLine[]` `payments: SubscriptionPayment[]` `intents: PaymentIntent[]` `changes: SubscriptionChange[]` |
 | `SubscriptionInvoiceLine` | `invoice: SubscriptionInvoice` |
-| `SubscriptionPayment` | `invoice: SubscriptionInvoice` |
+| `SubscriptionPayment` | `invoice: SubscriptionInvoice` `intent: PaymentIntent?` |
+| `PaymentMandate` | `organization: Organization` `subscriptions: Subscription[]` `intents: PaymentIntent[]` |
+| `PaymentIntent` | `organization: Organization` `subscription: Subscription?` `invoice: SubscriptionInvoice?` `mandate: PaymentMandate?` `payments: SubscriptionPayment[]` |
+| `SubscriptionChange` | `organization: Organization` `subscription: Subscription` `invoice: SubscriptionInvoice?` |
 | `UsageCounter` | `organization: Organization` |
-| `User` | `identities: UserIdentity[]` `sessions: Session[]` `authTokens: AuthToken[]` `memberships: Membership[]` `ownedOrganizations: Organization[]` `invitationsSent: Invitation[]` `auditLogs: AuditLog[]` `uploadedFiles: StoredFile[]` |
+| `User` | `identities: UserIdentity[]` `sessions: Session[]` `authTokens: AuthToken[]` `memberships: Membership[]` `ownedOrganizations: Organization[]` `lastPlatformOrganization: Organization?` `invitationsSent: Invitation[]` `auditLogs: AuditLog[]` `uploadedFiles: StoredFile[]` |
 | `UserIdentity` | `user: User` |
 | `Session` | `user: User` `activeBranch: Branch?` |
 | `AuthToken` | `user: User?` |
-| `Membership` | `user: User` `organization: Organization` `roles: MembershipRole[]` `overrides: MembershipPermissionOverride[]` `staffProfile: StaffProfile?` |
+| `Membership` | `user: User` `organization: Organization` `roles: MembershipRole[]` `overrides: MembershipPermissionOverride[]` `staffProfile: StaffProfile?` `lastBranch: Branch?` |
 | `Role` | `organization: Organization?` `permissions: RolePermission[]` `assignments: MembershipRole[]` `invitations: Invitation[]` |
 | `Permission` | `roles: RolePermission[]` `overrides: MembershipPermissionOverride[]` |
 | `RolePermission` | `role: Role` `permission: Permission` |
@@ -114,9 +121,19 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `BranchStatus` | `ACTIVE` `INACTIVE` `CLOSED` |
 | `BillingInterval` | `MONTH` `YEAR` |
 | `FeatureValueType` | `INT` `BOOL` |
-| `SubscriptionStatus` | `TRIALING` `ACTIVE` `PAST_DUE` `CANCELED` `EXPIRED` |
+| `SubscriptionStatus` | `TRIALING` `INCOMPLETE` `ACTIVE` `PAST_DUE` `CANCELED` `EXPIRED` |
 | `SubscriptionInvoiceStatus` | `DRAFT` `OPEN` `PAID` `VOID` `UNCOLLECTIBLE` |
 | `PaymentStatus` | `PENDING` `SUCCESS` `FAILED` `REFUNDED` |
+| `MandateStatus` | `PENDING` `ACTIVE` `PAUSED` `CANCELLED` `FAILED` |
+| `PaymentIntentStatus` | `CREATED` `PENDING` `SUCCEEDED` `FAILED` `EXPIRED` `CANCELLED` |
+| `PaymentPurpose` | `SUBSCRIPTION_START` `UPGRADE` `RENEWAL` `MANDATE_SETUP` `INVOICE_PAYMENT` |
+| `SubscriptionChangeType` | `SUBSCRIBE` `UPGRADE` `RENEW` `CANCEL_AT_PERIOD_END` `CANCEL_IMMEDIATE` `RESUME` `REACTIVATE` `TRIAL_EXPIRED` `PAYMENT_FAILED` `SUSPENDED` |
+| `TaxBehavior` | `EXCLUSIVE` `INCLUSIVE` |
+| `TaxTreatment` | `STANDARD` `REVERSE_CHARGE` `ZERO_RATED` `EXEMPT` `NOT_REGISTERED` |
+| `TaxIdStatus` | `NOT_PROVIDED` `UNVALIDATED` `VALID` `INVALID` |
+| `TaxScheme` | `GST` `VAT` `SALES_TAX` |
+| `InvoiceLineKind` | `SUBSCRIPTION` `PRORATION_CREDIT` `PRORATION_CHARGE` `TAX` `ADJUSTMENT` |
+| `WebhookProcessingStatus` | `RECEIVED` `PROCESSED` `IGNORED` `FAILED` |
 | `UserStatus` | `INVITED` `ACTIVE` `SUSPENDED` `LOCKED` |
 | `MembershipStatus` | `INVITED` `ACTIVE` `SUSPENDED` |
 | `RoleScopeLevel` | `PLATFORM` `ORGANIZATION` `BRANCH` |

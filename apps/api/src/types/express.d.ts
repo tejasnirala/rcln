@@ -16,12 +16,20 @@ declare global {
         branchScope: string[];
         impersonatedByUserId: string | null;
         /**
-         * The session row's hard stop, off the row `authenticate` already read.
-         * Only the impersonation banner uses it — an ordinary session renews, so
-         * "when does this end" is not a question its user can be given a useful
-         * answer to.
+         * The session's IDLE deadline, off the row `authenticate` already read,
+         * and a sliding one — `rotateRefreshToken` pushes it forward on every
+         * refresh. Not a date to show anybody: it moves.
          */
         sessionExpiresAt: Date;
+        /**
+         * When the session began.
+         *
+         * The anchor for the impersonation ceiling, which is the only "when does
+         * this end" anyone can be told truthfully — an ordinary session renews for
+         * as long as it is used, and an impersonation renews only up to eight
+         * hours from here. See `impersonationDeadline`.
+         */
+        sessionStartedAt: Date;
       };
     }
   }

@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import type { MemberListResponse } from '@rcln/contracts';
+import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/session';
+import { getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { MemberList } from '@/components/tenant/member-list';
 
@@ -38,6 +39,11 @@ export default async function MembersPage({ params }: { params: Promise<{ slug: 
     );
   }
 
+  // The session is memoised per request, so this is the object the layout already
+  // resolved. A "History" button that answers 403 is worse than no button.
+  const session = await getSession(slug);
+  const canReadHistory = session?.permissions.includes(PERMISSIONS.AUDIT_READ) ?? false;
+
   return (
     <MemberList
       slug={slug}
@@ -46,6 +52,7 @@ export default async function MembersPage({ params }: { params: Promise<{ slug: 
       branches={members.data.branches}
       grantableCodes={members.data.grantableCodes}
       canAssignOrgWide={members.data.canAssignOrgWide}
+      canReadHistory={canReadHistory}
     />
   );
 }

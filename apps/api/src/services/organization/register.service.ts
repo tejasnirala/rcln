@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { setTenantContext } from '@rcln/db';
 import { unsafeDbClient } from '@rcln/db/unsafe';
 import { SYSTEM_ROLES } from '@rcln/permissions';
+import { currencyForCountry } from '@rcln/payments';
 import type { RegisterOrganizationRequest } from '@rcln/contracts';
 import { config } from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
@@ -128,13 +129,38 @@ export async function registerOrganization(
     );
   }
 
+  /*
+   * The billing currency, derived from the country unless the caller named one.
+   *
+   * ⚠️ DERIVED AGAINST WHAT THE PLAN ACTUALLY HAS PRICES IN, not from a lookup
+   *   table alone. `currencyForCountry` takes the published currencies and falls
+   *   back through them, which is what stops a clinic in Dublin being assigned
+   *   EUR when the catalogue has no EUR price — that would fail at checkout
+   *   rather than here, on a subscription that already exists.
+   *
+   * This replaces a hard `INR` default that meant every clinic, anywhere, was
+   * billed in rupees and no other published price could ever be reached.
+   */
+  const published = await db.planPrice.findMany({
+    where: { plan: { code: input.planCode }, billingInterval: 'MONTH', isActive: true },
+    select: { currency: true },
+    distinct: ['currency'],
+  });
+
+  const currency =
+    org.currency ??
+    currencyForCountry(
+      org.countryCode,
+      published.map((price) => price.currency)
+    );
+
   const plan = await db.plan.findUnique({
     where: { code: input.planCode },
     select: {
       id: true,
       trialDays: true,
       prices: {
-        where: { currency: org.currency, billingInterval: 'MONTH', isActive: true },
+        where: { currency, billingInterval: 'MONTH', isActive: true },
         select: { id: true },
         take: 1,
       },
@@ -147,7 +173,7 @@ export async function registerOrganization(
     // does not resolve, the seed did not run or the plan was withdrawn. That is
     // our fault, and it should page us rather than blame the clinic.
     logger.error(
-      { planCode: input.planCode, currency: org.currency },
+      { planCode: input.planCode, currency, countryCode: org.countryCode },
       'registration failed: plan or monthly price missing'
     );
     throw new AppError('Registration is temporarily unavailable.', 503, 'PLAN_UNAVAILABLE');
@@ -178,8 +204,10 @@ export async function registerOrganization(
         // reachable but in a state no code understands. Self-serve signup is
         // complete at this point, so say so.
         status: 'ACTIVE',
-        currency: org.currency,
+        currency,
         timezone: org.timezone,
+        countryCode: org.countryCode,
+        ...(org.regionCode ? { regionCode: org.regionCode } : {}),
         ownerUserId: null, // set below; the user row does not exist yet
         onboardedAt: now,
         ...(org.gstNumber !== undefined ? { gstNumber: org.gstNumber } : {}),
@@ -282,6 +310,14 @@ export async function registerOrganization(
         organizationId,
         planId: plan.id,
         planPriceId: planPrice.id,
+        /*
+         * Written explicitly, because the column defaults to INR and everything
+         * downstream reads THIS rather than the joined price. Left to the
+         * default, an Irish clinic on a EUR price had a subscription that said
+         * INR — so the billing screen quoted the catalogue in rupees, and an
+         * upgrade looked for a rupee price the clinic had never agreed to.
+         */
+        currency,
         status: 'TRIALING',
         trialEndsAt,
         // Both are NOT NULL in the schema, so a trial still needs a period.

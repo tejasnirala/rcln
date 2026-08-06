@@ -10,6 +10,7 @@ export {
   forTenant,
   setTenantContext,
   withUserIdentity,
+  withPaymentReference,
   type TenantContext,
   type TenantClient,
   type TxClient,

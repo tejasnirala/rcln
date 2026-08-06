@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { availableSlug, currencyCode, email, password, phone, timezone, uuid } from './common.js';
+import { isValidPostalCode, isValidTaxId, postalFormatFor, taxIdFormatFor } from './locale.js';
 
 /**
  * Clinic self-registration. Creates, in one transaction:
@@ -9,40 +10,128 @@ import { availableSlug, currencyCode, email, password, phone, timezone, uuid } f
  * The branch is created here because an organization with no location cannot
  * take a booking — there is no meaningful "org exists but has no branch" state.
  */
-export const registerOrganizationRequest = z.object({
-  organization: z.object({
-    legalName: z.string().min(2).max(255),
-    displayName: z.string().min(2).max(255),
-    slug: availableSlug,
-    orgType: z.enum(['CLINIC', 'HOSPITAL', 'CHAIN', 'LAB']).default('CLINIC'),
-    gstNumber: z
-      .string()
-      .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/, 'invalid GSTIN')
-      .optional(),
-    timezone: z.string().default('Asia/Kolkata'),
-    currency: z.string().length(3).default('INR'),
-  }),
-  branch: z.object({
-    name: z.string().min(2).max(255),
-    code: z.string().min(1).max(32).default('MAIN'),
-    phone: phone.optional(),
-    addressLine1: z.string().max(255).optional(),
-    city: z.string().max(100).optional(),
-    state: z.string().max(100).optional(),
-    pincode: z
-      .string()
-      .regex(/^\d{6}$/, 'must be 6 digits')
-      .optional(),
-  }),
-  owner: z.object({
-    fullName: z.string().min(2).max(255),
-    email,
-    phone,
-    password,
-  }),
-  planCode: z.string().default('STARTER'),
-  acceptedTerms: z.literal(true, { message: 'terms must be accepted' }),
-});
+export const registerOrganizationRequest = z
+  .object({
+    organization: z.object({
+      legalName: z.string().min(2).max(255),
+      displayName: z.string().min(2).max(255),
+      slug: availableSlug,
+      orgType: z.enum(['CLINIC', 'HOSPITAL', 'CHAIN', 'LAB']).default('CLINIC'),
+      /**
+       * The clinic's tax registration number, WHATEVER THIS COUNTRY CALLS IT.
+       *
+       * ⚠️ THE COLUMN IS NAMED `gstNumber` AND THE VALUE IS OFTEN NOT A GSTIN.
+       *   It holds an Irish VAT number, a UAE TRN or an Australian ABN just as
+       *   readily. The name is India-first history and renaming it is a migration
+       *   across every screen that reads it; the format check is what actually
+       *   had to stop being India-only, because a hard `^\d{2}[A-Z]{5}…$` here
+       *   made it impossible for a non-Indian clinic to enter its real number.
+       *
+       * The shape is checked against `countryCode` in the root superRefine below
+       * — it cannot be done here, because a field cannot see its siblings.
+       */
+      gstNumber: z.string().trim().min(2).max(32).optional(),
+      /**
+       * Where the clinic is. ISO 3166-1 alpha-2.
+       *
+       * ⚠️ LOAD-BEARING, NOT DEMOGRAPHIC. It is the place of supply the tax engine
+       *   resolves against, and it is what the billing currency is derived from.
+       *   It was previously absent entirely, so every organization took the column
+       *   default `IN` and every clinic looked Indian for tax and INR for billing.
+       *
+       * Defaulted rather than required so the platform provisioning route and
+       * existing API callers keep working; the signup form always sends it.
+       */
+      countryCode: z
+        .string()
+        .length(2)
+        .regex(/^[A-Za-z]{2}$/, 'two letters, like IN or IE')
+        .transform((value) => value.toUpperCase())
+        .default('IN'),
+      /**
+       * The state or province, where the country registers tax per subdivision.
+       *
+       * Optional because most countries do not: `regionsFor` is empty for Ireland
+       * and the UK, and the form does not ask. It matters in India, where a supply
+       * within our own registered state is CGST+SGST and to any other state is
+       * IGST — without it every Indian clinic falls to IGST, which is creditable
+       * but wrong for a same-state supply.
+       */
+      regionCode: z
+        .string()
+        .max(10)
+        .regex(/^[A-Za-z0-9-]*$/)
+        .transform((value) => (value ? value.toUpperCase() : null))
+        .optional()
+        .nullable(),
+      timezone: timezone.default('Asia/Kolkata'),
+      /**
+       * OPTIONAL, AND USUALLY ABSENT ON PURPOSE.
+       *
+       * When it is not given the server derives it from `countryCode` against the
+       * currencies the plan actually has prices in — which is the only way to be
+       * sure the clinic can reach checkout. A default here would make "not
+       * specified" indistinguishable from "explicitly INR", and the derivation
+       * could never run.
+       */
+      currency: currencyCode.optional(),
+    }),
+    branch: z.object({
+      name: z.string().min(2).max(255),
+      code: z.string().min(1).max(32).default('MAIN'),
+      phone: phone.optional(),
+      addressLine1: z.string().max(255).optional(),
+      city: z.string().max(100).optional(),
+      state: z.string().max(100).optional(),
+      /**
+       * The postcode. Six digits in India, four in Australia, `D02 AF30` in
+       * Ireland, and nothing at all in the UAE — so the shape is checked against
+       * `countryCode` in the root superRefine below, not here.
+       */
+      pincode: z.string().trim().max(16).optional(),
+    }),
+    owner: z.object({
+      fullName: z.string().min(2).max(255),
+      email,
+      phone,
+      password,
+    }),
+    planCode: z.string().default('STARTER'),
+    acceptedTerms: z.literal(true, { message: 'terms must be accepted' }),
+  })
+  .superRefine((value, ctx) => {
+    /*
+     * The two fields whose valid shape is a function of the country, checked
+     * where the country is finally in scope.
+     *
+     * ⚠️ THIS RUNS AFTER THE INNER OBJECTS PARSE, so `countryCode` is already
+     *   defaulted and upper-cased and `isValidPostalCode` can trust it. Moving
+     *   either check up into its own field would silently see `undefined`.
+     */
+    const country = value.organization.countryCode;
+
+    if (!isValidPostalCode(country, value.branch.pincode)) {
+      const format = postalFormatFor(country);
+      ctx.addIssue({
+        code: 'custom',
+        path: ['branch', 'pincode'],
+        message: format
+          ? `does not look like a valid ${country} postcode, e.g. ${format.example}`
+          : 'this country has no postcode',
+      });
+    }
+
+    if (!isValidTaxId(country, value.organization.gstNumber)) {
+      const format = taxIdFormatFor(country);
+      ctx.addIssue({
+        code: 'custom',
+        path: ['organization', 'gstNumber'],
+        message: format
+          ? `does not look like a valid ${format.label}, e.g. ${format.example}`
+          : 'invalid tax registration number',
+      });
+    }
+  });
 
 export const createBranchRequest = z.object({
   name: z.string().min(2).max(255),
@@ -234,21 +323,52 @@ export const memberStatusRequest = z.object({
  * signs out every member and breaks every link anyone has bookmarked. It is a
  * platform-side operation, not a settings field.
  *
- * `orgType` and `countryCode` are absent for a duller reason: nothing yet reads
- * them, and a field that can be changed but changes nothing is a lie.
+ * `orgType` is absent for a duller reason: nothing yet reads it, and a field
+ * that can be changed but changes nothing is a lie.
+ *
+ * `countryCode` and `regionCode` USED to be absent for that reason and are here
+ * now, because the tax engine reads both — country decides the place of supply,
+ * region decides whether an Indian supply is CGST+SGST or IGST. A clinic that
+ * moves, or that was created before either was asked for, has to be able to
+ * correct them.
+ *
+ * ⚠️ CHANGING THEM CHANGES THE TAX ON FUTURE INVOICES. It does not touch issued
+ *   ones — place of supply, both tax numbers and every rate are snapshotted onto
+ *   the invoice at the moment it is raised, precisely so this edit cannot
+ *   rewrite history.
  *
  * Every field is optional (a PATCH), and `gstNumber` is additionally nullable —
  * a clinic below the registration threshold clearing a number it entered by
  * mistake has to be distinguishable from not mentioning it.
  */
 export const updateOrganizationRequest = z.object({
+  countryCode: z
+    .string()
+    .length(2)
+    .regex(/^[A-Za-z]{2}$/, 'two letters, like IN or IE')
+    .transform((value) => value.toUpperCase())
+    .optional(),
+  regionCode: z
+    .string()
+    .max(10)
+    .regex(/^[A-Za-z0-9-]*$/)
+    .transform((value) => (value ? value.toUpperCase() : null))
+    .optional()
+    .nullable(),
   legalName: z.string().min(2).max(255).optional(),
   displayName: z.string().min(2).max(255).optional(),
-  gstNumber: z
-    .string()
-    .regex(/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/, 'invalid GSTIN')
-    .nullable()
-    .optional(),
+  /**
+   * The tax registration number, and NOT necessarily a GSTIN — see the note on
+   * the same field in `registerOrganizationRequest`.
+   *
+   * Deliberately shape-agnostic here, unlike registration. A PATCH may change
+   * `countryCode` and `gstNumber` in the same request or in either order, so
+   * there is no one country to check against that is not already stale; the
+   * India-only regex that used to be here meant a clinic that registered in
+   * Ireland could never save its VAT number from settings. The country-aware
+   * check runs at registration, where the country arrives with the number.
+   */
+  gstNumber: z.string().trim().min(2).max(32).nullable().optional(),
   timezone: timezone.optional(),
   currency: currencyCode.optional(),
 });
@@ -515,6 +635,7 @@ export const organizationProfile = z.object({
   timezone: z.string(),
   currency: z.string(),
   countryCode: z.string(),
+  regionCode: z.string().nullable(),
   onboardedAt: z.iso.datetime().nullable(),
 });
 

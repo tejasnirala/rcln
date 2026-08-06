@@ -1,18 +1,30 @@
 import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
+  createTaxRegistrationRequest,
   impersonateRequest,
   registerOrganizationRequest,
+  updateTaxRegistrationRequest,
   type ImpersonateRequest,
   type PlatformOrganizationListResponse,
+  type PlatformSubscriptionView,
   type RegisterOrganizationResponse,
 } from '@rcln/contracts';
+import { withTenant } from '@rcln/db';
 import { unsafeDbClient } from '@rcln/db/unsafe';
+import { listInvoices, loadSubscription, toSubscriptionView } from '@rcln/billing';
 import { PERMISSIONS } from '@rcln/permissions';
 import { authenticate, authorize, requirePlatformAdmin } from '../../middleware/auth.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import { registerOrganization } from '../../services/organization/register.service.js';
 import { startImpersonation } from '../../services/platform/impersonation.service.js';
+import {
+  createTaxRegistration,
+  deleteTaxRegistration,
+  listTaxRegistrations,
+  updateTaxRegistration,
+} from '../../services/platform/tax-registration.service.js';
+import { paymentProvider } from '../../services/billing/provider.js';
 import { sendSuccess } from '../../utils/response.js';
 
 /**
@@ -177,6 +189,51 @@ router.post(
   }
 );
 
+/**
+ * One clinic's billing, for the support desk.
+ *
+ * READ-ONLY, AND DELIBERATELY SO. A super admin who needs to change a plan does
+ * it the way the clinic would — through impersonation, which writes an audit row
+ * naming the real admin and their stated reason (ADR-0012). A console endpoint
+ * that mutated billing directly would be the one billing change with no
+ * attributable actor.
+ *
+ * ⚠️ IT READS ANOTHER TENANT'S ROWS, SO IT GOES THROUGH `withTenant`.
+ *   `unsafeDbClient()` is right for the platform-wide LISTS above — there is no
+ *   single organization to scope them to. This is the opposite case: exactly one
+ *   organization, named in the path. Scoping it means the RLS policies still
+ *   apply, and a typo in the query cannot return somebody else's invoices.
+ *
+ * The view carries no more instrument detail than the clinic's own screen: a
+ * support desk needs to know whether a clinic is past due, not what card it
+ * holds.
+ */
+router.get(
+  '/organizations/:organizationId/subscription',
+  authorize(PERMISSIONS.PLATFORM_SUBSCRIPTION_MANAGE),
+  validate(z.object({ organizationId: z.uuid() }), 'params'),
+  async (req: Request, res: Response) => {
+    const organizationId = req.params['organizationId'] as string;
+    const auth = req.auth as NonNullable<Request['auth']>;
+
+    // A context for a tenant this user is not a member of. That is exactly what
+    // a platform admin is, and the reads below are scoped by it rather than by
+    // the caller's own memberships.
+    const ctx = { organizationId, branchIds: [], userId: auth.userId };
+
+    const view = await withTenant(ctx, async (tx) => {
+      const subscription = await loadSubscription(tx, ctx);
+      return {
+        organizationId,
+        subscription: subscription ? toSubscriptionView(subscription, paymentProvider()) : null,
+        invoices: await listInvoices(tx, ctx),
+      } satisfies PlatformSubscriptionView;
+    });
+
+    sendSuccess(res, view, 'Subscription');
+  }
+);
+
 const demoRequestQuery = z.object({
   status: z.enum(['NEW', 'CONTACTED', 'CONVERTED', 'SPAM']).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -209,6 +266,72 @@ router.get(
     });
 
     sendSuccess(res, requests, 'Demo requests');
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Tax registrations
+// ---------------------------------------------------------------------------
+
+/**
+ * Where rcln collects tax.
+ *
+ * ⚠️ THESE FOUR ROUTES CHANGE WHAT EVERY CLINIC IS CHARGED, WITH NO PUBLISH STEP.
+ *   The tax engine reads this table on every invoice. A POST here starts adding
+ *   tax to the next checkout in that jurisdiction; a DELETE stops it. There is
+ *   no draft state, deliberately — a registration is a real-world fact with a
+ *   date, and `effectiveFrom` is how you schedule one rather than a workflow.
+ *
+ * `authorize(PLATFORM_TAX_MANAGE)` is belt and braces — `requirePlatformAdmin`
+ * ran at the top of this router and `authorize` bypasses for a platform admin —
+ * but it is written out so the permission governing this appears at the route,
+ * where a reader looks for it, rather than only in the seed.
+ */
+const taxRegistrationParams = z.object({ id: z.uuid() });
+
+router.get(
+  '/tax-registrations',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  async (_req: Request, res: Response) => {
+    sendSuccess(res, await listTaxRegistrations(), 'Tax registrations');
+  }
+);
+
+router.post(
+  '/tax-registrations',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  validate(createTaxRegistrationRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const created = await createTaxRegistration(
+      req.body as z.infer<typeof createTaxRegistrationRequest>
+    );
+    sendSuccess(res, created, 'Tax registration added', 201);
+  }
+);
+
+router.patch(
+  '/tax-registrations/:id',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  validate(taxRegistrationParams, 'params'),
+  validate(updateTaxRegistrationRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof taxRegistrationParams>;
+    const updated = await updateTaxRegistration(
+      id,
+      req.body as z.infer<typeof updateTaxRegistrationRequest>
+    );
+    sendSuccess(res, updated, 'Tax registration updated');
+  }
+);
+
+router.delete(
+  '/tax-registrations/:id',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  validate(taxRegistrationParams, 'params'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof taxRegistrationParams>;
+    await deleteTaxRegistration(id);
+    sendSuccess(res, null, 'Tax registration removed');
   }
 );
 
