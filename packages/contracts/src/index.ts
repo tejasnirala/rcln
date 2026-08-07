@@ -3,5 +3,8 @@ export * from './auth.js';
 export * from './tenancy.js';
 export * from './marketing.js';
 export * from './audit.js';
+export * from './doctors.js';
+export * from './patients.js';
+export * from './appointments.js';
 export * from './billing.js';
 export * from './locale.js';

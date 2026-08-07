@@ -2,11 +2,15 @@ import { Router, type IRouter } from 'express';
 import auditRoutes from './audit.routes.js';
 import authRoutes from './auth.routes.js';
 import billingRoutes from './billing.routes.js';
+import appointmentRoutes from './appointments.routes.js';
 import branchRoutes from './branches.routes.js';
 import healthRoutes from './health.routes.js';
 import invitationRoutes from './invitations.routes.js';
+import doctorRoutes from './doctors.routes.js';
+import designationRoutes from './designations.routes.js';
 import memberRoutes from './members.routes.js';
 import organizationRoutes from './organization.routes.js';
+import patientRoutes from './patients.routes.js';
 import platformRoutes from './platform.routes.js';
 import publicRoutes from './public.routes.js';
 import roleRoutes from './roles.routes.js';
@@ -36,6 +40,26 @@ router.use('/branches', branchRoutes);
 // Issuing invitations. Accepting one is on /auth, because the person accepting
 // has no membership here yet — see the header of invitations.routes.ts.
 router.use('/invitations', invitationRoutes);
+
+// Doctors and their working hours — the input the availability engine reads.
+// Carries no PHI: a doctor is staff, not a patient.
+router.use('/doctors', doctorRoutes);
+
+// Job titles. Its own surface rather than a path under /members, which would be
+// swallowed by /members/:membershipId.
+router.use('/designations', designationRoutes);
+
+// ⚠️ THE FIRST PHI SURFACE. Every read under here writes a `data_access_logs`
+// row, and `patients` deliberately carries NO branch_isolation policy — the
+// branch boundary is on `patient_registrations` instead (ADR-0016). Read the
+// header of patients.routes.ts before adding an endpoint to it.
+router.use('/patients', patientRoutes);
+
+// Bookings, and the availability engine behind them. PHI too: a patient, a
+// doctor and a reason disclose more together than any one of them does. Unlike
+// `patients`, `appointments` IS branch-scoped — identity follows the person,
+// attendance belongs to the clinic it happened at.
+router.use('/appointments', appointmentRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather

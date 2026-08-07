@@ -1,7 +1,9 @@
 # Integrations/
 
-**Every external integration in this repository is a stub.** The adapters fall
-back to a console implementation when the key is blank, and every key is blank.
+**Every external integration in this repository is a stub, except email.** The
+adapters fall back to a console implementation when the key is blank, and every
+key is blank. Email is the exception: it sends over SMTP, to Mailpit in
+development, and only the production relay is still missing.
 
 The consolidated view, including what each integration will need when it is
 wired, is [`../13_Integration_Guide.md`](../13_Integration_Guide.md).
@@ -10,7 +12,7 @@ wired, is [`../13_Integration_Guide.md`](../13_Integration_Guide.md).
 | --------------------------- | ----------------------------- | ------------------------------------------------ |
 | SMS — MSG91                 | `SMS_*`                       | `console`. Hard-blocked on TRAI DLT registration |
 | WhatsApp — Meta Cloud / BSP | `WHATSAPP_*`                  | `console`. Blocked on template approval          |
-| Email — AWS SES             | `EMAIL_*`, `SES_*`            | `console`. Mailpit serves local dev              |
+| Email — SMTP / AWS SES      | `EMAIL_*`, `SMTP_*`, `SES_*`  | **Sending** over SMTP; Mailpit catches local dev |
 | Payments — Razorpay         | `RAZORPAY_*`                  | Not integrated. No account yet                   |
 | Object storage — S3         | `S3_*`                        | Not integrated. `StoredFile` model only          |
 | Errors — Sentry             | `SENTRY_DSN`                  | Not integrated                                   |

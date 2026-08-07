@@ -1,10 +1,11 @@
 'use client';
 
 import { useActionState, useMemo, useRef, useState } from 'react';
-import type { OrganizationProfile, SettingItem } from '@rcln/contracts';
+import type { OrganizationProfile, RolePairings, SettingItem } from '@rcln/contracts';
 import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { RecordHistory } from '@/components/tenant/record-history';
+import { RoleTitles } from '@/components/tenant/role-titles';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { cn } from '@/lib/cn';
 import { moduleLabel } from '@/lib/permission-labels';
@@ -459,6 +460,7 @@ export function ClinicSettings({
   slug,
   organization,
   settings,
+  rolePairings,
   canEditOrganization,
   canEditSettings,
   canReadHistory,
@@ -466,6 +468,8 @@ export function ClinicSettings({
   slug: string;
   organization: OrganizationProfile | null;
   settings: SettingItem[] | null;
+  /** Null when the caller may not manage titles — the section is then absent. */
+  rolePairings: RolePairings[] | null;
   canEditOrganization: boolean;
   canEditSettings: boolean;
   canReadHistory: boolean;
@@ -561,6 +565,24 @@ export function ClinicSettings({
           ))
         )}
       </section>
+
+      {/*
+        Clinic-wide, not per branch — a role means the same thing everywhere the
+        clinic operates, and the copy says so rather than leaving someone to
+        wonder why the branch switcher does not affect it.
+      */}
+      {rolePairings !== null ? (
+        <section className="border-rule mt-10 border-t pt-8" aria-labelledby="titles-heading">
+          <h2 id="titles-heading" className="eyebrow text-muted">
+            Roles and titles
+          </h2>
+          <p className="text-muted mt-2 max-w-xl text-[0.9375rem] leading-relaxed">
+            Which job titles each role can be given when you invite someone. A receptionist should
+            not be a radiologist, and this is what stops it. Applies across every branch.
+          </p>
+          <RoleTitles slug={slug} roles={rolePairings} />
+        </section>
+      ) : null}
     </>
   );
 }

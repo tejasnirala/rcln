@@ -10,32 +10,35 @@ Files: `apps/api/src/services/invitation/invitation.service.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `acceptInvitation` | `(organizationId: string, input: AcceptInvitationInput, options: InvitationActionOptions): Promise<AcceptInvitationResult>` | `apps/api/src/services/invitation/invitation.service.ts:585` | Accept an invitation. WHY THIS USES |
-| `createInvitation` | `(ctx: TenantContext, input: InviteMemberRequest, options: InvitationActionOptions): Promise<InvitationSummary>` | `apps/api/src/services/invitation/invitation.service.ts:205` |  |
-| `expiryFrom` <sub>local</sub> | `(now: Date): Date` | `apps/api/src/services/invitation/invitation.service.ts:158` |  |
-| `findLiveInvitation` <sub>local</sub> | `(tx: TxClient, organizationId: string, token: string): Promise<InvitationRow \| null>` | `apps/api/src/services/invitation/invitation.service.ts:474` |  |
-| `invalidToken` <sub>local</sub> | `(): never` | `apps/api/src/services/invitation/invitation.service.ts:493` | One answer for every dead token — expired, revoked, replayed or forged. |
-| `joinUrl` <sub>local</sub> | `(slug: string, token: string): string` | `apps/api/src/services/invitation/invitation.service.ts:151` | `northwind` plus a token: the link that lands on that clinic's accept page. |
-| `listInvitations` | `(ctx: TenantContext): Promise<InvitationListResponse>` | `apps/api/src/services/invitation/invitation.service.ts:166` |  |
-| `previewInvitation` | `(organizationId: string, token: string): Promise<InvitationPreview>` | `apps/api/src/services/invitation/invitation.service.ts:497` |  |
-| `resendInvitation` | `(ctx: TenantContext, invitationId: string, options: InvitationActionOptions): Promise<InvitationSummary>` | `apps/api/src/services/invitation/invitation.service.ts:401` |  |
-| `revokeInvitation` | `(ctx: TenantContext, invitationId: string, reason: string \| undefined, options: InvitationActionOptions): Promise<InvitationSummary>` | `apps/api/src/services/invitation/invitation.service.ts:352` |  |
-| `snapshot` <sub>local</sub> | `(row: InvitationRow): Record<string, unknown>` | `apps/api/src/services/invitation/invitation.service.ts:140` | What goes on the audit row: the grant, never the token. |
-| `statusOf` <sub>local</sub> | `(row: InvitationRow): InvitationSummary['status']` | `apps/api/src/services/invitation/invitation.service.ts:115` | Three timestamps, one word. Order matters: an invitation revoked after it expired reads as REVOKED, because somebody made a decision about it and that is the m… |
-| `toSummary` <sub>local</sub> | `(row: InvitationRow): InvitationSummary` | `apps/api/src/services/invitation/invitation.service.ts:122` |  |
+| `acceptInvitation` | `(organizationId: string, input: AcceptInvitationInput, options: InvitationActionOptions): Promise<AcceptInvitationResult>` | `apps/api/src/services/invitation/invitation.service.ts:731` | Accept an invitation. WHY THIS USES |
+| `createEmploymentRecord` <sub>local</sub> | `(tx: TxClient, input: { organizationId: string; membershipId: string; desi…): Promise<{ employeeCode: string \| null; joinedOn: string \| n…` | `apps/api/src/services/invitation/invitation.service.ts:568` |  |
+| `createInvitation` | `(ctx: TenantContext, input: InviteMemberRequest, options: InvitationActionOptions): Promise<InvitationSummary>` | `apps/api/src/services/invitation/invitation.service.ts:212` |  |
+| `expiryFrom` <sub>local</sub> | `(now: Date): Date` | `apps/api/src/services/invitation/invitation.service.ts:165` |  |
+| `findLiveInvitation` <sub>local</sub> | `(tx: TxClient, organizationId: string, token: string): Promise<InvitationRow \| null>` | `apps/api/src/services/invitation/invitation.service.ts:512` |  |
+| `invalidToken` <sub>local</sub> | `(): never` | `apps/api/src/services/invitation/invitation.service.ts:531` | One answer for every dead token — expired, revoked, replayed or forged. |
+| `joinUrl` <sub>local</sub> | `(slug: string, token: string): string` | `apps/api/src/services/invitation/invitation.service.ts:158` | `northwind` plus a token: the link that lands on that clinic's accept page. |
+| `listInvitations` | `(ctx: TenantContext): Promise<InvitationListResponse>` | `apps/api/src/services/invitation/invitation.service.ts:173` |  |
+| `previewInvitation` | `(organizationId: string, token: string): Promise<InvitationPreview>` | `apps/api/src/services/invitation/invitation.service.ts:643` |  |
+| `resendInvitation` | `(ctx: TenantContext, invitationId: string, options: InvitationActionOptions): Promise<InvitationSummary>` | `apps/api/src/services/invitation/invitation.service.ts:439` |  |
+| `revokeInvitation` | `(ctx: TenantContext, invitationId: string, reason: string \| undefined, options: InvitationActionOptions): Promise<InvitationSummary>` | `apps/api/src/services/invitation/invitation.service.ts:390` |  |
+| `snapshot` <sub>local</sub> | `(row: InvitationRow): Record<string, unknown>` | `apps/api/src/services/invitation/invitation.service.ts:147` | What goes on the audit row: the grant, never the token. |
+| `statusOf` <sub>local</sub> | `(row: InvitationRow): InvitationSummary['status']` | `apps/api/src/services/invitation/invitation.service.ts:122` | Three timestamps, one word. Order matters: an invitation revoked after it expired reads as REVOKED, because somebody made a decision about it and that is the m… |
+| `toSummary` <sub>local</sub> | `(row: InvitationRow): InvitationSummary` | `apps/api/src/services/invitation/invitation.service.ts:129` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `INVITATION_SELECT` <sub>local</sub> | `{ id: true, email: true, phone: true, roleId: true, invitedBy: true, expiresAt: true, acc…` | `apps/api/src/services/invitation/invitation.service.ts:79` | What Prisma is asked for, so list, create and revoke cannot drift apart. |
-| `INVITE_TTL_DAYS` <sub>local</sub> | `7` | `apps/api/src/services/invitation/invitation.service.ts:76` |  |
+| `DEFAULT_EMPLOYEE_PREFIX` <sub>local</sub> | `'EMP'` | `apps/api/src/services/invitation/invitation.service.ts:537` |  |
+| `EMPLOYEE_PREFIX_KEY` <sub>local</sub> | `'staff.employee_code_prefix'` | `apps/api/src/services/invitation/invitation.service.ts:536` | Fallback when no `staff.employee_code_prefix` is set. Matches the seed. |
+| `INVITATION_SELECT` <sub>local</sub> | `{ id: true, email: true, phone: true, roleId: true, designationId: true, invitedBy: true,…` | `apps/api/src/services/invitation/invitation.service.ts:82` | What Prisma is asked for, so list, create and revoke cannot drift apart. |
+| `INVITE_TTL_DAYS` <sub>local</sub> | `7` | `apps/api/src/services/invitation/invitation.service.ts:79` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AcceptInvitationInput` | `{ token, fullName, password }` | `apps/api/src/services/invitation/invitation.service.ts:530` |  |
-| `AcceptInvitationResult` | `{ userId, organizationId, membershipId, isNewUser }` | `apps/api/src/services/invitation/invitation.service.ts:536` |  |
-| `InvitationActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/invitation/invitation.service.ts:62` | Request metadata carried onto the audit row. Same shape as the branch service. |
-| `InvitationRow` <sub>local</sub> | `{ id, email, phone, roleId, invitedBy, expiresAt, acceptedAt, revokedAt, createdAt, role, inviter, branches }` | `apps/api/src/services/invitation/invitation.service.ts:94` |  |
+| `AcceptInvitationInput` | `{ token, fullName, password }` | `apps/api/src/services/invitation/invitation.service.ts:676` |  |
+| `AcceptInvitationResult` | `{ userId, organizationId, membershipId, isNewUser }` | `apps/api/src/services/invitation/invitation.service.ts:682` |  |
+| `InvitationActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/invitation/invitation.service.ts:65` | Request metadata carried onto the audit row. Same shape as the branch service. |
+| `InvitationRow` <sub>local</sub> | `{ id, email, phone, roleId, designationId, invitedBy, expiresAt, acceptedAt, revokedAt, createdAt, role, designation, inviter, branches }` | `apps/api/src/services/invitation/invitation.service.ts:99` |  |

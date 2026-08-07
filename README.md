@@ -234,6 +234,13 @@ and outbound mail is logged instead of sent.
 | http://localhost:5000/api/v1/health | api liveness                                                 |
 | http://localhost:8025               | mailpit — every outbound email in dev (paths A and B)        |
 
+**Invitations arrive in Mailpit.** The invitation token is handed to the sender
+and to nobody else — the column holds a digest — so http://localhost:8025 is
+where you open one. Same for email verification codes. Mailpit delivers to
+nobody, so no address you type into the product can receive a real message.
+Compose points the API at it (`EMAIL_PROVIDER=smtp`, `SMTP_HOST=mailpit`);
+set `EMAIL_PROVIDER=console` to go back to logging the message instead.
+
 The seeded super admin is `superadmin@rcln.local` with whatever
 `SUPERADMIN_PASSWORD` you set (default `ChangeMe!SuperAdmin1`). Login endpoints
 arrive in Phase 1; for now the account exists in the database only.
@@ -369,20 +376,21 @@ never carry one tenant's context into another's request.
 The same workspace scripts exist on every path. On Path A prefix them with
 `docker compose exec api`; on B and C run them directly.
 
-| Task                    | Path A (Docker)                                        | Paths B / C (host)             |
-| ----------------------- | ------------------------------------------------------ | ------------------------------ |
-| Start everything        | `docker compose up`                                    | `pnpm infra` then `pnpm dev`   |
-| One service             | `docker compose up api`                                | `pnpm dev:api`                 |
-| Follow logs             | `docker compose logs -f api`                           | in the `pnpm dev` output       |
-| Shell                   | `docker compose exec api sh`                           | —                              |
-| Stop                    | `docker compose down`                                  | Ctrl-C, `pnpm infra:stop`      |
-| Wipe the database       | `docker compose down -v`                               | `pnpm db:reset`                |
-| Typecheck + lint + test | `docker compose exec api pnpm validate`                | `pnpm validate`                |
-| New migration           | `docker compose exec api pnpm db:migrate --name x`     | `pnpm db:migrate --name x`     |
-| RLS enforcement check   | `docker compose exec api pnpm db:rls:check`            | `pnpm db:rls:check`            |
-| Prisma Studio           | `docker compose exec api pnpm db:studio`               | `pnpm db:studio`               |
-| Tenant-isolation suite  | `docker compose exec api pnpm --filter @rcln/api test` | `pnpm --filter @rcln/api test` |
-| Re-seed                 | `docker compose exec api pnpm db:seed`                 | `pnpm db:seed`                 |
+| Task                      | Path A (Docker)                                        | Paths B / C (host)             |
+| ------------------------- | ------------------------------------------------------ | ------------------------------ |
+| Start everything          | `docker compose up`                                    | `pnpm infra` then `pnpm dev`   |
+| One service               | `docker compose up api`                                | `pnpm dev:api`                 |
+| Follow logs               | `docker compose logs -f api`                           | in the `pnpm dev` output       |
+| Shell                     | `docker compose exec api sh`                           | —                              |
+| Stop                      | `docker compose down`                                  | Ctrl-C, `pnpm infra:stop`      |
+| Wipe the database         | `docker compose down -v`                               | `pnpm db:reset --force`        |
+| Typecheck + lint + test   | `docker compose exec api pnpm validate`                | `pnpm validate`                |
+| New migration             | `docker compose exec api pnpm db:migrate --name x`     | `pnpm db:migrate --name x`     |
+| RLS enforcement check     | `docker compose exec api pnpm db:rls:check`            | `pnpm db:rls:check`            |
+| Prisma Studio             | `docker compose exec api pnpm db:studio`               | `pnpm db:studio`               |
+| Tenant-isolation suite    | `docker compose exec api pnpm --filter @rcln/api test` | `pnpm --filter @rcln/api test` |
+| Re-seed                   | `docker compose exec api pnpm db:seed`                 | `pnpm db:seed`                 |
+| Restore `rcln_app` grants | `docker compose exec api pnpm db:grants`               | `pnpm db:grants`               |
 
 Convenience aliases exist for the Docker verbs: `pnpm up`, `pnpm down`,
 `pnpm nuke`, `pnpm logs`, `pnpm sh`, `pnpm rebuild`.

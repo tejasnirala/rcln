@@ -18,10 +18,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts` · `apps/we
 | --- | --- | --- | --- |
 | `clearException` | `(slug: string, membershipId: string, overrideId: string, _previous: MemberFormState): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:144` |  |
 | `giveRole` | `(slug: string, membershipId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:41` |  |
-| `restoreMember` | `(slug: string, membershipId: string, _previous: MemberFormState): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:242` |  |
+| `restoreMember` | `(slug: string, membershipId: string, _previous: MemberFormState): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:243` |  |
 | `saveDetails` | `(slug: string, membershipId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:174` |  |
 | `saveException` | `(slug: string, membershipId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:104` |  |
-| `suspendMember` | `(slug: string, membershipId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:216` |  |
+| `suspendMember` | `(slug: string, membershipId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:217` |  |
 | `takeRoleAway` | `(slug: string, membershipId: string, assignmentId: string, _previous: MemberFormState): Promise<MemberFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:81` |  |
 
 ## fn

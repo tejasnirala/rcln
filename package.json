@@ -33,6 +33,7 @@
     "db:seed": "pnpm --filter @rcln/db run seed",
     "db:studio": "pnpm --filter @rcln/db run studio",
     "db:reset": "pnpm --filter @rcln/db run reset",
+    "db:grants": "pnpm --filter @rcln/db run grants",
     "db:rls:check": "pnpm --filter @rcln/db run rls:check",
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky",

@@ -1,11 +1,12 @@
 'use client';
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
-import type { InvitationSummary } from '@rcln/contracts';
+import type { DesignationSummary, InvitationSummary } from '@rcln/contracts';
 import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import {
+  addDesignation,
   inviteMember,
   resendInvitation,
   revokeInvitation,
@@ -78,11 +79,15 @@ export function InvitationList({
   slug,
   roles,
   branches,
+  designations,
+  canAddDesignation,
   invitations,
 }: {
   slug: string;
   roles: RoleOption[];
   branches: BranchOption[];
+  designations: DesignationSummary[];
+  canAddDesignation: boolean;
   invitations: InvitationSummary[];
 }) {
   const [inviting, setInviting] = useState(false);
@@ -111,7 +116,14 @@ export function InvitationList({
 
       {inviting ? (
         <div className="border-drape bg-drape-tint/40 mt-6 rounded-lg border p-5">
-          <InviteForm slug={slug} roles={roles} branches={branches} onDone={closeInvite} />
+          <InviteForm
+            slug={slug}
+            roles={roles}
+            branches={branches}
+            designations={designations}
+            canAddDesignation={canAddDesignation}
+            onDone={closeInvite}
+          />
         </div>
       ) : null}
 
@@ -258,11 +270,15 @@ function InviteForm({
   slug,
   roles,
   branches,
+  designations,
+  canAddDesignation,
   onDone,
 }: {
   slug: string;
   roles: RoleOption[];
   branches: BranchOption[];
+  designations: DesignationSummary[];
+  canAddDesignation: boolean;
   onDone: () => void;
 }) {
   const [state, action, pending] = useActionState(inviteMember.bind(null, slug), IDLE);
@@ -271,6 +287,63 @@ function InviteForm({
 
   const [roleId, setRoleId] = useState(roles[0]?.id ?? '');
   const selected = roles.find((role) => role.id === roleId);
+
+  /*
+   * The menu is held in state rather than read straight from props, so a title
+   * added mid-form appears and stays selected without the surrounding form
+   * being remounted — which would discard the email already typed.
+   */
+  const [titles, setTitles] = useState(designations);
+  const [designationId, setDesignationId] = useState('');
+
+  /*
+   * Only the titles that fit the chosen role.
+   *
+   * An empty `roleIds` means the title is unmapped, which the API treats as
+   * "fits every role" — so it stays in the list rather than disappearing. See
+   * the contract comment on `designationSummary.roleIds`.
+   */
+  const eligibleTitles = titles.filter(
+    (title) => title.roleIds.length === 0 || title.roleIds.includes(roleId)
+  );
+
+  /*
+   * Changing the role can strand an already-chosen title.
+   *
+   * Derived during render rather than reset in an effect: syncing state to
+   * state through useEffect causes a cascading render and is what
+   * react-hooks/set-state-in-effect exists to stop. The stale id simply stops
+   * being the selected value, so the field shows empty and the form submits
+   * nothing — it cannot post a combination the API is going to refuse.
+   */
+  const selectedDesignationId = eligibleTitles.some((title) => title.id === designationId)
+    ? designationId
+    : '';
+  const [addingTitle, setAddingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [savingTitle, setSavingTitle] = useState(false);
+
+  const submitTitle = async (): Promise<void> => {
+    setSavingTitle(true);
+    setTitleError(null);
+    // Mapped to the role being invited for, so it does not land unmapped and
+    // silently become valid for every role.
+    const result = await addDesignation(slug, newTitle, roleId);
+    setSavingTitle(false);
+
+    if (!result.ok) {
+      setTitleError(result.message);
+      return;
+    }
+
+    setTitles((current) =>
+      [...current, result.designation].sort((a, b) => a.name.localeCompare(b.name))
+    );
+    setDesignationId(result.designation.id);
+    setNewTitle('');
+    setAddingTitle(false);
+  };
   // An organization-level role covers every branch by definition, so offering a
   // branch list next to it would be a choice the API is going to refuse.
   const branchScoped = selected?.scopeLevel === 'BRANCH';
@@ -310,6 +383,73 @@ function InviteForm({
           onChange={(event) => setRoleId(event.target.value)}
           options={roles.map((role) => ({ value: role.id, label: role.name }))}
         />
+      </div>
+
+      {/*
+        A role is what someone may DO; a designation is what they are CALLED.
+        Three consultants can share the Doctor role and hold three different
+        titles, which is why this is a separate field rather than derived.
+      */}
+      <div className="mt-4">
+        {addingTitle ? (
+          <div className="border-rule bg-paper rounded-md border p-4">
+            <Input
+              name="newDesignation"
+              label="New job title"
+              value={newTitle}
+              onChange={(event) => setNewTitle(event.target.value)}
+              placeholder="Senior Consultant"
+              {...(titleError !== null ? { errors: [titleError] } : {})}
+              hint="Added to this clinic's list, for every future invitation."
+            />
+            <div className="mt-3 flex gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={savingTitle || newTitle.trim().length < 2}
+                onClick={() => {
+                  void submitTitle();
+                }}
+              >
+                {savingTitle ? 'Adding…' : 'Add title'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setAddingTitle(false);
+                  setTitleError(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[16rem] flex-1">
+              <Select
+                name="designationId"
+                label="Job title"
+                errors={err('designationId')}
+                value={selectedDesignationId}
+                onChange={(event) => setDesignationId(event.target.value)}
+                placeholder="Not recorded"
+                options={eligibleTitles.map((title) => ({ value: title.id, label: title.name }))}
+                hint={
+                  selected
+                    ? `Titles used by ${selected.name}. Filled in on their staff record when they accept.`
+                    : 'Filled in on their staff record when they accept.'
+                }
+              />
+            </div>
+            {canAddDesignation ? (
+              <Button type="button" variant="ghost" onClick={() => setAddingTitle(true)}>
+                Add a title
+              </Button>
+            ) : null}
+          </div>
+        )}
       </div>
 
       {branchScoped && branches.length > 0 ? (

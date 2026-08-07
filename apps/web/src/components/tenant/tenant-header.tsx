@@ -80,6 +80,17 @@ export function TenantHeader({ slug, session }: { slug: string; session: AuthSes
 function clinicNav(permissions: string[]): NavLink[] {
   return [
     { href: '/branches', label: 'Branches', permission: ['branch.read'] },
+    // Sits next to Branches rather than under Staff: a doctor's working hours
+    // are what the front desk books against, so this is a scheduling screen that
+    // happens to be about people, not a personnel one.
+    { href: '/doctors', label: 'Doctors', permission: ['doctor.read'] },
+    // First in the list that is about the people being treated rather than the
+    // people doing the treating, and the only destination behind it that
+    // discloses PHI. Every screen under it writes a `data_access_logs` row.
+    { href: '/patients', label: 'Patients', permission: ['patient.read'] },
+    // Sits after Patients because it is about them, and before Staff because it
+    // is the screen the front desk actually works from all day.
+    { href: '/appointments', label: 'Appointments', permission: ['appointment.read'] },
     { href: '/members', label: 'Staff', permission: ['iam.user.read'] },
     { href: '/roles', label: 'Roles', permission: ['iam.role.read'] },
     { href: '/invitations', label: 'Invitations', permission: ['iam.user.read'] },

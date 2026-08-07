@@ -131,6 +131,51 @@ export const config = {
     masterCode: isProduction ? null : getEnvVar('DEV_MASTER_VERIFICATION_CODE', '123456'),
   },
 
+  /**
+   * Outbound email.
+   *
+   * `console` logs the message and delivers nothing — the historical default,
+   * and still the right one for the test suite and for a native run with no
+   * Docker. `smtp` hands the message to a relay.
+   *
+   * IN DEVELOPMENT THE RELAY IS MAILPIT, AND THAT IS THE POINT
+   *   Mailpit accepts everything on `mailpit:1025` and delivers nothing to the
+   *   outside world; every invitation link and verification code shows up at
+   *   http://localhost:8025. Compose sets `EMAIL_PROVIDER=smtp` for exactly
+   *   this reason, so an invitation is a link you can click rather than a line
+   *   in the API log.
+   *
+   *   Same code path as a real provider. SES, Postmark and Resend all speak
+   *   SMTP, so moving off Mailpit is host, port and credentials — not a rewrite.
+   */
+  email: {
+    /**
+     * Forced to `console` under NODE_ENV=test, and not read from the
+     * environment there.
+     *
+     * The integration suites replace `sendEmail` to capture the invitation
+     * token, but not every suite does — and compose exports
+     * `EMAIL_PROVIDER=smtp` into the very container the tests run in. A suite
+     * that reaches a real socket is a suite whose result depends on whether
+     * Mailpit happened to be up.
+     */
+    provider: (env === 'test'
+      ? 'console'
+      : getEnvVar('EMAIL_PROVIDER', 'console') === 'smtp'
+        ? 'smtp'
+        : 'console') as 'console' | 'smtp',
+    from: getEnvVar('EMAIL_FROM', 'rcln <noreply@rcln.local>'),
+    smtp: {
+      host: getEnvVar('SMTP_HOST', 'localhost'),
+      port: getEnvNumber('SMTP_PORT', 1025),
+      /** Implicit TLS (465). Mailpit speaks plaintext; a real relay on 587 upgrades via STARTTLS. */
+      secure: getEnvVar('SMTP_SECURE', 'false') === 'true',
+      /** Unset for Mailpit, which authenticates nobody. Blank means unset — see above. */
+      user: getOptionalEnvVar('SMTP_USER'),
+      password: getOptionalEnvVar('SMTP_PASSWORD'),
+    },
+  },
+
   cors: {
     // Static allowlist for local dev and the marketing site. Tenant subdomains
     // are validated dynamically against organization_domains.
@@ -263,6 +308,25 @@ export const config = {
  * every subscription as paid and take nothing, and the first symptom would be a
  * revenue report that looks fine.
  */
+/**
+ * Mailpit must never be a production relay.
+ *
+ * It accepts every message and delivers none, so a production deployment
+ * pointed at it would report every invitation as sent and nobody would ever
+ * receive one. Fatal rather than ignored, for the same reason as the mock
+ * payment provider below.
+ */
+if (
+  isProduction &&
+  config.email.provider === 'smtp' &&
+  /^mailpit$|^localhost$|^127\./.test(config.email.smtp.host)
+) {
+  throw new Error(
+    `SMTP_HOST is '${config.email.smtp.host}' in production. That is the local Mailpit catcher ` +
+      '(or an unset default); it accepts mail and delivers nothing.'
+  );
+}
+
 if (isProduction && config.payments.provider === 'mock') {
   throw new Error(
     'PAYMENT_PROVIDER=mock in production. The mock provider simulates payments and collects no money.'

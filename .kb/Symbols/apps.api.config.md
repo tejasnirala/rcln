@@ -28,4 +28,4 @@ Files: `apps/api/src/config/index.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `Config` | `typeof config` | `apps/api/src/config/index.ts:272` |  |
+| `Config` | `typeof config` | `apps/api/src/config/index.ts:336` |  |

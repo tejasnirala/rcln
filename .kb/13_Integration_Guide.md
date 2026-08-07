@@ -13,19 +13,20 @@
 
 ## Status at a glance
 
-| Integration                     | Purpose                          | Env prefix                    | State             | Blocked by                             |
-| ------------------------------- | -------------------------------- | ----------------------------- | ----------------- | -------------------------------------- |
-| **SMS — MSG91**                 | OTP codes, appointment reminders | `SMS_*`                       | `console`         | **TRAI DLT registration**, 1–2 weeks   |
-| **WhatsApp — Meta Cloud / BSP** | Primary patient channel in India | `WHATSAPP_*`                  | `console`         | Meta template approval, ~2–3 days each |
-| **Email — AWS SES**             | Invitations, receipts, reports   | `EMAIL_*`, `SES_*`            | `console`         | Domain verification, DKIM/SPF/DMARC    |
-| **Payments — Razorpay**         | Platform subscriptions           | `RAZORPAY_*`                  | Not integrated    | No account yet                         |
-| **Object storage — S3**         | Lab reports, scans, PDFs         | `S3_*`                        | Not integrated    | Nothing uploads yet                    |
-| **Errors — Sentry**             | Error tracking                   | `SENTRY_DSN`                  | Not integrated    | Nothing deployed                       |
-| **Traces — OpenTelemetry**      | Distributed tracing              | `OTEL_EXPORTER_OTLP_ENDPOINT` | Not integrated    | Nothing deployed                       |
-| **ABDM / ABHA**                 | National health ID               | —                             | Schema hooks only | M1/M2/M3 certification, a later phase  |
+| Integration                     | Purpose                          | Env prefix                    | State              | Blocked by                              |
+| ------------------------------- | -------------------------------- | ----------------------------- | ------------------ | --------------------------------------- |
+| **SMS — MSG91**                 | OTP codes, appointment reminders | `SMS_*`                       | `console`          | **TRAI DLT registration**, 1–2 weeks    |
+| **WhatsApp — Meta Cloud / BSP** | Primary patient channel in India | `WHATSAPP_*`                  | `console`          | Meta template approval, ~2–3 days each  |
+| **Email — SMTP / AWS SES**      | Invitations, receipts, reports   | `EMAIL_*`, `SMTP_*`, `SES_*`  | **Sending (SMTP)** | SES domain verification, DKIM/SPF/DMARC |
+| **Payments — Razorpay**         | Platform subscriptions           | `RAZORPAY_*`                  | Not integrated     | No account yet                          |
+| **Object storage — S3**         | Lab reports, scans, PDFs         | `S3_*`                        | Not integrated     | Nothing uploads yet                     |
+| **Errors — Sentry**             | Error tracking                   | `SENTRY_DSN`                  | Not integrated     | Nothing deployed                        |
+| **Traces — OpenTelemetry**      | Distributed tracing              | `OTEL_EXPORTER_OTLP_ENDPOINT` | Not integrated     | Nothing deployed                        |
+| **ABDM / ABHA**                 | National health ID               | —                             | Schema hooks only  | M1/M2/M3 certification, a later phase   |
 
 Local development substitutes **Mailpit** for email; it runs in
-`docker compose` and catches everything.
+`docker compose`, catches everything, and delivers to nobody. Read it at
+http://localhost:8025 — that is where invitation links land.
 
 ---
 
@@ -34,7 +35,8 @@ Local development substitutes **Mailpit** for email; it runs in
 **Verified.** `apps/api/src/services/notification/sender.ts`.
 
 Every outbound message — OTP codes today, invitation links today, everything
-later — goes through this one file. It currently logs instead of sending.
+later — goes through this one file. It picks a sender: SMS still logs, email
+sends over SMTP (Mailpit in development, `EMAIL_PROVIDER=console` to log).
 
 ```mermaid
 flowchart LR
@@ -100,13 +102,27 @@ for real users. `STATUS.md` lists it under "Blocked / needs a human".
 
 ---
 
-## Email — AWS SES
+## Email — SMTP today, SES later
 
-`ap-south-1`, for data residency. Needs domain verification plus DKIM, SPF and
-DMARC before anything delivers, and SES starts in a **sandbox** until the
-sending domain is verified — noted in `sender.ts` itself.
+**Wired, and sending.** `EMAIL_PROVIDER` selects between `console` (log the
+message, deliver nothing) and `smtp` (`smtp.sender.ts`, nodemailer). Compose
+pins the API to `smtp` against Mailpit on `mailpit:1025`, so every invitation
+link and verification code is readable at http://localhost:8025 — the
+invitation token is handed to the sender and to nobody else, so that inbox is
+the only way to open one without reading the API log.
 
-Locally, Mailpit catches everything with no configuration.
+Bodies live in `services/notification/templates.ts`: subject, plain text and
+HTML per template, escaped. **No PHI in them, ever** — links and codes only.
+
+A send failure is logged, never thrown. The caller has already committed, an
+invitation row exists, and the operator's fix is to resend either way.
+
+SES (`ap-south-1`, for data residency) is still the production target and still
+needs domain verification plus DKIM, SPF and DMARC; it starts in a **sandbox**
+until the sending domain is verified. It speaks SMTP, as do Postmark and
+Resend, so moving off Mailpit is `SMTP_HOST`, `SMTP_PORT` and credentials — no
+code change. Production refuses to boot with `SMTP_HOST` pointed at Mailpit or
+localhost.
 
 ---
 

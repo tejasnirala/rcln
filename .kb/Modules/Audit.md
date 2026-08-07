@@ -33,6 +33,7 @@ An append-only record of who changed what. Ids and permission codes only — nev
 ## Source files
 
 - `apps/api/src/services/audit/audit.service.ts`
+- `apps/api/src/services/audit/data-access.service.ts`
 - `apps/api/src/services/audit/history.service.ts`
 
 ## Workspace dependencies
@@ -49,9 +50,11 @@ An append-only record of who changed what. Ids and permission codes only — nev
 
 | name | kind | at |
 | --- | --- | --- |
-| `AuditEntry` | interface | `apps/api/src/services/audit/audit.service.ts:53` |
+| `AuditEntry` | interface | `apps/api/src/services/audit/audit.service.ts:100` |
 | `AuditHistoryInput` | interface | `apps/api/src/services/audit/history.service.ts:60` |
-| `AuditSnapshot` | type | `apps/api/src/services/audit/audit.service.ts:51` |
-| `diffSnapshots` | fn | `apps/api/src/services/audit/audit.service.ts:105` |
+| `AuditSnapshot` | type | `apps/api/src/services/audit/audit.service.ts:98` |
+| `DataAccessEntry` | interface | `apps/api/src/services/audit/data-access.service.ts:43` |
+| `diffSnapshots` | fn | `apps/api/src/services/audit/audit.service.ts:152` |
 | `readHistory` | fn | `apps/api/src/services/audit/history.service.ts:66` |
-| `recordAudit` | fn | `apps/api/src/services/audit/audit.service.ts:144` |
+| `recordAudit` | fn | `apps/api/src/services/audit/audit.service.ts:191` |
+| `recordDataAccess` | fn | `apps/api/src/services/audit/data-access.service.ts:124` |

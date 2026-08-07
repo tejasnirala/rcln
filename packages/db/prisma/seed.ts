@@ -246,6 +246,32 @@ async function seedSettingDefinitions(): Promise<void> {
         'The letters in front of every patient’s hospital number — P becomes P-000451. Patients already registered keep the number they have, so changing this splits your records into two shapes.',
     },
     {
+      key: 'patient.mrn_prefix',
+      module: 'patient',
+      dataType: 'STRING' as const,
+      defaultValue: 'MRN',
+      /*
+       * BRANCH as well as ORGANIZATION, unlike `patient.uhid_prefix` above.
+       * The MRN series is per branch, so a group that wants its Whitefield
+       * records to read WF0001 and its Indiranagar ones IN0001 sets this at the
+       * branch. A UHID is org-wide and has no equivalent choice to make.
+       */
+      allowedScopes: ['ORGANIZATION', 'BRANCH'],
+      description: 'Record number prefix',
+      helpText:
+        'The letters in front of the record number a patient gets at each clinic — MRN becomes MRN000451. Each clinic counts separately, so two branches both start at 1. Patients already registered keep the number they have.',
+    },
+    {
+      key: 'staff.employee_code_prefix',
+      module: 'staff',
+      dataType: 'STRING' as const,
+      defaultValue: 'EMP',
+      allowedScopes: ['ORGANIZATION'],
+      description: 'Employee code prefix',
+      helpText:
+        'The letters in front of every staff member’s employee code — EMP becomes EMP0001. It is issued when someone accepts their invitation. People already on the team keep the code they have, so changing this splits your staff list into two shapes.',
+    },
+    {
       key: 'security.session_idle_timeout_minutes',
       module: 'security',
       dataType: 'INT' as const,
@@ -435,6 +461,326 @@ async function seedPlans(): Promise<void> {
   console.warn(`  plans            ${plans.length}`);
 }
 
+/**
+ * Clinical masters, seeded as PLATFORM rows (`organizationId = null`).
+ *
+ * Every clinic reads these; a clinic that needs one we have not thought of adds
+ * its own org-scoped row through `doctor.master.manage` rather than waiting for
+ * a deploy. The RLS policy is deliberately read-permissive and write-strict, so
+ * a tenant can never add to this list — see enable-rls.sql.
+ *
+ * `upsert` on the (organizationId, code) pair, so re-seeding is safe and a
+ * renamed specialty updates in place rather than duplicating.
+ *
+ * Sub-specialties reference their parent by CODE and are inserted in a second
+ * pass, so the order of this list does not matter.
+ */
+const SPECIALTIES: { code: string; name: string; parent?: string }[] = [
+  { code: 'GENERAL_MEDICINE', name: 'General Medicine' },
+  { code: 'GENERAL_SURGERY', name: 'General Surgery' },
+  { code: 'FAMILY_MEDICINE', name: 'Family Medicine' },
+  { code: 'PAEDIATRICS', name: 'Paediatrics' },
+  { code: 'NEONATOLOGY', name: 'Neonatology', parent: 'PAEDIATRICS' },
+  { code: 'OBSTETRICS_GYNAECOLOGY', name: 'Obstetrics & Gynaecology' },
+  { code: 'CARDIOLOGY', name: 'Cardiology' },
+  { code: 'INTERVENTIONAL_CARDIOLOGY', name: 'Interventional Cardiology', parent: 'CARDIOLOGY' },
+  { code: 'DERMATOLOGY', name: 'Dermatology' },
+  { code: 'TRICHOLOGY', name: 'Trichology', parent: 'DERMATOLOGY' },
+  { code: 'COSMETOLOGY', name: 'Cosmetology', parent: 'DERMATOLOGY' },
+  { code: 'ORTHOPAEDICS', name: 'Orthopaedics' },
+  { code: 'SPINE_SURGERY', name: 'Spine Surgery', parent: 'ORTHOPAEDICS' },
+  { code: 'SPORTS_MEDICINE', name: 'Sports Medicine', parent: 'ORTHOPAEDICS' },
+  { code: 'ENT', name: 'ENT (Otorhinolaryngology)' },
+  { code: 'OPHTHALMOLOGY', name: 'Ophthalmology' },
+  { code: 'DENTISTRY', name: 'Dentistry' },
+  { code: 'ORTHODONTICS', name: 'Orthodontics', parent: 'DENTISTRY' },
+  { code: 'ENDODONTICS', name: 'Endodontics', parent: 'DENTISTRY' },
+  { code: 'PERIODONTICS', name: 'Periodontics', parent: 'DENTISTRY' },
+  { code: 'ORAL_MAXILLOFACIAL_SURGERY', name: 'Oral & Maxillofacial Surgery', parent: 'DENTISTRY' },
+  { code: 'NEUROLOGY', name: 'Neurology' },
+  { code: 'NEUROSURGERY', name: 'Neurosurgery' },
+  { code: 'PSYCHIATRY', name: 'Psychiatry' },
+  { code: 'CLINICAL_PSYCHOLOGY', name: 'Clinical Psychology' },
+  { code: 'GASTROENTEROLOGY', name: 'Gastroenterology' },
+  { code: 'HEPATOLOGY', name: 'Hepatology', parent: 'GASTROENTEROLOGY' },
+  { code: 'NEPHROLOGY', name: 'Nephrology' },
+  { code: 'UROLOGY', name: 'Urology' },
+  { code: 'ENDOCRINOLOGY', name: 'Endocrinology' },
+  { code: 'DIABETOLOGY', name: 'Diabetology', parent: 'ENDOCRINOLOGY' },
+  { code: 'PULMONOLOGY', name: 'Pulmonology' },
+  { code: 'RHEUMATOLOGY', name: 'Rheumatology' },
+  { code: 'ONCOLOGY', name: 'Oncology' },
+  { code: 'MEDICAL_ONCOLOGY', name: 'Medical Oncology', parent: 'ONCOLOGY' },
+  { code: 'SURGICAL_ONCOLOGY', name: 'Surgical Oncology', parent: 'ONCOLOGY' },
+  { code: 'HAEMATOLOGY', name: 'Haematology' },
+  { code: 'RADIOLOGY', name: 'Radiology' },
+  { code: 'PATHOLOGY', name: 'Pathology' },
+  { code: 'ANAESTHESIOLOGY', name: 'Anaesthesiology' },
+  { code: 'EMERGENCY_MEDICINE', name: 'Emergency Medicine' },
+  { code: 'PHYSIOTHERAPY', name: 'Physiotherapy' },
+  { code: 'NUTRITION_DIETETICS', name: 'Nutrition & Dietetics' },
+  { code: 'AYURVEDA', name: 'Ayurveda' },
+  { code: 'HOMEOPATHY', name: 'Homeopathy' },
+  { code: 'PLASTIC_SURGERY', name: 'Plastic & Reconstructive Surgery' },
+  { code: 'VASCULAR_SURGERY', name: 'Vascular Surgery' },
+  { code: 'GERIATRICS', name: 'Geriatrics' },
+];
+
+const QUALIFICATIONS: { code: string; name: string }[] = [
+  { code: 'MBBS', name: 'MBBS' },
+  { code: 'MD', name: 'MD — Doctor of Medicine' },
+  { code: 'MS', name: 'MS — Master of Surgery' },
+  { code: 'DNB', name: 'DNB — Diplomate of National Board' },
+  { code: 'DM', name: 'DM — Doctorate of Medicine (super-specialty)' },
+  { code: 'MCH', name: 'MCh — Magister Chirurgiae (super-specialty)' },
+  { code: 'DIPLOMA', name: 'Post-graduate Diploma' },
+  { code: 'BDS', name: 'BDS — Bachelor of Dental Surgery' },
+  { code: 'MDS', name: 'MDS — Master of Dental Surgery' },
+  { code: 'BAMS', name: 'BAMS — Ayurvedic Medicine & Surgery' },
+  { code: 'BHMS', name: 'BHMS — Homeopathic Medicine & Surgery' },
+  { code: 'BUMS', name: 'BUMS — Unani Medicine & Surgery' },
+  { code: 'BPT', name: 'BPT — Bachelor of Physiotherapy' },
+  { code: 'MPT', name: 'MPT — Master of Physiotherapy' },
+  { code: 'BSC_NURSING', name: 'BSc Nursing' },
+  { code: 'MSC_NURSING', name: 'MSc Nursing' },
+  { code: 'GNM', name: 'GNM — General Nursing & Midwifery' },
+  { code: 'ANM', name: 'ANM — Auxiliary Nurse Midwife' },
+  { code: 'BPHARM', name: 'B.Pharm' },
+  { code: 'MPHARM', name: 'M.Pharm' },
+  { code: 'DPHARM', name: 'D.Pharm' },
+  { code: 'DMLT', name: 'DMLT — Medical Laboratory Technology' },
+  { code: 'BMLT', name: 'BMLT — Bachelor of Medical Lab Technology' },
+  { code: 'MPH', name: 'MPH — Master of Public Health' },
+  { code: 'PHD', name: 'PhD' },
+  { code: 'FRCS', name: 'FRCS — Fellow, Royal College of Surgeons' },
+  { code: 'MRCP', name: 'MRCP — Member, Royal College of Physicians' },
+];
+
+/**
+ * Job titles, seeded as PLATFORM rows so a new clinic's invite form is not empty
+ * on day one. A clinic adds its own through `iam.designation.manage`; those are
+ * org-scoped and invisible to everyone else.
+ *
+ * Deliberately broader than the role list: a role is what someone may DO
+ * (permissions), a designation is what they ARE CALLED. Three consultants can
+ * share the DOCTOR role and hold three different titles.
+ */
+const DESIGNATIONS: { code: string; name: string }[] = [
+  { code: 'CONSULTANT', name: 'Consultant' },
+  { code: 'SENIOR_CONSULTANT', name: 'Senior Consultant' },
+  { code: 'JUNIOR_CONSULTANT', name: 'Junior Consultant' },
+  { code: 'VISITING_CONSULTANT', name: 'Visiting Consultant' },
+  { code: 'RESIDENT_MEDICAL_OFFICER', name: 'Resident Medical Officer' },
+  { code: 'MEDICAL_OFFICER', name: 'Medical Officer' },
+  { code: 'DUTY_DOCTOR', name: 'Duty Doctor' },
+  { code: 'HEAD_OF_DEPARTMENT', name: 'Head of Department' },
+  { code: 'MEDICAL_SUPERINTENDENT', name: 'Medical Superintendent' },
+  { code: 'NURSING_SUPERINTENDENT', name: 'Nursing Superintendent' },
+  { code: 'HEAD_NURSE', name: 'Head Nurse' },
+  { code: 'STAFF_NURSE', name: 'Staff Nurse' },
+  { code: 'TRAINEE_NURSE', name: 'Trainee Nurse' },
+  { code: 'WARD_BOY', name: 'Ward Attendant' },
+  { code: 'FRONT_DESK_EXECUTIVE', name: 'Front Desk Executive' },
+  { code: 'RECEPTIONIST', name: 'Receptionist' },
+  { code: 'CLINIC_MANAGER', name: 'Clinic Manager' },
+  { code: 'BRANCH_MANAGER', name: 'Branch Manager' },
+  { code: 'ADMINISTRATOR', name: 'Administrator' },
+  { code: 'ACCOUNTS_EXECUTIVE', name: 'Accounts Executive' },
+  { code: 'ACCOUNTS_MANAGER', name: 'Accounts Manager' },
+  { code: 'BILLING_EXECUTIVE', name: 'Billing Executive' },
+  { code: 'PHARMACIST', name: 'Pharmacist' },
+  { code: 'CHIEF_PHARMACIST', name: 'Chief Pharmacist' },
+  { code: 'LAB_TECHNICIAN', name: 'Lab Technician' },
+  { code: 'SENIOR_LAB_TECHNICIAN', name: 'Senior Lab Technician' },
+  { code: 'PATHOLOGIST', name: 'Pathologist' },
+  { code: 'RADIOLOGIST', name: 'Radiologist' },
+  { code: 'RADIOGRAPHER', name: 'Radiographer' },
+  { code: 'PHYSIOTHERAPIST', name: 'Physiotherapist' },
+  { code: 'DIETICIAN', name: 'Dietician' },
+  { code: 'COUNSELLOR', name: 'Counsellor' },
+  { code: 'IT_ADMINISTRATOR', name: 'IT Administrator' },
+  { code: 'HOUSEKEEPING', name: 'Housekeeping' },
+  { code: 'SECURITY', name: 'Security' },
+];
+
+/**
+ * Which titles fit which built-in role, so a Receptionist cannot be made a
+ * Radiologist.
+ *
+ * ⚠️ A TITLE ABSENT FROM EVERY LIST HERE FITS EVERY ROLE.
+ *   The eligibility query treats "no visible pairing at all" as "fits
+ *   anywhere", not "fits nowhere" — otherwise a clinic that adds a title and
+ *   forgets to map it watches it vanish from every menu. So the omissions below
+ *   are deliberate, not oversights: IT_ADMINISTRATOR, HOUSEKEEPING and SECURITY
+ *   are support roles that any of the built-in roles might carry, and pinning
+ *   them to one would be a guess.
+ *
+ * SUPER_ADMIN and PATIENT get nothing: neither is a staff role, and the invite
+ * service already refuses a PLATFORM-scoped role outright.
+ */
+const ROLE_DESIGNATIONS: Record<string, string[]> = {
+  ORG_OWNER: ['ADMINISTRATOR', 'CLINIC_MANAGER', 'MEDICAL_SUPERINTENDENT', 'HEAD_OF_DEPARTMENT'],
+  ORG_ADMIN: ['ADMINISTRATOR', 'CLINIC_MANAGER', 'BRANCH_MANAGER', 'MEDICAL_SUPERINTENDENT'],
+  BRANCH_ADMIN: ['BRANCH_MANAGER', 'CLINIC_MANAGER', 'ADMINISTRATOR'],
+  DOCTOR: [
+    'CONSULTANT',
+    'SENIOR_CONSULTANT',
+    'JUNIOR_CONSULTANT',
+    'VISITING_CONSULTANT',
+    'RESIDENT_MEDICAL_OFFICER',
+    'MEDICAL_OFFICER',
+    'DUTY_DOCTOR',
+    'HEAD_OF_DEPARTMENT',
+    'MEDICAL_SUPERINTENDENT',
+    'PHYSIOTHERAPIST',
+    'DIETICIAN',
+    'COUNSELLOR',
+  ],
+  NURSE: ['NURSING_SUPERINTENDENT', 'HEAD_NURSE', 'STAFF_NURSE', 'TRAINEE_NURSE', 'WARD_BOY'],
+  RECEPTIONIST: ['FRONT_DESK_EXECUTIVE', 'RECEPTIONIST', 'CLINIC_MANAGER'],
+  LAB_ASSISTANT: ['LAB_TECHNICIAN', 'RADIOGRAPHER'],
+  LAB_MANAGER: [
+    'SENIOR_LAB_TECHNICIAN',
+    'LAB_TECHNICIAN',
+    'PATHOLOGIST',
+    'RADIOLOGIST',
+    'RADIOGRAPHER',
+  ],
+  PHARMACIST: ['PHARMACIST', 'CHIEF_PHARMACIST'],
+  ACCOUNTANT: ['ACCOUNTS_EXECUTIVE', 'ACCOUNTS_MANAGER', 'BILLING_EXECUTIVE'],
+};
+
+async function seedRoleDesignations(): Promise<void> {
+  const roles = new Map(
+    (
+      await prisma.role.findMany({
+        where: { organizationId: null },
+        select: { id: true, code: true },
+      })
+    ).map((r) => [r.code, r.id])
+  );
+
+  const designations = new Map(
+    (
+      await prisma.designation.findMany({
+        where: { organizationId: null },
+        select: { id: true, code: true },
+      })
+    ).map((d) => [d.code, d.id])
+  );
+
+  let pairs = 0;
+
+  for (const [roleCode, designationCodes] of Object.entries(ROLE_DESIGNATIONS)) {
+    const roleId = roles.get(roleCode);
+    if (!roleId) continue;
+
+    for (const designationCode of designationCodes) {
+      const designationId = designations.get(designationCode);
+      if (!designationId) {
+        throw new Error(`ROLE_DESIGNATIONS names ${designationCode}, which is not in DESIGNATIONS`);
+      }
+
+      // findFirst then create, for the same NULLS NOT DISTINCT reason as above.
+      const existing = await prisma.roleDesignation.findFirst({
+        where: { organizationId: null, roleId, designationId },
+        select: { id: true },
+      });
+      if (!existing) {
+        await prisma.roleDesignation.create({
+          data: { organizationId: null, roleId, designationId },
+        });
+      }
+      pairs += 1;
+    }
+  }
+
+  console.warn(`  role↔title       ${pairs}`);
+}
+
+async function seedDesignations(): Promise<void> {
+  // findFirst then create/update, not upsert: the unique is
+  // (organization_id, code) NULLS NOT DISTINCT and Prisma refuses to build a
+  // `where` for a compound unique with a nullable component. Same constraint,
+  // and the same workaround, as the settings and specialty seeds. See PITFALLS.
+  for (const d of DESIGNATIONS) {
+    const existing = await prisma.designation.findFirst({
+      where: { organizationId: null, code: d.code },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.designation.update({ where: { id: existing.id }, data: { name: d.name } });
+    } else {
+      await prisma.designation.create({
+        data: { organizationId: null, code: d.code, name: d.name },
+      });
+    }
+  }
+
+  console.warn(`  designations     ${DESIGNATIONS.length}`);
+}
+
+async function seedClinicalMasters(): Promise<void> {
+  /*
+   * `findFirst` then create/update rather than `upsert`.
+   *
+   * The unique is (organization_id, code) NULLS NOT DISTINCT, and Prisma refuses
+   * to build a `where` for a compound unique with a nullable component —
+   * organization_id is null on every platform row. Same constraint, and the same
+   * workaround, as the settings seed. See PITFALLS.
+   */
+  for (const spec of SPECIALTIES) {
+    const existing = await prisma.specialty.findFirst({
+      where: { organizationId: null, code: spec.code },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.specialty.update({ where: { id: existing.id }, data: { name: spec.name } });
+    } else {
+      await prisma.specialty.create({
+        data: { organizationId: null, code: spec.code, name: spec.name },
+      });
+    }
+  }
+
+  // Second pass: parents are guaranteed to exist by now, so the source list can
+  // be written in whatever order reads best.
+  const byCode = new Map(
+    (
+      await prisma.specialty.findMany({
+        where: { organizationId: null },
+        select: { id: true, code: true },
+      })
+    ).map((s) => [s.code, s.id])
+  );
+
+  for (const spec of SPECIALTIES) {
+    if (!spec.parent) continue;
+    const id = byCode.get(spec.code);
+    const parentId = byCode.get(spec.parent);
+    if (id && parentId) {
+      await prisma.specialty.update({ where: { id }, data: { parentId } });
+    }
+  }
+
+  for (const q of QUALIFICATIONS) {
+    const existing = await prisma.qualification.findFirst({
+      where: { organizationId: null, code: q.code },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.qualification.update({ where: { id: existing.id }, data: { name: q.name } });
+    } else {
+      await prisma.qualification.create({
+        data: { organizationId: null, code: q.code, name: q.name },
+      });
+    }
+  }
+
+  console.warn(`  specialties      ${SPECIALTIES.length}`);
+  console.warn(`  qualifications   ${QUALIFICATIONS.length}`);
+}
+
 async function seedSuperAdmin(): Promise<void> {
   const email = process.env['SUPERADMIN_EMAIL'] ?? 'superadmin@rcln.local';
   const password = process.env['SUPERADMIN_PASSWORD'];
@@ -471,6 +817,10 @@ async function main(): Promise<void> {
   const permissionIds = await seedPermissions();
   await seedSystemRoles(permissionIds);
   await seedSettingDefinitions();
+  await seedDesignations();
+  // After both roles and designations exist — it pairs them by code.
+  await seedRoleDesignations();
+  await seedClinicalMasters();
   await seedPlans();
   await seedSuperAdmin();
 

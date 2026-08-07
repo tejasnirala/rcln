@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
-import type { OrganizationProfile, SettingListResponse } from '@rcln/contracts';
+import type {
+  OrganizationProfile,
+  RolePairingListResponse,
+  SettingListResponse,
+} from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
 import { getAccessToken, getSession } from '@/lib/session';
@@ -30,9 +34,12 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const accessToken = await getAccessToken();
 
-  const [organization, settings, session] = await Promise.all([
+  const [organization, settings, pairings, session] = await Promise.all([
     api<OrganizationProfile>('/api/v1/organization', { slug, accessToken }),
     api<SettingListResponse>('/api/v1/organization/settings', { slug, accessToken }),
+    // 403 for anyone without iam.designation.manage, which simply removes the
+    // section — a third permission this page renders around rather than errors on.
+    api<RolePairingListResponse>('/api/v1/designations/pairings', { slug, accessToken }),
     // React-cached, and the layout already called it for this render — free.
     getSession(slug),
   ]);
@@ -54,6 +61,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
       slug={slug}
       organization={organization.data ?? null}
       settings={settings.data?.settings ?? null}
+      rolePairings={pairings.ok ? (pairings.data?.roles ?? null) : null}
       canEditOrganization={permissions.includes('organization.update')}
       canEditSettings={permissions.includes('settings.organization.write')}
       canReadHistory={permissions.includes(PERMISSIONS.AUDIT_READ)}

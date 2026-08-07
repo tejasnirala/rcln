@@ -202,7 +202,103 @@ export const inviteMemberRequest = z.object({
   email,
   phone: phone.optional(),
   roleId: uuid,
+  /**
+   * The job title this invite is for, chosen from `designations`.
+   *
+   * Deliberately here rather than derived from the role at accept time: a role
+   * is what someone may DO and a designation is what they are CALLED, and three
+   * consultants can share the DOCTOR role with three different titles. The
+   * person sending the invite is the one who knows which.
+   *
+   * Optional — a clinic that does not track titles leaves it blank, and the
+   * staff profile is created without one.
+   */
+  designationId: uuid.optional(),
   branchIds: z.array(uuid).max(50).default([]),
+});
+
+/**
+ * A job title the clinic hands out.
+ *
+ * `code` is derived from the name rather than typed: it exists to make the row
+ * addressable and to keep "Senior Consultant" from being added twice in
+ * different casing. Asking an administrator to invent an uppercase slug is
+ * asking them to get it wrong.
+ */
+export const createDesignationRequest = z.object({
+  name: z.string().min(2).max(128),
+  /**
+   * Map the new title to this role immediately.
+   *
+   * Sent by the invite form, which knows which role is being invited for. A
+   * title added there is mapped from birth rather than landing unmapped and
+   * silently becoming valid for every role.
+   */
+  roleId: uuid.optional(),
+});
+
+export const designationSummary = z.object({
+  id: uuid,
+  code: z.string(),
+  name: z.string(),
+  /** False for a platform row, true for one this clinic added. */
+  isOwn: z.boolean(),
+  /**
+   * Which roles this title fits, already resolved — platform defaults, plus
+   * this clinic's additions, minus this clinic's exclusions.
+   *
+   * Sent with the list so the menu can re-filter as the role changes without a
+   * round trip per keystroke; the set is a few dozen ids, not a page of data.
+   */
+  roleIds: z.array(uuid),
+  /**
+   * True when nobody has constrained this title, so it fits every role.
+   *
+   * ⚠️ Check this rather than `roleIds.length === 0`. The two look
+   *   interchangeable and are not: a title whose every pairing a clinic has
+   *   switched OFF also has an empty `roleIds`, and it must fit NOTHING rather
+   *   than everything. Filter with
+   *   `fitsAnyRole || roleIds.includes(selected)`.
+   */
+  fitsAnyRole: z.boolean(),
+});
+
+export const designationListResponse = z.object({
+  designations: z.array(designationSummary),
+});
+
+/** One title as it appears in the role's checkbox list on the settings screen. */
+export const rolePairingOption = z.object({
+  designationId: uuid,
+  name: z.string(),
+  /** Whether this title currently fits the role. */
+  enabled: z.boolean(),
+  /** True when the platform pairs them, so the clinic can see what it changed. */
+  isPlatformDefault: z.boolean(),
+});
+
+export const rolePairings = z.object({
+  roleId: uuid,
+  roleCode: z.string(),
+  roleName: z.string(),
+  titles: z.array(rolePairingOption),
+});
+
+export const rolePairingListResponse = z.object({
+  roles: z.array(rolePairings),
+});
+
+/**
+ * The titles that fit one role, stated in full.
+ *
+ * Declarative rather than add/remove calls: the screen sends the list it wants
+ * and the server works out which tenant rows to write, which exclusions to
+ * record, and which rows to drop because they match the platform default again.
+ * Two administrators editing at once therefore converge on a state one of them
+ * chose, rather than on a merge neither did.
+ */
+export const setRolePairingsRequest = z.object({
+  designationIds: z.array(uuid).max(200),
 });
 
 /**
@@ -304,7 +400,8 @@ export const updateRoleRequest = z.object({
 export const updateMemberRequest = z.object({
   employeeCode: z.string().max(64).nullable().optional(),
   department: z.string().max(128).nullable().optional(),
-  designation: z.string().max(128).nullable().optional(),
+  /** A row in `designations`, never typed text — one source of truth. */
+  designationId: uuid.nullable().optional(),
   joinedOn: z.iso.date().nullable().optional(),
   relievedOn: z.iso.date().nullable().optional(),
 });
@@ -580,6 +677,8 @@ export const memberDetail = z.object({
   overrides: z.array(memberOverride),
   employeeCode: z.string().nullable(),
   department: z.string().nullable(),
+  designationId: uuid.nullable(),
+  /** The resolved name, for display only. Writes use `designationId`. */
   designation: z.string().nullable(),
   joinedOn: z.iso.date().nullable(),
   relievedOn: z.iso.date().nullable(),
@@ -771,6 +870,13 @@ export type RegisterOrganizationRequest = z.infer<typeof registerOrganizationReq
 export type CreateBranchRequest = z.infer<typeof createBranchRequest>;
 export type UpdateBranchRequest = z.infer<typeof updateBranchRequest>;
 export type InviteMemberRequest = z.infer<typeof inviteMemberRequest>;
+export type CreateDesignationRequest = z.infer<typeof createDesignationRequest>;
+export type DesignationSummary = z.infer<typeof designationSummary>;
+export type DesignationListResponse = z.infer<typeof designationListResponse>;
+export type RolePairingOption = z.infer<typeof rolePairingOption>;
+export type RolePairings = z.infer<typeof rolePairings>;
+export type RolePairingListResponse = z.infer<typeof rolePairingListResponse>;
+export type SetRolePairingsRequest = z.infer<typeof setRolePairingsRequest>;
 export type AssignRoleRequest = z.infer<typeof assignRoleRequest>;
 export type CreateRoleRequest = z.infer<typeof createRoleRequest>;
 export type PermissionOverrideRequest = z.infer<typeof permissionOverrideRequest>;

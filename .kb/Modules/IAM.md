@@ -73,6 +73,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 
 - `apps/api/src/routes/v1/members.routes.ts`
 - `apps/api/src/routes/v1/roles.routes.ts`
+- `apps/api/src/services/iam/designation.service.ts`
 - `apps/api/src/services/iam/guards.ts`
 - `apps/api/src/services/iam/member.service.ts`
 - `apps/api/src/services/iam/role.service.ts`
@@ -97,43 +98,49 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | --- | --- | --- |
 | `AccessContext` | interface | `packages/permissions/src/resolver.ts:37` |
 | `accessibleBranchIds` | fn | `packages/permissions/src/resolver.ts:141` |
-| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:164` |
+| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:213` |
 | `assertBranchAssignable` | fn | `apps/api/src/services/iam/guards.ts:127` |
 | `assertGrantable` | fn | `apps/api/src/services/iam/guards.ts:90` |
-| `assignRole` | fn | `apps/api/src/services/iam/member.service.ts:318` |
+| `assignRole` | fn | `apps/api/src/services/iam/member.service.ts:323` |
 | `Caller` | interface | `apps/api/src/services/iam/guards.ts:57` |
 | `can` | fn | `packages/permissions/src/resolver.ts:61` |
 | `canAll` | fn | `packages/permissions/src/resolver.ts:80` |
 | `canAny` | fn | `packages/permissions/src/resolver.ts:88` |
-| `clearOverride` | fn | `apps/api/src/services/iam/member.service.ts:581` |
+| `clearOverride` | fn | `apps/api/src/services/iam/member.service.ts:586` |
 | `coversEveryBranch` | fn | `apps/api/src/services/iam/guards.ts:108` |
+| `createDesignation` | fn | `apps/api/src/services/iam/designation.service.ts:191` |
 | `createRole` | fn | `apps/api/src/services/iam/role.service.ts:230` |
 | `deleteRole` | fn | `apps/api/src/services/iam/role.service.ts:379` |
+| `DesignationActionOptions` | interface | `apps/api/src/services/iam/designation.service.ts:25` |
 | `effectivePermissions` | fn | `packages/permissions/src/resolver.ts:101` |
-| `getMember` | fn | `apps/api/src/services/iam/member.service.ts:310` |
+| `getMember` | fn | `apps/api/src/services/iam/member.service.ts:315` |
 | `grantableCodes` | fn | `apps/api/src/services/iam/guards.ts:68` |
-| `listMembers` | fn | `apps/api/src/services/iam/member.service.ts:260` |
+| `isDesignationEligible` | fn | `apps/api/src/services/iam/designation.service.ts:171` |
+| `listDesignations` | fn | `apps/api/src/services/iam/designation.service.ts:123` |
+| `listMembers` | fn | `apps/api/src/services/iam/member.service.ts:265` |
+| `listRolePairings` | fn | `apps/api/src/services/iam/designation.service.ts:284` |
 | `listRoles` | fn | `apps/api/src/services/iam/role.service.ts:198` |
 | `MemberActionOptions` | interface | `apps/api/src/services/iam/member.service.ts:67` |
 | `MemberList` | component | `apps/web/src/components/tenant/member-list.tsx:153` |
-| `Module` | type | `packages/permissions/src/codes.ts:27` |
-| `moduleOf` | fn | `packages/permissions/src/codes.ts:167` |
+| `Module` | type | `packages/permissions/src/codes.ts:28` |
+| `moduleOf` | fn | `packages/permissions/src/codes.ts:216` |
 | `MODULES` | const | `packages/permissions/src/codes.ts:10` |
 | `OverrideEffect` | type | `packages/permissions/src/resolver.ts:18` |
-| `PermissionCode` | type | `packages/permissions/src/codes.ts:162` |
+| `PermissionCode` | type | `packages/permissions/src/codes.ts:211` |
 | `PermissionOverride` | interface | `packages/permissions/src/resolver.ts:30` |
-| `PERMISSIONS` | const | `packages/permissions/src/codes.ts:29` |
-| `revokeRole` | fn | `apps/api/src/services/iam/member.service.ts:421` |
+| `PERMISSIONS` | const | `packages/permissions/src/codes.ts:30` |
+| `revokeRole` | fn | `apps/api/src/services/iam/member.service.ts:426` |
 | `RoleActionOptions` | interface | `apps/api/src/services/iam/role.service.ts:45` |
 | `RoleAssignment` | interface | `packages/permissions/src/resolver.ts:20` |
 | `RoleList` | component | `apps/web/src/components/tenant/role-list.tsx:174` |
 | `RoleScopeLevel` | type | `packages/permissions/src/roles.ts:25` |
-| `setMemberStatus` | fn | `apps/api/src/services/iam/member.service.ts:713` |
-| `setOverride` | fn | `apps/api/src/services/iam/member.service.ts:489` |
+| `setMemberStatus` | fn | `apps/api/src/services/iam/member.service.ts:718` |
+| `setOverride` | fn | `apps/api/src/services/iam/member.service.ts:494` |
+| `setRolePairings` | fn | `apps/api/src/services/iam/designation.service.ts:347` |
 | `SYSTEM_ROLE_DEFINITIONS` | const | `packages/permissions/src/roles.ts:37` |
 | `SYSTEM_ROLES` | const | `packages/permissions/src/roles.ts:8` |
 | `SystemRoleCode` | type | `packages/permissions/src/roles.ts:23` |
 | `SystemRoleDefinition` | interface | `packages/permissions/src/roles.ts:27` |
-| `updateMember` | fn | `apps/api/src/services/iam/member.service.ts:645` |
+| `updateMember` | fn | `apps/api/src/services/iam/member.service.ts:650` |
 | `updateRole` | fn | `apps/api/src/services/iam/role.service.ts:306` |
 | `visibleRoleWhere` | fn | `apps/api/src/services/iam/role.service.ts:144` |

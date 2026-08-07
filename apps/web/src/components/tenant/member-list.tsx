@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useCallback, useMemo, useState } from 'react';
-import type { MemberDetail, MemberListResponse } from '@rcln/contracts';
+import type { DesignationSummary, MemberDetail, MemberListResponse } from '@rcln/contracts';
 import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { RecordHistory } from '@/components/tenant/record-history';
@@ -155,6 +155,7 @@ export function MemberList({
   members,
   roles,
   branches,
+  designations,
   grantableCodes,
   canAssignOrgWide,
   canReadHistory,
@@ -163,6 +164,7 @@ export function MemberList({
   members: MemberDetail[];
   roles: RoleOption[];
   branches: BranchOption[];
+  designations: DesignationSummary[];
   grantableCodes: string[];
   canAssignOrgWide: boolean;
   canReadHistory: boolean;
@@ -198,6 +200,7 @@ export function MemberList({
                 member={member}
                 roles={roles}
                 branches={branches}
+                designations={designations}
                 grantableCodes={grantableCodes}
                 canAssignOrgWide={canAssignOrgWide}
                 canReadHistory={canReadHistory}
@@ -220,6 +223,7 @@ export function MemberList({
                 member={member}
                 roles={roles}
                 branches={branches}
+                designations={designations}
                 grantableCodes={grantableCodes}
                 canAssignOrgWide={canAssignOrgWide}
                 canReadHistory={canReadHistory}
@@ -237,6 +241,7 @@ function MemberCard({
   member,
   roles,
   branches,
+  designations,
   grantableCodes,
   canAssignOrgWide,
   canReadHistory,
@@ -245,6 +250,7 @@ function MemberCard({
   member: MemberDetail;
   roles: RoleOption[];
   branches: BranchOption[];
+  designations: DesignationSummary[];
   grantableCodes: string[];
   canAssignOrgWide: boolean;
   canReadHistory: boolean;
@@ -350,7 +356,7 @@ function MemberCard({
 
       {panel === 'details' ? (
         <div className="border-rule mt-5 border-t pt-5">
-          <DetailsForm slug={slug} member={member} />
+          <DetailsForm slug={slug} member={member} designations={designations} />
         </div>
       ) : null}
     </li>
@@ -584,7 +590,15 @@ function ExceptionForm({
   );
 }
 
-function DetailsForm({ slug, member }: { slug: string; member: MemberDetail }) {
+function DetailsForm({
+  slug,
+  member,
+  designations,
+}: {
+  slug: string;
+  member: MemberDetail;
+  designations: DesignationSummary[];
+}) {
   const [state, action, pending] = useActionState(saveDetails.bind(null, slug, member.id), IDLE);
 
   return (
@@ -603,12 +617,19 @@ function DetailsForm({ slug, member }: { slug: string; member: MemberDetail }) {
           defaultValue={member.employeeCode ?? ''}
           autoComplete="off"
         />
-        <Input
-          id={`designation-${member.id}`}
-          name="designation"
+        {/*
+          A select, not a text box: free text produced "Sr. Consultant",
+          "Senior Consultant" and "Sr Consultant" as three different things and
+          made "how many consultants do we have" unanswerable. New titles are
+          added from the invite form, under iam.designation.manage.
+        */}
+        <Select
+          id={`designationId-${member.id}`}
+          name="designationId"
           label="Designation"
-          defaultValue={member.designation ?? ''}
-          autoComplete="off"
+          defaultValue={member.designationId ?? ''}
+          placeholder="Not recorded"
+          options={designations.map((d) => ({ value: d.id, label: d.name }))}
         />
         <Input
           id={`department-${member.id}`}

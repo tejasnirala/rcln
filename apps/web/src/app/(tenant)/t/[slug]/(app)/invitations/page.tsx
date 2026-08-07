@@ -1,7 +1,12 @@
 import type { Metadata } from 'next';
-import type { BranchListResponse, InvitationListResponse } from '@rcln/contracts';
+import type {
+  BranchListResponse,
+  DesignationListResponse,
+  InvitationListResponse,
+} from '@rcln/contracts';
+import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/session';
+import { getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { InvitationList } from '@/components/tenant/invitation-list';
 
@@ -25,9 +30,11 @@ export default async function InvitationsPage({ params }: { params: Promise<{ sl
    * would serialise two round trips for no reason — the waterfall
    * vercel-react-best-practices warns about.
    */
-  const [invitations, branches] = await Promise.all([
+  const [invitations, branches, designations, session] = await Promise.all([
     api<InvitationListResponse>('/api/v1/invitations', { slug, accessToken }),
     api<BranchListResponse>('/api/v1/branches', { slug, accessToken }),
+    api<DesignationListResponse>('/api/v1/designations', { slug, accessToken }),
+    getSession(slug),
   ]);
 
   if (!invitations.ok || !invitations.data) {
@@ -55,6 +62,10 @@ export default async function InvitationsPage({ params }: { params: Promise<{ sl
         name: branch.name,
         code: branch.code,
       }))}
+      // The job titles the menu offers. A 403 here is not fatal — the field is
+      // optional, so an empty list simply means no title is chosen.
+      designations={designations.data?.designations ?? []}
+      canAddDesignation={session?.permissions.includes(PERMISSIONS.IAM_DESIGNATION_MANAGE) ?? false}
       invitations={invitations.data.invitations}
     />
   );

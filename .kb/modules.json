@@ -192,6 +192,109 @@
     ]
   },
   {
+    "name": "Patients",
+    "layer": "api + web",
+    "status": "shipped",
+    "purpose": "The people being treated. The first PHI in the product: identity is org-wide so a duplicate can be found before it is created, attendance is branch-local, and every read is recorded in `data_access_logs`.",
+    "paths": [
+      "apps/api/src/services/patient/",
+      "apps/api/src/routes/v1/patients.routes.ts",
+      "apps/web/src/components/tenant/patient-search.tsx",
+      "apps/web/src/components/tenant/patient-chart.tsx"
+    ],
+    "features": [
+      "Registration issuing an org-wide UHID and a branch-local MRN through `issueNumber`, gapless and concurrency-safe",
+      "Duplicate detection on phone, ABHA, national id, and name+date-of-birth together — org-wide, across branches the caller cannot see",
+      "Trigram search over name and phone, plus exact UHID and MRN, scoped to the caller's branches or widened to the organization",
+      "Allergies, problems and medicines behind a separate `patient.medical_history.*` permission",
+      "Address and next of kin, with a guardian flag distinct from the emergency contact",
+      "Age recorded as a birth date OR a stated approximation, never both"
+    ],
+    "userActions": [
+      "Search for a patient by name, phone or number",
+      "Register a new patient at a clinic",
+      "Register an existing patient at a second clinic",
+      "Open a patient record and read the chart",
+      "Record and withdraw an allergy, a problem or a medicine",
+      "Stop a medicine"
+    ],
+    "businessRules": [],
+    "tables": [
+      "Patient",
+      "PatientRegistration",
+      "PatientAddress",
+      "PatientContact",
+      "PatientAllergy",
+      "PatientCondition",
+      "PatientMedication"
+    ],
+    "permissions": [
+      "patient.read",
+      "patient.create",
+      "patient.update",
+      "patient.delete",
+      "patient.medical_history.read",
+      "patient.medical_history.write"
+    ],
+    "limitations": [
+      "⚠️ `patients` carries NO `branch_isolation` policy, deliberately — the branch boundary is on `patient_registrations`. See ADR-0016 before 'fixing' it",
+      "`patient_allergies.medicine_id` and `patient_conditions.diagnosis_id` are absent until the Phase 5 catalogues exist; both carry free text instead",
+      "No merge flow yet. `status = MERGED` and `merged_into_id` exist, tied together by a CHECK, and nothing writes them",
+      "Family history, insurances, documents and consents from the §6 ERD are not built",
+      "`patients.status = DECEASED` and `deceased_on` are storable but no screen sets them"
+    ]
+  },
+  {
+    "name": "Appointments",
+    "layer": "api + web",
+    "status": "shipped",
+    "purpose": "Booking, and the availability engine behind it. PHI: a patient, a doctor and a reason disclose more together than any one of them. Unlike `patients`, `appointments` IS branch-scoped — identity follows the person, attendance belongs to the clinic it happened at.",
+    "paths": [
+      "apps/api/src/services/appointment/",
+      "apps/api/src/routes/v1/appointments.routes.ts",
+      "apps/web/src/components/tenant/appointment-board.tsx",
+      "apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/"
+    ],
+    "features": [
+      "One availability engine every booking path goes through — recurring blocks, APPROVED exceptions, EXTRA_SHIFT, branch closures, past slots and the advisory per-block cap",
+      "Slot length resolved through the single chain of ADR-0015; the engine imports `effectiveSlotMinutes` rather than re-deriving it",
+      "Every wall-clock to instant conversion done in Postgres with an explicit `::timestamp` cast, never in Node",
+      "Double-booking refused by a GiST EXCLUDE constraint whose predicate excludes CANCELLED and NO_SHOW, so cancelling frees the slot with no release step",
+      "A transition map in the service and CHECK constraints in the database; NO_SHOW is unreachable after a check-in",
+      "Branch-local appointment numbers from `issueNumber`, issued immediately before the insert so the counter lock is one statement wide",
+      "Booking registers the patient at the branch on their first visit there, reusing the MRN issue",
+      "An append-only status trail, by the same owner-exempt trigger plus REVOKE as `audit_logs`"
+    ],
+    "userActions": [
+      "See which slots are free for a doctor on a day",
+      "Book an appointment against a free slot",
+      "Move a booking to another time or another doctor",
+      "Check a patient in, start the consultation, mark it seen",
+      "Cancel a booking with a stated reason",
+      "Record that a patient did not attend",
+      "Read one booking and its status trail"
+    ],
+    "businessRules": [],
+    "tables": ["Appointment", "AppointmentStatusHistory"],
+    "permissions": [
+      "appointment.read",
+      "appointment.create",
+      "appointment.update",
+      "appointment.cancel",
+      "appointment.checkin",
+      "appointment.availability.read"
+    ],
+    "limitations": [
+      "⚠️ `appointment_status_history` RESTATES the branch predicate from `appointments`. RLS is NOT applied inside a policy expression's subquery, so it cannot be inherited — change one and change the other",
+      "The engine cannot see a booking for the same doctor at a branch outside the caller's scope, and must not. The EXCLUDE constraint catches it and the 409 never names who holds the slot",
+      "`maxPatients` is advisory — two concurrent bookings into different free slots can take a block one over its cap",
+      "A reschedule writes no status-history row; the move is in `audit_logs` only",
+      "No queue tokens, no walk-in flow — Stage 5. `QUEUE_TOKEN` numbering exists and nothing writes it",
+      "Nothing sends a reminder; `appointment.reminder_hours_before` is seeded and no worker reads it",
+      "The day board deliberately writes no `data_access_logs` row — see the service header before adding one"
+    ]
+  },
+  {
     "name": "Audit",
     "layer": "api",
     "status": "shipped",

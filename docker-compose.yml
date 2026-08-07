@@ -45,6 +45,24 @@ x-dev-env: &dev-env
   # outside this file sets it, the API refuses to boot with it in production, and
   # it logs nobody in. The web reads it only to print the hint on /verify.
   DEV_MASTER_VERIFICATION_CODE: ${DEV_MASTER_VERIFICATION_CODE:-123456}
+  # Email goes to Mailpit, not to the log. An invitation token is handed to the
+  # sender and to nobody else — the column holds a digest — so before this the
+  # only way to open an invitation was to copy a URL out of a JSON log line.
+  # Read them at http://localhost:8025. Mailpit delivers to nobody; nothing here
+  # can reach a real address. Set EMAIL_PROVIDER=console to go back to logging.
+  #
+  # Pinned, not defaulted — like DATABASE_URL above, these override whatever
+  # .env says. Inside compose there is a Mailpit on the network and no reason to
+  # use anything else; `.env` carries the settings for a native run, where there
+  # is no Mailpit and `console` is correct.
+  EMAIL_PROVIDER: smtp
+  # Quoted display name: an unquoted `(dev)` is an RFC 5322 comment and vanishes.
+  EMAIL_FROM: '"rcln dev" <noreply@rcln.local>'
+  SMTP_HOST: mailpit
+  SMTP_PORT: '1025'
+  SMTP_SECURE: 'false'
+  SMTP_USER: ''
+  SMTP_PASSWORD: ''
   # File watching: OFF by default.
   #
   # Polling was the default here and it OOM-killed the web container — a polling
@@ -188,6 +206,11 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+      # Started, not healthy: the api sends mail long after boot, and a mail
+      # catcher that is down must not hold up the API — a failed send is logged,
+      # never thrown (see services/notification/smtp.sender.ts).
+      mailpit:
+        condition: service_started
     healthcheck:
       test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:5000/api/v1/health']
       interval: 10s

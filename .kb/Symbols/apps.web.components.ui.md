@@ -16,12 +16,12 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 | `EyeOffIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:99` | Currently visible — this hides it. Same eye, struck through. |
 | `Field` | `({ name, label, hint, errors, action, className, children }:…)` | `apps/web/src/components/ui/field.tsx:56` |  |
 | `FieldError` | `({ name, message }: { name: string; message: string })` | `apps/web/src/components/ui/field.tsx:88` |  |
-| `Input` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:253` |  |
+| `Input` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:270` |  |
 | `PasswordControl` | `({ className, disabled, ...rest }: React.ComponentPropsWitho…)` | `apps/web/src/components/ui/password-control.tsx:32` |  |
 | `PhoneInput` | `({ id, name, countryCode, national, onNationalChange, onCoun…)` | `apps/web/src/components/ui/phone-input.tsx:33` |  |
-| `Select` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:313` |  |
+| `Select` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:330` |  |
 | `SIZES` <sub>local</sub> | `{ // py-3 clears the 24px minimum target from WCAG 2.5.8 on its own. md: 'px-5 py-3 text-…` | `apps/web/src/components/ui/button.tsx:25` |  |
-| `Textarea` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:363` | Free text over several lines. `rows` sets the starting height. |
+| `Textarea` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:380` | Free text over several lines. `rows` sets the starting height. |
 | `VARIANTS` <sub>local</sub> | `: Record<Variant, string>` | `apps/web/src/components/ui/button.tsx:18` |  |
 
 ## hook
@@ -34,11 +34,11 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `controlProps` <sub>local</sub> | `(fieldId: string, hint: string \| undefined, invalid: boolean): { id: string; 'aria-invalid': boolean; 'aria-describedby': …` | `apps/web/src/components/ui/field.tsx:199` |  |
+| `controlProps` <sub>local</sub> | `(fieldId: string, hint: string \| undefined, invalid: boolean): { id: string; 'aria-invalid': boolean; 'aria-describedby': …` | `apps/web/src/components/ui/field.tsx:216` |  |
 | `describedBy` | `(name: string, hint: boolean, invalid: boolean): string \| undefined` | `apps/web/src/components/ui/field.tsx:30` |  |
-| `identify` <sub>local</sub> | `(id: string \| undefined, name: string \| undefined): string` | `apps/web/src/components/ui/field.tsx:415` |  |
-| `renderOption` <sub>local</sub> | `(option: SelectOption): React.ReactElement` | `apps/web/src/components/ui/field.tsx:400` |  |
-| `withShell` <sub>local</sub> | `(fieldId: string, { label, hint, errors, action, fieldClassName }: ControlShe…, control: React.ReactNode): React.ReactElement` | `apps/web/src/components/ui/field.tsx:220` |  |
+| `identify` <sub>local</sub> | `(id: string \| undefined, name: string \| undefined): string` | `apps/web/src/components/ui/field.tsx:432` |  |
+| `renderOption` <sub>local</sub> | `(option: SelectOption): React.ReactElement` | `apps/web/src/components/ui/field.tsx:417` |  |
+| `withShell` <sub>local</sub> | `(fieldId: string, { label, hint, errors, action, fieldClassName }: ControlShe…, control: React.ReactNode): React.ReactElement` | `apps/web/src/components/ui/field.tsx:237` |  |
 
 ## var
 
@@ -52,18 +52,18 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ControlShell` <sub>local</sub> | `{ label, hint, errors, action, fieldClassName }` | `apps/web/src/components/ui/field.tsx:177` |  |
+| `ControlShell` <sub>local</sub> | `{ label, hint, errors, error, action, fieldClassName }` | `apps/web/src/components/ui/field.tsx:177` |  |
 | `FieldProps` <sub>local</sub> | `{ name, label, hint, errors, action, className, children }` | `apps/web/src/components/ui/field.tsx:108` |  |
-| `SelectOption` | `{ value, label, disabled }` | `apps/web/src/components/ui/field.tsx:387` |  |
-| `SelectOptionGroup` | `{ label, options }` | `apps/web/src/components/ui/field.tsx:393` |  |
+| `SelectOption` | `{ value, label, disabled }` | `apps/web/src/components/ui/field.tsx:404` |  |
+| `SelectOptionGroup` | `{ label, options }` | `apps/web/src/components/ui/field.tsx:410` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ControlIdentity` <sub>local</sub> | `{ id: string; name?: string } \| { id?: string; name: string }` | `apps/web/src/components/ui/field.tsx:175` |  |
-| `InputElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'input'>` | `apps/web/src/components/ui/field.tsx:419` |  |
-| `SelectElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'select'>` | `apps/web/src/components/ui/field.tsx:420` |  |
-| `SelectItem` | `SelectOption \| SelectOptionGroup` | `apps/web/src/components/ui/field.tsx:398` |  |
-| `TextareaElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'textarea'>` | `apps/web/src/components/ui/field.tsx:421` |  |
+| `InputElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'input'>` | `apps/web/src/components/ui/field.tsx:436` |  |
+| `SelectElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'select'>` | `apps/web/src/components/ui/field.tsx:437` |  |
+| `SelectItem` | `SelectOption \| SelectOptionGroup` | `apps/web/src/components/ui/field.tsx:415` |  |
+| `TextareaElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'textarea'>` | `apps/web/src/components/ui/field.tsx:438` |  |
 | `Variant` <sub>local</sub> | `'primary' \| 'secondary' \| 'danger' \| 'ghost'` | `apps/web/src/components/ui/button.tsx:16` |  |

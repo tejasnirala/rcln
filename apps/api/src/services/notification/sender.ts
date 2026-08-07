@@ -1,6 +1,9 @@
 import { config } from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
 
+import { smtpSender } from './smtp.sender.js';
+import { maskEmail, maskPhone, type NotificationSender } from './types.js';
+
 /**
  * The outbound-message seam.
  *
@@ -15,36 +18,21 @@ import { logger } from '../../utils/logger.js';
  * When DLT clears, add an MSG91 sender that satisfies this interface and change
  * the one line in `sender` below. No call site changes.
  *
- * Email is in the same position for a different reason: SES is still in the
- * sandbox until the sending domain is verified (.kb/STATUS.md), so a real send
- * would be accepted and then silently dropped for any address we have not
- * pre-verified. Same treatment — the invitation row, the hashed token and the
- * expiry are real; the message is logged.
+ * EMAIL IS NO LONGER STUBBED IN DEVELOPMENT.
+ *   SES is still in the sandbox until the sending domain is verified
+ *   (.kb/STATUS.md), so there is no production sender yet. But `EMAIL_PROVIDER`
+ *   now selects between this logging stub and `smtpSender`, and compose points
+ *   the latter at Mailpit — every invitation link and verification code lands
+ *   in a real inbox at http://localhost:8025 instead of in a log line. Same
+ *   code path a real relay will use; only the host changes.
  */
 
-export type SmsTemplate = 'LOGIN_OTP' | 'VERIFY_PHONE';
-export type EmailTemplate = 'INVITE' | 'INVITE_REMINDER' | 'VERIFY_EMAIL';
-
-export interface NotificationSender {
-  sendSms(to: string, template: SmsTemplate, vars: Record<string, string>): Promise<void>;
-  sendEmail(to: string, template: EmailTemplate, vars: Record<string, string>): Promise<void>;
-}
-
-/** `+919876543210` -> `+9198****3210`. Enough to debug, not enough to identify. */
-function maskPhone(value: string): string {
-  if (value.length <= 8) return '****';
-  return `${value.slice(0, 5)}****${value.slice(-4)}`;
-}
-
-/** `asha@northwind.test` -> `a***@northwind.test`. The domain is the useful half. */
-function maskEmail(value: string): string {
-  const at = value.indexOf('@');
-  if (at < 1) return '****';
-  return `${value.slice(0, 1)}***${value.slice(at)}`;
-}
+export type { NotificationSender, SmsTemplate, EmailTemplate } from './types.js';
+export { maskEmail, maskPhone } from './types.js';
 
 /**
- * The stand-in until a provider exists.
+ * The stand-in when no relay is configured — `EMAIL_PROVIDER=console`, which is
+ * what the test suite and a native run without Docker use.
  *
  * In development it logs the code, because otherwise nobody can test the OTP
  * flow locally. In any other environment it logs that a message WOULD have been
@@ -71,9 +59,9 @@ export const loggingSender: NotificationSender = {
         'email not sent — no provider configured (SES domain verification pending)'
       );
     } else {
-      // The invitation link is in `vars`, and in development that is the only
-      // way to test the accept flow. It is a live credential, which is exactly
-      // why the production branch above logs neither it nor the address.
+      // The invitation link is in `vars`, and with no relay configured that is
+      // the only way to test the accept flow. It is a live credential, which is
+      // exactly why the production branch above logs neither it nor the address.
       logger.info({ to: maskEmail(to), template, ...vars }, 'email (dev stub, not delivered)');
     }
     return Promise.resolve();
@@ -81,14 +69,19 @@ export const loggingSender: NotificationSender = {
 };
 
 /**
- * Swap this for the MSG91 implementation once DLT registration completes.
+ * Swap the SMS half for the MSG91 implementation once DLT registration
+ * completes.
  *
  * ⚠️ WHEN YOU DO, DELETE THE MASTER VERIFICATION CODE TOO.
- *   Because nothing here is delivered, `confirmVerification` accepts
- *   `config.verification.masterCode` outside production so the flow can be
- *   tested in a browser at all. It is null in production and the API refuses to
- *   boot with it set there — but a real sender removes the last reason for it to
- *   exist, and a backdoor with no remaining justification is just a backdoor.
+ *   `confirmVerification` accepts `config.verification.masterCode` outside
+ *   production. Email delivery via Mailpit already removes half its reason to
+ *   exist — the emailed code is readable — and a working SMS sender removes the
+ *   rest. It is null in production and the API refuses to boot with it set
+ *   there, but a backdoor with no remaining justification is just a backdoor.
  *   See services/auth/verification.service.ts and .env.example.
+ *
+ * Mutable by construction: the integration suites replace `sendEmail` to
+ * capture the invitation token, which the database only ever stores hashed.
  */
-export const sender: NotificationSender = loggingSender;
+export const sender: NotificationSender =
+  config.email.provider === 'smtp' ? smtpSender : loggingSender;

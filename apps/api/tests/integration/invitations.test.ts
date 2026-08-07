@@ -576,3 +576,520 @@ describe('the audit trail', () => {
     expect(JSON.stringify(rows)).not.toMatch(/[0-9a-f]{64}/);
   });
 });
+
+/**
+ * The employment record, filled the moment someone accepts.
+ *
+ * Three things land without anybody typing them: an employee code from the
+ * org-wide EMPLOYEE sequence, the designation chosen on the invitation, and
+ * today's date IN THE CLINIC'S OWN TIMEZONE.
+ *
+ * That last one is the case worth having. The column is a bare `date`, the API
+ * container runs UTC, and clinics do not: someone accepting at 01:00 IST is
+ * 19:30 UTC the previous day, so a `new Date()` would record them as joining
+ * YESTERDAY. It is a one-day error nobody notices until payroll disagrees with
+ * a contract.
+ */
+describe('the employment record', () => {
+  const email = `employed-${SUFFIX}@example.test`;
+  let designationId: string;
+  /** Which of the two extreme zones actually disagreed with UTC this run. */
+  const differedFromUtc = new Set<string>();
+
+  beforeAll(async () => {
+    await clearRateLimits();
+    const designations = await request(app)
+      .get('/api/v1/designations')
+      .set('Host', hostFor(SLUG_A))
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    designationId = (designations.body.data.designations as { id: string; code: string }[]).find(
+      (d) => d.code === 'SENIOR_CONSULTANT'
+    )?.id as string;
+  });
+
+  it('offers the platform catalogue to every clinic', () => {
+    expect(designationId).toBeDefined();
+  });
+
+  it('fills employee code, designation and joining date on accept', async () => {
+    await clearRateLimits();
+    const created = await A.post('/', {
+      email,
+      roleId: await roleId(A, 'DOCTOR'),
+      designationId,
+      branchIds: [orgA.branchId],
+    });
+    expect(created.status).toBe(201);
+
+    await clearRateLimits();
+    const accepted = await atHost(SLUG_A).accept({
+      token: tokenSentTo(email),
+      fullName: 'Employed Doctor',
+      password: INVITEE_PASSWORD,
+    });
+    expect(accepted.status).toBe(201);
+
+    const { rows } = await owner.query<{
+      employee_code: string | null;
+      designation_name: string | null;
+      joined_on: Date | null;
+      expected_today: string;
+    }>(
+      `SELECT sp.employee_code,
+              d.name AS designation_name,
+              sp.joined_on,
+              to_char((now() AT TIME ZONE o.timezone)::date, 'YYYY-MM-DD') AS expected_today
+       FROM staff_profiles sp
+       JOIN memberships m  ON m.id = sp.membership_id
+       JOIN users u        ON u.id = m.user_id
+       JOIN organizations o ON o.id = m.organization_id
+       LEFT JOIN designations d ON d.id = sp.designation_id
+       WHERE u.email = $1`,
+      [email]
+    );
+
+    const row = rows[0];
+    expect(row).toBeDefined();
+    expect(row?.designation_name).toBe('Senior Consultant');
+    // Prefix from the seeded `staff.employee_code_prefix`, padded to 4.
+    expect(row?.employee_code).toMatch(/^EMP\d{4}$/);
+    // The clinic's today, not the server's.
+    expect(row?.joined_on?.toISOString().slice(0, 10)).toBe(row?.expected_today);
+  });
+
+  /*
+   * The timezone case, and the reason it runs TWO zones rather than one.
+   *
+   * A single far-east zone is a flaky test dressed as a strict one: Kiritimati
+   * (UTC+14) shares UTC's calendar date for fourteen hours out of every
+   * twenty-four, and during those hours a naive `new Date()` produces the right
+   * answer by accident and the test passes. Measured at the time of writing —
+   * UTC and Kiritimati were both 2026-08-07, and the assertion proved nothing.
+   *
+   * Kiritimati (UTC+14) and Midway (UTC-11) are 25 hours apart, so their
+   * calendar dates can never BOTH equal UTC's. Running both means at least one
+   * of these two cases is always a real test, whatever the hour, and the
+   * `differed` assertion at the end fails loudly if that ever stops being true.
+   */
+  it.each([
+    ['Pacific/Kiritimati', 'east'],
+    ['Pacific/Midway', 'west'],
+  ])("uses the clinic's calendar, not the server's (%s)", async (timezone, label) => {
+    const invitee = `${label}-${SUFFIX}@example.test`;
+
+    await owner.query(`UPDATE organizations SET timezone = $1 WHERE id = $2`, [
+      timezone,
+      orgA.organizationId,
+    ]);
+
+    try {
+      await clearRateLimits();
+      await A.post('/', {
+        email: invitee,
+        roleId: await roleId(A, 'NURSE'),
+        branchIds: [orgA.branchId],
+      });
+
+      await clearRateLimits();
+      const accepted = await atHost(SLUG_A).accept({
+        token: tokenSentTo(invitee),
+        fullName: `${label} Nurse`,
+        password: INVITEE_PASSWORD,
+      });
+      expect(accepted.status).toBe(201);
+
+      const { rows } = await owner.query<{
+        joined_on: Date;
+        clinic_today: string;
+        utc_today: string;
+      }>(
+        `SELECT sp.joined_on,
+                to_char((now() AT TIME ZONE $2)::date,    'YYYY-MM-DD') AS clinic_today,
+                to_char((now() AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD') AS utc_today
+         FROM staff_profiles sp
+         JOIN memberships m ON m.id = sp.membership_id
+         JOIN users u       ON u.id = m.user_id
+         WHERE u.email = $1`,
+        [invitee, timezone]
+      );
+
+      const row = rows[0];
+
+      // Recorded BEFORE the assertion, so the guard below reports whether this
+      // zone was meaningful rather than merely whether it passed.
+      if (row && row.clinic_today !== row.utc_today) differedFromUtc.add(timezone);
+
+      expect(row?.joined_on.toISOString().slice(0, 10)).toBe(row?.clinic_today);
+    } finally {
+      await owner.query(`UPDATE organizations SET timezone = 'Asia/Kolkata' WHERE id = $1`, [
+        orgA.organizationId,
+      ]);
+    }
+  });
+
+  it('had at least one timezone that genuinely disagreed with UTC', () => {
+    /*
+     * The guard on the guard. If this ever fails, the two cases above ran at an
+     * hour where both zones happened to match UTC — which is impossible for
+     * zones 25 hours apart, so it would mean the zones were changed to
+     * something closer together and the test quietly stopped testing anything.
+     */
+    expect(differedFromUtc.size).toBeGreaterThan(0);
+  });
+
+  it('issues a different employee code to each person', async () => {
+    const { rows } = await owner.query<{ employee_code: string }>(
+      `SELECT sp.employee_code
+       FROM staff_profiles sp
+       JOIN memberships m ON m.id = sp.membership_id
+       WHERE m.organization_id = $1 AND sp.employee_code IS NOT NULL`,
+      [orgA.organizationId]
+    );
+
+    const codes = rows.map((r) => r.employee_code);
+    expect(codes.length).toBeGreaterThan(1);
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it('refuses an invitation naming a designation that does not exist', async () => {
+    await clearRateLimits();
+    const res = await A.post('/', {
+      email: `ghost-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'NURSE'),
+      designationId: '11111111-1111-4111-8111-111111111111',
+      branchIds: [orgA.branchId],
+    });
+    // 404, not a 500 from the RESTRICTIVE designation_visible policy.
+    expect(res.status).toBe(404);
+  });
+});
+
+/**
+ * A Receptionist is not a Radiologist.
+ *
+ * The invite form filters the title menu by the chosen role, but a filtered
+ * dropdown is a convenience rather than a control — so the API refuses the
+ * combination too, and that is what these cases pin down.
+ *
+ * The rule has one deliberate asymmetry worth testing directly: a title nobody
+ * has mapped fits EVERY role. "No visible pairing" means unrestricted, not
+ * forbidden, so that a clinic which adds a title and forgets to map it does not
+ * watch it disappear from every menu.
+ */
+describe('role and title eligibility', () => {
+  const titleFor = async (code: string): Promise<string> => {
+    const { rows } = await owner.query<{ id: string }>(
+      `SELECT id FROM designations WHERE organization_id IS NULL AND code = $1`,
+      [code]
+    );
+    return rows[0]?.id as string;
+  };
+
+  it('refuses a Radiologist title on a Receptionist invitation', async () => {
+    await clearRateLimits();
+    const res = await A.post('/', {
+      email: `mismatch-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'RECEPTIONIST'),
+      designationId: await titleFor('RADIOLOGIST'),
+      branchIds: [orgA.branchId],
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/not a title for/i);
+  });
+
+  it('accepts a Front Desk Executive title on a Receptionist invitation', async () => {
+    await clearRateLimits();
+    const res = await A.post('/', {
+      email: `matched-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'RECEPTIONIST'),
+      designationId: await titleFor('FRONT_DESK_EXECUTIVE'),
+      branchIds: [orgA.branchId],
+    });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('accepts a Radiologist title on a Lab Manager invitation', async () => {
+    // The same title that was refused above — it is the PAIR that is wrong,
+    // not the title.
+    await clearRateLimits();
+    const res = await A.post('/', {
+      email: `radio-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'LAB_MANAGER'),
+      designationId: await titleFor('RADIOLOGIST'),
+      branchIds: [orgA.branchId],
+    });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('lets an unmapped title through for any role', async () => {
+    // HOUSEKEEPING is deliberately paired with no role in the seed: a support
+    // title any of the built-in roles might carry.
+    await clearRateLimits();
+    const res = await A.post('/', {
+      email: `unmapped-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'DOCTOR'),
+      designationId: await titleFor('HOUSEKEEPING'),
+      branchIds: [orgA.branchId],
+    });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('reports which roles each title fits, so the menu can filter', async () => {
+    await clearRateLimits();
+    const res = await request(app)
+      .get('/api/v1/designations')
+      .set('Host', hostFor(SLUG_A))
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    const list = res.body.data.designations as {
+      code: string;
+      roleIds: string[];
+      fitsAnyRole: boolean;
+    }[];
+
+    const radiologist = list.find((d) => d.code === 'RADIOLOGIST');
+    const housekeeping = list.find((d) => d.code === 'HOUSEKEEPING');
+
+    // A mapped title names its roles and is constrained to them.
+    expect(radiologist?.roleIds.length).toBeGreaterThan(0);
+    expect(radiologist?.fitsAnyRole).toBe(false);
+
+    /*
+     * An unmapped title carries EVERY role AND the flag. The flag is what the
+     * client filters on: an empty roleIds is ambiguous, because a title whose
+     * every pairing a clinic switched off also has none and must fit nothing.
+     */
+    expect(housekeeping?.fitsAnyRole).toBe(true);
+    expect(housekeeping?.roleIds.length).toBeGreaterThan(0);
+  });
+
+  it('maps a title added from the invite form to that role straight away', async () => {
+    await clearRateLimits();
+    const doctorRole = await roleId(A, 'DOCTOR');
+
+    const created = await request(app)
+      .post('/api/v1/designations')
+      .set('Host', hostFor(SLUG_A))
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ name: `Trichology Consultant ${SUFFIX}`, roleId: doctorRole });
+
+    expect(created.status).toBe(201);
+    expect(created.body.data.roleIds).toEqual([doctorRole]);
+
+    // And it is immediately usable for that role, but not for another.
+    await clearRateLimits();
+    const good = await A.post('/', {
+      email: `tricho-${SUFFIX}@example.test`,
+      roleId: doctorRole,
+      designationId: created.body.data.id,
+      branchIds: [orgA.branchId],
+    });
+    expect(good.status).toBe(201);
+
+    // NURSE, not ACCOUNTANT: an organization-scoped role is refused with a 409
+    // for carrying branch ids at all, which would mask the 400 under test.
+    await clearRateLimits();
+    const bad = await A.post('/', {
+      email: `tricho2-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'NURSE'),
+      designationId: created.body.data.id,
+      branchIds: [orgA.branchId],
+    });
+    expect(bad.status).toBe(400);
+    expect(bad.body.message).toMatch(/not a title for/i);
+  });
+});
+
+/**
+ * Managing the pairings from the clinic settings screen.
+ *
+ * The reconciliation stores the DIFFERENCE from the platform defaults, not the
+ * whole list, so a clinic that never touched a role keeps tracking the defaults
+ * and a clinic that returns a role to its default leaves no residue.
+ *
+ * Two cases here are the ones the eligibility rule was rewritten for. Both look
+ * like corner cases and both are reachable with one tick of one checkbox.
+ */
+describe('managing role and title pairings', () => {
+  const titleFor = async (code: string): Promise<string> => {
+    const { rows } = await owner.query<{ id: string }>(
+      `SELECT id FROM designations WHERE organization_id IS NULL AND code = $1`,
+      [code]
+    );
+    return rows[0]?.id as string;
+  };
+
+  const pairings = () =>
+    request(app)
+      .get('/api/v1/designations/pairings')
+      .set('Host', hostFor(SLUG_A))
+      .set('Authorization', `Bearer ${tokenA}`);
+
+  const setPairings = (roleId: string, designationIds: string[]) =>
+    request(app)
+      .put(`/api/v1/designations/pairings/${roleId}`)
+      .set('Host', hostFor(SLUG_A))
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ designationIds });
+
+  const titlesFor = async (roleCode: string) => {
+    const res = await pairings();
+    const role = (res.body.data.roles as { roleCode: string; titles: unknown[] }[]).find(
+      (r) => r.roleCode === roleCode
+    );
+    return role?.titles as {
+      designationId: string;
+      name: string;
+      enabled: boolean;
+      isPlatformDefault: boolean;
+    }[];
+  };
+
+  it('reports the seeded defaults as enabled and marked as defaults', async () => {
+    const titles = await titlesFor('RECEPTIONIST');
+    const frontDesk = titles.find((t) => t.name === 'Front Desk Executive');
+    const radiologist = titles.find((t) => t.name === 'Radiologist');
+
+    expect(frontDesk).toMatchObject({ enabled: true, isPlatformDefault: true });
+    expect(radiologist).toMatchObject({ enabled: false, isPlatformDefault: false });
+  });
+
+  it('switches a platform default off, and the API then refuses it', async () => {
+    const targetRole = await roleId(A, 'RECEPTIONIST');
+    const keep = (await titlesFor('RECEPTIONIST'))
+      .filter((t) => t.enabled && t.name !== 'Clinic Manager')
+      .map((t) => t.designationId);
+
+    const saved = await setPairings(targetRole, keep);
+    expect(saved.status).toBe(200);
+
+    const after = (await titlesFor('RECEPTIONIST')).find((t) => t.name === 'Clinic Manager');
+    // Still flagged as a platform default — the clinic has overridden it, not
+    // rewritten what the platform says.
+    expect(after).toMatchObject({ enabled: false, isPlatformDefault: true });
+
+    await clearRateLimits();
+    const invite = await A.post('/', {
+      email: `excluded-${SUFFIX}@example.test`,
+      roleId: targetRole,
+      designationId: await titleFor('CLINIC_MANAGER'),
+      branchIds: [orgA.branchId],
+    });
+    expect(invite.status).toBe(400);
+  });
+
+  it('switches it back on and leaves no row behind', async () => {
+    const targetRole = await roleId(A, 'RECEPTIONIST');
+
+    /*
+     * Everything currently enabled PLUS the one that was switched off — not
+     * just the platform defaults. An unmapped title is enabled too (it fits any
+     * role), so sending only the defaults would untick every unmapped title and
+     * write a pile of exclusions, which is correct behaviour and not what this
+     * case is about.
+     */
+    const current = await titlesFor('RECEPTIONIST');
+    const all = current
+      .filter((t) => t.enabled || t.name === 'Clinic Manager')
+      .map((t) => t.designationId);
+
+    await setPairings(targetRole, all);
+
+    const { rows } = await owner.query<{ count: string }>(
+      `SELECT count(*) AS count FROM role_designations
+       WHERE organization_id = $1 AND role_id = $2`,
+      [orgA.organizationId, targetRole]
+    );
+    // Back to the default state, so the difference is empty and nothing is stored.
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  /*
+   * BACKFIRE ONE. Housekeeping is unmapped, so it fits every role. Unticking it
+   * for Doctor creates its only row — an exclusion. If exclusions counted
+   * towards "is this title mapped", Housekeeping would read as managed and
+   * vanish from every OTHER role's menu too.
+   */
+  it('excluding an unmapped title for one role leaves it available to the rest', async () => {
+    const doctorRole = await roleId(A, 'DOCTOR');
+    const housekeeping = await titleFor('HOUSEKEEPING');
+
+    const keep = (await titlesFor('DOCTOR'))
+      .filter((t) => t.enabled && t.designationId !== housekeeping)
+      .map((t) => t.designationId);
+    await setPairings(doctorRole, keep);
+
+    // Gone for Doctor…
+    await clearRateLimits();
+    const forDoctor = await A.post('/', {
+      email: `hk-doc-${SUFFIX}@example.test`,
+      roleId: doctorRole,
+      designationId: housekeeping,
+      branchIds: [orgA.branchId],
+    });
+    expect(forDoctor.status).toBe(400);
+
+    // …but still there for everyone else.
+    await clearRateLimits();
+    const forNurse = await A.post('/', {
+      email: `hk-nurse-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'NURSE'),
+      designationId: housekeeping,
+      branchIds: [orgA.branchId],
+    });
+    expect(forNurse.status).toBe(201);
+  });
+
+  /*
+   * BACKFIRE TWO, the opposite direction. Pharmacist is paired with exactly
+   * PHARMACIST and CHIEF_PHARMACIST. Untick both and only exclusions remain —
+   * if positives had gone to zero the title would read as unmapped, and
+   * unmapped means valid EVERYWHERE.
+   */
+  it('excluding every pairing of a title makes it fit nothing, not everything', async () => {
+    const pharmacistRole = await roleId(A, 'PHARMACIST');
+    const chiefPharmacist = await titleFor('CHIEF_PHARMACIST');
+
+    // CHIEF_PHARMACIST is paired only with PHARMACIST, so emptying that role's
+    // list removes its only positive pairing.
+    await setPairings(pharmacistRole, []);
+
+    await clearRateLimits();
+    const forPharmacist = await A.post('/', {
+      email: `cp-pharm-${SUFFIX}@example.test`,
+      roleId: pharmacistRole,
+      designationId: chiefPharmacist,
+      branchIds: [orgA.branchId],
+    });
+    expect(forPharmacist.status).toBe(400);
+
+    // And it has NOT become universally available.
+    await clearRateLimits();
+    const forDoctor = await A.post('/', {
+      email: `cp-doc-${SUFFIX}@example.test`,
+      roleId: await roleId(A, 'DOCTOR'),
+      designationId: chiefPharmacist,
+      branchIds: [orgA.branchId],
+    });
+    expect(forDoctor.status).toBe(400);
+  });
+
+  it("refuses to configure another clinic's private role", async () => {
+    const { rows } = await owner.query<{ id: string }>(
+      `INSERT INTO roles (id, organization_id, code, name, scope_level, updated_at)
+       VALUES (gen_random_uuid(), $1, 'B_ONLY_ROLE', 'B Only', 'BRANCH', now())
+       RETURNING id`,
+      [orgB.organizationId]
+    );
+
+    const res = await setPairings(rows[0]?.id as string, []);
+    expect(res.status).toBe(404);
+
+    await owner.query('DELETE FROM roles WHERE id = $1', [rows[0]?.id]);
+  });
+});

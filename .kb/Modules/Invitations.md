@@ -69,14 +69,14 @@ How a colleague gets into a clinic. Issue, revoke, resend, and an unauthenticate
 
 | name | kind | at |
 | --- | --- | --- |
-| `acceptInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:585` |
-| `AcceptInvitationInput` | interface | `apps/api/src/services/invitation/invitation.service.ts:530` |
-| `AcceptInvitationResult` | interface | `apps/api/src/services/invitation/invitation.service.ts:536` |
-| `createInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:205` |
-| `InvitationActionOptions` | interface | `apps/api/src/services/invitation/invitation.service.ts:62` |
-| `InvitationList` | component | `apps/web/src/components/tenant/invitation-list.tsx:77` |
+| `acceptInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:731` |
+| `AcceptInvitationInput` | interface | `apps/api/src/services/invitation/invitation.service.ts:676` |
+| `AcceptInvitationResult` | interface | `apps/api/src/services/invitation/invitation.service.ts:682` |
+| `createInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:212` |
+| `InvitationActionOptions` | interface | `apps/api/src/services/invitation/invitation.service.ts:65` |
+| `InvitationList` | component | `apps/web/src/components/tenant/invitation-list.tsx:78` |
 | `JoinForm` | component | `apps/web/src/components/tenant/join-form.tsx:25` |
-| `listInvitations` | fn | `apps/api/src/services/invitation/invitation.service.ts:166` |
-| `previewInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:497` |
-| `resendInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:401` |
-| `revokeInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:352` |
+| `listInvitations` | fn | `apps/api/src/services/invitation/invitation.service.ts:173` |
+| `previewInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:643` |
+| `resendInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:439` |
+| `revokeInvitation` | fn | `apps/api/src/services/invitation/invitation.service.ts:390` |
