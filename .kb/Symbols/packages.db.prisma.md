@@ -11,14 +11,14 @@ Files: `packages/db/prisma/seed.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `describe` <sub>local</sub> | `(code: PermissionCode): string` | `packages/db/prisma/seed.ts:36` |  |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:822` |  |
-| `seedClinicalMasters` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:731` |  |
-| `seedDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:709` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:814` |  |
+| `seedClinicalMasters` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:723` |  |
+| `seedDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:701` |  |
 | `seedPermissions` <sub>local</sub> | `(): Promise<Map<PermissionCode, string>>` | `packages/db/prisma/seed.ts:41` |  |
 | `seedPlans` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:343` |  |
-| `seedRoleDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:659` |  |
+| `seedRoleDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:653` |  |
 | `seedSettingDefinitions` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:134` |  |
-| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:792` |  |
+| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:784` |  |
 | `seedSystemRoles` <sub>local</sub> | `(permissionIds: Map<PermissionCode, string>): Promise<void>` | `packages/db/prisma/seed.ts:63` |  |
 
 ## const

@@ -16,18 +16,18 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addAllergy` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:350` |  |
-| `addCondition` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:399` |  |
-| `addContact` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:309` |  |
-| `addMedication` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:447` |  |
+| `addAllergy` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:354` |  |
+| `addCondition` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:403` |  |
+| `addContact` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:313` |  |
+| `addMedication` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:451` |  |
 | `checkForDuplicates` | `(slug: string, probe: { phone?: string; firstName?: string; dateOfBirth?: …): Promise<PatientDuplicateMatch[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:153` | Ask whether this person is already registered, before creating a record. A POST rather than a GET all the way down: the probe carries a phone number and a date… |
-| `registerAtBranch` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:288` | Register an existing patient at another clinic in the group. One record. |
+| `registerAtBranch` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:292` | Register an existing patient at another clinic in the group. One record. |
 | `registerPatient` | `(slug: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:170` |  |
-| `removeAllergy` | `(slug: string, patientId: string, allergyId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:386` |  |
-| `removeCondition` | `(slug: string, patientId: string, conditionId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:434` |  |
+| `removeAllergy` | `(slug: string, patientId: string, allergyId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:390` |  |
+| `removeCondition` | `(slug: string, patientId: string, conditionId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:438` |  |
 | `searchPatients` | `(slug: string, _previous: SearchState, formData: FormData): Promise<SearchState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:101` |  |
-| `stopMedication` | `(slug: string, patientId: string, medicationId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:484` | Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together. |
-| `updatePatient` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:247` |  |
+| `stopMedication` | `(slug: string, patientId: string, medicationId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:488` | Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together. |
+| `updatePatient` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:251` |  |
 
 ## fn
 

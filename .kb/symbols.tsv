@@ -23,16 +23,16 @@ actorFrom	fn/async	local	apps/api/src/routes/v1/billing.routes.ts:64	apps/api/ro
 Adapter	component	local	apps/web/src/components/tenant/checkout/provider-checkout.tsx:251	apps/web/components/tenant/checkout	({ handoff, callbacks, }: { handoff: CheckoutHandoff; callba…)	
 addAddress	fn/async	export	apps/api/src/services/patient/patient.service.ts:982	apps/api/services/patient	(ctx: TenantContext, patientId: string, input: PatientAddressRequest, options: PatientActionOptions): Promise<PatientDetail>	
 addAllergy	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:172	apps/api/services/patient	(ctx: TenantContext, patientId: string, input: PatientAllergyRequest, options: PatientActionOptions): Promise<void>	
-addAllergy	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:350	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
+addAllergy	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:354	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
 addCondition	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:243	apps/api/services/patient	(ctx: TenantContext, patientId: string, input: PatientConditionRequest, options: PatientActionOptions): Promise<void>	
-addCondition	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:399	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
+addCondition	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:403	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
 addContact	fn/async	export	apps/api/src/services/patient/patient.service.ts:1052	apps/api/services/patient	(ctx: TenantContext, patientId: string, input: PatientContactRequest, options: PatientActionOptions): Promise<PatientDetail>	
-addContact	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:309	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
+addContact	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:313	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
 addDays	fn	export	packages/billing/src/periods.ts:121	packages/billing	(from: Date, days: number): Date	
 addDesignation	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invitations/actions.ts:158	apps/web/app/(tenant)/t/[slug]/(app)/invitations	(slug: string, name: string, roleId: string): Promise<{ ok: true; designation: DesignationSummary } | { o…	
 addInterval	fn	export	packages/billing/src/periods.ts:74	packages/billing	(from: Date, interval: Interval, count, anchorDay?: number): Date	Advance by one billing interval. A year is twelve months rather than 365 days, so 29 February renews on 28 February — t…
 addMedication	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:347	apps/api/services/patient	(ctx: TenantContext, patientId: string, input: PatientMedicationRequest, options: PatientActionOptions): Promise<void>	
-addMedication	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:447	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
+addMedication	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:451	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
 addMoney	fn	export	packages/payments/src/money.ts:59	packages/payments	(a: Money, b: Money): Money	
 addMonths	fn	export	packages/billing/src/periods.ts:48	packages/billing	(from: Date, months: number, anchorDay?: number): Date	
 addQualification	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:468	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, input: DoctorQualificationRequest, options: DoctorActionOptions): Promise<void>	
@@ -50,10 +50,10 @@ Alert	component	local	apps/web/src/components/tenant/login-form.tsx:112	apps/web
 Alert	component	export	apps/web/src/components/ui/alert.tsx:14	apps/web/components/ui	({ tone, children, className, }: { tone: 'error' | 'info'; c…)	
 ALL_PERMISSIONS	const	export	packages/permissions/src/codes.ts:213	packages/permissions	Object.values(PERMISSIONS) as PermissionCode[]	
 ALLERGEN_TYPES	const	local	apps/web/src/components/tenant/patient-chart.tsx:50	apps/web/components/tenant	: SelectOption[]	
-AllergyBand	component	local	apps/web/src/components/tenant/patient-chart.tsx:328	apps/web/components/tenant	({ allergies }: { allergies: PatientAllergyDetail[] })	
-AllergyForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:666	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
+AllergyBand	component	local	apps/web/src/components/tenant/patient-chart.tsx:330	apps/web/components/tenant	({ allergies }: { allergies: PatientAllergyDetail[] })	
+AllergyForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:665	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
 allergyParams	var	local	apps/api/src/routes/v1/patients.routes.ts:89	apps/api/routes/v1	patientParams.extend(…)	
-AllergyRows	component	local	apps/web/src/components/tenant/patient-chart.tsx:545	apps/web/components/tenant	({ slug, patientId, allergies, canWrite, }: { slug: string; …)	
+AllergyRows	component	local	apps/web/src/components/tenant/patient-chart.tsx:547	apps/web/components/tenant	({ slug, patientId, allergies, canWrite, }: { slug: string; …)	
 allowedScopes	fn	local	apps/api/src/services/organization/setting.service.ts:80	apps/api/services/organization	(value: Prisma.JsonValue): string[]	
 amount	fn	local	apps/web/src/components/tenant/billing-screen.tsx:32	apps/web/components/tenant	(minor: number, currency: string): string	
 AnalyticsEvent	type	export	apps/web/src/lib/analytics.ts:14	apps/web/lib	| 'cta_book_demo' | 'cta_log_in' | 'demo_request_submitted' | 'demo_request_failed' | 'pricing_viewed' | 'cta_start_clinic' | 'signup_completed' | 'signup_fail…	
@@ -236,7 +236,7 @@ BranchClosureRequest	type	export	packages/contracts/src/tenancy.ts:865	packages/
 branchDetail	zod	export	packages/contracts/src/tenancy.ts:525	packages/contracts	z.object(…)	
 BranchDetail	type	export	packages/contracts/src/tenancy.ts:862	packages/contracts	z.infer<typeof branchDetail>	
 BranchesPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/page.tsx:23	apps/web/app/(tenant)/t/[slug]/(app)/branches	({ params }: { params: Promise<{ slug: string }> })	
-BranchForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:629	apps/web/components/tenant	({ slug, patientId, branches, }: { slug: string; patientId: …)	
+BranchForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:628	apps/web/components/tenant	({ slug, patientId, branches, }: { slug: string; patientId: …)	
 BranchFormState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:24	apps/web/app/(tenant)/t/[slug]/(app)/branches	{ status: 'idle' | 'error' | 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }	
 branchIdFrom	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:36	apps/web/app/(tenant)/t/[slug]/(app)/members	(formData: FormData): string | null	The empty string is how a `<select>` says "every branch"; the API wants null.
 BranchList	component	export	apps/web/src/components/tenant/branch-list.tsx:130	apps/web/components/tenant	({ slug, branches, canReadHistory, }: { slug: string; branch…)	
@@ -286,7 +286,7 @@ CancelSubscriptionRequest	type	export	packages/contracts/src/billing.ts:69	packa
 CancelSubscriptionResponse	interface	export	packages/contracts/src/billing.ts:367	packages/contracts	{ status, endsAt }	
 canStartCheckout	fn	export	packages/billing/src/policy.ts:151	packages/billing	(status: SubscriptionStatus): boolean	
 canUpgrade	fn	export	packages/billing/src/policy.ts:162	packages/billing	(status: SubscriptionStatus): boolean	
-Card	component	local	apps/web/src/components/tenant/patient-chart.tsx:226	apps/web/components/tenant	({ children, className }: { children: React.ReactNode; class…)	
+Card	component	local	apps/web/src/components/tenant/patient-chart.tsx:230	apps/web/components/tenant	({ children, className }: { children: React.ReactNode; class…)	
 CashfreeConfig	interface	export	packages/payments/src/providers/cashfree.ts:101	packages/payments/providers	{ appId, secretKey, webhookSecret, environment, checkoutBaseUrl, timeoutMs, webhookToleranceSeconds }	
 CashfreeProvider	class	export	packages/payments/src/providers/cashfree.ts:248	packages/payments/providers	{ name, capabilities, config, request, createCharge, chargeMandate, getCharge, createMandate, getMandate, cancelMandate, toMandate, refund, parseWebhook, toEvent, customerPayload, instrument }	
 CataloguePermission	type	local	apps/web/src/components/tenant/role-list.tsx:26	apps/web/components/tenant	PermissionCatalogue[number]	
@@ -358,9 +358,9 @@ COLUMNS	component	local	apps/web/src/components/marketing/site-footer.tsx:11	app
 composeMandateId	fn	local	packages/payments/src/providers/razorpay.ts:1472	packages/payments/providers	(customerId: string, tokenId: string): string	
 computeAvailability	fn/async	export	apps/api/src/services/appointment/availability.service.ts:275	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, input: { branchId: string; doctorProfileId: string; date: s…, now: Date): Promise<AvailabilityResponse>	
 CONDITION_STATUSES	const	local	apps/web/src/components/tenant/patient-chart.tsx:57	apps/web/components/tenant	: SelectOption[]	
-ConditionForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:697	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
+ConditionForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:696	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
 conditionParams	var	local	apps/api/src/routes/v1/patients.routes.ts:90	apps/api/routes/v1	patientParams.extend(…)	
-ConditionsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:413	apps/web/components/tenant	({ slug, patientId, conditions, canWrite, open, onToggle, }:…)	
+ConditionsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:415	apps/web/components/tenant	({ slug, patientId, conditions, canWrite, open, onToggle, }:…)	
 config	var	local	apps/api/jest.config.ts:3	apps/api	: Config	
 config	var	export	apps/api/src/config/index.ts:69	apps/api/config	{ env, port: getEnvNumber('PORT', 5000), host: getEnvVar('HOST', '0.0.0.0'), isProduction…	
 config	var	export	apps/web/src/proxy.ts:245	apps/web	{ // Skip API routes, Next internals, and anything with a file extension. matcher: ['/((?…	
@@ -382,7 +382,7 @@ consumeChallenge	fn/async	export	apps/api/src/services/auth/challenge.service.ts
 contactData	fn	local	apps/api/src/services/patient/patient.service.ts:450	apps/api/services/patient	(input: PatientContactRequest): { relation: string; name: string; phone: string; isEmergenc…	
 contactParams	var	local	apps/api/src/routes/v1/patients.routes.ts:88	apps/api/routes/v1	patientParams.extend(…)	
 contactPhone	var	local	packages/contracts/src/patients.ts:33	packages/contracts	z .string() .min(6) .max(20) .regex(…)	
-ContactsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:384	apps/web/components/tenant	({ patient }: { patient: PatientDetail })	
+ContactsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:386	apps/web/components/tenant	({ patient }: { patient: PatientDetail })	
 contactState	fn/async	local	apps/api/src/services/auth/verification.service.ts:76	apps/api/services/auth	(userId: string, channel: VerificationChannel): Promise<ContactState>	
 ContactState	interface	local	apps/api/src/services/auth/verification.service.ts:70	apps/api/services/auth	{ destination, verifiedAt }	
 ContactVerification	component	export	apps/web/src/components/tenant/contact-verification.tsx:40	apps/web/components/tenant	({ slug, channels, masterCode, }: { slug: string; channels: …)	
@@ -417,7 +417,7 @@ createDoctorRequest	zod	export	packages/contracts/src/doctors.ts:34	packages/con
 CreateDoctorRequest	type	export	packages/contracts/src/doctors.ts:270	packages/contracts	z.infer<typeof createDoctorRequest>	
 createEmploymentRecord	fn/async	local	apps/api/src/services/invitation/invitation.service.ts:568	apps/api/services/invitation	(tx: TxClient, input: { organizationId: string; membershipId: string; desi…): Promise<{ employeeCode: string | null; joinedOn: string | n…	
 CreateForm	component	local	apps/web/src/components/tenant/branch-list.tsx:258	apps/web/components/tenant	({ slug, onDone }: { slug: string; onDone: () => void })	
-CreateForm	component	local	apps/web/src/components/tenant/doctor-list.tsx:333	apps/web/components/tenant	({ slug, candidates, specialties, onDone, }: { slug: string;…)	
+CreateForm	component	local	apps/web/src/components/tenant/doctor-list.tsx:328	apps/web/components/tenant	({ slug, candidates, specialties, onDone, }: { slug: string;…)	
 CreateForm	component	local	apps/web/src/components/tenant/role-list.tsx:404	apps/web/components/tenant	({ slug, draft, permissions, grantable, onDone, }: { slug: s…)	
 createInvitation	fn/async	export	apps/api/src/services/invitation/invitation.service.ts:212	apps/api/services/invitation	(ctx: TenantContext, input: InviteMemberRequest, options: InvitationActionOptions): Promise<InvitationSummary>	
 CreateInvoiceInput	interface	export	packages/billing/src/engine/shared.ts:202	packages/billing/engine	{ subscriptionId, periodStart, periodEnd, currency, lines, dueDate, issuedAt, tax }	
@@ -508,7 +508,7 @@ DESIGNATIONS	const	local	packages/db/prisma/seed.ts:568	packages/db/prisma	: { c
 designationSummary	zod	export	packages/contracts/src/tenancy.ts:240	packages/contracts	z.object(…)	
 DesignationSummary	type	export	packages/contracts/src/tenancy.ts:874	packages/contracts	z.infer<typeof designationSummary>	
 detailOf	fn	local	apps/api/src/services/appointment/appointment.service.ts:794	apps/api/services/appointment	(row: AppointmentRow, statusHistory: AppointmentDetail['statusHistory']): AppointmentDetail	
-DetailsForm	component	local	apps/web/src/components/tenant/doctor-list.tsx:403	apps/web/components/tenant	({ slug, doctor, canArchive, }: { slug: string; doctor: Doct…)	
+DetailsForm	component	local	apps/web/src/components/tenant/doctor-list.tsx:396	apps/web/components/tenant	({ slug, doctor, canArchive, }: { slug: string; doctor: Doct…)	
 DetailsForm	component	local	apps/web/src/components/tenant/member-list.tsx:593	apps/web/components/tenant	({ slug, member, designations, }: { slug: string; member: Me…)	
 DialFormat	interface	export	packages/contracts/src/locale.ts:92	packages/contracts	{ code, minDigits, maxDigits, example }	
 dialFormatFor	fn	export	packages/contracts/src/locale.ts:520	packages/contracts	(code: string | null | undefined): DialFormat	The calling code and national digit count. Falls back to India's.
@@ -564,7 +564,7 @@ DUNNING_SCHEDULE_DAYS	const	export	packages/billing/src/policy.ts:39	packages/bi
 duplicateProbeRequest	zod	local	apps/api/src/routes/v1/patients.routes.ts:94	apps/api/routes/v1	z.object(…)	The duplicate probe. A GET would put a phone number in the access log.
 DuplicateRow	interface	local	apps/api/src/services/patient/patient.service.ts:472	apps/api/services/patient	{ id, uhid, first_name, last_name, date_of_birth, approx_age_years, gender, phone, matched_phone, matched_name_dob, matched_abha, matched_national_id }	
 EditForm	component	local	apps/web/src/components/tenant/branch-list.tsx:330	apps/web/components/tenant	({ slug, branch, onDone, }: { slug: string; branch: BranchDe…)	
-EditForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:594	apps/web/components/tenant	({ slug, patient }: { slug: string; patient: PatientDetail })	
+EditForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:596	apps/web/components/tenant	({ slug, patient }: { slug: string; patient: PatientDetail })	
 EditForm	component	local	apps/web/src/components/tenant/role-list.tsx:495	apps/web/components/tenant	({ slug, role, permissions, grantable, onDone, }: { slug: st…)	
 effectivePermissions	fn	export	packages/permissions/src/resolver.ts:101	packages/permissions	(ctx: AccessContext, now): PermissionCode[]	
 effectiveSlotMinutes	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:547	apps/api/services/doctor	(tx: TxClient, ctx: TenantContext, scope: { branchId?: string | undefined; doctorProfileId?: s…, override: number | null): Promise<number>	
@@ -739,12 +739,12 @@ hostFor	fn	local	apps/api/tests/integration/settings.test.ts:49	apps/api/tests/i
 hostFor	fn	local	apps/api/tests/integration/verification.test.ts:38	apps/api/tests/integration	(slug: string): string	
 HOSTS	const	local	packages/payments/src/providers/cashfree.ts:84	packages/payments/providers	{ sandbox: 'https://sandbox.cashfree.com/pg', production: 'https://api.cashfree.com/pg', …	
 hourFor	fn	local	apps/web/src/components/tenant/branch-list.tsx:56	apps/web/components/tenant	(hours: OperatingHour[], day: number): OperatingHour | undefined	
-HoursEditor	component	local	apps/web/src/components/tenant/doctor-list.tsx:504	apps/web/components/tenant	({ slug, doctorId, schedules, branches, }: { slug: string; d…)	
+HoursEditor	component	local	apps/web/src/components/tenant/doctor-list.tsx:494	apps/web/components/tenant	({ slug, doctorId, schedules, branches, }: { slug: string; d…)	
 HoursForm	component	local	apps/web/src/components/tenant/branch-list.tsx:456	apps/web/components/tenant	({ slug, branch }: { slug: string; branch: BranchDetail })	
 identify	fn	local	apps/web/src/components/ui/field.tsx:432	apps/web/components/ui	(id: string | undefined, name: string | undefined): string	
 identityData	fn	local	apps/api/src/services/patient/patient.service.ts:394	apps/api/services/patient	(input: UpdatePatientRequest): PatientIdentityData	The identity fields, mapped from a request onto Prisma input. Shared by create and update so the two cannot diverge — i…
 identityLimiter	var	export	apps/api/src/middleware/rateLimiter.middleware.ts:121	apps/api/middleware	rateLimit(…)	
-IdentityStrip	component	local	apps/web/src/components/tenant/patient-chart.tsx:262	apps/web/components/tenant	({ patient }: { patient: PatientDetail })	
+IdentityStrip	component	local	apps/web/src/components/tenant/patient-chart.tsx:266	apps/web/components/tenant	({ patient }: { patient: PatientDetail })	
 IDLE	component	local	apps/web/src/components/tenant/billing-screen.tsx:30	apps/web/components/tenant	: BillingFormState	
 IDLE	component	local	apps/web/src/components/tenant/branch-list.tsx:17	apps/web/components/tenant	: BranchFormState	
 IDLE	component	local	apps/web/src/components/tenant/clinic-settings.tsx:21	apps/web/components/tenant	: SettingsFormState	
@@ -945,7 +945,7 @@ lookupPostalCode	action/async	export	apps/web/src/app/(marketing)/signup/actions
 LookupState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:39	apps/web/app/(tenant)/t/[slug]/(app)/appointments	{ status: 'idle' | 'error' | 'done'; message?: string; patients: PatientSummary[]; }	
 lookupTenant	fn/async	local	apps/api/src/middleware/tenant.middleware.ts:70	apps/api/middleware	(host: string): Promise<ResolvedTenant | null>	
 lookupZippopotam	fn/async	local	apps/web/src/app/(marketing)/signup/actions.ts:207	apps/web/app/(marketing)/signup	(country: string, postalCode: string): Promise<PostalLookup | null>	
-main	fn/async	local	packages/db/prisma/seed.ts:822	packages/db/prisma	(): Promise<void>	
+main	fn/async	local	packages/db/prisma/seed.ts:814	packages/db/prisma	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/apply-grants.ts:42	packages/db/scripts	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/check-rls.ts:80	packages/db/scripts	(): Promise<void>	
 MANDATE_HEADROOM_MULTIPLIER	const	export	packages/billing/src/policy.ts:62	packages/billing	3	
@@ -971,9 +971,9 @@ maskPhone	fn	export	apps/api/src/services/notification/types.ts:17	apps/api/serv
 MAX_DUNNING_ATTEMPTS	const	export	packages/billing/src/policy.ts:41	packages/billing	DUNNING_SCHEDULE_DAYS.length	
 MAX_FAILED_ATTEMPTS	const	export	apps/api/src/services/auth/password.service.ts:19	apps/api/services/auth	5	Lock the account after this many consecutive failures.
 maxMoney	fn	export	packages/payments/src/money.ts:73	packages/payments	(a: Money, b: Money): Money	
-MedicationForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:727	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
+MedicationForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:726	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
 medicationParams	var	local	apps/api/src/routes/v1/patients.routes.ts:91	apps/api/routes/v1	patientParams.extend(…)	
-MedicationsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:476	apps/web/components/tenant	({ slug, patientId, medications, canWrite, open, onToggle, }…)	
+MedicationsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:478	apps/web/components/tenant	({ slug, patientId, medications, canWrite, open, onToggle, }…)	
 MEMBER_SELECT	const	local	apps/api/src/services/iam/member.service.ts:73	apps/api/services/iam	{ id: true, userId: true, status: true, joinedAt: true, user: { select: { fullName: true,…	What Prisma is asked for, so every path returns the same member shape.
 MemberActionOptions	interface	export	apps/api/src/services/iam/member.service.ts:67	apps/api/services/iam	{ ipAddress, userAgent }	Request metadata carried onto the audit row. Same shape as the branch service.
 MemberCard	component	local	apps/web/src/components/tenant/member-list.tsx:239	apps/web/components/tenant	({ slug, member, roles, branches, designations, grantableCod…)	
@@ -1016,7 +1016,7 @@ metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invitations/page.ts
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:8	apps/web/app/(tenant)/t/[slug]/(app)	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/members	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:7	apps/web/app/(tenant)/t/[slug]/(app)	: Metadata	
-metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:21	apps/web/app/(tenant)/t/[slug]/(app)/patients/[patientId]	: Metadata	
+metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:17	apps/web/app/(tenant)/t/[slug]/(app)/patients/[patientId]	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/patients	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/roles/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/roles	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/settings/page.tsx:13	apps/web/app/(tenant)/t/[slug]/(app)/settings	: Metadata	
@@ -1119,7 +1119,7 @@ PAIRING_SELECT	const	local	apps/api/src/services/iam/designation.service.ts:114	
 pairingParams	zod	local	apps/api/src/routes/v1/designations.routes.ts:41	apps/api/routes/v1	z.object(…)	
 PairingRow	interface	local	apps/api/src/services/iam/designation.service.ts:48	apps/api/services/iam	{ roleId, organizationId, isExcluded }	One pairing row as the rules below need to see it.
 Panel	component	local	apps/web/src/components/tenant/payment-return.tsx:130	apps/web/components/tenant	({ title, children }: { title: string; children: React.React…)	
-PanelHeading	component	local	apps/web/src/components/tenant/patient-chart.tsx:234	apps/web/components/tenant	({ title, note, action, }: { title: string; note?: string; a…)	
+PanelHeading	component	local	apps/web/src/components/tenant/patient-chart.tsx:238	apps/web/components/tenant	({ title, note, action, }: { title: string; note?: string; a…)	
 PARENT_SCOPED	const	local	packages/db/scripts/check-rls.ts:63	packages/db/scripts	: Record<string, string>	
 password	var	export	packages/contracts/src/common.ts:124	packages/contracts	z .string() .min(12, 'at least 12 characters') .max(128) .r…	
 PasswordControl	component	export	apps/web/src/components/ui/password-control.tsx:32	apps/web/components/ui	({ className, disabled, ...rest }: React.ComponentPropsWitho…)	
@@ -1163,9 +1163,9 @@ PatientMedicationDetail	type	export	packages/contracts/src/patients.ts:460	packa
 patientMedicationRequest	var	export	packages/contracts/src/patients.ts:251	packages/contracts	z .object({ medicineText: z.string().min(1).max(255).trim()…	
 PatientMedicationRequest	type	export	packages/contracts/src/patients.ts:453	packages/contracts	z.infer<typeof patientMedicationRequest>	
 patientName	fn	local	apps/api/src/services/appointment/appointment.service.ts:124	apps/api/services/appointment	(parts: { firstName: string; lastName: string | null }): string	
-PatientPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:38	apps/web/app/(tenant)/t/[slug]/(app)/patients/[patientId]	({ params, }: { params: Promise<{ slug: string; patientId: s…)	
+PatientPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:34	apps/web/app/(tenant)/t/[slug]/(app)/patients/[patientId]	({ params, }: { params: Promise<{ slug: string; patientId: s…)	
 patientParams	zod	local	apps/api/src/routes/v1/patients.routes.ts:86	apps/api/routes/v1	z.object(…)	
-PatientPicker	component	local	apps/web/src/components/tenant/appointment-board.tsx:672	apps/web/components/tenant	({ slug, chosen, onChoose, }: { slug: string; chosen: Patien…)	
+PatientPicker	component	local	apps/web/src/components/tenant/appointment-board.tsx:669	apps/web/components/tenant	({ slug, chosen, onChoose, }: { slug: string; chosen: Patien…)	
 patientRegistrationDetail	zod	export	packages/contracts/src/patients.ts:281	packages/contracts	z.object(…)	
 PatientRegistrationDetail	type	export	packages/contracts/src/patients.ts:455	packages/contracts	z.infer<typeof patientRegistrationDetail>	
 PatientRow	type	local	apps/api/src/services/patient/patient.service.ts:121	apps/api/services/patient	Prisma.PatientGetPayload<{ select: typeof PATIENT_SELECT }>	
@@ -1349,10 +1349,10 @@ Region	interface	export	packages/contracts/src/locale.ts:46	packages/contracts	{
 regionsFor	fn	export	packages/contracts/src/locale.ts:491	packages/contracts	(code: string | null | undefined): readonly Region[]	The subdivisions worth asking about. Empty means country-wide only.
 registerAt	fn/async	local	apps/api/tests/integration/patients.test.ts:200	apps/api/tests/integration	(client: ReturnType<typeof asOrg>, branchId: string, overrides: Record<string, unknown>)	Register a patient at a branch and return the created detail body.
 registerAtBranch	fn/async	export	apps/api/src/services/patient/patient.service.ts:685	apps/api/services/patient	(ctx: TenantContext, patientId: string, input: RegisterPatientAtBranchRequest, options: PatientActionOptions): Promise<PatientDetail>	Register an existing patient at a second branch. One `patients` row, a second MRN. This is what keeps a hospital group …
-registerAtBranch	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:288	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	Register an existing patient at another clinic in the group. One record.
+registerAtBranch	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:292	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	Register an existing patient at another clinic in the group. One record.
 registerClinic	action/async	export	apps/web/src/app/(marketing)/signup/actions.ts:239	apps/web/app/(marketing)/signup	(_previous: SignupFormState, formData: FormData): Promise<SignupFormState>	
 Registered	component	local	apps/web/src/components/marketing/signup-form.tsx:1110	apps/web/components/marketing	({ loginUrl, slug }: { loginUrl: string; slug: string })	
-RegisterForm	component	local	apps/web/src/components/tenant/patient-search.tsx:318	apps/web/components/tenant	({ slug, branches, onDone, }: { slug: string; branches: Bran…)	
+RegisterForm	component	local	apps/web/src/components/tenant/patient-search.tsx:315	apps/web/components/tenant	({ slug, branches, onDone, }: { slug: string; branches: Bran…)	
 RegisterOptions	interface	export	apps/api/src/services/organization/register.service.ts:50	apps/api/services/organization	{ actorUserId, ipAddress, userAgent }	Clinic registration: the one transaction that turns a form into a tenant. WHY THIS USES
 registerOrganization	fn/async	export	apps/api/src/services/organization/register.service.ts:95	apps/api/services/organization	(input: RegisterOrganizationRequest, options: RegisterOptions): Promise<RegisterResult>	
 registerOrganizationRequest	var	export	packages/contracts/src/tenancy.ts:13	packages/contracts	z .object({ organization: z.object({ legalName: z.string().…	
@@ -1366,15 +1366,15 @@ RegisterResult	interface	export	apps/api/src/services/organization/register.serv
 registrationFor	fn	export	packages/billing/src/tax/engine.ts:134	packages/billing/tax	(registrations: readonly SupplierRegistration[], customer: TaxableCustomer): SupplierRegistration | null	
 RegistrationForm	component	local	apps/web/src/components/platform/tax-registration-list.tsx:178	apps/web/components/platform	({ id, registration, onDone, }: { id: string | null; registr…)	
 registrationLimiter	var	export	apps/api/src/middleware/rateLimiter.middleware.ts:67	apps/api/middleware	rateLimit(…)	
-RegistrationsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:363	apps/web/components/tenant	({ patient }: { patient: PatientDetail })	
+RegistrationsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:365	apps/web/components/tenant	({ patient }: { patient: PatientDetail })	
 removeAddress	fn/async	export	apps/api/src/services/patient/patient.service.ts:1027	apps/api/services/patient	(ctx: TenantContext, patientId: string, addressId: string, options: PatientActionOptions): Promise<void>	
 removeAllergy	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:211	apps/api/services/patient	(ctx: TenantContext, patientId: string, allergyId: string, options: PatientActionOptions): Promise<void>	
-removeAllergy	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:386	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, allergyId: string): Promise<void>	
+removeAllergy	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:390	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, allergyId: string): Promise<void>	
 removeBranch	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:190	apps/web/app/(tenant)/t/[slug]/(app)/branches	(slug: string, branchId: string, _previous: BranchFormState): Promise<BranchFormState>	
 RemoveButton	component	local	apps/web/src/components/tenant/branch-list.tsx:417	apps/web/components/tenant	({ slug, branch }: { slug: string; branch: BranchDetail })	
 RemoveButton	component	local	apps/web/src/components/tenant/role-list.tsx:375	apps/web/components/tenant	({ slug, role }: { slug: string; role: RoleDetail })	
 removeCondition	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:315	apps/api/services/patient	(ctx: TenantContext, patientId: string, conditionId: string, options: PatientActionOptions): Promise<void>	
-removeCondition	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:434	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, conditionId: string): Promise<void>	
+removeCondition	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:438	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, conditionId: string): Promise<void>	
 removeContact	fn/async	export	apps/api/src/services/patient/patient.service.ts:1090	apps/api/services/patient	(ctx: TenantContext, patientId: string, contactId: string, options: PatientActionOptions): Promise<void>	
 removeMedication	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:428	apps/api/services/patient	(ctx: TenantContext, patientId: string, medicationId: string, options: PatientActionOptions): Promise<void>	
 removeQualification	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:516	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, qualificationRowId: string, options: DoctorActionOptions): Promise<void>	
@@ -1426,8 +1426,8 @@ resolveTenant	fn/async	export	apps/api/src/middleware/tenant.middleware.ts:116	a
 resolveVat	fn	local	packages/billing/src/tax/engine.ts:387	packages/billing/tax	(supply: TaxableSupply, registration: SupplierRegistration, placeOfSupply: string): Quote	
 RestoreButton	component	local	apps/web/src/components/tenant/member-list.tsx:758	apps/web/components/tenant	({ slug, member }: { slug: string; member: MemberDetail })	
 restoreMember	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:243	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, _previous: MemberFormState): Promise<MemberFormState>	
-ResultRow	component	local	apps/web/src/components/tenant/patient-search.tsx:265	apps/web/components/tenant	({ slug, patient }: { slug: string; patient: PatientSummary })	
-Results	component	local	apps/web/src/components/tenant/patient-search.tsx:197	apps/web/components/tenant	({ state, slug, pending, }: { state: SearchState; slug: stri…)	
+ResultRow	component	local	apps/web/src/components/tenant/patient-search.tsx:262	apps/web/components/tenant	({ slug, patient }: { slug: string; patient: PatientSummary })	
+Results	component	local	apps/web/src/components/tenant/patient-search.tsx:202	apps/web/components/tenant	({ state, slug, pending }: { state: SearchState; slug: strin…)	
 resume	fn/async	export	apps/api/src/services/billing/billing.service.ts:292	apps/api/services/billing	(ctx: TenantContext, slug: string, actor: BillingActor): Promise<ResumeSubscriptionResponse>	
 resumeSubscription	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/actions.ts:181	apps/web/app/(tenant)/t/[slug]/(app)/billing	(slug: string, _previous: BillingFormState): Promise<BillingFormState>	
 resumeSubscription	fn/async	export	packages/billing/src/engine/lifecycle.ts:510	packages/billing/engine	(ctx: TenantContext, runtime: BillingRuntime, input: { actorUserId?: string | undefined }, run: TenantRunner): Promise<{ nextRenewalAt: Date }>	
@@ -1531,7 +1531,7 @@ ScopeLabel	component	export	apps/web/src/components/shell/scope-switcher.tsx:208
 ScopeName	type	local	apps/api/src/services/settings/resolver.service.ts:60	apps/api/services/settings	(typeof PRECEDENCE)[number]	
 ScopeOption	interface	export	apps/web/src/components/shell/scope-switcher.tsx:34	apps/web/components/shell	{ id, name, detail }	
 ScopeSwitcher	component	export	apps/web/src/components/shell/scope-switcher.tsx:41	apps/web/components/shell	({ label, options, currentId, placeholder, pending = false, …)	
-SearchForm	component	local	apps/web/src/components/tenant/patient-search.tsx:129	apps/web/components/tenant	({ action, pending, state, multiBranch, }: { action: (formDa…)	
+SearchForm	component	local	apps/web/src/components/tenant/patient-search.tsx:134	apps/web/components/tenant	({ action, pending, state, multiBranch, }: { action: (formDa…)	
 searchPatientQuery	zod	export	packages/contracts/src/patients.ts:200	packages/contracts	z.object(…)	
 SearchPatientQuery	type	export	packages/contracts/src/patients.ts:448	packages/contracts	z.infer<typeof searchPatientQuery>	
 searchPatients	fn/async	export	apps/api/src/services/patient/patient.service.ts:766	apps/api/services/patient	(ctx: TenantContext, query: SearchPatientQuery, options: PatientActionOptions): Promise<PatientListResponse>	
@@ -1540,14 +1540,14 @@ SearchRow	interface	local	apps/api/src/services/patient/patient.service.ts:744	a
 SearchState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:51	apps/web/app/(tenant)/t/[slug]/(app)/patients	{ status: 'idle' | 'error' | 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the results can say what they are results for. */ scope: …	
 Section	component	export	apps/web/src/components/marketing/section.tsx:18	apps/web/components/marketing	({ id, tone = 'paper', className, children, }: { id?: string…)	
 SectionHead	component	export	apps/web/src/components/marketing/section.tsx:40	apps/web/components/marketing	({ eyebrow, title, lead, tone = 'paper', className, }: { eye…)	A section's opening. `eyebrow` is set in mono because it is a label the interface applies, not prose someone wrote.
-seedClinicalMasters	fn/async	local	packages/db/prisma/seed.ts:731	packages/db/prisma	(): Promise<void>	
-seedDesignations	fn/async	local	packages/db/prisma/seed.ts:709	packages/db/prisma	(): Promise<void>	
+seedClinicalMasters	fn/async	local	packages/db/prisma/seed.ts:723	packages/db/prisma	(): Promise<void>	
+seedDesignations	fn/async	local	packages/db/prisma/seed.ts:701	packages/db/prisma	(): Promise<void>	
 seedDoctor	fn/async	local	apps/api/tests/integration/appointments.test.ts:130	apps/api/tests/integration	(client: ReturnType<typeof asOrg>, userId: string, branchId: string): Promise<string>	A doctor working Mondays 09:00–13:00 at the org's main branch.
 seedPermissions	fn/async	local	packages/db/prisma/seed.ts:41	packages/db/prisma	(): Promise<Map<PermissionCode, string>>	
 seedPlans	fn/async	local	packages/db/prisma/seed.ts:343	packages/db/prisma	(): Promise<void>	
-seedRoleDesignations	fn/async	local	packages/db/prisma/seed.ts:659	packages/db/prisma	(): Promise<void>	
+seedRoleDesignations	fn/async	local	packages/db/prisma/seed.ts:653	packages/db/prisma	(): Promise<void>	
 seedSettingDefinitions	fn/async	local	packages/db/prisma/seed.ts:134	packages/db/prisma	(): Promise<void>	
-seedSuperAdmin	fn/async	local	packages/db/prisma/seed.ts:792	packages/db/prisma	(): Promise<void>	
+seedSuperAdmin	fn/async	local	packages/db/prisma/seed.ts:784	packages/db/prisma	(): Promise<void>	
 seedSystemRoles	fn/async	local	packages/db/prisma/seed.ts:63	packages/db/prisma	(permissionIds: Map<PermissionCode, string>): Promise<void>	
 seeOther	fn	local	apps/web/src/app/(tenant)/t/[slug]/impersonate/route.ts:61	apps/web/app/(tenant)/t/[slug]/impersonate	(path: string): NextResponse	303, so the browser follows with GET rather than re-POSTing the ticket.
 Select	component	export	apps/web/src/components/ui/field.tsx:330	apps/web/components/ui	({ label, hint, errors, action, fieldClassName, className, i…)	
@@ -1630,7 +1630,7 @@ SLOT_LENGTHS	const	local	apps/web/src/components/tenant/branch-list.tsx:36	apps/
 SLOT_LENGTHS	const	local	apps/web/src/components/tenant/doctor-list.tsx:43	apps/web/components/tenant	: SelectOption[]	Blank inherits the clinic's setting rather than pinning a number.
 SLOT_MINUTES_KEY	const	local	apps/api/src/services/doctor/doctor.service.ts:34	apps/api/services/doctor	'appointment.slot_minutes'	
 SLOT_REASONS	const	local	apps/web/src/components/tenant/appointment-board.tsx:87	apps/web/components/tenant	: Record<string, string>	
-SlotGrid	component	local	apps/web/src/components/tenant/appointment-board.tsx:621	apps/web/components/tenant	({ slots, timezone, selected, onPick, }: { slots: Availabili…)	
+SlotGrid	component	local	apps/web/src/components/tenant/appointment-board.tsx:618	apps/web/components/tenant	({ slots, timezone, selected, onPick, }: { slots: Availabili…)	
 slotTakenError	fn	local	apps/api/src/services/appointment/appointment.service.ts:190	apps/api/services/appointment	(): ConflictError	
 slotUnavailableReason	zod	export	packages/contracts/src/appointments.ts:149	packages/contracts	z.enum(…)	Why a slot cannot be booked. Null when it can.
 SlotUnavailableReason	type	export	packages/contracts/src/appointments.ts:242	packages/contracts	z.infer<typeof slotUnavailableReason>	
@@ -1693,7 +1693,7 @@ stopImpersonation	fn/async	export	apps/api/src/services/platform/impersonation.s
 stopImpersonation	action/async	export	apps/web/src/app/(tenant)/t/[slug]/actions.ts:183	apps/web/app/(tenant)/t/[slug]	(slug: string): Promise<void>	
 StopImpersonationInput	interface	export	apps/api/src/services/platform/impersonation.service.ts:372	apps/api/services/platform	{ sessionId, organizationId, adminUserId, branchId, branchIds, ipAddress, userAgent }	
 stopMedication	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:389	apps/api/services/patient	(ctx: TenantContext, patientId: string, medicationId: string, stoppedOn: string | undefined, options: PatientActionOptions): Promise<void>	
-stopMedication	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:484	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, medicationId: string): Promise<void>	Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together.
+stopMedication	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:488	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, medicationId: string): Promise<void>	Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together.
 stopMedicationRequest	zod	local	apps/api/src/routes/v1/patients.routes.ts:105	apps/api/routes/v1	z.object(…)	
 store	fn	local	apps/api/src/middleware/rateLimiter.middleware.ts:14	apps/api/middleware	(prefix: string): RedisStore	
 store	fn	local	apps/worker/src/billing/runtime.ts:55	apps/worker/billing	(config: WorkerPaymentsConfig): MockStore	
@@ -1841,7 +1841,7 @@ updateOrganization	fn/async	export	apps/api/src/services/organization/organizati
 updateOrganizationRequest	zod	export	packages/contracts/src/tenancy.ts:441	packages/contracts	z.object(…)	
 UpdateOrganizationRequest	type	export	packages/contracts/src/tenancy.ts:843	packages/contracts	z.infer<typeof updateOrganizationRequest>	
 updatePatient	fn/async	export	apps/api/src/services/patient/patient.service.ts:895	apps/api/services/patient	(ctx: TenantContext, patientId: string, input: UpdatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>	
-updatePatient	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:247	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
+updatePatient	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:251	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>	
 updatePatientRequest	var	export	packages/contracts/src/patients.ts:179	packages/contracts	z .object(patientIdentityFields) .partial() .superRefine(…)	
 UpdatePatientRequest	type	export	packages/contracts/src/patients.ts:446	packages/contracts	z.infer<typeof updatePatientRequest>	
 updateRole	fn/async	export	apps/api/src/services/iam/role.service.ts:306	apps/api/services/iam	(ctx: TenantContext, caller: Caller, roleId: string, input: UpdateRoleRequest, options: RoleActionOptions): Promise<RoleDetail>	
