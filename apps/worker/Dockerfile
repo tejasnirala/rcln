@@ -7,7 +7,7 @@
 # a request handler — and so the two scale independently.
 # =============================================================================
 
-FROM node:22-alpine AS base
+FROM node:25-alpine AS base
 RUN apk add --no-cache libc6-compat && corepack enable pnpm
 WORKDIR /app
 ENV HUSKY=0
@@ -41,7 +41,7 @@ RUN pnpm install --frozen-lockfile --offline \
 # -----------------------------------------------------------------------------
 # Runtime
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS runner
+FROM node:25-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache libc6-compat \
