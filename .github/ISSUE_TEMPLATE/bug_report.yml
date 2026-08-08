@@ -1,0 +1,79 @@
+name: 🐛 Bug report
+description: Something behaves incorrectly
+labels: ['bug', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Stop if this is a security issue.** Anything that crosses a tenant
+        boundary, exposes patient data, or bypasses authentication goes through
+        [private vulnerability reporting](https://github.com/tejasnirala/rcln/security/advisories/new)
+        instead.
+
+        Please also check [`.kb/Architecture/PITFALLS.md`](https://github.com/tejasnirala/rcln/blob/main/.kb/Architecture/PITFALLS.md)
+        and [`.kb/STATUS.md`](https://github.com/tejasnirala/rcln/blob/main/.kb/STATUS.md)
+        first — the behaviour may already be documented, or the feature may not
+        be built yet.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Ideally from a clean `docker compose up`. Use synthetic data only — never real patient data.
+      placeholder: |
+        1. docker compose up
+        2. Register an organization at ...
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - api (Express)
+        - web (Next.js)
+        - worker (BullMQ)
+        - db / schema / migrations
+        - tenancy, RLS or permissions
+        - billing / payments / subscriptions
+        - docker / local setup
+        - documentation (.kb)
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      description: Redact anything that could identify a real person. This is rendered as a code block automatically.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit or branch
+      placeholder: 'e.g. main @ 178a752'
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: |
+        Setup path: A (all Docker) / B (hybrid) / C (native)
+        OS: macOS 15.2
+        Node: 22.x   pnpm: 10.x   Docker: 27.x
+    validations:
+      required: true

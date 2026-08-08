@@ -1,0 +1,46 @@
+version: 2
+updates:
+  # Security and version bumps for the pnpm workspace. Grouped so a routine
+  # week produces one or two PRs rather than twenty.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      dev-tooling:
+        patterns:
+          - '@commitlint/*'
+          - 'eslint*'
+          - '@typescript-eslint/*'
+          - 'prettier'
+          - 'husky'
+          - 'lint-staged'
+          - 'turbo'
+          - 'vitest*'
+          - '@vitest/*'
+        update-types: ['minor', 'patch']
+      minor-and-patch:
+        patterns: ['*']
+        update-types: ['minor', 'patch']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/web
+      - /apps/worker
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build

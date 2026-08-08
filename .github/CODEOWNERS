@@ -1,0 +1,14 @@
+# Default owner for everything.
+*                                       @tejasnirala
+
+# Anything that can leak one clinic's data into another's gets explicit review.
+/packages/db/                           @tejasnirala
+/packages/permissions/                  @tejasnirala
+/apps/api/tests/integration/            @tejasnirala
+
+# Project meta: license, security policy, CI, contribution rules.
+/LICENSE                                @tejasnirala
+/SECURITY.md                            @tejasnirala
+/CONTRIBUTING.md                        @tejasnirala
+/CODE_OF_CONDUCT.md                     @tejasnirala
+/.github/                               @tejasnirala

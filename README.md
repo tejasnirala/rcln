@@ -1,8 +1,18 @@
 # rcln
 
+[![CI](https://github.com/tejasnirala/rcln/actions/workflows/ci.yml/badge.svg)](https://github.com/tejasnirala/rcln/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen.svg)](package.json)
+[![Status: pre-1.0](https://img.shields.io/badge/status-pre--1.0-orange.svg)](.kb/STATUS.md)
+
 Multi-tenant healthcare management SaaS. A clinic registers, gets its own
 subdomain (`alpha.xyz.com`), and runs appointments, prescriptions, lab, pharmacy
 and billing across one or many branches.
+
+> **Pre-1.0 and under active development.** No external security audit, no
+> penetration test, no healthcare compliance certification. Do not run it
+> against real patient data without your own review. See
+> [`.kb/STATUS.md`](.kb/STATUS.md) for what actually works today.
 
 **All documentation lives in [`.kb/`](.kb/README.md)** — 17 numbered documents
 plus generated indexes of every symbol, endpoint, table and permission. The old
@@ -11,7 +21,6 @@ plus generated indexes of every symbol, endpoint, table and permission. The old
 - **Start here** — [`.kb/README.md`](.kb/README.md)
 - **How it works — the tour** — [`.kb/Architecture/how-it-works.md`](.kb/Architecture/how-it-works.md)
 - **Status — what is built, what is next** — [`.kb/STATUS.md`](.kb/STATUS.md)
-- **Phase 1 completion plan (in progress)** — [`PHASE-1-PLAN.md`](PHASE-1-PLAN.md)
 - **Schema design** — [`.kb/Database/schema-design.md`](.kb/Database/schema-design.md)
 - **Architecture (target design)** — [`.kb/Architecture/architecture.md`](.kb/Architecture/architecture.md)
 - **Decisions (ADRs)** — [`.kb/Architecture/decisions/`](.kb/Architecture/decisions/README.md)
@@ -455,3 +464,49 @@ seeded system roles and super admin.
 Phase 1 is auth endpoints, org registration, branch CRUD and the branch
 switcher. See §17 of [`.kb/Architecture/architecture.md`](.kb/Architecture/architecture.md) for the
 full sequence.
+
+[`.kb/STATUS.md`](.kb/STATUS.md) is the living ledger and is more current than
+this section. Released versions are recorded in [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
+## Contributing
+
+Issues and pull requests are welcome. Start with
+[`CONTRIBUTING.md`](CONTRIBUTING.md) — it covers the five invariants, the schema
+change sequence, and what CI will check. Participation is governed by the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+**Found a security problem?** Do not open an issue. Follow
+[`SECURITY.md`](SECURITY.md) and report it through GitHub's private
+vulnerability reporting. This is multi-tenant software holding protected health
+information; the realistic worst case is one clinic reading another clinic's
+patient records.
+
+---
+
+## License
+
+Copyright © 2026 Tejas Nirala.
+
+rcln is free software, licensed under the
+**[GNU Affero General Public License v3.0](LICENSE)**.
+
+In short: you may use, study, modify and redistribute it, and if you run a
+modified version as a network service, you must make your modified source
+available to its users under the same license. There is **no warranty** — see
+sections 15 and 16 of the license.
+
+Third-party dependencies remain under their own licenses.
+
+---
+
+## Disclaimer
+
+rcln is software for administering a clinic. It is **not a medical device**, it
+does not provide clinical decision support, and nothing it produces is medical
+advice. Deploying it to handle real patient data makes you responsible for your
+own regulatory obligations — data protection, retention, consent, and any
+healthcare-specific rules in your jurisdiction. The India-first elements in the
+domain model (GST, HSN codes, ABHA) are implementation details, not a claim of
+compliance or certification.
