@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
+import { useActionState, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   BranchDetail,
   DoctorScheduleDetail,
@@ -10,6 +10,8 @@ import type {
 import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { RecordHistory } from '@/components/tenant/record-history';
+import { ClassificationPicker } from '@/components/tenant/classification-picker';
+import { ancestorLabel, buildTree, pathTo, subtreeIds } from '@/lib/taxonomy';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import {
   addSchedule,
@@ -158,6 +160,43 @@ export function DoctorList({
   const [adding, setAdding] = useState(false);
   const closeCreate = useCallback(() => setAdding(false), []);
 
+  const [filterId, setFilterId] = useState('');
+  const tree = useMemo(() => buildTree(specialties), [specialties]);
+
+  /*
+   * ⚠️ FILTERING IS BY SUBTREE, NOT BY THE CHOSEN NODE. Picking "Cardiology"
+   *   has to show the doctor tagged only "Structural Heart Disease" — their
+   *   record contains the string "cardio" nowhere, so no name match can find
+   *   them. `subtreeIds` mirrors what `GET /doctors?specialtyId=` does on the
+   *   server; the filtering happens here only because the whole roster is
+   *   already rendered and a round trip to re-fetch it would be slower and
+   *   flash the list.
+   */
+  const visible = useMemo(() => {
+    if (!filterId) return doctors;
+    const wanted = subtreeIds(tree, filterId);
+    return doctors.filter((d) => d.specialties.some((s) => wanted.has(s.specialtyId)));
+  }, [doctors, filterId, tree]);
+
+  /** Only nodes some doctor here actually sits under. A filter offering 148
+   *  options, 140 of which return nothing, is a worse list than no filter. */
+  const filterOptions = useMemo(() => {
+    const used = new Set<string>();
+    for (const doctor of doctors) {
+      for (const s of doctor.specialties) {
+        for (const ancestor of pathTo(tree, s.specialtyId)) used.add(ancestor.id);
+      }
+    }
+    return [...used]
+      .map((id) => tree.byId.get(id))
+      .filter((n): n is SpecialtySummary => n !== undefined)
+      .map((n) => ({
+        id: n.id,
+        label: [ancestorLabel(tree, n.id), n.name].filter(Boolean).join(' › '),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [doctors, tree]);
+
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -187,6 +226,22 @@ export function DoctorList({
         </div>
       ) : null}
 
+      {doctors.length > 1 && filterOptions.length > 1 ? (
+        <div className="mt-8 max-w-sm">
+          <Select
+            name="specialtyFilter"
+            label="Show"
+            value={filterId}
+            onChange={(e) => setFilterId(e.target.value)}
+            options={[
+              { value: '', label: `Everyone (${String(doctors.length)})` },
+              ...filterOptions.map((o) => ({ value: o.id, label: o.label })),
+            ]}
+            hint="Choosing a broad area also shows everyone trained in something under it."
+          />
+        </div>
+      ) : null}
+
       {doctors.length === 0 ? (
         <div className="border-rule bg-card mt-8 rounded-lg border border-dashed p-8 text-center">
           <p className="text-ink text-[0.9375rem] font-medium">No doctors yet</p>
@@ -196,15 +251,28 @@ export function DoctorList({
               : 'Add a colleague as a doctor, then set the hours they consult in. Until then there is nothing for the front desk to book.'}
           </p>
         </div>
+      ) : visible.length === 0 ? (
+        <div className="border-rule bg-card mt-8 rounded-lg border border-dashed p-8 text-center">
+          <p className="text-ink text-[0.9375rem] font-medium">Nobody in that area</p>
+          <p className="text-muted mx-auto mt-2 max-w-md text-[0.875rem] leading-relaxed">
+            No doctor here is classified under it yet.
+          </p>
+          <div className="mt-4">
+            <Button variant="secondary" onClick={() => setFilterId('')}>
+              Show everyone
+            </Button>
+          </div>
+        </div>
       ) : (
         <ul className="mt-8 grid gap-4">
-          {doctors.map((doctor) => (
+          {visible.map((doctor) => (
             <DoctorCard
               key={doctor.id}
               slug={slug}
               doctor={doctor}
               schedules={schedules[doctor.id] ?? []}
               branches={branches}
+              specialties={specialties}
               canReadSchedules={canReadSchedules}
               canManageSchedules={canManageSchedules}
               canUpdate={canUpdate}
@@ -230,6 +298,7 @@ function DoctorCard({
   doctor,
   schedules,
   branches,
+  specialties,
   canReadSchedules,
   canManageSchedules,
   canUpdate,
@@ -240,6 +309,7 @@ function DoctorCard({
   doctor: DoctorSummary;
   schedules: DoctorScheduleDetail[];
   branches: BranchDetail[];
+  specialties: SpecialtySummary[];
   canReadSchedules: boolean;
   canManageSchedules: boolean;
   canUpdate: boolean;
@@ -312,7 +382,12 @@ function DoctorCard({
 
       {panel === 'details' ? (
         <div className="border-rule mt-5 border-t pt-5">
-          <DetailsForm slug={slug} doctor={doctor} canArchive={canArchive} />
+          <DetailsForm
+            slug={slug}
+            doctor={doctor}
+            specialties={specialties}
+            canArchive={canArchive}
+          />
         </div>
       ) : null}
 
@@ -360,12 +435,6 @@ function CreateForm({
           hint="Only people who already have a login here."
           {...(state.fieldErrors?.['userId'] ? { errors: state.fieldErrors['userId'] } : {})}
         />
-        <Select
-          name="primarySpecialtyId"
-          label="Main specialty"
-          placeholder="Not recorded"
-          options={specialties.map((s) => ({ value: s.id, label: s.name }))}
-        />
         <Input
           name="registrationNumber"
           label="Medical council number"
@@ -384,6 +453,11 @@ function CreateForm({
         />
       </div>
 
+      <ClassificationPicker
+        specialties={specialties}
+        hint="What this doctor is trained in. Add as many as apply and mark one as their main one — you can change this later."
+      />
+
       <div className="flex gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? 'Adding…' : 'Add doctor'}
@@ -396,10 +470,12 @@ function CreateForm({
 function DetailsForm({
   slug,
   doctor,
+  specialties,
   canArchive,
 }: {
   slug: string;
   doctor: DoctorSummary;
+  specialties: SpecialtySummary[];
   canArchive: boolean;
 }) {
   const [state, action, pending] = useActionState(updateDoctor.bind(null, slug, doctor.id), IDLE);
@@ -440,6 +516,17 @@ function DetailsForm({
             hint="Pausing keeps the profile but offers no new slots."
           />
         </div>
+
+        <ClassificationPicker
+          specialties={specialties}
+          defaultValue={doctor.specialties.map((s) => ({
+            specialtyId: s.specialtyId,
+            isPrimary: s.isPrimary,
+            proficiency: s.proficiency,
+            effectiveFrom: s.effectiveFrom,
+            effectiveTo: s.effectiveTo,
+          }))}
+        />
 
         <div>
           <Button type="submit" disabled={pending}>

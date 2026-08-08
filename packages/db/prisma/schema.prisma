@@ -289,6 +289,55 @@ enum AuditAction {
   PERMISSION_CHANGE
 }
 
+/// What KIND of node this is in the clinical taxonomy tree.
+///
+/// ⚠️ THIS IS A LABEL, NOT A DEPTH. Nothing in the database or the services
+///   asserts that a SUB_SPECIALTY sits exactly three levels down, and nothing
+///   should start. The tree's shape is `parent_id` and only `parent_id`:
+///
+///     Medical → Cardiology → Interventional Cardiology → Structural Heart
+///     DOMAIN    DEPARTMENT   SPECIALTY                   SUB_SPECIALTY
+///
+///     Dental  → Endodontics
+///     DOMAIN    SPECIALTY
+///
+///   Both are valid. A branch that needs four levels and one that needs two are
+///   the same shape to every query here, which is the whole point — the moment
+///   a `depth` column or a fixed domain/department/specialty column triple
+///   appears, adding a fifth level becomes a migration instead of a row.
+///
+/// The type exists so the UI can LABEL a cascading selector ("Clinical Domain",
+/// "Sub-specialty") and so reporting can roll up consistently. It is presentation
+/// and grouping metadata. Never branch authorization on it.
+enum TaxonomyNodeType {
+  /// Tree root — Medical, Dental, Allied Health. Practically never assigned to
+  /// a doctor directly.
+  DOMAIN
+  /// A broad grouping that a hospital would plausibly also run as an org unit.
+  /// ⚠️ Still the CLINICAL concept, not `branches` and not an org chart.
+  DEPARTMENT
+  SPECIALTY
+  SUB_SPECIALTY
+  /// Narrower than a sub-specialty and not a recognised training pathway —
+  /// "Sports Rehabilitation" under Physiotherapy.
+  FOCUS_AREA
+  /// The finest grain. ⚠️ NOT a procedure — see the note on `Specialty`.
+  EXPERTISE
+}
+
+/// How deeply a doctor practises one node. ADVISORY AND DISPLAY-ONLY.
+///
+/// ⚠️ NEVER an authorization input. "Is this doctor allowed to do X" is a
+///   permission question answered by `membership_roles`, and answering it from
+///   a self-declared proficiency label would make a profile edit a privilege
+///   escalation. This exists so a directory can say "Expert in" rather than
+///   "Practises", and for nothing else.
+enum SpecialtyProficiency {
+  PRACTISING
+  SPECIALIST
+  EXPERT
+}
+
 enum DoctorStatus {
   ACTIVE
   INACTIVE
@@ -1611,21 +1660,38 @@ model StaffProfile {
 ///   would let any clinic INSERT a platform-wide specialty visible to every
 ///   other tenant. Read is permissive, write is not — see the migration.
 model Specialty {
-  id             String    @id @default(uuid()) @db.Uuid
+  id             String           @id @default(uuid()) @db.Uuid
   /// NULL = platform row, visible to every tenant.
-  organizationId String?   @map("organization_id") @db.Uuid
+  organizationId String?          @map("organization_id") @db.Uuid
   /// Self-reference: a sub-specialty of another specialty. Collapses the old
   /// specialties / sub_specialties / specialization_map triple into one master.
-  parentId       String?   @map("parent_id") @db.Uuid
-  code           String    @db.VarChar(64)
-  name           String    @db.VarChar(255)
-  isActive       Boolean   @default(true) @map("is_active")
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  ///
+  /// ⚠️ `onDelete: Restrict`, NOT SetNull. SetNull "succeeds" at deleting a node
+  ///   and silently promotes its entire subtree to the root — Interventional
+  ///   Cardiology reappears as a top-level domain next to Medical, with no error
+  ///   and nothing in the logs. Refusing the delete is the honest outcome; the
+  ///   caller deactivates or re-parents the children first. See `deactivateNode`.
+  parentId       String?          @map("parent_id") @db.Uuid
+  code           String           @db.VarChar(64)
+  name           String           @db.VarChar(255)
+  /// Descriptive label only — see the enum. NOT the tree's shape.
+  type           TaxonomyNodeType @default(SPECIALTY)
+  description    String?          @db.Text
+  /// Sort among siblings. Ties break by `name` so the order is total.
+  displayOrder   Int              @default(0) @map("display_order")
+  /// Free-form document: display labels per locale, external system codes
+  /// (SNOMED CT, NUCC), regional applicability flags.
+  ///
+  /// ⚠️ A DOCUMENT, NEVER FOREIGN KEYS. ADR-0006 — no JSON arrays of ids. If you
+  ///   find yourself putting a `specialty_id` list in here, you want a join table.
+  metadata       Json?            @db.JsonB
+  isActive       Boolean          @default(true) @map("is_active")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz(6)
 
   organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  parent       Specialty?        @relation("SpecialtyParent", fields: [parentId], references: [id], onDelete: SetNull)
+  parent       Specialty?        @relation("SpecialtyParent", fields: [parentId], references: [id], onDelete: Restrict)
   children     Specialty[]       @relation("SpecialtyParent")
   doctors      DoctorSpecialty[]
 
@@ -1633,6 +1699,10 @@ model Specialty {
   /// rows (organization_id NULL) are not unique among themselves.
   @@unique([organizationId, code])
   @@index([organizationId, isActive])
+  /// Descendant walks recurse on `parent_id`. Without this the recursive CTE
+  /// seq-scans the table once PER LEVEL.
+  @@index([parentId])
+  @@index([organizationId, type])
   @@map("specialties")
 }
 
@@ -1716,12 +1786,29 @@ model DoctorProfile {
 /// second parent gets a RESTRICTIVE `specialty_visible` policy instead, exactly
 /// as `invitation_branches` does for its branch.
 model DoctorSpecialty {
-  id              String   @id @default(uuid()) @db.Uuid
-  organizationId  String   @map("organization_id") @db.Uuid
-  doctorProfileId String   @map("doctor_profile_id") @db.Uuid
-  specialtyId     String   @map("specialty_id") @db.Uuid
-  isPrimary       Boolean  @default(false) @map("is_primary")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id              String                @id @default(uuid()) @db.Uuid
+  organizationId  String                @map("organization_id") @db.Uuid
+  doctorProfileId String                @map("doctor_profile_id") @db.Uuid
+  specialtyId     String                @map("specialty_id") @db.Uuid
+  /// At most one TRUE per doctor, enforced by the partial unique index
+  /// `doctor_specialties_one_primary` from the doctors migration — Prisma cannot
+  /// express `WHERE is_primary`. Zero is legal: a doctor may have specialties
+  /// recorded with none nominated as the headline.
+  isPrimary       Boolean               @default(false) @map("is_primary")
+  /// Advisory display label. ⚠️ Never an authorization input — see the enum.
+  proficiency     SpecialtyProficiency?
+  /// When this classification began and ended. Both NULL is the ordinary case:
+  /// "practises this, no dates recorded".
+  ///
+  /// ⚠️ `isActive` IS NOT DERIVED FROM THESE, deliberately. A fellowship that
+  ///   lapsed and one that was entered in error are different facts, and only
+  ///   the second should vanish from the directory. Dates are evidence; the flag
+  ///   is the decision.
+  effectiveFrom   DateTime?             @map("effective_from") @db.Date
+  effectiveTo     DateTime?             @map("effective_to") @db.Date
+  isActive        Boolean               @default(true) @map("is_active")
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)

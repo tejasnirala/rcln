@@ -7,20 +7,21 @@ Source: `apps/api/src/routes/index.ts`
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
 | USE | `/v1` | `v1Routes` | `apps/api/src/routes/index.ts:7` |
-| USE | `/health` | `healthRoutes` | `apps/api/src/routes/v1/index.ts:20` |
-| USE | `/auth` | `authRoutes` | `apps/api/src/routes/v1/index.ts:24` |
-| USE | `/public` | `publicRoutes` | `apps/api/src/routes/v1/index.ts:28` |
-| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:34` |
-| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:38` |
-| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:42` |
-| USE | `/doctors` | `doctorRoutes` | `apps/api/src/routes/v1/index.ts:46` |
-| USE | `/designations` | `designationRoutes` | `apps/api/src/routes/v1/index.ts:50` |
-| USE | `/patients` | `patientRoutes` | `apps/api/src/routes/v1/index.ts:56` |
-| USE | `/appointments` | `appointmentRoutes` | `apps/api/src/routes/v1/index.ts:62` |
-| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:67` |
-| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:68` |
-| USE | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts:74` |
-| USE | `/billing` | `billingRoutes` | `apps/api/src/routes/v1/index.ts:83` |
-| USE | `/audit` | `auditRoutes` | `apps/api/src/routes/v1/index.ts:88` |
+| USE | `/health` | `healthRoutes` | `apps/api/src/routes/v1/index.ts:21` |
+| USE | `/auth` | `authRoutes` | `apps/api/src/routes/v1/index.ts:25` |
+| USE | `/public` | `publicRoutes` | `apps/api/src/routes/v1/index.ts:29` |
+| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:35` |
+| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:39` |
+| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:43` |
+| USE | `/doctors` | `doctorRoutes` | `apps/api/src/routes/v1/index.ts:47` |
+| USE | `/clinical-taxonomy` | `clinicalTaxonomyRoutes` | `apps/api/src/routes/v1/index.ts:54` |
+| USE | `/designations` | `designationRoutes` | `apps/api/src/routes/v1/index.ts:58` |
+| USE | `/patients` | `patientRoutes` | `apps/api/src/routes/v1/index.ts:64` |
+| USE | `/appointments` | `appointmentRoutes` | `apps/api/src/routes/v1/index.ts:70` |
+| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:75` |
+| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:76` |
+| USE | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts:82` |
+| USE | `/billing` | `billingRoutes` | `apps/api/src/routes/v1/index.ts:91` |
+| USE | `/audit` | `auditRoutes` | `apps/api/src/routes/v1/index.ts:96` |
 
 Symbols in this module: [apps.api.routes.md](../Symbols/apps.api.routes.md)

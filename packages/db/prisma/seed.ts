@@ -15,7 +15,7 @@ import { hash } from '@node-rs/argon2';
 loadEnv({ path: new URL('../../../.env', import.meta.url).pathname });
 
 import { PrismaPg } from '@prisma/adapter-pg';
-import { Prisma, PrismaClient } from '../generated/prisma/index.js';
+import { Prisma, PrismaClient, type TaxonomyNodeType } from '../generated/prisma/index.js';
 import {
   ALL_PERMISSIONS,
   SYSTEM_ROLE_DEFINITIONS,
@@ -462,98 +462,675 @@ async function seedPlans(): Promise<void> {
 }
 
 /**
- * Clinical masters, seeded as PLATFORM rows (`organizationId = null`).
+ * The clinical taxonomy, seeded as PLATFORM rows (`organizationId = null`).
  *
- * Every clinic reads these; a clinic that needs one we have not thought of adds
- * its own org-scoped row through `doctor.master.manage` rather than waiting for
- * a deploy. The RLS policy is deliberately read-permissive and write-strict, so
- * a tenant can never add to this list — see enable-rls.sql.
+ * Every clinic reads these; a clinic that needs a node we have not thought of
+ * adds its own org-scoped row through `doctor.master.manage` rather than waiting
+ * for a deploy. The RLS policy is deliberately read-permissive and write-strict,
+ * so a tenant can never add to THIS list — see enable-rls.sql.
  *
- * `upsert` on the (organizationId, code) pair, so re-seeding is safe and a
- * renamed specialty updates in place rather than duplicating.
+ * ── WHAT THIS TREE IS, AND WHAT IT IS NOT ─────────────────────────────────────
  *
- * Sub-specialties reference their parent by CODE and are inserted in a second
- * pass, so the order of this list does not matter.
+ * It is what a practitioner is TRAINED IN. It is deliberately none of:
+ *
+ *   · where they work      → `branches`, and `staff_profiles.department`
+ *   · what they charge for → procedures/services, which reference a node here
+ *   · what they hold       → `qualifications` (MBBS, MDS, board certification)
+ *                            and `doctor_profiles.registration_*`
+ *
+ * So there is no "Angioplasty" node (a procedure) and no "Fellowship in
+ * Cardiology" node (a credential). Both are real, and both live elsewhere.
+ *
+ * ── CODES ARE FLAT, NOT PATHS ─────────────────────────────────────────────────
+ *
+ * `INTERVENTIONAL_CARDIOLOGY`, never `MED-CARD-INTERVENTIONAL`. Two reasons, and
+ * the second is the one that matters:
+ *
+ *   1. `createSpecialtyRequest` validates /^[A-Z0-9_]+$/ — hyphens are already
+ *      rejected for tenant-authored codes, and the platform catalogue must not
+ *      be spelled differently from the rows clinics add beside it.
+ *   2. A path-encoded code becomes A LIE THE MOMENT A NODE MOVES. Re-parenting
+ *      Sleep Medicine from Pulmonology to Neurology would demand a code change,
+ *      the code is what the seed upserts on and what `doctor_specialties` was
+ *      written against, and so the rename silently forks the node in two. The
+ *      path already has a home: it is `parent_id`.
+ *
+ * ── ORDER-INDEPENDENT, BUT NO LONGER TWO-PASS ─────────────────────────────────
+ *
+ * ⚠️ This list used to be inserted flat and re-parented in a second pass. That
+ *   is now unsafe. `specialties_sibling_name_key` is UNIQUE on
+ *   (organization_id, parent_id, lower(name)) NULLS NOT DISTINCT — so during the
+ *   old first pass, when every node briefly had parent_id NULL, EVERY NAME IN
+ *   THIS FILE WAS A SIBLING OF EVERY OTHER. The seed would have started failing
+ *   the first time two nodes anywhere in the tree shared a name, which is
+ *   perfectly legal for nodes under different parents.
+ *
+ *   `ensureNode` below resolves each node's parent before writing the node, so
+ *   a row is never persisted parentless. The order of this list therefore still
+ *   does not matter — it is authored top-down only because that reads best.
  */
-const SPECIALTIES: { code: string; name: string; parent?: string }[] = [
-  { code: 'GENERAL_MEDICINE', name: 'General Medicine' },
-  { code: 'GENERAL_SURGERY', name: 'General Surgery' },
-  { code: 'FAMILY_MEDICINE', name: 'Family Medicine' },
-  { code: 'PAEDIATRICS', name: 'Paediatrics' },
-  { code: 'NEONATOLOGY', name: 'Neonatology', parent: 'PAEDIATRICS' },
-  { code: 'OBSTETRICS_GYNAECOLOGY', name: 'Obstetrics & Gynaecology' },
-  { code: 'CARDIOLOGY', name: 'Cardiology' },
-  { code: 'INTERVENTIONAL_CARDIOLOGY', name: 'Interventional Cardiology', parent: 'CARDIOLOGY' },
-  { code: 'DERMATOLOGY', name: 'Dermatology' },
-  { code: 'TRICHOLOGY', name: 'Trichology', parent: 'DERMATOLOGY' },
-  { code: 'COSMETOLOGY', name: 'Cosmetology', parent: 'DERMATOLOGY' },
-  { code: 'ORTHOPAEDICS', name: 'Orthopaedics' },
-  { code: 'SPINE_SURGERY', name: 'Spine Surgery', parent: 'ORTHOPAEDICS' },
-  { code: 'SPORTS_MEDICINE', name: 'Sports Medicine', parent: 'ORTHOPAEDICS' },
-  { code: 'ENT', name: 'ENT (Otorhinolaryngology)' },
-  { code: 'OPHTHALMOLOGY', name: 'Ophthalmology' },
-  { code: 'DENTISTRY', name: 'Dentistry' },
-  { code: 'ORTHODONTICS', name: 'Orthodontics', parent: 'DENTISTRY' },
-  { code: 'ENDODONTICS', name: 'Endodontics', parent: 'DENTISTRY' },
-  { code: 'PERIODONTICS', name: 'Periodontics', parent: 'DENTISTRY' },
-  { code: 'ORAL_MAXILLOFACIAL_SURGERY', name: 'Oral & Maxillofacial Surgery', parent: 'DENTISTRY' },
-  { code: 'NEUROLOGY', name: 'Neurology' },
-  { code: 'NEUROSURGERY', name: 'Neurosurgery' },
-  { code: 'PSYCHIATRY', name: 'Psychiatry' },
-  { code: 'CLINICAL_PSYCHOLOGY', name: 'Clinical Psychology' },
-  { code: 'GASTROENTEROLOGY', name: 'Gastroenterology' },
-  { code: 'HEPATOLOGY', name: 'Hepatology', parent: 'GASTROENTEROLOGY' },
-  { code: 'NEPHROLOGY', name: 'Nephrology' },
-  { code: 'UROLOGY', name: 'Urology' },
-  { code: 'ENDOCRINOLOGY', name: 'Endocrinology' },
-  { code: 'DIABETOLOGY', name: 'Diabetology', parent: 'ENDOCRINOLOGY' },
-  { code: 'PULMONOLOGY', name: 'Pulmonology' },
-  { code: 'RHEUMATOLOGY', name: 'Rheumatology' },
-  { code: 'ONCOLOGY', name: 'Oncology' },
-  { code: 'MEDICAL_ONCOLOGY', name: 'Medical Oncology', parent: 'ONCOLOGY' },
-  { code: 'SURGICAL_ONCOLOGY', name: 'Surgical Oncology', parent: 'ONCOLOGY' },
-  { code: 'HAEMATOLOGY', name: 'Haematology' },
-  { code: 'RADIOLOGY', name: 'Radiology' },
-  { code: 'PATHOLOGY', name: 'Pathology' },
-  { code: 'ANAESTHESIOLOGY', name: 'Anaesthesiology' },
-  { code: 'EMERGENCY_MEDICINE', name: 'Emergency Medicine' },
-  { code: 'PHYSIOTHERAPY', name: 'Physiotherapy' },
-  { code: 'NUTRITION_DIETETICS', name: 'Nutrition & Dietetics' },
-  { code: 'AYURVEDA', name: 'Ayurveda' },
-  { code: 'HOMEOPATHY', name: 'Homeopathy' },
-  { code: 'PLASTIC_SURGERY', name: 'Plastic & Reconstructive Surgery' },
-  { code: 'VASCULAR_SURGERY', name: 'Vascular Surgery' },
-  { code: 'GERIATRICS', name: 'Geriatrics' },
+const SPECIALTIES: {
+  code: string;
+  name: string;
+  parent?: string;
+  type?: TaxonomyNodeType;
+  description?: string;
+}[] = [
+  // ── Domains ────────────────────────────────────────────────────────────────
+  //
+  // Seven roots, not the six the brief named. `TRAD` is the addition: Ayurveda
+  // and Homeopathy already existed as top-level rows, and filing them under
+  // `MED` would assert they are allopathic specialties, which they are not.
+  // WHO's own framing is "Traditional and Complementary Medicine", and the
+  // domain generalises past India — Unani, Siddha, TCM, osteopathy, chiropractic
+  // all belong here rather than in a country-specific bucket.
+  {
+    code: 'MED',
+    name: 'Medical',
+    type: 'DOMAIN',
+    description: 'Physician specialties in the allopathic tradition.',
+  },
+  {
+    code: 'DEN',
+    name: 'Dental',
+    type: 'DOMAIN',
+    description: 'Dental and oral health specialties.',
+  },
+  {
+    code: 'MBH',
+    name: 'Mental & Behavioural Health',
+    type: 'DOMAIN',
+    description:
+      'Psychiatry, psychology and the behavioural therapies. Psychiatry is filed here rather than under Medical — see its own note.',
+  },
+  {
+    code: 'ALH',
+    name: 'Allied Health',
+    type: 'DOMAIN',
+    description:
+      'Clinical professions outside medicine and dentistry: therapy, diagnostics support, optometry, dietetics.',
+  },
+  {
+    code: 'DGN',
+    name: 'Diagnostic Services',
+    type: 'DOMAIN',
+    description:
+      'Physician specialties that report on investigations rather than treat directly. The allied professions that OPERATE the equipment sit under Allied Health.',
+  },
+  {
+    code: 'REH',
+    name: 'Rehabilitation',
+    type: 'DOMAIN',
+    description:
+      'Restoring function after injury, surgery or illness. The rehabilitation DISCIPLINES; the professions delivering them are under Allied Health.',
+  },
+  {
+    code: 'TRAD',
+    name: 'Traditional & Complementary Medicine',
+    type: 'DOMAIN',
+    description:
+      'Systems of medicine outside the allopathic tradition, recognised and licensed differently by jurisdiction.',
+  },
+
+  // ── Medical ────────────────────────────────────────────────────────────────
+  { code: 'GENERAL_MEDICINE', name: 'General Medicine', parent: 'MED' },
+  { code: 'FAMILY_MEDICINE', name: 'Family Medicine', parent: 'MED' },
+  { code: 'GERIATRICS', name: 'Geriatric Medicine', parent: 'MED' },
+  { code: 'EMERGENCY_MEDICINE', name: 'Emergency Medicine', parent: 'MED' },
+  { code: 'PALLIATIVE_MEDICINE', name: 'Palliative Medicine', parent: 'MED' },
+  { code: 'PREVENTIVE_MEDICINE', name: 'Preventive Medicine', parent: 'MED' },
+  { code: 'OCCUPATIONAL_MEDICINE', name: 'Occupational Medicine', parent: 'MED' },
+  { code: 'INFECTIOUS_DISEASES', name: 'Infectious Diseases', parent: 'MED' },
+  { code: 'ALLERGY_IMMUNOLOGY', name: 'Allergy & Immunology', parent: 'MED' },
+  { code: 'CLINICAL_GENETICS', name: 'Clinical Genetics', parent: 'MED' },
+
+  { code: 'PAEDIATRICS', name: 'Paediatrics', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'NEONATOLOGY', name: 'Neonatology', parent: 'PAEDIATRICS', type: 'SUB_SPECIALTY' },
+  {
+    code: 'PAEDIATRIC_CARDIOLOGY',
+    name: 'Paediatric Cardiology',
+    parent: 'PAEDIATRICS',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'PAEDIATRIC_NEUROLOGY',
+    name: 'Paediatric Neurology',
+    parent: 'PAEDIATRICS',
+    type: 'SUB_SPECIALTY',
+  },
+
+  {
+    code: 'OBSTETRICS_GYNAECOLOGY',
+    name: 'Obstetrics & Gynaecology',
+    parent: 'MED',
+    type: 'DEPARTMENT',
+  },
+  {
+    code: 'MATERNAL_FETAL_MEDICINE',
+    name: 'Maternal & Fetal Medicine',
+    parent: 'OBSTETRICS_GYNAECOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'REPRODUCTIVE_MEDICINE',
+    name: 'Reproductive Medicine',
+    parent: 'OBSTETRICS_GYNAECOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'GYNAECOLOGIC_ONCOLOGY',
+    name: 'Gynaecologic Oncology',
+    parent: 'OBSTETRICS_GYNAECOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+
+  { code: 'CARDIOLOGY', name: 'Cardiology', parent: 'MED', type: 'DEPARTMENT' },
+  {
+    code: 'INTERVENTIONAL_CARDIOLOGY',
+    name: 'Interventional Cardiology',
+    parent: 'CARDIOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'STRUCTURAL_HEART_DISEASE',
+    name: 'Structural Heart Disease',
+    parent: 'INTERVENTIONAL_CARDIOLOGY',
+    type: 'SUB_SPECIALTY',
+    description:
+      'Four levels deep — MED → CARDIOLOGY → INTERVENTIONAL_CARDIOLOGY → here. Nothing in the schema knows or cares that this branch is deeper than Dental.',
+  },
+  {
+    code: 'CORONARY_INTERVENTION',
+    name: 'Coronary Intervention',
+    parent: 'INTERVENTIONAL_CARDIOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'ELECTROPHYSIOLOGY',
+    name: 'Cardiac Electrophysiology',
+    parent: 'CARDIOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'HEART_FAILURE', name: 'Heart Failure', parent: 'CARDIOLOGY', type: 'SUB_SPECIALTY' },
+  { code: 'CARDIOTHORACIC_SURGERY', name: 'Cardiothoracic Surgery', parent: 'MED' },
+  { code: 'VASCULAR_SURGERY', name: 'Vascular Surgery', parent: 'MED' },
+
+  { code: 'NEUROLOGY', name: 'Neurology', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'STROKE_MEDICINE', name: 'Stroke Medicine', parent: 'NEUROLOGY', type: 'SUB_SPECIALTY' },
+  { code: 'EPILEPTOLOGY', name: 'Epileptology', parent: 'NEUROLOGY', type: 'SUB_SPECIALTY' },
+  {
+    code: 'MOVEMENT_DISORDERS',
+    name: 'Movement Disorders',
+    parent: 'NEUROLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'NEUROSURGERY', name: 'Neurosurgery', parent: 'MED' },
+
+  { code: 'ORTHOPAEDICS', name: 'Orthopaedics', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'SPINE_SURGERY', name: 'Spine Surgery', parent: 'ORTHOPAEDICS', type: 'SUB_SPECIALTY' },
+  {
+    code: 'JOINT_REPLACEMENT',
+    name: 'Joint Replacement',
+    parent: 'ORTHOPAEDICS',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'SPORTS_MEDICINE',
+    name: 'Sports Medicine',
+    parent: 'ORTHOPAEDICS',
+    type: 'SUB_SPECIALTY',
+    description:
+      'The physician sub-specialty. Distinct from SPORTS_REHABILITATION under Physiotherapy, which is the therapy focus area.',
+  },
+  { code: 'HAND_SURGERY', name: 'Hand Surgery', parent: 'ORTHOPAEDICS', type: 'SUB_SPECIALTY' },
+  {
+    code: 'PAEDIATRIC_ORTHOPAEDICS',
+    name: 'Paediatric Orthopaedics',
+    parent: 'ORTHOPAEDICS',
+    type: 'SUB_SPECIALTY',
+  },
+
+  { code: 'GENERAL_SURGERY', name: 'General Surgery', parent: 'MED', type: 'DEPARTMENT' },
+  {
+    code: 'GASTROINTESTINAL_SURGERY',
+    name: 'Gastrointestinal Surgery',
+    parent: 'GENERAL_SURGERY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'COLORECTAL_SURGERY',
+    name: 'Colorectal Surgery',
+    parent: 'GENERAL_SURGERY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'BARIATRIC_SURGERY',
+    name: 'Bariatric Surgery',
+    parent: 'GENERAL_SURGERY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'PLASTIC_SURGERY', name: 'Plastic & Reconstructive Surgery', parent: 'MED' },
+
+  { code: 'DERMATOLOGY', name: 'Dermatology', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'TRICHOLOGY', name: 'Trichology', parent: 'DERMATOLOGY', type: 'FOCUS_AREA' },
+  { code: 'COSMETOLOGY', name: 'Cosmetology', parent: 'DERMATOLOGY', type: 'FOCUS_AREA' },
+
+  { code: 'OPHTHALMOLOGY', name: 'Ophthalmology', parent: 'MED', type: 'DEPARTMENT' },
+  {
+    code: 'CORNEA',
+    name: 'Cornea & Refractive Surgery',
+    parent: 'OPHTHALMOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'VITREORETINAL_SURGERY',
+    name: 'Vitreoretinal Surgery',
+    parent: 'OPHTHALMOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'GLAUCOMA', name: 'Glaucoma', parent: 'OPHTHALMOLOGY', type: 'SUB_SPECIALTY' },
+  {
+    code: 'PAEDIATRIC_OPHTHALMOLOGY',
+    name: 'Paediatric Ophthalmology',
+    parent: 'OPHTHALMOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+
+  { code: 'ENT', name: 'ENT (Otorhinolaryngology)', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'OTOLOGY', name: 'Otology & Neurotology', parent: 'ENT', type: 'SUB_SPECIALTY' },
+  { code: 'RHINOLOGY', name: 'Rhinology', parent: 'ENT', type: 'SUB_SPECIALTY' },
+  { code: 'HEAD_NECK_SURGERY', name: 'Head & Neck Surgery', parent: 'ENT', type: 'SUB_SPECIALTY' },
+
+  { code: 'GASTROENTEROLOGY', name: 'Gastroenterology', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'HEPATOLOGY', name: 'Hepatology', parent: 'GASTROENTEROLOGY', type: 'SUB_SPECIALTY' },
+  { code: 'NEPHROLOGY', name: 'Nephrology', parent: 'MED' },
+  { code: 'UROLOGY', name: 'Urology', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'ANDROLOGY', name: 'Andrology', parent: 'UROLOGY', type: 'SUB_SPECIALTY' },
+  { code: 'ENDOCRINOLOGY', name: 'Endocrinology', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'DIABETOLOGY', name: 'Diabetology', parent: 'ENDOCRINOLOGY', type: 'SUB_SPECIALTY' },
+  { code: 'PULMONOLOGY', name: 'Pulmonology', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'SLEEP_MEDICINE', name: 'Sleep Medicine', parent: 'PULMONOLOGY', type: 'SUB_SPECIALTY' },
+  { code: 'RHEUMATOLOGY', name: 'Rheumatology', parent: 'MED' },
+  { code: 'HAEMATOLOGY', name: 'Haematology', parent: 'MED' },
+
+  { code: 'ONCOLOGY', name: 'Oncology', parent: 'MED', type: 'DEPARTMENT' },
+  { code: 'MEDICAL_ONCOLOGY', name: 'Medical Oncology', parent: 'ONCOLOGY', type: 'SUB_SPECIALTY' },
+  {
+    code: 'SURGICAL_ONCOLOGY',
+    name: 'Surgical Oncology',
+    parent: 'ONCOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'RADIATION_ONCOLOGY',
+    name: 'Radiation Oncology',
+    parent: 'ONCOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'PAEDIATRIC_ONCOLOGY',
+    name: 'Paediatric Oncology',
+    parent: 'ONCOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+
+  { code: 'ANAESTHESIOLOGY', name: 'Anaesthesiology', parent: 'MED', type: 'DEPARTMENT' },
+  {
+    code: 'PAIN_MEDICINE',
+    name: 'Pain Medicine',
+    parent: 'ANAESTHESIOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'CRITICAL_CARE',
+    name: 'Critical Care Medicine',
+    parent: 'ANAESTHESIOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+
+  // ── Dental ─────────────────────────────────────────────────────────────────
+  //
+  // ⚠️ `DENTISTRY` IS REPURPOSED, NOT REPLACED. It used to be the top-level
+  //   dental node with Orthodontics and friends beneath it. `DEN` is now that
+  //   root, and DENTISTRY becomes the "General Dentistry" leaf. The code is
+  //   untouched on purpose: any doctor already tagged DENTISTRY meant "a
+  //   dentist, unspecified", and General Dentistry is precisely that. Renaming
+  //   the code instead would have orphaned those `doctor_specialties` rows.
+  {
+    code: 'DENTISTRY',
+    name: 'General Dentistry',
+    parent: 'DEN',
+    description:
+      'Formerly the root of the dental tree. Re-typed as the general-practice leaf when DEN was introduced; the code is preserved so existing assignments keep resolving.',
+  },
+  { code: 'ORTHODONTICS', name: 'Orthodontics', parent: 'DEN' },
+  { code: 'ENDODONTICS', name: 'Endodontics', parent: 'DEN' },
+  { code: 'PERIODONTICS', name: 'Periodontics', parent: 'DEN' },
+  { code: 'PROSTHODONTICS', name: 'Prosthodontics', parent: 'DEN' },
+  { code: 'PAEDIATRIC_DENTISTRY', name: 'Paediatric Dentistry', parent: 'DEN' },
+  { code: 'ORAL_MEDICINE', name: 'Oral Medicine', parent: 'DEN' },
+  { code: 'ORAL_PATHOLOGY', name: 'Oral & Maxillofacial Pathology', parent: 'DEN' },
+  {
+    code: 'ORAL_MAXILLOFACIAL_SURGERY',
+    name: 'Oral & Maxillofacial Surgery',
+    parent: 'DEN',
+  },
+  {
+    code: 'ORAL_MAXILLOFACIAL_RADIOLOGY',
+    name: 'Oral & Maxillofacial Radiology',
+    parent: 'DEN',
+  },
+  { code: 'PUBLIC_HEALTH_DENTISTRY', name: 'Public Health Dentistry', parent: 'DEN' },
+  { code: 'IMPLANTOLOGY', name: 'Implantology', parent: 'DEN', type: 'FOCUS_AREA' },
+
+  // ── Mental & Behavioural Health ────────────────────────────────────────────
+  //
+  // ⚠️ PSYCHIATRY IS FILED HERE, NOT UNDER MED, AND A TREE FORCES THAT CHOICE.
+  //   It is genuinely both: a physician specialty and a mental-health one. The
+  //   brief lists it under both headings, which a single-parent hierarchy cannot
+  //   express. MBH wins because a user browsing for mental health expects to
+  //   find psychiatry there and would consider its absence a bug, whereas a user
+  //   browsing Medical is not surprised to be sent one level sideways.
+  //   If cross-listing is ever genuinely needed, it is a second edge — a
+  //   join table — NOT a duplicate node with a second code.
+  { code: 'PSYCHIATRY', name: 'Psychiatry', parent: 'MBH', type: 'DEPARTMENT' },
+  {
+    code: 'CHILD_ADOLESCENT_PSYCHIATRY',
+    name: 'Child & Adolescent Psychiatry',
+    parent: 'PSYCHIATRY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'ADDICTION_PSYCHIATRY',
+    name: 'Addiction Psychiatry',
+    parent: 'PSYCHIATRY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'GERIATRIC_PSYCHIATRY',
+    name: 'Geriatric Psychiatry',
+    parent: 'PSYCHIATRY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'CONSULTATION_LIAISON_PSYCHIATRY',
+    name: 'Consultation-Liaison Psychiatry',
+    parent: 'PSYCHIATRY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'PSYCHOLOGY', name: 'Psychology', parent: 'MBH', type: 'DEPARTMENT' },
+  {
+    code: 'CLINICAL_PSYCHOLOGY',
+    name: 'Clinical Psychology',
+    parent: 'PSYCHOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'COUNSELLING_PSYCHOLOGY',
+    name: 'Counselling Psychology',
+    parent: 'PSYCHOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'NEUROPSYCHOLOGY', name: 'Neuropsychology', parent: 'PSYCHOLOGY', type: 'SUB_SPECIALTY' },
+  {
+    code: 'CHILD_PSYCHOLOGY',
+    name: 'Child Psychology',
+    parent: 'PSYCHOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'PSYCHOTHERAPY', name: 'Psychotherapy', parent: 'MBH' },
+  { code: 'BEHAVIOURAL_THERAPY', name: 'Behavioural Therapy', parent: 'MBH' },
+  { code: 'ADDICTION_MEDICINE', name: 'Addiction Medicine', parent: 'MBH' },
+
+  // ── Allied Health ──────────────────────────────────────────────────────────
+  //
+  // Nursing is deliberately absent. A nurse's grade is a JOB TITLE, which this
+  // codebase already models as a `designations` row attached to a staff profile.
+  // Adding it here would create the second answer to "what is this person" that
+  // the whole exercise exists to avoid.
+  { code: 'PHYSIOTHERAPY', name: 'Physiotherapy', parent: 'ALH', type: 'DEPARTMENT' },
+  {
+    code: 'SPORTS_REHABILITATION',
+    name: 'Sports Rehabilitation',
+    parent: 'PHYSIOTHERAPY',
+    type: 'FOCUS_AREA',
+  },
+  {
+    code: 'NEURO_PHYSIOTHERAPY',
+    name: 'Neurological Physiotherapy',
+    parent: 'PHYSIOTHERAPY',
+    type: 'FOCUS_AREA',
+  },
+  {
+    code: 'PAEDIATRIC_PHYSIOTHERAPY',
+    name: 'Paediatric Physiotherapy',
+    parent: 'PHYSIOTHERAPY',
+    type: 'FOCUS_AREA',
+  },
+  { code: 'OCCUPATIONAL_THERAPY', name: 'Occupational Therapy', parent: 'ALH' },
+  { code: 'SPEECH_LANGUAGE_THERAPY', name: 'Speech & Language Therapy', parent: 'ALH' },
+  { code: 'AUDIOLOGY', name: 'Audiology', parent: 'ALH' },
+  { code: 'OPTOMETRY', name: 'Optometry', parent: 'ALH' },
+  { code: 'NUTRITION_DIETETICS', name: 'Nutrition & Dietetics', parent: 'ALH', type: 'DEPARTMENT' },
+  {
+    code: 'CLINICAL_NUTRITION',
+    name: 'Clinical Nutrition',
+    parent: 'NUTRITION_DIETETICS',
+    type: 'FOCUS_AREA',
+  },
+  {
+    code: 'SPORTS_NUTRITION',
+    name: 'Sports Nutrition',
+    parent: 'NUTRITION_DIETETICS',
+    type: 'FOCUS_AREA',
+  },
+  { code: 'RESPIRATORY_THERAPY', name: 'Respiratory Therapy', parent: 'ALH' },
+  { code: 'PODIATRY', name: 'Podiatry', parent: 'ALH' },
+  { code: 'PROSTHETICS_ORTHOTICS', name: 'Prosthetics & Orthotics', parent: 'ALH' },
+  {
+    code: 'MEDICAL_LABORATORY_TECHNOLOGY',
+    name: 'Medical Laboratory Technology',
+    parent: 'ALH',
+    description:
+      'The allied profession running the bench. PATHOLOGY under Diagnostic Services is the physician specialty that reports on it.',
+  },
+  {
+    code: 'RADIOGRAPHY',
+    name: 'Radiography & Imaging Technology',
+    parent: 'ALH',
+    description:
+      'The allied profession that acquires the images. RADIOLOGY under Diagnostic Services is the physician specialty that reports them. Same equipment, different training, different node.',
+  },
+
+  // ── Diagnostic Services ────────────────────────────────────────────────────
+  { code: 'RADIOLOGY', name: 'Radiology', parent: 'DGN', type: 'DEPARTMENT' },
+  {
+    code: 'INTERVENTIONAL_RADIOLOGY',
+    name: 'Interventional Radiology',
+    parent: 'RADIOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'NEURORADIOLOGY', name: 'Neuroradiology', parent: 'RADIOLOGY', type: 'SUB_SPECIALTY' },
+  {
+    code: 'MUSCULOSKELETAL_RADIOLOGY',
+    name: 'Musculoskeletal Radiology',
+    parent: 'RADIOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'PATHOLOGY', name: 'Pathology', parent: 'DGN', type: 'DEPARTMENT' },
+  { code: 'HISTOPATHOLOGY', name: 'Histopathology', parent: 'PATHOLOGY', type: 'SUB_SPECIALTY' },
+  { code: 'CYTOPATHOLOGY', name: 'Cytopathology', parent: 'PATHOLOGY', type: 'SUB_SPECIALTY' },
+  {
+    code: 'HAEMATOPATHOLOGY',
+    name: 'Haematopathology',
+    parent: 'PATHOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'CLINICAL_BIOCHEMISTRY',
+    name: 'Clinical Biochemistry',
+    parent: 'PATHOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  {
+    code: 'CLINICAL_MICROBIOLOGY',
+    name: 'Clinical Microbiology',
+    parent: 'PATHOLOGY',
+    type: 'SUB_SPECIALTY',
+  },
+  { code: 'NUCLEAR_MEDICINE', name: 'Nuclear Medicine', parent: 'DGN' },
+  { code: 'TRANSFUSION_MEDICINE', name: 'Transfusion Medicine', parent: 'DGN' },
+
+  // ── Rehabilitation ─────────────────────────────────────────────────────────
+  {
+    code: 'PHYSICAL_MEDICINE_REHABILITATION',
+    name: 'Physical Medicine & Rehabilitation',
+    parent: 'REH',
+    type: 'DEPARTMENT',
+  },
+  { code: 'NEURO_REHABILITATION', name: 'Neurological Rehabilitation', parent: 'REH' },
+  { code: 'CARDIAC_REHABILITATION', name: 'Cardiac Rehabilitation', parent: 'REH' },
+  { code: 'PULMONARY_REHABILITATION', name: 'Pulmonary Rehabilitation', parent: 'REH' },
+  { code: 'GERIATRIC_REHABILITATION', name: 'Geriatric Rehabilitation', parent: 'REH' },
+
+  // ── Traditional & Complementary ────────────────────────────────────────────
+  { code: 'AYURVEDA', name: 'Ayurveda', parent: 'TRAD' },
+  { code: 'HOMEOPATHY', name: 'Homeopathy', parent: 'TRAD' },
+  { code: 'UNANI', name: 'Unani Medicine', parent: 'TRAD' },
+  { code: 'SIDDHA', name: 'Siddha Medicine', parent: 'TRAD' },
+  { code: 'NATUROPATHY', name: 'Naturopathy', parent: 'TRAD' },
+  { code: 'YOGA_THERAPY', name: 'Yoga Therapy', parent: 'TRAD' },
+  { code: 'ACUPUNCTURE', name: 'Acupuncture', parent: 'TRAD' },
+  { code: 'CHIROPRACTIC', name: 'Chiropractic', parent: 'TRAD' },
+  { code: 'OSTEOPATHIC_MEDICINE', name: 'Osteopathic Medicine', parent: 'TRAD' },
+  {
+    code: 'TRADITIONAL_CHINESE_MEDICINE',
+    name: 'Traditional Chinese Medicine',
+    parent: 'TRAD',
+  },
 ];
 
+/**
+ * Credentials, seeded as PLATFORM rows.
+ *
+ * ── THIS IS NOT THE TAXONOMY, AND MUST NEVER BECOME IT ───────────────────────
+ * A qualification is what someone HOLDS; a `specialties` node is what they are
+ * TRAINED IN. "MD" and "Cardiology" answer different questions and a doctor has
+ * both independently — an MD who practises dermatology is not a contradiction.
+ * ⚠️ Never add "Fellowship in Cardiology" here AND a Cardiology node there and
+ *   expect them to stay in step; the fellowship is the credential, the node is
+ *   the classification, and joining them would recreate the single-field
+ *   `specialization` string this schema exists to replace.
+ *
+ * ── WHY THE LIST IS EXPLICITLY MULTI-JURISDICTION ────────────────────────────
+ * It began as India-only — MBBS/MD/MS/DNB/BAMS — which quietly made the product
+ * India-only too: a clinic in Nairobi or Dubai opening the qualification picker
+ * found nothing their doctors actually hold, and the only way forward was
+ * typing a free-text row per doctor. The taxonomy was deliberately built to
+ * work internationally (ADR-free, but see the DOMAIN roots in SPECIALTIES);
+ * leaving credentials parochial would have undone that at the one point a
+ * clinic notices.
+ *
+ * ⚠️ NO CODE HERE WAS RENAMED. The seed upserts on (organization_id, code) and
+ *   `doctor_qualifications` rows point at these ids, so a rename would orphan
+ *   existing records. Entries were added, and some display names clarified.
+ *
+ * Licensing and registration remain a SEPARATE system —
+ * `doctor_profiles.registration_number` / `registration_council`. A licence is
+ * jurisdiction-specific and expires; a degree does neither.
+ */
 const QUALIFICATIONS: { code: string; name: string }[] = [
-  { code: 'MBBS', name: 'MBBS' },
-  { code: 'MD', name: 'MD — Doctor of Medicine' },
+  // ── Medical, entry to practice ────────────────────────────────────────────
+  { code: 'MBBS', name: 'MBBS — Bachelor of Medicine, Bachelor of Surgery' },
+  { code: 'MD_US', name: 'MD — Doctor of Medicine (US/Canada entry degree)' },
+  { code: 'DO_US', name: 'DO — Doctor of Osteopathic Medicine (US)' },
+  { code: 'MBCHB', name: 'MBChB — Bachelor of Medicine and Surgery (UK/Africa/NZ)' },
+  { code: 'MBBCH', name: 'MB BCh BAO — Bachelor of Medicine (Ireland)' },
+  { code: 'CEREMED', name: 'State medical degree (other jurisdiction)' },
+
+  // ── Medical, postgraduate ─────────────────────────────────────────────────
+  { code: 'MD', name: 'MD — Doctor of Medicine (postgraduate)' },
   { code: 'MS', name: 'MS — Master of Surgery' },
-  { code: 'DNB', name: 'DNB — Diplomate of National Board' },
+  { code: 'DNB', name: 'DNB — Diplomate of National Board (India)' },
   { code: 'DM', name: 'DM — Doctorate of Medicine (super-specialty)' },
   { code: 'MCH', name: 'MCh — Magister Chirurgiae (super-specialty)' },
   { code: 'DIPLOMA', name: 'Post-graduate Diploma' },
+  { code: 'RESIDENCY', name: 'Residency — completed' },
+  { code: 'FELLOWSHIP', name: 'Clinical fellowship' },
+  { code: 'PHD', name: 'PhD' },
+  { code: 'MPH', name: 'MPH — Master of Public Health' },
+
+  // ── Board certification and college membership ────────────────────────────
+  //
+  // The recognised route to specialist practice differs by country and none of
+  // these is a superset of the others.
+  { code: 'BOARD_CERT', name: 'Board certification (specialty board)' },
+  { code: 'FRCS', name: 'FRCS — Fellow, Royal College of Surgeons' },
+  { code: 'FRCP', name: 'FRCP — Fellow, Royal College of Physicians' },
+  { code: 'MRCP', name: 'MRCP — Member, Royal College of Physicians' },
+  { code: 'MRCS', name: 'MRCS — Member, Royal College of Surgeons' },
+  { code: 'MRCGP', name: 'MRCGP — Member, Royal College of General Practitioners' },
+  { code: 'FACS', name: 'FACS — Fellow, American College of Surgeons' },
+  { code: 'FACP', name: 'FACP — Fellow, American College of Physicians' },
+  { code: 'FRACP', name: 'FRACP — Fellow, Royal Australasian College of Physicians' },
+  { code: 'FRCPC', name: 'FRCPC — Fellow, Royal College of Physicians of Canada' },
+  { code: 'FCPS', name: 'FCPS — Fellow, College of Physicians & Surgeons' },
+  { code: 'EUR_SPEC', name: 'European specialist qualification (CCT/equivalent)' },
+
+  // ── Dental ────────────────────────────────────────────────────────────────
   { code: 'BDS', name: 'BDS — Bachelor of Dental Surgery' },
   { code: 'MDS', name: 'MDS — Master of Dental Surgery' },
+  { code: 'DDS', name: 'DDS — Doctor of Dental Surgery (US/Canada)' },
+  { code: 'DMD', name: 'DMD — Doctor of Dental Medicine (US/Canada)' },
+
+  // ── Traditional & complementary ───────────────────────────────────────────
   { code: 'BAMS', name: 'BAMS — Ayurvedic Medicine & Surgery' },
   { code: 'BHMS', name: 'BHMS — Homeopathic Medicine & Surgery' },
   { code: 'BUMS', name: 'BUMS — Unani Medicine & Surgery' },
+  { code: 'BSMS', name: 'BSMS — Siddha Medicine & Surgery' },
+  { code: 'BNYS', name: 'BNYS — Naturopathy & Yogic Sciences' },
+  { code: 'DC_CHIRO', name: 'DC — Doctor of Chiropractic' },
+  { code: 'LAC_TCM', name: 'L.Ac. — Licensed Acupuncturist / TCM' },
+
+  // ── Mental & behavioural health ───────────────────────────────────────────
+  { code: 'PSYD', name: 'PsyD — Doctor of Psychology' },
+  { code: 'MPHIL_CLIN_PSY', name: 'MPhil Clinical Psychology' },
+  { code: 'MA_PSYCH', name: 'Master of Psychology / Counselling' },
+  { code: 'MSW', name: 'MSW — Master of Social Work' },
+
+  // ── Allied health ─────────────────────────────────────────────────────────
   { code: 'BPT', name: 'BPT — Bachelor of Physiotherapy' },
   { code: 'MPT', name: 'MPT — Master of Physiotherapy' },
+  { code: 'DPT', name: 'DPT — Doctor of Physical Therapy (US)' },
+  { code: 'BOT', name: 'BOT — Bachelor of Occupational Therapy' },
+  { code: 'MOT', name: 'MOT — Master of Occupational Therapy' },
+  { code: 'SLP', name: 'Speech & Language Pathology degree' },
+  { code: 'AUD', name: 'AuD — Doctor of Audiology' },
+  { code: 'BOPTOM', name: 'Optometry degree (BOptom / OD)' },
+  { code: 'RD_DIET', name: 'Registered Dietitian / Nutrition degree' },
+  { code: 'RRT_RESP', name: 'Respiratory therapy qualification' },
+  { code: 'DPM_POD', name: 'DPM — Doctor of Podiatric Medicine' },
+  { code: 'DMLT', name: 'DMLT — Medical Laboratory Technology' },
+  { code: 'BMLT', name: 'BMLT — Bachelor of Medical Lab Technology' },
+  { code: 'BSC_RADIO', name: 'Radiography / Medical Imaging degree' },
+
+  // ── Nursing ───────────────────────────────────────────────────────────────
+  //
+  // Present as CREDENTIALS only. Nursing is deliberately absent from the
+  // clinical taxonomy, where a nurse's grade is a `designations` row instead.
   { code: 'BSC_NURSING', name: 'BSc Nursing' },
   { code: 'MSC_NURSING', name: 'MSc Nursing' },
   { code: 'GNM', name: 'GNM — General Nursing & Midwifery' },
   { code: 'ANM', name: 'ANM — Auxiliary Nurse Midwife' },
+  { code: 'RN', name: 'RN — Registered Nurse' },
+  { code: 'NP_ADV', name: 'Nurse Practitioner / Advanced Practice Nurse' },
+  { code: 'MIDWIFERY', name: 'Midwifery qualification' },
+
+  // ── Pharmacy ──────────────────────────────────────────────────────────────
   { code: 'BPHARM', name: 'B.Pharm' },
   { code: 'MPHARM', name: 'M.Pharm' },
   { code: 'DPHARM', name: 'D.Pharm' },
-  { code: 'DMLT', name: 'DMLT — Medical Laboratory Technology' },
-  { code: 'BMLT', name: 'BMLT — Bachelor of Medical Lab Technology' },
-  { code: 'MPH', name: 'MPH — Master of Public Health' },
-  { code: 'PHD', name: 'PhD' },
-  { code: 'FRCS', name: 'FRCS — Fellow, Royal College of Surgeons' },
-  { code: 'MRCP', name: 'MRCP — Member, Royal College of Physicians' },
+  { code: 'PHARMD', name: 'PharmD — Doctor of Pharmacy' },
 ];
 
 /**
@@ -729,38 +1306,80 @@ async function seedClinicalMasters(): Promise<void> {
    * organization_id is null on every platform row. Same constraint, and the same
    * workaround, as the settings seed. See PITFALLS.
    */
-  for (const spec of SPECIALTIES) {
+  const byCode = new Map(SPECIALTIES.map((s) => [s.code, s]));
+  const orderOf = new Map(SPECIALTIES.map((s, i) => [s.code, i]));
+  const resolved = new Map<string, string>();
+  const inFlight = new Set<string>();
+
+  /*
+   * Write one node, having first written its parent. Memoised on `code`, so the
+   * whole tree costs one pass regardless of how the list is ordered.
+   *
+   * ⚠️ A NODE IS NEVER PERSISTED WITHOUT ITS PARENT. The old seed inserted every
+   *   row flat and re-parented afterwards, which `specialties_sibling_name_key`
+   *   now forbids: with parent_id NULL and NULLS NOT DISTINCT, every row in the
+   *   file is momentarily a sibling of every other, so any two nodes sharing a
+   *   name anywhere in the tree collide. "Sports Medicine" under Orthopaedics
+   *   and "Sports Nutrition" under Dietetics are fine; two nodes both called
+   *   "Clinical Nutrition" under different parents would not have been.
+   *
+   * `inFlight` catches a cycle in THIS FILE — a typo'd parent code — with a
+   * legible error, rather than letting it recurse until the stack gives out or
+   * the database trigger fires mid-write.
+   */
+  async function ensureNode(code: string): Promise<string> {
+    const cached = resolved.get(code);
+    if (cached) return cached;
+
+    const spec = byCode.get(code);
+    if (!spec) throw new Error(`SPECIALTIES references unknown parent code "${code}"`);
+
+    if (inFlight.has(code)) {
+      throw new Error(
+        `SPECIALTIES contains a parent cycle through "${code}" — check the \`parent\` fields`
+      );
+    }
+    inFlight.add(code);
+    const parentId = spec.parent ? await ensureNode(spec.parent) : null;
+    inFlight.delete(code);
+
+    /*
+     * `findFirst` then create/update rather than `upsert`.
+     *
+     * The unique is (organization_id, code) NULLS NOT DISTINCT, and Prisma
+     * refuses to build a `where` for a compound unique with a nullable component
+     * — organization_id is null on every platform row. Same constraint, and the
+     * same workaround, as the settings seed. See PITFALLS.
+     */
+    const payload = {
+      name: spec.name,
+      parentId,
+      type: spec.type ?? ('SPECIALTY' as TaxonomyNodeType),
+      description: spec.description ?? null,
+      // Position in the source array. Sibling order is therefore whatever this
+      // file reads as, and `ORDER BY display_order, name` is total.
+      displayOrder: orderOf.get(code) ?? 0,
+    };
+
     const existing = await prisma.specialty.findFirst({
-      where: { organizationId: null, code: spec.code },
+      where: { organizationId: null, code },
       select: { id: true },
     });
-    if (existing) {
-      await prisma.specialty.update({ where: { id: existing.id }, data: { name: spec.name } });
-    } else {
-      await prisma.specialty.create({
-        data: { organizationId: null, code: spec.code, name: spec.name },
-      });
-    }
+
+    const id = existing
+      ? (await prisma.specialty.update({ where: { id: existing.id }, data: payload })).id
+      : (
+          await prisma.specialty.create({
+            data: { organizationId: null, code, ...payload },
+          })
+        ).id;
+
+    resolved.set(code, id);
+    return id;
   }
 
-  // Second pass: parents are guaranteed to exist by now, so the source list can
-  // be written in whatever order reads best.
-  const byCode = new Map(
-    (
-      await prisma.specialty.findMany({
-        where: { organizationId: null },
-        select: { id: true, code: true },
-      })
-    ).map((s) => [s.code, s.id])
-  );
-
   for (const spec of SPECIALTIES) {
-    if (!spec.parent) continue;
-    const id = byCode.get(spec.code);
-    const parentId = byCode.get(spec.parent);
-    if (id && parentId) {
-      await prisma.specialty.update({ where: { id }, data: { parentId } });
-    }
+    await ensureNode(spec.code);
   }
 
   for (const q of QUALIFICATIONS) {

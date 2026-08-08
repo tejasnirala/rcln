@@ -1282,9 +1282,14 @@ describe('doctors', () => {
       await expect(
         asTenant(ORG_A, () =>
           app.query(
+            // `updated_at` is supplied even though this INSERT is meant to fail:
+            // without it the statement can also fail on the NOT NULL constraint,
+            // and a test asserting /row-level security/ that passes for a
+            // different reason is a test that would keep passing after the
+            // policy was dropped.
             `INSERT INTO doctor_specialties
-               (id, organization_id, doctor_profile_id, specialty_id)
-             VALUES (gen_random_uuid(), $1, $2, $3)`,
+               (id, organization_id, doctor_profile_id, specialty_id, updated_at)
+             VALUES (gen_random_uuid(), $1, $2, $3, now())`,
             [ORG_A, DOC_A, SPEC_PRIVATE_B]
           )
         )
@@ -1295,13 +1300,157 @@ describe('doctors', () => {
       const inserted = await asTenant(ORG_A, async () => {
         const res = await app.query(
           `INSERT INTO doctor_specialties
-             (id, organization_id, doctor_profile_id, specialty_id)
-           VALUES (gen_random_uuid(), $1, $2, $3)`,
+             (id, organization_id, doctor_profile_id, specialty_id, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, now())`,
           [ORG_A, DOC_A, SPEC_PLATFORM]
         );
         return res.rowCount;
       });
       expect(inserted).toBe(1);
+    });
+  });
+
+  /**
+   * The taxonomy tree's structural guards, at the DATABASE, under a tenant
+   * connection. The service checks these first and returns friendlier errors —
+   * these tests exist because the service is not the only thing that writes
+   * here, and because a guard nobody exercises is a guard nobody notices losing.
+   */
+  describe('the classification tree cannot be corrupted', () => {
+    const SPEC_A_PARENT = 'dddddddd-3333-4333-8333-0000000000a2';
+    const SPEC_A_CHILD = 'dddddddd-3333-4333-8333-0000000000a3';
+
+    beforeAll(async () => {
+      await owner.query(
+        `INSERT INTO specialties (id, organization_id, parent_id, code, name, updated_at)
+         VALUES ($1, $2, NULL, 'ISO_TREE_PARENT', 'Iso Tree Parent', now()),
+                ($3, $2, $1,   'ISO_TREE_CHILD',  'Iso Tree Child',  now())
+         ON CONFLICT DO NOTHING`,
+        [SPEC_A_PARENT, ORG_A, SPEC_A_CHILD]
+      );
+    });
+
+    afterAll(async () => {
+      // Child first: parent_id is ON DELETE RESTRICT, which is the point.
+      await owner.query('DELETE FROM specialties WHERE id = $1', [SPEC_A_CHILD]);
+      await owner.query('DELETE FROM specialties WHERE id = $1', [SPEC_A_PARENT]);
+    });
+
+    it('refuses a node that is its own parent', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query('UPDATE specialties SET parent_id = id WHERE id = $1', [SPEC_A_PARENT])
+        )
+      ).rejects.toThrow(/its own parent/i);
+    });
+
+    /*
+     * A cycle is not a bad row, it is a hang: `WITH RECURSIVE` spins on A -> B
+     * -> A until the statement timeout, so every ancestor walk and every
+     * breadcrumb render stops working at once.
+     */
+    it('refuses a cycle through a descendant', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query('UPDATE specialties SET parent_id = $1 WHERE id = $2', [
+            SPEC_A_CHILD,
+            SPEC_A_PARENT,
+          ])
+        )
+      ).rejects.toThrow(/descendant of itself/i);
+    });
+
+    it('refuses to delete a node that still has children, rather than orphaning them', async () => {
+      /*
+       * ⚠️ THE FK IS `ON DELETE RESTRICT`, NOT `SET NULL`. Under SET NULL this
+       *   DELETE succeeded and silently promoted the child to a ROOT — it would
+       *   render beside "Medical" as though it were a clinical domain, with no
+       *   error anywhere.
+       */
+      await expect(
+        asTenant(ORG_A, () => app.query('DELETE FROM specialties WHERE id = $1', [SPEC_A_PARENT]))
+      ).rejects.toThrow(/foreign key constraint/i);
+    });
+
+    it('refuses two live siblings with the same name, ignoring case', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(
+            `INSERT INTO specialties (id, organization_id, parent_id, code, name, updated_at)
+             VALUES (gen_random_uuid(), $1, $2, 'ISO_TREE_DUP', 'iso tree child', now())`,
+            [ORG_A, SPEC_A_PARENT]
+          )
+        )
+      ).rejects.toThrow(/specialties_sibling_name_key/i);
+    });
+
+    /*
+     * The scoping half. Without this the suite would pass against a GLOBAL
+     * unique on name, which would be wrong: two domains legitimately contain a
+     * node of the same name, and so do two different tenants.
+     */
+    it('allows the same name under a different parent', async () => {
+      const inserted = await asTenant(ORG_A, async () => {
+        const res = await app.query(
+          `INSERT INTO specialties (id, organization_id, parent_id, code, name, updated_at)
+           VALUES (gen_random_uuid(), $1, NULL, 'ISO_TREE_SAME_NAME', 'Iso Tree Child', now())`,
+          [ORG_A]
+        );
+        return res.rowCount;
+      });
+      expect(inserted).toBe(1);
+      await owner.query(`DELETE FROM specialties WHERE code = 'ISO_TREE_SAME_NAME'`);
+    });
+
+    /*
+     * ⚠️ THE ASYMMETRY IN `tenant_isolation` IS WHAT MAKES THIS WORK, AND IT IS
+     *   EASY TO TALK YOURSELF OUT OF.
+     *
+     *     USING      (organization_id IS NULL OR organization_id = app_current_org())
+     *     WITH CHECK (organization_id = app_current_org())
+     *
+     *   The permissive USING clause is what lets every clinic READ the platform
+     *   catalogue, and it is tempting to reason from there that an UPDATE
+     *   targeting a platform row therefore passes too — the row is visible, so
+     *   the update finds it. It does find it. It then fails the WITH CHECK,
+     *   which is evaluated against the row AS IT WOULD BE AFTER the update, and
+     *   a platform row's organization_id stays NULL.
+     *
+     *   So Postgres refuses it. `assertMutable` in the service is the SECOND
+     *   layer, not the only one: it turns this into a 400 naming the problem
+     *   instead of an opaque row-level-security error. Both are wanted; neither
+     *   is redundant.
+     *
+     *   Copying `files`' NULL-permissive WITH CHECK here would remove this
+     *   protection entirely and let one clinic rename Cardiology for all of
+     *   them. The schema comment on `Specialty` warns about exactly that. This
+     *   test is what would catch it.
+     */
+    it('refuses a tenant updating a platform row', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(`UPDATE specialties SET description = 'written by a tenant' WHERE id = $1`, [
+            SPEC_PLATFORM,
+          ])
+        )
+      ).rejects.toThrow(/row-level security/i);
+
+      const check = await owner.query<{ description: string | null }>(
+        'SELECT description FROM specialties WHERE id = $1',
+        [SPEC_PLATFORM]
+      );
+      expect(check.rows[0]?.description).toBeNull();
+    });
+
+    it('still refuses a tenant INSERTING a platform-wide row', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(
+            `INSERT INTO specialties (id, organization_id, code, name, updated_at)
+             VALUES (gen_random_uuid(), NULL, 'ISO_SNEAKY_PLATFORM', 'Sneaky', now())`
+          )
+        )
+      ).rejects.toThrow(/row-level security/i);
     });
   });
 

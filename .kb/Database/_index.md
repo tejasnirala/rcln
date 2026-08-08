@@ -4,7 +4,7 @@
 
 Source: `packages/db/prisma/schema.prisma` · RLS policies: `packages/db/prisma/rls/enable-rls.sql`
 
-58 models · 46 enums · 37 tenant-scoped.
+58 models · 48 enums · 37 tenant-scoped.
 One file per model in this directory; the tables below are the overview.
 
 | model | table | org col | RLS | columns |
@@ -43,10 +43,10 @@ One file per model in this directory; the tables below are the overview.
 | [`Designation`](Designation.md) | `designations` | yes | platform_extensible | `id` `organizationId` `code` `name` `isActive` `createdAt` `updatedAt` `deletedAt` |
 | [`RoleDesignation`](RoleDesignation.md) | `role_designations` | yes | platform_extensible | `id` `organizationId` `roleId` `designationId` `isExcluded` `createdAt` |
 | [`StaffProfile`](StaffProfile.md) | `staff_profiles` | — | parent | `id` `membershipId` `employeeCode` `department` `designationId` `joinedOn` `relievedOn` |
-| [`Specialty`](Specialty.md) | `specialties` | yes | platform_extensible | `id` `organizationId` `parentId` `code` `name` `isActive` `createdAt` `updatedAt` `deletedAt` |
+| [`Specialty`](Specialty.md) | `specialties` | yes | platform_extensible | `id` `organizationId` `parentId` `code` `name` `type` `description` `displayOrder` `metadata` `isActive` `createdAt` `updatedAt` `deletedAt` |
 | [`Qualification`](Qualification.md) | `qualifications` | yes | platform_extensible | `id` `organizationId` `code` `name` `isActive` `createdAt` `updatedAt` `deletedAt` |
 | [`DoctorProfile`](DoctorProfile.md) | `doctor_profiles` | yes | org | `id` `organizationId` `userId` `registrationNumber` `registrationCouncil` `registrationValidTill` `experienceYears` `bio` `signatureFileId` `status` `createdAt` `updatedAt` `deletedAt` |
-| [`DoctorSpecialty`](DoctorSpecialty.md) | `doctor_specialties` | yes | org | `id` `organizationId` `doctorProfileId` `specialtyId` `isPrimary` `createdAt` |
+| [`DoctorSpecialty`](DoctorSpecialty.md) | `doctor_specialties` | yes | org | `id` `organizationId` `doctorProfileId` `specialtyId` `isPrimary` `proficiency` `effectiveFrom` `effectiveTo` `isActive` `createdAt` `updatedAt` |
 | [`DoctorQualification`](DoctorQualification.md) | `doctor_qualifications` | yes | org | `id` `organizationId` `doctorProfileId` `qualificationId` `institute` `yearOfCompletion` `createdAt` |
 | [`DoctorBranchSetting`](DoctorBranchSetting.md) | `doctor_branch_settings` | yes | org | `id` `organizationId` `doctorProfileId` `branchId` `consultationFee` `followUpFee` `followUpFreeDays` `isActive` `createdAt` `updatedAt` |
 | [`DoctorSchedule`](DoctorSchedule.md) | `doctor_schedules` | yes | branch | `id` `organizationId` `doctorProfileId` `branchId` `dayOfWeek` `startTime` `endTime` `slotMinutes` `maxPatients` `validFrom` `validTo` `isActive` `createdAt` `updatedAt` |
@@ -184,6 +184,8 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `SettingScopeType` | `PLATFORM` `ORGANIZATION` `BRANCH` `USER` `PATIENT` `DOCTOR` |
 | `SettingDataType` | `STRING` `INT` `BOOL` `DECIMAL` `JSON` |
 | `AuditAction` | `CREATE` `UPDATE` `DELETE` `LOGIN` `LOGOUT` `EXPORT` `SWITCH_BRANCH` `IMPERSONATE` `PERMISSION_CHANGE` |
+| `TaxonomyNodeType` | `DOMAIN` `DEPARTMENT` `SPECIALTY` `SUB_SPECIALTY` `FOCUS_AREA` `EXPERTISE` |
+| `SpecialtyProficiency` | `PRACTISING` `SPECIALIST` `EXPERT` |
 | `DoctorStatus` | `ACTIVE` `INACTIVE` `ARCHIVED` |
 | `ScheduleExceptionType` | `LEAVE` `BLOCK` `EXTRA_SHIFT` |
 | `ScheduleExceptionStatus` | `REQUESTED` `APPROVED` `REJECTED` `CANCELLED` |

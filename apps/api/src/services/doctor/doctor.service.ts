@@ -14,14 +14,19 @@ import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcl
 import type {
   CreateDoctorRequest,
   DoctorBranchSettingRequest,
+  DoctorClassificationInput,
+  DoctorListQuery,
+  SpecialtyProficiency,
   DoctorDetail,
   DoctorQualificationRequest,
   DoctorSummary,
+  DoctorSpecialtyDetail,
   SpecialtyListResponse,
   UpdateDoctorRequest,
 } from '@rcln/contracts';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
+import { descendantRows } from './clinical-taxonomy.service.js';
 import { resolveSettings, asPositiveInt } from '../settings/resolver.service.js';
 
 export interface DoctorActionOptions {
@@ -49,7 +54,11 @@ const DOCTOR_SELECT = {
       id: true,
       specialtyId: true,
       isPrimary: true,
-      specialty: { select: { code: true, name: true } },
+      proficiency: true,
+      effectiveFrom: true,
+      effectiveTo: true,
+      isActive: true,
+      specialty: { select: { code: true, name: true, type: true } },
     },
   },
   qualifications: {
@@ -86,13 +95,76 @@ function isoDate(value: Date | null): string | null {
   return value === null ? null : value.toISOString().slice(0, 10);
 }
 
-function toSummary(row: DoctorRow): DoctorSummary {
+/** Root-first chain above one node. Keyed by the node's own id. */
+type AncestorChains = Map<string, DoctorSpecialtyDetail['ancestors']>;
+
+interface AncestorRow {
+  descendant_id: string;
+  id: string;
+  code: string;
+  name: string;
+  type: DoctorSpecialtyDetail['type'];
+  depth: number;
+}
+
+/**
+ * The ancestor chain for every supplied node, in ONE query.
+ *
+ * ⚠️ ONE STATEMENT FOR THE WHOLE PAGE, NOT ONE PER DOCTOR. The obvious shape is
+ *   a walk per classification, which on a roster of forty doctors with three
+ *   specialties each is a hundred and twenty round trips to render one list —
+ *   the N+1 that makes a directory feel broken. The recursion starts from all
+ *   the seed ids at once and carries `descendant_id` along so the rows can be
+ *   grouped back afterwards.
+ *
+ * Runs inside the caller's `withTenant`, so RLS applies: an ancestor the tenant
+ * cannot see simply does not come back, and the chain is short rather than wrong.
+ */
+async function loadAncestorChains(tx: TxClient, specialtyIds: string[]): Promise<AncestorChains> {
+  const chains: AncestorChains = new Map();
+  if (specialtyIds.length === 0) return chains;
+
+  const rows = await tx.$queryRaw<AncestorRow[]>`
+    WITH RECURSIVE chain AS (
+      SELECT s.id AS descendant_id, s.id, s.parent_id, 0 AS depth
+      FROM specialties s
+      WHERE s.id = ANY (${specialtyIds}::uuid[]) AND s.deleted_at IS NULL
+      UNION ALL
+      SELECT c.descendant_id, p.id, p.parent_id, c.depth + 1
+      FROM specialties p
+      JOIN chain c ON c.parent_id = p.id
+      WHERE p.deleted_at IS NULL
+    )
+    SELECT c.descendant_id, s.id, s.code, s.name, s.type, c.depth
+    FROM chain c
+    JOIN specialties s ON s.id = c.id
+    -- depth 0 is the node itself; a breadcrumb repeats it from the row already.
+    WHERE c.depth > 0
+    ORDER BY c.descendant_id, c.depth DESC
+  `;
+
+  for (const row of rows) {
+    const bucket = chains.get(row.descendant_id) ?? [];
+    // ORDER BY depth DESC already puts the domain first.
+    bucket.push({ id: row.id, code: row.code, name: row.name, type: row.type });
+    chains.set(row.descendant_id, bucket);
+  }
+  return chains;
+}
+
+function toSummary(row: DoctorRow, chains: AncestorChains = new Map()): DoctorSummary {
   const specialties = row.specialties.map((s) => ({
     id: s.id,
     specialtyId: s.specialtyId,
     code: s.specialty.code,
     name: s.specialty.name,
     isPrimary: s.isPrimary,
+    type: s.specialty.type,
+    proficiency: s.proficiency,
+    effectiveFrom: isoDate(s.effectiveFrom),
+    effectiveTo: isoDate(s.effectiveTo),
+    isActive: s.isActive,
+    ancestors: chains.get(s.specialtyId) ?? [],
   }));
 
   return {
@@ -108,9 +180,12 @@ function toSummary(row: DoctorRow): DoctorSummary {
   };
 }
 
-function toDetail(row: DoctorRow): Omit<DoctorDetail, 'schedules' | 'exceptions'> {
+function toDetail(
+  row: DoctorRow,
+  chains: AncestorChains = new Map()
+): Omit<DoctorDetail, 'schedules' | 'exceptions'> {
   return {
-    ...toSummary(row),
+    ...toSummary(row, chains),
     registrationCouncil: row.registrationCouncil,
     registrationValidTill: isoDate(row.registrationValidTill),
     bio: row.bio,
@@ -166,8 +241,20 @@ export async function listMasters(ctx: TenantContext): Promise<SpecialtyListResp
     const [specialties, qualifications] = await Promise.all([
       tx.specialty.findMany({
         where: { isActive: true, deletedAt: null },
-        select: { id: true, code: true, name: true, parentId: true, organizationId: true },
-        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          parentId: true,
+          organizationId: true,
+          type: true,
+          description: true,
+          displayOrder: true,
+        },
+        // `displayOrder` first so siblings appear in the curated order, `name` to
+        // break ties. Callers that need the TREE use /clinical-taxonomy; this
+        // stays a flat catalogue and the ordering only has to be stable.
+        orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
       }),
       tx.qualification.findMany({
         where: { isActive: true, deletedAt: null },
@@ -183,6 +270,9 @@ export async function listMasters(ctx: TenantContext): Promise<SpecialtyListResp
         name: s.name,
         parentId: s.parentId,
         isOwn: s.organizationId !== null,
+        type: s.type,
+        description: s.description,
+        displayOrder: s.displayOrder,
       })),
       qualifications: qualifications.map((q) => ({
         id: q.id,
@@ -194,46 +284,227 @@ export async function listMasters(ctx: TenantContext): Promise<SpecialtyListResp
   });
 }
 
-export async function listDoctors(ctx: TenantContext): Promise<DoctorSummary[]> {
-  const rows = await withTenant(ctx, (tx) =>
-    tx.doctorProfile.findMany({
-      where: { deletedAt: null },
+/**
+ * The doctor list, optionally filtered by clinical classification.
+ *
+ * ⚠️ FILTERING BY SPECIALTY IS A SUBTREE QUESTION, NOT A STRING MATCH.
+ *   "Find me a cardiologist" has to return the doctor tagged only "Structural
+ *   Heart Disease" — whose record contains the word "cardio" precisely nowhere.
+ *   The subtree is resolved through `descendantRows` from the taxonomy service
+ *   rather than a second recursive CTE written here, so this filter and
+ *   `GET /clinical-taxonomy/:id/tree` can never disagree about what is "under
+ *   Cardiology". A second copy of that query is exactly how they would.
+ *
+ *   `includeSelf` is true: a doctor tagged Cardiology ITSELF must match a
+ *   Cardiology filter, which is easy to lose when thinking only about children.
+ */
+export async function listDoctors(
+  ctx: TenantContext,
+  query: DoctorListQuery = { includeDescendants: true }
+): Promise<DoctorSummary[]> {
+  const rows = await withTenant(ctx, async (tx) => {
+    let specialtyIds: string[] | undefined;
+
+    if (query.specialtyId) {
+      if (query.includeDescendants) {
+        const subtree = await descendantRows(tx, query.specialtyId, true, true);
+        /*
+         * Inactive nodes are INCLUDED in the subtree walk (the `true` above).
+         * A retired sub-specialty still has doctors attached to it — see the
+         * inactive-node asymmetry in assertSpecialtiesUsable — and hiding them
+         * from a Cardiology search would make a doctor vanish from the
+         * directory because of a curation decision about a node, not about them.
+         */
+        specialtyIds = subtree.map((n) => n.id);
+        // An id the tenant cannot see yields an empty subtree. Matching nothing
+        // is correct; falling through to "no filter" would list every doctor.
+        if (specialtyIds.length === 0) {
+          return { profiles: [] as DoctorRow[], chains: new Map() as AncestorChains };
+        }
+      } else {
+        specialtyIds = [query.specialtyId];
+      }
+    }
+
+    const profiles = await tx.doctorProfile.findMany({
+      where: {
+        deletedAt: null,
+        ...(query.status !== undefined ? { status: query.status } : {}),
+        ...(specialtyIds !== undefined
+          ? { specialties: { some: { specialtyId: { in: specialtyIds } } } }
+          : {}),
+      },
       select: DOCTOR_SELECT,
       orderBy: { user: { fullName: 'asc' } },
-    })
-  );
-  return rows.map(toSummary);
+    });
+
+    // One walk for the whole roster, not one per doctor. See loadAncestorChains.
+    const chains = await loadAncestorChains(tx, [
+      ...new Set(profiles.flatMap((p) => p.specialties.map((s) => s.specialtyId))),
+    ]);
+    return { profiles, chains };
+  });
+  return rows.profiles.map((p) => toSummary(p, rows.chains));
 }
 
 /**
- * Validate the specialty set before it reaches the database.
+ * The two request forms collapse to one internal shape here, so nothing below
+ * this line has to care which the client used.
+ */
+function normaliseClassifications(input: {
+  specialtyIds?: string[] | undefined;
+  classifications?: DoctorClassificationInput[] | undefined;
+}): DoctorClassificationInput[] {
+  if (input.classifications !== undefined) return input.classifications;
+  return (input.specialtyIds ?? []).map((specialtyId) => ({ specialtyId }));
+}
+
+/**
+ * Validate the classification set before it reaches the database.
  *
  * The RESTRICTIVE `specialty_visible` policy would refuse an out-of-tenant id
  * anyway, but as a row-level security violation with no field name attached.
  * Reading them first turns that into a message naming what was wrong.
+ *
+ * ⚠️ ONLY *NEWLY ADDED* NODES ARE REQUIRED TO BE ACTIVE, AND THAT ASYMMETRY IS
+ *   THE POINT. A node retired last year must not be assignable today — but a
+ *   doctor who was already classified under it stays classified under it. If
+ *   this checked the whole set instead, retiring one node would make every
+ *   affected doctor's profile unsaveable: the next unrelated edit to their bio
+ *   would fail validation on a specialty the user never touched, with no way
+ *   forward except silently dropping a true fact about their training.
  */
 async function assertSpecialtiesUsable(
   tx: TxClient,
-  specialtyIds: string[],
-  primaryId: string | undefined
+  entries: DoctorClassificationInput[],
+  primaryId: string | undefined,
+  alreadyAssignedIds: ReadonlySet<string> = new Set()
 ): Promise<void> {
-  if (specialtyIds.length === 0) {
+  const ids = entries.map((e) => e.specialtyId);
+
+  const duplicate = ids.find((id, i) => ids.indexOf(id) !== i);
+  if (duplicate) {
+    throw new ValidationError('The same classification was supplied more than once.');
+  }
+
+  if (ids.length === 0) {
     if (primaryId) {
       throw new ValidationError('A primary specialty must be one of the selected specialties.');
     }
     return;
   }
 
+  // Existence is checked across the whole set; activeness only for additions.
   const found = await tx.specialty.findMany({
-    where: { id: { in: specialtyIds }, isActive: true, deletedAt: null },
-    select: { id: true },
+    where: { id: { in: ids }, deletedAt: null },
+    select: { id: true, isActive: true },
+  });
+  if (found.length !== ids.length) {
+    throw new ValidationError('One or more specialties do not exist.');
+  }
+
+  const newlyInactive = found.filter((s) => !s.isActive && !alreadyAssignedIds.has(s.id));
+  if (newlyInactive.length > 0) {
+    throw new ValidationError(
+      'One or more specialties are no longer active and cannot be newly assigned.'
+    );
+  }
+
+  if (primaryId && !ids.includes(primaryId)) {
+    throw new ValidationError('A primary specialty must be one of the selected specialties.');
+  }
+}
+
+/** `YYYY-MM-DD` -> a UTC midnight Date for a bare `date` column. */
+function toDateColumn(value: string | null | undefined): Date | null {
+  return value ? new Date(`${value}T00:00:00Z`) : null;
+}
+
+function classificationData(
+  entry: DoctorClassificationInput,
+  organizationId: string,
+  primaryId: string | undefined
+): {
+  organizationId: string;
+  specialtyId: string;
+  isPrimary: boolean;
+  proficiency: SpecialtyProficiency | null;
+  effectiveFrom: Date | null;
+  effectiveTo: Date | null;
+} {
+  return {
+    organizationId,
+    specialtyId: entry.specialtyId,
+    isPrimary: entry.specialtyId === primaryId,
+    proficiency: entry.proficiency ?? null,
+    effectiveFrom: toDateColumn(entry.effectiveFrom),
+    effectiveTo: toDateColumn(entry.effectiveTo),
+  };
+}
+
+/**
+ * Bring a doctor's classifications in line with the request.
+ *
+ * ⚠️ RECONCILED, NOT DELETED-AND-RECREATED. The previous implementation dropped
+ *   every row and re-inserted the set, which was harmless while the join table
+ *   held nothing but two foreign keys and a flag. It is not harmless now: a row
+ *   carries `proficiency`, `effectiveFrom`, `effectiveTo` and its own
+ *   `createdAt`, so wiping and rewriting turns "specialist here since 2019" into
+ *   "recorded just now" on every unrelated profile edit.
+ *
+ *   It also matters for the audit trail: delete+insert reports every
+ *   classification as changed on every save, which makes the history useless for
+ *   the one question it exists to answer.
+ */
+async function reconcileClassifications(
+  tx: TxClient,
+  organizationId: string,
+  doctorProfileId: string,
+  entries: DoctorClassificationInput[],
+  primaryId: string | undefined
+): Promise<void> {
+  const existing = await tx.doctorSpecialty.findMany({
+    where: { doctorProfileId },
+    select: { id: true, specialtyId: true },
+  });
+  const existingBySpecialty = new Map(existing.map((r) => [r.specialtyId, r.id]));
+  const wanted = new Set(entries.map((e) => e.specialtyId));
+
+  const removed = existing.filter((r) => !wanted.has(r.specialtyId)).map((r) => r.id);
+  if (removed.length > 0) {
+    await tx.doctorSpecialty.deleteMany({ where: { id: { in: removed } } });
+  }
+
+  /*
+   * ⚠️ CLEAR EVERY PRIMARY BEFORE SETTING THE NEW ONE.
+   *   `doctor_specialties_one_primary` is a partial unique index on
+   *   (doctor_profile_id) WHERE is_primary. Updating rows one at a time in an
+   *   arbitrary order can transiently leave two rows flagged, and the index
+   *   rejects the second — a legitimate primary change would fail depending on
+   *   iteration order. Clearing first makes the window impossible.
+   */
+  await tx.doctorSpecialty.updateMany({
+    where: { doctorProfileId, isPrimary: true },
+    data: { isPrimary: false },
   });
 
-  if (found.length !== specialtyIds.length) {
-    throw new ValidationError('One or more specialties do not exist or are no longer active.');
-  }
-  if (primaryId && !specialtyIds.includes(primaryId)) {
-    throw new ValidationError('A primary specialty must be one of the selected specialties.');
+  for (const entry of entries) {
+    const data = classificationData(entry, organizationId, primaryId);
+    const existingId = existingBySpecialty.get(entry.specialtyId);
+
+    if (existingId) {
+      await tx.doctorSpecialty.update({
+        where: { id: existingId },
+        data: {
+          isPrimary: data.isPrimary,
+          proficiency: data.proficiency,
+          effectiveFrom: data.effectiveFrom,
+          effectiveTo: data.effectiveTo,
+        },
+      });
+    } else {
+      await tx.doctorSpecialty.create({ data: { ...data, doctorProfileId } });
+    }
   }
 }
 
@@ -264,7 +535,8 @@ export async function createDoctor(
       throw new ConflictError('That person already has a doctor profile.');
     }
 
-    await assertSpecialtiesUsable(tx, input.specialtyIds, input.primarySpecialtyId);
+    const entries = normaliseClassifications(input);
+    await assertSpecialtiesUsable(tx, entries, input.primarySpecialtyId);
 
     const created = await tx.doctorProfile.create({
       data: {
@@ -282,11 +554,9 @@ export async function createDoctor(
         ...(input.experienceYears !== undefined ? { experienceYears: input.experienceYears } : {}),
         ...(input.bio !== undefined ? { bio: input.bio } : {}),
         specialties: {
-          create: input.specialtyIds.map((specialtyId) => ({
-            organizationId: ctx.organizationId,
-            specialtyId,
-            isPrimary: specialtyId === input.primarySpecialtyId,
-          })),
+          create: entries.map((entry) =>
+            classificationData(entry, ctx.organizationId, input.primarySpecialtyId)
+          ),
         },
       },
       select: DOCTOR_SELECT,
@@ -300,10 +570,14 @@ export async function createDoctor(
       ...options,
     });
 
-    return created;
+    const chains = await loadAncestorChains(
+      tx,
+      created.specialties.map((s) => s.specialtyId)
+    );
+    return { created, chains };
   });
 
-  return { ...toDetail(row), schedules: [], exceptions: [] };
+  return { ...toDetail(row.created, row.chains), schedules: [], exceptions: [] };
 }
 
 export async function updateDoctor(
@@ -319,20 +593,21 @@ export async function updateDoctor(
     });
     if (!before) throw new NotFoundError('Doctor');
 
-    if (input.specialtyIds !== undefined) {
-      await assertSpecialtiesUsable(tx, input.specialtyIds, input.primarySpecialtyId);
+    if (input.specialtyIds !== undefined || input.classifications !== undefined) {
+      const entries = normaliseClassifications(input);
+      // What this doctor is already tagged with, so a node retired since then
+      // may be KEPT even though it could not be newly added. See the note on
+      // assertSpecialtiesUsable.
+      const alreadyAssigned = new Set(before.specialties.map((s) => s.specialtyId));
 
-      // Replaced as a set: a doctor's specialties are read together, and a
-      // partial update leaves no record of which entries are current.
-      await tx.doctorSpecialty.deleteMany({ where: { doctorProfileId: doctorId } });
-      await tx.doctorSpecialty.createMany({
-        data: input.specialtyIds.map((specialtyId) => ({
-          organizationId: ctx.organizationId,
-          doctorProfileId: doctorId,
-          specialtyId,
-          isPrimary: specialtyId === input.primarySpecialtyId,
-        })),
-      });
+      await assertSpecialtiesUsable(tx, entries, input.primarySpecialtyId, alreadyAssigned);
+      await reconcileClassifications(
+        tx,
+        ctx.organizationId,
+        doctorId,
+        entries,
+        input.primarySpecialtyId
+      );
     }
 
     const after = await tx.doctorProfile.update({
@@ -363,10 +638,14 @@ export async function updateDoctor(
       ...options,
     });
 
-    return after;
+    const chains = await loadAncestorChains(
+      tx,
+      after.specialties.map((s) => s.specialtyId)
+    );
+    return { after, chains };
   });
 
-  return toDetail(row);
+  return toDetail(row.after, row.chains);
 }
 
 /**

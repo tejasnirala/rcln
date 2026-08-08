@@ -4,7 +4,7 @@
 
 > Appointments over real HTTP, through the real middleware chain.
 
-Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/tenant-isolation.test.ts` · `apps/api/tests/integration/verification.test.ts`
+Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/tenant-isolation.test.ts` · `apps/api/tests/integration/verification.test.ts`
 
 ## fn
 
@@ -13,6 +13,7 @@ Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/inte
 | `as` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/verification.test.ts:88` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/appointments.test.ts:113` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/branches.test.ts:80` |  |
+| `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/clinical-taxonomy.test.ts:100` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/doctors.test.ts:86` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/invitations.test.ts:95` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/patients.test.ts:113` |  |
@@ -30,6 +31,7 @@ Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/inte
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/audit-history.test.ts:73` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/auth.test.ts:64` | The rate limiters are Redis-backed and shared, so a busy suite trips them. |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/branches.test.ts:66` |  |
+| `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/clinical-taxonomy.test.ts:86` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/demo-requests.test.ts:44` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/doctors.test.ts:72` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/iam.test.ts:86` |  |
@@ -47,6 +49,7 @@ Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/inte
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/audit-history.test.ts:39` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/auth.test.ts:29` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/branches.test.ts:32` |  |
+| `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/clinical-taxonomy.test.ts:49` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/doctors.test.ts:34` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/iam.test.ts:49` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/impersonation.test.ts:43` |  |
@@ -68,6 +71,7 @@ Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/inte
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/audit-history.test.ts:50` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/auth.test.ts:40` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/branches.test.ts:43` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/clinical-taxonomy.test.ts:63` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/doctors.test.ts:49` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/iam.test.ts:63` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/impersonation.test.ts:55` |  |
@@ -79,6 +83,7 @@ Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/inte
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/settings.test.ts:65` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string, phone: string)` | `apps/api/tests/integration/verification.test.ts:51` |  |
 | `plantCode` <sub>local</sub> | `(userId: string, purpose: string, code): Promise<void>` | `apps/api/tests/integration/verification.test.ts:108` |  |
+| `platformId` <sub>local</sub> | `(code: string): Promise<string>` | `apps/api/tests/integration/clinical-taxonomy.test.ts:122` | Resolve a seeded platform node id by code, as the owner (RLS-exempt). |
 | `post` <sub>local</sub> | `(body: Record<string, unknown>)` | `apps/api/tests/integration/demo-requests.test.ts:49` |  |
 | `refreshAt` <sub>local</sub> | `(slug: string, refreshToken: string)` | `apps/api/tests/integration/impersonation.test.ts:123` | Renew a session at a clinic's host. Unauthenticated by design — the access token is expected to be dead, which is why the caller is here — but still metered by… |
 | `registerAt` <sub>local</sub> | `(client: ReturnType<typeof asOrg>, branchId: string, overrides: Record<string, unknown>)` | `apps/api/tests/integration/patients.test.ts:200` | Register a patient at a branch and return the created detail body. |
@@ -93,6 +98,7 @@ Files: `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/inte
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/appointments.test.ts:104` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/audit-history.test.ts:78` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/branches.test.ts:71` |  |
+| `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/clinical-taxonomy.test.ts:91` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/doctors.test.ts:77` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/invitations.test.ts:86` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/patients.test.ts:104` |  |

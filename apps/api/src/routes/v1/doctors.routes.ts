@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   createDoctorRequest,
+  doctorListQuery,
   decideScheduleExceptionRequest,
   doctorBranchSettingRequest,
   doctorQualificationRequest,
@@ -9,6 +10,7 @@ import {
   doctorScheduleRequest,
   updateDoctorRequest,
   type CreateDoctorRequest,
+  type DoctorListQuery,
   type DecideScheduleExceptionRequest,
   type DoctorBranchSettingRequest,
   type DoctorQualificationRequest,
@@ -102,11 +104,18 @@ router.get(
 
 // --- profiles --------------------------------------------------------------
 
+/**
+ * `?specialtyId=` filters by CLASSIFICATION SUBTREE, not by an exact node — a
+ * doctor tagged only "Structural Heart Disease" is returned for a Cardiology
+ * filter. `?includeDescendants=false` narrows it to the exact node.
+ */
 router.get(
   '/',
   authorize(PERMISSIONS.DOCTOR_READ),
+  validate(doctorListQuery, 'query'),
   async (req: Request, res: Response): Promise<void> => {
-    sendSuccess(res, { doctors: await listDoctors(tenantContextFrom(req)) });
+    const query = req.query as unknown as DoctorListQuery;
+    sendSuccess(res, { doctors: await listDoctors(tenantContextFrom(req), query) });
   }
 );
 

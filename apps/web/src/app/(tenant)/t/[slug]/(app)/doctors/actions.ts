@@ -38,20 +38,89 @@ function number(formData: FormData, key: string): number | undefined {
   return value === undefined ? undefined : Number(value);
 }
 
+/**
+ * What the picker submitted: one JSON array carrying each row's specialty,
+ * primary flag, proficiency and effective dates.
+ *
+ * ⚠️ ABSENT AND EMPTY ARE DIFFERENT, AND CONFLATING THEM DELETES DATA. On the
+ *   edit form the picker is always rendered, so an empty array genuinely means
+ *   "this doctor now has none" and must clear the set. A form that does NOT
+ *   include the picker must send nothing, so the API leaves the existing
+ *   classifications alone — `updateDoctorRequest` distinguishes the two
+ *   precisely because omitting a field used to wipe every specialty a doctor had.
+ *   `classificationsPresent` is what tells them apart.
+ *
+ * ⚠️ THE JSON IS NOT TRUSTED. It arrives from the browser, so a malformed body
+ *   must produce a validation error rather than a 500 — and the shape is
+ *   re-checked by `createDoctorRequest`/`updateDoctorRequest` immediately after,
+ *   which is the same Zod schema the API itself enforces. Parsing here only
+ *   turns a string into something those schemas can look at.
+ */
+type PickedClassification = {
+  specialtyId: string;
+  isPrimary?: boolean;
+  proficiency?: string | null;
+  effectiveFrom?: string | null;
+  effectiveTo?: string | null;
+};
+
+function classificationsFrom(
+  formData: FormData
+): { entries: PickedClassification[]; primaryId: string | undefined } | undefined {
+  if (!formData.has('classificationsPresent')) return undefined;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(formData.get('classifications') ?? '[]'));
+  } catch {
+    parsed = null;
+  }
+  if (!Array.isArray(parsed)) return { entries: [], primaryId: undefined };
+
+  const entries = parsed
+    .filter((e): e is PickedClassification => {
+      if (typeof e !== 'object' || e === null) return false;
+      return typeof (e as { specialtyId?: unknown }).specialtyId === 'string';
+    })
+    .map((e) => ({
+      specialtyId: e.specialtyId,
+      isPrimary: e.isPrimary === true,
+      // Empty strings from a cleared date input mean "not recorded", and the
+      // contract's calendarDate regex would reject them.
+      ...(e.proficiency ? { proficiency: e.proficiency } : {}),
+      ...(e.effectiveFrom ? { effectiveFrom: e.effectiveFrom } : {}),
+      ...(e.effectiveTo ? { effectiveTo: e.effectiveTo } : {}),
+    }));
+
+  return {
+    entries,
+    primaryId: entries.find((e) => e.isPrimary)?.specialtyId,
+  };
+}
+
 export async function createDoctor(
   slug: string,
   _previous: DoctorFormState,
   formData: FormData
 ): Promise<DoctorFormState> {
-  const specialtyId = text(formData, 'primarySpecialtyId');
+  const picked = classificationsFrom(formData);
 
   const parsed = createDoctorRequest.safeParse({
     userId: String(formData.get('userId') ?? ''),
-    // The primary specialty is also the whole set at creation. Adding more is a
-    // later edit — asking for a multi-select before the profile exists front-loads
-    // the least urgent decision.
-    specialtyIds: specialtyId ? [specialtyId] : [],
-    ...(specialtyId ? { primarySpecialtyId: specialtyId } : {}),
+    /*
+     * The full set, not just the main one.
+     *
+     * This used to be `[primarySpecialtyId]` — one specialty at creation, on the
+     * reasoning that a multi-select front-loads the least urgent decision. The
+     * picker makes choosing three no harder than choosing one, and a cardiologist
+     * who is also an electrophysiologist should not have to save the profile and
+     * come back to say so.
+     *
+     * `classifications`, not `specialtyIds`: the picker records proficiency and
+     * effective dates too, and the contract refuses both forms at once.
+     */
+    ...(picked ? { classifications: picked.entries } : {}),
+    ...(picked?.primaryId ? { primarySpecialtyId: picked.primaryId } : {}),
     ...(text(formData, 'registrationNumber')
       ? { registrationNumber: text(formData, 'registrationNumber') }
       : {}),
@@ -96,7 +165,13 @@ export async function updateDoctor(
   _previous: DoctorFormState,
   formData: FormData
 ): Promise<DoctorFormState> {
+  const picked = classificationsFrom(formData);
+
   const parsed = updateDoctorRequest.safeParse({
+    // Omitted entirely when the form carried no picker, so the API leaves the
+    // existing classifications alone rather than clearing them.
+    ...(picked ? { classifications: picked.entries } : {}),
+    ...(picked?.primaryId ? { primarySpecialtyId: picked.primaryId } : {}),
     ...(text(formData, 'registrationNumber')
       ? { registrationNumber: text(formData, 'registrationNumber') }
       : {}),

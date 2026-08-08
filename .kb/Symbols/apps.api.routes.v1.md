@@ -4,7 +4,7 @@
 
 > Appointments — PHI, by a route nobody expects it on.
 
-Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v1/audit.routes.ts` · `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/billing.routes.ts` · `apps/api/src/routes/v1/branches.routes.ts` · `apps/api/src/routes/v1/designations.routes.ts` · `apps/api/src/routes/v1/doctors.routes.ts` · `apps/api/src/routes/v1/health.routes.ts` · `apps/api/src/routes/v1/index.ts` · `apps/api/src/routes/v1/invitations.routes.ts` · `apps/api/src/routes/v1/members.routes.ts` · `apps/api/src/routes/v1/organization.routes.ts` · `apps/api/src/routes/v1/patients.routes.ts` · `apps/api/src/routes/v1/platform.routes.ts` · `apps/api/src/routes/v1/public.routes.ts` · `apps/api/src/routes/v1/roles.routes.ts` · `apps/api/src/routes/v1/webhooks.routes.ts`
+Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v1/audit.routes.ts` · `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/billing.routes.ts` · `apps/api/src/routes/v1/branches.routes.ts` · `apps/api/src/routes/v1/clinical-taxonomy.routes.ts` · `apps/api/src/routes/v1/designations.routes.ts` · `apps/api/src/routes/v1/doctors.routes.ts` · `apps/api/src/routes/v1/health.routes.ts` · `apps/api/src/routes/v1/index.ts` · `apps/api/src/routes/v1/invitations.routes.ts` · `apps/api/src/routes/v1/members.routes.ts` · `apps/api/src/routes/v1/organization.routes.ts` · `apps/api/src/routes/v1/patients.routes.ts` · `apps/api/src/routes/v1/platform.routes.ts` · `apps/api/src/routes/v1/public.routes.ts` · `apps/api/src/routes/v1/roles.routes.ts` · `apps/api/src/routes/v1/webhooks.routes.ts`
 
 ## fn
 
@@ -13,8 +13,9 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `actorFrom` <sub>local</sub> | `(req: Request): Promise<billing.BillingActor>` | `apps/api/src/routes/v1/billing.routes.ts:64` |  |
 | `asAppError` <sub>local</sub> | `(error: unknown): AppError` | `apps/api/src/routes/v1/billing.routes.ts:108` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/branches.routes.ts:54` |  |
+| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:70` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/designations.routes.ts:43` |  |
-| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/doctors.routes.ts:81` |  |
+| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/doctors.routes.ts:83` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/invitations.routes.ts:49` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/members.routes.ts:63` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/organization.routes.ts:58` |  |
@@ -38,12 +39,13 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `appointmentParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/appointments.routes.ts:72` |  |
 | `branchParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/branches.routes.ts:52` |  |
 | `demoRequestQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:237` |  |
-| `doctorParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/doctors.routes.ts:76` |  |
+| `doctorParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/doctors.routes.ts:78` |  |
 | `duplicateProbeRequest` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/patients.routes.ts:94` | The duplicate probe. A GET would put a phone number in the access log. |
 | `intentParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/billing.routes.ts:54` |  |
 | `invitationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/invitations.routes.ts:47` |  |
 | `mandateParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/billing.routes.ts:182` |  |
 | `memberParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/members.routes.ts:59` |  |
+| `nodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:68` |  |
 | `organizationQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:105` |  |
 | `pairingParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/designations.routes.ts:41` |  |
 | `patientParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/patients.routes.ts:86` |  |
@@ -70,21 +72,22 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `assignmentParams` <sub>local</sub> | `memberParams.extend(…)` | `apps/api/src/routes/v1/members.routes.ts:60` |  |
 | `conditionParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:90` |  |
 | `contactParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:88` |  |
-| `exceptionParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:78` |  |
+| `exceptionParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:80` |  |
 | `medicationParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:91` |  |
 | `overrideParams` <sub>local</sub> | `memberParams.extend(…)` | `apps/api/src/routes/v1/members.routes.ts:61` |  |
 | `provisionRequest` <sub>local</sub> | `registerOrganizationRequest.extend(…)` | `apps/api/src/routes/v1/platform.routes.ts:55` |  |
-| `qualificationParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:79` |  |
+| `qualificationParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:81` |  |
 | `rawBody` <sub>local</sub> | `express.raw(…)` | `apps/api/src/routes/v1/webhooks.routes.ts:45` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/appointments.routes.ts:68` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/audit.routes.ts:34` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/auth.routes.ts:86` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/billing.routes.ts:50` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/branches.routes.ts:48` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:64` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/designations.routes.ts:37` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/doctors.routes.ts:72` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/doctors.routes.ts:74` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/health.routes.ts:7` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:18` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:19` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/invitations.routes.ts:43` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/members.routes.ts:55` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/organization.routes.ts:51` |  |
@@ -93,4 +96,4 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/public.routes.ts:40` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/roles.routes.ts:38` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/webhooks.routes.ts:37` |  |
-| `scheduleParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:77` |  |
+| `scheduleParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:79` |  |

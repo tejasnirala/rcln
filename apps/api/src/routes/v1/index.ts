@@ -4,6 +4,7 @@ import authRoutes from './auth.routes.js';
 import billingRoutes from './billing.routes.js';
 import appointmentRoutes from './appointments.routes.js';
 import branchRoutes from './branches.routes.js';
+import clinicalTaxonomyRoutes from './clinical-taxonomy.routes.js';
 import healthRoutes from './health.routes.js';
 import invitationRoutes from './invitations.routes.js';
 import doctorRoutes from './doctors.routes.js';
@@ -44,6 +45,13 @@ router.use('/invitations', invitationRoutes);
 // Doctors and their working hours — the input the availability engine reads.
 // Carries no PHI: a doctor is staff, not a patient.
 router.use('/doctors', doctorRoutes);
+
+// What a practitioner is TRAINED IN — the hierarchical classification tree.
+// Its own surface rather than a path under /doctors, because a procedure and a
+// service will reference these nodes too: the taxonomy outlives the one screen
+// that first needed it. Reads sit behind DOCTOR_READ so every screen showing a
+// doctor can render their specialty name; curation is DOCTOR_MASTER_MANAGE.
+router.use('/clinical-taxonomy', clinicalTaxonomyRoutes);
 
 // Job titles. Its own surface rather than a path under /members, which would be
 // swallowed by /members/:membershipId.

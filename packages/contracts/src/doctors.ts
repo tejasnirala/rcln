@@ -11,6 +11,7 @@
  *   whether 10:20 exists.
  */
 import { z } from 'zod';
+import { specialtyProficiency, taxonomyNodeType } from './clinical-taxonomy.js';
 import { uuid } from './common.js';
 
 /** `HH:MM`, wall-clock in the BRANCH's timezone. Never UTC. */
@@ -31,7 +32,26 @@ const money = z.string().regex(/^\d{1,12}(\.\d{1,2})?$/, 'expected an amount lik
 // Requests
 // ---------------------------------------------------------------------------
 
-export const createDoctorRequest = z.object({
+/**
+ * One clinical classification, with the detail a bare id cannot carry.
+ *
+ * The richer half of the two request forms below. Everything but `specialtyId`
+ * is optional, so `{ specialtyId }` and a plain id are the same assignment.
+ */
+export const doctorClassificationInput = z
+  .object({
+    specialtyId: uuid,
+    /** Advisory display label. ⚠️ NEVER an authorization input. */
+    proficiency: specialtyProficiency.nullish(),
+    effectiveFrom: calendarDate.nullish(),
+    effectiveTo: calendarDate.nullish(),
+  })
+  .refine((v) => !v.effectiveFrom || !v.effectiveTo || v.effectiveTo >= v.effectiveFrom, {
+    message: 'effectiveTo cannot be before effectiveFrom',
+    path: ['effectiveTo'],
+  });
+
+const doctorProfileFields = {
   /**
    * An existing member of the clinic. A doctor must be able to log in before
    * they can be scheduled, because they must be able to sign a prescription —
@@ -43,18 +63,104 @@ export const createDoctorRequest = z.object({
   registrationValidTill: calendarDate.optional(),
   experienceYears: z.number().int().min(0).max(80).optional(),
   bio: z.string().max(4000).optional(),
-  /** Specialty ids. Platform rows and this clinic's own are both valid. */
+  /**
+   * Specialty ids. Platform rows and this clinic's own are both valid.
+   *
+   * The simple form, and still the one the existing screens send. Equivalent to
+   * `classifications: ids.map(specialtyId => ({ specialtyId }))`.
+   */
   specialtyIds: z.array(uuid).max(12).default([]),
-  /** Which of `specialtyIds` leads the profile. Must be one of them. */
+  /**
+   * The richer form: the same set, plus proficiency and effective dates.
+   *
+   * ⚠️ SUPPLY ONE FORM OR THE OTHER, NEVER BOTH — the refinement below rejects
+   *   that outright rather than picking a winner. Two fields describing one set
+   *   is exactly how a client ends up "saving" specialties that silently do not
+   *   persist because the other field took precedence.
+   */
+  classifications: z.array(doctorClassificationInput).max(24).optional(),
+  /**
+   * Which entry leads the profile. Must be one of the supplied ids, in whichever
+   * form was used.
+   *
+   * ⚠️ ANCESTORS ARE NOT ASSIGNED, AND THAT IS DELIBERATE. Tagging a doctor with
+   *   Structural Heart Disease does NOT write rows for Interventional Cardiology
+   *   and Cardiology. Those are DERIVED — `GET /clinical-taxonomy/:id/ancestors`
+   *   renders the chain, and the descendant-aware doctor filter finds this doctor
+   *   under Cardiology anyway. Materialising the ancestors would copy the tree
+   *   into this join table, and re-parenting a node would then silently
+   *   invalidate every row written before the move.
+   */
   primarySpecialtyId: uuid.optional(),
-});
+} as const;
 
-export const updateDoctorRequest = createDoctorRequest
+/**
+ * Reject the two request forms being used at once.
+ *
+ * `specialtyIds` defaults to `[]`, so "both supplied" is `classifications`
+ * present AND `specialtyIds` non-empty.
+ */
+const oneClassificationForm = (
+  v: { specialtyIds?: string[] | undefined; classifications?: unknown[] | undefined },
+  ctx: z.RefinementCtx
+): void => {
+  if (v.classifications !== undefined && (v.specialtyIds?.length ?? 0) > 0) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['classifications'],
+      message: 'Supply either specialtyIds or classifications, not both.',
+    });
+  }
+};
+
+export const createDoctorRequest = z.object(doctorProfileFields).superRefine(oneClassificationForm);
+
+/**
+ * ⚠️ `specialtyIds` IS REDECLARED WITHOUT ITS `.default([])`, AND THAT FIXES A
+ *   SILENT DATA-LOSS BUG. Do not "tidy" it back to inheriting the create shape.
+ *
+ *   `.partial()` makes a key optional but does NOT suppress a default nested
+ *   inside it: `z.object({ ids: z.array(uuid).default([]) }).partial()` parses
+ *   `{ bio: 'x' }` into `{ bio: 'x', specialtyIds: [] }`. Verified, not assumed.
+ *
+ *   The service treats "specialtyIds supplied" as "replace the set with exactly
+ *   this", so under the inherited shape EVERY partial update carried an empty
+ *   set — `PATCH { bio }` deleted every specialty the doctor had. No error, 200
+ *   OK, and the classifications simply gone. Dropping the default restores the
+ *   distinction PATCH depends on: absent means "leave alone", `[]` means "clear".
+ */
+const updateDoctorFields = z
+  .object(doctorProfileFields)
   .omit({ userId: true })
   .partial()
   .extend({
-    status: z.enum(['ACTIVE', 'INACTIVE', 'ARCHIVED']).optional(),
+    specialtyIds: z.array(uuid).max(12).optional(),
   });
+
+export const updateDoctorRequest = updateDoctorFields
+  .extend({
+    status: z.enum(['ACTIVE', 'INACTIVE', 'ARCHIVED']).optional(),
+  })
+  .superRefine(oneClassificationForm);
+
+/**
+ * Filters for the doctor list.
+ *
+ * ⚠️ `specialtyId` IS A SUBTREE FILTER, NOT AN EQUALITY FILTER. Asking for
+ *   Cardiology returns doctors tagged Cardiology, Interventional Cardiology,
+ *   Structural Heart Disease and everything else beneath it. That is what
+ *   "find me a cardiologist" means, and it is the reason this cannot be a
+ *   name match — a doctor tagged only "Structural Heart Disease" has no
+ *   "cardio" anywhere in their record.
+ *
+ *   `includeDescendants=false` narrows it to that exact node, for the rare
+ *   caller who wants "tagged precisely this and nothing below it".
+ */
+export const doctorListQuery = z.object({
+  specialtyId: uuid.optional(),
+  includeDescendants: z.stringbool().default(true),
+  status: z.enum(['ACTIVE', 'INACTIVE', 'ARCHIVED']).optional(),
+});
 
 export const doctorQualificationRequest = z.object({
   qualificationId: uuid,
@@ -132,20 +238,25 @@ export const decideScheduleExceptionRequest = z.object({
   reason: z.string().max(255).optional(),
 });
 
-export const createSpecialtyRequest = z.object({
-  code: z
-    .string()
-    .min(2)
-    .max(64)
-    .regex(/^[A-Z0-9_]+$/, 'uppercase letters, digits and underscores only'),
-  name: z.string().min(2).max(255),
-  parentId: uuid.optional(),
-});
+// `createSpecialtyRequest` was here. It was declared, exported, and imported by
+// nothing — no route, no service, no screen ever used it. It is replaced by
+// `createTaxonomyNodeRequest` in clinical-taxonomy.ts, which is wired to a real
+// endpoint and carries the type/description/displayOrder the tree needs. Leaving
+// both would have meant two contracts for one operation and a coin flip about
+// which one a future caller picks.
 
 // ---------------------------------------------------------------------------
 // Responses
 // ---------------------------------------------------------------------------
 
+/**
+ * A specialty as the doctor screens need it.
+ *
+ * ⚠️ ADDITIVE ONLY. `doctor-list.tsx` and `appointment-board.tsx` already read
+ *   this shape; the taxonomy fields below were appended and nothing was removed
+ *   or renamed. The richer traversal shape is `taxonomyNode` in
+ *   `clinical-taxonomy.ts` — this stays the flat catalogue entry.
+ */
 export const specialtySummary = z.object({
   id: uuid,
   code: z.string(),
@@ -153,6 +264,9 @@ export const specialtySummary = z.object({
   parentId: uuid.nullable(),
   /** False for a platform row, true for one this clinic added. */
   isOwn: z.boolean(),
+  type: taxonomyNodeType,
+  description: z.string().nullable(),
+  displayOrder: z.number().int(),
 });
 
 export const qualificationSummary = z.object({
@@ -168,6 +282,43 @@ export const doctorSpecialtyDetail = z.object({
   code: z.string(),
   name: z.string(),
   isPrimary: z.boolean(),
+  /** Where this classification sits in the tree. For rendering, never for authz. */
+  type: taxonomyNodeType,
+  proficiency: specialtyProficiency.nullable(),
+  effectiveFrom: z.string().nullable(),
+  effectiveTo: z.string().nullable(),
+  /**
+   * ⚠️ THE ASSIGNMENT'S OWN FLAG, NOT THE NODE'S. A doctor may still hold a
+   *   classification whose taxonomy node has since been retired, and it is
+   *   returned regardless — dropping it would rewrite their history to say they
+   *   were never trained in something they were. Read the node's status from
+   *   the taxonomy API if a screen needs to mark it as no longer offered.
+   */
+  isActive: z.boolean(),
+  /**
+   * The chain from the clinical domain down to this node's parent, root first.
+   * The node itself is not repeated — a breadcrumb is `[...ancestors, this]`.
+   *
+   * ⚠️ DERIVED ON READ, NOT STORED. Assigning "Structural Heart Disease" writes
+   *   ONE `doctor_specialties` row; Medical, Cardiology and Interventional
+   *   Cardiology are computed from `parent_id` when the profile is read.
+   *
+   *   Storing them as extra rows was considered and rejected: re-parenting a
+   *   node would leave every row written before the move asserting a chain that
+   *   is no longer true, silently and with nothing to detect it. Deriving costs
+   *   one recursive CTE per request and cannot go stale.
+   *
+   *   This is what the brief means by "do not require clients to provide
+   *   redundant ancestors" — the server resolves the path, the client renders it.
+   */
+  ancestors: z.array(
+    z.object({
+      id: uuid,
+      code: z.string(),
+      name: z.string(),
+      type: taxonomyNodeType,
+    })
+  ),
 });
 
 export const doctorQualificationDetail = z.object({
@@ -267,6 +418,8 @@ export type DoctorDetail = z.infer<typeof doctorDetail>;
 export type DoctorListResponse = z.infer<typeof doctorListResponse>;
 export type SpecialtyListResponse = z.infer<typeof specialtyListResponse>;
 
+export type DoctorClassificationInput = z.infer<typeof doctorClassificationInput>;
+export type DoctorListQuery = z.infer<typeof doctorListQuery>;
 export type CreateDoctorRequest = z.infer<typeof createDoctorRequest>;
 export type UpdateDoctorRequest = z.infer<typeof updateDoctorRequest>;
 export type DoctorQualificationRequest = z.infer<typeof doctorQualificationRequest>;
@@ -274,4 +427,3 @@ export type DoctorBranchSettingRequest = z.infer<typeof doctorBranchSettingReque
 export type DoctorScheduleRequest = z.infer<typeof doctorScheduleRequest>;
 export type DoctorScheduleExceptionRequest = z.infer<typeof doctorScheduleExceptionRequest>;
 export type DecideScheduleExceptionRequest = z.infer<typeof decideScheduleExceptionRequest>;
-export type CreateSpecialtyRequest = z.infer<typeof createSpecialtyRequest>;

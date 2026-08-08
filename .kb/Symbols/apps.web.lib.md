@@ -4,17 +4,22 @@
 
 > Analytics seam.
 
-Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts`
+Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `actionLabel` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:47` |  |
+| `ancestorLabel` | `(tree: TaxonomyTree, id: string): string` | `apps/web/src/lib/taxonomy.ts:88` | `Medical › Cardiology › Interventional Cardiology`, excluding the node itself. |
 | `api` | `(path: string, request: ApiRequest): Promise<ApiResult<T>>` | `apps/web/src/lib/api.ts:99` |  |
+| `buildTree` | `(nodes: SpecialtySummary[]): TaxonomyTree` | `apps/web/src/lib/taxonomy.ts:41` |  |
+| `byOrderThenName` <sub>local</sub> | `(a: SpecialtySummary, b: SpecialtySummary): number` | `apps/web/src/lib/taxonomy.ts:38` |  |
+| `childrenOf` | `(tree: TaxonomyTree, id: string \| null): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:95` |  |
 | `clearSessionCookies` | `(): Promise<void>` | `apps/web/src/lib/session.ts:75` |  |
 | `clientAddress` <sub>local</sub> | `(): Promise<string \| undefined>` | `apps/web/src/lib/api.ts:66` |  |
 | `cn` | `(inputs: ClassValue[]): string` | `apps/web/src/lib/cn.ts:9` | Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be overridden by its caller without specifici… |
+| `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:116` |  |
 | `fieldErrorsFrom` | `(issues: { path: PropertyKey[]; message: string }[]): Record<string, string[]>` | `apps/web/src/lib/api.ts:153` | Flatten Zod issues into the `fieldErrors` shape the forms render. |
 | `formatCount` | `(value: number): string` | `apps/web/src/lib/format.ts:60` |  |
 | `formatDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:39` | `25 Jul 2026`. For dense rows, tables and the period strip. |
@@ -25,7 +30,10 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `listTaxRegistrations` | `(): Promise<ApiResult<TaxRegistrationListResponse>>` | `apps/web/src/lib/platform.ts:44` |  |
 | `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:36` |  |
 | `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:32` |  |
+| `pathTo` | `(tree: TaxonomyTree, id: string): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:76` |  |
+| `searchNodes` | `(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:133` |  |
 | `setSessionCookies` | `(session: AuthSession): Promise<void>` | `apps/web/src/lib/session.ts:49` |  |
+| `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:148` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
 | `track` | `(event: AnalyticsEvent, props?: Record<string, string \| number>): void` | `apps/web/src/lib/analytics.ts:24` |  |
 | `withCurrent` | `(options: LocaleOption[], current: string): LocaleOption[]` | `apps/web/src/lib/locale-options.ts:59` |  |
 
@@ -42,7 +50,9 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `REFRESH_COOKIE` | `'rcln_rt'` | `apps/web/src/lib/session-cookie.ts:16` |  |
 | `REFRESH_MAX_AGE` | `30 * 24 * 60 * 60` | `apps/web/src/lib/session-cookie.ts:19` | Refresh tokens live 30 days server-side; the cookie must not outlive that. |
 | `ROOT_DOMAIN` <sub>local</sub> | `process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me'` | `apps/web/src/lib/api.ts:32` |  |
+| `ROOTS` | `'__roots__'` | `apps/web/src/lib/taxonomy.ts:36` |  |
 | `TIMEZONES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:25` |  |
+| `TYPE_LABELS` <sub>local</sub> | `: Record<TaxonomyNodeType, string>` | `apps/web/src/lib/taxonomy.ts:107` |  |
 
 ## var
 
@@ -61,6 +71,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `ApiRequest` | `{ method, body, slug, host, accessToken }` | `apps/web/src/lib/api.ts:73` |  |
 | `ApiResult` | `{ ok, status, data, message, fieldErrors }` | `apps/web/src/lib/api.ts:42` |  |
 | `LocaleOption` | `{ value, label }` | `apps/web/src/lib/locale-options.ts:20` |  |
+| `TaxonomyTree` | `{ byId, childrenOf }` | `apps/web/src/lib/taxonomy.ts:22` |  |
 
 ## type
 
