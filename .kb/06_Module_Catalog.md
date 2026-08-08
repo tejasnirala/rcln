@@ -11,6 +11,8 @@ Narrative from `.kb/modules.json`; symbol, route and table counts resolved from 
 | [IAM](Modules/IAM.md) | api + web | Who may do what, where. Roles cloned from the system set, granted per branch or clinic-wide, with per-person exceptions. | 13 | 7 |
 | [Branches](Modules/Branches.md) | api + web | The places a clinic operates from. One organization, one or many branches — a solo clinic and a hospital group are the same shape. | 6 | 3 |
 | [Invitations](Modules/Invitations.md) | api + web | How a colleague gets into a clinic. Issue, revoke, resend, and an unauthenticated accept page. | 4 | 2 |
+| [Patients](Modules/Patients.md) | api + web | The people being treated. The first PHI in the product: identity is org-wide so a duplicate can be found before it is created, attendance is branch-local, and every read is recorded in `data_access_logs`. | 20 | 7 |
+| [Appointments](Modules/Appointments.md) | api + web | Booking, and the availability engine behind it. PHI: a patient, a doctor and a reason disclose more together than any one of them. Unlike `patients`, `appointments` IS branch-scoped — identity follows the person, attendance belongs to the clinic it happened at. | 9 | 2 |
 | [Audit](Modules/Audit.md) | api | An append-only record of who changed what. Ids and permission codes only — never a name, never PHI. | 0 | 1 |
 | [PlatformConsole](Modules/PlatformConsole.md) | api + web | What the platform operator sees. Demo-request pipeline, provisioning, and eventually impersonation. | 9 | 2 |
 | [Marketing](Modules/Marketing.md) | web | The apex domain. Landing page, signup, legal pages and the demo form — everything that happens before a tenant exists. | 0 | 1 |

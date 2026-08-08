@@ -191,7 +191,7 @@ when the key is blank, and every key is blank.
 | Razorpay                    | `RAZORPAY_*`                  | Not integrated                                       |
 | WhatsApp (Meta Cloud / BSP) | `WHATSAPP_*`                  | `console` provider                                   |
 | SMS (MSG91)                 | `SMS_*`                       | `console` provider. Blocked on TRAI DLT registration |
-| Email (AWS SES)             | `EMAIL_*`, `SES_*`            | `console` provider. Mailpit runs locally             |
+| Email (SMTP → AWS SES)      | `EMAIL_*`, `SMTP_*`, `SES_*`  | **Sending** via nodemailer. Mailpit locally          |
 | Sentry                      | `SENTRY_DSN`                  | Not integrated                                       |
 | OpenTelemetry               | `OTEL_EXPORTER_OTLP_ENDPOINT` | Not integrated                                       |
 

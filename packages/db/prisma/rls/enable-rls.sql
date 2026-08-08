@@ -65,7 +65,57 @@ DECLARE
     'payment_mandates',
     'payment_intents',
     'usage_counters',
-    'audit_logs'
+    'audit_logs',
+    -- Read-side PHI trail. Same org isolation as audit_logs, and append-only by
+    -- the same two independent layers — see the data_access_log_immutability
+    -- migration.
+    'data_access_logs',
+    -- Document numbering. Deliberately org-scoped ONLY: a branch_isolation
+    -- policy here would make ON CONFLICT DO UPDATE raise a duplicate-key error
+    -- instead of finding the hidden counter row. See the NumberSequence model.
+    'number_sequences',
+    -- Doctors. `specialties` and `qualifications` are NOT here — they allow a
+    -- NULL organization_id and get their own stanza below.
+    'doctor_profiles',
+    'doctor_specialties',
+    'doctor_qualifications',
+    'doctor_branch_settings',
+    'doctor_schedules',
+    -- Org-scoped only, no branch_isolation: branch_id NULL means "every branch",
+    -- and hiding a doctor's leave from a branch-scoped reader would make the
+    -- availability engine offer slots on a day they are away. See the model.
+    'doctor_schedule_exceptions',
+    -- PHI.
+    --
+    -- ⚠️ `patients` IS DELIBERATELY NOT BRANCH-SCOPED, and that is not an
+    -- oversight to be "fixed" later. A person is one person across a hospital
+    -- group: their allergy list has to follow them into whichever branch they
+    -- walk into, and a front desk that cannot see head office already
+    -- registered them will register them again. Two UHIDs for one human being
+    -- is a clinical safety failure — the second record has no allergies on it.
+    --
+    -- The branch boundary lives on `patient_registrations` instead, which is
+    -- the row that answers "does this person attend our clinic?". See the
+    -- branch_scoped array below and ADR-0016.
+    'patients',
+    'patient_registrations',
+    -- Address, kin, allergies, problems and medicines all follow the person for
+    -- the same reason `patients` does.
+    'patient_addresses',
+    'patient_contacts',
+    'patient_allergies',
+    'patient_conditions',
+    'patient_medications',
+    -- Scheduling. `appointments` IS branch-scoped as well (see the array below)
+    -- — unlike `patients`, a booking belongs to the clinic it was made at, and
+    -- the argument that keeps identity org-wide does not apply to it.
+    'appointments'
+    -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
+    --    security regression. Permissive policies OR together, so an org-only
+    --    `tenant_isolation` beside its hand-written `parent_isolation` would
+    --    re-open the branch boundary the latter exists to close. Its single
+    --    policy is written out below the parent_scoped loop and asks the
+    --    organization question itself.
   ];
 BEGIN
   FOREACH t IN ARRAY org_scoped LOOP
@@ -91,6 +141,144 @@ CREATE POLICY tenant_isolation ON files
   WITH CHECK (organization_id IS NULL OR organization_id = app_current_org());
 
 -- ---------------------------------------------------------------------------
+-- Clinical masters: platform catalogue + per-tenant extension.
+--
+-- ⚠️ READ IS PERMISSIVE, WRITE IS NOT. This is NOT the `files` policy above.
+--
+-- `files` permits a NULL organization_id in its WITH CHECK, which is right for
+-- an asset the platform uploads on a tenant's behalf. Reproducing that here
+-- would let ANY CLINIC INSERT A PLATFORM-WIDE SPECIALTY — a row with
+-- organization_id NULL, instantly visible to every other tenant on the
+-- platform, writable by anyone with doctor.master.manage. That is a
+-- cross-tenant write dressed up as a catalogue entry.
+--
+-- So: USING allows reading platform rows, WITH CHECK insists every row a tenant
+-- writes carries its own organization_id. Platform rows are seeded by
+-- rcln_owner, which bypasses RLS.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  t text;
+  platform_extensible text[] := ARRAY[
+    'specialties',
+    'qualifications',
+    'designations',
+    'role_designations'
+  ];
+BEGIN
+  FOREACH t IN ARRAY platform_extensible LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE   ROW LEVEL SECURITY', t);
+    EXECUTE format('ALTER TABLE %I NO FORCE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS tenant_isolation ON %I', t);
+    EXECUTE format($f$
+      CREATE POLICY tenant_isolation ON %I
+        USING      (organization_id IS NULL OR organization_id = app_current_org())
+        WITH CHECK (organization_id = app_current_org())
+    $f$, t);
+  END LOOP;
+END
+$$;
+
+-- ---------------------------------------------------------------------------
+-- The doctor join tables point at TWO parents, and only one of them is
+-- constrained by a composite FK.
+--
+-- `doctor_specialties.specialty_id` is a plain FK to `specialties(id)`, because
+-- a specialty may be a platform row with no organization_id to compose with.
+-- tenant_isolation therefore constrains the DOCTOR side and says nothing about
+-- the SPECIALTY side — a tenant could otherwise attach another tenant's private
+-- specialty to its own doctor and read the name back out of it.
+--
+-- Same shape, and the same reasoning, as `branch_in_same_org` on
+-- invitation_branches. RESTRICTIVE so it ANDs with tenant_isolation.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS specialty_visible ON doctor_specialties;
+CREATE POLICY specialty_visible ON doctor_specialties AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = doctor_specialties.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = doctor_specialties.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS qualification_visible ON doctor_qualifications;
+CREATE POLICY qualification_visible ON doctor_qualifications AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM qualifications q
+    WHERE q.id = doctor_qualifications.qualification_id
+      AND (q.organization_id IS NULL OR q.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM qualifications q
+    WHERE q.id = doctor_qualifications.qualification_id
+      AND (q.organization_id IS NULL OR q.organization_id = app_current_org())
+  ));
+
+-- Same reasoning for the designation attached to an invitation and to a staff
+-- profile. Both columns are nullable, so the policy permits NULL — an invite
+-- with no designation is legitimate.
+DROP POLICY IF EXISTS designation_visible ON invitations;
+CREATE POLICY designation_visible ON invitations AS RESTRICTIVE
+  USING (designation_id IS NULL OR EXISTS (
+    SELECT 1 FROM designations d
+    WHERE d.id = invitations.designation_id
+      AND (d.organization_id IS NULL OR d.organization_id = app_current_org())
+  ))
+  WITH CHECK (designation_id IS NULL OR EXISTS (
+    SELECT 1 FROM designations d
+    WHERE d.id = invitations.designation_id
+      AND (d.organization_id IS NULL OR d.organization_id = app_current_org())
+  ));
+
+-- Both parents of a role↔title pairing, both plain FKs.
+DROP POLICY IF EXISTS designation_visible ON role_designations;
+CREATE POLICY designation_visible ON role_designations AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM designations d
+    WHERE d.id = role_designations.designation_id
+      AND (d.organization_id IS NULL OR d.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM designations d
+    WHERE d.id = role_designations.designation_id
+      AND (d.organization_id IS NULL OR d.organization_id = app_current_org())
+  ));
+
+-- ⚠️ `roles` IS RLS-EXEMPT, so this EXISTS sees every tenant's custom roles and
+-- the organization_id test is doing the whole job on its own. Without it a
+-- clinic could pair one of its titles with another clinic's private role and
+-- read that role's name back through the join.
+DROP POLICY IF EXISTS role_visible ON role_designations;
+CREATE POLICY role_visible ON role_designations AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM roles r
+    WHERE r.id = role_designations.role_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM roles r
+    WHERE r.id = role_designations.role_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS designation_visible ON staff_profiles;
+CREATE POLICY designation_visible ON staff_profiles AS RESTRICTIVE
+  USING (designation_id IS NULL OR EXISTS (
+    SELECT 1 FROM designations d
+    WHERE d.id = staff_profiles.designation_id
+      AND (d.organization_id IS NULL OR d.organization_id = app_current_org())
+  ))
+  WITH CHECK (designation_id IS NULL OR EXISTS (
+    SELECT 1 FROM designations d
+    WHERE d.id = staff_profiles.designation_id
+      AND (d.organization_id IS NULL OR d.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
 -- Branch scoping, layered on top of org isolation.
 --
 -- A branch-scoped row is visible when its branch is in app.branch_scope. Rows
@@ -105,7 +293,22 @@ DECLARE
   t text;
   branch_scoped text[] := ARRAY[
     'membership_roles',
-    'membership_permission_overrides'
+    'membership_permission_overrides',
+    -- Working hours belong to one branch and branch_id is NOT NULL, so a
+    -- branch-scoped reader seeing only its own is correct. Contrast
+    -- doctor_schedule_exceptions, which is deliberately NOT here.
+    'doctor_schedules',
+    -- Which clinic a patient attends, and their branch-local MRN. branch_id is
+    -- NOT NULL, so this policy is absolute: a receptionist scoped to one branch
+    -- cannot read another branch's registration list or its MRN series. This is
+    -- the ONLY branch boundary in the patient domain — see the note against
+    -- `patients` above for why the identity row is not here.
+    'patient_registrations',
+    -- A booking is made at one branch and branch_id is NOT NULL, so this is
+    -- absolute. Note this is the opposite call from `patients` and the same one
+    -- as `patient_registrations`: identity follows the person, attendance
+    -- belongs to the clinic, and an appointment is attendance.
+    'appointments'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP
@@ -132,9 +335,20 @@ $$;
 -- single-tenant test. So the reasoning is moved into the database, where it
 -- holds regardless of how the service layer is written.
 --
--- The predicate is an EXISTS against the parent's organization_id. Note the
--- subquery is itself subject to the parent's RLS — which asks the same
--- question, so the two agree rather than fighting.
+-- The predicate is an EXISTS against the parent's organization_id.
+--
+-- ⚠️ THE SUBQUERY IS **NOT** SUBJECT TO THE PARENT'S RLS. This comment used to
+--   claim it was, and the claim is false: Postgres evaluates policy expressions
+--   with row security disabled on the tables they reference, because a policy
+--   that read its own table would otherwise recurse forever. It happens not to
+--   matter for the children below, because each predicate spells the
+--   organization test out itself rather than leaning on the parent's policy to
+--   apply it.
+--
+--   It matters enormously for a child of a BRANCH-scoped parent, which is why
+--   `appointment_status_history` is not in the loop and restates the branch
+--   predicate by hand. Measured, not reasoned about — see the
+--   `status_history_branch_predicate` migration for the counts.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -157,6 +371,11 @@ DECLARE
     ARRAY['subscription_invoice_lines',      'subscription_invoices', 'subscription_invoice_id'],
     ARRAY['subscription_payments',           'subscription_invoices', 'subscription_invoice_id'],
     ARRAY['subscription_feature_overrides',  'subscriptions',         'subscription_id']
+    -- ⚠️ `appointment_status_history` IS NOT IN THIS LOOP. It hangs off a
+    --    BRANCH-SCOPED parent, and the loop's predicate only asks the
+    --    organization question — see the note below the loop for why the
+    --    branch half cannot be inherited. Its policy is written out by hand
+    --    after this block.
   ];
 BEGIN
   FOR i IN 1 .. array_length(parent_scoped, 1) LOOP
@@ -185,6 +404,26 @@ $$;
 -- make a cross-tenant reference unrepresentable elsewhere (ADR-0004). So the
 -- invitation being in your org does not by itself prove the branch is. Check the
 -- second parent too, RESTRICTIVE so it ANDs with parent_isolation above.
+-- The appointment status trail: a child of a BRANCH-scoped parent, so the branch
+-- predicate is restated rather than inherited. See the warning above the loop
+-- and the `status_history_branch_predicate` migration.
+--
+-- ⚠️ IF `appointments.branch_isolation` CHANGES, CHANGE THIS TOO.
+ALTER TABLE appointment_status_history ENABLE   ROW LEVEL SECURITY;
+ALTER TABLE appointment_status_history NO FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS parent_isolation ON appointment_status_history;
+CREATE POLICY parent_isolation ON appointment_status_history
+  USING      (EXISTS (SELECT 1 FROM appointments p
+                      WHERE p.id = appointment_status_history.appointment_id
+                        AND p.organization_id = app_current_org()
+                        AND (p.branch_id IS NULL
+                             OR p.branch_id = ANY (app_branch_scope()))))
+  WITH CHECK (EXISTS (SELECT 1 FROM appointments p
+                      WHERE p.id = appointment_status_history.appointment_id
+                        AND p.organization_id = app_current_org()
+                        AND (p.branch_id IS NULL
+                             OR p.branch_id = ANY (app_branch_scope()))));
+
 DROP POLICY IF EXISTS branch_in_same_org ON invitation_branches;
 CREATE POLICY branch_in_same_org ON invitation_branches AS RESTRICTIVE
   USING      (EXISTS (SELECT 1 FROM branches b

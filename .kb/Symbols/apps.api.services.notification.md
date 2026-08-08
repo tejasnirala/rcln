@@ -4,31 +4,40 @@
 
 > The outbound-message seam.
 
-Files: `apps/api/src/services/notification/sender.ts`
+Files: `apps/api/src/services/notification/sender.ts` · `apps/api/src/services/notification/smtp.sender.ts` · `apps/api/src/services/notification/templates.ts` · `apps/api/src/services/notification/types.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `maskEmail` <sub>local</sub> | `(value: string): string` | `apps/api/src/services/notification/sender.ts:40` | `asha@northwind.test` -> `a***@northwind.test`. The domain is the useful half. |
-| `maskPhone` <sub>local</sub> | `(value: string): string` | `apps/api/src/services/notification/sender.ts:34` | `+919876543210` -> `+9198****3210`. Enough to debug, not enough to identify. |
+| `button` <sub>local</sub> | `(link: string, label: string): string` | `apps/api/src/services/notification/templates.ts:58` |  |
+| `escapeHtml` <sub>local</sub> | `(value: string): string` | `apps/api/src/services/notification/templates.ts:23` | Every value that reaches the HTML body goes through this. |
+| `getTransporter` <sub>local</sub> | `(): Promise<Transporter>` | `apps/api/src/services/notification/smtp.sender.ts:33` |  |
+| `layout` <sub>local</sub> | `(heading: string, bodyHtml: string): string` | `apps/api/src/services/notification/templates.ts:43` |  |
+| `maskEmail` | `(value: string): string` | `apps/api/src/services/notification/types.ts:23` | `asha@northwind.test` -> `a***@northwind.test`. The domain is the useful half. |
+| `maskPhone` | `(value: string): string` | `apps/api/src/services/notification/types.ts:17` | `+919876543210` -> `+9198****3210`. Enough to debug, not enough to identify. |
+| `renderEmail` | `(template: EmailTemplate, vars: Record<string, string>): RenderedEmail` | `apps/api/src/services/notification/templates.ts:69` |  |
+| `required` <sub>local</sub> | `(vars: Record<string, string>, key: string, template: EmailTemplate): string` | `apps/api/src/services/notification/templates.ts:37` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `loggingSender` | `: NotificationSender` | `apps/api/src/services/notification/sender.ts:54` |  |
-| `sender` | `: NotificationSender` | `apps/api/src/services/notification/sender.ts:94` |  |
+| `loggingSender` | `: NotificationSender` | `apps/api/src/services/notification/sender.ts:42` |  |
+| `sender` | `: NotificationSender` | `apps/api/src/services/notification/sender.ts:86` |  |
+| `smtpSender` | `: NotificationSender` | `apps/api/src/services/notification/smtp.sender.ts:50` |  |
+| `transporter` <sub>local</sub> | `: Promise<Transporter> \| null` | `apps/api/src/services/notification/smtp.sender.ts:31` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `NotificationSender` | `{ sendSms, sendEmail }` | `apps/api/src/services/notification/sender.ts:28` |  |
+| `NotificationSender` | `{ sendSms, sendEmail }` | `apps/api/src/services/notification/types.ts:11` |  |
+| `RenderedEmail` | `{ subject, text, html }` | `apps/api/src/services/notification/templates.ts:16` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `EmailTemplate` | `'INVITE' \| 'INVITE_REMINDER' \| 'VERIFY_EMAIL'` | `apps/api/src/services/notification/sender.ts:26` |  |
-| `SmsTemplate` | `'LOGIN_OTP' \| 'VERIFY_PHONE'` | `apps/api/src/services/notification/sender.ts:25` |  |
+| `EmailTemplate` | `'INVITE' \| 'INVITE_REMINDER' \| 'VERIFY_EMAIL'` | `apps/api/src/services/notification/types.ts:9` |  |
+| `SmsTemplate` | `'LOGIN_OTP' \| 'VERIFY_PHONE'` | `apps/api/src/services/notification/types.ts:8` |  |

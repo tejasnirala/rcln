@@ -11,11 +11,14 @@ Files: `packages/db/prisma/seed.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `describe` <sub>local</sub> | `(code: PermissionCode): string` | `packages/db/prisma/seed.ts:36` |  |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:468` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:814` |  |
+| `seedClinicalMasters` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:723` |  |
+| `seedDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:701` |  |
 | `seedPermissions` <sub>local</sub> | `(): Promise<Map<PermissionCode, string>>` | `packages/db/prisma/seed.ts:41` |  |
-| `seedPlans` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:317` |  |
+| `seedPlans` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:343` |  |
+| `seedRoleDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:653` |  |
 | `seedSettingDefinitions` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:134` |  |
-| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:438` |  |
+| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:784` |  |
 | `seedSystemRoles` <sub>local</sub> | `(permissionIds: Map<PermissionCode, string>): Promise<void>` | `packages/db/prisma/seed.ts:63` |  |
 
 ## const
@@ -23,7 +26,11 @@ Files: `packages/db/prisma/seed.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ARGON2` <sub>local</sub> | `{ memoryCost: 19_456, timeCost: 2, parallelism: 1 } as const` | `packages/db/prisma/seed.ts:34` |  |
+| `DESIGNATIONS` <sub>local</sub> | `: { code: string; name: string }[]` | `packages/db/prisma/seed.ts:568` |  |
 | `MONTHS` <sub>local</sub> | `[ 'January', 'February', 'March', 'April', 'May', 'June', '…` | `packages/db/prisma/seed.ts:109` |  |
+| `QUALIFICATIONS` <sub>local</sub> | `: { code: string; name: string }[]` | `packages/db/prisma/seed.ts:529` |  |
+| `ROLE_DESIGNATIONS` <sub>local</sub> | `: Record<string, string[]>` | `packages/db/prisma/seed.ts:621` |  |
+| `SPECIALTIES` <sub>local</sub> | `: { code: string; name: string; parent?: string }[]` | `packages/db/prisma/seed.ts:478` |  |
 
 ## var
 

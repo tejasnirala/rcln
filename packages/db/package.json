@@ -29,7 +29,8 @@
     "migrate:prod": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts",
     "studio": "prisma studio",
-    "reset": "prisma migrate reset",
+    "reset": "sh -c 'prisma migrate reset \"$@\" && tsx scripts/apply-grants.ts && tsx prisma/seed.ts' --",
+    "grants": "tsx scripts/apply-grants.ts",
     "rls:check": "tsx scripts/check-rls.ts",
     "clean": "rm -rf dist generated *.tsbuildinfo"
   },

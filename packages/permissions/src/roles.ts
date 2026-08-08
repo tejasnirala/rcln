@@ -60,7 +60,8 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
         !p.startsWith('platform.') &&
         p !== P.ORG_BILLING_MANAGE &&
         p !== P.BRANCH_DELETE &&
-        p !== P.PATIENT_DELETE
+        p !== P.PATIENT_DELETE &&
+        p !== P.DOCTOR_ARCHIVE
     ),
   },
   {
@@ -76,6 +77,20 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.IAM_USER_INVITE,
       P.IAM_USER_UPDATE,
       P.IAM_ROLE_READ,
+      // Adding a job title is a label, not a permission grant — see the code.
+      P.IAM_DESIGNATION_MANAGE,
+      /*
+       * Onboards doctors and owns their working hours — but not DOCTOR_ARCHIVE,
+       * which retires a practitioner and with them the history hanging off their
+       * profile. That stays with the owner, alongside PATIENT_DELETE.
+       */
+      P.DOCTOR_READ,
+      P.DOCTOR_CREATE,
+      P.DOCTOR_UPDATE,
+      P.DOCTOR_SCHEDULE_READ,
+      P.DOCTOR_SCHEDULE_MANAGE,
+      P.DOCTOR_SCHEDULE_APPROVE,
+      P.DOCTOR_MASTER_MANAGE,
       P.PATIENT_READ,
       P.PATIENT_CREATE,
       P.PATIENT_UPDATE,
@@ -86,6 +101,7 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.APPOINTMENT_UPDATE,
       P.APPOINTMENT_CANCEL,
       P.APPOINTMENT_CHECKIN,
+      P.APPOINTMENT_AVAILABILITY_READ,
       P.QUEUE_MANAGE,
       P.ENCOUNTER_READ,
       P.PRESCRIPTION_READ,
@@ -135,6 +151,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     description: 'Consults patients. Scoped to the branches they practise at.',
     scopeLevel: 'BRANCH',
     permissions: [
+      /*
+       * Reads their own profile and working hours, and ASKS for leave — but
+       * cannot approve it, nor edit the schedule that decides when the clinic
+       * can book them. Editing their own bio and qualifications is allowed under
+       * DOCTOR_READ by an ownership check in the service, not by a code.
+       */
+      P.DOCTOR_READ,
+      P.DOCTOR_SCHEDULE_READ,
+      P.DOCTOR_SCHEDULE_REQUEST,
+      P.APPOINTMENT_AVAILABILITY_READ,
       P.PATIENT_READ,
       P.PATIENT_CREATE,
       P.PATIENT_UPDATE,
@@ -171,8 +197,11 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PATIENT_READ,
       P.PATIENT_UPDATE,
       P.PATIENT_MEDICAL_HISTORY_READ,
+      P.DOCTOR_READ,
+      P.DOCTOR_SCHEDULE_READ,
       P.APPOINTMENT_READ,
       P.APPOINTMENT_CHECKIN,
+      P.APPOINTMENT_AVAILABILITY_READ,
       P.QUEUE_MANAGE,
       P.ENCOUNTER_READ,
       P.VITALS_RECORD,
@@ -190,11 +219,19 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PATIENT_READ,
       P.PATIENT_CREATE,
       P.PATIENT_UPDATE,
+      /*
+       * The front desk books, so it must see who is available and when — but the
+       * schedule itself is read-only to it and the doctor's profile is not
+       * editable from here.
+       */
+      P.DOCTOR_READ,
+      P.DOCTOR_SCHEDULE_READ,
       P.APPOINTMENT_READ,
       P.APPOINTMENT_CREATE,
       P.APPOINTMENT_UPDATE,
       P.APPOINTMENT_CANCEL,
       P.APPOINTMENT_CHECKIN,
+      P.APPOINTMENT_AVAILABILITY_READ,
       P.QUEUE_MANAGE,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
@@ -210,6 +247,8 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'BRANCH',
     permissions: [
       P.PATIENT_READ,
+      /** Reads which doctor ordered the test. No schedule, no availability. */
+      P.DOCTOR_READ,
       P.LAB_ORDER_READ,
       P.LAB_SAMPLE_COLLECT,
       P.LAB_RESULT_ENTER,
@@ -223,6 +262,7 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'BRANCH',
     permissions: [
       P.PATIENT_READ,
+      P.DOCTOR_READ,
       P.LAB_ORDER_READ,
       P.LAB_ORDER_CREATE,
       P.LAB_SAMPLE_COLLECT,
@@ -242,6 +282,8 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'BRANCH',
     permissions: [
       P.PATIENT_READ,
+      /** Reads the prescriber's name off a prescription. Nothing further. */
+      P.DOCTOR_READ,
       P.PRESCRIPTION_READ,
       P.MEDICINE_READ,
       P.MEDICINE_MANAGE,
@@ -270,6 +312,8 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'ORGANIZATION',
     permissions: [
       P.PATIENT_READ,
+      /** Doctor payouts are computed per practitioner, so identity is needed. */
+      P.DOCTOR_READ,
       P.APPOINTMENT_READ,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
@@ -294,6 +338,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'ORGANIZATION',
     permissions: [
       P.PATIENT_READ,
+      /*
+       * Sees who they can book with and which slots are free — but NOT
+       * DOCTOR_SCHEDULE_READ, which would expose the schedule configuration
+       * behind those slots: validity windows, per-block caps, and the reason
+       * recorded against a day of leave.
+       */
+      P.DOCTOR_READ,
+      P.APPOINTMENT_AVAILABILITY_READ,
       P.APPOINTMENT_READ,
       P.APPOINTMENT_CREATE,
       P.APPOINTMENT_CANCEL,

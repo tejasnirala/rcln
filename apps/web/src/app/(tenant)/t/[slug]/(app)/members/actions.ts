@@ -182,7 +182,8 @@ export async function saveDetails(
   const parsed = updateMemberRequest.safeParse({
     employeeCode: text('employeeCode'),
     department: text('department'),
-    designation: text('designation'),
+    // A row in `designations`, not typed text. An empty select clears it.
+    designationId: text('designationId'),
     joinedOn: text('joinedOn'),
   });
 

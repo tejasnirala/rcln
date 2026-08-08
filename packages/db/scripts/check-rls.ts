@@ -121,7 +121,12 @@ async function main(): Promise<void> {
   `);
 
   /*
-   * `audit_logs` must stay append-only for the application.
+   * These tables must stay append-only for the application.
+   *
+   *   audit_logs        — what staff CHANGED.
+   *   data_access_logs  — what staff LOOKED AT. The only evidence that exists
+   *                       for a read of a record that was none of their
+   *                       business: it mutates nothing and appears nowhere else.
    *
    * Checked here because the failure mode is silent in exactly the way a missing
    * RLS policy is: the trail keeps working, nothing errors, and history simply
@@ -129,34 +134,44 @@ async function main(): Promise<void> {
    * repeats that as DEFAULT PRIVILEGES, so a re-run of it — or a well-meaning
    * "fix the permissions" script — undoes the carve-out with no other signal.
    *
-   * Two layers, both asserted, because either alone can be undone independently:
-   * the grant, and the trigger that does not depend on the grant. See the
-   * `audit_immutability` migration.
+   * Two layers per table, both asserted, because either alone can be undone
+   * independently: the grant, and the trigger that does not depend on the grant.
+   * See the `audit_immutability` and `data_access_log_immutability` migrations.
    */
-  const { rows: auditGrant } = await client.query<{ upd: boolean; del: boolean }>(`
-    SELECT has_table_privilege('rcln_app', 'audit_logs', 'UPDATE') AS upd,
-           has_table_privilege('rcln_app', 'audit_logs', 'DELETE') AS del
-  `);
+  const APPEND_ONLY = ['audit_logs', 'data_access_logs'] as const;
 
-  const { rows: auditTriggers } = await client.query<{ count: string }>(`
-    SELECT count(*) AS count
-    FROM pg_trigger
-    WHERE tgrelid = 'audit_logs'::regclass
-      AND NOT tgisinternal
-      AND tgname IN ('audit_logs_no_update', 'audit_logs_no_delete')
-  `);
+  const appendOnlyFailures: string[] = [];
+
+  for (const table of APPEND_ONLY) {
+    const { rows: grant } = await client.query<{ upd: boolean; del: boolean }>(
+      `SELECT has_table_privilege('rcln_app', $1, 'UPDATE') AS upd,
+              has_table_privilege('rcln_app', $1, 'DELETE') AS del`,
+      [table]
+    );
+
+    const { rows: triggers } = await client.query<{ count: string }>(
+      `SELECT count(*) AS count
+       FROM pg_trigger
+       WHERE tgrelid = $1::regclass
+         AND NOT tgisinternal
+         AND tgname IN ($2, $3)`,
+      [table, `${table}_no_update`, `${table}_no_delete`]
+    );
+
+    if (grant[0]?.upd)
+      appendOnlyFailures.push(`rcln_app holds UPDATE on ${table} — the trail is editable`);
+    if (grant[0]?.del)
+      appendOnlyFailures.push(`rcln_app holds DELETE on ${table} — the trail is deletable`);
+    if (Number(triggers[0]?.count ?? 0) !== 2) {
+      appendOnlyFailures.push(
+        `${table} is missing an append-only trigger (found ${triggers[0]?.count ?? 0} of 2)`
+      );
+    }
+  }
 
   await client.end();
 
-  if (auditGrant[0]?.upd)
-    failures.push('rcln_app holds UPDATE on audit_logs — history is editable');
-  if (auditGrant[0]?.del)
-    failures.push('rcln_app holds DELETE on audit_logs — history is deletable');
-  if (Number(auditTriggers[0]?.count ?? 0) !== 2) {
-    failures.push(
-      `audit_logs is missing an append-only trigger (found ${auditTriggers[0]?.count ?? 0} of 2)`
-    );
-  }
+  failures.push(...appendOnlyFailures);
 
   if (Number(ownedRows[0]?.count ?? 0) > 0) {
     failures.push(

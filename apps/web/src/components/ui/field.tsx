@@ -180,6 +180,23 @@ interface ControlShell {
   label?: React.ReactNode;
   hint?: string;
   errors?: string[];
+  /**
+   * ⚠️ THE SINGULAR SPELLING, DECLARED SO IT IS A TYPE ERROR RATHER THAN A
+   *   SILENT NO-OP.
+   *
+   *   Four screens had written `error={message}`, which is the obvious guess
+   *   and does nothing: the prop is named `errors` and takes an array, so the
+   *   singular one fell through the spread onto the native element, React
+   *   dropped it as an unknown attribute, and the field rendered clean while
+   *   the customer was told nothing about what was wrong with it.
+   *
+   *   Excess-property checking did not catch it, and could not: every call site
+   *   spread a conditional object (`{...(err ? { error: err } : {})}`), and TS
+   *   only applies that check to object literals written inline. Declaring the
+   *   property as `never` moves the failure from "unchecked extra key" to
+   *   "string is not assignable to never", which no spread hides.
+   */
+  error?: never;
   /** Rendered opposite the label, e.g. a "Forgot password" link. */
   action?: React.ReactNode;
   /** On the Field wrapper, e.g. `sm:col-span-2`. `className` is on the control. */

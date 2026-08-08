@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import {
+  setRolePairingsRequest,
   updateOrganizationRequest,
   type OrganizationProfile,
   type SettingItem,
@@ -179,4 +180,36 @@ export async function resetSetting(
 
   revalidatePath(`/t/${slug}/settings`);
   return { status: 'saved', message: 'Back to the default.' };
+}
+
+/**
+ * Replace the job titles that fit one role.
+ *
+ * Sends the whole list rather than a diff: the server reconciles it against the
+ * platform defaults and stores only the difference, so a role returned to its
+ * default state leaves no rows behind.
+ */
+export async function saveRolePairings(
+  slug: string,
+  roleId: string,
+  designationIds: string[]
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const parsed = setRolePairingsRequest.safeParse({ designationIds });
+  if (!parsed.success) {
+    return { ok: false, message: 'That list could not be saved.' };
+  }
+
+  const result = await api(`/api/v1/designations/pairings/${roleId}`, {
+    method: 'PUT',
+    slug,
+    accessToken: await getAccessToken(),
+    body: parsed.data,
+  });
+
+  if (!result.ok) {
+    return { ok: false, message: result.message ?? 'That list could not be saved.' };
+  }
+
+  revalidatePath(`/t/${slug}/settings`);
+  return { ok: true };
 }

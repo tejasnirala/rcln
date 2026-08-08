@@ -1,0 +1,61 @@
+name: ✨ Feature request
+description: Propose a capability or a change in direction
+labels: ['enhancement', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        rcln moves in phases —
+        [`.kb/STATUS.md`](https://github.com/tejasnirala/rcln/blob/main/.kb/STATUS.md)
+        is the honest ledger of what is built and what is next. Please check it
+        before proposing something that may already be on the way.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What can a clinic not do today, and what does that cost them?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - appointments / scheduling
+        - patients / clinical records
+        - prescriptions
+        - lab
+        - pharmacy / inventory
+        - billing / payments / subscriptions
+        - organization, branches, roles, invitations
+        - platform (auth, tenancy, infrastructure)
+        - developer experience / documentation
+        - other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Does this touch any of these?
+      description: Not disqualifying — it just means the design gets more scrutiny.
+      options:
+        - label: New or changed database tables
+        - label: Tenant isolation, roles or permissions
+        - label: Patient data (PHI)
+        - label: Money, tax or invoicing
+        - label: A new third-party dependency or service
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

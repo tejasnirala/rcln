@@ -103,7 +103,9 @@ const MEMBER_SELECT = {
     select: {
       employeeCode: true,
       department: true,
-      designation: true,
+      designationId: true,
+      // The name is joined on the way out; the row stores an id only.
+      designation: { select: { name: true } },
       joinedOn: true,
       relievedOn: true,
     },
@@ -136,7 +138,8 @@ interface MemberRow {
   staffProfile: {
     employeeCode: string | null;
     department: string | null;
-    designation: string | null;
+    designationId: string | null;
+    designation: { name: string } | null;
     joinedOn: Date | null;
     relievedOn: Date | null;
   } | null;
@@ -176,7 +179,9 @@ function toDetail(row: MemberRow, ctx: TenantContext): MemberDetail {
     })),
     employeeCode: row.staffProfile?.employeeCode ?? null,
     department: row.staffProfile?.department ?? null,
-    designation: row.staffProfile?.designation ?? null,
+    designationId: row.staffProfile?.designationId ?? null,
+    /** The resolved name, for display. `designationId` is what gets written. */
+    designation: row.staffProfile?.designation?.name ?? null,
     joinedOn: toDateOnly(row.staffProfile?.joinedOn ?? null),
     relievedOn: toDateOnly(row.staffProfile?.relievedOn ?? null),
     isSelf: row.userId === ctx.userId,
@@ -654,7 +659,7 @@ export async function updateMember(
     const data = {
       ...(input.employeeCode !== undefined ? { employeeCode: input.employeeCode } : {}),
       ...(input.department !== undefined ? { department: input.department } : {}),
-      ...(input.designation !== undefined ? { designation: input.designation } : {}),
+      ...(input.designationId !== undefined ? { designationId: input.designationId } : {}),
       ...(input.joinedOn !== undefined
         ? { joinedOn: input.joinedOn === null ? null : new Date(input.joinedOn) }
         : {}),
@@ -680,14 +685,14 @@ export async function updateMember(
       before: {
         employeeCode: before.staffProfile?.employeeCode ?? null,
         department: before.staffProfile?.department ?? null,
-        designation: before.staffProfile?.designation ?? null,
+        designationId: before.staffProfile?.designationId ?? null,
         joinedOn: toDateOnly(before.staffProfile?.joinedOn ?? null),
         relievedOn: toDateOnly(before.staffProfile?.relievedOn ?? null),
       },
       after: {
         employeeCode: after.staffProfile?.employeeCode ?? null,
         department: after.staffProfile?.department ?? null,
-        designation: after.staffProfile?.designation ?? null,
+        designationId: after.staffProfile?.designationId ?? null,
         joinedOn: toDateOnly(after.staffProfile?.joinedOn ?? null),
         relievedOn: toDateOnly(after.staffProfile?.relievedOn ?? null),
       },

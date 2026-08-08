@@ -200,6 +200,77 @@ later. That one is application-layer or it is nothing. Measured both ways in
 `tests/integration/iam.test.ts` by deleting the guard: the named-branch case
 turns 404 into 500, and the org-wide case turns 403 into 201.
 
+### `date AT TIME ZONE tz` silently means the opposite of what it reads
+
+**Symptom:** the appointment day board came back empty and the availability
+engine offered slots that were already booked — for one branch, in IST, with no
+error anywhere and both queries returning rows.
+**Cause:** `date` casts implicitly to **both** `timestamp` and `timestamptz`, so
+Postgres resolves
+
+```sql
+(:date::date) AT TIME ZONE b.timezone      -- picks the timestamptz overload
+```
+
+as _"render this instant as wall-clock in that zone"_ — the inverse of the
+intended _"this wall-clock time in that zone, as an instant"_ — and returns a
+bare `timestamp`. The IST day then started at 05:30Z instead of 18:30Z the
+previous evening, so every morning booking fell outside its own day.
+**Fix:** cast the operand explicitly.
+
+```sql
+(:date::date)::timestamp AT TIME ZONE b.timezone
+```
+
+**Worth knowing:** the sibling expression `(:date::date + start_time)` is safe,
+because `date + time` is unambiguously `timestamp` — which is why the slot grid
+was correct while the day bounds were wrong, and why the two disagreed rather
+than both failing. Pinned by the timezone cases in
+`tests/integration/appointments.test.ts`.
+
+### RLS is not applied to tables referenced inside a policy expression
+
+**Symptom:** `appointment_status_history` returned nine rows to a reader whose
+branch scope named no real branch, while `SELECT count(*) FROM appointments`
+returned 0 in the same transaction.
+**Cause:** a policy of the form `EXISTS (SELECT 1 FROM parent p WHERE …)` does
+**not** inherit the parent's policies — Postgres evaluates policy expressions
+with row security disabled on the tables they reference, or a policy that read
+its own table would recurse forever. The `parent_scoped` children in
+`enable-rls.sql` are safe only because each predicate spells the organization
+test out itself; nothing about the branch boundary carries across.
+**Fix:** restate the parent's branch predicate in the child's policy. Two places
+to keep in step, and it is the only thing that works; a `branch_id` column on the
+child is worse, because it can drift from its parent.
+**Worth knowing:** the first fix was defeated immediately by a second one.
+Adding the table to the `org_scoped` array as well gave it a PERMISSIVE
+`tenant_isolation` beside the hand-written policy, and **permissive policies OR
+together** — so the org-only policy re-opened the hole. A second permissive
+policy never narrows anything. Both halves are pinned in
+`tests/integration/tenant-isolation.test.ts`.
+
+### Prisma Migrate offers to drop hand-written indexes it can see
+
+**Symptom:** a `migrate dev` unrelated to patients generated
+`DROP INDEX "patients_phone_trgm_idx"` — the GIN trigram index the phone search
+depends on — and applying it turned every phone lookup into a sequential scan
+whose cost grows with the **platform**, because RLS filters after the scan.
+**Cause:** Prisma diffs the database against `schema.prisma`, and an index it
+can introspect but cannot find declared is drift to be removed. It affects
+indexes on a plain column with a non-default operator class; an EXPRESSION
+index (`lower(first_name || ' ' || …)`) is invisible to the introspector and so
+is never proposed for dropping.
+**Fix:** declare it, rather than deleting the line every time.
+
+```prisma
+@@index([phone(ops: raw("gin_trgm_ops"))], map: "patients_phone_trgm_idx", type: Gin)
+```
+
+**Worth knowing:** an expression index genuinely cannot be declared, so those
+stay hand-written and stay safe. Anything Prisma _can_ express should be
+declared even when the migration already creates it — that is what stops the
+next migration from offering to undo it.
+
 ### Counting join rows is not counting people
 
 **Symptom:** "held by 2 people" for a role one person holds.
@@ -211,6 +282,37 @@ the branch column. `_count: { select: { assignments: true } }` counts rows.
 had anyone holding the same role at two branches. It was found by curling the
 demo clinic. Any "how many members have X" over a branch-scoped join table has
 the same shape.
+
+### `prisma migrate reset` leaves the app locked out — and the audit trail rewritable
+
+**Symptom:** every request after a reset fails with `permission denied for
+schema public`, reported from whichever Prisma call happens to run first. It
+reads as a Prisma or connection-string fault and is neither.
+**Cause:** `migrate reset` issues `DROP SCHEMA public CASCADE; CREATE SCHEMA
+public`. That takes the `rcln_app` grants down with it **and** the
+`ALTER DEFAULT PRIVILEGES` rules that were supposed to cover future tables.
+`infra/postgres/init/01-roles-and-extensions.sql` is not re-run — it fires once,
+on first boot of an empty volume — so the migrations replay, rebuild every table
+owned by `rcln_owner`, and grant them to nobody.
+**⚠️ The dangerous half is the fix, not the break.** Restoring access with a
+blanket `GRANT … ON ALL TABLES` hands `rcln_app` UPDATE and DELETE on
+`audit_logs` and `data_access_logs`, undoing the REVOKEs those tables' own
+migrations performed. Nothing fails, no test notices, and the immutability
+guarantee quietly drops from two independent layers to one. Both migrations
+name this sequence as the thing to watch for; it is easy to do by hand and
+forget the second half.
+**Fix:** `pnpm db:reset` now runs `scripts/apply-grants.ts` afterwards, which
+applies `prisma/rls/grant-app.sql` — grants, default privileges, then the
+REVOKEs — and reads the catalogue back to prove the append-only tables are
+insert-only. It exits non-zero if they are not. Run `pnpm db:grants` by hand
+after any other operation that recreates the schema.
+**Also:** `migrate reset` does **not** run the seed in Prisma 7, despite
+`migrations.seed` being set in `prisma.config.ts` (and `--skip-seed` is not a
+valid flag, which is the giveaway). A reset therefore used to leave zero
+permissions, zero roles and zero plans — an empty database that fails every test
+for reasons unrelated to whatever was being tested. `pnpm db:reset` now runs the
+seed explicitly. It is idempotent, so a future Prisma that starts seeding again
+does no harm.
 
 ### `P3014` — shadow database
 
@@ -357,6 +459,36 @@ reader's clock is the correct one.
 the effect and set state only from the interval callback — never from the effect
 body, and never by decrementing, which drifts when the tab is throttled.
 
+### `next build` inside the dev container blames the wrong page entirely
+
+**Symptom:** `pnpm --filter @rcln/web build` dies during the export pass with
+
+```
+Error occurred prerendering page "/legal/dpa".
+TypeError: Cannot read properties of null (reading 'useContext')
+```
+
+The page it names is an ordinary static server component with no hooks in it,
+and **the name changes between runs** — `/billing/sandbox` one time, `/legal/dpa`
+the next. Chasing the named page leads nowhere: it is whichever route the
+prerender workers reached first.
+**Cause:** the dev containers export `NODE_ENV=development`, and `docker compose
+exec api pnpm … build` inherits it. `next build` respects an already-set
+`NODE_ENV` instead of forcing `production`, so the server bundle is compiled for
+production while parts of React resolve to the development condition. The
+dispatcher ends up null inside Next's own `OuterLayoutRouter`, which is why the
+stack points at `next/dist` and not at anything in this repository. The only
+honest hint is one line near the top of the output: `⚠ You are using a
+non-standard "NODE_ENV" value`.
+**Fix:** the `build` script pins it — `NODE_ENV=production next build`. The
+Dockerfile's build stage never had the problem, because it leaves `NODE_ENV`
+unset and Next then chooses `production` itself.
+**Worth knowing:** `next build --debug-prerender` runs the whole thing in
+development mode, so it **succeeds** here and reports unrelated warnings on the
+way. That is a very convincing wrong answer — reach for it to unminify a real
+prerender error, not to decide whether one exists. `pnpm validate` does not run
+a build at all, so nothing in the normal pipeline exercises this path.
+
 ### Build-only config affects `next dev`
 
 **Symptom:** CPU pinned, web container OOM-killed on first compile.
@@ -456,6 +588,29 @@ office NAT for having staff. `identityLimiter` adds a per-account budget on
 `/auth/login`; both must pass. It is not the account lockout in
 `password.service.ts`, which counts only FAILED attempts, and it refuses the
 request before argon2 runs.
+
+### A constant exported from a `'use server'` module is `undefined` in the browser
+
+**Symptom:** a runtime `TypeError` deep inside a Client Component, on a value
+that plainly has a default — `Cannot read properties of undefined (reading
+'length')` where the initial state was declared as `{ patients: [], … }`.
+**Cause:** every export from a `'use server'` file is compiled into a callable
+server reference. That is right for the actions and wrong for anything else: a
+`export const EMPTY_SEARCH = { … }` sitting beside them does not survive the
+boundary, and the Client Component's `useActionState(action, EMPTY_SEARCH)`
+receives `undefined` as its initial state.
+**⚠️ It typechecks perfectly.** `tsc` sees an ordinary module-to-module import
+and the correct type; the transformation happens after it. Nor does the failure
+land at the import — it lands wherever the value is first dereferenced, which on
+this screen was a different file and about a hundred lines away.
+**Fix:** keep values in the Client Component. `doctor-list.tsx` declares its own
+`IDLE` and `patient-search.tsx` its own `EMPTY_SEARCH`, each typed by a `type`
+exported from the actions file — types erase at compile time, so they cross the
+boundary safely and keep the two in step. Only async functions may be exported
+from a `'use server'` module.
+**Sweep for it:**
+`grep -rl "^'use server'" apps/web/src` then check each file for
+`export const|let|var|class|enum`.
 
 ### A Server Action re-renders the page, which can unmount the effect that was going to navigate
 

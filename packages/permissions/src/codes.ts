@@ -12,6 +12,7 @@ export const MODULES = [
   'organization',
   'branch',
   'iam',
+  'doctor',
   'patient',
   'appointment',
   'clinical',
@@ -65,6 +66,47 @@ export const PERMISSIONS = {
   IAM_ROLE_READ: 'iam.role.read',
   IAM_ROLE_MANAGE: 'iam.role.manage',
   IAM_PERMISSION_ASSIGN: 'iam.permission.assign',
+  /**
+   * Add and retire the job titles this clinic hands out.
+   *
+   * Separate from IAM_ROLE_MANAGE because it is a much smaller claim: a role
+   * carries permissions, so editing one changes what people can DO. A
+   * designation is a label — the front desk needs to add "Senior Consultant"
+   * without also being able to grant permissions.
+   *
+   * READING the list is covered by IAM_USER_INVITE and IAM_USER_READ, because
+   * the invite form has to render the menu.
+   */
+  IAM_DESIGNATION_MANAGE: 'iam.designation.manage',
+
+  /*
+   * -- doctor -----------------------------------------------------------------
+   *
+   * A doctor is a `users` row with a `doctor_profiles` row; practising at three
+   * branches is three `membership_roles`. These codes govern the profile and the
+   * working hours behind it — not the consultation, which is `clinical.*`.
+   *
+   * Editing your OWN profile is not a code. The service compares
+   * `profile.userId` against `ctx.userId` and allows the bio/qualification
+   * subset under DOCTOR_READ; a `doctor.self.update` code would be a claim the
+   * permission resolver cannot scope to one row.
+   */
+  DOCTOR_READ: 'doctor.read',
+  DOCTOR_CREATE: 'doctor.create',
+  DOCTOR_UPDATE: 'doctor.update',
+  DOCTOR_ARCHIVE: 'doctor.archive',
+  DOCTOR_SCHEDULE_READ: 'doctor.schedule.read',
+  DOCTOR_SCHEDULE_MANAGE: 'doctor.schedule.manage',
+  /**
+   * Ask for leave. Deliberately separate from DOCTOR_SCHEDULE_APPROVE: a doctor
+   * requesting time off and a manager granting it are different claims. Fused
+   * into one code, either doctors approve their own leave — and the availability
+   * engine silently loses those days — or they cannot ask for it at all.
+   */
+  DOCTOR_SCHEDULE_REQUEST: 'doctor.schedule.request',
+  DOCTOR_SCHEDULE_APPROVE: 'doctor.schedule.approve',
+  /** Org-scoped specialties and qualifications. Platform rows are seeded. */
+  DOCTOR_MASTER_MANAGE: 'doctor.master.manage',
 
   // -- patient ---------------------------------------------------------------
   PATIENT_READ: 'patient.read',
@@ -84,6 +126,13 @@ export const PERMISSIONS = {
   APPOINTMENT_CANCEL: 'appointment.cancel',
   APPOINTMENT_CHECKIN: 'appointment.checkin',
   QUEUE_MANAGE: 'appointment.queue.manage',
+  /**
+   * See which slots are free. Separate from DOCTOR_SCHEDULE_READ because a
+   * patient on the portal must be able to book without reading the doctor's
+   * schedule configuration — `max_patients`, validity windows, or the reason
+   * attached to a day of leave.
+   */
+  APPOINTMENT_AVAILABILITY_READ: 'appointment.availability.read',
 
   // -- clinical --------------------------------------------------------------
   ENCOUNTER_READ: 'clinical.encounter.read',

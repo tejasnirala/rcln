@@ -43,6 +43,53 @@ const REDACTED_KEYS = new Set([
   'token',
   'refreshTokenHash',
   'previousTokenHash',
+
+  /*
+   * PHI and direct identifiers — the SECOND layer, not the first.
+   *
+   * The first layer is each service passing an allow-list snapshot rather than
+   * a whole row. This backstop exists because that layer is one careless
+   * `{...row}` away from failing, and the result would be a name, a date of
+   * birth and an ABHA number sitting permanently in a table that is
+   * deliberately protected against deletion and is read widely.
+   *
+   * Redacted, not dropped: THAT a patient's identifier changed is a legitimate
+   * audit question. What it changed to is not this table's business.
+   *
+   * ⚠️ ONLY KEYS THAT ARE PHI ON EVERY ENTITY THAT COULD CARRY THEM.
+   *   `email` and `phone` are deliberately NOT here, and adding them would be a
+   *   regression rather than an improvement: `invitations` records the invited
+   *   email on purpose — "who was invited" IS the audit record — and `branches`
+   *   records a clinic's public switchboard number. Blanket-redacting by key
+   *   name would quietly gut both trails to protect a patient column that no
+   *   service passes anyway. A patient's contact details are kept out by the
+   *   allow-list snapshot in the patient service, which is where the entity is
+   *   actually known, and by the integration test that greps every audit row for
+   *   the seeded patient's details.
+   */
+  'firstName',
+  'lastName',
+  'fullName',
+  'dateOfBirth',
+  'abhaNumber',
+  'nationalId',
+  'allergenText',
+  'medicineText',
+  'conditionText',
+  'chiefComplaint',
+  /*
+   * Added with the patient tables. Both are PHI on every entity that could
+   * carry them — there is no `reaction` or `dosage` anywhere in this system
+   * that is not about one patient's body — so unlike `email` and `phone` above,
+   * a key-name deny-list is the right instrument here.
+   *
+   * `uhid` and `mrn` are deliberately NOT here. They are the identifiers the
+   * audit row is ABOUT: an audit trail that cannot say which patient record was
+   * edited records nothing useful, and neither number discloses anything on its
+   * own to a reader who cannot already resolve it.
+   */
+  'reaction',
+  'dosage',
 ]);
 
 const REDACTED = '[redacted]';

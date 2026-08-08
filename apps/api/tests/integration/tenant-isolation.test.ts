@@ -949,3 +949,1086 @@ describe('billing tables', () => {
     });
   });
 });
+
+/**
+ * The Stage 1 spine: number_sequences and data_access_logs.
+ *
+ * Both are org-scoped and both matter for different reasons.
+ *
+ *   number_sequences hands out UHIDs and MRNs. A leak across the boundary is
+ *   not a read of PHI — it is worse in one specific way: clinic A incrementing
+ *   clinic B's counter makes B's next patient number jump, and neither clinic
+ *   can explain why.
+ *
+ *   data_access_logs is the record of who read whose chart. A tenant that could
+ *   read another's rows would learn which patients that clinic treats from the
+ *   trail built to protect them, and one that could write into another's would
+ *   be able to forge an alibi.
+ */
+describe('number_sequences', () => {
+  const SEQ_A = 'eeeeeeee-0000-0000-0000-0000000000e1';
+  const SEQ_B = 'eeeeeeee-0000-0000-0000-0000000000e2';
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO number_sequences
+         (id, organization_id, branch_id, sequence_type, period_key, prefix, padding, last_number, updated_at)
+       VALUES ($1, $2, NULL, 'UHID', '', 'P', 6, 41, now()),
+              ($3, $4, NULL, 'UHID', '', 'P', 6, 7,  now())
+       ON CONFLICT DO NOTHING`,
+      [SEQ_A, ORG_A, SEQ_B, ORG_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM number_sequences WHERE id = ANY($1)', [[SEQ_A, SEQ_B]]);
+  });
+
+  it('fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM number_sequences'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('shows each organization only its own counter', async () => {
+    const forA = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query<{ last_number: string }>(
+        'SELECT last_number FROM number_sequences'
+      );
+      return rows.map((r) => Number(r.last_number));
+    });
+    const forB = await asTenant(ORG_B, async () => {
+      const { rows } = await app.query<{ last_number: string }>(
+        'SELECT last_number FROM number_sequences'
+      );
+      return rows.map((r) => Number(r.last_number));
+    });
+
+    expect(forA).toEqual([41]);
+    expect(forB).toEqual([7]);
+  });
+
+  it('cannot read another tenant even when its id is known', async () => {
+    const found = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM number_sequences WHERE id = $1', [SEQ_B]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('rejects writing a counter into another tenant', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO number_sequences
+             (id, organization_id, branch_id, sequence_type, period_key, prefix, padding, last_number, updated_at)
+           VALUES (gen_random_uuid(), $1, NULL, 'MRN', '', 'X', 6, 1, now())`,
+          [ORG_B]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it("cannot advance another tenant's counter", async () => {
+    // The concrete harm: B's next patient number jumps and nobody can say why.
+    const updated = await asTenant(ORG_A, async () => {
+      const res = await app.query(
+        'UPDATE number_sequences SET last_number = last_number + 100 WHERE id = $1',
+        [SEQ_B]
+      );
+      return res.rowCount;
+    });
+    expect(updated).toBe(0);
+
+    const { rows } = await owner.query<{ last_number: string }>(
+      'SELECT last_number FROM number_sequences WHERE id = $1',
+      [SEQ_B]
+    );
+    expect(Number(rows[0]?.last_number)).toBe(7);
+  });
+});
+
+describe('data_access_logs', () => {
+  const DAL_A = 'ffffffff-0000-0000-0000-0000000000f1';
+  const DAL_B = 'ffffffff-0000-0000-0000-0000000000f2';
+  const PATIENT_B = 'ffffffff-0000-0000-0000-0000000000b9';
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO data_access_logs
+         (id, organization_id, patient_id, access_type, resource, result_count)
+       VALUES ($1, $2, NULL,  'VIEW', 'PATIENT', 1),
+              ($3, $4, $5,    'VIEW', 'PATIENT', 1)
+       ON CONFLICT DO NOTHING`,
+      [DAL_A, ORG_A, DAL_B, ORG_B, PATIENT_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM data_access_logs WHERE id = ANY($1)', [[DAL_A, DAL_B]]);
+  });
+
+  it('fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM data_access_logs'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('shows each organization only its own trail', async () => {
+    const forA = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM data_access_logs');
+      return rows.length;
+    });
+    expect(forA).toBe(1);
+  });
+
+  it('cannot learn which patients another clinic treats', async () => {
+    // The specific disclosure: the trail built to protect patients would
+    // otherwise name them to a competitor.
+    const found = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query(
+        'SELECT patient_id FROM data_access_logs WHERE patient_id IS NOT NULL'
+      );
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('rejects writing a read-record into another tenant', async () => {
+    // Forging an alibi: "someone at clinic B looked at this, not me".
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO data_access_logs
+             (id, organization_id, access_type, resource, result_count)
+           VALUES (gen_random_uuid(), $1, 'VIEW', 'PATIENT', 1)`,
+          [ORG_B]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  /*
+   * Append-only, measured from INSIDE the tenant with the row visible.
+   *
+   * An out-of-context attempt reports 0 rows and proves nothing — it would pass
+   * just as happily against a table with no protection at all. These two run
+   * with app.current_org set to the row's own organization, so the refusal is a
+   * real refusal.
+   */
+  it('refuses UPDATE from the app role with the row visible', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query('UPDATE data_access_logs SET result_count = 999 WHERE id = $1', [DAL_A])
+      )
+    ).rejects.toThrow(/permission denied|append-only/i);
+  });
+
+  it('refuses DELETE from the app role with the row visible', async () => {
+    await expect(
+      asTenant(ORG_A, () => app.query('DELETE FROM data_access_logs WHERE id = $1', [DAL_A]))
+    ).rejects.toThrow(/permission denied|append-only/i);
+
+    const { rows } = await owner.query('SELECT id FROM data_access_logs WHERE id = $1', [DAL_A]);
+    expect(rows).toHaveLength(1);
+  });
+});
+
+/**
+ * Doctors, and the two policies that are easy to get subtly wrong.
+ *
+ *   1. `specialties` and `qualifications` are a PLATFORM catalogue with
+ *      per-tenant extension. The policy is read-permissive and WRITE-STRICT,
+ *      which is NOT the policy on `files`. Copying the `files` one would let any
+ *      clinic insert a row with organization_id NULL — instantly visible to
+ *      every other tenant on the platform. That case is measured below.
+ *   2. The doctor join tables point at TWO parents, and only the doctor side is
+ *      covered by tenant_isolation. Without the RESTRICTIVE `specialty_visible`
+ *      policy a clinic could attach another clinic's private specialty to its
+ *      own doctor and read the name back out of it.
+ */
+describe('doctors', () => {
+  const DOC_USER_A = 'dddddddd-1111-4111-8111-0000000000a1';
+  const DOC_USER_B = 'dddddddd-1111-4111-8111-0000000000b1';
+  const DOC_A = 'dddddddd-2222-4222-8222-0000000000a1';
+  const DOC_B = 'dddddddd-2222-4222-8222-0000000000b1';
+  const SPEC_PLATFORM = 'dddddddd-3333-4333-8333-000000000001';
+  const SPEC_PRIVATE_B = 'dddddddd-3333-4333-8333-0000000000b1';
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO users (id, full_name, email, updated_at)
+       VALUES ($1, 'Iso Doc A', 'iso-doc-a@example.test', now()),
+              ($2, 'Iso Doc B', 'iso-doc-b@example.test', now())
+       ON CONFLICT DO NOTHING`,
+      [DOC_USER_A, DOC_USER_B]
+    );
+    await owner.query(
+      `INSERT INTO doctor_profiles (id, organization_id, user_id, updated_at)
+       VALUES ($1, $2, $3, now()), ($4, $5, $6, now())
+       ON CONFLICT DO NOTHING`,
+      [DOC_A, ORG_A, DOC_USER_A, DOC_B, ORG_B, DOC_USER_B]
+    );
+    await owner.query(
+      `INSERT INTO specialties (id, organization_id, code, name, updated_at)
+       VALUES ($1, NULL, 'ISO_PLATFORM', 'Iso Platform', now()),
+              ($2, $3,   'ISO_PRIVATE_B', 'Iso Private B', now())
+       ON CONFLICT DO NOTHING`,
+      [SPEC_PLATFORM, SPEC_PRIVATE_B, ORG_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM doctor_profiles WHERE id = ANY($1)', [[DOC_A, DOC_B]]);
+    await owner.query('DELETE FROM users WHERE id = ANY($1)', [[DOC_USER_A, DOC_USER_B]]);
+    await owner.query('DELETE FROM specialties WHERE id = ANY($1)', [
+      [SPEC_PLATFORM, SPEC_PRIVATE_B],
+    ]);
+  });
+
+  it('fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM doctor_profiles'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('shows each organization only its own doctors', async () => {
+    const forA = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM doctor_profiles');
+      return rows.map((r) => (r as { id: string }).id);
+    });
+    expect(forA).toEqual([DOC_A]);
+  });
+
+  it('cannot read another tenant’s doctor even when its id is known', async () => {
+    const found = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM doctor_profiles WHERE id = $1', [DOC_B]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('rejects writing a doctor into another tenant', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO doctor_profiles (id, organization_id, user_id, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, now())`,
+          [ORG_B, DOC_USER_A]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  describe('the platform catalogue', () => {
+    it('lets every tenant read the platform rows', async () => {
+      const forA = await asTenant(ORG_A, async () => {
+        const { rows } = await app.query(`SELECT id FROM specialties WHERE code = 'ISO_PLATFORM'`);
+        return rows.length;
+      });
+      expect(forA).toBe(1);
+    });
+
+    it("hides one tenant's private specialty from another", async () => {
+      const forA = await asTenant(ORG_A, async () => {
+        const { rows } = await app.query(`SELECT id FROM specialties WHERE code = 'ISO_PRIVATE_B'`);
+        return rows.length;
+      });
+      expect(forA).toBe(0);
+    });
+
+    /*
+     * THE case. A permissive WITH CHECK — the one `files` uses — would let this
+     * succeed, and the row would be visible to every tenant on the platform.
+     * Nothing else in the system would notice: it is a valid insert into a table
+     * the caller is allowed to write.
+     */
+    it('refuses a tenant writing a PLATFORM-WIDE specialty', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(
+            `INSERT INTO specialties (id, organization_id, code, name, updated_at)
+             VALUES (gen_random_uuid(), NULL, 'SNEAKY_PLATFORM', 'Sneaky', now())`
+          )
+        )
+      ).rejects.toThrow(/row-level security/i);
+    });
+
+    it('allows a tenant writing its own specialty', async () => {
+      const inserted = await asTenant(ORG_A, async () => {
+        const res = await app.query(
+          `INSERT INTO specialties (id, organization_id, code, name, updated_at)
+           VALUES (gen_random_uuid(), $1, 'ISO_OWN_A', 'Iso Own A', now())`,
+          [ORG_A]
+        );
+        return res.rowCount;
+      });
+      expect(inserted).toBe(1);
+      await owner.query(`DELETE FROM specialties WHERE code = 'ISO_OWN_A'`);
+    });
+  });
+
+  describe('the second parent of a join table', () => {
+    /*
+     * `doctor_specialties.specialty_id` is a plain FK, because a specialty may
+     * be a platform row with no organization_id to compose with. tenant_isolation
+     * therefore constrains only the DOCTOR side — the RESTRICTIVE
+     * `specialty_visible` policy is the entire control on the SPECIALTY side.
+     */
+    it("refuses attaching another tenant's private specialty to your own doctor", async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(
+            `INSERT INTO doctor_specialties
+               (id, organization_id, doctor_profile_id, specialty_id)
+             VALUES (gen_random_uuid(), $1, $2, $3)`,
+            [ORG_A, DOC_A, SPEC_PRIVATE_B]
+          )
+        )
+      ).rejects.toThrow(/row-level security/i);
+    });
+
+    it('allows attaching a platform specialty', async () => {
+      const inserted = await asTenant(ORG_A, async () => {
+        const res = await app.query(
+          `INSERT INTO doctor_specialties
+             (id, organization_id, doctor_profile_id, specialty_id)
+           VALUES (gen_random_uuid(), $1, $2, $3)`,
+          [ORG_A, DOC_A, SPEC_PLATFORM]
+        );
+        return res.rowCount;
+      });
+      expect(inserted).toBe(1);
+    });
+  });
+
+  describe('working hours are branch-scoped as well as tenant-scoped', () => {
+    const SCHED_A1 = 'dddddddd-4444-4444-8444-0000000000a1';
+
+    beforeAll(async () => {
+      await owner.query(
+        `INSERT INTO doctor_schedules
+           (id, organization_id, doctor_profile_id, branch_id, day_of_week,
+            start_time, end_time, valid_from, updated_at)
+         VALUES ($1, $2, $3, $4, 1, '09:00', '13:00', CURRENT_DATE, now())
+         ON CONFLICT DO NOTHING`,
+        [SCHED_A1, ORG_A, DOC_A, BRANCH_A]
+      );
+    });
+
+    afterAll(async () => {
+      await owner.query('DELETE FROM doctor_schedules WHERE id = $1', [SCHED_A1]);
+    });
+
+    it('is invisible with a tenant context but an empty branch scope', async () => {
+      // The RESTRICTIVE branch_isolation policy ANDs with tenant_isolation, and
+      // app.branch_scope defaults to {}. A context that forgets to set it sees
+      // an empty week rather than an error — which is exactly how a "the doctor
+      // has no hours" bug would present.
+      const found = await asTenant(ORG_A, async () => {
+        const { rows } = await app.query('SELECT id FROM doctor_schedules');
+        return rows.length;
+      });
+      expect(found).toBe(0);
+    });
+
+    it('is visible once the branch is in scope', async () => {
+      await app.query('BEGIN');
+      await app.query(`SELECT set_config('app.current_org', $1, true)`, [ORG_A]);
+      await app.query(`SELECT set_config('app.branch_scope', $1, true)`, [`{${BRANCH_A}}`]);
+      const { rows } = await app.query('SELECT id FROM doctor_schedules');
+      await app.query('COMMIT');
+
+      expect(rows).toHaveLength(1);
+    });
+  });
+});
+
+/**
+ * Designations — the job titles a clinic hands out.
+ *
+ * Same platform-catalogue-plus-extension shape as `specialties`, and the same
+ * policy trap: a NULL-permissive WITH CHECK would let any clinic insert a
+ * platform-wide title visible to every tenant.
+ *
+ * The second half covers the RESTRICTIVE `designation_visible` policies. Both
+ * `invitations.designation_id` and `staff_profiles.designation_id` are plain FKs
+ * — a designation may be a platform row with no organization_id to compose with
+ * — so each table's own isolation constrains the invitation/membership side and
+ * says nothing about the designation.
+ */
+describe('designations', () => {
+  const DESIG_PLATFORM = 'aaaaaaaa-5555-4555-8555-000000000001';
+  const DESIG_PRIVATE_B = 'aaaaaaaa-5555-4555-8555-0000000000b1';
+  /** An inviter, because `invitations.invited_by` is NOT NULL. */
+  const INVITER = 'aaaaaaaa-6666-4666-8666-000000000001';
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO users (id, full_name, email, updated_at)
+       VALUES ($1, 'Iso Inviter', 'iso-inviter@example.test', now())
+       ON CONFLICT DO NOTHING`,
+      [INVITER]
+    );
+    await owner.query(
+      `INSERT INTO designations (id, organization_id, code, name, updated_at)
+       VALUES ($1, NULL, 'ISO_TITLE', 'Iso Title', now()),
+              ($2, $3,   'ISO_TITLE_B', 'Iso Title B', now())
+       ON CONFLICT DO NOTHING`,
+      [DESIG_PLATFORM, DESIG_PRIVATE_B, ORG_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM designations WHERE id = ANY($1)', [
+      [DESIG_PLATFORM, DESIG_PRIVATE_B],
+    ]);
+    await owner.query('DELETE FROM users WHERE id = $1', [INVITER]);
+  });
+
+  it('lets every tenant read the platform titles', async () => {
+    const forA = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query(`SELECT id FROM designations WHERE code = 'ISO_TITLE'`);
+      return rows.length;
+    });
+    expect(forA).toBe(1);
+  });
+
+  it("hides one clinic's private title from another", async () => {
+    const forA = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query(`SELECT id FROM designations WHERE code = 'ISO_TITLE_B'`);
+      return rows.length;
+    });
+    expect(forA).toBe(0);
+  });
+
+  it('refuses a tenant writing a PLATFORM-WIDE title', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO designations (id, organization_id, code, name, updated_at)
+           VALUES (gen_random_uuid(), NULL, 'SNEAKY_TITLE', 'Sneaky', now())`
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  /*
+   * The RESTRICTIVE designation_visible policy on `invitations`. Without it, a
+   * clinic could point an invitation at another clinic's private title and read
+   * the name back through the invite preview.
+   */
+  it("refuses an invitation naming another clinic's private title", async () => {
+    const roleRow = await owner.query<{ id: string }>(
+      `SELECT id FROM roles WHERE organization_id IS NULL AND code = 'NURSE'`
+    );
+
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO invitations
+             (id, organization_id, email, role_id, designation_id, token, invited_by, expires_at)
+           VALUES (gen_random_uuid(), $1, 'x@example.test', $2, $3, $4, $5, now() + interval '7 days')`,
+          [ORG_A, roleRow.rows[0]?.id, DESIG_PRIVATE_B, `tok-${Date.now()}`, INVITER]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it('allows an invitation naming a platform title', async () => {
+    const roleRow = await owner.query<{ id: string }>(
+      `SELECT id FROM roles WHERE organization_id IS NULL AND code = 'NURSE'`
+    );
+
+    const inserted = await asTenant(ORG_A, async () => {
+      const res = await app.query(
+        `INSERT INTO invitations
+           (id, organization_id, email, role_id, designation_id, token, invited_by, expires_at)
+         VALUES (gen_random_uuid(), $1, 'ok@example.test', $2, $3, $4, $5, now() + interval '7 days')`,
+        [ORG_A, roleRow.rows[0]?.id, DESIG_PLATFORM, `tok-ok-${Date.now()}`, INVITER]
+      );
+      return res.rowCount;
+    });
+
+    expect(inserted).toBe(1);
+    await owner.query(`DELETE FROM invitations WHERE email = 'ok@example.test'`);
+  });
+});
+
+/**
+ * Role ↔ title pairings.
+ *
+ * Two parents, both plain FKs, and one of them — `roles` — is RLS-EXEMPT. So
+ * the RESTRICTIVE `role_visible` policy's organization_id test is doing the
+ * whole job on its own rather than backing up a policy that would have caught
+ * it anyway: without it a clinic could pair one of its titles with another
+ * clinic's private role and read that role's name back through the join.
+ */
+describe('role_designations', () => {
+  const ROLE_PRIVATE_B = 'bbbbbbbb-7777-4777-8777-0000000000b1';
+  const TITLE_PLATFORM = 'bbbbbbbb-8888-4888-8888-000000000001';
+  const TITLE_PRIVATE_B = 'bbbbbbbb-8888-4888-8888-0000000000b1';
+  let systemRoleId: string;
+
+  beforeAll(async () => {
+    const sys = await owner.query<{ id: string }>(
+      `SELECT id FROM roles WHERE organization_id IS NULL AND code = 'NURSE'`
+    );
+    systemRoleId = sys.rows[0]?.id as string;
+
+    await owner.query(
+      `INSERT INTO roles (id, organization_id, code, name, scope_level, updated_at)
+       VALUES ($1, $2, 'PRIVATE_B_ROLE', 'Private B Role', 'BRANCH', now())
+       ON CONFLICT DO NOTHING`,
+      [ROLE_PRIVATE_B, ORG_B]
+    );
+    await owner.query(
+      `INSERT INTO designations (id, organization_id, code, name, updated_at)
+       VALUES ($1, NULL, 'RD_PLATFORM', 'RD Platform', now()),
+              ($2, $3,   'RD_PRIVATE_B', 'RD Private B', now())
+       ON CONFLICT DO NOTHING`,
+      [TITLE_PLATFORM, TITLE_PRIVATE_B, ORG_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM role_designations WHERE designation_id = ANY($1)', [
+      [TITLE_PLATFORM, TITLE_PRIVATE_B],
+    ]);
+    await owner.query('DELETE FROM designations WHERE id = ANY($1)', [
+      [TITLE_PLATFORM, TITLE_PRIVATE_B],
+    ]);
+    await owner.query('DELETE FROM roles WHERE id = $1', [ROLE_PRIVATE_B]);
+  });
+
+  /*
+   * NOT "fails closed with no context", which is the shape used for every
+   * ordinary tenant table above and is the WRONG assertion here.
+   *
+   * This is a platform catalogue: the seeded pairings carry organization_id
+   * NULL and are deliberately the same for everybody, so they are visible
+   * without a tenant context exactly as `designations` and `specialties` are.
+   * What must never be visible without context is a pairing a CLINIC made.
+   */
+  it('exposes no tenant pairing without a tenant context', async () => {
+    await owner.query(
+      `INSERT INTO role_designations (id, organization_id, role_id, designation_id)
+       VALUES (gen_random_uuid(), $1, $2, $3)
+       ON CONFLICT DO NOTHING`,
+      [ORG_B, systemRoleId, TITLE_PLATFORM]
+    );
+
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM role_designations WHERE organization_id IS NOT NULL'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('shows the seeded platform pairings to every tenant', async () => {
+    const forA = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM role_designations');
+      return rows.length;
+    });
+    expect(forA).toBeGreaterThan(0);
+  });
+
+  it('refuses a tenant publishing a PLATFORM-WIDE pairing', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO role_designations (id, organization_id, role_id, designation_id)
+           VALUES (gen_random_uuid(), NULL, $1, $2)`,
+          [systemRoleId, TITLE_PLATFORM]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it('allows a tenant pairing a platform role with a platform title', async () => {
+    const inserted = await asTenant(ORG_A, async () => {
+      const res = await app.query(
+        `INSERT INTO role_designations (id, organization_id, role_id, designation_id)
+         VALUES (gen_random_uuid(), $1, $2, $3)`,
+        [ORG_A, systemRoleId, TITLE_PLATFORM]
+      );
+      return res.rowCount;
+    });
+    expect(inserted).toBe(1);
+  });
+
+  /*
+   * The `role_visible` case. `roles` is RLS-EXEMPT, so nothing except this
+   * policy stops org A naming org B's private role.
+   */
+  it("refuses pairing with another clinic's private role", async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO role_designations (id, organization_id, role_id, designation_id)
+           VALUES (gen_random_uuid(), $1, $2, $3)`,
+          [ORG_A, ROLE_PRIVATE_B, TITLE_PLATFORM]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it("refuses pairing with another clinic's private title", async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO role_designations (id, organization_id, role_id, designation_id)
+           VALUES (gen_random_uuid(), $1, $2, $3)`,
+          [ORG_A, systemRoleId, TITLE_PRIVATE_B]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it("cannot see another clinic's pairing", async () => {
+    await owner.query(
+      `INSERT INTO role_designations (id, organization_id, role_id, designation_id)
+       VALUES (gen_random_uuid(), $1, $2, $3)`,
+      [ORG_B, systemRoleId, TITLE_PRIVATE_B]
+    );
+
+    const visible = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query(
+        'SELECT id FROM role_designations WHERE designation_id = $1',
+        [TITLE_PRIVATE_B]
+      );
+      return rows.length;
+    });
+    expect(visible).toBe(0);
+  });
+});
+
+/**
+ * Patients — PHI, and the one domain where the branch boundary deliberately
+ * does NOT fall where it falls everywhere else.
+ *
+ * ⚠️ `patients` HAS NO `branch_isolation` POLICY, ON PURPOSE (ADR-0016). The
+ * cases below assert the ABSENCE as deliberately as they assert the presence,
+ * because "add branch_isolation to patients for consistency" is exactly the
+ * change that looks like a security improvement and produces duplicate records
+ * with empty allergy lists.
+ *
+ * What IS branch-local is `patient_registrations` — attendance, not identity —
+ * and its RESTRICTIVE policy is the whole control on which clinic's patient
+ * list a receptionist can read.
+ *
+ * The five history/detail tables are org-scoped for the same reason as
+ * `patients`: an allergy follows the person to whichever branch they walk into.
+ */
+describe('patients', () => {
+  const PATIENT_A = 'eeeeeeee-1111-4111-8111-0000000000a1';
+  const PATIENT_B = 'eeeeeeee-1111-4111-8111-0000000000b1';
+  /** Registered at B2 only, so B1's scope must not see the registration. */
+  const REG_B2 = 'eeeeeeee-2222-4222-8222-0000000000b2';
+  const ALLERGY_B = 'eeeeeeee-3333-4333-8333-0000000000b1';
+  const CONDITION_B = 'eeeeeeee-4444-4444-8444-0000000000b1';
+  const MEDICATION_B = 'eeeeeeee-5555-4555-8555-0000000000b1';
+  const ADDRESS_B = 'eeeeeeee-6666-4666-8666-0000000000b1';
+  const CONTACT_B = 'eeeeeeee-7777-4777-8777-0000000000b1';
+
+  /** A tenant context WITH a branch scope, which `asTenant` deliberately omits. */
+  async function asTenantAtBranches<T>(
+    organizationId: string,
+    branchIds: string[],
+    fn: () => Promise<T>
+  ): Promise<T> {
+    await app.query('BEGIN');
+    try {
+      await app.query(`SELECT set_config('app.current_org', $1, true)`, [organizationId]);
+      await app.query(`SELECT set_config('app.branch_scope', $1, true)`, [
+        `{${branchIds.join(',')}}`,
+      ]);
+      const result = await fn();
+      await app.query('COMMIT');
+      return result;
+    } catch (err) {
+      await app.query('ROLLBACK');
+      throw err;
+    }
+  }
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO patients (id, organization_id, uhid, first_name, last_name, updated_at)
+       VALUES ($1, $2, 'ISOA0001', 'Iso', 'Patient A', now()),
+              ($3, $4, 'ISOB0001', 'Iso', 'Patient B', now())
+       ON CONFLICT DO NOTHING`,
+      [PATIENT_A, ORG_A, PATIENT_B, ORG_B]
+    );
+    await owner.query(
+      `INSERT INTO patient_registrations
+         (id, organization_id, patient_id, branch_id, mrn, updated_at)
+       VALUES ($1, $2, $3, $4, 'MRNB0001', now())
+       ON CONFLICT DO NOTHING`,
+      [REG_B2, ORG_B, PATIENT_B, BRANCH_B2]
+    );
+    await owner.query(
+      `INSERT INTO patient_allergies
+         (id, organization_id, patient_id, allergen_text, updated_at)
+       VALUES ($1, $2, $3, 'Iso Allergen', now()) ON CONFLICT DO NOTHING`,
+      [ALLERGY_B, ORG_B, PATIENT_B]
+    );
+    await owner.query(
+      `INSERT INTO patient_conditions
+         (id, organization_id, patient_id, condition_text, updated_at)
+       VALUES ($1, $2, $3, 'Iso Condition', now()) ON CONFLICT DO NOTHING`,
+      [CONDITION_B, ORG_B, PATIENT_B]
+    );
+    await owner.query(
+      `INSERT INTO patient_medications
+         (id, organization_id, patient_id, medicine_text, updated_at)
+       VALUES ($1, $2, $3, 'Iso Medicine', now()) ON CONFLICT DO NOTHING`,
+      [MEDICATION_B, ORG_B, PATIENT_B]
+    );
+    await owner.query(
+      `INSERT INTO patient_addresses
+         (id, organization_id, patient_id, line1, updated_at)
+       VALUES ($1, $2, $3, 'Iso Street', now()) ON CONFLICT DO NOTHING`,
+      [ADDRESS_B, ORG_B, PATIENT_B]
+    );
+    await owner.query(
+      `INSERT INTO patient_contacts
+         (id, organization_id, patient_id, relation, name, phone, updated_at)
+       VALUES ($1, $2, $3, 'Spouse', 'Iso Kin', '+919999999999', now())
+       ON CONFLICT DO NOTHING`,
+      [CONTACT_B, ORG_B, PATIENT_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM patients WHERE id = ANY($1)', [[PATIENT_A, PATIENT_B]]);
+  });
+
+  it('fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>('SELECT count(*) AS count FROM patients');
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('shows each clinic only its own patients', async () => {
+    const forA = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM patients WHERE id = ANY($1)', [
+        [PATIENT_A, PATIENT_B],
+      ]);
+      return rows.map((r) => (r as { id: string }).id);
+    });
+    expect(forA).toEqual([PATIENT_A]);
+  });
+
+  it('cannot read another clinic’s patient even when its id is known', async () => {
+    const found = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM patients WHERE id = $1', [PATIENT_B]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('rejects writing a patient into another clinic', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO patients (id, organization_id, uhid, first_name, updated_at)
+           VALUES (gen_random_uuid(), $1, 'SNEAK0001', 'Sneaky', now())`,
+          [ORG_B]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  /*
+   * ⚠️ THE DELIBERATE ABSENCE. A patient of branch B2 is visible to a reader
+   * scoped only to B1, WITHIN THE SAME CLINIC. If this ever starts returning 0,
+   * someone has added branch_isolation to `patients` — and the duplicate check
+   * at the front desk has silently stopped working.
+   */
+  it('shows a patient of another BRANCH inside the same clinic — by design', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query('SELECT id FROM patients WHERE id = $1', [PATIENT_B]);
+      return rows.length;
+    });
+    expect(found).toBe(1);
+  });
+
+  /* …while their ATTENDANCE at that branch is not. This is the boundary. */
+  it('hides the registration at a branch out of scope', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query('SELECT id FROM patient_registrations WHERE id = $1', [
+        REG_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('shows the registration once its branch is in scope', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM patient_registrations WHERE id = $1', [
+        REG_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(1);
+  });
+
+  it('hides another clinic’s registration entirely', async () => {
+    const found = await asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM patient_registrations WHERE id = $1', [
+        REG_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('rejects registering a patient at another clinic’s branch', async () => {
+    await expect(
+      asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B1], () =>
+        app.query(
+          `INSERT INTO patient_registrations
+             (id, organization_id, patient_id, branch_id, mrn, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, 'SNEAKMRN', now())`,
+          [ORG_A, PATIENT_A, BRANCH_B1]
+        )
+      )
+    ).rejects.toThrow(/row-level security|foreign key/i);
+  });
+
+  describe.each([
+    ['patient_allergies', ALLERGY_B],
+    ['patient_conditions', CONDITION_B],
+    ['patient_medications', MEDICATION_B],
+    ['patient_addresses', ADDRESS_B],
+    ['patient_contacts', CONTACT_B],
+  ])('%s', (table, rowId) => {
+    it('fails closed with no tenant context', async () => {
+      const { rows } = await app.query<{ count: string }>(`SELECT count(*) AS count FROM ${table}`);
+      expect(Number(rows[0]?.count)).toBe(0);
+    });
+
+    it('is invisible to the other clinic', async () => {
+      const found = await asTenant(ORG_A, async () => {
+        const { rows } = await app.query(`SELECT id FROM ${table} WHERE id = $1`, [rowId]);
+        return rows.length;
+      });
+      expect(found).toBe(0);
+    });
+
+    /*
+     * Org-scoped and NOT branch-scoped: a clinical fact follows the person, and
+     * a branch that could not read it would prescribe against an empty chart.
+     */
+    it('is visible to its own clinic regardless of branch scope', async () => {
+      const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+        const { rows } = await app.query(`SELECT id FROM ${table} WHERE id = $1`, [rowId]);
+        return rows.length;
+      });
+      expect(found).toBe(1);
+    });
+  });
+});
+
+/**
+ * Appointments — PHI again, and the OPPOSITE branch call from `patients`.
+ *
+ * ⚠️ `appointments` IS branch-scoped, where `patients` deliberately is not, and
+ * both are right. Identity follows the person across a hospital group so the
+ * front desk can find the duplicate head office already created; ATTENDANCE
+ * belongs to the clinic it happened at, and a booking is attendance. The cases
+ * below assert the presence here as firmly as the patients block asserts the
+ * absence there.
+ *
+ * `appointment_status_history` carries no `branch_id` at all. Its policy is an
+ * EXISTS against `appointments`, and that subquery is itself subject to the
+ * parent's RESTRICTIVE branch policy — so the boundary composes rather than
+ * being restated. The last two cases are what prove the composition actually
+ * happens, rather than being a comment.
+ */
+describe('appointments', () => {
+  const APT_PATIENT_A = 'ffffffff-1111-4111-8111-0000000000a1';
+  const APT_PATIENT_B = 'ffffffff-1111-4111-8111-0000000000b1';
+  const APT_REG_A = 'ffffffff-2222-4222-8222-0000000000a1';
+  const APT_REG_B2 = 'ffffffff-2222-4222-8222-0000000000b2';
+  const APT_DOC_USER_A = 'ffffffff-3333-4333-8333-0000000000a1';
+  const APT_DOC_USER_B = 'ffffffff-3333-4333-8333-0000000000b1';
+  const APT_DOC_A = 'ffffffff-4444-4444-8444-0000000000a1';
+  const APT_DOC_B = 'ffffffff-4444-4444-8444-0000000000b1';
+  const APT_A = 'ffffffff-5555-4555-8555-0000000000a1';
+  /** Booked at B2, so a reader scoped to B1 must not see it. */
+  const APT_B2 = 'ffffffff-5555-4555-8555-0000000000b2';
+  const HISTORY_B2 = 'ffffffff-6666-4666-8666-0000000000b2';
+
+  async function asTenantAtBranches<T>(
+    organizationId: string,
+    branchIds: string[],
+    fn: () => Promise<T>
+  ): Promise<T> {
+    await app.query('BEGIN');
+    try {
+      await app.query(`SELECT set_config('app.current_org', $1, true)`, [organizationId]);
+      await app.query(`SELECT set_config('app.branch_scope', $1, true)`, [
+        `{${branchIds.join(',')}}`,
+      ]);
+      const result = await fn();
+      await app.query('COMMIT');
+      return result;
+    } catch (err) {
+      await app.query('ROLLBACK');
+      throw err;
+    }
+  }
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO patients (id, organization_id, uhid, first_name, updated_at)
+       VALUES ($1, $2, 'APTA0001', 'Apt A', now()), ($3, $4, 'APTB0001', 'Apt B', now())
+       ON CONFLICT DO NOTHING`,
+      [APT_PATIENT_A, ORG_A, APT_PATIENT_B, ORG_B]
+    );
+    await owner.query(
+      `INSERT INTO patient_registrations
+         (id, organization_id, patient_id, branch_id, mrn, updated_at)
+       VALUES ($1, $2, $3, $4, 'APTMRNA', now()), ($5, $6, $7, $8, 'APTMRNB', now())
+       ON CONFLICT DO NOTHING`,
+      [APT_REG_A, ORG_A, APT_PATIENT_A, BRANCH_A, APT_REG_B2, ORG_B, APT_PATIENT_B, BRANCH_B2]
+    );
+    await owner.query(
+      `INSERT INTO users (id, full_name, email, updated_at)
+       VALUES ($1, 'Apt Doc A', 'apt-doc-a@example.test', now()),
+              ($2, 'Apt Doc B', 'apt-doc-b@example.test', now())
+       ON CONFLICT DO NOTHING`,
+      [APT_DOC_USER_A, APT_DOC_USER_B]
+    );
+    await owner.query(
+      `INSERT INTO doctor_profiles (id, organization_id, user_id, updated_at)
+       VALUES ($1, $2, $3, now()), ($4, $5, $6, now())
+       ON CONFLICT DO NOTHING`,
+      [APT_DOC_A, ORG_A, APT_DOC_USER_A, APT_DOC_B, ORG_B, APT_DOC_USER_B]
+    );
+    await owner.query(
+      `INSERT INTO appointments
+         (id, organization_id, branch_id, patient_id, patient_registration_id,
+          doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'ISOA000001',
+               '2027-06-01T04:00:00Z', '2027-06-01T04:15:00Z', now()),
+              ($7, $8, $9, $10, $11, $12, 'ISOB000001',
+               '2027-06-01T05:00:00Z', '2027-06-01T05:15:00Z', now())
+       ON CONFLICT DO NOTHING`,
+      [
+        APT_A,
+        ORG_A,
+        BRANCH_A,
+        APT_PATIENT_A,
+        APT_REG_A,
+        APT_DOC_A,
+        APT_B2,
+        ORG_B,
+        BRANCH_B2,
+        APT_PATIENT_B,
+        APT_REG_B2,
+        APT_DOC_B,
+      ]
+    );
+    await owner.query(
+      `INSERT INTO appointment_status_history
+         (id, organization_id, appointment_id, to_status)
+       VALUES ($1, $2, $3, 'BOOKED') ON CONFLICT DO NOTHING`,
+      [HISTORY_B2, ORG_B, APT_B2]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM appointments WHERE id = ANY($1)', [[APT_A, APT_B2]]);
+    await owner.query('DELETE FROM doctor_profiles WHERE id = ANY($1)', [[APT_DOC_A, APT_DOC_B]]);
+    await owner.query('DELETE FROM patients WHERE id = ANY($1)', [[APT_PATIENT_A, APT_PATIENT_B]]);
+    await owner.query('DELETE FROM users WHERE id = ANY($1)', [[APT_DOC_USER_A, APT_DOC_USER_B]]);
+  });
+
+  it('fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM appointments'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('hides another clinic’s booking entirely', async () => {
+    const found = await asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointments WHERE id = $1', [APT_B2]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  /* The presence, where `patients` asserts the absence. */
+  it('hides a booking at a branch out of scope, inside the same clinic', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query('SELECT id FROM appointments WHERE id = $1', [APT_B2]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('shows the booking once its branch is in scope', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointments WHERE id = $1', [APT_B2]);
+      return rows.length;
+    });
+    expect(found).toBe(1);
+  });
+
+  it('rejects booking into another clinic’s branch', async () => {
+    await expect(
+      asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B1], () =>
+        app.query(
+          `INSERT INTO appointments
+             (id, organization_id, branch_id, patient_id, patient_registration_id,
+              doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'SNEAK00001',
+                   '2027-06-02T04:00:00Z', '2027-06-02T04:15:00Z', now())`,
+          [ORG_A, BRANCH_B1, APT_PATIENT_A, APT_REG_A, APT_DOC_A]
+        )
+      )
+    ).rejects.toThrow(/row-level security|foreign key/i);
+  });
+
+  /*
+   * The composition. The history row carries no branch of its own, so if the
+   * EXISTS against `appointments` were ever replaced by a plain organization_id
+   * predicate, this would start returning 1 — and a receptionist at one branch
+   * could read when another branch's patients were seen.
+   */
+  it('hides the status trail of a booking at a branch out of scope', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_status_history WHERE id = $1', [
+        HISTORY_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('shows the status trail once the booking’s branch is in scope', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_status_history WHERE id = $1', [
+        HISTORY_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(1);
+  });
+
+  it('hides another clinic’s status trail entirely', async () => {
+    const found = await asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_status_history WHERE id = $1', [
+        HISTORY_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+});

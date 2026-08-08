@@ -1,0 +1,22 @@
+-- ⚠️ PERMISSIVE POLICIES **OR** TOGETHER, AND THAT IS HOW THE BRANCH FIX WAS
+--    DEFEATED ONE MIGRATION AFTER IT WAS WRITTEN.
+--
+-- `appointment_status_history` ended up with two PERMISSIVE policies:
+--
+--   tenant_isolation  organization_id = app_current_org()
+--   parent_isolation  EXISTS (… appointments … AND branch in scope)
+--
+-- A row only has to satisfy ONE of them, so the org-only policy re-opened
+-- exactly the branch hole the previous migration closed. The isolation test
+-- caught it; nothing else would have. This is the same trap the `branch_scoped`
+-- loop avoids by declaring its policy AS RESTRICTIVE — a second permissive
+-- policy never narrows anything, it only ever widens.
+--
+-- The fix is one policy, not two: `parent_isolation` already asks the
+-- organization question itself, so `tenant_isolation` adds nothing except the
+-- OR. Every other parent-scoped child in enable-rls.sql has exactly one policy
+-- for this reason; this table was in both arrays.
+--
+-- `db:rls:check` requires at least ONE policy per tenant table, which this
+-- still satisfies.
+DROP POLICY IF EXISTS tenant_isolation ON appointment_status_history;

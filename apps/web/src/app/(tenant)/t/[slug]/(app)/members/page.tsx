@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { MemberListResponse } from '@rcln/contracts';
+import type { DesignationListResponse, MemberListResponse } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
 import { getAccessToken, getSession } from '@/lib/session';
@@ -24,10 +24,14 @@ export const metadata: Metadata = {
 export default async function MembersPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  const members = await api<MemberListResponse>('/api/v1/members', {
-    slug,
-    accessToken: await getAccessToken(),
-  });
+  const accessToken = await getAccessToken();
+
+  // Both at once — the designation menu does not depend on the staff list, so
+  // awaiting them in sequence would serialise two round trips for no reason.
+  const [members, designations] = await Promise.all([
+    api<MemberListResponse>('/api/v1/members', { slug, accessToken }),
+    api<DesignationListResponse>('/api/v1/designations', { slug, accessToken }),
+  ]);
 
   if (!members.ok || !members.data) {
     return (
@@ -50,6 +54,7 @@ export default async function MembersPage({ params }: { params: Promise<{ slug: 
       members={members.data.members}
       roles={members.data.roles}
       branches={members.data.branches}
+      designations={designations.data?.designations ?? []}
       grantableCodes={members.data.grantableCodes}
       canAssignOrgWide={members.data.canAssignOrgWide}
       canReadHistory={canReadHistory}

@@ -57,6 +57,18 @@ BEGIN
 END
 $$;
 
+-- ⚠️ EVERYTHING FROM HERE TO THE END OF THIS SECTION IS MIRRORED IN
+--   packages/db/prisma/rls/grant-app.sql, WHICH IS THE RE-RUNNABLE COPY.
+--
+--   This file fires once, on first boot of an empty volume. `prisma migrate
+--   reset` drops and recreates the `public` schema, which discards every grant
+--   and every default-privilege rule below — and nothing re-runs this script.
+--   `pnpm db:reset` runs the other file afterwards to put them back.
+--
+--   Change one, change both. The other copy also re-applies the append-only
+--   REVOKEs on audit_logs and data_access_logs, which these blanket grants
+--   would otherwise hand back.
+
 GRANT USAGE ON SCHEMA public TO rcln_app;
 
 -- The app can read/write rows but can never alter structure.

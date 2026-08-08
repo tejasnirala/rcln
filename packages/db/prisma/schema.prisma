@@ -289,6 +289,158 @@ enum AuditAction {
   PERMISSION_CHANGE
 }
 
+enum DoctorStatus {
+  ACTIVE
+  INACTIVE
+  /// Retired from practice here. Kept because prescriptions reference them.
+  ARCHIVED
+}
+
+/// LEAVE and BLOCK remove availability; EXTRA_SHIFT adds it.
+enum ScheduleExceptionType {
+  LEAVE
+  BLOCK
+  EXTRA_SHIFT
+}
+
+/// Only APPROVED exceptions affect the availability engine. A REQUESTED leave
+/// shows on the doctor's own calendar as pending and changes nothing else.
+enum ScheduleExceptionStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// ⚠️ NOT A CLOSED SET IN THE REAL WORLD, AND STORED AS AN ENUM ANYWAY.
+///   `OTHER` carries every identity these four labels do not, and `UNKNOWN` is
+///   the honest answer for an unconscious patient at the desk — which is a
+///   different fact from `OTHER` and must not collapse into it. Free text was
+///   the alternative and it makes "how many female patients over 60" a
+///   question about spelling. India's ABDM vocabulary is M/F/O, which these map
+///   onto without losing the unrecorded case.
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNKNOWN
+}
+
+/// The eight ABO/Rh groups plus the unrecorded case. `UNKNOWN` is the default
+/// because a blank blood group and O-negative must never look alike.
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+  UNKNOWN
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  WIDOWED
+  DIVORCED
+  SEPARATED
+  UNKNOWN
+}
+
+/// `DECEASED` is a clinical fact and NOT a soft delete — the record stays
+/// readable, billable and auditable. `MERGED` marks the losing side of a
+/// duplicate merge; it keeps resolving so an old appointment still names a
+/// patient. Neither is `deleted_at`, which is erasure under the DPDP Act.
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+  MERGED
+}
+
+enum PatientRegistrationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+/// `OTHER` covers latex, contrast media and everything else that is neither a
+/// marketed drug nor a food.
+enum AllergenType {
+  DRUG
+  FOOD
+  ENVIRONMENT
+  OTHER
+}
+
+/// ⚠️ DECLARATION ORDER IS LOAD-BEARING — see `PatientConditionStatus`. The
+/// allergy list is read `ORDER BY severity DESC`, so SEVERE comes first, which
+/// is the order a prescriber needs it in.
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+/// `CHRONIC` is not "active for a long time" — it changes what the medication
+/// list means. A chronic condition never resolves and its drugs are expected to
+/// be ongoing; an ACTIVE one is expected to end.
+/// ⚠️ DECLARATION ORDER IS LOAD-BEARING. It is the Postgres enum's sort order,
+/// and the problem list is read `ORDER BY status ASC` so that an active or
+/// chronic problem is never rendered below a resolved one. Same reasoning as
+/// `AllergySeverity`, which is declared MILD→SEVERE and read `DESC`.
+enum PatientConditionStatus {
+  ACTIVE
+  CHRONIC
+  RESOLVED
+}
+
+/// Why the patient is coming. Billing reads this later — a follow-up inside the
+/// free window is not chargeable — which is why WALK_IN is a visit type rather
+/// than only a `source`: the walk-in that becomes a booking still needs to bill
+/// as a walk-in.
+enum AppointmentVisitType {
+  NEW
+  FOLLOW_UP
+  WALK_IN
+  TELECONSULT
+  PROCEDURE
+}
+
+/// Who made the booking. Kept apart from `visitType` because "a follow-up booked
+/// on WhatsApp" is two independent facts, and the online-booking setting is
+/// enforced against this one.
+enum AppointmentSource {
+  FRONT_DESK
+  ONLINE
+  PHONE
+  WHATSAPP
+}
+
+/// ⚠️ DECLARATION ORDER IS LOAD-BEARING — it is the Postgres enum's sort order,
+///   and the day board is read `ORDER BY scheduled_start, status` so that a
+///   patient still waiting sorts above one already seen.
+///
+/// The two terminal states are not interchangeable: CANCELLED is somebody's
+/// decision and NO_SHOW is the absence of one. Both free the slot; only the
+/// second is a fact about the patient.
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 // =============================================================================
 // TENANCY
 // =============================================================================
@@ -338,7 +490,7 @@ model Organization {
   updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(6)
 
-  owner                 User?                 @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  owner                 User?                      @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   domains               OrganizationDomain[]
   branches              Branch[]
   memberships           Membership[]
@@ -352,7 +504,28 @@ model Organization {
   usageCounters         UsageCounter[]
   files                 StoredFile[]
   auditLogs             AuditLog[]
-  lastForPlatformAdmins User[]                @relation("PlatformAdminLastOrganization")
+  dataAccessLogs        DataAccessLog[]
+  numberSequences       NumberSequence[]
+  specialties           Specialty[]
+  qualifications        Qualification[]
+  designations          Designation[]
+  roleDesignations      RoleDesignation[]
+  doctorProfiles        DoctorProfile[]
+  doctorSpecialties     DoctorSpecialty[]
+  doctorQualifications  DoctorQualification[]
+  doctorBranchSettings  DoctorBranchSetting[]
+  doctorSchedules       DoctorSchedule[]
+  doctorExceptions      DoctorScheduleException[]
+  patients              Patient[]
+  patientRegistrations  PatientRegistration[]
+  patientAddresses      PatientAddress[]
+  patientContacts       PatientContact[]
+  patientAllergies      PatientAllergy[]
+  patientConditions     PatientCondition[]
+  patientMedications    PatientMedication[]
+  appointments          Appointment[]
+  appointmentHistory    AppointmentStatusHistory[]
+  lastForPlatformAdmins User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
   @@index([status])
@@ -399,14 +572,19 @@ model Branch {
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
 
-  organization        Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  operatingHours      BranchOperatingHour[]
-  closures            BranchClosure[]
-  membershipRoles     MembershipRole[]
-  membershipOverrides MembershipPermissionOverride[]
-  invitationBranches  InvitationBranch[]
-  sessions            Session[]
-  lastForMemberships  Membership[]                   @relation("MembershipLastBranch")
+  organization         Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  operatingHours       BranchOperatingHour[]
+  closures             BranchClosure[]
+  membershipRoles      MembershipRole[]
+  membershipOverrides  MembershipPermissionOverride[]
+  invitationBranches   InvitationBranch[]
+  sessions             Session[]
+  lastForMemberships   Membership[]                   @relation("MembershipLastBranch")
+  doctorSettings       DoctorBranchSetting[]
+  doctorSchedules      DoctorSchedule[]
+  doctorExceptions     DoctorScheduleException[]
+  patientRegistrations PatientRegistration[]
+  appointments         Appointment[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can
@@ -849,11 +1027,11 @@ model PaymentIntent {
   createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  subscription Subscription?        @relation(fields: [organizationId, subscriptionId], references: [organizationId, id], onDelete: Cascade)
-  invoice      SubscriptionInvoice? @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Cascade)
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription?         @relation(fields: [organizationId, subscriptionId], references: [organizationId, id], onDelete: Cascade)
+  invoice      SubscriptionInvoice?  @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Cascade)
   // NoAction for the same reason as on `subscriptions.mandate` above.
-  mandate      PaymentMandate?      @relation(fields: [organizationId, mandateId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  mandate      PaymentMandate?       @relation(fields: [organizationId, mandateId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
   payments     SubscriptionPayment[]
 
   @@unique([organizationId, id])
@@ -1011,13 +1189,25 @@ model User {
   sessions                 Session[]
   authTokens               AuthToken[]
   memberships              Membership[]
-  ownedOrganizations       Organization[] @relation("OrganizationOwner")
+  ownedOrganizations       Organization[]             @relation("OrganizationOwner")
   // SetNull, and safe as a single-column FK on a nullable column: forgetting a
   // preference is the correct outcome when the clinic it named is gone.
-  lastPlatformOrganization Organization?  @relation("PlatformAdminLastOrganization", fields: [lastPlatformOrganizationId], references: [id], onDelete: SetNull)
-  invitationsSent          Invitation[]   @relation("InvitedBy")
+  lastPlatformOrganization Organization?              @relation("PlatformAdminLastOrganization", fields: [lastPlatformOrganizationId], references: [id], onDelete: SetNull)
+  invitationsSent          Invitation[]               @relation("InvitedBy")
   auditLogs                AuditLog[]
+  dataAccessLogs           DataAccessLog[]
   uploadedFiles            StoredFile[]
+  doctorProfiles           DoctorProfile[]
+  /// The portal login for a patient record. Optional on both sides — most
+  /// patients never sign up.
+  patientRecords           Patient[]
+  patientRegistrations     PatientRegistration[]      @relation("PatientRegisteredBy")
+  allergiesNoted           PatientAllergy[]           @relation("AllergyNotedBy")
+  conditionsNoted          PatientCondition[]         @relation("ConditionNotedBy")
+  medicationsNoted         PatientMedication[]        @relation("MedicationNotedBy")
+  appointmentsBooked       Appointment[]              @relation("AppointmentBookedBy")
+  appointmentsCancelled    Appointment[]              @relation("AppointmentCancelledBy")
+  appointmentStatusChanges AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
 
   @@index([status])
   @@index([isPlatformAdmin])
@@ -1156,10 +1346,11 @@ model Role {
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   permissions  RolePermission[]
   assignments  MembershipRole[]
   invitations  Invitation[]
+  designations RoleDesignation[]
 
   @@unique([organizationId, code])
   @@index([isSystem])
@@ -1249,6 +1440,10 @@ model Invitation {
   email          String    @db.VarChar(255)
   phone          String?   @db.VarChar(20)
   roleId         String    @map("role_id") @db.Uuid
+  /// The job title this invite is for. Copied onto the staff profile when the
+  /// invitation is accepted, so the answer is decided by whoever knows it —
+  /// the person sending the invite — rather than guessed from the role.
+  designationId  String?   @map("designation_id") @db.Uuid
   token          String    @unique @db.VarChar(255)
   invitedBy      String    @map("invited_by") @db.Uuid
   expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
@@ -1258,6 +1453,7 @@ model Invitation {
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   role         Role               @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  designation  Designation?       @relation(fields: [designationId], references: [id], onDelete: SetNull)
   inviter      User               @relation("InvitedBy", fields: [invitedBy], references: [id])
   branches     InvitationBranch[]
 
@@ -1277,19 +1473,819 @@ model InvitationBranch {
   @@map("invitation_branches")
 }
 
+/// The job titles a clinic hands out. Platform catalogue with per-tenant
+/// extension: `organizationId = NULL` is a platform row every clinic sees.
+///
+/// Exists as a table rather than free text on `staff_profiles` because a
+/// designation is a closed set the clinic curates — the invite form picks from
+/// it, and an admin adds to it. Free text produces "Sr. Consultant",
+/// "Senior Consultant" and "Sr Consultant" as three different things and makes
+/// "how many consultants do we have" unanswerable.
+///
+/// ⚠️ ITS RLS POLICY IS READ-PERMISSIVE AND WRITE-STRICT, exactly as
+/// `specialties` is, and NOT the policy on `files`. A NULL-permissive WITH CHECK
+/// would let any clinic insert a platform-wide designation visible to every
+/// other tenant. See the migration and enable-rls.sql.
+model Designation {
+  id             String    @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?   @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(128)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization  Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitations   Invitation[]
+  staffProfiles StaffProfile[]
+  roles         RoleDesignation[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// rows are not unique among themselves.
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  @@map("designations")
+}
+
+/// Which job titles fit which role. A "Receptionist" is not a "Radiologist".
+///
+/// A real join table rather than an array on either side (ADR-0006): the
+/// relationship is genuinely many-to-many — "Consultant" fits only DOCTOR, while
+/// "Clinic Manager" fits ORG_ADMIN, BRANCH_ADMIN and RECEPTIONIST — and a JSONB
+/// array of ids cannot be joined, constrained by a foreign key, or filtered in
+/// SQL.
+///
+/// `organizationId = NULL` is a platform pairing, seeded for the built-in roles
+/// so the feature works on day one. A clinic adds its own for its own custom
+/// roles and titles, and cannot touch the platform ones.
+///
+/// ⚠️ AN UNMAPPED DESIGNATION FITS EVERY ROLE, DELIBERATELY.
+///   The eligibility query treats "has no POSITIVE pairing anywhere" as "fits
+///   anywhere", not as "fits nowhere". The alternative makes this a trap: a
+///   clinic adds a title, forgets to map it, and watches it disappear from every
+///   menu with nothing explaining why. Titles added from the invite form are
+///   auto-mapped to the role being invited, so that path is mapped from birth.
+///
+/// ⚠️ "POSITIVE" IS LOAD-BEARING IN THAT SENTENCE — see `isExcluded`.
+model RoleDesignation {
+  id             String   @id @default(uuid()) @db.Uuid
+  /// NULL = platform pairing, visible to every tenant.
+  organizationId String?  @map("organization_id") @db.Uuid
+  roleId         String   @map("role_id") @db.Uuid
+  designationId  String   @map("designation_id") @db.Uuid
+  /// A tenant row that SUPPRESSES a platform default rather than adding one:
+  /// "our Receptionists are never Clinic Managers". Always false on a platform
+  /// row — the platform states what fits, never what does not.
+  ///
+  /// Excluded rows are deliberately NOT counted when deciding whether a title
+  /// is "unmapped". Two things break if they are:
+  ///
+  ///   - Unticking an unmapped title for ONE role would create its only row,
+  ///     making the title look mapped, and it would vanish from every OTHER
+  ///     role's menu too.
+  ///   - Unticking every one of a title's platform pairings would leave only
+  ///     exclusions, making it look unmapped again — and therefore valid
+  ///     everywhere, which is the exact opposite of what was asked for.
+  isExcluded     Boolean  @default(false) @map("is_excluded")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  designation  Designation   @relation(fields: [designationId], references: [id], onDelete: Cascade)
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration — platform pairings carry a NULL
+  /// organization_id and must be unique among themselves.
+  @@unique([organizationId, roleId, designationId])
+  @@index([roleId])
+  @@index([designationId])
+  @@map("role_designations")
+}
+
 /// Employment facts are per-organization, so this keys on membership, not user.
+///
+/// `employeeCode`, `designationId` and `joinedOn` are AUTO-POPULATED when an
+/// invitation is accepted — see `acceptInvitation`. They stay editable
+/// afterwards from the Staff screen.
 model StaffProfile {
-  id           String    @id @default(uuid()) @db.Uuid
-  membershipId String    @unique @map("membership_id") @db.Uuid
-  employeeCode String?   @map("employee_code") @db.VarChar(64)
-  department   String?   @db.VarChar(128)
-  designation  String?   @db.VarChar(128)
-  joinedOn     DateTime? @map("joined_on") @db.Date
-  relievedOn   DateTime? @map("relieved_on") @db.Date
+  id            String    @id @default(uuid()) @db.Uuid
+  membershipId  String    @unique @map("membership_id") @db.Uuid
+  /// Issued from the EMPLOYEE sequence at accept time. Stable for life: it is
+  /// how the clinic refers to this person, so a re-join keeps the original.
+  employeeCode  String?   @map("employee_code") @db.VarChar(64)
+  department    String?   @db.VarChar(128)
+  /// Replaced the free-text `designation` column, which had no rows. One source
+  /// of truth: a designation is a row in `designations`, never a typed string.
+  designationId String?   @map("designation_id") @db.Uuid
+  joinedOn      DateTime? @map("joined_on") @db.Date
+  relievedOn    DateTime? @map("relieved_on") @db.Date
 
-  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  membership  Membership   @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  designation Designation? @relation(fields: [designationId], references: [id], onDelete: SetNull)
 
+  @@index([designationId])
   @@map("staff_profiles")
+}
+
+// =============================================================================
+// DOCTORS
+//
+// A doctor is a `users` row plus a `doctor_profiles` row. Practising at three
+// branches is three `membership_roles` — the profile is org-level, and anything
+// that genuinely varies by location (fees, working hours) is its own table
+// keyed by branch. That is why there is no `consultation_fee` column here.
+// =============================================================================
+
+/// Clinical specialties. Platform catalogue with per-tenant extension:
+/// `organizationId = NULL` is a platform row every clinic sees.
+///
+/// WHY BOTH, RATHER THAN ONE OR THE OTHER
+///   Per-tenant only means every clinic re-types "Cardiology", and cross-clinic
+///   reporting plus the later `procedures.specialty_id` become unjoinable.
+///   Platform only means a clinic that invents a sub-specialty ("Trichology —
+///   PRP") needs a deploy to record it.
+///
+/// ⚠️ ITS RLS POLICY IS NOT THE ONE ON `files`.
+///   `files` allows a NULL organization_id in its WITH CHECK. Copying that here
+///   would let any clinic INSERT a platform-wide specialty visible to every
+///   other tenant. Read is permissive, write is not — see the migration.
+model Specialty {
+  id             String    @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?   @map("organization_id") @db.Uuid
+  /// Self-reference: a sub-specialty of another specialty. Collapses the old
+  /// specialties / sub_specialties / specialization_map triple into one master.
+  parentId       String?   @map("parent_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(255)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Specialty?        @relation("SpecialtyParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Specialty[]       @relation("SpecialtyParent")
+  doctors      DoctorSpecialty[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// rows (organization_id NULL) are not unique among themselves.
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  @@map("specialties")
+}
+
+/// Medical qualifications (MBBS, MD, MS…). Same platform-plus-tenant shape and
+/// the same non-permissive WITH CHECK as `specialties`.
+model Qualification {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(255)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctors      DoctorQualification[]
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration, as above.
+  @@unique([organizationId, code])
+  @@map("qualifications")
+}
+
+/// The practitioner. One row per doctor PER ORGANIZATION.
+///
+/// ⚠️ `userId` IS UNIQUE PER ORGANIZATION, NOT GLOBALLY.
+///   The design ERD draws `user_id UK`, which is wrong for this codebase:
+///   `users` is global and RLS-exempt — one login spans organizations — so a
+///   bare unique would mean a doctor consulting at two clinics can hold exactly
+///   one profile. The failure appears only when the SECOND clinic tries to
+///   onboard them, which is late and confusing. It also gives the row an
+///   `organization_id` for `tenant_isolation` to filter on, which a bare
+///   `user_id` unique does not.
+///
+/// `userId` is NOT NULL: a doctor must be invited before they can be scheduled,
+/// because they must be able to log in to prescribe. A visiting consultant with
+/// no login is a known future request; the additive change is a nullable column
+/// plus a `displayName`.
+model DoctorProfile {
+  id                    String       @id @default(uuid()) @db.Uuid
+  organizationId        String       @map("organization_id") @db.Uuid
+  userId                String       @map("user_id") @db.Uuid
+  /// Medical council registration. The number that makes a prescription legal.
+  registrationNumber    String?      @map("registration_number") @db.VarChar(64)
+  registrationCouncil   String?      @map("registration_council") @db.VarChar(255)
+  registrationValidTill DateTime?    @map("registration_valid_till") @db.Date
+  experienceYears       Int?         @map("experience_years") @db.SmallInt
+  bio                   String?      @db.Text
+  signatureFileId       String?      @map("signature_file_id") @db.Uuid
+  status                DoctorStatus @default(ACTIVE)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt             DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialties    DoctorSpecialty[]
+  qualifications DoctorQualification[]
+  branchSettings DoctorBranchSetting[]
+  schedules      DoctorSchedule[]
+  exceptions     DoctorScheduleException[]
+  appointments   Appointment[]
+
+  @@unique([organizationId, userId])
+  /// Composite-FK target: schedules, appointments and queue tokens reference
+  /// (organization_id, id) so a cross-tenant row is unrepresentable.
+  @@unique([organizationId, id])
+  /// ⚠️ NULLS NOT DISTINCT in the migration — the column is nullable, and a
+  /// council number appearing twice in one clinic is a data-entry error worth
+  /// refusing.
+  @@unique([organizationId, registrationNumber])
+  @@index([organizationId, status])
+  @@map("doctor_profiles")
+}
+
+/// Which specialties a doctor practises.
+///
+/// Org-scoped rather than parent-scoped because it points at TWO parents, one of
+/// which (`specialties`) may be a platform row — so scoping through
+/// `doctor_profiles` alone would leave the specialty side unconstrained. The
+/// second parent gets a RESTRICTIVE `specialty_visible` policy instead, exactly
+/// as `invitation_branches` does for its branch.
+model DoctorSpecialty {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  doctorProfileId String   @map("doctor_profile_id") @db.Uuid
+  specialtyId     String   @map("specialty_id") @db.Uuid
+  isPrimary       Boolean  @default(false) @map("is_primary")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  specialty     Specialty     @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, doctorProfileId, specialtyId])
+  @@index([organizationId, specialtyId])
+  @@map("doctor_specialties")
+}
+
+/// Which qualifications a doctor holds. Same two-parent shape as above.
+model DoctorQualification {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  doctorProfileId  String   @map("doctor_profile_id") @db.Uuid
+  qualificationId  String   @map("qualification_id") @db.Uuid
+  institute        String?  @db.VarChar(255)
+  yearOfCompletion Int?     @map("year_of_completion") @db.SmallInt
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  qualification Qualification @relation(fields: [qualificationId], references: [id], onDelete: Restrict)
+
+  /// `institute` is part of the key: the same degree from two institutions is
+  /// two legitimate rows. ⚠️ NULLS NOT DISTINCT in the migration.
+  @@unique([organizationId, doctorProfileId, qualificationId, institute])
+  @@map("doctor_qualifications")
+}
+
+/// What a doctor charges at one branch.
+///
+/// ⚠️ DELIBERATELY NO `slotMinutes` AND NO `acceptsOnlineBooking`.
+///   Both were on the design ERD and both are removed. Slot duration has ONE
+///   authoritative chain — `doctor_schedules.slot_minutes`, else the resolved
+///   `appointment.slot_minutes` setting at DOCTOR → BRANCH → ORGANIZATION —
+///   and online booking resolves `appointment.allow_online_booking` the same
+///   way. Three columns claiming the same number with no reconciliation rule is
+///   how the receptionist's calendar and the patient portal end up disagreeing
+///   about whether 10:20 exists. See ADR-0015.
+model DoctorBranchSetting {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  doctorProfileId  String   @map("doctor_profile_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  /// Currency is the organization's. One currency per org until Phase 4.
+  consultationFee  Decimal? @map("consultation_fee") @db.Decimal(14, 2)
+  followUpFee      Decimal? @map("follow_up_fee") @db.Decimal(14, 2)
+  followUpFreeDays Int?     @map("follow_up_free_days") @db.SmallInt
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, doctorProfileId, branchId])
+  @@index([organizationId, branchId, isActive])
+  @@map("doctor_branch_settings")
+}
+
+/// A recurring block of working hours: this doctor, this branch, this weekday.
+///
+/// ⚠️ `startTime`/`endTime` ARE WALL-CLOCK IN THE BRANCH'S TIMEZONE.
+///   Not UTC, not the org's zone, not the server's. `branches.timezone` is the
+///   only authority for what "09:00" means, and the conversion to an instant
+///   happens in Postgres — `($date::date + start_time) AT TIME ZONE b.timezone`
+///   — never in Node, where the container's TZ would silently shift IST by 5:30.
+///   `dayOfWeek` is 0-6 with 0 = Sunday, matching `branch_operating_hours`.
+///
+/// Two blocks a day (morning and evening) is normal, so there is no natural
+/// unique key. Non-overlap is a GiST EXCLUDE constraint in the migration.
+///
+/// An overnight block is forbidden by a CHECK: it would produce an inverted
+/// range that `tstzrange` refuses. An overnight OPD is two rows.
+model DoctorSchedule {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  doctorProfileId String    @map("doctor_profile_id") @db.Uuid
+  branchId        String    @map("branch_id") @db.Uuid
+  dayOfWeek       Int       @map("day_of_week") @db.SmallInt
+  startTime       DateTime  @map("start_time") @db.Time(0)
+  endTime         DateTime  @map("end_time") @db.Time(0)
+  /// NULL = fall back to the resolved `appointment.slot_minutes` setting. This
+  /// is the ONLY per-block override, and the only column the engine reads.
+  slotMinutes     Int?      @map("slot_minutes") @db.SmallInt
+  /// Cap on bookings in this block. ⚠️ ADVISORY — no constraint enforces it, so
+  /// two concurrent bookings into different free slots can exceed it by one.
+  /// Enforcing it would serialise every booking for the block. See the service.
+  maxPatients     Int?      @map("max_patients") @db.SmallInt
+  validFrom       DateTime  @map("valid_from") @db.Date
+  validTo         DateTime? @map("valid_to") @db.Date
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, branchId, dayOfWeek])
+  @@index([doctorProfileId, dayOfWeek])
+  @@map("doctor_schedules")
+}
+
+/// A one-off departure from the recurring schedule: leave, a block, an extra shift.
+///
+/// Stored as `timestamptz` rather than a date plus a time, because an exception
+/// is an absolute interval — "away from Friday 18:00 until Monday 09:00" — and
+/// does not repeat, so there is nothing for a wall-clock reading to anchor to.
+///
+/// ⚠️ ORG-SCOPED, WITH NO `branch_isolation` POLICY, DELIBERATELY.
+///   `branchId` NULL means "every branch". A doctor's leave is org-level
+///   information, and hiding it from a branch-scoped reader would not restrict
+///   anything useful — it would make the engine offer slots on a day the doctor
+///   is away. Phantom availability is worse than a visible absence. The service
+///   filters by branch instead.
+model DoctorScheduleException {
+  id              String                  @id @default(uuid()) @db.Uuid
+  organizationId  String                  @map("organization_id") @db.Uuid
+  doctorProfileId String                  @map("doctor_profile_id") @db.Uuid
+  /// NULL = applies at every branch.
+  branchId        String?                 @map("branch_id") @db.Uuid
+  exceptionType   ScheduleExceptionType   @map("exception_type")
+  startsAt        DateTime                @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime                @map("ends_at") @db.Timestamptz(6)
+  reason          String?                 @db.VarChar(255)
+  status          ScheduleExceptionStatus @default(REQUESTED)
+  requestedBy     String?                 @map("requested_by") @db.Uuid
+  decidedBy       String?                 @map("decided_by") @db.Uuid
+  decidedAt       DateTime?               @map("decided_at") @db.Timestamptz(6)
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  branch        Branch?       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, doctorProfileId, startsAt])
+  /// The approvals inbox.
+  @@index([organizationId, status, startsAt])
+  @@map("doctor_schedule_exceptions")
+}
+
+// =============================================================================
+// PATIENTS
+//
+// ⚠️ EVERYTHING BELOW THIS LINE IS PHI. The rules are not stylistic:
+//
+//   - No column here may reach `audit_logs` except through an allow-list
+//     snapshot. `REDACTED_KEYS` in audit.service.ts is the second layer, not
+//     the first.
+//   - Every read that discloses one of these rows calls `recordDataAccess`
+//     INSIDE the transaction that read it.
+//   - Ids only in Redis, in logs, and in a URL.
+//
+// WHY IDENTITY IS ORG-WIDE AND ATTENDANCE IS BRANCH-LOCAL
+//   `patients` carries org-scoped RLS and deliberately NO `branch_isolation`;
+//   `patient_registrations` carries both. A person is one person across a
+//   hospital group — their allergy list must follow them to whichever branch
+//   they walk into, and, more sharply, a branch-scoped duplicate check is
+//   impossible if the front desk cannot see that head office already registered
+//   them. Two UHIDs for one human being is a clinical safety failure, not a
+//   tidiness one: the second record has no allergies on it.
+//
+//   What IS branch-local is which clinic they attend, and that is exactly what
+//   `patient_registrations` records. The patient list a receptionist sees is
+//   driven off that join, not off `patients` — see the service.
+// =============================================================================
+
+/// One human being, once per organization.
+///
+/// UHID is the number the clinic says out loud. It is org-wide, issued from the
+/// `UHID` counter with the `patient.uhid_prefix` setting as its prefix, and it
+/// never changes — including across a merge, where the losing record keeps its
+/// own so an old file card still resolves.
+model Patient {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  /// The org-wide hospital number. Issued, never typed.
+  uhid           String        @db.VarChar(32)
+  /// Set only when the patient signs up for the portal. Most never will, which
+  /// is why `patients` is not a kind of `users`: the record must exist for an
+  /// unconscious admission with no email address.
+  userId         String?       @map("user_id") @db.Uuid
+  firstName      String        @map("first_name") @db.VarChar(100)
+  lastName       String?       @map("last_name") @db.VarChar(100)
+  /// ⚠️ NULLABLE, AND `approx_age_years` EXISTS FOR THE REASON.
+  ///   A walk-in who knows they are "about 60" is the common case in an Indian
+  ///   OPD. Storing a fabricated 1st-January birthday to satisfy a NOT NULL is
+  ///   how a paediatric dose gets calculated from a lie.
+  dateOfBirth    DateTime?     @map("date_of_birth") @db.Date
+  /// Age in whole years as stated, when no birth date is known. Never derived
+  /// from `dateOfBirth` — one of the two is authoritative and the other is null.
+  approxAgeYears Int?          @map("approx_age_years") @db.SmallInt
+  gender         Gender        @default(UNKNOWN)
+  bloodGroup     BloodGroup    @default(UNKNOWN) @map("blood_group")
+  phone          String?       @db.VarChar(20)
+  email          String?       @db.VarChar(255)
+  /// India's health account number. 14 digits, or the `user@abdm` address form.
+  abhaNumber     String?       @map("abha_number") @db.VarChar(32)
+  /// Aadhaar, passport, or whatever the clinic photocopied. Deliberately not
+  /// validated per-country here — see the contract.
+  nationalId     String?       @map("national_id") @db.VarChar(64)
+  maritalStatus  MaritalStatus @default(UNKNOWN) @map("marital_status")
+  status         PatientStatus @default(ACTIVE)
+  /// Set with `status = DECEASED`. A date, because the time of death is a
+  /// clinical record this table is not the place for.
+  deceasedOn     DateTime?     @map("deceased_on") @db.Date
+  /// The surviving record, when `status = MERGED`. Composite-FK'd to this same
+  /// table so a merge can never point across tenants.
+  mergedIntoId   String?       @map("merged_into_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Erasure, not death and not a merge. See `PatientStatus`.
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+
+  organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user          User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  mergedInto    Patient?              @relation("PatientMerge", fields: [organizationId, mergedIntoId], references: [organizationId, id], onDelete: Restrict)
+  mergedFrom    Patient[]             @relation("PatientMerge")
+  registrations PatientRegistration[]
+  addresses     PatientAddress[]
+  contacts      PatientContact[]
+  allergies     PatientAllergy[]
+  conditions    PatientCondition[]
+  medications   PatientMedication[]
+  appointments  Appointment[]
+
+  @@unique([organizationId, uhid])
+  /// Composite-FK target. Registrations, appointments, encounters, invoices and
+  /// everything else clinical references (organization_id, id) so a
+  /// cross-tenant child row is unrepresentable (ADR-0004).
+  @@unique([organizationId, id])
+  /// The duplicate check at the front desk: phone first, it is what people
+  /// actually remember.
+  @@index([organizationId, phone])
+  @@index([organizationId, status])
+  /// The phone trigram index, DECLARED HERE rather than left hand-written.
+  /// ⚠️ It backs `p.phone LIKE '%term%'` in the search, which the btree above
+  ///   cannot serve. It was originally created only in the patients migration,
+  ///   and Prisma — which CAN see an index on a plain column — proposed dropping
+  ///   it in the very next `migrate dev`. Declaring it is what stops that from
+  ///   recurring. Its sibling over `lower(first_name || ' ' || …)` stays
+  ///   hand-written because it is an EXPRESSION index, which Prisma cannot
+  ///   express or see, and therefore never offers to drop.
+  @@index([phone(ops: raw("gin_trgm_ops"))], map: "patients_phone_trgm_idx", type: Gin)
+  /// ⚠️ THE NAME SEARCH INDEX IS A GIN TRIGRAM INDEX WRITTEN BY HAND in the
+  ///   migration, over `lower(first_name || ' ' || coalesce(last_name, ''))`.
+  ///   Prisma cannot express an expression index, and without it every search
+  ///   is a sequential scan over every patient in the database — filtered by
+  ///   RLS afterwards, so the cost grows with the PLATFORM, not with the tenant.
+  @@map("patients")
+}
+
+/// Which clinic a patient attends, and the branch-local record number.
+///
+/// One row per (patient, branch). The MRN is per branch and issued from the
+/// `MRN` counter with `branch_id` set, so branch A and branch B both start at 1
+/// and neither can collide with the other.
+///
+/// ⚠️ ORG-SCOPED **PLUS** RESTRICTIVE `branch_isolation`, unlike `patients`.
+///   This is the row that answers "is this person one of ours?", and it is the
+///   only place a branch boundary belongs — see the section header.
+model PatientRegistration {
+  id             String                    @id @default(uuid()) @db.Uuid
+  organizationId String                    @map("organization_id") @db.Uuid
+  patientId      String                    @map("patient_id") @db.Uuid
+  branchId       String                    @map("branch_id") @db.Uuid
+  /// The branch-local medical record number. Issued, never typed.
+  mrn            String                    @db.VarChar(32)
+  registeredAt   DateTime                  @default(now()) @map("registered_at") @db.Timestamptz(6)
+  /// SetNull: the receptionist may leave; the registration stays.
+  registeredBy   String?                   @map("registered_by") @db.Uuid
+  status         PatientRegistrationStatus @default(ACTIVE)
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient       @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  registrar    User?         @relation("PatientRegisteredBy", fields: [registeredBy], references: [id], onDelete: SetNull)
+  appointments Appointment[]
+
+  @@unique([organizationId, patientId, branchId])
+  @@unique([organizationId, branchId, mrn])
+  /// Composite-FK target: an appointment references the registration it was
+  /// booked against.
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId, status])
+  @@map("patient_registrations")
+}
+
+/// Where a patient lives. Org-scoped, because an address follows the person
+/// rather than the clinic they happened to register at.
+model PatientAddress {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  patientId      String      @map("patient_id") @db.Uuid
+  addressType    AddressType @default(HOME) @map("address_type")
+  line1          String      @db.VarChar(255)
+  line2          String?     @db.VarChar(255)
+  city           String?     @db.VarChar(100)
+  state          String?     @db.VarChar(100)
+  pincode        String?     @db.VarChar(10)
+  countryCode    String      @default("IN") @map("country_code") @db.Char(2)
+  /// ⚠️ ADVISORY — no partial unique index enforces one primary per patient.
+  ///   The service demotes the previous primary in the same transaction. A
+  ///   constraint would be `WHERE is_primary` on (organization_id, patient_id),
+  ///   which is correct and was left out only because a second primary is a
+  ///   cosmetic defect, not a clinical one.
+  isPrimary      Boolean     @default(false) @map("is_primary")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId, patientId])
+  @@map("patient_addresses")
+}
+
+/// Next of kin, guardian, the person to ring.
+///
+/// `relation` is free text on purpose. A closed enum of family relations is a
+/// cultural assumption, and the field is displayed, never queried.
+model PatientContact {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  patientId      String   @map("patient_id") @db.Uuid
+  relation       String   @db.VarChar(64)
+  name           String   @db.VarChar(255)
+  phone          String   @db.VarChar(20)
+  email          String?  @db.VarChar(255)
+  /// Who is rung in an emergency.
+  isEmergency    Boolean  @default(false) @map("is_emergency")
+  /// Who may consent on the patient's behalf. A different question from
+  /// `isEmergency` and frequently a different person: the neighbour with a car
+  /// is not the parent who can sign.
+  isGuardian     Boolean  @default(false) @map("is_guardian")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+
+  @@index([organizationId, patientId])
+  @@map("patient_contacts")
+}
+
+/// What a patient reacts to. The table a prescription is checked against.
+///
+/// ⚠️ NO `medicine_id` COLUMN YET, DELIBERATELY.
+///   The §6 ERD has one, and the `medicines` catalogue does not exist until
+///   Phase 5. A nullable uuid with no foreign key behind it is a column that
+///   looks like a reference and enforces nothing — it would accept any uuid,
+///   including another tenant's, for as long as it took Phase 5 to arrive.
+///   `allergen_text` carries the answer until there is a real row to point at,
+///   and the migration that adds the catalogue adds the FK with it.
+model PatientAllergy {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  patientId      String          @map("patient_id") @db.Uuid
+  allergenType   AllergenType    @default(DRUG) @map("allergen_type")
+  /// ⚠️ PHI, and in `REDACTED_KEYS` — never let this reach an audit snapshot.
+  allergenText   String          @map("allergen_text") @db.VarChar(255)
+  severity       AllergySeverity @default(MODERATE)
+  reaction       String?         @db.VarChar(255)
+  notedOn        DateTime?       @map("noted_on") @db.Date
+  notedBy        String?         @map("noted_by") @db.Uuid
+  /// Soft, because "this was recorded and later withdrawn" is itself clinically
+  /// interesting — an allergy that vanishes without trace is indistinguishable
+  /// from one that was never recorded.
+  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  noter        User?        @relation("AllergyNotedBy", fields: [notedBy], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, patientId])
+  @@map("patient_allergies")
+}
+
+/// The problem list. `diagnosis_id` is absent for the same reason
+/// `medicine_id` is absent from allergies — see that model.
+model PatientCondition {
+  id             String                 @id @default(uuid()) @db.Uuid
+  organizationId String                 @map("organization_id") @db.Uuid
+  patientId      String                 @map("patient_id") @db.Uuid
+  /// ⚠️ PHI, and in `REDACTED_KEYS`.
+  conditionText  String                 @map("condition_text") @db.VarChar(255)
+  status         PatientConditionStatus @default(ACTIVE)
+  onsetDate      DateTime?              @map("onset_date") @db.Date
+  resolvedDate   DateTime?              @map("resolved_date") @db.Date
+  note           String?                @db.Text
+  notedBy        String?                @map("noted_by") @db.Uuid
+  deletedAt      DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  noter        User?        @relation("ConditionNotedBy", fields: [notedBy], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, patientId])
+  @@map("patient_conditions")
+}
+
+/// What the patient is taking, including what someone else prescribed.
+///
+/// `is_ongoing` is stored rather than derived from `stopped_on IS NULL`: "still
+/// taking it" and "nobody has asked since" are different answers, and only the
+/// first one is safe to hand a prescriber.
+model PatientMedication {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  patientId      String    @map("patient_id") @db.Uuid
+  /// ⚠️ PHI, and in `REDACTED_KEYS`.
+  medicineText   String    @map("medicine_text") @db.VarChar(255)
+  /// "500mg twice daily after food" — one string, because it is transcribed off
+  /// somebody else's prescription and structuring it would invent precision.
+  dosage         String?   @db.VarChar(255)
+  startedOn      DateTime? @map("started_on") @db.Date
+  stoppedOn      DateTime? @map("stopped_on") @db.Date
+  isOngoing      Boolean   @default(true) @map("is_ongoing")
+  notedBy        String?   @map("noted_by") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  noter        User?        @relation("MedicationNotedBy", fields: [notedBy], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, patientId])
+  @@map("patient_medications")
+}
+
+// =============================================================================
+// SCHEDULING
+//
+// ⚠️ AN APPOINTMENT IS PHI. It names a patient, a doctor and a reason, and the
+//   three together disclose more than any one of them: "cardiology, Tuesday" is
+//   a diagnosis with extra steps. The patient rules apply unchanged — allow-list
+//   snapshots into `audit_logs`, `recordDataAccess` on any read that discloses
+//   one patient, ids only in Redis and in a URL.
+//
+// A BOOKING IS NOT A VISIT. `appointments` is the intention; `encounters`
+// (Phase 3, later) is the clinical event. A walk-in has an encounter with no
+// appointment and a no-show has an appointment with no encounter, so folding
+// them into one table loses both facts.
+// =============================================================================
+
+/// One booked slot: this patient, this doctor, this branch, this instant.
+///
+/// ⚠️ `scheduledStart`/`scheduledEnd` ARE ABSOLUTE INSTANTS, unlike
+///   `doctor_schedules.start_time`, which is wall-clock in the branch's zone.
+///   The conversion from one to the other happens in Postgres inside the
+///   availability engine (`($date::date + start_time) AT TIME ZONE b.timezone`)
+///   and nowhere else — the container runs UTC, so composing a Date from local
+///   components in Node silently turns 09:00 IST into 03:30.
+///
+/// ⚠️ DOUBLE-BOOKING IS REFUSED BY POSTGRES, NOT BY THE SERVICE.
+///   A GiST EXCLUDE constraint over (doctor_profile_id, tstzrange(start, end))
+///   WHERE the status still holds the slot is written by hand in the migration —
+///   Prisma cannot declare one. The service checks availability first so the
+///   common case gets a sentence rather than a constraint name, but two
+///   receptionists clicking the same 10:20 within the same millisecond is
+///   exactly the case a check cannot win. Cancelling frees the slot because the
+///   constraint's predicate excludes CANCELLED and NO_SHOW.
+///
+///   The constraint is deliberately NOT partial on `deleted_at`: a soft-deleted
+///   appointment that still reads as BOOKED is a bug, and letting it keep its
+///   slot is the safer failure.
+model Appointment {
+  id                    String               @id @default(uuid()) @db.Uuid
+  organizationId        String               @map("organization_id") @db.Uuid
+  branchId              String               @map("branch_id") @db.Uuid
+  patientId             String               @map("patient_id") @db.Uuid
+  /// The branch-local attendance row this booking was made against. Composite-
+  /// FK'd, so a booking can never cite a registration at a different branch.
+  patientRegistrationId String               @map("patient_registration_id") @db.Uuid
+  doctorProfileId       String               @map("doctor_profile_id") @db.Uuid
+  /// Branch-local, issued from the `APPOINTMENT` counter. Said out loud on the
+  /// phone, so it is issued rather than typed.
+  appointmentNumber     String               @map("appointment_number") @db.VarChar(32)
+  scheduledStart        DateTime             @map("scheduled_start") @db.Timestamptz(6)
+  scheduledEnd          DateTime             @map("scheduled_end") @db.Timestamptz(6)
+  visitType             AppointmentVisitType @default(NEW) @map("visit_type")
+  source                AppointmentSource    @default(FRONT_DESK)
+  status                AppointmentStatus    @default(BOOKED)
+  /// ⚠️ PHI, AND IN `REDACTED_KEYS`. "Chest pain since Tuesday" is a clinical
+  /// statement typed at the front desk. It never reaches an audit row.
+  reason                String?              @db.Text
+  checkedInAt           DateTime?            @map("checked_in_at") @db.Timestamptz(6)
+  startedAt             DateTime?            @map("started_at") @db.Timestamptz(6)
+  completedAt           DateTime?            @map("completed_at") @db.Timestamptz(6)
+  /// SetNull: the receptionist may leave; the booking stays.
+  bookedBy              String?              @map("booked_by") @db.Uuid
+  cancelledBy           String?              @map("cancelled_by") @db.Uuid
+  /// ⚠️ PHI by the same reasoning as `reason`.
+  cancellationReason    String?              @map("cancellation_reason") @db.Text
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt             DateTime?            @map("deleted_at") @db.Timestamptz(6)
+
+  organization  Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch        Branch                     @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  patient       Patient                    @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  registration  PatientRegistration        @relation(fields: [organizationId, patientRegistrationId], references: [organizationId, id], onDelete: Cascade)
+  doctorProfile DoctorProfile              @relation(fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Restrict)
+  booker        User?                      @relation("AppointmentBookedBy", fields: [bookedBy], references: [id], onDelete: SetNull)
+  canceller     User?                      @relation("AppointmentCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
+  statusHistory AppointmentStatusHistory[]
+
+  @@unique([organizationId, branchId, appointmentNumber])
+  /// Composite-FK target: encounters, invoices and queue tokens will reference
+  /// (organization_id, id) so a cross-tenant child is unrepresentable (ADR-0004).
+  @@unique([organizationId, id])
+  /// The day board: one branch, one day, in time order.
+  @@index([organizationId, branchId, scheduledStart])
+  /// "What does my afternoon look like?" — and the read the engine does on every
+  /// availability request.
+  @@index([organizationId, doctorProfileId, scheduledStart])
+  /// "When was this patient last here?"
+  @@index([organizationId, patientId, scheduledStart])
+  @@map("appointments")
+}
+
+/// Every status change, in order. Append-only by construction — nothing updates
+/// a row here, and the service writes one inside the same transaction as the
+/// change it records.
+///
+/// WHY A TABLE AND NOT `audit_logs`
+///   The clinical questions — how long between check-in and being seen, how many
+///   were cancelled after confirmation — are asked of this trail constantly and
+///   by ordinary screens. `audit_logs` is the compliance record and gets a row
+///   too; it is not something a waiting-time report should have to parse.
+///
+/// ⚠️ NO `branch_id`, DELIBERATELY. It is reached only through its appointment,
+///   and its RLS is an EXISTS against `appointments` — whose own RESTRICTIVE
+///   branch policy applies to that subquery, so the branch boundary composes
+///   rather than being restated and drifting.
+model AppointmentStatusHistory {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  appointmentId  String             @map("appointment_id") @db.Uuid
+  /// Null only for the row recording the booking itself.
+  fromStatus     AppointmentStatus? @map("from_status")
+  toStatus       AppointmentStatus  @map("to_status")
+  changedBy      String?            @map("changed_by") @db.Uuid
+  /// ⚠️ PHI. Free text a clinician typed. Never audited, never exported.
+  note           String?            @db.Text
+  changedAt      DateTime           @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointment  Appointment  @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Cascade)
+  changer      User?        @relation("AppointmentStatusChangedBy", fields: [changedBy], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, appointmentId, changedAt])
+  @@map("appointment_status_history")
 }
 
 // =============================================================================
@@ -1389,6 +2385,149 @@ model AuditLog {
   @@index([organizationId, entityType, entityId, occurredAt])
   @@index([actorUserId, occurredAt])
   @@map("audit_logs")
+}
+
+/// What a PHI read was: a view, a search, a print, an export, a share.
+enum DataAccessType {
+  VIEW
+  SEARCH
+  PRINT
+  EXPORT
+  SHARE
+}
+
+/// What kind of record was read. Not the table name — the clinical noun, so the
+/// enum survives a table being split or renamed.
+enum DataAccessResource {
+  PATIENT
+  PATIENT_LIST
+  MEDICAL_HISTORY
+  APPOINTMENT
+  PRESCRIPTION
+  LAB_REPORT
+  INVOICE
+  DOCUMENT
+}
+
+/// Who looked at whose record. The read-side counterpart to `audit_logs`.
+///
+/// WHY THIS IS A SEPARATE TABLE AND NOT AN `AuditAction.READ`
+///   `audit_logs` answers "what changed", and the per-record history screen
+///   already reads it by `(entity_type, entity_id)`. Folding millions of read
+///   rows into it would drown that screen, and would let every caller of
+///   `recordAudit` write into the immutable mutation trail. Two questions, two
+///   tables, two helpers.
+///
+/// ⚠️ THE SCHEMA CONTRACT: IDS, ENUMS, COUNTS AND A HASH. NOTHING ELSE.
+///   No names, no phone numbers, no free text, ever. This table is built to be
+///   readable by compliance and security people who have no business reading
+///   patient records, so a name landing here is a disclosure, not a log line.
+///   `query_hash` is a SHA-256 of the normalised search term — enough to prove
+///   two searches were the same, never enough to recover a surname. `route` is
+///   the matched route pattern (`GET /v1/patients/:id`), NOT the URL, because a
+///   URL carries the search string with it.
+///
+/// ONE ROW PER REQUEST, NEVER PER RESULT ROW. A search writes a single row with
+/// `resultCount` set and `patientId` null; a detail view writes one naming the
+/// patient. See `recordDataAccess` for the dedupe window that keeps a doctor
+/// tabbing between panels of one chart from writing thirty rows.
+///
+/// Append-only, enforced by Postgres in two independent layers exactly as
+/// `audit_logs` is — see the `data_access_log_immutability` migration.
+///
+/// TODO: partition by RANGE (occurred_at) once this grows. Prisma cannot declare
+/// a partitioned table, so it is deliberately not partitioned today; the same
+/// note stands on AuditLog.
+model DataAccessLog {
+  id                   String             @id @default(uuid()) @db.Uuid
+  organizationId       String             @map("organization_id") @db.Uuid
+  branchId             String?            @map("branch_id") @db.Uuid
+  actorUserId          String?            @map("actor_user_id") @db.Uuid
+  impersonatedByUserId String?            @map("impersonated_by_user_id") @db.Uuid
+  /// Null when the read resolved no single patient — a search, or a list.
+  patientId            String?            @map("patient_id") @db.Uuid
+  accessType           DataAccessType     @map("access_type")
+  resource             DataAccessResource
+  resourceId           String?            @map("resource_id") @db.Uuid
+  /// How many records came back. 1 for a detail view.
+  resultCount          Int                @default(1) @map("result_count")
+  /// SHA-256 of the normalised search term. NEVER the term.
+  queryHash            String?            @map("query_hash") @db.Char(64)
+  /// The matched route pattern, never the URL. See the warning above.
+  route                String?            @db.VarChar(128)
+  ipAddress            String?            @map("ip_address") @db.Inet
+  userAgent            String?            @map("user_agent") @db.VarChar(512)
+  occurredAt           DateTime           @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  /// "Who has looked at this patient?" — the subject-access question.
+  @@index([organizationId, patientId, occurredAt])
+  /// "What has this member of staff been reading?" — the misuse question.
+  @@index([organizationId, actorUserId, occurredAt])
+  @@map("data_access_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Document numbering
+// ---------------------------------------------------------------------------
+
+enum NumberSequenceType {
+  UHID
+  MRN
+  APPOINTMENT
+  QUEUE_TOKEN
+  /// Staff employee codes, issued when an invitation is accepted.
+  EMPLOYEE
+}
+
+/// One counter per (organization, branch, type, period). The issuer for every
+/// human-facing document number: UHID, branch-local MRN, appointment number and
+/// the daily queue token.
+///
+/// `periodKey` generalises the "financial year" of the original design so one
+/// mechanism serves all four reset cadences:
+///   ''                        never resets (UHID, MRN)
+///   '2026-27'                 financial year (appointment numbers)
+///   '<date>:<doctorProfileId>' per doctor per day (queue tokens)
+///
+/// WHY NOT A POSTGRES SEQUENCE
+///   `nextval` is deliberately non-transactional, so a booking that rolls back
+///   would burn an appointment number permanently. It would also need one
+///   sequence OBJECT per (org, branch, type, period) — runtime DDL, which
+///   `rcln_app` cannot execute and should never be able to.
+///
+/// Numbers are issued by `issueNumber()` with a single `ON CONFLICT DO UPDATE`
+/// statement whose row lock makes concurrent issues gapless. See that service.
+///
+/// ⚠️ ORG-SCOPED RLS ONLY — DELIBERATELY NO `branch_isolation` POLICY.
+///   `ON CONFLICT DO UPDATE` against a row RLS hides does not update it; it
+///   raises a duplicate-key error instead. A branch-scoped policy here would
+///   turn "this branch is outside your scope" into a mystifying 23505 at the
+///   moment of booking. Isolation is the tenant policy plus the explicit
+///   `organizationId` every call passes.
+model NumberSequence {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  /// Null for an org-wide counter (UHID). Set for everything branch-local.
+  branchId       String?            @map("branch_id") @db.Uuid
+  sequenceType   NumberSequenceType @map("sequence_type")
+  periodKey      String             @default("") @map("period_key") @db.VarChar(64)
+  prefix         String             @default("") @db.VarChar(16)
+  padding        Int                @default(6) @db.SmallInt
+  lastNumber     BigInt             @default(0) @map("last_number")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// ⚠️ Rewritten as NULLS NOT DISTINCT in the migration — `branchId` is null on
+  /// every org-wide counter, and a plain unique index does not constrain nullable
+  /// columns, so two UHID counters could otherwise coexist. It is also the
+  /// ON CONFLICT arbiter, which requires the index to actually match.
+  @@unique([organizationId, branchId, sequenceType, periodKey])
+  @@map("number_sequences")
 }
 
 // ---------------------------------------------------------------------------

@@ -57,6 +57,9 @@ import { hashPassword } from '../auth/password.service.js';
 import { generateInviteToken, hashInviteToken } from '../auth/token.service.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { sender } from '../notification/sender.js';
+import { isDesignationEligible } from '../iam/designation.service.js';
+import { issueNumber } from '../numbering/number-sequence.service.js';
+import { resolveSettings } from '../settings/resolver.service.js';
 
 /** Request metadata carried onto the audit row. Same shape as the branch service. */
 export interface InvitationActionOptions {
@@ -81,12 +84,14 @@ const INVITATION_SELECT = {
   email: true,
   phone: true,
   roleId: true,
+  designationId: true,
   invitedBy: true,
   expiresAt: true,
   acceptedAt: true,
   revokedAt: true,
   createdAt: true,
   role: { select: { name: true } },
+  designation: { select: { name: true } },
   inviter: { select: { fullName: true } },
   branches: { select: { branch: { select: { id: true, name: true, code: true } } } },
 } as const;
@@ -96,12 +101,14 @@ interface InvitationRow {
   email: string;
   phone: string | null;
   roleId: string;
+  designationId: string | null;
   invitedBy: string;
   expiresAt: Date;
   acceptedAt: Date | null;
   revokedAt: Date | null;
   createdAt: Date;
   role: { name: string };
+  designation: { name: string } | null;
   inviter: { fullName: string };
   branches: { branch: { id: string; name: string; code: string } }[];
 }
@@ -269,6 +276,36 @@ export async function createInvitation(
     });
     if (live !== input.branchIds.length) throw new NotFoundError('Branch');
 
+    /*
+     * The RESTRICTIVE `designation_visible` policy would refuse an out-of-tenant
+     * id anyway, but as a row-level security violation with no field attached —
+     * which reaches the caller as a 500. Reading it first turns that into a
+     * named 404. RLS has already narrowed this to platform rows plus our own.
+     */
+    if (input.designationId !== undefined) {
+      const designation = await tx.designation.findFirst({
+        where: { id: input.designationId, isActive: true, deletedAt: null },
+        select: { id: true, name: true },
+      });
+      if (!designation) throw new NotFoundError('Designation');
+
+      /*
+       * A Receptionist is not a Radiologist.
+       *
+       * Enforced HERE and not only in the menu: the invite form filters the
+       * select by the chosen role, but a filtered dropdown is a convenience,
+       * not a control — the same request posted directly would sail through.
+       *
+       * An unmapped title is eligible for everything; see isDesignationEligible.
+       */
+      if (!(await isDesignationEligible(tx, role.id, designation.id))) {
+        throw new ValidationError(
+          `“${designation.name}” is not a title for the ${role.name} role.`,
+          { designationId: [`Not available for ${role.name}.`] }
+        );
+      }
+    }
+
     // `users` is RLS-exempt: this reads across every tenant on purpose, because
     // the question is whether this person already has a login anywhere.
     const existingUser = await tx.user.findFirst({
@@ -305,6 +342,7 @@ export async function createInvitation(
         // exactOptionalPropertyTypes: a conditional spread, never `key: undefined`.
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
         roleId: role.id,
+        ...(input.designationId !== undefined ? { designationId: input.designationId } : {}),
         token: hashInviteToken(token),
         invitedBy: ctx.userId,
         expiresAt: expiryFrom(now),
@@ -492,6 +530,114 @@ async function findLiveInvitation(
 /** One answer for every dead token — expired, revoked, replayed or forged. */
 function invalidToken(): never {
   throw new NotFoundError('Invitation');
+}
+
+/** Fallback when no `staff.employee_code_prefix` is set. Matches the seed. */
+const EMPLOYEE_PREFIX_KEY = 'staff.employee_code_prefix';
+const DEFAULT_EMPLOYEE_PREFIX = 'EMP';
+
+/**
+ * The employment record, filled in the moment someone accepts.
+ *
+ * Three things land without anybody typing them:
+ *
+ *   employeeCode  issued from the org-wide EMPLOYEE sequence, prefixed from the
+ *                 clinic's own setting. Concurrency-safe and gapless, because
+ *                 two people accepting at the same instant is exactly the case
+ *                 `issueNumber` exists for.
+ *   designationId copied from the invitation — the person who sent it is the
+ *                 one who knows the job title, so it is chosen there rather
+ *                 than guessed from the role here.
+ *   joinedOn      today, IN THE CLINIC'S OWN TIMEZONE.
+ *
+ * ⚠️ WHY `joinedOn` IS COMPUTED IN POSTGRES AND NOT WITH `new Date()`
+ *   The column is a bare `date`, the API container runs UTC, and clinics do
+ *   not. Someone accepting at 01:00 IST would be recorded as having joined
+ *   YESTERDAY, because 01:00 IST is 19:30 UTC the previous day. That is a
+ *   one-day error nobody notices until payroll disagrees with the joining date
+ *   on a contract. `(now() AT TIME ZONE o.timezone)::date` asks Postgres what
+ *   day it is where the clinic is, which is the only correct question.
+ *
+ * ⚠️ RE-JOINING KEEPS THE ORIGINAL EMPLOYEE CODE.
+ *   The code is how the clinic refers to a person — on a badge, in a rota, in
+ *   whatever spreadsheet predates this system. Reissuing it on a second stint
+ *   would silently break every one of those references. `joinedOn` DOES move to
+ *   the new stint and `relievedOn` is cleared, because that is what re-joining
+ *   means.
+ */
+async function createEmploymentRecord(
+  tx: TxClient,
+  input: { organizationId: string; membershipId: string; designationId: string | null }
+): Promise<{ employeeCode: string | null; joinedOn: string | null }> {
+  const existing = await tx.staffProfile.findUnique({
+    where: { membershipId: input.membershipId },
+    select: { id: true, employeeCode: true, designationId: true },
+  });
+
+  /*
+   * `organizations` is RLS-EXEMPT, so the explicit `id` is the only isolation
+   * on this read. The timezone decides what "today" means, so reading another
+   * clinic's row would date this person's employment by the wrong calendar.
+   */
+  const dateRows = await tx.$queryRaw<{ joined_on: string }[]>`
+    SELECT to_char((now() AT TIME ZONE o.timezone)::date, 'YYYY-MM-DD') AS joined_on
+    FROM organizations o
+    WHERE o.id = ${input.organizationId}::uuid
+  `;
+  const joinedOn = dateRows[0]?.joined_on;
+  // The organization was read moments ago to resolve this invitation, so a
+  // missing row here means it was deleted mid-acceptance. Refusing is right:
+  // the alternative is dating the record from the server's own calendar.
+  if (joinedOn === undefined) invalidToken();
+
+  const ctx: TenantContext = {
+    organizationId: input.organizationId,
+    branchIds: [],
+    userId: '',
+  };
+
+  let employeeCode = existing?.employeeCode ?? null;
+
+  if (employeeCode === null) {
+    const settings = await resolveSettings(tx, [EMPLOYEE_PREFIX_KEY], {
+      organizationId: input.organizationId,
+    });
+    const resolved = settings.get(EMPLOYEE_PREFIX_KEY);
+    const prefix =
+      typeof resolved === 'string' && resolved !== '' ? resolved : DEFAULT_EMPLOYEE_PREFIX;
+
+    /*
+     * Org-wide (no branchId): a staff profile keys on membership, which is
+     * organization-level, so one person has one code across every branch they
+     * work at. Issued last, so the row lock it takes is held for one statement
+     * rather than the width of the whole acceptance.
+     */
+    const issued = await issueNumber(tx, ctx, {
+      type: 'EMPLOYEE',
+      prefix,
+      padding: 4,
+    });
+    employeeCode = issued.formatted;
+  }
+
+  const data = {
+    employeeCode,
+    joinedOn: new Date(`${joinedOn}T00:00:00.000Z`),
+    relievedOn: null,
+    // Never clobber a designation an admin has already refined by hand; the
+    // invitation only fills a blank.
+    ...(existing?.designationId == null && input.designationId !== null
+      ? { designationId: input.designationId }
+      : {}),
+  };
+
+  if (existing) {
+    await tx.staffProfile.update({ where: { id: existing.id }, data });
+  } else {
+    await tx.staffProfile.create({ data: { membershipId: input.membershipId, ...data } });
+  }
+
+  return { employeeCode, joinedOn };
 }
 
 export async function previewInvitation(
@@ -762,6 +908,12 @@ export async function acceptInvitation(
       skipDuplicates: true,
     });
 
+    const employmentRecord = await createEmploymentRecord(tx, {
+      organizationId,
+      membershipId: membership.id,
+      designationId: invitation.designationId,
+    });
+
     await recordAudit(
       tx,
       { organizationId, branchIds, userId },
@@ -776,6 +928,10 @@ export async function acceptInvitation(
           roleId: invitation.roleId,
           branchIds: [...branchIds].sort(),
           isNewUser,
+          // Ids and a code, never the person's name or title text.
+          employeeCode: employmentRecord.employeeCode,
+          designationId: invitation.designationId,
+          joinedOn: employmentRecord.joinedOn,
         },
         ...(branchIds.length === 1 ? { branchId: branchIds[0] } : {}),
         ...options,

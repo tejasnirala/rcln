@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/tejasnirala/rcln/security/advisories/new
+    about: Never file security problems as public issues — especially anything crossing a tenant boundary or exposing patient data.
+  - name: 📚 Documentation
+    url: https://github.com/tejasnirala/rcln/blob/main/.kb/README.md
+    about: Architecture, decisions, conventions, schema and the honest status ledger all live in .kb/.
+  - name: 💬 Questions and ideas
+    url: https://github.com/tejasnirala/rcln/discussions
+    about: Ask about usage or float an idea before it becomes a feature request.

@@ -3,6 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "description": "Multi-tenant healthcare management SaaS",
+  "license": "AGPL-3.0-only",
+  "author": "Tejas Nirala",
+  "homepage": "https://github.com/tejasnirala/rcln#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tejasnirala/rcln.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tejasnirala/rcln/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.0.0",
@@ -33,6 +43,7 @@
     "db:seed": "pnpm --filter @rcln/db run seed",
     "db:studio": "pnpm --filter @rcln/db run studio",
     "db:reset": "pnpm --filter @rcln/db run reset",
+    "db:grants": "pnpm --filter @rcln/db run grants",
     "db:rls:check": "pnpm --filter @rcln/db run rls:check",
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky",
