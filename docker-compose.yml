@@ -244,7 +244,33 @@ services:
       timeout: 5s
       start_period: 60s
       retries: 5
-    mem_limit: 1g
+    # ⚠️ RAISED FROM 1g FOR `pnpm validate`, NOT FOR THE RUNNING SERVER.
+    #   The api serves requests in about 230m. What needs the headroom is the
+    #   command CLAUDE.md tells you to run before finishing a task: turbo fans
+    #   out tsc and eslint across 14 packages, and each holds a whole type graph.
+    #   At 1g it was killed outright — exit 137 from the suite, 134 from tsc —
+    #   which reads as a code failure and is not one.
+    #
+    #   3g, not 2g, and the extra gigabyte is the point. At a 2g ceiling the same
+    #   command peaked at 1.993g: it passed or was killed depending on how many
+    #   packages turbo happened to run at once. A limit that fails intermittently
+    #   is worse than one that fails always, because the next person debugs their
+    #   code instead of the ceiling.
+    #
+    #   Given 3g it peaks at 2.29g, not 1.99g — node sizes its heap from the
+    #   cgroup limit, so the lower number was a squeeze, not a comfortable fit.
+    #   Measured over four consecutive `pnpm validate --force` runs.
+    #
+    #   1g was never actually exercised: until the CI build fix, 28 of 34 api
+    #   suites died on module resolution in the first second and allocated
+    #   nothing. The ceiling only became real once the tests started running.
+    #
+    #   A ceiling is not a reservation. api + web + worker now total 8g of the
+    #   7.75g Docker gets, which is deliberate over-subscription: measured
+    #   concurrent use is ~2.8g, and validate does not run during a web build.
+    #   No browser ever launches here — that is still the worker's job, see
+    #   apps/worker/src/documents/browser.ts.
+    mem_limit: 3g
     networks: [rcln]
 
   # ==========================================================================
@@ -327,8 +353,9 @@ services:
     #   RENDER LIVES HERE RATHER THAN IN THE API. A browser plus one renderer
     #   process needs roughly a gigabyte on a document with a long table; 768m
     #   killed it mid-render, which surfaces as a "target closed" naming nothing.
-    #   The api container keeps its 1g and never launches a browser — see the
-    #   header of apps/worker/src/documents/browser.ts.
+    #   The api container never launches a browser — see the header of
+    #   apps/worker/src/documents/browser.ts. Its own limit was later raised to
+    #   2g for `pnpm validate`, which is a typechecking cost, not a Chromium one.
     #
     #   Document rendering is deliberately concurrency 1 (apps/worker/src/index.ts),
     #   so this is sized for ONE browser, not five.
