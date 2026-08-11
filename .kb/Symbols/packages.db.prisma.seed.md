@@ -4,7 +4,7 @@
 
 > The seed's database connection.
 
-Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-masters.ts` · `packages/db/prisma/seed/designations.ts` · `packages/db/prisma/seed/permissions.ts` · `packages/db/prisma/seed/plans.ts` · `packages/db/prisma/seed/role-designations.ts` · `packages/db/prisma/seed/setting-definitions.ts` · `packages/db/prisma/seed/super-admin.ts` · `packages/db/prisma/seed/system-roles.ts` · `packages/db/prisma/seed/tax-rule-defaults.ts`
+Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-masters.ts` · `packages/db/prisma/seed/designations.ts` · `packages/db/prisma/seed/permissions.ts` · `packages/db/prisma/seed/plans.ts` · `packages/db/prisma/seed/product-masters.ts` · `packages/db/prisma/seed/role-designations.ts` · `packages/db/prisma/seed/setting-definitions.ts` · `packages/db/prisma/seed/super-admin.ts` · `packages/db/prisma/seed/system-roles.ts` · `packages/db/prisma/seed/tax-rule-defaults.ts`
 
 ## fn
 
@@ -15,6 +15,7 @@ Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-
 | `seedDesignations` | `(): Promise<void>` | `packages/db/prisma/seed/designations.ts:50` |  |
 | `seedPermissions` | `(): Promise<Map<PermissionCode, string>>` | `packages/db/prisma/seed/permissions.ts:15` |  |
 | `seedPlans` | `(): Promise<void>` | `packages/db/prisma/seed/plans.ts:6` |  |
+| `seedProductMasters` | `(): Promise<void>` | `packages/db/prisma/seed/product-masters.ts:22` |  |
 | `seedRoleDesignations` | `(): Promise<void>` | `packages/db/prisma/seed/role-designations.ts:53` |  |
 | `seedSettingDefinitions` | `(): Promise<void>` | `packages/db/prisma/seed/setting-definitions.ts:40` |  |
 | `seedSuperAdmin` | `(): Promise<void>` | `packages/db/prisma/seed/super-admin.ts:11` |  |

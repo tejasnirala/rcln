@@ -131,6 +131,23 @@ model Organization {
   invoiceItems           InvoiceItem[]
   invoiceTaxes           InvoiceTax[]
   invoiceDocuments       InvoiceDocument[]
+  // The product catalogue. Every one of these allows a NULL organization_id —
+  // the row is then a PLATFORM row belonging to nobody, which is why they are in
+  // the `platform_extensible` RLS array and not the `org_scoped` one. See
+  // products.prisma.
+  unitsOfMeasure           UnitOfMeasure[]
+  unitConversions          UnitConversion[]
+  productCategories        ProductCategory[]
+  manufacturers            Manufacturer[]
+  activeIngredients        ActiveIngredient[]
+  compositions             Composition[]
+  compositionIngredients   CompositionIngredient[]
+  storageProfiles          StorageRequirementProfile[]
+  products                 Product[]
+  productPackagings        ProductPackaging[]
+  productIdentifiers       ProductIdentifier[]
+  productTaxClassifications ProductTaxClassification[]
+  medicineDetails          MedicineDetail[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])

@@ -10,8 +10,8 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `Alert` | `({ tone, children, className, }: { tone: 'error' \| 'info'; c…)` | `apps/web/src/components/ui/alert.tsx:14` |  |
-| `Button` | `({ variant = 'primary', size = 'md', fullWidth, className, t…)` | `apps/web/src/components/ui/button.tsx:31` |  |
+| `Alert` | `({ tone, children, className, }: { tone: keyof typeof TONES;…)` | `apps/web/src/components/ui/alert.tsx:53` |  |
+| `Button` | `({ variant = 'primary', size = 'md', fullWidth, className, t…)` | `apps/web/src/components/ui/button.tsx:36` |  |
 | `EyeIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:84` | Currently hidden — this shows it. |
 | `EyeOffIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:99` | Currently visible — this hides it. Same eye, struck through. |
 | `Field` | `({ name, label, hint, errors, action, className, children }:…)` | `apps/web/src/components/ui/field.tsx:56` |  |
@@ -20,15 +20,16 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 | `PasswordControl` | `({ className, disabled, ...rest }: React.ComponentPropsWitho…)` | `apps/web/src/components/ui/password-control.tsx:32` |  |
 | `PhoneInput` | `({ id, name, countryCode, national, onNationalChange, onCoun…)` | `apps/web/src/components/ui/phone-input.tsx:33` |  |
 | `Select` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:330` |  |
-| `SIZES` <sub>local</sub> | `{ // py-3 clears the 24px minimum target from WCAG 2.5.8 on its own. md: 'px-5 py-3 text-…` | `apps/web/src/components/ui/button.tsx:25` |  |
+| `SIZES` <sub>local</sub> | `{ // py-3 clears the 24px minimum target from WCAG 2.5.8 on its own. md: 'px-5 py-3 text-…` | `apps/web/src/components/ui/button.tsx:30` |  |
 | `Textarea` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:380` | Free text over several lines. `rows` sets the starting height. |
-| `VARIANTS` <sub>local</sub> | `: Record<Variant, string>` | `apps/web/src/components/ui/button.tsx:18` |  |
+| `TONES` <sub>local</sub> | `{ error: { className: 'ring-danger/30 bg-danger-tint text-danger', Icon: CircleAlert, wor…` | `apps/web/src/components/ui/alert.tsx:30` |  |
+| `VARIANTS` <sub>local</sub> | `: Record<Variant, string>` | `apps/web/src/components/ui/button.tsx:23` |  |
 
 ## hook
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `useOutcomeFocus` | `(status: string, ref: React.RefObject<HTMLElement \| null>): void` | `apps/web/src/components/ui/alert.tsx:52` |  |
+| `useOutcomeFocus` | `(status: string, ref: React.RefObject<HTMLElement \| null>): void` | `apps/web/src/components/ui/alert.tsx:96` |  |
 
 ## fn
 
@@ -66,4 +67,4 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 | `SelectElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'select'>` | `apps/web/src/components/ui/field.tsx:437` |  |
 | `SelectItem` | `SelectOption \| SelectOptionGroup` | `apps/web/src/components/ui/field.tsx:415` |  |
 | `TextareaElementProps` <sub>local</sub> | `React.ComponentPropsWithoutRef<'textarea'>` | `apps/web/src/components/ui/field.tsx:438` |  |
-| `Variant` <sub>local</sub> | `'primary' \| 'secondary' \| 'danger' \| 'ghost'` | `apps/web/src/components/ui/button.tsx:16` |  |
+| `Variant` <sub>local</sub> | `'primary' \| 'secondary' \| 'danger' \| 'ghost'` | `apps/web/src/components/ui/button.tsx:21` |  |

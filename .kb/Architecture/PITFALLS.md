@@ -697,6 +697,59 @@ dev server actually maintains.
 
 ---
 
+### `getPropertyValue('--color-drape')` returns an empty string
+
+**Symptom:** reading a design token in JavaScript gives `''`, so a chart, a
+canvas or a dynamically-built style silently paints black or nothing. The class
+`bg-drape` works perfectly on the same page, which is what makes this baffling.
+**Cause:** `globals.css` maps the palette onto Tailwind's names with
+`@theme inline`. The `inline` keyword means Tailwind substitutes the value at
+build time and **never emits `--color-*` as a real custom property**. Nothing
+with that name exists at runtime to be read.
+**Fix:** read the underlying variable, `--rcln-drape`. Those are real custom
+properties published by `theme.css`, which is the only reason the theme can
+change without a rebuild. → [ADR-0017](decisions/0017-theme-is-a-device-preference.md)
+
+### A white flash on every reload, for dark-mode users only
+
+**Symptom:** the page paints light, then snaps dark. Reproducible on every hard
+reload; invisible to anyone testing in light mode, which is most people.
+**Cause:** the document is served with no theme attributes — it must be, or the
+marketing pages could not stay statically rendered. Anything that applies the
+theme from React (a provider, `useEffect`, even `useLayoutEffect`) runs _after_
+the browser has painted its first frame, and that frame is the flash.
+**Fix:** it is applied by `ThemeScript`, a **blocking inline `<script>`** in
+`<head>`. Keep it blocking and keep it inline. `next/script` with any strategy,
+or moving the logic into a component, restores the flash — and the change will
+look like a tidy-up.
+
+### An accent renders as the previous one, and the setting looks broken
+
+**Symptom:** picking an accent in `/appearance` appears to do nothing, or reverts
+to whatever was showing before. No error anywhere.
+**Cause:** an id was added to `ACCENTS` in `lib/theme.ts` without a matching
+`[data-accent='…']` block in `app/theme.css`. The attribute is set on
+`<html>` correctly; there is simply no rule that matches it, so the custom
+properties keep their inherited values.
+**Fix:** add the CSS block. ⚠️ Nothing catches this — one side is TypeScript and
+the other is CSS, so it neither typechecks nor lints, and `apps/web` has no
+tests. The pairing is a string match maintained by hand.
+
+### A colour literal that reviews cleanly and is unreadable in nine themes
+
+**Symptom:** text vanishes, or a button loses its border, but only for users on a
+non-default accent or in dark mode. Nobody can reproduce it.
+**Cause:** a raw colour — `bg-white`, `text-neutral-900`, a hex in a `style`
+prop, `text-white` on an accent surface — instead of a token. There are ten
+appearance × accent combinations and a literal is correct in exactly one. Review
+happens in that one.
+**Fix:** tokens only. `bg-card`, `text-ink`, `border-rule`; the pair for a solid
+accent is `bg-drape text-paper`. Note `--rcln-scrim` is the deliberate exception
+and does not invert: a modal veil is dark in both appearances, so `bg-scrim/60`,
+never `bg-ink/40`.
+
+---
+
 ## Express and tooling
 
 ### `express-rate-limit` v8 rejects a naive `keyGenerator`

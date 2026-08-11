@@ -15,6 +15,15 @@ import designationRoutes from './designations.routes.js';
 import memberRoutes from './members.routes.js';
 import organizationRoutes from './organization.routes.js';
 import patientRoutes from './patients.routes.js';
+import productRoutes from './products.routes.js';
+import {
+  activeIngredientRoutes,
+  compositionRoutes,
+  manufacturerRoutes,
+  productCategoryRoutes,
+  storageProfileRoutes,
+  unitRoutes,
+} from './product-catalogue.routes.js';
 import platformRoutes from './platform.routes.js';
 import publicRoutes from './public.routes.js';
 import roleRoutes from './roles.routes.js';
@@ -71,6 +80,30 @@ router.use('/patients', patientRoutes);
 // `patients`, `appointments` IS branch-scoped — identity follows the person,
 // attendance belongs to the clinic it happened at.
 router.use('/appointments', appointmentRoutes);
+
+// WHAT A THING IS — one catalogue for medicines, gloves, implants, reagents and
+// dental materials (PI-ADR-001). Deliberately NOT under /pharmacy: a dentist
+// maintains dental materials and a lab manager maintains reagents, and neither
+// should need a pharmacy permission to do it. Nothing here carries a quantity —
+// where stock is and how much of it exists is PI-2's `stock_ledger`.
+//
+// ⚠️ Not PHI today. It becomes PHI-adjacent the moment dispensing links a
+//    product to a named person (PI-ADR-016), and that will be its own router.
+router.use('/products', productRoutes);
+
+// The masters a product points at. Their own top-level surfaces rather than
+// paths under /products, because a purchase order, a batch and a supplier
+// catalogue will all reference them too — they outlive the one screen that
+// first needed them, exactly as /clinical-taxonomy does for doctors.
+//
+// Reads sit behind `product.definition.read` so every screen showing a product
+// can render its category and unit NAME; curation is `product.definition.manage`.
+router.use('/units', unitRoutes);
+router.use('/product-categories', productCategoryRoutes);
+router.use('/manufacturers', manufacturerRoutes);
+router.use('/active-ingredients', activeIngredientRoutes);
+router.use('/compositions', compositionRoutes);
+router.use('/storage-profiles', storageProfileRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather

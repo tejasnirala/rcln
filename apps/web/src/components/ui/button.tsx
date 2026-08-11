@@ -8,18 +8,23 @@ import { cn } from '@/lib/cn';
  * new: the variants are exactly what those files were already doing, named.
  *
  * `danger` is the only addition, for destructive actions like retiring a branch.
- * It is `signal` — which the palette reserves for "live right now" — because
- * that is also the colour the existing error alerts use, and inventing a second
- * warm hue for one button would weaken both.
+ * It reads from the fixed status ramp rather than from the accent, for the same
+ * reason `Alert` does: "this deletes something" is not a preference, and under a
+ * warm accent a destructive button drawn in the accent is indistinguishable from
+ * the one beside it that saves.
+ *
+ * Every variant names its own pressed state. `active:` is not decoration — on a
+ * touch screen it is the only feedback between the tap and the response, and
+ * `hover:` never fires there at all.
  */
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-drape text-paper hover:bg-drape-deep',
-  secondary: 'border-rule bg-card text-ink hover:bg-drape-tint/40 border',
-  danger: 'border-signal/30 bg-signal-tint text-signal hover:bg-signal-tint/70 border',
-  ghost: 'text-drape hover:bg-drape-tint/50',
+  primary: 'bg-drape text-paper hover:bg-drape-deep active:bg-drape-press',
+  secondary: 'border-rule bg-card text-ink hover:bg-drape-tint/40 active:bg-drape-tint/70 border',
+  danger: 'border-danger/30 bg-danger-tint text-danger hover:bg-danger-tint/70 border',
+  ghost: 'text-drape hover:bg-drape-tint/50 active:bg-drape-tint/80',
 };
 
 const SIZES = {

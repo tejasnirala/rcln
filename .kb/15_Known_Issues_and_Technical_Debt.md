@@ -95,10 +95,26 @@ which is the worst property a background system can have.
 
 ### H6 · No E2E or frontend tests
 
-200 tests, all at the API and unit layers. No Playwright, no component tests, no
+All tests sit at the API and unit layers. No Playwright, no component tests, no
 Server Action tests. The signup → login flow has never been exercised in a real
 browser, and Server Actions carry real logic. A working API and a broken screen
 are indistinguishable from the current suite.
+
+⚠️ **`apps/web` was briefly given a test suite, and it was removed rather than
+kept.** Two files asserted the theme — every appearance × accent pair's contrast,
+parsed out of `theme.css`, and that every id in `ACCENTS` had a matching
+`[data-accent]` block. They were correct and worth having. They arrived with a
+jest toolchain declared in `apps/web/package.json` but absent from
+`pnpm-lock.yaml` and never installed, so `@rcln/web#typecheck` failed on the test
+files themselves and took `pnpm validate` red for the whole workspace. Deleting
+them was the smaller of two wrongs; standing `apps/web` up for tests properly is
+a task nobody has done.
+
+What that costs today, concretely: the ten theme combinations were
+contrast-measured by hand and nothing re-measures them, and the TypeScript ↔ CSS
+accent pairing is a string match that neither typechecks nor lints. Changing a
+hex in `theme.css` is unguarded. →
+[ADR-0017](Architecture/decisions/0017-theme-is-a-device-preference.md)
 
 ### H7 · Impersonation is unbuilt, non-trivial, and its ADR is missing
 

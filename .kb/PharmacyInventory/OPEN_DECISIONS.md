@@ -4,7 +4,7 @@ Things that are genuinely undecided, each with a recommendation. Decided items
 live in [ARCHITECTURE.md](ARCHITECTURE.md); move an entry there when it is
 settled, and note the move in [CHANGELOG.md](CHANGELOG.md).
 
-**Last updated:** 2026-08-11
+**Last updated:** 2026-08-11 (PI-1: OD-1, OD-2 and OD-4 resolved)
 
 ---
 
@@ -169,4 +169,39 @@ invariant 7 takes on clinical authoring.
 
 ## Resolved
 
-None yet. Move entries here with the date and the reasoning when they settle.
+### OD-1 — Tenants may create products AND extend a platform catalogue · 2026-08-11
+
+**Option A, as recommended.** Every master in `products.prisma` allows
+`organization_id NULL`, following the `specialties` precedent exactly.
+
+What PI-1 added to the reasoning: the consequence is stronger than "a clinic can
+add its own row". A tenant **cannot edit a platform row at all**, and cannot
+attach its own packaging, identifier or tax classification to one either — the
+composite FK `(organization_id, product_id)` makes it unrepresentable. So
+customising a shared product is necessarily a CLONE, and that is enforced by the
+database rather than by a service check somebody can forget.
+
+The accepted cost stands: a clinic-created product has no regulatory profile and
+will resolve `UNDETERMINED` in PI-5.
+
+### OD-2 — The product catalogue is ORG-SCOPED · 2026-08-11
+
+**As recommended.** No `branch_id` on `products` or on any catalogue master.
+Per-branch availability will be expressed by stock existing at that branch, which
+is PI-2's business. Nothing in PI-1 needed a branch, which is the confirmation.
+
+### OD-4 — The platform ships NO seeded product data · 2026-08-11
+
+**Option C, as the interim recommendation.** `seed/product-masters.ts` writes 35
+units, 10 conversions, 32 categories and 9 storage profiles — all structural
+facts about measurement, packaging and refrigeration. It writes **zero**
+products, ingredients and compositions.
+
+⚠️ This remains a business and legal decision, not a technical one, and it is
+NOT closed for good: licensing a drug database or building from public registers
+is still open, and the import path is designed for it. What IS closed is the
+question of whether a model may fill the gap in the meantime. It may not, under
+any circumstances — a hallucinated strength or composition in a dispensing system
+is a patient-safety defect that will look completely plausible to every reviewer.
+The reasoning is repeated at the top of `seed/data/product-masters.ts`, which is
+where somebody would go to add the data.

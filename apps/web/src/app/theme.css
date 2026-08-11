@@ -1,0 +1,372 @@
+/*
+ * The theme: appearance × accent, composed.
+ * ============================================================================
+ *
+ * WHAT THIS FILE IS
+ *   Every colour in the product, as runtime CSS variables. `globals.css` maps
+ *   them onto Tailwind's `--color-*` names with `@theme inline`, so `bg-card`,
+ *   `text-drape` and `border-rule` compile to `var(--rcln-card)` and friends —
+ *   which is why 100-odd components already written against those utilities
+ *   became themable without one of them being edited.
+ *
+ * THE TWO PHASES. Read them in this order; the file is written in it.
+ *
+ *   Phase A — the accent palettes. `[data-accent='<id>']` declares a COMPLETE
+ *   ramp for light AND for dark, as `--a-light-*` and `--a-dark-*`. Nothing in
+ *   phase A is conditional on the appearance; a palette is a pair of ramps and
+ *   both are always present.
+ *
+ *   Phase B — the appearance switch, written ONCE. `--rcln-*` is pointed at
+ *   `--a-light-*` or `--a-dark-*` and that is the whole of light-vs-dark. The
+ *   accent-independent colours (status, scrim) are literals here, because they
+ *   belong to the appearance rather than to the accent.
+ *
+ *   The consequence is the point: adding a sixth accent is ONE phase-A block
+ *   plus one entry in `lib/theme.ts`. It is not a sixth copy of the theme, and
+ *   there is no combinatorial explosion — five accents × three appearances is
+ *   five blocks, not fifteen.
+ *
+ * ⚠️ THERE IS NO `[data-appearance='system']` BLOCK, AND THERE MUST NOT BE.
+ *   `system` is a stored *preference*, not a rendered state. The boot script in
+ *   `lib/theme.ts` resolves it against `prefers-color-scheme` before the first
+ *   paint and writes `data-appearance="light"` or `"dark"`; the provider keeps
+ *   it resolved when the OS setting changes under a running tab. CSS therefore
+ *   only ever sees two states. Adding a media-query branch here would be a
+ *   second, silently divergent implementation of the same decision.
+ *
+ * ROLE NAMES
+ *   Phase A uses the semantic role names (background, surface, foreground,
+ *   border, primary, …). The Tailwind utility names they end up under are
+ *   rcln's existing ones, deliberately — the vocabulary the codebase already
+ *   speaks is the design system, and a parallel set of aliases would just be
+ *   two ways to say `bg-card`. The mapping, once:
+ *
+ *     background  → paper          primary          → drape
+ *     surface     → card           primary-strong   → drape-deep  (hover)
+ *     foreground  → ink            primary-pressed  → drape-press (active)
+ *     fg-soft     → ink-soft       primary-tint     → drape-tint  (surface)
+ *     muted-fg    → muted          on-primary       → paper
+ *     border      → rule           focus ring       → signal / signal-bright
+ *
+ * CONTRAST
+ *   Every pair a component actually puts together was measured by hand against
+ *   WCAG AA — 4.5:1 for text under 24px, 3:1 above — across all ten
+ *   appearance × accent combinations. The numbers below are not eyeballed.
+ *
+ *   ⚠️ BUT NOTHING RE-CHECKS THEM. A test that parsed this file and asserted
+ *     every pair used to exist and was removed: it was the only test in
+ *     `apps/web` and shipped with a jest toolchain that was never installed,
+ *     so it broke `typecheck` for the whole workspace instead of guarding
+ *     anything. `pnpm test` here prints "no web tests yet" and exits 0.
+ *
+ *     So CHANGING A HEX IN THIS FILE IS UNGUARDED. Nothing will tell you that a
+ *     pair stopped clearing 4.5:1, in this accent or in any of the other four,
+ *     in either appearance. Measure it yourself before you commit — a browser
+ *     console does this in one line — and remember the failure is invisible in
+ *     review because review happens in one theme and this file has ten.
+ */
+
+/* ==========================================================================
+ * PHASE A — the accent palettes
+ *
+ * Five, curated for a clinical tool: none is a saturated primary, none glows,
+ * and each is separated from the next by hue rather than by brightness so they
+ * are still distinguishable to a red-green colour-blind user. `surgical` is the
+ * product's existing palette, unchanged to the byte — it is the default, and
+ * choosing it must reproduce today's screens exactly.
+ * ========================================================================== */
+
+/*
+ * The live-state hue (`signal`) is NOT part of an accent. It means one thing —
+ * the thing that is happening right now — and a status that changed colour with
+ * a preference would stop being a status. So it is declared once, here, for
+ * every accent, and a palette only mentions it to disagree (see `ember`).
+ *
+ * ⚠️ THIS BLOCK EXISTS BECAUSE CUSTOM PROPERTIES INHERIT, AND THAT IS A TRAP
+ *   FOR ANY VALUE AN ACCENT MAY OMIT. Left as a `var(…, default)` fallback in
+ *   phase B, an accent that does not declare its own live-state colour does not
+ *   get the default — it inherits whatever its ANCESTOR declared. On the page
+ *   that is harmless, since the root is the only theme. In the settings screen,
+ *   where five accents are previewed inside a page already wearing a sixth, it
+ *   painted every swatch with the page's live-state colour. Re-declaring the
+ *   default on every themed element is what cuts the inheritance.
+ *
+ *   Same specificity as the accent blocks and written before them, so a palette
+ *   that does declare its own still wins.
+ */
+:root,
+[data-accent] {
+  --a-light-signal: #a94f10;
+  --a-light-signal-bright: #e8833a;
+  --a-light-signal-tint: #fbeee2;
+
+  --a-dark-signal: #e8833a;
+  --a-dark-signal-bright: #a94f10;
+  --a-dark-signal-tint: #33200f;
+}
+
+/* Surgical green — operating-theatre drape. The default; today's design. */
+:root,
+[data-accent='surgical'] {
+  --a-light-background: #f3f5f2;
+  --a-light-surface: #ffffff;
+  --a-light-foreground: #0e1f1a;
+  --a-light-foreground-soft: #1c332c;
+  --a-light-muted: #5f716c;
+  --a-light-border: #d9e1dd;
+  --a-light-primary: #2f5d52;
+  --a-light-primary-strong: #23483f;
+  --a-light-primary-tint: #e3ece9;
+
+  --a-dark-background: #0c1512;
+  --a-dark-surface: #131e1a;
+  --a-dark-foreground: #e6efeb;
+  --a-dark-foreground-soft: #c0d2cb;
+  --a-dark-muted: #91a49d;
+  --a-dark-border: #27352f;
+  --a-dark-primary: #6fc3ab;
+  --a-dark-primary-strong: #8fd6c1;
+  --a-dark-primary-tint: #17302a;
+}
+
+/*
+ * Ember — clay orange, fired rather than fluorescent.
+ *
+ * ⚠️ THE LIVE-STATE HUE MOVES TO TEAL HERE, AND ONLY HERE. Everywhere else
+ *   "happening now" is burnt orange; under a warm accent that is the primary
+ *   button's colour, and a queue where the in-progress token looks like the
+ *   Confirm button is worse than no marker at all. When the accent takes the
+ *   warm side, the state marker takes the cool one. Nothing else changes: it is
+ *   still one hue, still meaning exactly one thing.
+ */
+[data-accent='ember'] {
+  --a-light-background: #f6f4f1;
+  --a-light-surface: #ffffff;
+  --a-light-foreground: #1f1610;
+  --a-light-foreground-soft: #35271d;
+  --a-light-muted: #71655c;
+  --a-light-border: #e2dbd3;
+  --a-light-primary: #9a4b16;
+  --a-light-primary-strong: #7d3c10;
+  --a-light-primary-tint: #f6e8dc;
+  --a-light-signal: #0f6f66;
+  --a-light-signal-bright: #4fc7b8;
+  --a-light-signal-tint: #dff0ed;
+
+  --a-dark-background: #16110d;
+  --a-dark-surface: #1e1813;
+  --a-dark-foreground: #f0eae4;
+  --a-dark-foreground-soft: #d3c8bd;
+  --a-dark-muted: #a4968a;
+  --a-dark-border: #362c24;
+  --a-dark-primary: #e08a4a;
+  --a-dark-primary-strong: #f0a469;
+  --a-dark-primary-tint: #35251a;
+  --a-dark-signal: #4fc7b8;
+  --a-dark-signal-bright: #0f6f66;
+  --a-dark-signal-tint: #10302c;
+}
+
+/* Indigo — the ink-blue of a printed form. The conventional clinical choice. */
+[data-accent='indigo'] {
+  --a-light-background: #f3f4f8;
+  --a-light-surface: #ffffff;
+  --a-light-foreground: #121527;
+  --a-light-foreground-soft: #232842;
+  --a-light-muted: #616780;
+  --a-light-border: #d9dce8;
+  --a-light-primary: #3b4a91;
+  --a-light-primary-strong: #2e3a74;
+  --a-light-primary-tint: #e5e8f4;
+
+  --a-dark-background: #0e1018;
+  --a-dark-surface: #161a25;
+  --a-dark-foreground: #e8eaf3;
+  --a-dark-foreground-soft: #c4c9dd;
+  --a-dark-muted: #969cb4;
+  --a-dark-border: #29303f;
+  --a-dark-primary: #93a4f0;
+  --a-dark-primary-strong: #adbaf7;
+  --a-dark-primary-tint: #1e2440;
+}
+
+/* Plum — aubergine. Warm enough to soften a dense screen, dark enough to sit. */
+[data-accent='plum'] {
+  --a-light-background: #f7f3f6;
+  --a-light-surface: #ffffff;
+  --a-light-foreground: #22141f;
+  --a-light-foreground-soft: #392534;
+  --a-light-muted: #6f5f6a;
+  --a-light-border: #e5dae1;
+  --a-light-primary: #6d3b63;
+  --a-light-primary-strong: #572f4f;
+  --a-light-primary-tint: #f0e4ee;
+
+  --a-dark-background: #150f14;
+  --a-dark-surface: #1e161c;
+  --a-dark-foreground: #f0e8ee;
+  --a-dark-foreground-soft: #d3c4ce;
+  --a-dark-muted: #a3939e;
+  --a-dark-border: #342a32;
+  --a-dark-primary: #d09ac4;
+  --a-dark-primary-strong: #e0b1d5;
+  --a-dark-primary-tint: #2e1f2b;
+}
+
+/*
+ * Graphite — no hue at all. For a screen that is read all day, or for someone
+ * who wants the interface to disappear behind the record. The live-state orange
+ * is the only colour on the page, which is exactly what it is for.
+ */
+[data-accent='graphite'] {
+  --a-light-background: #f4f4f5;
+  --a-light-surface: #ffffff;
+  --a-light-foreground: #17181a;
+  --a-light-foreground-soft: #2b2d31;
+  --a-light-muted: #63666c;
+  --a-light-border: #dcdde0;
+  --a-light-primary: #3f4650;
+  --a-light-primary-strong: #2d333b;
+  --a-light-primary-tint: #e7e8ea;
+
+  --a-dark-background: #111214;
+  --a-dark-surface: #191b1e;
+  --a-dark-foreground: #eaebed;
+  --a-dark-foreground-soft: #c8cacd;
+  --a-dark-muted: #999b9f;
+  --a-dark-border: #2c2e33;
+  --a-dark-primary: #a8b2bf;
+  --a-dark-primary-strong: #c0c8d3;
+  --a-dark-primary-tint: #24272c;
+}
+
+/* ==========================================================================
+ * PHASE B — the appearance switch
+ *
+ * The only place light and dark are chosen between. Two blocks, and the second
+ * is the first with `light` swapped for `dark` in the var names.
+ * ========================================================================== */
+
+:root,
+[data-appearance='light'] {
+  color-scheme: light;
+
+  --rcln-paper: var(--a-light-background);
+  --rcln-card: var(--a-light-surface);
+  --rcln-ink: var(--a-light-foreground);
+  --rcln-ink-soft: var(--a-light-foreground-soft);
+  --rcln-muted: var(--a-light-muted);
+  --rcln-rule: var(--a-light-border);
+  --rcln-drape: var(--a-light-primary);
+  --rcln-drape-deep: var(--a-light-primary-strong);
+  --rcln-drape-tint: var(--a-light-primary-tint);
+
+  /* Live state — the shared default, or the accent's own. See phase A. */
+  --rcln-signal: var(--a-light-signal);
+  --rcln-signal-bright: var(--a-light-signal-bright);
+  --rcln-signal-tint: var(--a-light-signal-tint);
+
+  /*
+   * Status. NOT accent-derived, in either appearance: "this failed" cannot be a
+   * preference. They are also never the only carrier — `Alert` pairs each with a
+   * glyph and a word (WCAG 1.4.1, apps/web/AGENTS.md).
+   */
+  --rcln-success: #1a6b47;
+  --rcln-success-tint: #e3efe9;
+  --rcln-warning: #8a5a00;
+  --rcln-warning-tint: #faefda;
+  --rcln-danger: #b3261e;
+  --rcln-danger-tint: #fceceb;
+
+  /*
+   * The scrim behind a modal. Fixed dark in BOTH appearances, because it is not
+   * a colour — it is the absence of light over the page underneath. Deriving it
+   * from `ink` (which is what the dialog used to do) inverts it in dark mode and
+   * paints a white veil over a dark app.
+   */
+  --rcln-scrim: #05100c;
+
+  /*
+   * The chevron `field-chevron` paints on every <select>. A data URL cannot
+   * interpolate a variable, so the whole image is the variable. Muted grey in
+   * both modes rather than per-accent: it is an affordance, not content, and it
+   * must not compete with the value beside it.
+   */
+  --rcln-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%235f716c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.25 1.75 6 6.25l4.75-4.5'/%3E%3C/svg%3E");
+}
+
+[data-appearance='dark'] {
+  color-scheme: dark;
+
+  --rcln-paper: var(--a-dark-background);
+  --rcln-card: var(--a-dark-surface);
+  --rcln-ink: var(--a-dark-foreground);
+  --rcln-ink-soft: var(--a-dark-foreground-soft);
+  --rcln-muted: var(--a-dark-muted);
+  --rcln-rule: var(--a-dark-border);
+  --rcln-drape: var(--a-dark-primary);
+  --rcln-drape-deep: var(--a-dark-primary-strong);
+  --rcln-drape-tint: var(--a-dark-primary-tint);
+
+  /*
+   * `signal` and `signal-bright` TRADE PLACES in dark, and that is correct
+   * rather than a typo. `signal` is the one that reads on an ordinary surface;
+   * `signal-bright` is the one that reads on an INVERTED surface — the platform
+   * strip, the marketing ink section — and in dark mode an inverted surface is
+   * the light one. Anything using `.on-ink` keeps a visible focus ring for free.
+   */
+  --rcln-signal: var(--a-dark-signal);
+  --rcln-signal-bright: var(--a-dark-signal-bright);
+  --rcln-signal-tint: var(--a-dark-signal-tint);
+
+  --rcln-success: #58cf9c;
+  --rcln-success-tint: #10291f;
+  --rcln-warning: #e4b155;
+  --rcln-warning-tint: #2d2411;
+  --rcln-danger: #f4897f;
+  --rcln-danger-tint: #331a19;
+
+  --rcln-scrim: #000000;
+
+  --rcln-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%2399a8a2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.25 1.75 6 6.25l4.75-4.5'/%3E%3C/svg%3E");
+}
+
+/* ==========================================================================
+ * DERIVED — computed from the two above, so no palette has to supply them
+ * ========================================================================== */
+
+/*
+ * Not `:root` alone: a subtree carrying its own theme attributes — the preview
+ * swatches in the appearance settings — must derive these from ITS theme rather
+ * than inherit the page's. Custom properties inherit, so matching the elements
+ * that re-declare a theme is enough, and is far cheaper than matching `*`.
+ */
+:root,
+[data-appearance],
+[data-accent] {
+  /*
+   * The pressed state of a primary control, one shade past hover.
+   *
+   * Mixed toward `ink` rather than given a literal per palette, which makes it
+   * correct in both appearances for free: `ink` is near-black in light, so the
+   * button darkens; near-white in dark, so it lightens. Ten hand-tuned values
+   * that could disagree with their palette, replaced by one rule that cannot.
+   */
+  --rcln-drape-press: color-mix(in oklab, var(--rcln-drape-deep) 86%, var(--rcln-ink));
+
+  /*
+   * Chart series, in the order a chart should spend them. The first two are the
+   * accent — a single-series chart should look like it belongs to the theme —
+   * and the rest are fixed, because a five-series chart whose categories change
+   * hue with a preference cannot be described in a caption or a printed report.
+   *
+   * Distinguishable in greyscale as well as in colour: 1 and 3 differ in
+   * lightness, not only in hue.
+   */
+  --rcln-chart-1: var(--rcln-drape);
+  --rcln-chart-2: var(--rcln-drape-deep);
+  --rcln-chart-3: var(--rcln-signal);
+  --rcln-chart-4: var(--rcln-success);
+  --rcln-chart-5: var(--rcln-warning);
+  --rcln-chart-6: var(--rcln-muted);
+}

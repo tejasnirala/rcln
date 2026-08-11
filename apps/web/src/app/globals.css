@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './theme.css';
 
 /*
  * rcln design tokens.
@@ -12,35 +13,80 @@
  * one thing — the thing that is live right now (the token being served, the
  * appointment in progress). Spending it anywhere else makes it stop working.
  *
+ * ⚠️ THE COLOUR NAMES BELOW NO LONGER HOLD COLOURS. They hold a pointer into
+ *   `theme.css`, which composes the appearance (light | dark) with the accent
+ *   the user picked and publishes the result as `--rcln-*`. `bg-card` is not
+ *   white any more — it is whatever surface the current theme says, which is why
+ *   every screen written before the theme existed became themable without being
+ *   touched.
+ *
+ *   `@theme inline` is what makes that work: without it Tailwind copies the
+ *   value into `:root` once at build time, which is a snapshot of one theme.
+ *   With it, `bg-card` compiles to `var(--rcln-card)` and follows the cascade —
+ *   including down into a subtree carrying its own `data-accent`, which is how
+ *   the swatches in the appearance settings preview a palette they are not in.
+ *
+ *   The cost of `inline`: `--color-*` is NOT emitted as a real custom property,
+ *   so hand-written CSS in this file cannot read it. Reach for `--rcln-*`
+ *   directly below. Utilities in components are unaffected.
+ *
  * Tailwind v4 is configured CSS-first. There is no tailwind.config.ts and there
  * should not be one.
  */
 
-@theme {
-  /* Surgical-green ramp. Structure, text, chrome. */
-  --color-ink: #0e1f1a;
-  --color-ink-soft: #1c332c;
-  --color-drape: #2f5d52;
-  --color-drape-deep: #23483f;
-  --color-drape-tint: #e3ece9;
-  --color-paper: #f3f5f2;
-  --color-card: #ffffff;
-  --color-muted: #5f716c;
-  --color-rule: #d9e1dd;
+@theme inline {
+  /* Structure, text, chrome. */
+  --color-ink: var(--rcln-ink);
+  --color-ink-soft: var(--rcln-ink-soft);
+  --color-drape: var(--rcln-drape);
+  --color-drape-deep: var(--rcln-drape-deep);
+  --color-drape-press: var(--rcln-drape-press);
+  --color-drape-tint: var(--rcln-drape-tint);
+  --color-paper: var(--rcln-paper);
+  --color-card: var(--rcln-card);
+  --color-muted: var(--rcln-muted);
+  --color-rule: var(--rcln-rule);
 
   /*
    * Live-state accent. Means one thing: the thing that is happening now.
    *
-   * `signal` is tuned to clear 4.5:1 as TEXT on every light surface we put it
-   * on — 4.83 on signal-tint, 5.51 on card, 5.02 on paper. The obvious brighter
-   * orange fails all three at small sizes, which is why this one looks burnt.
-   * `signal-bright` is the inverse: 6.29:1 against ink, for marks and focus
-   * rings on the dark section where the dark orange would disappear.
+   * `signal` is tuned to clear 4.5:1 as TEXT on every surface we put it on —
+   * 4.83 on signal-tint, 5.51 on card, 5.02 on paper in the light appearance,
+   * and the dark ramp is held to the same bar by the contrast test. The obvious
+   * brighter orange fails all three at small sizes, which is why this one looks
+   * burnt. `signal-bright` is the inverse, for marks and focus rings on an
+   * INVERTED surface — the dark marketing section, the platform strip — where
+   * the ordinary one would disappear.
    */
-  --color-signal: #a94f10;
-  --color-signal-bright: #e8833a;
-  --color-signal-tint: #fbeee2;
+  --color-signal: var(--rcln-signal);
+  --color-signal-bright: var(--rcln-signal-bright);
+  --color-signal-tint: var(--rcln-signal-tint);
 
+  /*
+   * Outcome, and only outcome. These do not move with the accent: a clinic that
+   * likes orange has not decided that a failed payment is orange. Never used
+   * alone — `Alert` pairs each with a glyph and a word (WCAG 1.4.1).
+   */
+  --color-success: var(--rcln-success);
+  --color-success-tint: var(--rcln-success-tint);
+  --color-warning: var(--rcln-warning);
+  --color-warning-tint: var(--rcln-warning-tint);
+  --color-danger: var(--rcln-danger);
+  --color-danger-tint: var(--rcln-danger-tint);
+
+  /* The veil behind a modal. Dark in both appearances — see theme.css. */
+  --color-scrim: var(--rcln-scrim);
+
+  /* Chart series, in the order a chart should spend them (theme.css). */
+  --color-chart-1: var(--rcln-chart-1);
+  --color-chart-2: var(--rcln-chart-2);
+  --color-chart-3: var(--rcln-chart-3);
+  --color-chart-4: var(--rcln-chart-4);
+  --color-chart-5: var(--rcln-chart-5);
+  --color-chart-6: var(--rcln-chart-6);
+}
+
+@theme {
   /*
    * IBM Plex, three roles used semantically:
    *   display — headlines only
@@ -83,16 +129,24 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    /* The marketing surface commits to light. */
-    color-scheme: light;
+    /* `color-scheme` is the theme's, not this file's — see theme.css. It is what
+       makes the browser's own furniture (scrollbars, the open <select> list, form
+       control defaults) follow the appearance instead of staying light. */
   }
 
   body {
-    background-color: var(--color-paper);
-    color: var(--color-ink);
+    background-color: var(--rcln-paper);
+    color: var(--rcln-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Long enough to read as a deliberate change when someone switches theme,
+       short enough not to lag behind the controls that switch it. Suppressed
+       entirely under prefers-reduced-motion by the block at the end of this
+       layer. */
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
   }
 
   /*
@@ -114,7 +168,7 @@
    * so a keyboard user can always see where they are, on any surface.
    */
   :root {
-    --focus-ring: var(--color-signal);
+    --focus-ring: var(--rcln-signal);
   }
 
   :focus-visible {
@@ -135,8 +189,8 @@
   }
 
   ::selection {
-    background-color: var(--color-drape);
-    color: var(--color-paper);
+    background-color: var(--rcln-drape);
+    color: var(--rcln-paper);
   }
 
   /* Respect the OS setting everywhere, once, rather than per component. */
@@ -161,7 +215,7 @@
  * is 6.29:1 against ink where the default is 3.1:1.
  */
 @utility on-ink {
-  --focus-ring: var(--color-signal-bright);
+  --focus-ring: var(--rcln-signal-bright);
 }
 
 /*
@@ -174,8 +228,8 @@
   left: 0.5rem;
   z-index: 100;
   translate: 0 -150%;
-  background-color: var(--color-ink);
-  color: var(--color-paper);
+  background-color: var(--rcln-ink);
+  color: var(--rcln-paper);
   padding: 0.625rem 1rem;
   border-radius: var(--radius-md);
   font-size: 0.875rem;
@@ -208,11 +262,16 @@
  * amount). `appearance: none` on the control is what removes the original;
  * without it you get two arrows.
  *
- * Colour is `muted` (#5f716c), the same as a hint — the arrow is an affordance,
- * not content, and it must not compete with the value it sits beside.
+ * Colour is muted grey, the same as a hint — the arrow is an affordance, not
+ * content, and it must not compete with the value it sits beside.
+ *
+ * A data URL cannot interpolate a custom property, so the stroke colour cannot
+ * be a token and the WHOLE IMAGE is the token instead: `--rcln-chevron`, which
+ * theme.css swaps for a lighter drawing in the dark appearance. Without that the
+ * arrow stays near-black on a dark control and reads as a smudge.
  */
 @utility field-chevron {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%235f716c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1.25 1.75 6 6.25l4.75-4.5'/%3E%3C/svg%3E");
+  background-image: var(--rcln-chevron);
   background-repeat: no-repeat;
   background-position: right 0.875rem center;
   background-size: 0.75rem 0.5rem;
@@ -224,5 +283,5 @@
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--color-muted);
+  color: var(--rcln-muted);
 }

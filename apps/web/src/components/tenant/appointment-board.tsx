@@ -579,7 +579,7 @@ function RangeNav({
               className={[
                 'px-3 py-1.5 text-[0.8125rem] capitalize transition-colors',
                 selected
-                  ? 'bg-drape text-white'
+                  ? 'bg-drape text-paper'
                   : 'text-ink hover:bg-drape-tint/60 cursor-pointer bg-transparent',
               ].join(' ')}
             >
@@ -1529,7 +1529,7 @@ function SlotGrid({
               className={[
                 'font-mono rounded-sm border px-2.5 py-2 text-[0.8125rem] tabular-nums transition-colors',
                 chosen
-                  ? 'border-drape bg-drape text-white'
+                  ? 'border-drape bg-drape text-paper'
                   : slot.available
                     ? 'border-rule text-ink hover:border-drape hover:bg-drape-tint/60'
                     : 'border-rule text-muted bg-paper cursor-not-allowed',

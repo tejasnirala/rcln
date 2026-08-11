@@ -115,16 +115,16 @@ export function SandboxCheckout() {
 
   return (
     <Shell>
-      <p className="text-sm text-neutral-500">Sandbox payment provider</p>
-      <h1 className="mt-1 text-2xl font-semibold text-neutral-900">
+      <p className="text-muted text-sm">Sandbox payment provider</p>
+      <h1 className="text-ink mt-1 text-2xl font-semibold">
         {kind === 'mandate' ? 'Authorise automatic payments' : 'Confirm your payment'}
       </h1>
-      <p className="mt-2 font-mono text-xs break-all text-neutral-500">{id}</p>
+      <p className="text-muted mt-2 font-mono text-xs break-all">{id}</p>
 
-      <p className="mt-6 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+      <Alert tone="warning" className="mt-6">
         No money moves here. This page stands in for a real gateway so the whole subscription flow
         can be exercised — including the parts that fail.
-      </p>
+      </Alert>
 
       {error ? (
         <div className="mt-4">
@@ -145,8 +145,8 @@ export function SandboxCheckout() {
         {CHOICES.map((choice) => (
           <li key={choice.outcome} className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium text-neutral-900">{choice.label}</p>
-              <p className="mt-0.5 text-[0.8125rem] text-neutral-600">{choice.note}</p>
+              <p className="text-ink text-sm font-medium">{choice.label}</p>
+              <p className="text-muted mt-0.5 text-[0.8125rem]">{choice.note}</p>
             </div>
             <Button
               size="sm"
@@ -161,9 +161,9 @@ export function SandboxCheckout() {
         ))}
       </ul>
 
-      <div className="mt-8 border-t border-neutral-200 pt-6">
-        <p className="text-sm font-medium text-neutral-900">Deliver the same event twice</p>
-        <p className="mt-0.5 text-[0.8125rem] text-neutral-600">
+      <div className="border-rule mt-8 border-t pt-6">
+        <p className="text-ink text-sm font-medium">Deliver the same event twice</p>
+        <p className="text-muted mt-0.5 text-[0.8125rem]">
           At-least-once is the only guarantee a real provider offers. This sends one
           <code> charge.succeeded</code> with a fixed event id, twice — the second must be refused
           by the deduplication ledger rather than granting another period.
@@ -190,7 +190,7 @@ export function SandboxCheckout() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main id="main" className="mx-auto max-w-lg px-6 py-16">
-      <div className="rounded-lg border border-neutral-200 bg-white p-8 shadow-sm">{children}</div>
+      <div className="border-rule bg-card rounded-lg border p-8 shadow-sm">{children}</div>
     </main>
   );
 }

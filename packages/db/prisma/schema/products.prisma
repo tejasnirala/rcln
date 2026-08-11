@@ -1,0 +1,808 @@
+// =============================================================================
+// PRODUCTS — the catalogue. What a thing IS.
+//
+// Nothing in this file has a quantity, a location or a price. A product is a
+// definition; where it is and how much of it exists is `stock_ledger` (PI-2),
+// and what it costs is per payer, per contract and per date, which is billing's
+// business. Putting a `quantity` column on `products` is the single most
+// tempting mistake here and it is wrong for a reason that never goes away: one
+// product exists in many places at many statuses, and one number cannot say
+// that.
+//
+// ── PI-ADR-001: PRODUCT IS THE ROOT, MEDICINE IS A FACET ─────────────────────
+// A medicine, a glove, an implant and a lab reagent are the same thing to
+// inventory: something with a quantity, a batch and a shelf. They differ in
+// ATTRIBUTES and in REGULATION, not in STORAGE. So there is one root table with
+// a `ProductType` discriminator, and medicine-specific attributes live in a
+// `medicine_details` extension row rather than in nullable columns here or in a
+// separate `medicines` table that inventory would have to union with.
+//
+// ── TENANCY: PLATFORM CATALOGUE + TENANT EXTENSION (PI-ADR-003) ──────────────
+// Every master in this file allows `organization_id NULL`, meaning a platform
+// row every clinic can read. It is the EXACT pattern `specialties` already uses,
+// including the asymmetric policy:
+//
+//     USING      (organization_id IS NULL OR organization_id = app_current_org())
+//     WITH CHECK (organization_id = app_current_org())
+//
+// Read permissive, write strict. Copying the NULL-permissive WITH CHECK from
+// `files` would let any clinic insert a platform-wide product visible to every
+// other tenant on the platform — a cross-tenant write dressed up as a catalogue
+// entry. See prisma/rls/enable-rls.sql.
+//
+// ⚠️ THE CHILDREN ARE PLATFORM-EXTENSIBLE TOO, AND THE COMPOSITE FK IS WHAT
+//   MAKES THAT SAFE. `product_packagings`, `product_identifiers`,
+//   `product_tax_classifications` and `medicine_details` each carry their own
+//   nullable `organization_id` and reference their parent through
+//   `(organization_id, product_id) -> products(organization_id, id)`.
+//
+//   That one constraint does three jobs at once:
+//     · a tenant child can only ever hang off a same-tenant product, so a clinic
+//       cannot bolt its own packaging onto a platform product (it clones the
+//       product instead — see PI-1.2);
+//     · a platform child hangs off a platform product for the same reason;
+//     · the two ids can never disagree, which is what ADR-0004 is for.
+//   RLS closes the remaining door: a composite FK with a NULL component is not
+//   checked at all under MATCH SIMPLE, and the WITH CHECK above is what stops a
+//   tenant writing the NULL in the first place.
+//
+// ⚠️ EVERY PLAIN FK POINTING AT A POSSIBLY-PLATFORM ROW NEEDS A RESTRICTIVE
+//   `*_visible` POLICY. `products.category_id` cannot be composite — a tenant
+//   product legitimately references a platform category, and there is no
+//   organization_id on that row to compose with. Without the policy a clinic
+//   attaches another clinic's private category to its own product and reads the
+//   name back out of the join. This is the single most likely security
+//   regression in PI-1; every one of them is written out in enable-rls.sql and
+//   measured in tenant-isolation.test.ts.
+//
+// ── QUANTITIES (PI-ADR-010) ──────────────────────────────────────────────────
+// Decimal, never float. Conversion ratios are integer numerator/denominator
+// pairs rather than a `factor Float`, because 1/3 of a gram is not representable
+// in binary floating point and a dispensing system that rounds silently is a
+// patient-safety defect. See services/product/units.ts.
+// =============================================================================
+
+/// What a unit MEASURES. Conversion across classes is refused: there is no
+/// general answer to "how many millilitres in a tablet", and any product-specific
+/// answer (density, fill volume) belongs on the product, not in the unit table.
+enum UnitClass {
+  /// Discrete things — tablet, capsule, piece, pair, vial.
+  COUNT
+  VOLUME
+  MASS
+  LENGTH
+  /// Dressings and films, which are genuinely sold by area.
+  AREA
+}
+
+/// The kind of thing, for grouping, filtering and reporting.
+///
+/// ⚠️ METADATA, NEVER AUTHORIZATION. Do not gate a permission on it, and do not
+///   infer regulation from it — whether a product needs a prescription is a
+///   per-jurisdiction fact that lands in PI-5, not a property of being a
+///   `MEDICINE`. This is the same trap `TaxonomyNodeType` already carries a
+///   warning about.
+///
+/// Open by design: adding a member is a migration, not a redesign.
+enum ProductType {
+  MEDICINE
+  VACCINE
+  CONSUMABLE
+  SURGICAL_SUPPLY
+  MEDICAL_DEVICE
+  IMPLANT
+  DENTAL_MATERIAL
+  LAB_REAGENT
+  DIAGNOSTIC_KIT
+  VETERINARY_MEDICINE
+  VETERINARY_CONSUMABLE
+  GENERAL_CLINICAL_SUPPLY
+}
+
+/// Where a product is in ITS OWN lifecycle.
+///
+/// ⚠️ NOT A BATCH STATUS AND NOT A STOCK STATUS (PI-ADR-013). A `DISCONTINUED`
+///   product with an `AVAILABLE` batch on the shelf is normal and must stay
+///   dispensable — the clinic stopped reordering it, it did not become unsafe.
+///   Nothing may read one of the three to infer another.
+enum ProductStatus {
+  /// Not yet released for use. Visible to whoever is curating the catalogue.
+  DRAFT
+  ACTIVE
+  /// No longer purchased. Existing stock still dispenses.
+  DISCONTINUED
+  /// Withdrawn from use entirely. Distinct from a batch recall, which is per lot.
+  WITHDRAWN
+}
+
+/// How individual units of this product are identified in the ledger (PI-ADR-014).
+///
+/// ⚠️ EXPIRY IS A SEPARATE BOOLEAN, NOT A FIFTH MEMBER. "Batch-tracked with an
+///   expiry" and "batch-tracked without one" are both real; folding them into
+///   one enum makes the third combination inexpressible.
+///
+/// Enforced at the DATABASE when the ledger lands in PI-2 — a `SERIAL` product
+/// moving without a serial id is refused by a CHECK constraint, not only by a
+/// service. A jurisdiction may RAISE the requirement; it may never lower it.
+enum TrackingMode {
+  NONE
+  LOT_BATCH
+  SERIAL
+  LOT_AND_SERIAL
+}
+
+/// The namespace an identifier value belongs to.
+///
+/// ⚠️ THE VALUE IS NOT UNIQUE ON ITS OWN. A GTIN is globally unique in principle
+///   and routinely is not in practice — repackagers reuse them, and national
+///   codes collide across countries. Uniqueness is qualified by tenant, type and
+///   country. See the index on `product_identifiers`.
+enum ProductIdentifierType {
+  GTIN
+  EAN
+  UPC
+  /// US National Drug Code.
+  NDC
+  /// Whatever the country's own register calls it.
+  NATIONAL_CODE
+  MANUFACTURER_CODE
+  /// The clinic's own SKU. Always tenant-scoped in practice.
+  INTERNAL_SKU
+  /// A regulator-issued identifier that is not a product code — a licence or a
+  /// marketing-authorisation number.
+  LOCAL_REGULATORY
+}
+
+/// The physical form a medicine is presented in.
+///
+/// An enum rather than a lookup table, deliberately: the list is closed enough
+/// that adding "orodispersible film" is a migration somebody reviews, and a
+/// table would need its own platform/tenant policy and its own visibility
+/// policy for one string. Same posture as `ProductType`.
+enum DosageForm {
+  TABLET
+  CAPSULE
+  SYRUP
+  SUSPENSION
+  SOLUTION
+  INJECTION
+  INFUSION
+  CREAM
+  OINTMENT
+  GEL
+  LOTION
+  DROPS
+  SPRAY
+  INHALER
+  PATCH
+  SUPPOSITORY
+  PESSARY
+  POWDER
+  GRANULES
+  LOZENGE
+  IMPLANT
+  OTHER
+}
+
+/// How it goes in.
+enum AdministrationRoute {
+  ORAL
+  SUBLINGUAL
+  BUCCAL
+  INTRAVENOUS
+  INTRAMUSCULAR
+  SUBCUTANEOUS
+  INTRADERMAL
+  TOPICAL
+  TRANSDERMAL
+  INHALATION
+  NASAL
+  OPHTHALMIC
+  OTIC
+  RECTAL
+  VAGINAL
+  INTRATHECAL
+  INTRA_ARTICULAR
+  OTHER
+}
+
+/// Release profile. Clinically load-bearing: a modified-release tablet is not
+/// substitutable for an immediate-release one of the same composition, whatever
+/// the composition equivalence says.
+enum ReleaseType {
+  IMMEDIATE
+  MODIFIED
+  SUSTAINED
+  EXTENDED
+  DELAYED
+  CONTROLLED
+}
+
+/// How light-sensitive a product is. Descriptive; nothing enforces it yet.
+enum LightSensitivity {
+  NONE
+  PROTECT_FROM_LIGHT
+  PROTECT_FROM_DIRECT_SUNLIGHT
+}
+
+// ---------------------------------------------------------------------------
+// Units and packaging
+// ---------------------------------------------------------------------------
+
+/// A unit of measure. Platform catalogue with per-tenant extension.
+///
+/// `isBase` marks the canonical unit of its class — the one every conversion in
+/// that class resolves through, so `strip -> tablet` and `box -> tablet` need
+/// two rows in `unit_conversions` rather than four. A clinic inventing "carton"
+/// adds a row here and one conversion; it never needs a deploy.
+///
+/// ⚠️ EXACTLY ONE `is_base` PER CLASS AMONG PLATFORM ROWS, enforced by the
+///   partial unique index `units_of_measure_one_platform_base` in the migration.
+///   Prisma cannot express `WHERE is_base AND organization_id IS NULL`. Two base
+///   units in a class makes the conversion graph ambiguous rather than wrong,
+///   which is worse: it resolves, and it resolves differently depending on which
+///   row the planner reached first.
+model UnitOfMeasure {
+  id             String    @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?   @map("organization_id") @db.Uuid
+  /// Stable machine key. `TAB`, `ML`, `MG`, `STRIP`. Uppercase, no path.
+  code           String    @db.VarChar(32)
+  name           String    @db.VarChar(128)
+  /// What a picker shows beside a quantity. `mL`, not `MILLILITRE`.
+  symbol         String    @db.VarChar(16)
+  unitClass      UnitClass @map("unit_class")
+  /// The canonical unit of this class. See the warning above.
+  isBase         Boolean   @default(false) @map("is_base")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization       Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversionsFrom    UnitConversion[]        @relation("ConversionFromUnit")
+  conversionsTo      UnitConversion[]        @relation("ConversionToUnit")
+  baseForProducts    Product[]               @relation("ProductBaseUnit")
+  packagings         ProductPackaging[]
+  ingredientStrength CompositionIngredient[] @relation("IngredientStrengthUnit")
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// rows (organization_id NULL) are not unique among themselves.
+  @@unique([organizationId, code])
+  /// The composite-FK target. Nothing references a unit compositely today; it is
+  /// here so PI-2's ledger can, without a migration under data.
+  @@unique([organizationId, id])
+  @@index([organizationId, unitClass, isActive])
+  @@map("units_of_measure")
+}
+
+/// `from` × numerator / denominator = `to`. An exact rational, never a float.
+///
+/// WHY TWO INTEGERS AND NOT ONE `factor`
+///   1 strip = 10 tablets is exact either way. 1 fluid ounce = 29.5735 mL is not,
+///   and neither is a third of a gram. A float factor means every conversion
+///   carries a rounding error that compounds through a packaging hierarchy, and
+///   the error surfaces as a stock count that is off by a fraction of a tablet —
+///   small enough to look like a data-entry mistake and large enough to fail a
+///   controlled-substance reconciliation. BigInt over a rational is exact for
+///   every ratio a clinic can express.
+///
+/// ⚠️ BOTH SIDES MUST BE THE SAME `unit_class`, enforced by a trigger in the
+///   migration rather than a CHECK — a CHECK cannot see the other table. There
+///   is no honest answer to "how many mL in a tablet"; a product that needs one
+///   states it as its own packaging, where the answer is a property of that
+///   product and not of the unit.
+model UnitConversion {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  fromUnitId     String   @map("from_unit_id") @db.Uuid
+  toUnitId       String   @map("to_unit_id") @db.Uuid
+  /// Both > 0, CHECKed in the migration. A zero denominator is a division by
+  /// zero at every call site; a zero numerator silently annihilates a quantity.
+  numerator      BigInt   @db.BigInt
+  denominator    BigInt   @default(1) @db.BigInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fromUnit     UnitOfMeasure @relation("ConversionFromUnit", fields: [fromUnitId], references: [id], onDelete: Restrict)
+  toUnit       UnitOfMeasure @relation("ConversionToUnit", fields: [toUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, fromUnitId, toUnitId])
+  @@index([organizationId, fromUnitId])
+  @@index([organizationId, toUnitId])
+  @@map("unit_conversions")
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue masters
+// ---------------------------------------------------------------------------
+
+/// The product classification tree. Platform catalogue with tenant extension.
+///
+/// ⚠️ `parent_id` IS THE HIERARCHY AND THE ONLY THING THAT IS — the same shape
+///   `specialties` uses, and reused rather than reinvented on purpose. No depth
+///   column and no fixed level columns: a clinic that needs four levels and one
+///   that needs two are the same shape to every query. The moment a `depth`
+///   appears, adding a level becomes a migration instead of a row.
+///
+/// `onDelete: Restrict` for the same reason as `specialties`: SetNull "succeeds"
+/// at deleting a node and silently promotes its whole subtree to the root.
+model ProductCategory {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  parentId       String?   @map("parent_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(255)
+  description    String?   @db.Text
+  /// Sort among siblings. Ties break by `name` so the order is total.
+  displayOrder   Int       @default(0) @map("display_order")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       ProductCategory?  @relation("ProductCategoryParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children     ProductCategory[] @relation("ProductCategoryParent")
+  products     Product[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, id])
+  @@index([organizationId, isActive])
+  /// Descendant walks recurse on `parent_id`. Without this the recursive CTE
+  /// seq-scans the table once PER LEVEL.
+  @@index([parentId])
+  @@map("product_categories")
+}
+
+/// Who makes it. Referenced by products and, from PI-2, by batches — a batch's
+/// manufacturer may legitimately differ from the product's when a product is
+/// contract-manufactured or repackaged.
+model Manufacturer {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(255)
+  /// ISO 3166-1 alpha-2, matching every other country column in this schema.
+  countryCode    String?   @map("country_code") @db.Char(2)
+  /// The manufacturing licence the regulator issued. Free text because ten
+  /// countries format it ten ways; PI-5 gives it a jurisdiction and a shape.
+  licenceNumber  String?   @map("licence_number") @db.VarChar(128)
+  /// GS1 company prefix, where they have one. Lets a scanned GTIN be attributed
+  /// to a maker even when the product itself is unknown.
+  gs1Prefix      String?   @map("gs1_prefix") @db.VarChar(16)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products     Product[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, id])
+  @@index([organizationId, isActive])
+  @@index([organizationId, countryCode])
+  @@map("manufacturers")
+}
+
+/// A pharmacologically active substance. The bottom of the generic/brand
+/// triangle.
+///
+/// `innName` is the International Nonproprietary Name — the one identifier that
+/// is the same substance in every country, which is what makes a cross-border
+/// catalogue joinable at all. `name` may be the local usage (US "acetaminophen"
+/// against INN "paracetamol"); `innName` is what equivalence is answered on.
+model ActiveIngredient {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(255)
+  innName        String?   @map("inn_name") @db.VarChar(255)
+  /// Alternative spellings and local names, for search. A document of strings —
+  /// ⚠️ NEVER foreign keys (ADR-0006). A synonym that needs an id is an
+  /// ingredient, and belongs in this table.
+  synonyms       Json?     @db.JsonB
+  description    String?   @db.Text
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  compositions CompositionIngredient[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, id])
+  @@index([organizationId, isActive])
+  @@map("active_ingredients")
+}
+
+/// A NAMED SET of ingredients at strengths. The middle of the triangle.
+///
+/// ⚠️ THIS IS WHAT MAKES SUBSTITUTION ANSWERABLE AT ALL. Many products — every
+///   brand and every generic — reference one composition, so "what else is the
+///   same medicine" is a foreign-key lookup rather than a string comparison of
+///   names that never match. `compositions` is NULLABLE on `products`: a glove
+///   has no composition, and that nullability is a more honest discriminator
+///   between "catalogue item" and "medicinal product" than a boolean would be.
+///
+/// Whether a substitution is PERMITTED is a regulatory question, answered in
+/// PI-5 and never here. This table says only what is chemically the same thing.
+model Composition {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String?     @map("organization_id") @db.Uuid
+  code           String      @db.VarChar(64)
+  /// "Amoxicillin 500 mg + Clavulanic acid 125 mg tablet".
+  name           String      @db.VarChar(500)
+  /// The form the composition is expressed in. Two products with the same
+  /// ingredients in different forms are not equivalent.
+  dosageForm     DosageForm? @map("dosage_form")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?   @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ingredients  CompositionIngredient[]
+  products     Product[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, id])
+  @@index([organizationId, isActive])
+  @@map("compositions")
+}
+
+/// One ingredient at one strength inside a composition.
+///
+/// ⚠️ A MEDICINE IS NEVER ONE INGREDIENT, and the strength lives HERE rather
+///   than on the composition for exactly that reason. Co-amoxiclav is two
+///   substances at two strengths; a `strength` column on `compositions` can
+///   express one of them, which is how a co-formulation silently becomes a
+///   single-ingredient product in every report that reads it.
+model CompositionIngredient {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  compositionId  String   @map("composition_id") @db.Uuid
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  /// 500 in "500 mg". Decimal because micrograms and IU both occur and both
+  /// need fractions; ⚠️ never a float (PI-ADR-010).
+  strength       Decimal  @db.Decimal(14, 6)
+  /// The unit that strength is expressed in — mg, mL, IU, %. A plain FK into a
+  /// possibly-platform row, so it carries a RESTRICTIVE visibility policy.
+  strengthUnitId String   @map("strength_unit_id") @db.Uuid
+  /// "per 5 mL", "per tablet". Presentation only: the denominator of a
+  /// concentration, printed on a label and never computed with here.
+  perQuantity    Decimal? @map("per_quantity") @db.Decimal(14, 6)
+  displayOrder   Int      @default(0) @map("display_order")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite: a composition's ingredient rows can never belong to another
+  /// tenant than the composition. See the file header for why this works with a
+  /// nullable organization_id.
+  /// Optional only as a Prisma type-system artefact — see ProductPackaging.
+  composition  Composition?     @relation(fields: [organizationId, compositionId], references: [organizationId, id], onDelete: Cascade)
+  ingredient   ActiveIngredient @relation(fields: [ingredientId], references: [id], onDelete: Restrict)
+  strengthUnit UnitOfMeasure    @relation("IngredientStrengthUnit", fields: [strengthUnitId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, compositionId, ingredientId])
+  @@index([organizationId, ingredientId])
+  @@map("composition_ingredients")
+}
+
+/// How a product must be kept. Referenced by products, and from PI-2 by
+/// inventory locations so a fridge can be matched against what it may hold.
+///
+/// Temperatures are `Decimal(5,2)` in Celsius: 2.00–8.00 for a vaccine fridge,
+/// -20.00 for a freezer. ⚠️ Not a float — a cold-chain excursion report that
+/// rounds is a report nobody can act on.
+model StorageRequirementProfile {
+  id                String            @id @default(uuid()) @db.Uuid
+  organizationId    String?           @map("organization_id") @db.Uuid
+  code              String            @db.VarChar(64)
+  name              String            @db.VarChar(255)
+  minTemperatureC   Decimal?          @map("min_temperature_c") @db.Decimal(5, 2)
+  maxTemperatureC   Decimal?          @map("max_temperature_c") @db.Decimal(5, 2)
+  minHumidityPct    Int?              @map("min_humidity_pct")
+  maxHumidityPct    Int?              @map("max_humidity_pct")
+  lightSensitivity  LightSensitivity  @default(NONE) @map("light_sensitivity")
+  /// A locked cabinet, a signed register. Descriptive here; PI-5 decides which
+  /// products a jurisdiction REQUIRES it for.
+  requiresControlledAccess Boolean     @default(false) @map("requires_controlled_access")
+  /// UN/GHS class where one applies — a cytotoxic or a flammable reagent.
+  hazardClass       String?           @map("hazard_class") @db.VarChar(64)
+  handlingNotes     String?           @map("handling_notes") @db.Text
+  isActive          Boolean           @default(true) @map("is_active")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products     Product[]
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, id])
+  @@index([organizationId, isActive])
+  @@map("storage_requirement_profiles")
+}
+
+// ---------------------------------------------------------------------------
+// The product itself
+// ---------------------------------------------------------------------------
+
+/// The root entity. "Amoxicillin 500 mg capsule, Brand A, by Manufacturer M".
+///
+/// ⚠️ NO QUANTITY, NO LOCATION, NO PRICE. See the file header.
+///
+/// `baseUnitId` is the denomination every quantity in the programme resolves to.
+/// A pack of 10 strips of 10 tablets is 100 in base units, and the ledger stores
+/// 100 — never "1 box", because a box is a packaging fact that changes when the
+/// supplier changes and a ledger is history that must not.
+model Product {
+  id             String        @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?       @map("organization_id") @db.Uuid
+  type           ProductType
+  status         ProductStatus @default(DRAFT)
+  /// The clinic's own code. Distinct from `product_identifiers`, which holds
+  /// externally-issued namespaces — this one is always ours.
+  code           String        @db.VarChar(64)
+  /// What it is called on a shelf and in a picker.
+  name           String        @db.VarChar(500)
+  /// The proprietary name, when there is one. NULL for a generic and for
+  /// everything that is not a medicine.
+  brandName      String?       @map("brand_name") @db.VarChar(255)
+  /// The non-proprietary name, denormalised for search. ⚠️ NOT the source of
+  /// truth for equivalence — `composition_id` is. Two products agreeing on this
+  /// string and disagreeing on composition are not substitutable.
+  genericName    String?       @map("generic_name") @db.VarChar(255)
+  description    String?       @db.Text
+
+  categoryId       String? @map("category_id") @db.Uuid
+  manufacturerId   String? @map("manufacturer_id") @db.Uuid
+  /// NULL for anything that is not a medicinal product. See `Composition`.
+  compositionId    String? @map("composition_id") @db.Uuid
+  storageProfileId String? @map("storage_profile_id") @db.Uuid
+  baseUnitId       String  @map("base_unit_id") @db.Uuid
+
+  // -- inventory configuration (PI-1.8) --------------------------------------
+  // The columns land here; the CHECK constraints that enforce them land with
+  // the ledger in PI-2, because there is nothing to check them against yet.
+  trackingMode          TrackingMode @default(NONE) @map("tracking_mode")
+  /// Orthogonal to `trackingMode` on purpose — see the enum.
+  isExpiryControlled    Boolean      @default(false) @map("is_expiry_controlled")
+  /// Shelf life from manufacture, when the clinic knows it and the supplier does
+  /// not print it. A default for data entry, never a substitute for the batch's
+  /// own `expires_on`.
+  defaultShelfLifeDays  Int?         @map("default_shelf_life_days")
+  /// Reorder defaults, in BASE UNITS. Per-branch overrides are PI-2's business;
+  /// these are the product's own starting point.
+  reorderLevelBase      Decimal?     @map("reorder_level_base") @db.Decimal(18, 6)
+  reorderQuantityBase   Decimal?     @map("reorder_quantity_base") @db.Decimal(18, 6)
+  /// Whether this product is stocked at all. A consultation fee is a product to
+  /// billing and never to inventory; false keeps it out of every stock screen
+  /// without inventing a second catalogue.
+  isStockItem           Boolean      @default(true) @map("is_stock_item")
+
+  /// Free-form document: external system codes, display labels per locale,
+  /// supplier hints. ⚠️ A DOCUMENT, NEVER FOREIGN KEYS (ADR-0006).
+  metadata  Json?     @db.JsonB
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization    Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /*
+   * ⚠️ ALL FIVE OF THESE ARE PLAIN FKs AND NOT COMPOSITE ONES, AND THAT IS NOT
+   *   AN OVERSIGHT. A tenant product legitimately references a PLATFORM category,
+   *   manufacturer, composition, storage profile or unit — rows whose
+   *   organization_id is NULL, which a composite FK from a possibly-NOT-NULL
+   *   column cannot reference. Each therefore gets a RESTRICTIVE `*_visible`
+   *   policy in enable-rls.sql, which is the ENTIRE control on that side.
+   */
+  category        ProductCategory?           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  manufacturer    Manufacturer?              @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+  composition     Composition?               @relation(fields: [compositionId], references: [id], onDelete: Restrict)
+  storageProfile  StorageRequirementProfile? @relation(fields: [storageProfileId], references: [id], onDelete: Restrict)
+  baseUnit        UnitOfMeasure              @relation("ProductBaseUnit", fields: [baseUnitId], references: [id], onDelete: Restrict)
+
+  packagings         ProductPackaging[]
+  identifiers        ProductIdentifier[]
+  taxClassifications ProductTaxClassification[]
+  medicineDetail     MedicineDetail?
+
+  @@unique([organizationId, code])
+  /// The composite-FK target every child in this file references.
+  @@unique([organizationId, id])
+  @@index([organizationId, status, type])
+  @@index([organizationId, categoryId])
+  @@index([organizationId, compositionId])
+  @@index([organizationId, manufacturerId])
+  /// The list screen's default ordering, and the prefix of its search.
+  @@index([organizationId, name])
+  @@map("products")
+}
+
+/// One level of a packaging hierarchy: `box(10) -> strip(10) -> tablet`.
+///
+/// `level` 0 is the base unit itself and `quantityOfChild` is how many of the
+/// NEXT LEVEL DOWN one of these contains. So the chain above is three rows:
+///
+///     level 0  unit=TAB    quantityOfChild=1     (the base)
+///     level 1  unit=STRIP  quantityOfChild=10    (10 tablets)
+///     level 2  unit=BOX    quantityOfChild=10    (10 strips)
+///
+/// and the factor to base is the product of `quantityOfChild` from the level
+/// down to 0 — computed in services/product/units.ts, never stored, because a
+/// stored factor is a second copy of the same fact that drifts when a level is
+/// edited.
+///
+/// ⚠️ THIS IS PER PRODUCT, NOT PER UNIT. `unit_conversions` says a strip is ten
+///   tablets for every product that uses those units; this says THIS product
+///   comes in strips of ten. Both exist because a supplier ships the same
+///   product in strips of 10 and 15, and the unit table cannot hold both.
+model ProductPackaging {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String? @map("organization_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  /// 0 = base. Unique per product, so the chain is total and unambiguous.
+  level          Int
+  unitId         String  @map("unit_id") @db.Uuid
+  /// How many of level-1 fit in one of these. Always 1 at level 0. > 0, CHECKed.
+  quantityOfChild Decimal @map("quantity_of_child") @db.Decimal(18, 6)
+  /// The level a purchase order is written in by default.
+  isDefaultPurchase Boolean @default(false) @map("is_default_purchase")
+  /// The level a dispense or a sale is written in by default.
+  isDefaultSale     Boolean @default(false) @map("is_default_sale")
+  barcode           String? @db.VarChar(128)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Optional ONLY because Prisma refuses a required relation whose scalar
+  /// fields include a nullable one. The row always has a product; the
+  /// nullability is a type-system artefact of the platform-extensible parent,
+  /// not a state the data reaches. The database constraint is unchanged.
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+  unit         UnitOfMeasure @relation(fields: [unitId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, productId, level])
+  @@index([organizationId, productId])
+  @@map("product_packagings")
+}
+
+/// An externally-issued identifier for a product, effective-dated.
+///
+/// ⚠️ UNIQUENESS IS TENANT-, TYPE- AND COUNTRY-QUALIFIED. NEVER a bare
+///   `@@unique([value])`: the same digits are a GTIN for one product and a
+///   national code for another, repackagers reuse GTINs, and two countries
+///   assign the same national code to different medicines. A global unique here
+///   would make a legitimate catalogue unimportable and would say nothing true.
+///
+/// Effective dates because an identifier is REASSIGNED, not deleted: a GTIN that
+/// moved to a new presentation must still resolve for stock received under it.
+/// The resolver excludes expired rows; history keeps them.
+model ProductIdentifier {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String?               @map("organization_id") @db.Uuid
+  productId      String                @map("product_id") @db.Uuid
+  type           ProductIdentifierType
+  value          String                @db.VarChar(128)
+  /// NULL = valid everywhere. A GTIN usually is; a national code never is.
+  countryCode    String?               @map("country_code") @db.Char(2)
+  /// A DATE, not an instant: an identifier is assigned on a day, in nobody's
+  /// particular timezone.
+  effectiveFrom  DateTime              @default(now()) @map("effective_from") @db.Date
+  effectiveTo    DateTime?             @map("effective_to") @db.Date
+  isPrimary      Boolean               @default(false) @map("is_primary")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Optional ONLY because Prisma refuses a required relation whose scalar
+  /// fields include a nullable one. The row always has a product; the
+  /// nullability is a type-system artefact of the platform-extensible parent,
+  /// not a state the data reaches. The database constraint is unchanged.
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration: both organization_id and
+  /// country_code are nullable, and a plain unique index does not constrain
+  /// nullable columns at all — two platform GTINs would collide with nothing.
+  @@unique([organizationId, type, value, countryCode])
+  /// The barcode lookup, which becomes the hottest read in the programme at
+  /// PI-23. Index-only for the common case.
+  @@index([organizationId, type, value])
+  @@index([organizationId, productId])
+  @@map("product_identifiers")
+}
+
+/// What tax category a product falls into, in one jurisdiction, on a date.
+///
+/// ⚠️ THIS PROGRAMME WRITES NO TAX LOGIC (PI-ADR-006). This table resolves a
+///   `tax_category` STRING and stops. That string keys `tax_rules` by exact
+///   match, and `@rcln/tax` — which is already country-generic, effective-dated
+///   and tested — does everything after it. No rate, no split, no label, and no
+///   `if (country === 'IN')` anywhere in this domain.
+///
+/// `itemCode` is the PRINTED code (HSN in India, SAC for services, a commodity
+/// code elsewhere). It is presentation, and it is deliberately a different
+/// column from `taxCategory` — `invoice_items` already separates the two for
+/// exactly this reason, and the brief's requirement that HSN must not be the
+/// universal product identifier is therefore already satisfied upstream.
+///
+/// Resolving to NULL is a VISIBLE CONFIGURATION GAP, not a default. The invoice
+/// engine already refuses to issue an `UNRATED` line, which is the honest
+/// failure: a guessed tax category is a confident wrong number on a legal
+/// document.
+model ProductTaxClassification {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  productId      String    @map("product_id") @db.Uuid
+  countryCode    String    @map("country_code") @db.Char(2)
+  /// State or province. NULL = the whole country. A region row BEATS a country
+  /// row for the same date — resolved in the service, tested there.
+  regionCode     String?   @map("region_code") @db.VarChar(16)
+  /// The exact-match key into `tax_rules`. Never a rate.
+  taxCategory    String    @map("tax_category") @db.VarChar(64)
+  /// HSN / SAC / commodity code. Printed, never looked up.
+  itemCode       String?   @map("item_code") @db.VarChar(32)
+  effectiveFrom  DateTime  @map("effective_from") @db.Date
+  effectiveTo    DateTime? @map("effective_to") @db.Date
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Optional ONLY because Prisma refuses a required relation whose scalar
+  /// fields include a nullable one. The row always has a product; the
+  /// nullability is a type-system artefact of the platform-extensible parent,
+  /// not a state the data reaches. The database constraint is unchanged.
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+
+  /// One classification per product, per jurisdiction, per start date. Rewritten
+  /// NULLS NOT DISTINCT in the migration — organization_id and region_code are
+  /// both nullable.
+  @@unique([organizationId, productId, countryCode, regionCode, effectiveFrom])
+  @@index([organizationId, productId, countryCode])
+  @@map("product_tax_classifications")
+}
+
+/// Medicine-specific attributes. 1:1 with a product, and absent for everything
+/// that is not a medicine (PI-ADR-001).
+///
+/// ⚠️ `prescriptionClassificationHint` IS A HINT AND IS NOT THE ANSWER. Whether
+///   a product needs a prescription is a PER-JURISDICTION regulatory fact, and it
+///   lives in `product_regulatory_profiles` from PI-5. This column exists so a
+///   clinic can record what it believes while the regulatory engine does not yet
+///   exist, and so the migration to PI-5 has somewhere to read from. Nothing may
+///   gate a dispense on it — dispensing calls `evaluate()` or it does not ship.
+model MedicineDetail {
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String?              @map("organization_id") @db.Uuid
+  productId      String               @map("product_id") @db.Uuid
+  dosageForm     DosageForm?          @map("dosage_form")
+  route          AdministrationRoute?
+  releaseType    ReleaseType?         @map("release_type")
+  /// Drugs where a small change in blood concentration matters clinically —
+  /// warfarin, levothyroxine, ciclosporin. Substitution guidance treats these
+  /// differently in most jurisdictions; PI-5 decides HOW, this records WHICH.
+  isNarrowTherapeuticIndex Boolean     @default(false) @map("is_narrow_therapeutic_index")
+  /// What a clinic believes about prescription status, pending PI-5. See above.
+  prescriptionClassificationHint String? @map("prescription_classification_hint") @db.VarChar(64)
+  /// Storage and handling text printed on a dispensing label.
+  labelInstructions String?            @map("label_instructions") @db.Text
+  /// Days a course of this normally runs. A data-entry default for prescribing.
+  defaultCourseDays Int?               @map("default_course_days")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Optional ONLY because Prisma refuses a required relation whose scalar
+  /// fields include a nullable one. The row always has a product; the
+  /// nullability is a type-system artefact of the platform-extensible parent,
+  /// not a state the data reaches. The database constraint is unchanged.
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, productId])
+  @@map("medicine_details")
+}

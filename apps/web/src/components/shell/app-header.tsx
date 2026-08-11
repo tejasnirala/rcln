@@ -99,6 +99,21 @@ export function AppHeader({
               {user.ownProfile.label}
             </Link>
           ) : null}
+          {/*
+           * Not a nav entry and not a prop: appearance is a property of this
+           * browser rather than of this place, so it sits with the other links
+           * about you — and unlike them it is guarded by nothing, so there is no
+           * caller decision to pass down. The href is relative and correct on
+           * both surfaces: the proxy rewrites `admin.<host>/appearance` to
+           * `/platform/appearance` and `<clinic>.<host>/appearance` to
+           * `/t/<slug>/appearance` (apps/web/AGENTS.md).
+           */}
+          <Link
+            href="/appearance"
+            className="text-muted hover:text-drape py-1 text-[0.8125rem] underline-offset-2 hover:underline"
+          >
+            Appearance
+          </Link>
           {signOut}
         </div>
       </div>

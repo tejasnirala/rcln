@@ -293,7 +293,7 @@ export default function HomePage() {
           lead="Every clinic on rcln shares infrastructure. That is what makes it affordable, and it is also the thing that has to be impossible to get wrong — so it is enforced in more than one place."
         />
 
-        <div className="mt-12 grid gap-px overflow-hidden rounded-lg bg-white/10 sm:mt-14 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid gap-px overflow-hidden rounded-lg bg-paper/10 sm:mt-14 sm:grid-cols-2 lg:grid-cols-3">
           {ISOLATION.map((item) => (
             <div key={item.title} className="bg-ink px-6 py-7">
               <h3 className="text-paper text-[0.9375rem] font-medium">{item.title}</h3>

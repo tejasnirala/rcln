@@ -33,6 +33,40 @@ CREATE OR REPLACE FUNCTION app_current_user() RETURNS uuid
 $$ SELECT NULLIF(current_setting('app.current_user', true), '')::uuid $$;
 
 -- ---------------------------------------------------------------------------
+-- Refuses any tenant attempt to change or remove a PLATFORM row (one with a
+-- NULL organization_id) on a platform-extensible table. Attached as a BEFORE
+-- UPDATE OR DELETE trigger by the platform_extensible loop below, which is also
+-- where the two holes it closes are described.
+--
+-- ⚠️ THE GUARD IS `app_current_org() IS NOT NULL`, NOT THE ROLE. A trigger is
+--   not RLS: it fires for rcln_owner too, and rcln_owner is precisely who has
+--   to write platform rows — the seeds, the migrations. What distinguishes a
+--   tenant is that a tenant has an org in its session; the seeds set no session
+--   variable at all, so they pass straight through. Testing `current_user` or
+--   `session_user` instead would break the moment a platform task runs under a
+--   different role, and would say nothing about whether the caller is acting on
+--   a clinic's behalf.
+--
+-- ⚠️ SECURITY INVOKER, AND search_path PINNED. It reads no table and needs no
+--   privilege, so it is deliberately NOT a SECURITY DEFINER — nothing here
+--   should become privileged surface. The pinned search_path is the standard
+--   precaution for a function that runs under someone else's statement.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION refuse_platform_row_mutation() RETURNS trigger
+  LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, public AS
+$$
+BEGIN
+  IF OLD.organization_id IS NULL AND app_current_org() IS NOT NULL THEN
+    RAISE EXCEPTION
+      'platform row % on % is not writable by a tenant', OLD.id, TG_TABLE_NAME
+      USING ERRCODE = 'insufficient_privilege',
+            HINT    = 'Clone it into your own organization and edit the clone.';
+  END IF;
+  RETURN CASE TG_OP WHEN 'DELETE' THEN OLD ELSE NEW END;
+END
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Org-scoped tables: one predicate, applied to both read and write.
 --
 -- Deliberately ENABLE, not FORCE.
@@ -219,7 +253,42 @@ DECLARE
     'specialties',
     'qualifications',
     'designations',
-    'role_designations'
+    'role_designations',
+    -- ---------------------------------------------------------------------
+    -- The product catalogue (PI-1). Thirteen tables, all the same class.
+    --
+    -- ⚠️ INCLUDING THE CHILDREN, WHICH IS NOT THE CALL THE INVOICE CHILDREN
+    --   MADE, AND THE DIFFERENCE IS THE PARENT'S TENANCY CLASS. An invoice is
+    --   BRANCH-scoped, so its children carry organization_id AND branch_id and
+    --   join both loops. A product is PLATFORM-EXTENSIBLE, so its children
+    --   carry a NULLABLE organization_id that mirrors the parent's: a platform
+    --   product's packaging is platform data every clinic reads, and a tenant
+    --   product's packaging is that tenant's.
+    --
+    --   What stops the two disagreeing is the composite FK
+    --   `(organization_id, product_id) -> products(organization_id, id)`, which
+    --   also makes it impossible for a clinic to bolt its own packaging,
+    --   identifier or tax classification onto a PLATFORM product — the tenant
+    --   row would have to name an organization_id the platform row does not
+    --   have. A clinic that wants its own variant clones the product.
+    --
+    --   The one hole a composite FK cannot close is a NULL: under MATCH SIMPLE
+    --   a constraint with any NULL component is not checked at all. The WITH
+    --   CHECK below is what closes it, by refusing a tenant the NULL in the
+    --   first place. Both layers, as everywhere else in this file.
+    'units_of_measure',
+    'unit_conversions',
+    'product_categories',
+    'manufacturers',
+    'active_ingredients',
+    'compositions',
+    'composition_ingredients',
+    'storage_requirement_profiles',
+    'products',
+    'product_packagings',
+    'product_identifiers',
+    'product_tax_classifications',
+    'medicine_details'
   ];
 BEGIN
   FOREACH t IN ARRAY platform_extensible LOOP
@@ -230,6 +299,45 @@ BEGIN
       CREATE POLICY tenant_isolation ON %I
         USING      (organization_id IS NULL OR organization_id = app_current_org())
         WITH CHECK (organization_id = app_current_org())
+    $f$, t);
+
+    -- -----------------------------------------------------------------------
+    -- ⚠️ THE POLICY ABOVE DOES NOT PROTECT A PLATFORM ROW FROM DELETE OR FROM
+    --   CAPTURE, AND NEITHER HOLE IS VISIBLE FROM READING IT AS A SENTENCE.
+    --   USING governs which EXISTING rows a statement may touch, and USING
+    --   permits `organization_id IS NULL`:
+    --
+    --     DELETE FROM products WHERE organization_id IS NULL;
+    --       Postgres applies NO WITH CHECK to DELETE — there is no new row to
+    --       check — so USING is the entire test, and it passes. Any clinic
+    --       could delete the platform catalogue for every clinic.
+    --
+    --     UPDATE products SET organization_id = '<mine>' WHERE id = '<platform>';
+    --       USING sees the OLD row (NULL org — permitted) and WITH CHECK sees
+    --       the NEW row (its own org — permitted). Neither clause ever compares
+    --       the two, so the tenant captures the row, removing it from everyone
+    --       else. A plain `SET name = ...` is caught, because the row stays
+    --       NULL and fails WITH CHECK; changing the owner is what slips past.
+    --
+    --   ⚠️ A `RESTRICTIVE ... FOR UPDATE/DELETE USING (organization_id =
+    --     app_current_org())` PAIR CLOSES BOTH AND IS THE WRONG FIX. A row a
+    --     RESTRICTIVE USING excludes is not refused, it is NOT SEEN: the
+    --     statement matches zero rows and reports success. The clinic presses
+    --     Save on a platform product and is told it worked. That is strictly
+    --     worse than today, where WITH CHECK RAISES and the service turns the
+    --     error into a sentence — a property tenant-isolation.test.ts pins on
+    --     purpose. A trigger refuses instead of hiding, so it keeps it.
+    --
+    --   The API already refuses all of this first (`assertMutable` in the
+    --   product services). This is the second layer, and the realistic failure
+    --   it exists for is a service added in a later phase that forgets the
+    --   first — not a compromised database role.
+    -- -----------------------------------------------------------------------
+    EXECUTE format('DROP TRIGGER IF EXISTS platform_rows_immutable ON %I', t);
+    EXECUTE format($f$
+      CREATE TRIGGER platform_rows_immutable
+        BEFORE UPDATE OR DELETE ON %I
+        FOR EACH ROW EXECUTE FUNCTION refuse_platform_row_mutation()
     $f$, t);
   END LOOP;
 END
@@ -333,6 +441,91 @@ CREATE POLICY designation_visible ON staff_profiles AS RESTRICTIVE
     WHERE d.id = staff_profiles.designation_id
       AND (d.organization_id IS NULL OR d.organization_id = app_current_org())
   ));
+
+-- ---------------------------------------------------------------------------
+-- The product catalogue's visibility policies (PI-1). THE highest-risk item in
+-- that phase, and the same shape as `specialty_visible` immediately above.
+--
+-- Every foreign key below points at a table whose rows MAY be platform rows, so
+-- it cannot be a composite `(organization_id, id)` FK — there is no
+-- organization_id on the target to compose with. `tenant_isolation` therefore
+-- constrains the row's OWN organization_id and says nothing whatsoever about
+-- what it points AT. Without these, a clinic attaches another clinic's private
+-- category, ingredient, composition or unit to its own product and reads the
+-- name back out through the join.
+--
+-- RESTRICTIVE so each ANDs with tenant_isolation. ⚠️ A PERMISSIVE policy here
+--   would OR instead, WIDENING access rather than narrowing it — the exact
+--   opposite of the intent, and it would typecheck, deploy and pass every
+--   single-tenant test.
+--
+-- Written as a loop rather than eleven copies of the same EXISTS, because the
+-- copies are where one of them ends up subtly different. Nullable foreign keys
+-- permit NULL: a product with no manufacturer recorded is legitimate, and a
+-- policy refusing it would make the column unusable.
+--
+-- ⚠️ KEEP IN STEP WITH THE `product_platform_core` MIGRATION, which carries an
+--   identical block. `db:rls:check` catches a table with NO policy; nothing
+--   catches these two files disagreeing about WHICH policy.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  i int;
+  child text;
+  fk text;
+  parent text;
+  policy_name text;
+  nullable boolean;
+  predicate text;
+  -- child table, FK column on the child, parent table, policy name, FK nullable
+  visible text[][] := ARRAY[
+    ARRAY['unit_conversions',        'from_unit_id',       'units_of_measure',             'from_unit_visible',       'f'],
+    ARRAY['unit_conversions',        'to_unit_id',         'units_of_measure',             'to_unit_visible',         'f'],
+    -- ⚠️ THERE IS DELIBERATELY NO `parent_visible` ON `product_categories`, AND
+    --   IT IS NOT AN OMISSION TO BE HELPFULLY FIXED. `parent_id` is a SELF
+    --   reference, and a policy on a table may not read that same table:
+    --   Postgres evaluates policy expressions with row security disabled on the
+    --   tables they REFERENCE, which is what makes every entry in this array
+    --   safe, but a self-reference has no such escape and raises
+    --   "infinite recursion detected in policy for relation product_categories".
+    --
+    --   It was added once, and it did not fail in one place: `category_visible`
+    --   below reads `product_categories`, so the recursion propagated to EVERY
+    --   read of `products` for every tenant. See the
+    --   `drop_category_parent_visible` migration for the full reasoning and for
+    --   why a SECURITY DEFINER helper is not worth it here. `specialties` has
+    --   the same gap for the same reason.
+    ARRAY['composition_ingredients', 'ingredient_id',      'active_ingredients',           'ingredient_visible',      'f'],
+    ARRAY['composition_ingredients', 'strength_unit_id',   'units_of_measure',             'strength_unit_visible',   'f'],
+    ARRAY['products',                'category_id',        'product_categories',           'category_visible',        't'],
+    ARRAY['products',                'manufacturer_id',    'manufacturers',                'manufacturer_visible',    't'],
+    ARRAY['products',                'composition_id',     'compositions',                 'composition_visible',     't'],
+    ARRAY['products',                'storage_profile_id', 'storage_requirement_profiles', 'storage_profile_visible', 't'],
+    ARRAY['products',                'base_unit_id',       'units_of_measure',             'base_unit_visible',       'f'],
+    ARRAY['product_packagings',      'unit_id',            'units_of_measure',             'unit_visible',            'f']
+  ];
+BEGIN
+  FOR i IN 1 .. array_length(visible, 1) LOOP
+    child       := visible[i][1];
+    fk          := visible[i][2];
+    parent      := visible[i][3];
+    policy_name := visible[i][4];
+    nullable    := visible[i][5]::boolean;
+
+    predicate := format(
+      '%s EXISTS (SELECT 1 FROM %I p WHERE p.id = %I.%I AND (p.organization_id IS NULL OR p.organization_id = app_current_org()))',
+      CASE WHEN nullable THEN format('%I.%I IS NULL OR', child, fk) ELSE '' END,
+      parent, child, fk
+    );
+
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I', policy_name, child);
+    EXECUTE format(
+      'CREATE POLICY %I ON %I AS RESTRICTIVE USING (%s) WITH CHECK (%s)',
+      policy_name, child, predicate, predicate
+    );
+  END LOOP;
+END
+$$;
 
 -- ---------------------------------------------------------------------------
 -- Branch scoping, layered on top of org isolation.

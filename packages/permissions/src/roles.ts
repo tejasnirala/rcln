@@ -148,6 +148,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRESCRIPTION_READ,
       P.LAB_ORDER_READ,
       P.LAB_MASTER_MANAGE,
+      /*
+       * Runs the store as well as the branch: the catalogue and the barcodes on
+       * it. Paired with STOCK_ADJUST and BATCH_MANAGE below, which are useless
+       * without knowing what the stock IS.
+       */
+      P.PRODUCT_DEFINITION_READ,
+      P.PRODUCT_DEFINITION_MANAGE,
+      P.PRODUCT_IDENTIFIER_MANAGE,
       P.MEDICINE_READ,
       P.MEDICINE_MANAGE,
       P.DISPENSE_READ,
@@ -266,6 +274,13 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRESCRIPTION_SIGN,
       P.LAB_ORDER_READ,
       P.LAB_ORDER_CREATE,
+      /*
+       * READ AND NOT MANAGE, which is the same line invariant 7 draws elsewhere:
+       * a prescriber has to look up what they are prescribing, and curating the
+       * clinic's catalogue is a storekeeping job. Pairs with the MEDICINE_READ
+       * immediately below, which is what surfaces dosage form and route.
+       */
+      P.PRODUCT_DEFINITION_READ,
       P.MEDICINE_READ,
       P.INVOICE_READ,
       /*
@@ -306,6 +321,12 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.VITALS_RECORD,
       P.PRESCRIPTION_READ,
       P.LAB_ORDER_READ,
+      /*
+       * Reads the catalogue because a nurse draws consumables from the trolley
+       * and will record what was used once PI-9 lands. Curating it is not their
+       * job and neither is the medicine detail behind it — no MEDICINE_READ.
+       */
+      P.PRODUCT_DEFINITION_READ,
       P.SETTINGS_USER_WRITE,
     ],
   },
@@ -396,6 +417,18 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.LAB_RESULT_VERIFY,
       P.LAB_REPORT_RELEASE,
       P.LAB_MASTER_MANAGE,
+      /*
+       * Reagents and diagnostic kits are products in the same catalogue as
+       * medicines (PI-ADR-001), so the lab maintains its own consumables here.
+       *
+       * ⚠️ NO `pharmacy.medicine.*`, AND THAT IS THE POINT OF THE SPLIT. A lab
+       *   manager names a reagent and never touches a dosage form or a
+       *   prescription classification. Gating the catalogue behind the pharmacy
+       *   codes — the obvious shortcut — would have handed exactly that here.
+       */
+      P.PRODUCT_DEFINITION_READ,
+      P.PRODUCT_DEFINITION_MANAGE,
+      P.PRODUCT_IDENTIFIER_MANAGE,
       P.INVOICE_READ,
       P.REPORT_DASHBOARD,
       P.SETTINGS_USER_WRITE,
@@ -411,6 +444,15 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       /** Reads the prescriber's name off a prescription. Nothing further. */
       P.DOCTOR_READ,
       P.PRESCRIPTION_READ,
+      /*
+       * Both halves of the split (PI-ADR-011): the catalogue, AND the
+       * medicine-specific attributes on top of it. A pharmacist is the one role
+       * that legitimately holds every one of these — they name the product, they
+       * reconcile its barcode, and they set its dosage form.
+       */
+      P.PRODUCT_DEFINITION_READ,
+      P.PRODUCT_DEFINITION_MANAGE,
+      P.PRODUCT_IDENTIFIER_MANAGE,
       P.MEDICINE_READ,
       P.MEDICINE_MANAGE,
       P.DISPENSE_READ,
@@ -457,6 +499,19 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        */
       P.BILLING_TAX_READ,
       P.BILLING_TAX_MANAGE,
+      /*
+       * ⚠️ READ ONLY, AND IT IS NOT DECORATION — WITHOUT IT `BILLING_TAX_MANAGE`
+       *   IS UNUSABLE ON A PRODUCT. Setting a product's tax category is the
+       *   accountant's decision and is gated by the code above, but the screen
+       *   it happens on is the product screen, and that screen is behind this
+       *   code. Granting the manage half without the read half produces a
+       *   permission that exists and cannot be reached.
+       *
+       *   Still no MANAGE: naming and classifying the clinic's stock is
+       *   storekeeping, and an accountant who could rename a product could
+       *   change what a past invoice appears to have been for.
+       */
+      P.PRODUCT_DEFINITION_READ,
       /*
        * Reads the fee grid — it is what reconciles a consultation line against
        * what the clinic meant to charge — and does not set it. Unlike the tax

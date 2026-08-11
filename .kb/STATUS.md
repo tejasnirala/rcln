@@ -2,7 +2,7 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-08-10 · **Current phase:** 0 complete; 1 complete except
+**Last updated:** 2026-08-11 · **Current phase:** 0 complete; 1 complete except
 the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
 management, email/phone verification, org settings, super-admin impersonation,
 one unified shell, remembered scope and per-record history); **2 complete except
@@ -15,6 +15,11 @@ board; vitals, event-driven status, follow-ups, and the doctor/front-desk split)
 Queue tokens and walk-in are stage 5; prescriptions come after. The consultation
 page exists as a route with a deliberate placeholder where the specialty-specific
 diagnosis form will go.
+
+**Phase 5 has started out of order, and deliberately: PI-1, the product
+catalogue, is complete** on `feat/pi-1-product-platform-core`. It depends on
+nothing Phase 3 owns, and everything else in the pharmacy programme waits on it —
+see § Phase 5 and `.kb/PharmacyInventory/NEXT_SESSION.md`.
 
 ⚠️ PHI is live from stage 3 onwards — `patients`, `appointments` and
 `appointment_vitals` all carry it, and every read of one that discloses a single
@@ -94,6 +99,32 @@ design system every later screen inherits.
       with mono reserved for identifiers, spacing and radius scale — all in
       `apps/web/src/app/globals.css`. Read it before building any screen; do not
       start a second system (`apps/web/AGENTS.md`)
+- [x] **Theming — appearance × accent.** The palette moved out of `globals.css`
+      into `apps/web/src/app/theme.css` as runtime variables; `globals.css` now
+      maps them with `@theme inline`, so `bg-card` and `text-drape` compile to
+      `var(--rcln-*)` and every screen written before the theme became themable
+      untouched. Light | Dark | System × five accents (`surgical` — today's
+      design, and the default — `ember`, `indigo`, `plum`, `graphite`),
+      **composed rather than enumerated**: an accent is one CSS block declaring a
+      light and a dark ramp, and the appearance switch is written once. Stored in
+      two cookies (ids only, one year, host-only, not `httpOnly` so the boot
+      script can read it pre-paint); no database column and no server round trip.
+      Applied by a blocking inline script in `<head>`, which is what removes the
+      dark-mode flash and keeps the marketing pages statically rendered. Settings
+      at `/appearance` on both surfaces, guarded by nothing.
+      ⚠️ **The ten combinations were contrast-measured by hand and nothing
+      re-checks them.** A test that parsed the stylesheet and asserted every
+      accent in both appearances was written and then removed — it was the only
+      test in `apps/web`, and it arrived with a jest toolchain that was never
+      installed, so it broke `typecheck` for the whole workspace instead of
+      guarding anything. Restoring it means setting `apps/web` up for tests
+      properly, which is its own task. Until then a new accent is a manual
+      measurement — see `apps/web/AGENTS.md`
+- [x] Status colours split from the accent while doing it: `success`, `warning`
+      and `danger` are fixed in both appearances, `Alert` gained the missing two
+      tones plus a glyph and a screen-reader word per tone, and error moved off
+      the live-state orange — under a warm accent a failure and a primary button
+      were the same colour
 - [x] `app/` split into `(marketing)` / `(tenant)` / `(platform)` route groups.
       URLs unchanged, so `proxy.ts` needed no edit
 - [x] `POST /api/v1/public/demo-requests` — pre-tenant, rate-limited, honeypot +
@@ -1233,9 +1264,54 @@ They must never be merged. Naming: `invoices`/`invoice_items` here,
 That directory supersedes the five lines below, which understate the scope: the
 programme is a global Product + Inventory + Pharmacy + Clinical Consumption +
 Procurement + Regulatory platform serving clinical, dental, veterinary and lab
-workflows across ten jurisdictions, not a pharmacy module. Discovery and
-architecture are complete (2026-08-11); no code written yet. Start at
+workflows across ten jurisdictions, not a pharmacy module. Start at
 `PharmacyInventory/NEXT_SESSION.md`.
+
+**PI-0 (discovery & architecture) and PI-1 (Product Platform Core) are complete**
+(2026-08-11). PI-1 is on `feat/pi-1-product-platform-core` and has NOT been
+through `/code-review` or `security-reviewer` yet — required before merge,
+because it adds thirteen tenant tables and ten RESTRICTIVE visibility policies.
+
+What PI-1 built: the catalogue, and nothing with a quantity in it.
+
+- [x] `units_of_measure` + `unit_conversions`, with an exact-rational conversion
+      engine in `apps/api/src/services/product/units.ts` — integer ratios over
+      `bigint`, never a float, and a `{ quantity, exact }` result so a lossy
+      conversion is an event a caller has to handle rather than a silent round
+- [x] `products` as the root with a `ProductType` discriminator (PI-ADR-001):
+      medicines, gloves, implants, reagents and dental materials in ONE table,
+      so there is one inventory engine rather than two
+- [x] Categories (a `parent_id` tree, same shape as the clinical taxonomy),
+      manufacturers, active ingredients, compositions with per-ingredient
+      strengths, storage profiles
+- [x] Product packaging ladders, identifiers, per-jurisdiction tax
+      classification resolving to a `tax_category` string — and **no tax logic
+      whatsoever**, per PI-ADR-006
+- [x] **Thirteen tables in `platform_extensible`, plus ten RESTRICTIVE
+      `*_visible` policies.** A tenant cannot attach another clinic's private
+      category, unit, ingredient or composition to its own row; a tenant cannot
+      edit a platform row; and a tenant cannot attach a child to a platform
+      product at all, because the composite FK makes it unrepresentable. That
+      last one is what turns "clone, don't edit" from documentation into a
+      constraint
+- [x] New `product` permission module (PI-ADR-011), so a lab manager maintains
+      reagents without holding a pharmacy code
+- [x] Seed: 35 units, 10 conversions, 32 categories, 9 storage profiles.
+      **Zero medicines** — see OD-4, and the warning in
+      `seed/data/product-masters.ts` about why no agent may invent any
+- [x] Screens at `/products` — server-paginated list, create form, detail with
+      six tabs. Nav entry reads "Catalogue", not "Pharmacy"
+- [x] 983 API tests green; `db:rls:check` green at 65 protected tables
+- [ ] `/code-review` and `security-reviewer` on the diff — **the one remaining
+      leg of PI-1.10**
+- [ ] The screens have not been opened in a browser
+
+⚠️ One RLS bug was written and caught by the isolation suite in this phase: a
+`parent_visible` policy on `product_categories` self-referenced its own table,
+raised `infinite recursion detected in policy`, and — because
+`products.category_visible` reads that table — took down every read of `products`
+for every tenant. Removed in `drop_category_parent_visible`; `specialties` has
+carried the identical gap since it shipped, for the identical reason.
 
 ⚠️ Its pharmacy-dispensing and clinical-consumption phases are hard-blocked on
 `prescriptions` and `encounters`/`procedures`, which Phase 3 owns. Its product,

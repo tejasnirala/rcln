@@ -797,7 +797,28 @@ describe('the list', () => {
   /** A draft has no issue date, and would vanish from every range if the filter used one column. */
   it('finds a draft by date, not only an issued invoice', async () => {
     const invoice = await draft(A, orgA.branchId);
-    const today = new Date().toISOString().slice(0, 10);
+
+    /*
+     * ⚠️ "TODAY" IS TODAY IN THE BRANCH'S ZONE, NOT IN UTC, AND THE DIFFERENCE
+     *   IS A REAL FAILURE THIS TEST USED TO HAVE. `?from=&to=` are calendar
+     *   dates, and the service converts both bounds using `branches.timezone`
+     *   when a branch is named (invoice.service.ts — "converted from the
+     *   branch's zone when a branch is named"). This line was
+     *   `new Date().toISOString().slice(0, 10)`, which is the UTC date.
+     *
+     *   The fixture branch is Asia/Kolkata, +05:30. So for the 5½ hours after
+     *   18:30 UTC the UTC date is still yesterday while the branch is already
+     *   on tomorrow: the test asked for yesterday-in-Kolkata, which ends at
+     *   18:29:59Z, and the draft it had just created was stamped after that.
+     *   The test failed every night between 18:30 and 24:00 UTC and passed the
+     *   other 18½ hours — which is exactly how it survived, since CI rarely
+     *   runs in that window.
+     *
+     *   This is invariant 6 in the test suite: compute in the clinic's zone,
+     *   never the container's. `en-CA` is used only because it formats as
+     *   YYYY-MM-DD, which is the shape the query string wants.
+     */
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
     const res = await A.get(
       `/invoices?branchId=${orgA.branchId}&from=${today}&to=${today}&limit=100`

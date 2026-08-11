@@ -299,7 +299,7 @@ function DayCell({
       className={[
         'rounded-sm py-1.5 text-center text-[0.8125rem] tabular-nums transition-colors',
         selected
-          ? 'bg-drape font-medium text-white'
+          ? 'bg-drape font-medium text-paper'
           : bookable
             ? 'text-ink hover:bg-drape-tint/60 cursor-pointer'
             : /* Not a colour cue on its own: the label says why, and the cursor

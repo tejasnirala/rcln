@@ -87,6 +87,7 @@ Declared at `packages/db/prisma/schema/invoicing.prisma:149`.
 - `@@index([organizationId, branchId, status, createdAt])`
 - `@@index([organizationId, patientId, createdAt])`
 - `@@index([organizationId, appointmentId])`
+- `@@index([organizationId, practitionerProfileId])`
 
 ## Neighbourhood
 

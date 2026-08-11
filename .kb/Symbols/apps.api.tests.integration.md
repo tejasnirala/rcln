@@ -4,7 +4,7 @@
 
 > Billing a consultation, over real HTTP, through the real middleware chain.
 
-Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/tenant-isolation.test.ts` · `apps/api/tests/integration/verification.test.ts`
+Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/product-resolvers.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/tenant-isolation.test.ts` · `apps/api/tests/integration/verification.test.ts`
 
 ## fn
 
@@ -19,6 +19,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/fee-schedule.test.ts:105` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/invitations.test.ts:95` |  |
 | `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/patients.test.ts:113` |  |
+| `asOrg` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/product-resolvers.test.ts:92` |  |
 | `asTenant` <sub>local</sub> | `(organizationId: string, branchIds: string[], fn: () => Promise<T>): Promise<T>` | `apps/api/tests/integration/registration.test.ts:45` | Run a query with the tenant session variables set, exactly as withTenant does. `branchIds` matters: membership_roles carries a RESTRICTIVE branch policy on top… |
 | `asTenant` <sub>local</sub> | `(organizationId: string, fn: () => Promise<T>): Promise<T>` | `apps/api/tests/integration/tenant-isolation.test.ts:29` | Run a unit of work with the tenant session variables set, as the app does. |
 | `asUser` <sub>local</sub> | `(token: () => string)` | `apps/api/tests/integration/appointment-billing.test.ts:115` |  |
@@ -54,6 +55,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/invoice-audit.test.ts:96` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/invoices.test.ts:101` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/patients.test.ts:86` |  |
+| `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/product-resolvers.test.ts:78` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/settings.test.ts:88` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/verification.test.ts:74` |  |
 | `clearValues` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/setting-resolver.test.ts:86` |  |
@@ -83,6 +85,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/invoice-audit.test.ts:47` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/invoices.test.ts:54` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/patients.test.ts:40` |  |
+| `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/product-resolvers.test.ts:41` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/settings.test.ts:49` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/verification.test.ts:38` |  |
 | `inr` <sub>local</sub> | `(major: string)` | `apps/api/tests/integration/invoice-document.test.ts:54` |  |
@@ -138,6 +141,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/invoicing-tax.test.ts:47` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/numbering.test.ts:46` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/patients.test.ts:63` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/product-resolvers.test.ts:55` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/registration.test.ts:66` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/setting-resolver.test.ts:49` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/settings.test.ts:65` |  |
@@ -172,6 +176,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/fee-schedule.test.ts:96` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/invitations.test.ts:86` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/patients.test.ts:104` |  |
+| `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/product-resolvers.test.ts:83` |  |
 | `tokenFor` <sub>local</sub> | `(slug: string): Promise<string>` | `apps/api/tests/integration/verification.test.ts:79` |  |
 | `tokenSentTo` <sub>local</sub> | `(email: string): string` | `apps/api/tests/integration/invitations.test.ts:130` | The last link sent to this address, reduced to the token in its query. |
 | `trailFor` <sub>local</sub> | `(invoiceId: string): Promise<AuditRow[]>` | `apps/api/tests/integration/invoice-audit.test.ts:284` | Every row for one invoice, oldest first — the order the life happened in. |
