@@ -13,7 +13,7 @@
 #   docker build -f infra/docker/Dockerfile.dev .
 # =============================================================================
 
-FROM node:24-alpine
+FROM node:26-alpine
 
 # libc6-compat: Prisma's engine and @node-rs/argon2 are glibc-linked prebuilds;
 # alpine ships musl. Without this they fail to load at runtime.
