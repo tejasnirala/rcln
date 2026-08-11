@@ -48,3 +48,16 @@ updates:
       interval: monthly
     commit-message:
       prefix: build
+    # Minor and patch only. Node majors are a deliberate, human decision here,
+    # because Dependabot offers whatever is newest and newest is usually not
+    # supported: odd majors (23, 25) never become LTS at all, and even ones are
+    # "Current" for roughly six months before they do. #5/#8/#9 proposed 25 and
+    # #18–#21 proposed 26 within minutes of adopting 24 — neither was LTS.
+    #
+    # Security patches within the pinned major still arrive, which is the part
+    # that must not be missed. To take the next major, bump the FROM lines, the
+    # engines fields and CI's NODE_VERSION together — see #17 for the full list
+    # of seven pins that have to move as one.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
