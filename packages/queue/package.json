@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "bullmq": "^5.61.0",
-    "ioredis": "^5.9.0"
+    "ioredis": "^6.0.0"
   },
   "devDependencies": {
     "@rcln/config": "workspace:*",
