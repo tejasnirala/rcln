@@ -40,6 +40,10 @@ updates:
       - /apps/api
       - /apps/web
       - /apps/worker
+      # The image every compose service actually runs in development. Left out
+      # of the original list, so it silently stayed on an older Node than the
+      # three production images while appearing to be covered.
+      - /infra/docker
     schedule:
       interval: monthly
     commit-message:
