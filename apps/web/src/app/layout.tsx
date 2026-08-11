@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Serif } from 'next/font/google';
+import { ThemeScript } from '@/components/shell/theme-script';
+import { ThemeSync } from '@/components/shell/theme-sync';
 import './globals.css';
 
 /*
@@ -58,9 +60,25 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * The browser chrome's colour, which is not a token — `themeColor` is read out of
+ * the document head by the OS before any CSS has been resolved, so it cannot be
+ * `var(--rcln-paper)`.
+ *
+ * Both entries are the DEFAULT accent's page background, and they are matched to
+ * `prefers-color-scheme` rather than to the stored preference: this is the strip
+ * above the address bar on a phone, and getting it within a shade is worth more
+ * than the dynamic `<meta>` rewriting it would take to get it exact for the four
+ * other accents.
+ *
+ * `colorScheme` is deliberately absent. Declaring it here would pin the document
+ * to one scheme and override what theme.css sets per appearance.
+ */
 export const viewport: Viewport = {
-  themeColor: '#f3f5f2',
-  colorScheme: 'light',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f3f5f2' },
+    { media: '(prefers-color-scheme: dark)', color: '#0c1512' },
+  ],
 };
 
 export default function RootLayout({
@@ -69,11 +87,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    /*
+     * `suppressHydrationWarning` is on <html> because `ThemeScript` writes
+     * `data-appearance` and `data-accent` onto this element before React
+     * hydrates. Without it React sees attributes the server did not send and
+     * warns on every page load of every themed session. It suppresses the
+     * mismatch on THIS ELEMENT ONLY — one element deep, not the tree.
+     */
     <html
       lang="en-IN"
+      suppressHydrationWarning
       className={`${plexSans.variable} ${plexSerif.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <head>
+        {/* First thing in the document, and blocking on purpose: this is what
+            stops a dark-mode reload flashing white. See theme-script.tsx. */}
+        <ThemeScript />
+      </head>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <ThemeSync />
+      </body>
     </html>
   );
 }

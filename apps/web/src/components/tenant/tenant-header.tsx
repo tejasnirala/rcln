@@ -125,6 +125,19 @@ function clinicNav(permissions: string[]): NavLink[] {
      */
     { href: '/invoices', label: 'Invoices', permission: ['billing.invoice.read'] },
     /*
+     * ⚠️ "CATALOGUE", NOT "PHARMACY" OR "PRODUCTS". One catalogue holds
+     *   medicines, gloves, implants, reagents and dental materials, so naming
+     *   the tab after any one of them tells four of the five kinds of user it is
+     *   not for them (PI-ADR-001). "Products" is what the table is called;
+     *   "Catalogue" is what the clinic calls the thing it opens.
+     *
+     * Sits after Invoices because it is what future invoice lines are drawn
+     * from, and before the staff-facing tabs because a storekeeper works here
+     * daily. Gated on `product.definition.read`, which a doctor and a nurse hold
+     * for lookup and a receptionist does not.
+     */
+    { href: '/products', label: 'Catalogue', permission: ['product.definition.read'] },
+    /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the
      * permission that guards it: a clock format is a preference and a tax rate

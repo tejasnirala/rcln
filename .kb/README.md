@@ -57,7 +57,7 @@ reference.
 | Directory                                           | Holds                                                                                                               |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | [`AI/`](AI/Agent_Instructions.md)                   | **Highest priority.** How an agent should think, build, refactor and verify here                                    |
-| [`Architecture/`](Architecture/how-it-works.md)     | The tour, the target design, conventions, pitfalls, 11 ADRs                                                         |
+| [`Architecture/`](Architecture/how-it-works.md)     | The tour, the target design, conventions, pitfalls, 17 ADRs                                                         |
 | [`Database/`](Database/_index.md)                   | Per-model pages _(generated)_ + the full schema design document                                                     |
 | [`APIs/`](APIs/_index.md)                           | Per-route-group pages _(generated)_                                                                                 |
 | [`Modules/`](06_Module_Catalog.md)                  | Per-module pages _(generated)_                                                                                      |

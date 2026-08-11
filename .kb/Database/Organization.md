@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 47 |
+| relations | 60 |
 
 ## Columns
 
@@ -84,6 +84,19 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `invoiceItems` | [`InvoiceItem`](InvoiceItem.md) | `invoiceItems InvoiceItem[]` |
 | `invoiceTaxes` | [`InvoiceTax`](InvoiceTax.md) | `invoiceTaxes InvoiceTax[]` |
 | `invoiceDocuments` | [`InvoiceDocument`](InvoiceDocument.md) | `invoiceDocuments InvoiceDocument[]` |
+| `unitsOfMeasure` | [`UnitOfMeasure`](UnitOfMeasure.md) | `unitsOfMeasure UnitOfMeasure[]` |
+| `unitConversions` | [`UnitConversion`](UnitConversion.md) | `unitConversions UnitConversion[]` |
+| `productCategories` | [`ProductCategory`](ProductCategory.md) | `productCategories ProductCategory[]` |
+| `manufacturers` | [`Manufacturer`](Manufacturer.md) | `manufacturers Manufacturer[]` |
+| `activeIngredients` | [`ActiveIngredient`](ActiveIngredient.md) | `activeIngredients ActiveIngredient[]` |
+| `compositions` | [`Composition`](Composition.md) | `compositions Composition[]` |
+| `compositionIngredients` | [`CompositionIngredient`](CompositionIngredient.md) | `compositionIngredients CompositionIngredient[]` |
+| `storageProfiles` | [`StorageRequirementProfile`](StorageRequirementProfile.md) | `storageProfiles StorageRequirementProfile[]` |
+| `products` | [`Product`](Product.md) | `products Product[]` |
+| `productPackagings` | [`ProductPackaging`](ProductPackaging.md) | `productPackagings ProductPackaging[]` |
+| `productIdentifiers` | [`ProductIdentifier`](ProductIdentifier.md) | `productIdentifiers ProductIdentifier[]` |
+| `productTaxClassifications` | [`ProductTaxClassification`](ProductTaxClassification.md) | `productTaxClassifications ProductTaxClassification[]` |
+| `medicineDetails` | [`MedicineDetail`](MedicineDetail.md) | `medicineDetails MedicineDetail[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -142,4 +155,17 @@ erDiagram
     Organization }o--o{ InvoiceItem : relates
     Organization }o--o{ InvoiceTax : relates
     Organization }o--o{ InvoiceDocument : relates
+    Organization }o--o{ UnitOfMeasure : relates
+    Organization }o--o{ UnitConversion : relates
+    Organization }o--o{ ProductCategory : relates
+    Organization }o--o{ Manufacturer : relates
+    Organization }o--o{ ActiveIngredient : relates
+    Organization }o--o{ Composition : relates
+    Organization }o--o{ CompositionIngredient : relates
+    Organization }o--o{ StorageRequirementProfile : relates
+    Organization }o--o{ Product : relates
+    Organization }o--o{ ProductPackaging : relates
+    Organization }o--o{ ProductIdentifier : relates
+    Organization }o--o{ ProductTaxClassification : relates
+    Organization }o--o{ MedicineDetail : relates
 ```

@@ -59,6 +59,7 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 
 - `apps/api/src/routes/v1/platform.routes.ts`
 - `apps/web/src/app/(platform)/platform/actions.ts`
+- `apps/web/src/app/(platform)/platform/appearance/page.tsx`
 - `apps/web/src/app/(platform)/platform/layout.tsx`
 - `apps/web/src/app/(platform)/platform/organizations/actions.ts`
 - `apps/web/src/app/(platform)/platform/organizations/page.tsx`
@@ -90,9 +91,11 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 | `DemoRequestList` | component | `apps/web/src/components/platform/demo-request-list.tsx:46` |
 | `EnterClinic` | component | `apps/web/src/components/platform/enter-clinic.tsx:28` |
 | `ImpersonateState` | type | `apps/web/src/app/(platform)/platform/organizations/actions.ts:23` |
+| `metadata` | var | `apps/web/src/app/(platform)/platform/appearance/page.tsx:6` |
 | `metadata` | var | `apps/web/src/app/(platform)/platform/layout.tsx:12` |
 | `metadata` | var | `apps/web/src/app/(platform)/platform/taxes/page.tsx:7` |
 | `OrganizationList` | component | `apps/web/src/components/platform/organization-list.tsx:28` |
+| `PlatformAppearancePage` | component | `apps/web/src/app/(platform)/platform/appearance/page.tsx:19` |
 | `PlatformHome` | component | `apps/web/src/app/(platform)/platform/page.tsx:16` |
 | `PlatformLayout` | component | `apps/web/src/app/(platform)/platform/layout.tsx:37` |
 | `PlatformLogin` | component | `apps/web/src/components/platform/platform-login.tsx:10` |

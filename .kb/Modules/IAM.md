@@ -98,7 +98,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | --- | --- | --- |
 | `AccessContext` | interface | `packages/permissions/src/resolver.ts:37` |
 | `accessibleBranchIds` | fn | `packages/permissions/src/resolver.ts:141` |
-| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:362` |
+| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:397` |
 | `assertBranchAssignable` | fn | `apps/api/src/services/iam/guards.ts:127` |
 | `assertGrantable` | fn | `apps/api/src/services/iam/guards.ts:90` |
 | `assignRole` | fn | `apps/api/src/services/iam/member.service.ts:323` |
@@ -122,13 +122,13 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | `listRoles` | fn | `apps/api/src/services/iam/role.service.ts:198` |
 | `MemberActionOptions` | interface | `apps/api/src/services/iam/member.service.ts:67` |
 | `MemberList` | component | `apps/web/src/components/tenant/member-list.tsx:153` |
-| `Module` | type | `packages/permissions/src/codes.ts:28` |
-| `moduleOf` | fn | `packages/permissions/src/codes.ts:365` |
+| `Module` | type | `packages/permissions/src/codes.ts:29` |
+| `moduleOf` | fn | `packages/permissions/src/codes.ts:400` |
 | `MODULES` | const | `packages/permissions/src/codes.ts:10` |
 | `OverrideEffect` | type | `packages/permissions/src/resolver.ts:18` |
-| `PermissionCode` | type | `packages/permissions/src/codes.ts:360` |
+| `PermissionCode` | type | `packages/permissions/src/codes.ts:395` |
 | `PermissionOverride` | interface | `packages/permissions/src/resolver.ts:30` |
-| `PERMISSIONS` | const | `packages/permissions/src/codes.ts:30` |
+| `PERMISSIONS` | const | `packages/permissions/src/codes.ts:31` |
 | `revokeRole` | fn | `apps/api/src/services/iam/member.service.ts:426` |
 | `RoleActionOptions` | interface | `apps/api/src/services/iam/role.service.ts:45` |
 | `RoleAssignment` | interface | `packages/permissions/src/resolver.ts:20` |

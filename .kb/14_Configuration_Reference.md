@@ -186,6 +186,42 @@ called out explicitly in the architecture document.
 
 ---
 
+## Browser-held preferences
+
+Two cookies configure the interface itself. They are the only configuration that
+lives on the device rather than in the environment or the database.
+
+| Cookie            | Values                                                | Default    |
+| ----------------- | ----------------------------------------------------- | ---------- |
+| `rcln_appearance` | `light` · `dark` · `system`                           | `light`    |
+| `rcln_accent`     | `surgical` · `ember` · `indigo` · `plum` · `graphite` | `surgical` |
+
+Defined in `apps/web/src/lib/theme.ts`. One year, `Path=/`, `SameSite=Lax`,
+`Secure` off plain http, **host-only — no `Domain`**, so a clinic's preference
+stays on that clinic's subdomain exactly as its session does. Anything not on the
+list resolves to the default rather than throwing; a hand-edited cookie gives you
+the light surgical theme, not a 500 on every page.
+
+They are written entirely in the browser and read by a blocking inline script
+before the first paint. **There is no environment variable, no database column
+and no API endpoint for either** — see
+[ADR-0017](Architecture/decisions/0017-theme-is-a-device-preference.md) for why a
+theme is a property of the device and not of the user or the organization.
+
+⚠️ **Deliberately not `httpOnly`**, unlike the session cookies, because the boot
+script must read them before React exists. Safe here and only here: each value is
+one word from a closed list, validated on both sides, never interpolated into
+markup or SQL, and it authorises nothing. Do not copy the pattern for anything
+the server trusts.
+
+The defaults are load-bearing, not arbitrary. `light` rather than `system` means
+a clinic that never opens the screen does not have its interface turn dark
+overnight because a laptop is in dark mode; `surgical` is the palette the product
+shipped with, unchanged to the byte, so the default reproduces today's screens
+exactly.
+
+---
+
 ## Adding a variable
 
 1. Add it to `.env.example` in the right group, with a comment explaining what

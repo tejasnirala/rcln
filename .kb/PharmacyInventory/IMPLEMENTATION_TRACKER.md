@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-11
+**Last updated:** 2026-08-11 (PI-1 complete)
 
 ## Status vocabulary
 
@@ -37,8 +37,8 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | Phase     | Title                                                   | Status                    | Blocked by                                  |
 | --------- | ------------------------------------------------------- | ------------------------- | ------------------------------------------- |
 | PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                           |
-| PI-1      | Product Platform Core                                   | PLANNED                   | —                                           |
-| PI-2      | Inventory Foundation                                    | PLANNED                   | PI-1                                        |
+| PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                           |
+| PI-2      | Inventory Foundation                                    | PLANNED — **next**        | —                                           |
 | PI-3      | Movements                                               | PLANNED                   | PI-2                                        |
 | PI-4      | Procurement                                             | PLANNED                   | PI-3                                        |
 | PI-5      | Global Regulatory Framework                             | PLANNED                   | PI-1                                        |
@@ -72,7 +72,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 
 ---
 
-# PI-1 — Product Platform Core · PLANNED
+# PI-1 — Product Platform Core · COMPLETE
 
 **Dependencies:** none. **Priority:** P0 — everything else waits on it.
 **Regulatory:** none in this phase; PI-5 attaches profiles to these products.
@@ -98,7 +98,7 @@ conversion algebra to and from a product's base unit.
 - **Files** `packages/db/prisma/schema.prisma`, `.../rls/enable-rls.sql`,
   `packages/contracts/src/products.ts`, `apps/api/src/services/product/`,
   `apps/web/.../(app)/products/`
-- **Status** NOT_STARTED · **Next action** run `/db-migration units and packaging`
+- **Status** COMPLETE
 
 ---
 
@@ -117,7 +117,7 @@ conversion algebra to and from a product's base unit.
 - **AUDIT** `recordAudit` on create/update/status change
 - **TEST** ⚠️ **the RESTRICTIVE `*_visible` policy test** — a tenant must not be
   able to attach another tenant's private product anywhere
-- **Status** NOT_STARTED · **Depends on** PI-1.1
+- **Status** COMPLETE
 
 ---
 
@@ -127,7 +127,7 @@ conversion algebra to and from a product's base unit.
 identifiers. Referenced by products and by batches (a batch's manufacturer may
 differ from the product's).
 
-- **Status** NOT_STARTED · **Depends on** PI-1.2
+- **Status** COMPLETE
 
 ---
 
@@ -149,7 +149,7 @@ substitution answerable at all.
 - **FE** composition builder inside the product form; "equivalent products" panel
 - **TEST** multi-ingredient compositions; equivalence across brands
 - **Notes** Substitution _permission_ is regulatory (PI-5) and is not decided here.
-- **Status** NOT_STARTED · **Depends on** PI-1.2
+- **Status** COMPLETE
 
 ---
 
@@ -160,7 +160,7 @@ prescription classification placeholder (the real classification is
 per-jurisdiction and lands in PI-5), storage requirement reference.
 
 - **AUTHZ** gated by `pharmacy.medicine.manage` — the narrower existing code
-- **Status** NOT_STARTED · **Depends on** PI-1.4
+- **Status** COMPLETE
 
 ---
 
@@ -176,7 +176,7 @@ effective_to)`. Types: `GTIN`, `EAN`, `UPC`, `NDC`, `NATIONAL_CODE`,
 - **BE** resolver: `resolveIdentifier(value) → { product, kind, jurisdiction }`
 - **TEST** the same value under two types; expired identifiers excluded
 - **Notes** PI-23 builds the GS1/DataMatrix decode layer on top of this.
-- **Status** NOT_STARTED · **Depends on** PI-1.2
+- **Status** COMPLETE
 
 ---
 
@@ -192,7 +192,7 @@ tax_category, item_code?, effective_from, effective_to)`.
   a guess
 - **Notes** `tax_category` keys `tax_rules` by exact match. `item_code` is the
   printed HSN/SAC, presentation only. PI-ADR-006.
-- **Status** NOT_STARTED · **Depends on** PI-1.2
+- **Status** COMPLETE
 
 ---
 
@@ -205,7 +205,7 @@ reorder defaults.
 
 - **DB** the CHECK constraint from PI-ADR-014 lands with the ledger in PI-2;
   the columns land here
-- **Status** NOT_STARTED · **Depends on** PI-1.1, PI-1.2
+- **Status** COMPLETE, PI-1.2
 
 ---
 
@@ -218,7 +218,7 @@ composition, tax classification, storage.
 - **FE** ⚠️ load `frontend-design` before the first line of JSX. Consult
   `vercel-react-best-practices` — this is a large list surface and must paginate
   server-side, never load the catalogue into memory.
-- **Status** NOT_STARTED · **Depends on** PI-1.2..PI-1.8
+- **Status** COMPLETE..PI-1.8
 
 ---
 
@@ -228,7 +228,31 @@ composition, tax classification, storage.
 the whole diff (it touches the schema and tenancy, so it is mandatory); update
 `.kb/STATUS.md`; update this directory.
 
-- **Status** NOT_STARTED
+- **Status** PARTIALLY_COMPLETE
+- **Done** 989 API tests across 35 suites green; `db:rls:check` green at 65
+  protected tables; lint and `@rcln/api` typecheck green; `pnpm kb` regenerated;
+  `.kb/STATUS.md` and this directory updated.
+- **Done — `security-reviewer` over the whole diff.** PASS. Confirmed the
+  read-permissive/write-strict policy, the thirteen-table list in both
+  `enable-rls.sql` and the migration with no drift between them, the ten
+  `*_visible` policies, the composite-FK argument against the MATCH SIMPLE
+  objection, parameterised raw SQL throughout, no query outside `withTenant`, no
+  PHI in logs, and non-escalating permissions. Five findings, none CRITICAL or
+  HIGH: three fixed (`20260814100000_platform_rows_immutable`; isolation cases
+  for the three untested children; the false slug-binding comment), two accepted
+  and recorded in NEXT_SESSION.md § Known issues.
+- **Done — `code-reviewer` over the whole diff.** It found two CRITICALs, both
+  the same Prisma `where` mistake (a spread `OR` overwritten by a later literal
+  `OR`, dropping the jurisdiction filter in the tax and identifier resolvers),
+  plus six WARNINGs. All fixed, plus a THIRD bug the review missed that the
+  regression tests caught: `orderBy: { regionCode: 'desc' }` relied on a comment
+  claiming Postgres sorts NULLs last on DESC — it sorts them FIRST — so with
+  `take: 1` every regional tax override was silently inert. It confirmed
+  `units.ts` is sound: no precision or overflow defect.
+- **Still open — the screens have not been opened in a browser.** Demo data for
+  that is a throwaway SQL script, deliberately not a seed (OD-4).
+- **Known red, not PI-1's** `@rcln/web#typecheck`, from untracked jest config
+  and tests plus uninstalled devDeps. See NEXT_SESSION.md § Known issues 4.
 
 ---
 

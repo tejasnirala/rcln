@@ -1,0 +1,65 @@
+-- Drop `parent_visible` on `product_categories`. It cannot work, and while it
+-- existed it broke every read of `products`.
+--
+-- ── WHAT IT WAS ─────────────────────────────────────────────────────────────
+-- `product_platform_core` added eleven RESTRICTIVE `*_visible` policies, each
+-- checking that a plain foreign key points at a row this tenant may see. Ten of
+-- them are correct and stay. The eleventh guarded `product_categories.parent_id`
+-- — a SELF-reference — and was introduced deliberately as a tightening over
+-- `specialties`, which has no equivalent policy on its own `parent_id`.
+--
+-- ── WHY IT CANNOT WORK ──────────────────────────────────────────────────────
+-- ⚠️ A POLICY ON A TABLE MAY NOT READ THAT SAME TABLE. Postgres evaluates policy
+--   expressions with row security disabled on the tables they reference — which
+--   is what makes the other ten safe — but a self-reference has no such escape:
+--   evaluating the policy requires evaluating the policy. Postgres detects it and
+--   raises
+--
+--     ERROR: infinite recursion detected in policy for relation "product_categories"
+--
+--   The comment above the parent_scoped loop in prisma/rls/enable-rls.sql already
+--   says this in as many words ("a policy that read its own table would otherwise
+--   recurse forever"). The tightening was written anyway.
+--
+-- ⚠️ AND IT DID NOT FAIL QUIETLY IN ONE PLACE. `products.category_visible` reads
+--   `product_categories`, so the recursion propagated: EVERY read of `products`
+--   raised, for every tenant, including `SELECT count(*) FROM products`. A policy
+--   intended to close a narrow id-probing gap took the entire catalogue offline.
+--   Caught by tenant-isolation.test.ts, which is the only reason it is being
+--   fixed here rather than in production.
+--
+-- ── WHAT REPLACES IT: NOTHING, DELIBERATELY ─────────────────────────────────
+-- The gap this was closing is real but small, and it is the SAME gap
+-- `specialties` has carried since it shipped: a clinic can parent its own
+-- category under another tenant's private one. Nothing leaks by doing so — the
+-- ancestor walk runs under RLS and drops the invisible row, so the name is never
+-- readable — it only confirms that a guessed uuid exists, and leaves the tenant
+-- with a subtree rooted somewhere it cannot see.
+--
+-- A SECURITY DEFINER helper WOULD break the recursion, the way
+-- `billing_due_subscriptions` does for the billing sweep. It is not worth it
+-- here: that function exists because renewals silently never ran without it,
+-- whereas this buys a marginal tightening on an id-existence oracle, and every
+-- SECURITY DEFINER function is a permanent piece of privileged surface that has
+-- to be reviewed and search-path-pinned forever. Matching the precedent set by
+-- `specialties` is the proportionate answer, and one pattern for the taxonomy
+-- trees beats two.
+--
+-- If this is ever revisited, revisit it for BOTH tables at once.
+--
+-- ── TWO PROCESS NOTES, BOTH LEARNED THE HARD WAY IN THE SAME SESSION ────────
+--
+-- ⚠️ THE DIRECTORY IS HAND-DATED, NOT LEFT AS PRISMA GENERATED IT. Migrations
+--   replay in NAME order, and this repository's recent migrations carry
+--   hand-picked timestamps running AHEAD of the wall clock. So anything Prisma
+--   stamps with today's real time sorts BEFORE the migrations it depends on, and
+--   the shadow-database replay fails on an object that does not exist yet. Every
+--   generated migration here has to be re-dated past the highest existing
+--   directory before it is applied.
+--
+-- ⚠️ AN APPLIED MIGRATION IS CHECKSUMMED, INCLUDING ITS COMMENTS. Editing one
+--   after the fact — even to add a comment as harmless as this — makes Prisma
+--   demand a full database reset on the next `migrate dev`. Corrections go in a
+--   NEW migration, which is what this file is.
+
+DROP POLICY IF EXISTS parent_visible ON product_categories;

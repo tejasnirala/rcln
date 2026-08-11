@@ -161,11 +161,18 @@ export function RazorpayCheckout({
     /*
      * The accent is read from the stylesheet rather than written here.
      * Hard-coding `#2f5d52` would be a second copy of a token that lives in
-     * globals.css, and the overlay would keep the old green the first time the
+     * theme.css, and the overlay would keep the old green the first time the
      * palette moves.
+     *
+     * ⚠️ `--rcln-drape`, NOT `--color-drape`. The Tailwind name is declared with
+     *   `@theme inline`, which means it is never emitted as a real custom
+     *   property — asking for it returns an empty string and the overlay
+     *   silently falls back to Razorpay's own blue. This reads the variable the
+     *   theme actually publishes, which also means the overlay follows whichever
+     *   accent and appearance the user picked rather than one fixed green.
      */
     const accent = getComputedStyle(document.documentElement)
-      .getPropertyValue('--color-drape')
+      .getPropertyValue('--rcln-drape')
       .trim();
 
     const checkout = new Razorpay({

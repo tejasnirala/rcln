@@ -365,6 +365,15 @@ model Invoice {
   @@index([organizationId, patientId, createdAt])
   /// "Has this appointment been billed?", asked once per row on the day board.
   @@index([organizationId, appointmentId])
+  /// A clinician's own list, and "what did Dr Rao bill this month".
+  ///
+  /// ⚠️ THIS LINE IS THE FIX FOR A DRIFT BUG, NOT A NEW INDEX. The index was
+  ///   created by the `invoice_practitioner_scope` migration and never declared
+  ///   here, so `prisma migrate dev` emitted a `DROP INDEX` for it into the NEXT
+  ///   unrelated migration anybody generated — and did so silently, because a
+  ///   dropped index breaks no test and no type. Declaring it makes the diff
+  ///   empty. If you add a hand-written index in a migration, add it here too.
+  @@index([organizationId, practitionerProfileId])
   @@map("invoices")
 }
 

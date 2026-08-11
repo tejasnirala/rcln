@@ -4,11 +4,12 @@
 
 Source: `packages/db/prisma/schema/*.prisma` · RLS policies: `packages/db/prisma/rls/enable-rls.sql`
 
-70 models · 56 enums · 48 tenant-scoped.
+83 models · 65 enums · 61 tenant-scoped.
 One file per model in this directory; the tables below are the overview.
 
 | model | table | org col | RLS | columns |
 | --- | --- | --- | --- | --- |
+| [`ActiveIngredient`](ActiveIngredient.md) | `active_ingredients` | yes | **MISSING** | `id` `organizationId` `code` `name` `innName` `synonyms` `description` `isActive` `createdAt` `updatedAt` `deletedAt` |
 | [`Appointment`](Appointment.md) | `appointments` | yes | **MISSING** | `id` `organizationId` `branchId` `patientId` `patientRegistrationId` `doctorProfileId` `appointmentNumber` `scheduledStart` `scheduledEnd` `visitType` `source` `status` `parentAppointmentId` `reason` `checkedInAt` `startedAt` `completedAt` `bookedBy` `cancelledBy` `cancellationReason` `bookedFee` `createdAt` `updatedAt` `deletedAt` |
 | [`AppointmentReschedule`](AppointmentReschedule.md) | `appointment_reschedules` | yes | **MISSING** | `id` `organizationId` `branchId` `appointmentId` `fromStart` `toStart` `fromDoctorProfileId` `toDoctorProfileId` `initiatedBy` `reason` `chargeAmount` `createdAt` `createdBy` |
 | [`AppointmentStatusHistory`](AppointmentStatusHistory.md) | `appointment_status_history` | yes | explicit | `id` `organizationId` `appointmentId` `fromStatus` `toStatus` `changedBy` `note` `changedAt` |
@@ -18,6 +19,8 @@ One file per model in this directory; the tables below are the overview.
 | [`Branch`](Branch.md) | `branches` | yes | org | `id` `organizationId` `code` `name` `branchType` `timezone` `phone` `email` `addressLine1` `addressLine2` `city` `state` `pincode` `countryCode` `regionCode` `taxId` `isPrimary` `status` `createdAt` `updatedAt` `deletedAt` |
 | [`BranchClosure`](BranchClosure.md) | `branch_closures` | — | parent | `id` `branchId` `closureDate` `reason` |
 | [`BranchOperatingHour`](BranchOperatingHour.md) | `branch_operating_hours` | — | parent | `id` `branchId` `dayOfWeek` `opensAt` `closesAt` `isClosed` `slotMinutes` |
+| [`Composition`](Composition.md) | `compositions` | yes | **MISSING** | `id` `organizationId` `code` `name` `dosageForm` `isActive` `createdAt` `updatedAt` `deletedAt` |
+| [`CompositionIngredient`](CompositionIngredient.md) | `composition_ingredients` | yes | visible | `id` `organizationId` `compositionId` `ingredientId` `strength` `strengthUnitId` `perQuantity` `displayOrder` `createdAt` `updatedAt` |
 | [`DataAccessLog`](DataAccessLog.md) | `data_access_logs` | yes | org | `id` `organizationId` `branchId` `actorUserId` `impersonatedByUserId` `patientId` `accessType` `resource` `resourceId` `resultCount` `queryHash` `route` `ipAddress` `userAgent` `occurredAt` |
 | [`DemoRequest`](DemoRequest.md) | `demo_requests` | — | exempt | `id` `clinicName` `contactName` `email` `phone` `city` `branchCount` `specialty` `message` `source` `status` `handledAt` `notes` `createdAt` `updatedAt` |
 | [`Designation`](Designation.md) | `designations` | yes | platform_extensible | `id` `organizationId` `code` `name` `isActive` `createdAt` `updatedAt` `deletedAt` |
@@ -37,6 +40,8 @@ One file per model in this directory; the tables below are the overview.
 | [`InvoiceTax`](InvoiceTax.md) | `invoice_taxes` | yes | branch | `id` `organizationId` `branchId` `invoiceId` `invoiceItemId` `taxRuleId` `taxRuleDefaultId` `name` `jurisdiction` `rateBps` `taxableAmount` `taxAmount` `treatment` `createdAt` |
 | [`IssuerTaxRegistration`](IssuerTaxRegistration.md) | `issuer_tax_registrations` | yes | org | `id` `organizationId` `countryCode` `regionCode` `scheme` `registrationNumber` `legalName` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
 | [`IssuerTaxRegistrationBranch`](IssuerTaxRegistrationBranch.md) | `issuer_tax_registration_branches` | yes | org | `id` `organizationId` `taxRegistrationId` `branchId` `createdAt` `updatedAt` `deletedAt` |
+| [`Manufacturer`](Manufacturer.md) | `manufacturers` | yes | **MISSING** | `id` `organizationId` `code` `name` `countryCode` `licenceNumber` `gs1Prefix` `isActive` `createdAt` `updatedAt` `deletedAt` |
+| [`MedicineDetail`](MedicineDetail.md) | `medicine_details` | yes | **MISSING** | `id` `organizationId` `productId` `dosageForm` `route` `releaseType` `isNarrowTherapeuticIndex` `prescriptionClassificationHint` `labelInstructions` `defaultCourseDays` `createdAt` `updatedAt` |
 | [`Membership`](Membership.md) | `memberships` | yes | org | `id` `userId` `organizationId` `status` `invitedBy` `joinedAt` `lastBranchId` `createdAt` `updatedAt` `deletedAt` |
 | [`MembershipPermissionOverride`](MembershipPermissionOverride.md) | `membership_permission_overrides` | yes | branch | `id` `membershipId` `organizationId` `permissionId` `branchId` `effect` `reason` `createdAt` |
 | [`MembershipRole`](MembershipRole.md) | `membership_roles` | yes | branch | `id` `membershipId` `organizationId` `roleId` `branchId` `validFrom` `validTo` `createdAt` |
@@ -57,6 +62,11 @@ One file per model in this directory; the tables below are the overview.
 | [`Plan`](Plan.md) | `plans` | — | exempt | `id` `code` `name` `tagline` `trialDays` `isPublic` `sortOrder` `createdAt` `updatedAt` |
 | [`PlanFeature`](PlanFeature.md) | `plan_features` | — | exempt | `id` `planId` `featureKey` `valueType` `intValue` `boolValue` |
 | [`PlanPrice`](PlanPrice.md) | `plan_prices` | — | exempt | `id` `planId` `currency` `billingInterval` `amount` `taxBehavior` `isActive` |
+| [`Product`](Product.md) | `products` | yes | visible | `id` `organizationId` `type` `status` `code` `name` `brandName` `genericName` `description` `categoryId` `manufacturerId` `compositionId` `storageProfileId` `baseUnitId` `trackingMode` `isExpiryControlled` `defaultShelfLifeDays` `reorderLevelBase` `reorderQuantityBase` `isStockItem` `metadata` `createdAt` `updatedAt` `deletedAt` |
+| [`ProductCategory`](ProductCategory.md) | `product_categories` | yes | **MISSING** | `id` `organizationId` `parentId` `code` `name` `description` `displayOrder` `isActive` `createdAt` `updatedAt` `deletedAt` |
+| [`ProductIdentifier`](ProductIdentifier.md) | `product_identifiers` | yes | **MISSING** | `id` `organizationId` `productId` `type` `value` `countryCode` `effectiveFrom` `effectiveTo` `isPrimary` `createdAt` `updatedAt` |
+| [`ProductPackaging`](ProductPackaging.md) | `product_packagings` | yes | visible | `id` `organizationId` `productId` `level` `unitId` `quantityOfChild` `isDefaultPurchase` `isDefaultSale` `barcode` `createdAt` `updatedAt` |
+| [`ProductTaxClassification`](ProductTaxClassification.md) | `product_tax_classifications` | yes | **MISSING** | `id` `organizationId` `productId` `countryCode` `regionCode` `taxCategory` `itemCode` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` |
 | [`Qualification`](Qualification.md) | `qualifications` | yes | platform_extensible | `id` `organizationId` `code` `name` `isActive` `createdAt` `updatedAt` `deletedAt` |
 | [`Role`](Role.md) | `roles` | yes | exempt | `id` `organizationId` `code` `name` `description` `scopeLevel` `isSystem` `createdAt` `updatedAt` |
 | [`RoleDesignation`](RoleDesignation.md) | `role_designations` | yes | platform_extensible | `id` `organizationId` `roleId` `designationId` `isExcluded` `createdAt` |
@@ -66,6 +76,7 @@ One file per model in this directory; the tables below are the overview.
 | [`SettingValue`](SettingValue.md) | `setting_values` | — | exempt | `id` `settingKey` `scopeType` `scopeId` `value` `updatedBy` `updatedAt` |
 | [`Specialty`](Specialty.md) | `specialties` | yes | platform_extensible | `id` `organizationId` `parentId` `code` `name` `type` `description` `displayOrder` `metadata` `isActive` `createdAt` `updatedAt` `deletedAt` |
 | [`StaffProfile`](StaffProfile.md) | `staff_profiles` | — | parent | `id` `membershipId` `employeeCode` `department` `designationId` `joinedOn` `relievedOn` |
+| [`StorageRequirementProfile`](StorageRequirementProfile.md) | `storage_requirement_profiles` | yes | **MISSING** | `id` `organizationId` `code` `name` `minTemperatureC` `maxTemperatureC` `minHumidityPct` `maxHumidityPct` `lightSensitivity` `requiresControlledAccess` `hazardClass` `handlingNotes` `isActive` `createdAt` `updatedAt` |
 | [`StoredFile`](StoredFile.md) | `files` | yes | explicit | `id` `organizationId` `branchId` `documentType` `status` `storageProvider` `storageKey` `originalName` `mimeType` `sizeBytes` `checksum` `version` `failureReason` `uploadedBy` `uploadedAt` `deletedAt` |
 | [`Subscription`](Subscription.md) | `subscriptions` | yes | org | `id` `organizationId` `planId` `planPriceId` `status` `currency` `trialEndsAt` `currentPeriodStart` `currentPeriodEnd` `cancelAt` `canceledAt` `cancelAtPeriodEnd` `cancelReason` `autoRenew` `seatQuantity` `provider` `mandateId` `gracePeriodEnd` `dunningAttempts` `lastRenewalAt` `startedAt` `endedAt` `createdAt` `updatedAt` |
 | [`SubscriptionChange`](SubscriptionChange.md) | `subscription_changes` | yes | org | `id` `organizationId` `subscriptionId` `changeType` `fromPlanId` `fromPlanPriceId` `toPlanId` `toPlanPriceId` `currency` `prorationCredit` `prorationCharge` `amountDue` `invoiceId` `effectiveAt` `actorUserId` `reason` `createdAt` |
@@ -76,6 +87,8 @@ One file per model in this directory; the tables below are the overview.
 | [`TaxRegistration`](TaxRegistration.md) | `tax_registrations` | — | exempt | `id` `countryCode` `regionCode` `scheme` `registrationNumber` `standardRateBps` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
 | [`TaxRule`](TaxRule.md) | `tax_rules` | yes | org | `id` `organizationId` `countryCode` `regionCode` `scheme` `taxCategory` `description` `rateBps` `treatment` `lineName` `regionalLineName` `split` `stacks` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
 | [`TaxRuleDefault`](TaxRuleDefault.md) | `tax_rule_defaults` | — | exempt | `id` `countryCode` `regionCode` `scheme` `taxCategory` `description` `rateBps` `treatment` `lineName` `regionalLineName` `split` `stacks` `sourceNote` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
+| [`UnitConversion`](UnitConversion.md) | `unit_conversions` | yes | visible | `id` `organizationId` `fromUnitId` `toUnitId` `numerator` `denominator` `createdAt` `updatedAt` |
+| [`UnitOfMeasure`](UnitOfMeasure.md) | `units_of_measure` | yes | **MISSING** | `id` `organizationId` `code` `name` `symbol` `unitClass` `isBase` `isActive` `createdAt` `updatedAt` |
 | [`UsageCounter`](UsageCounter.md) | `usage_counters` | yes | org | `id` `organizationId` `featureKey` `periodStart` `usedValue` `updatedAt` |
 | [`User`](User.md) | `users` | — | exempt | `id` `email` `phone` `passwordHash` `fullName` `avatarFileId` `status` `isPlatformAdmin` `mfaEnabled` `mfaSecret` `locale` `lastPlatformOrganizationId` `emailVerifiedAt` `phoneVerifiedAt` `lastLoginAt` `failedAttempts` `lockedUntil` `createdAt` `updatedAt` `deletedAt` |
 | [`UserIdentity`](UserIdentity.md) | `user_identities` | — | exempt | `id` `userId` `provider` `providerUid` `createdAt` |
@@ -110,6 +123,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 
 | model | relation fields |
 | --- | --- |
+| `ActiveIngredient` | `organization: Organization?` `compositions: CompositionIngredient[]` |
 | `Appointment` | `organization: Organization` `branch: Branch` `patient: Patient` `registration: PatientRegistration` `doctorProfile: DoctorProfile` `booker: User?` `canceller: User?` `statusHistory: AppointmentStatusHistory[]` `vitals: AppointmentVital[]` `invoices: Invoice[]` `reschedules: AppointmentReschedule[]` `parent: Appointment?` `followUps: Appointment[]` |
 | `AppointmentReschedule` | `organization: Organization` `branch: Branch` `appointment: Appointment` |
 | `AppointmentStatusHistory` | `organization: Organization` `appointment: Appointment` `changer: User?` |
@@ -119,6 +133,8 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `Branch` | `organization: Organization` `operatingHours: BranchOperatingHour[]` `closures: BranchClosure[]` `membershipRoles: MembershipRole[]` `membershipOverrides: MembershipPermissionOverride[]` `invitationBranches: InvitationBranch[]` `sessions: Session[]` `lastForMemberships: Membership[]` `doctorSettings: DoctorBranchSetting[]` `doctorSchedules: DoctorSchedule[]` `doctorExceptions: DoctorScheduleException[]` `patientRegistrations: PatientRegistration[]` `appointments: Appointment[]` `appointmentVitals: AppointmentVital[]` `appointmentReschedules: AppointmentReschedule[]` `feeScheduleEntries: FeeScheduleEntry[]` `invoices: Invoice[]` `invoiceItems: InvoiceItem[]` `invoiceTaxes: InvoiceTax[]` `invoiceDocuments: InvoiceDocument[]` `taxRegistrationCoverage: IssuerTaxRegistrationBranch[]` |
 | `BranchClosure` | `branch: Branch` |
 | `BranchOperatingHour` | `branch: Branch` |
+| `Composition` | `organization: Organization?` `ingredients: CompositionIngredient[]` `products: Product[]` |
+| `CompositionIngredient` | `organization: Organization?` `composition: Composition?` `ingredient: ActiveIngredient` `strengthUnit: UnitOfMeasure` |
 | `DataAccessLog` | `organization: Organization` `actor: User?` |
 | `Designation` | `organization: Organization?` `invitations: Invitation[]` `staffProfiles: StaffProfile[]` `roles: RoleDesignation[]` |
 | `DoctorBranchSetting` | `organization: Organization` `doctorProfile: DoctorProfile` `branch: Branch` |
@@ -137,11 +153,13 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `InvoiceTax` | `organization: Organization` `branch: Branch` `invoice: Invoice` `item: InvoiceItem` `taxRule: TaxRule?` `taxRuleDefault: TaxRuleDefault?` |
 | `IssuerTaxRegistration` | `organization: Organization` `invoices: Invoice[]` `branchCoverage: IssuerTaxRegistrationBranch[]` |
 | `IssuerTaxRegistrationBranch` | `organization: Organization` `registration: IssuerTaxRegistration` `branch: Branch` |
+| `Manufacturer` | `organization: Organization?` `products: Product[]` |
+| `MedicineDetail` | `organization: Organization?` `product: Product?` |
 | `Membership` | `user: User` `organization: Organization` `roles: MembershipRole[]` `overrides: MembershipPermissionOverride[]` `staffProfile: StaffProfile?` `lastBranch: Branch?` |
 | `MembershipPermissionOverride` | `membership: Membership` `permission: Permission` `branch: Branch?` |
 | `MembershipRole` | `membership: Membership` `role: Role` `branch: Branch?` |
 | `NumberSequence` | `organization: Organization` |
-| `Organization` | `owner: User?` `domains: OrganizationDomain[]` `branches: Branch[]` `memberships: Membership[]` `roles: Role[]` `invitations: Invitation[]` `subscriptions: Subscription[]` `subscriptionInvoices: SubscriptionInvoice[]` `subscriptionChanges: SubscriptionChange[]` `issuerTaxRegistrations: IssuerTaxRegistration[]` `taxRegistrationBranches: IssuerTaxRegistrationBranch[]` `taxRules: TaxRule[]` `paymentMandates: PaymentMandate[]` `paymentIntents: PaymentIntent[]` `usageCounters: UsageCounter[]` `files: StoredFile[]` `auditLogs: AuditLog[]` `dataAccessLogs: DataAccessLog[]` `numberSequences: NumberSequence[]` `specialties: Specialty[]` `qualifications: Qualification[]` `designations: Designation[]` `roleDesignations: RoleDesignation[]` `doctorProfiles: DoctorProfile[]` `doctorSpecialties: DoctorSpecialty[]` `doctorQualifications: DoctorQualification[]` `doctorBranchSettings: DoctorBranchSetting[]` `doctorCompensation: DoctorCompensation[]` `feeScheduleEntries: FeeScheduleEntry[]` `appointmentReschedules: AppointmentReschedule[]` `doctorSchedules: DoctorSchedule[]` `doctorExceptions: DoctorScheduleException[]` `patients: Patient[]` `patientRegistrations: PatientRegistration[]` `patientAddresses: PatientAddress[]` `patientContacts: PatientContact[]` `patientAllergies: PatientAllergy[]` `patientConditions: PatientCondition[]` `patientMedications: PatientMedication[]` `appointments: Appointment[]` `appointmentHistory: AppointmentStatusHistory[]` `appointmentVitals: AppointmentVital[]` `invoices: Invoice[]` `invoiceItems: InvoiceItem[]` `invoiceTaxes: InvoiceTax[]` `invoiceDocuments: InvoiceDocument[]` `lastForPlatformAdmins: User[]` |
+| `Organization` | `owner: User?` `domains: OrganizationDomain[]` `branches: Branch[]` `memberships: Membership[]` `roles: Role[]` `invitations: Invitation[]` `subscriptions: Subscription[]` `subscriptionInvoices: SubscriptionInvoice[]` `subscriptionChanges: SubscriptionChange[]` `issuerTaxRegistrations: IssuerTaxRegistration[]` `taxRegistrationBranches: IssuerTaxRegistrationBranch[]` `taxRules: TaxRule[]` `paymentMandates: PaymentMandate[]` `paymentIntents: PaymentIntent[]` `usageCounters: UsageCounter[]` `files: StoredFile[]` `auditLogs: AuditLog[]` `dataAccessLogs: DataAccessLog[]` `numberSequences: NumberSequence[]` `specialties: Specialty[]` `qualifications: Qualification[]` `designations: Designation[]` `roleDesignations: RoleDesignation[]` `doctorProfiles: DoctorProfile[]` `doctorSpecialties: DoctorSpecialty[]` `doctorQualifications: DoctorQualification[]` `doctorBranchSettings: DoctorBranchSetting[]` `doctorCompensation: DoctorCompensation[]` `feeScheduleEntries: FeeScheduleEntry[]` `appointmentReschedules: AppointmentReschedule[]` `doctorSchedules: DoctorSchedule[]` `doctorExceptions: DoctorScheduleException[]` `patients: Patient[]` `patientRegistrations: PatientRegistration[]` `patientAddresses: PatientAddress[]` `patientContacts: PatientContact[]` `patientAllergies: PatientAllergy[]` `patientConditions: PatientCondition[]` `patientMedications: PatientMedication[]` `appointments: Appointment[]` `appointmentHistory: AppointmentStatusHistory[]` `appointmentVitals: AppointmentVital[]` `invoices: Invoice[]` `invoiceItems: InvoiceItem[]` `invoiceTaxes: InvoiceTax[]` `invoiceDocuments: InvoiceDocument[]` `unitsOfMeasure: UnitOfMeasure[]` `unitConversions: UnitConversion[]` `productCategories: ProductCategory[]` `manufacturers: Manufacturer[]` `activeIngredients: ActiveIngredient[]` `compositions: Composition[]` `compositionIngredients: CompositionIngredient[]` `storageProfiles: StorageRequirementProfile[]` `products: Product[]` `productPackagings: ProductPackaging[]` `productIdentifiers: ProductIdentifier[]` `productTaxClassifications: ProductTaxClassification[]` `medicineDetails: MedicineDetail[]` `lastForPlatformAdmins: User[]` |
 | `OrganizationDomain` | `organization: Organization` |
 | `Patient` | `organization: Organization` `user: User?` `mergedInto: Patient?` `mergedFrom: Patient[]` `registrations: PatientRegistration[]` `addresses: PatientAddress[]` `contacts: PatientContact[]` `allergies: PatientAllergy[]` `conditions: PatientCondition[]` `medications: PatientMedication[]` `appointments: Appointment[]` `vitals: AppointmentVital[]` `invoices: Invoice[]` |
 | `PatientAddress` | `organization: Organization` `patient: Patient` |
@@ -156,6 +174,11 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `Plan` | `prices: PlanPrice[]` `features: PlanFeature[]` `subscriptions: Subscription[]` |
 | `PlanFeature` | `plan: Plan` |
 | `PlanPrice` | `plan: Plan` `subscriptions: Subscription[]` |
+| `Product` | `organization: Organization?` `category: ProductCategory?` `manufacturer: Manufacturer?` `composition: Composition?` `storageProfile: StorageRequirementProfile?` `baseUnit: UnitOfMeasure` `packagings: ProductPackaging[]` `identifiers: ProductIdentifier[]` `taxClassifications: ProductTaxClassification[]` `medicineDetail: MedicineDetail?` |
+| `ProductCategory` | `organization: Organization?` `parent: ProductCategory?` `children: ProductCategory[]` `products: Product[]` |
+| `ProductIdentifier` | `organization: Organization?` `product: Product?` |
+| `ProductPackaging` | `organization: Organization?` `product: Product?` `unit: UnitOfMeasure` |
+| `ProductTaxClassification` | `organization: Organization?` `product: Product?` |
 | `Qualification` | `organization: Organization?` `doctors: DoctorQualification[]` |
 | `Role` | `organization: Organization?` `permissions: RolePermission[]` `assignments: MembershipRole[]` `invitations: Invitation[]` `designations: RoleDesignation[]` |
 | `RoleDesignation` | `organization: Organization?` `role: Role` `designation: Designation` |
@@ -165,6 +188,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `SettingValue` | `definition: SettingDefinition` |
 | `Specialty` | `organization: Organization?` `parent: Specialty?` `children: Specialty[]` `doctors: DoctorSpecialty[]` |
 | `StaffProfile` | `membership: Membership` `designation: Designation?` |
+| `StorageRequirementProfile` | `organization: Organization?` `products: Product[]` |
 | `StoredFile` | `organization: Organization?` `uploader: User?` `invoiceDocuments: InvoiceDocument[]` |
 | `Subscription` | `organization: Organization` `plan: Plan` `planPrice: PlanPrice` `mandate: PaymentMandate?` `featureOverrides: SubscriptionFeatureOverride[]` `invoices: SubscriptionInvoice[]` `intents: PaymentIntent[]` `changes: SubscriptionChange[]` |
 | `SubscriptionChange` | `organization: Organization` `subscription: Subscription` `invoice: SubscriptionInvoice?` |
@@ -174,6 +198,8 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `SubscriptionPayment` | `invoice: SubscriptionInvoice` `intent: PaymentIntent?` |
 | `TaxRule` | `organization: Organization` `invoiceTaxes: InvoiceTax[]` |
 | `TaxRuleDefault` | `invoiceTaxes: InvoiceTax[]` |
+| `UnitConversion` | `organization: Organization?` `fromUnit: UnitOfMeasure` `toUnit: UnitOfMeasure` |
+| `UnitOfMeasure` | `organization: Organization?` `conversionsFrom: UnitConversion[]` `conversionsTo: UnitConversion[]` `baseForProducts: Product[]` `packagings: ProductPackaging[]` `ingredientStrength: CompositionIngredient[]` |
 | `UsageCounter` | `organization: Organization` |
 | `User` | `identities: UserIdentity[]` `sessions: Session[]` `authTokens: AuthToken[]` `memberships: Membership[]` `ownedOrganizations: Organization[]` `lastPlatformOrganization: Organization?` `invitationsSent: Invitation[]` `auditLogs: AuditLog[]` `dataAccessLogs: DataAccessLog[]` `uploadedFiles: StoredFile[]` `doctorProfiles: DoctorProfile[]` `patientRecords: Patient[]` `patientRegistrations: PatientRegistration[]` `allergiesNoted: PatientAllergy[]` `conditionsNoted: PatientCondition[]` `medicationsNoted: PatientMedication[]` `appointmentsBooked: Appointment[]` `appointmentsCancelled: Appointment[]` `appointmentStatusChanges: AppointmentStatusHistory[]` `vitalsRecorded: AppointmentVital[]` `vitalsAmended: AppointmentVital[]` `invoicesCreated: Invoice[]` `invoicesIssued: Invoice[]` `invoicesCancelled: Invoice[]` `invoiceDocumentsGenerated: InvoiceDocument[]` |
 | `UserIdentity` | `user: User` |
@@ -183,6 +209,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | enum | values |
 | --- | --- |
 | `AddressType` | `HOME` `WORK` `OTHER` |
+| `AdministrationRoute` | `ORAL` `SUBLINGUAL` `BUCCAL` `INTRAVENOUS` `INTRAMUSCULAR` `SUBCUTANEOUS` `INTRADERMAL` `TOPICAL` `TRANSDERMAL` `INHALATION` `NASAL` `OPHTHALMIC` `OTIC` `RECTAL` `VAGINAL` `INTRATHECAL` `INTRA_ARTICULAR` `OTHER` |
 | `AllergenType` | `DRUG` `FOOD` `ENVIRONMENT` `OTHER` |
 | `AllergySeverity` | `MILD` `MODERATE` `SEVERE` |
 | `AppointmentSource` | `FRONT_DESK` `ONLINE` `PHONE` `WHATSAPP` |
@@ -200,12 +227,14 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `DoctorStatus` | `ACTIVE` `INACTIVE` `ARCHIVED` |
 | `DocumentStatus` | `PENDING` `GENERATING` `READY` `FAILED` |
 | `DocumentType` | `INVOICE_PDF` `CREDIT_NOTE_PDF` `UPLOAD` |
+| `DosageForm` | `TABLET` `CAPSULE` `SYRUP` `SUSPENSION` `SOLUTION` `INJECTION` `INFUSION` `CREAM` `OINTMENT` `GEL` `LOTION` `DROPS` `SPRAY` `INHALER` `PATCH` `SUPPOSITORY` `PESSARY` `POWDER` `GRANULES` `LOZENGE` `IMPLANT` `OTHER` |
 | `FeatureValueType` | `INT` `BOOL` |
 | `Gender` | `MALE` `FEMALE` `OTHER` `UNKNOWN` |
 | `InvoiceDiscountType` | `PERCENTAGE` `FIXED` |
 | `InvoiceLineKind` | `SUBSCRIPTION` `PRORATION_CREDIT` `PRORATION_CHARGE` `TAX` `ADJUSTMENT` |
 | `InvoiceSourceType` | `APPOINTMENT` `PROCEDURE` `SERVICE` `LAB` `PHARMACY` `INVENTORY` `OTHER` |
 | `InvoiceStatus` | `DRAFT` `FINALIZING` `ISSUED` `PARTIALLY_PAID` `PAID` `CANCELLED` `VOID` |
+| `LightSensitivity` | `NONE` `PROTECT_FROM_LIGHT` `PROTECT_FROM_DIRECT_SUNLIGHT` |
 | `MandateStatus` | `PENDING` `ACTIVE` `PAUSED` `CANCELLED` `FAILED` |
 | `MaritalStatus` | `SINGLE` `MARRIED` `WIDOWED` `DIVORCED` `SEPARATED` `UNKNOWN` |
 | `MembershipStatus` | `INVITED` `ACTIVE` `SUSPENDED` |
@@ -220,6 +249,10 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `PaymentPurpose` | `SUBSCRIPTION_START` `UPGRADE` `RENEWAL` `MANDATE_SETUP` `INVOICE_PAYMENT` |
 | `PaymentStatus` | `PENDING` `SUCCESS` `FAILED` `REFUNDED` |
 | `PayoutInterval` | `MONTHLY` `FORTNIGHTLY` `WEEKLY` `DAILY` `HOURLY` `PER_SESSION` |
+| `ProductIdentifierType` | `GTIN` `EAN` `UPC` `NDC` `NATIONAL_CODE` `MANUFACTURER_CODE` `INTERNAL_SKU` `LOCAL_REGULATORY` |
+| `ProductStatus` | `DRAFT` `ACTIVE` `DISCONTINUED` `WITHDRAWN` |
+| `ProductType` | `MEDICINE` `VACCINE` `CONSUMABLE` `SURGICAL_SUPPLY` `MEDICAL_DEVICE` `IMPLANT` `DENTAL_MATERIAL` `LAB_REAGENT` `DIAGNOSTIC_KIT` `VETERINARY_MEDICINE` `VETERINARY_CONSUMABLE` `GENERAL_CLINICAL_SUPPLY` |
+| `ReleaseType` | `IMMEDIATE` `MODIFIED` `SUSTAINED` `EXTENDED` `DELAYED` `CONTROLLED` |
 | `RescheduleInitiator` | `PATIENT` `CLINIC` |
 | `RoleScopeLevel` | `PLATFORM` `ORGANIZATION` `BRANCH` |
 | `ScheduleExceptionStatus` | `REQUESTED` `APPROVED` `REJECTED` `CANCELLED` |
@@ -236,5 +269,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `TaxScheme` | `GST` `VAT` `SALES_TAX` |
 | `TaxSplit` | `NONE` `INTRA_STATE_HALVES` |
 | `TaxTreatment` | `STANDARD` `REVERSE_CHARGE` `ZERO_RATED` `EXEMPT` `NOT_REGISTERED` `UNRATED` `PROVIDER_REQUIRED` |
+| `TrackingMode` | `NONE` `LOT_BATCH` `SERIAL` `LOT_AND_SERIAL` |
+| `UnitClass` | `COUNT` `VOLUME` `MASS` `LENGTH` `AREA` |
 | `UserStatus` | `INVITED` `ACTIVE` `SUSPENDED` `LOCKED` |
 | `WebhookProcessingStatus` | `RECEIVED` `PROCESSED` `IGNORED` `FAILED` |

@@ -4,7 +4,7 @@
 
 > Analytics seam.
 
-Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/calendar-range.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/invoice-filters.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/patient-words.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/postal.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts`
+Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/calendar-range.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/invoice-filters.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/patient-words.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/postal.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts` · `apps/web/src/lib/theme.ts`
 
 ## fn
 
@@ -16,6 +16,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `api` | `(path: string, request: ApiRequest): Promise<ApiResult<T>>` | `apps/web/src/lib/api.ts:160` |  |
 | `apiBinary` | `(path: string, request: ApiRequest): Promise<ApiFile>` | `apps/web/src/lib/api.ts:221` |  |
 | `apiHeaders` <sub>local</sub> | `(request: ApiRequest, accept: string): Promise<Record<string, string>>` | `apps/web/src/lib/api.ts:133` |  |
+| `applyTheme` | `(element: { dataset: DOMStringMap }, preference: ThemePreference, prefersDark: boolean): void` | `apps/web/src/lib/theme.ts:182` |  |
 | `branchesInScope` | `(slug: string): Promise<BranchSummary[]>` | `apps/web/src/lib/session.ts:134` |  |
 | `buildTree` | `(nodes: SpecialtySummary[]): TaxonomyTree` | `apps/web/src/lib/taxonomy.ts:41` |  |
 | `byOrderThenName` <sub>local</sub> | `(a: SpecialtySummary, b: SpecialtySummary): number` | `apps/web/src/lib/taxonomy.ts:38` |  |
@@ -53,6 +54,8 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `pathTo` | `(tree: TaxonomyTree, id: string): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:76` |  |
 | `rangeFor` | `(view: BoardView, anchor: string): DateRange` | `apps/web/src/lib/calendar-range.ts:141` | The span a view covers around its anchor day. |
 | `rangeLabel` | `(view: BoardView, range: DateRange): string` | `apps/web/src/lib/calendar-range.ts:264` |  |
+| `readCookie` | `(jar: string, name: string): string \| undefined` | `apps/web/src/lib/theme.ts:192` | Read a cookie out of a `document.cookie` string. Empty when absent. |
+| `resolveAppearance` | `(appearance: Appearance, prefersDark: boolean): ResolvedAppearance` | `apps/web/src/lib/theme.ts:164` |  |
 | `searchNodes` | `(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:133` |  |
 | `setSessionCookies` | `(session: AuthSession): Promise<void>` | `apps/web/src/lib/session.ts:54` |  |
 | `shiftDays` | `(date: string, days: number): string` | `apps/web/src/lib/calendar-range.ts:53` | `YYYY-MM-DD` shifted by whole days. |
@@ -62,28 +65,41 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `startOfWeek` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:87` |  |
 | `stepAnchor` | `(view: BoardView, anchor: string, direction: -1 \| 1): string` | `apps/web/src/lib/calendar-range.ts:153` | Where the arrows go: one day, one week or one month either side. |
 | `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:148` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
+| `themeBootScript` | `(): string` | `apps/web/src/lib/theme.ts:242` |  |
 | `timeFormatOf` | `(slug: string): Promise<TimeFormat>` | `apps/web/src/lib/session.ts:215` |  |
 | `timezoneOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:187` |  |
+| `toAccent` | `(value: string \| undefined): Accent` | `apps/web/src/lib/theme.ts:143` |  |
+| `toAppearance` | `(value: string \| undefined): Appearance` | `apps/web/src/lib/theme.ts:137` |  |
 | `toBoardView` | `(value: string \| undefined): BoardView` | `apps/web/src/lib/calendar-range.ts:40` | Anything else — a hand-edited URL, a missing parameter — is the day view. |
 | `todayIn` | `(timezone: string): string` | `apps/web/src/lib/calendar-range.ts:170` |  |
 | `track` | `(event: AnalyticsEvent, props?: Record<string, string \| number>): void` | `apps/web/src/lib/analytics.ts:24` |  |
 | `weekdayIndex` | `(date: string): number` | `apps/web/src/lib/calendar-range.ts:127` |  |
 | `weekdayName` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:136` | "Monday", "Tuesday" … for the day a date falls on. |
 | `withCurrent` | `(options: LocaleOption[], current: string): LocaleOption[]` | `apps/web/src/lib/locale-options.ts:59` |  |
+| `writeThemeCookie` | `(name: string, value: string): void` | `apps/web/src/lib/theme.ts:215` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `ACCENT_COOKIE` | `'rcln_accent'` | `apps/web/src/lib/theme.ts:114` |  |
+| `ACCENT_OPTIONS` | `: ReadonlyArray<{ id: Accent; label: string; description: string; }>` | `apps/web/src/lib/theme.ts:76` |  |
+| `ACCENTS` | `['surgical', 'ember', 'indigo', 'plum', 'graphite'] as const` | `apps/web/src/lib/theme.ts:66` |  |
 | `ACCESS_COOKIE` | `'rcln_at'` | `apps/web/src/lib/session-cookie.ts:15` |  |
 | `ADMIN_HOST` | ``admin.${ROOT_DOMAIN}`` | `apps/web/src/lib/api.ts:119` | The admin console's host. `resolveTenant` matches this exactly and skips it. |
 | `API_URL` <sub>local</sub> | `process.env['API_INTERNAL_URL'] ?? 'http://api:5000'` | `apps/web/src/lib/api.ts:31` |  |
+| `APPEARANCE_COOKIE` | `'rcln_appearance'` | `apps/web/src/lib/theme.ts:113` |  |
+| `APPEARANCE_OPTIONS` | `: ReadonlyArray<{ id: Appearance; label: string; description: string; }>` | `apps/web/src/lib/theme.ts:52` |  |
+| `APPEARANCES` | `['light', 'dark', 'system'] as const` | `apps/web/src/lib/theme.ts:37` |  |
 | `BILLING_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:38` |  |
 | `BOARD_VIEWS` | `: BoardView[]` | `apps/web/src/lib/calendar-range.ts:25` |  |
 | `CLINICAL_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:90` |  |
 | `CURRENCIES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:40` |  |
+| `DARK_QUERY` | `'(prefers-color-scheme: dark)'` | `apps/web/src/lib/theme.ts:173` | The media query the `system` appearance follows. One string, two callers. |
 | `DATE_PATTERN` <sub>local</sub> | `/^\d{4}-\d{2}-\d{2}$/` | `apps/web/src/lib/calendar-range.ts:33` |  |
 | `DAY_MONTH` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:233` |  |
+| `DEFAULT_ACCENT` | `: Accent` | `apps/web/src/lib/theme.ts:74` | `surgical` is the palette the product shipped with. It is the default because a clinic that never opens this screen must keep the screens it already knows, to … |
+| `DEFAULT_APPEARANCE` | `: Appearance` | `apps/web/src/lib/theme.ts:43` |  |
 | `GENDER_WORDS` | `: Record<string, string>` | `apps/web/src/lib/patient-words.ts:24` |  |
 | `GENDERS` | `: SelectOption[]` | `apps/web/src/lib/patient-words.ts:17` |  |
 | `INVOICE_FILTER_KEYS` | `[ 'status', 'sourceType', 'branchId', 'patientId', 'invoiceNumber', 'from', 'to', 'page',…` | `apps/web/src/lib/invoice-filters.ts:21` |  |
@@ -99,6 +115,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `ROOT_DOMAIN` <sub>local</sub> | `process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me'` | `apps/web/src/lib/api.ts:32` |  |
 | `ROOTS` | `'__roots__'` | `apps/web/src/lib/taxonomy.ts:36` |  |
 | `SHORT_DAY` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:220` |  |
+| `THEME_COOKIE_MAX_AGE` | `365 * 24 * 60 * 60` | `apps/web/src/lib/theme.ts:124` |  |
 | `TIMEZONES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:25` |  |
 | `TYPE_LABELS` <sub>local</sub> | `: Record<TaxonomyNodeType, string>` | `apps/web/src/lib/taxonomy.ts:107` |  |
 | `WEEKDAY_INITIALS` | `['M', 'T', 'W', 'T', 'F', 'S', 'S']` | `apps/web/src/lib/calendar-range.ts:133` | Column headings for a Monday-first grid. |
@@ -126,12 +143,16 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `LocaleOption` | `{ value, label }` | `apps/web/src/lib/locale-options.ts:20` |  |
 | `PostalLookup` | `{ city, region, regionCode }` | `apps/web/src/lib/postal.ts:21` | What a postcode told us about where it is. Every field optional — a lookup that resolves the state but not the city is still worth having. |
 | `TaxonomyTree` | `{ byId, childrenOf }` | `apps/web/src/lib/taxonomy.ts:22` |  |
+| `ThemePreference` | `{ appearance, accent }` | `apps/web/src/lib/theme.ts:147` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `Accent` | `(typeof ACCENTS)[number]` | `apps/web/src/lib/theme.ts:67` |  |
 | `AnalyticsEvent` | `\| 'cta_book_demo' \| 'cta_log_in' \| 'demo_request_submitted' \| 'demo_request_failed' \| 'pricing_viewed' \| 'cta_start_clinic' \| 'signup_completed' \| 'signup_fail…` | `apps/web/src/lib/analytics.ts:14` |  |
+| `Appearance` | `(typeof APPEARANCES)[number]` | `apps/web/src/lib/theme.ts:38` |  |
 | `BoardView` | `'day' \| 'week' \| 'month'` | `apps/web/src/lib/calendar-range.ts:23` | How much of the diary is on screen. |
 | `InvoiceFilterKey` | `(typeof INVOICE_FILTER_KEYS)[number]` | `apps/web/src/lib/invoice-filters.ts:32` |  |
 | `InvoiceFilters` | `Partial<Record<InvoiceFilterKey, string>>` | `apps/web/src/lib/invoice-filters.ts:33` |  |
+| `ResolvedAppearance` | `'light' \| 'dark'` | `apps/web/src/lib/theme.ts:41` | What the page is actually painted as. `system` resolves to one of these. |

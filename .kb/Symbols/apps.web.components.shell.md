@@ -4,20 +4,36 @@
 
 > The signed-in shell.
 
-Files: `apps/web/src/components/shell/app-header.tsx` · `apps/web/src/components/shell/app-nav.tsx` · `apps/web/src/components/shell/platform-strip.tsx` · `apps/web/src/components/shell/scope-switcher.tsx` · `apps/web/src/components/shell/sign-out-button.tsx`
+Files: `apps/web/src/components/shell/app-header.tsx` · `apps/web/src/components/shell/app-nav.tsx` · `apps/web/src/components/shell/platform-strip.tsx` · `apps/web/src/components/shell/scope-switcher.tsx` · `apps/web/src/components/shell/sign-out-button.tsx` · `apps/web/src/components/shell/theme-script.tsx` · `apps/web/src/components/shell/theme-settings.tsx` · `apps/web/src/components/shell/theme-sync.tsx`
 
 ## component
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `AccentPreview` <sub>local</sub> | `({ accent, resolved }: { accent: Accent; resolved: ResolvedA…)` | `apps/web/src/components/shell/theme-settings.tsx:328` |  |
 | `AppHeader` | `({ scopes, user, signOut, nav, }: { /** The scope chain. Seg…)` | `apps/web/src/components/shell/app-header.tsx:32` |  |
 | `AppNav` | `({ label, links }: { label: string; links: NavLink[] })` | `apps/web/src/components/shell/app-nav.tsx:22` |  |
 | `Bar` <sub>local</sub> | `({ children }: { children: React.ReactNode })` | `apps/web/src/components/shell/platform-strip.tsx:62` |  |
+| `Choice` <sub>local</sub> | `({ name, value, label, description, checked, onSelect, child…)` | `apps/web/src/components/shell/theme-settings.tsx:192` |  |
+| `Group` <sub>local</sub> | `({ legend, hint, children, }: { legend: string; hint: string…)` | `apps/web/src/components/shell/theme-settings.tsx:160` |  |
 | `InsideClinic` <sub>local</sub> | `({ slug, organizationName, adminName, expiresAt, }: { slug: …)` | `apps/web/src/components/shell/platform-strip.tsx:75` |  |
+| `Miniature` <sub>local</sub> | `({ appearance, accent, half, }: { appearance: ResolvedAppear…)` | `apps/web/src/components/shell/theme-settings.tsx:287` |  |
+| `ModePreview` <sub>local</sub> | `({ mode, accent }: { mode: Appearance; accent: Accent })` | `apps/web/src/components/shell/theme-settings.tsx:266` |  |
 | `PlatformStrip` | `(props: \| { mode: 'console' } \| { mode: 'inside'; slug: stri…)` | `apps/web/src/components/shell/platform-strip.tsx:36` |  |
 | `ScopeLabel` | `({ label, name }: { label: string; name: string })` | `apps/web/src/components/shell/scope-switcher.tsx:208` | A segment of the chain that cannot be switched — the clinic you belong to. Rendered as the identifier it is, in mono, so it reads as the same class of fact as … |
 | `ScopeSwitcher` | `({ label, options, currentId, placeholder, pending = false, …)` | `apps/web/src/components/shell/scope-switcher.tsx:41` |  |
 | `SignOutButton` | `({ action, redirectTo, }: { action: () => Promise<void>; /**…)` | `apps/web/src/components/shell/sign-out-button.tsx:18` |  |
+| `ThemeScript` | `()` | `apps/web/src/components/shell/theme-script.tsx:17` |  |
+| `ThemeSettings` | `({ initialAppearance, initialAccent, }: { initialAppearance:…)` | `apps/web/src/components/shell/theme-settings.tsx:42` |  |
+| `ThemeSync` | `()` | `apps/web/src/components/shell/theme-sync.tsx:31` |  |
+
+## fn
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `deviceIsDark` <sub>local</sub> | `()` | `apps/web/src/components/shell/theme-settings.tsx:151` |  |
+| `serverIsLight` <sub>local</sub> | `()` | `apps/web/src/components/shell/theme-settings.tsx:154` | The server has no device. It renders the default, and the client corrects it. |
+| `subscribeToScheme` <sub>local</sub> | `(onChange: () => void): () => void` | `apps/web/src/components/shell/theme-settings.tsx:145` |  |
 
 ## const
 

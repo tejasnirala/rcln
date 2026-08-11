@@ -1,0 +1,41 @@
+-- Rename one index. Nothing else changes, and no data moves.
+--
+-- ── WHY A MIGRATION FOR A COSMETIC RENAME ────────────────────────────────────
+-- `fee_schedule_and_doctor_compensation` replaced Prisma's generated unique
+-- index with a hand-written one carrying `NULLS NOT DISTINCT` — correctly, and
+-- for the reason documented there. But it gave the replacement a DIFFERENT NAME
+-- (`fee_schedule_entries_scope_key`) from the one Prisma derives from the
+-- `@@unique` in the schema.
+--
+-- Prisma compares indexes BY NAME. So from that day on, every single
+-- `prisma migrate dev` anybody ran — for any unrelated feature — silently
+-- emitted this rename into their migration. That is not hypothetical: the PI-1
+-- migration picked it up, along with a `DROP INDEX` on `invoices` from the same
+-- class of mismatch, and applied both before anyone looked. The invoices half
+-- deleted a real index, and its auto-generated timestamp sorted BEFORE the
+-- migration that creates that index, so a fresh `migrate deploy` would have
+-- failed on a database nobody had built yet.
+--
+-- Renaming it here empties that diff permanently. The other half of the same
+-- bug is fixed in the schema: `invoices` now DECLARES
+-- `@@index([organizationId, practitionerProfileId])`, which it always had in
+-- the database and never in `invoicing.prisma`.
+--
+-- ⚠️ A RENAME PRESERVES `NULLS NOT DISTINCT`. The index definition is untouched
+--   — same columns, same uniqueness, same null semantics. Only the label moves.
+--   Do NOT "simplify" this into a DROP + CREATE, which would drop the null
+--   semantics on the way past unless they were retyped exactly, and briefly
+--   leave the clinic able to hold two organization-wide prices for one fee type.
+--
+-- ⚠️ THE COMMENT IN THE `fee_schedule_and_doctor_compensation` MIGRATION STILL
+--   NAMES THE OLD INDEX, and is left alone deliberately — Prisma checksums an
+--   applied migration and editing one in place breaks every existing database.
+--   That file describes what was true when it ran, which is what a migration is.
+--
+-- THE RULE THIS EXISTS TO TEACH: if you hand-write an index in a migration,
+-- keep the name Prisma generates for it, and declare it in the schema. A
+-- hand-written index the schema does not know about is a `DROP INDEX` waiting
+-- for the next unrelated feature to carry it into production.
+
+-- RenameIndex
+ALTER INDEX "fee_schedule_entries_scope_key" RENAME TO "fee_schedule_entries_organization_id_doctor_profile_id_bran_key";

@@ -149,6 +149,35 @@ the app separate class identities.
 ESM throughout: relative imports need the `.js` extension even from `.ts`
 source.
 
+## Web and UI
+
+`apps/web/AGENTS.md` is the full brief and is worth reading before any screen.
+The three rules that bite hardest:
+
+- **Never write a raw colour.** Not `bg-white`, not `text-neutral-900`, not a hex
+  in a `style` prop, not `amber-50`. The palette is ten combinations —
+  light | dark × five accents — and a literal is correct in exactly one of them.
+  Use the tokens: `bg-card`, `text-ink`, `border-rule`, `text-drape`,
+  `bg-drape-tint`, and `bg-ink text-paper` for a deliberately inverted band.
+  → [ADR-0017](decisions/0017-theme-is-a-device-preference.md)
+- **Never format a date or a time by hand.** `formatClinicTime`,
+  `formatClinicDate` and `formatClinicDateTime` from `lib/format.ts`, with the
+  zone and the clock format from the row or from `timezoneOf(slug)` /
+  `timeFormatOf(slug)`. A bare `toLocaleString()` renders in the browser's zone
+  in the browser and the **container's UTC** on a server-rendered page, and
+  nothing on screen says it shifted. → § Dates and times above
+- **Tenant links never carry `/t/<slug>`.** `proxy.ts` adds it on the way in, so
+  write `/patients/${id}`. A `/t/${slug}/…` href typechecks, reads plausibly, and
+  404s when clicked because the proxy rewrites it a second time.
+
+Form controls come from `components/ui/field.tsx` — `Input`, `Select`,
+`Textarea` — which wire the label, hint, error, `aria-describedby` and
+`aria-invalid` for you. Do not hand-assemble a `Field` around a bare `<input>`.
+
+⚠️ **`apps/web` has no test suite.** `pnpm test` there prints "no web tests yet"
+and exits 0, so nothing in this section is enforced by anything except review.
+Contrast ratios, target sizes and the theme pairings are hand-measured.
+
 ## Workspace packages
 
 | Package             | Holds                                                             |

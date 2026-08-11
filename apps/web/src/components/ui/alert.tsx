@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { CircleAlert, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 /**
@@ -10,34 +11,77 @@ import { cn } from '@/lib/cn';
  * on screen but unlinked from the live region does not exist to a screen reader
  * (apps/web/AGENTS.md), so the role is chosen by tone rather than left to the
  * caller: `alert` interrupts, `status` waits its turn.
+ *
+ * ⚠️ THE THREE OUTCOME TONES DO NOT MOVE WITH THE ACCENT, AND `info` DOES.
+ *   That is the split, not an oversight. Success, warning and error are facts
+ *   about what happened and are drawn from the fixed status ramp in theme.css —
+ *   a clinic that chose the orange accent has not decided that a declined
+ *   payment is orange. `info` is a note rather than an outcome, so it is drawn
+ *   in the accent, which is also what keeps the three dozen existing `tone="info"`
+ *   call sites looking exactly as they did before the theme existed.
+ *
+ *   Error used to be `signal` — the live-state orange. It is `danger` now,
+ *   because under a warm accent the old colour made a failure and a primary
+ *   button the same hue, and `signal` still has a job: the thing happening now.
+ *
+ * Every tone carries a glyph and a word for a screen reader as well as a colour
+ * (WCAG 1.4.1). Neither the colour nor the icon is load-bearing on its own.
  */
+const TONES = {
+  error: {
+    className: 'ring-danger/30 bg-danger-tint text-danger',
+    Icon: CircleAlert,
+    word: 'Error',
+  },
+  warning: {
+    className: 'ring-warning/30 bg-warning-tint text-warning',
+    Icon: TriangleAlert,
+    word: 'Warning',
+  },
+  success: {
+    className: 'ring-success/30 bg-success-tint text-success',
+    Icon: CircleCheck,
+    word: 'Done',
+  },
+  info: {
+    className: 'ring-drape/25 bg-drape-tint/50 text-drape-deep',
+    Icon: Info,
+    word: 'Note',
+  },
+} as const;
+
 export function Alert({
   tone,
   children,
   className,
 }: {
-  tone: 'error' | 'info';
+  tone: keyof typeof TONES;
   children: React.ReactNode;
   className?: string;
 }) {
   if (!children) return null;
 
-  const isError = tone === 'error';
+  const { className: toneClass, Icon, word } = TONES[tone];
+
   return (
     <p
-      role={isError ? 'alert' : 'status'}
+      role={tone === 'error' ? 'alert' : 'status'}
       aria-live="polite"
       // Focusable so useOutcomeFocus can move the user here on submit.
       tabIndex={-1}
       className={cn(
-        'rounded-md px-4 py-3 text-[0.8125rem] leading-relaxed ring-1',
-        isError
-          ? 'ring-signal/25 bg-signal-tint text-signal'
-          : 'ring-drape/25 bg-drape-tint/50 text-drape-deep',
+        'flex items-start gap-2 rounded-md px-4 py-3 text-[0.8125rem] leading-relaxed ring-1',
+        toneClass,
         className
       )}
     >
-      {children}
+      {/* `mt-px` sits the glyph on the first line's cap height rather than its
+          box, which is half a pixel off on a 13px line. */}
+      <Icon className="mt-px size-4 shrink-0" aria-hidden="true" />
+      <span>
+        <span className="sr-only">{word}: </span>
+        {children}
+      </span>
     </p>
   );
 }

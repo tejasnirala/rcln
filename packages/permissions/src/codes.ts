@@ -17,6 +17,7 @@ export const MODULES = [
   'appointment',
   'clinical',
   'lab',
+  'product',
   'pharmacy',
   'inventory',
   'billing',
@@ -238,6 +239,40 @@ export const PERMISSIONS = {
   LAB_RESULT_VERIFY: 'lab.result.verify',
   LAB_REPORT_RELEASE: 'lab.report.release',
   LAB_MASTER_MANAGE: 'lab.master.manage',
+
+  // -- product ---------------------------------------------------------------
+  /*
+   * The catalogue: what a thing IS. Gloves, implants, reagents, dental
+   * materials and medicines, in one table (PI-ADR-001).
+   *
+   * ⚠️ A NEW MODULE RATHER THAN `pharmacy.medicine.*`, AND `pharmacy.medicine.*`
+   *   IS KEPT (PI-ADR-011). The obvious move is to gate the catalogue behind the
+   *   pharmacy codes that already exist — and it is wrong, because under
+   *   PI-ADR-001 the catalogue is not a pharmacy concern. A dentist maintains
+   *   dental materials and a lab manager maintains reagents; neither should need
+   *   a permission that also lets them dispense a controlled drug.
+   *
+   *   So the split is: `product.definition.*` is the catalogue, and
+   *   `pharmacy.medicine.*` narrows to the MEDICINE-SPECIFIC attributes —
+   *   dosage form, route, release type, the prescription hint. A pharmacist
+   *   holds both; a dental store manager holds only the first pair. Nothing is
+   *   deleted and no grant is revoked, so this is additive and reversible.
+   *
+   * ⚠️ A PRODUCT'S TAX CLASSIFICATION IS NOT HERE. It is gated by
+   *   `billing.tax.manage`, because deciding a product's tax category decides
+   *   what every future patient is charged for it — the accountant's call, not
+   *   the storekeeper's. The catalogue already draws this line for fee schedules
+   *   and tax rules; see the route file.
+   */
+  PRODUCT_DEFINITION_READ: 'product.definition.read',
+  PRODUCT_DEFINITION_MANAGE: 'product.definition.manage',
+  /*
+   * Separate from DEFINITION_MANAGE because it is a different kind of claim.
+   * A name is a label; a GTIN is what a scanner resolves to a product, so a
+   * wrong one silently dispenses the wrong medicine against a correct scan.
+   * Whoever reconciles barcodes is not always whoever names things.
+   */
+  PRODUCT_IDENTIFIER_MANAGE: 'product.identifier.manage',
 
   // -- pharmacy --------------------------------------------------------------
   MEDICINE_READ: 'pharmacy.medicine.read',

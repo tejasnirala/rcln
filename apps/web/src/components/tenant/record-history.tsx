@@ -150,7 +150,7 @@ export function HistoryDialog({
        * three times and the sheet became a column of fragments; the extra width
        * is what lets a change render as one line.
        */
-      className="open:flex bg-card text-ink ml-auto h-dvh max-h-dvh w-full max-w-2xl flex-col p-0 shadow-2xl backdrop:bg-ink/40"
+      className="open:flex bg-card text-ink ml-auto h-dvh max-h-dvh w-full max-w-2xl flex-col p-0 shadow-2xl backdrop:bg-scrim/60"
     >
       <div className="border-rule flex items-start gap-4 border-b p-5">
         <div className="min-w-0">

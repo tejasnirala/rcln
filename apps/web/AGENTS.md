@@ -2,7 +2,10 @@
 
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Building UI here
@@ -25,6 +28,43 @@ Two calibrations for this product, which the skill cannot know:
   palette, type scale and spacing; every screen after it inherits them. A second
   screen with its own distinct direction is a bug, not a fresh design. Read what
   the existing screens already do before proposing anything new.
+
+## Colour comes from a token, and the token comes from the theme
+
+The palette is not in `globals.css` any more. It is in `src/app/theme.css`, which
+composes an **appearance** (light | dark) with an **accent** (five palettes,
+`surgical` being today's design and the default) and publishes the result as
+`--rcln-*`. `globals.css` maps those onto the Tailwind colour names with
+`@theme inline`, so nothing about how you write a screen changes: keep using
+`bg-card`, `text-ink`, `border-rule`, `text-drape`, `bg-drape-tint`.
+
+What this does change:
+
+- **Never write a raw colour.** Not `bg-white`, not `text-neutral-900`, not a hex
+  in a `style` prop, not `amber-50`. Each of those is correct in exactly one of
+  the ten themes and wrong in the other nine, and it will look fine in review
+  because review happens in the default one. `text-white` on a solid accent is
+  the same bug: the pair is `bg-drape text-paper`.
+- **An outcome is not the accent.** `success`, `warning` and `danger` are fixed
+  in both appearances — use them (and `Alert`, which pairs each with a glyph and
+  a word) for anything that reports what happened. `signal` still means one
+  thing: happening right now.
+- **`bg-ink text-paper` is the inversion idiom**, and it inverts with the theme —
+  a deliberately dark band becomes a deliberately light one in dark mode, which
+  is what you want. `--rcln-scrim` is the exception: a modal veil is dark in both
+  appearances, so use `bg-scrim/60`, never `bg-ink/40`.
+- **Reading a token in JavaScript reads `--rcln-*`, not `--color-*`.**
+  `@theme inline` means the Tailwind names are never emitted as real custom
+  properties; `getPropertyValue('--color-drape')` returns an empty string.
+- **Adding an accent is one block in `theme.css` and one entry in `lib/theme.ts`.**
+  If it needs a component change, it is not an accent.
+  ⚠️ **Nothing checks your ramp for you.** There is no web test suite — `pnpm test`
+  in `apps/web` prints "no web tests yet" and exits 0. A new accent therefore has
+  to be contrast-measured BY HAND against the rules below, in **both**
+  appearances, before it ships: `ink`/`muted` on `paper` and on `card`,
+  `paper` on `drape`, and the focus ring on every surface it can land on. Ten
+  combinations already exist and a sixth accent adds two more. "It looks fine" is
+  how the marketing surface shipped with five contrast failures.
 
 ## Links inside a tenant never carry `/t/<slug>`
 
