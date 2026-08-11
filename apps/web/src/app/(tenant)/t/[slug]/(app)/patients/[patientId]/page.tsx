@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import type { BranchListResponse, PatientDetail, PatientHistoryResponse } from '@rcln/contracts';
+import type { PatientDetail, PatientHistoryResponse } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken, getSession } from '@/lib/session';
+import { branchesInScope, getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { PatientChart } from '@/components/tenant/patient-chart';
 
@@ -66,7 +66,10 @@ export default async function PatientPage({
           accessToken,
         })
       : Promise.resolve(null),
-    api<BranchListResponse>('/api/v1/branches', { slug, accessToken }),
+    // Session, not `GET /branches` — see `branchesInScope`. Registering a
+    // patient at another branch is a front-desk act, and the front desk does
+    // not hold `branch.read`.
+    branchesInScope(slug),
   ]);
 
   return (
@@ -75,7 +78,7 @@ export default async function PatientPage({
       patient={patient.data}
       history={history?.ok && history.data ? history.data : null}
       canReadHistory={canReadHistory}
-      branches={branches.ok && branches.data ? branches.data.branches : []}
+      branches={branches}
       canUpdate={permissions.includes(PERMISSIONS.PATIENT_UPDATE)}
       canCreate={permissions.includes(PERMISSIONS.PATIENT_CREATE)}
       canWriteHistory={permissions.includes(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)}

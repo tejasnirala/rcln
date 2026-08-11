@@ -1,3 +1,5 @@
+import { DEFAULT_TIME_FORMAT, type TimeFormat } from '@rcln/contracts';
+
 /**
  * Dates that render the same on the server and in the browser.
  *
@@ -49,6 +51,86 @@ export function formatLongDate(value: string | Date): string {
     dateStyle: 'long',
     timeZone: 'UTC',
   }).format(new Date(value));
+}
+
+// ---------------------------------------------------------------------------
+// Clinical time
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ EVERYTHING ABOVE IS UTC AND EVERYTHING BELOW IS THE CLINIC'S ZONE. That is
+ *   not an inconsistency — it is the distinction the header of this file draws.
+ *   A billing period is a contractual interval that must read the same to a
+ *   clinic owner in Kolkata and an accountant in Dublin. An appointment is an
+ *   event in somebody's day: 16:40 means 16:40 WHERE THE CLINIC IS, and it is
+ *   wrong in every other zone.
+ *
+ * ⚠️ THE ZONE IS ALWAYS PASSED IN, NEVER DEFAULTED, and never read from the
+ *   runtime. `toLocaleString()` with no zone is the browser's zone in the
+ *   browser and the CONTAINER'S UTC on the server — which is how a 16:40 IST
+ *   booking rendered as 11:10 on the consultation page, plausibly and silently,
+ *   five and a half hours out. Appointments carry `timezone` on the row for
+ *   exactly this; other clinical screens take it from `timezoneOf(slug)`.
+ *
+ * ⚠️ THE CLOCK FACE IS THE CLINIC'S CHOICE, NOT A CONSTANT. This was pinned to
+ *   24-hour on the reasoning that a diary is read as "16:40". That is true of a
+ *   hospital in the UK and false of most Indian outpatient clinics, whose
+ *   appointment cards say "4:40 pm". It is now `locale.time_format`, resolved
+ *   per branch and carried on the session — `timeFormatOf(slug)` for a screen,
+ *   or the branch's own `timeFormat` where one is in hand. It defaults to `12H`.
+ *
+ *   ⚠️ IT IS DISPLAY ONLY. Storage is UTC everywhere, the zone is the branch's,
+ *     and this decides nothing but the shape of the string.
+ *
+ * ⚠️ `en-GB` PINNED FOR THE SAME REASON AS ABOVE. A pinned locale is the only
+ *   kind that renders identically on the server and in the browser — so the
+ *   12/24 choice is passed to `hour12` explicitly rather than being left to a
+ *   locale, which would drag the date order along with it.
+ */
+const CLINICAL_LOCALE = 'en-GB';
+
+/**
+ * `4:40 pm` or `16:40`. The time alone, for a row that already says which day.
+ *
+ * ⚠️ `timeFormat` DEFAULTS RATHER THAN BEING REQUIRED, unlike `timeZone`. A
+ *   missing zone renders a genuinely wrong instant — five and a half hours out,
+ *   plausibly — and must never be guessable. A missing format renders the right
+ *   instant in the wrong shape, which is a preference, not a bug, and forcing
+ *   every call site to thread it would be noise for that.
+ */
+export function formatClinicTime(
+  value: string | Date,
+  timeZone: string,
+  timeFormat: TimeFormat = DEFAULT_TIME_FORMAT
+): string {
+  return new Intl.DateTimeFormat(CLINICAL_LOCALE, {
+    /*
+     * `numeric` under 12-hour, `2-digit` under 24. An appointment card reads
+     * "4:40 pm", never "04:40 pm" — but a 24-hour column has to stay a column,
+     * and "9:05" next to "16:40" does not line up even in tabular figures.
+     */
+    hour: timeFormat === '12H' ? 'numeric' : '2-digit',
+    minute: '2-digit',
+    hour12: timeFormat === '12H',
+    timeZone,
+  }).format(new Date(value));
+}
+
+/** `9 Aug 2026`. */
+export function formatClinicDate(value: string | Date, timeZone: string): string {
+  return new Intl.DateTimeFormat(CLINICAL_LOCALE, {
+    dateStyle: 'medium',
+    timeZone,
+  }).format(new Date(value));
+}
+
+/** `9 Aug 2026, 4:40 pm`. The full stamp, for a heading or an audit row. */
+export function formatClinicDateTime(
+  value: string | Date,
+  timeZone: string,
+  timeFormat: TimeFormat = DEFAULT_TIME_FORMAT
+): string {
+  return `${formatClinicDate(value, timeZone)}, ${formatClinicTime(value, timeZone, timeFormat)}`;
 }
 
 /**

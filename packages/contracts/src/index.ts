@@ -8,4 +8,7 @@ export * from './doctors.js';
 export * from './patients.js';
 export * from './appointments.js';
 export * from './billing.js';
+export * from './invoices.js';
+export * from './fees.js';
+export * from './tax.js';
 export * from './locale.js';

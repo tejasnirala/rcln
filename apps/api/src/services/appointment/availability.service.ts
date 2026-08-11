@@ -38,6 +38,8 @@ import type {
   AvailabilityResponse,
   AvailabilitySlot,
   SlotUnavailableReason,
+  WorkingDayReason,
+  WorkingDaysResponse,
 } from '@rcln/contracts';
 import { NotFoundError } from '../../utils/errors.js';
 import { effectiveSlotMinutes } from '../doctor/doctor.service.js';
@@ -351,6 +353,151 @@ export async function computeAvailability(
      * well still exist, and the honest answer is that nothing can be booked.
      */
     notWorking: blocks.length === 0 || doctor.status !== 'ACTIVE',
+  };
+}
+
+/**
+ * One row of the working-day probe, straight out of Postgres.
+ *
+ * Every flag is an `EXISTS`, so the whole span is one statement and one pass —
+ * see `computeWorkingDays`.
+ */
+interface WorkingDayRow {
+  date: string;
+  is_past: boolean;
+  scheduled: boolean;
+  extra_shift: boolean;
+  closed: boolean;
+  blocked: boolean;
+}
+
+/**
+ * Which days this doctor can be booked on at all, across a span.
+ *
+ * ⚠️ THIS IS NOT `computeAvailability` RUN IN A LOOP, AND IT MUST NOT BECOME
+ *   THAT. The picker asks about a month at a time and only needs a bit per day;
+ *   the engine cuts slots, resolves the settings ladder and reads every booking.
+ *   Thirty of those, on every change of doctor, to grey out four Wednesdays is
+ *   not a trade worth making.
+ *
+ *   What it DOES share is the facts and their meanings — the same
+ *   `doctor_schedules` validity window, the same `EXTRACT(dow)` convention, the
+ *   same "only APPROVED exceptions count", the same `branch_closures`, the same
+ *   treatment of an EXTRA_SHIFT as a working block that the recurring week does
+ *   not have. Where the two could drift, they are wrong together rather than
+ *   separately, and the slot grid remains the authority: this only decides what
+ *   the picker offers.
+ *
+ * ⚠️ "BOOKABLE" MEANS "HAS HOURS", NOT "HAS A FREE SLOT". A full day stays
+ *   selectable. Greying it out would hide the day somebody has just cancelled
+ *   out of, and the slot grid already says, per slot, what is taken.
+ *
+ * ⚠️ A LEAVE ONLY REMOVES A DAY WHEN IT COVERS THE WHOLE OF IT. A doctor away
+ *   from two until six is still bookable that morning, and a picker that greys
+ *   the day out would lose those bookings entirely. Partial leave is what the
+ *   slot grid marks `ON_LEAVE`.
+ *
+ * `PAST` is decided against `now()` in the BRANCH's zone, in SQL, for the reason
+ * stated on `branchLocalDate` below.
+ */
+export async function computeWorkingDays(
+  tx: TxClient,
+  input: { branchId: string; doctorProfileId: string; from: string; to: string }
+): Promise<WorkingDaysResponse> {
+  const branch = await tx.$queryRaw<{ id: string; timezone: string }[]>`
+    SELECT b.id, b.timezone FROM branches b
+     WHERE b.id = ${input.branchId}::uuid AND b.deleted_at IS NULL
+  `;
+  const found = branch[0];
+  /* Org-scoped by RLS, so another clinic's branch is a 404, never a 403. */
+  if (!found) throw new NotFoundError('Branch');
+
+  const doctor = await tx.doctorProfile.findFirst({
+    where: { id: input.doctorProfileId, deletedAt: null },
+    select: { id: true, status: true },
+  });
+  if (!doctor) throw new NotFoundError('Doctor');
+
+  const rows = await tx.$queryRaw<WorkingDayRow[]>`
+    WITH b AS (
+      SELECT id, timezone FROM branches WHERE id = ${input.branchId}::uuid
+    ),
+    span AS (
+      SELECT generate_series(${input.from}::date, ${input.to}::date, interval '1 day')::date AS day
+    )
+    SELECT to_char(span.day, 'YYYY-MM-DD') AS date,
+           span.day < (now() AT TIME ZONE b.timezone)::date AS is_past,
+           EXISTS (
+             SELECT 1 FROM doctor_schedules s
+              WHERE s.branch_id         = b.id
+                AND s.doctor_profile_id = ${input.doctorProfileId}::uuid
+                AND s.is_active
+                AND s.day_of_week = EXTRACT(dow FROM span.day)
+                AND s.valid_from <= span.day
+                AND (s.valid_to IS NULL OR s.valid_to >= span.day)
+           ) AS scheduled,
+           EXISTS (
+             SELECT 1 FROM doctor_schedule_exceptions e
+              WHERE e.doctor_profile_id = ${input.doctorProfileId}::uuid
+                AND e.exception_type = 'EXTRA_SHIFT'
+                AND e.status = 'APPROVED'
+                AND (e.branch_id IS NULL OR e.branch_id = b.id)
+                AND e.starts_at < frame.day_end
+                AND e.ends_at   > frame.day_start
+           ) AS extra_shift,
+           EXISTS (
+             SELECT 1 FROM branch_closures c
+              WHERE c.branch_id = b.id AND c.closure_date = span.day
+           ) AS closed,
+           EXISTS (
+             SELECT 1 FROM doctor_schedule_exceptions e
+              WHERE e.doctor_profile_id = ${input.doctorProfileId}::uuid
+                AND e.exception_type IN ('LEAVE', 'BLOCK')
+                AND e.status = 'APPROVED'
+                AND (e.branch_id IS NULL OR e.branch_id = b.id)
+                /* Covers the WHOLE day — see the note above. */
+                AND e.starts_at <= frame.day_start
+                AND e.ends_at   >= frame.day_end
+           ) AS blocked
+      FROM span
+      CROSS JOIN b
+      CROSS JOIN LATERAL (
+        /* ⚠️ The ::timestamp casts are load-bearing — see the note on dayFrame. */
+        SELECT (span.day)::timestamp                    AT TIME ZONE b.timezone AS day_start,
+               (span.day + interval '1 day')::timestamp AT TIME ZONE b.timezone AS day_end
+      ) frame
+     ORDER BY span.day
+  `;
+
+  /*
+   * An ARCHIVED or INACTIVE doctor has no bookable days at all, whatever their
+   * schedule rows still say — the same rule `notWorking` applies on the slot
+   * response, so the picker and the grid cannot disagree about it.
+   */
+  const consulting = doctor.status === 'ACTIVE';
+
+  return {
+    branchId: input.branchId,
+    doctorProfileId: input.doctorProfileId,
+    timezone: found.timezone,
+    days: rows.map((row) => {
+      const hasHours = consulting && (row.scheduled || row.extra_shift);
+      /*
+       * Most useful reason first: a day that has gone has gone whatever else is
+       * true of it, and a closed clinic explains more than an empty rota.
+       */
+      const reason: WorkingDayReason | null = row.is_past
+        ? 'PAST'
+        : row.closed
+          ? 'BRANCH_CLOSED'
+          : !hasHours
+            ? 'NOT_SCHEDULED'
+            : row.blocked
+              ? 'ON_LEAVE'
+              : null;
+
+      return { date: row.date, bookable: reason === null, reason };
+    }),
   };
 }
 

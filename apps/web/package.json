@@ -15,6 +15,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@rcln/contracts": "workspace:*",
+    "@rcln/documents": "workspace:*",
     "@rcln/payments": "workspace:*",
     "@rcln/permissions": "workspace:*",
     "@tanstack/react-query": "^5.90.4",

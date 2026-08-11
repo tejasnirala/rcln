@@ -34,10 +34,10 @@ That's api on `:5000`, web on `:3000`, worker on Redis, database migrated and
 seeded. [`README.md`](README.md) documents the hybrid and fully-native paths if
 you would rather not run everything in Docker.
 
-## The five invariants
+## The seven invariants
 
 Breaking any of these is a correctness or security regression, not a style
-disagreement. Each has an ADR in
+disagreement. The first five have an ADR in
 [`.kb/Architecture/decisions/`](.kb/Architecture/decisions/README.md) explaining
 why — read it before arguing with it.
 
@@ -54,6 +54,20 @@ why — read it before arguing with it.
 5. **No JSON arrays of foreign keys.** Real join tables. Per-specialty variation
    goes through versioned form templates — JSONB as a document, never as a
    foreign key.
+6. **UTC in the database, the clinic's zone and format on screen.**
+   `Timestamptz(6)` in Postgres and ISO with a `Z` on the wire, always; rendered
+   in `branches.timezone` and `locale.time_format` — `12H` by default, `24H` if
+   the clinic chooses, resolved per branch. On the web that means
+   `formatClinicTime` and friends in `apps/web/src/lib/format.ts`: never a bare
+   `toLocaleString()`, never a second `Intl.DateTimeFormat`. Billing periods
+   render in UTC, deliberately — see CONVENTIONS.md § Dates and times.
+7. **Reading the clinical record is not writing it.** Authoring it —
+   `clinical.encounter.create`/`.close`, `clinical.prescription.create`/`.sign` —
+   is DOCTOR-only, and stripped from ORG_OWNER and ORG_ADMIN by name because
+   those roles are defined as "everything except". Vitals split the same way:
+   `clinical.vitals.read` for anyone consulting the chart,
+   `clinical.vitals.record` for whoever holds the cuff. A clinic widens this
+   itself by cloning a role or granting a code per membership.
 
 ## Before you write a function, look for it
 

@@ -62,6 +62,17 @@ export const phone = z
 export const email = z.email().max(255).toLowerCase();
 
 /**
+ * `YYYY-MM-DD`, a calendar date in the BRANCH's timezone. Never an instant.
+ *
+ * A day is what a clinic means when it says "the 9th": the day the consultation
+ * happened, the day the invoice is dated. Widening it to a timestamp on the wire
+ * would make the answer depend on the caller's clock, which is how a booking
+ * made at 23:30 IST lands on the previous day. The zone is applied server-side,
+ * from `branches.timezone`.
+ */
+export const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
+
+/**
  * A real IANA time zone, checked by asking the platform rather than by listing.
  *
  * `Intl` throws `RangeError` on an unknown identifier, which is a cheaper and

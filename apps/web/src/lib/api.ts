@@ -31,11 +31,29 @@ import { headers } from 'next/headers';
 const API_URL = process.env['API_INTERNAL_URL'] ?? 'http://api:5000';
 const ROOT_DOMAIN = process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me';
 
+/**
+ * Where a paginated answer keeps its counts.
+ *
+ * ⚠️ BESIDE `data`, NOT INSIDE IT, AND THAT IS WHY THIS TYPE EXISTS. Most list
+ *   endpoints here wrap their own envelope — `GET /patients` answers
+ *   `{ patients, total, page }` as its `data`. `sendPaginated` does not: it puts
+ *   the array in `data` and the counts in `meta`, so a caller that only reads
+ *   `data` gets the rows and silently loses the page count. `GET /v1/invoices`
+ *   is the first such endpoint the web consumes.
+ */
+export interface ApiPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 /** The API's envelope. Every route answers in this shape. */
 export interface ApiEnvelope<T> {
   success: boolean;
   message?: string;
   data?: T;
+  meta?: ApiPagination;
   errors?: Record<string, string[]>;
 }
 
@@ -43,6 +61,7 @@ export interface ApiResult<T> {
   ok: boolean;
   status: number;
   data?: T;
+  meta?: ApiPagination;
   message?: string;
   fieldErrors?: Record<string, string[]>;
 }
@@ -86,6 +105,14 @@ export interface ApiRequest {
   host?: string | undefined;
   /** Bearer token for authenticated calls. */
   accessToken?: string | undefined;
+  /**
+   * What to ask for, when it is not JSON.
+   *
+   * Only `apiBinary` reads this — `api` always asks for and parses JSON. It
+   * exists because the two things the invoice screen fetches as files are a PDF
+   * and an HTML document, and a refusal of either still comes back as JSON.
+   */
+  accept?: string | undefined;
 }
 
 /** The admin console's host. `resolveTenant` matches this exactly and skips it. */
@@ -96,10 +123,17 @@ export const ADMIN_HOST = `admin.${ROOT_DOMAIN}`;
  * every caller here renders it rather than crashing a page. A genuine network
  * failure returns status 0 with a message that names no internal host.
  */
-export async function api<T>(path: string, request: ApiRequest = {}): Promise<ApiResult<T>> {
-  const { method = 'GET', body, slug, host, accessToken } = request;
+/**
+ * The headers every call to the API carries, whatever it is asking for.
+ *
+ * Extracted so `apiBinary` cannot get the tenant header subtly different from
+ * `api` — that difference is invisible in review and shows up as a 404 from an
+ * unresolved tenant.
+ */
+async function apiHeaders(request: ApiRequest, accept: string): Promise<Record<string, string>> {
+  const { body, slug, host, accessToken } = request;
 
-  const headers: Record<string, string> = { accept: 'application/json' };
+  const headers: Record<string, string> = { accept };
   if (body !== undefined) headers['content-type'] = 'application/json';
   /*
    * `x-forwarded-host`, NOT `host`.
@@ -120,6 +154,13 @@ export async function api<T>(path: string, request: ApiRequest = {}): Promise<Ap
   const forwardedFor = await clientAddress();
   if (forwardedFor) headers['x-forwarded-for'] = forwardedFor;
 
+  return headers;
+}
+
+export async function api<T>(path: string, request: ApiRequest = {}): Promise<ApiResult<T>> {
+  const { method = 'GET', body } = request;
+  const headers = await apiHeaders(request, 'application/json');
+
   try {
     const response = await fetch(`${API_URL}${path}`, {
       method,
@@ -136,11 +177,76 @@ export async function api<T>(path: string, request: ApiRequest = {}): Promise<Ap
       ok: response.ok && payload.success !== false,
       status: response.status,
       ...(payload.data !== undefined ? { data: payload.data } : {}),
+      ...(payload.meta !== undefined ? { meta: payload.meta } : {}),
       ...(payload.message !== undefined ? { message: payload.message } : {}),
       ...(payload.errors !== undefined ? { fieldErrors: payload.errors } : {}),
     };
   } catch {
     // The underlying error names internal hostnames and ports. Never surface it.
+    return {
+      ok: false,
+      status: 0,
+      message: 'We could not reach the service. Try again in a moment.',
+    };
+  }
+}
+
+/** A file the API served, on its way to the browser through a Route Handler. */
+export interface ApiFile {
+  ok: boolean;
+  status: number;
+  body?: ArrayBuffer;
+  contentType?: string;
+  contentDisposition?: string;
+  /** The API's own sentence, when it refused. Never the bytes. */
+  message?: string;
+}
+
+/**
+ * A file rather than an envelope — the stored invoice PDF, today, and nothing
+ * else.
+ *
+ * ⚠️ IT EXISTS BECAUSE THE BROWSER CANNOT ASK THE API FOR THIS ITSELF. The
+ *   access token lives in an httpOnly cookie on the clinic's own host, so a
+ *   `fetch` from the page to `api.<root>` would carry no credential and could
+ *   not be given one without putting the token where a script can read it. The
+ *   bytes therefore come through a Route Handler on this origin, which reads the
+ *   cookie server-side and forwards the call — the same arrangement every other
+ *   call in this file uses, with a body that is not JSON.
+ *
+ * ⚠️ A REFUSAL IS STILL JSON, AND IT IS READ AS SUCH. `409 DOCUMENT_NOT_READY`
+ *   is the ordinary answer for an invoice issued a second ago, so the handler
+ *   above needs the API's sentence, not an empty buffer and a status code.
+ */
+export async function apiBinary(path: string, request: ApiRequest = {}): Promise<ApiFile> {
+  const headers = await apiHeaders(request, request.accept ?? 'application/pdf, application/json');
+
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      method: request.method ?? 'GET',
+      headers,
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => ({}))) as ApiEnvelope<never>;
+      return {
+        ok: false,
+        status: response.status,
+        ...(payload.message !== undefined ? { message: payload.message } : {}),
+      };
+    }
+
+    return {
+      ok: true,
+      status: response.status,
+      body: await response.arrayBuffer(),
+      contentType: response.headers.get('content-type') ?? 'application/octet-stream',
+      ...(response.headers.get('content-disposition')
+        ? { contentDisposition: response.headers.get('content-disposition') as string }
+        : {}),
+    };
+  } catch {
     return {
       ok: false,
       status: 0,

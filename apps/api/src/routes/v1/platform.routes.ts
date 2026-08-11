@@ -2,9 +2,11 @@ import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   createTaxRegistrationRequest,
+  createTaxRuleDefaultRequest,
   impersonateRequest,
   registerOrganizationRequest,
   updateTaxRegistrationRequest,
+  updateTaxRuleDefaultRequest,
   type ImpersonateRequest,
   type PlatformOrganizationListResponse,
   type PlatformSubscriptionView,
@@ -24,6 +26,12 @@ import {
   listTaxRegistrations,
   updateTaxRegistration,
 } from '../../services/platform/tax-registration.service.js';
+import {
+  createTaxRuleDefault,
+  listTaxRuleDefaults,
+  retireTaxRuleDefault,
+  updateTaxRuleDefault,
+} from '../../services/platform/tax-rule-default.service.js';
 import { paymentProvider } from '../../services/billing/provider.js';
 import { sendSuccess } from '../../utils/response.js';
 
@@ -332,6 +340,93 @@ router.delete(
     const { id } = req.params as unknown as z.infer<typeof taxRegistrationParams>;
     await deleteTaxRegistration(id);
     sendSuccess(res, null, 'Tax registration removed');
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Default tax rules
+// ---------------------------------------------------------------------------
+
+/**
+ * The rate cards every clinic inherits until it overrides them.
+ *
+ * ⚠️ THESE ROUTES CHANGE WHAT EVERY CLINIC IN A COUNTRY CHARGES, WITH NO PUBLISH
+ *   STEP. Inheritance is resolved at read time, so a POST here reaches the next
+ *   invoice raised anywhere in that jurisdiction by a clinic that has not
+ *   overridden the category. That is the point — one row when a rate
+ *   notification lands, rather than a migration across every tenant — and it is
+ *   why `sourceNote` is required rather than optional.
+ *
+ * ⚠️ THERE IS NO DELETE, DELIBERATELY. A rate that has stopped applying is
+ *   `PATCH /retire` with an end date. An invoice issued last year has to stay
+ *   explicable, and the row that priced it is the explanation — removing it does
+ *   not un-charge the tax, it only makes the charge unaccountable to whoever
+ *   asks years later. Contrast the registrations above, which do have a DELETE:
+ *   a registration entered in error asserts a legal fact that was never true,
+ *   and leaving it live keeps collecting tax nobody can remit.
+ *
+ * Same permission as the registrations console. Both answer to whoever is
+ * accountable for what rcln asserts about tax.
+ */
+const taxRuleDefaultParams = z.object({ id: z.uuid() });
+const taxRuleDefaultQuery = z.object({
+  /** Narrow to one country. The console is per-country; the API need not be. */
+  countryCode: z
+    .string()
+    .length(2)
+    .regex(/^[A-Za-z]{2}$/)
+    .optional(),
+});
+const retireTaxRuleDefaultBody = z.object({
+  effectiveTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD'),
+});
+
+router.get(
+  '/tax-rule-defaults',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  validate(taxRuleDefaultQuery, 'query'),
+  async (req: Request, res: Response) => {
+    const { countryCode } = req.query as unknown as z.infer<typeof taxRuleDefaultQuery>;
+    sendSuccess(res, await listTaxRuleDefaults(countryCode), 'Default tax rules');
+  }
+);
+
+router.post(
+  '/tax-rule-defaults',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  validate(createTaxRuleDefaultRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const created = await createTaxRuleDefault(
+      req.body as z.infer<typeof createTaxRuleDefaultRequest>
+    );
+    sendSuccess(res, created, 'Default tax rule added', 201);
+  }
+);
+
+router.patch(
+  '/tax-rule-defaults/:id',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  validate(taxRuleDefaultParams, 'params'),
+  validate(updateTaxRuleDefaultRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof taxRuleDefaultParams>;
+    const updated = await updateTaxRuleDefault(
+      id,
+      req.body as z.infer<typeof updateTaxRuleDefaultRequest>
+    );
+    sendSuccess(res, updated, 'Default tax rule updated');
+  }
+);
+
+router.patch(
+  '/tax-rule-defaults/:id/retire',
+  authorize(PERMISSIONS.PLATFORM_TAX_MANAGE),
+  validate(taxRuleDefaultParams, 'params'),
+  validate(retireTaxRuleDefaultBody, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof taxRuleDefaultParams>;
+    const { effectiveTo } = req.body as z.infer<typeof retireTaxRuleDefaultBody>;
+    sendSuccess(res, await retireTaxRuleDefault(id, effectiveTo), 'Default tax rule retired');
   }
 );
 

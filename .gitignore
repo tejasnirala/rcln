@@ -45,3 +45,23 @@ Thumbs.db
 
 # Knowledge base: the index is committed, the dirty marker is not.
 .kb/.dirty
+
+# Locally stored documents — invoice PDFs and anything else DocumentService
+# writes when STORAGE_PROVIDER=local (§30).
+#
+# STORAGE_LOCAL_PATH should point OUTSIDE this repository (the default is
+# ~/rcln/documents), so normally nothing here matches anything. These entries
+# are a safety net for a misconfiguration that puts documents in the tree:
+# an invoice PDF names a patient, and committing one would put it in every
+# clone and every fork, permanently.
+#
+# ⚠️ Anchored with a leading slash on purpose. A bare `storage/` pattern
+#   matches at ANY depth, so it would also swallow `packages/storage/` — the
+#   source of the storage package itself.
+/storage/
+/documents/
+
+# Rendered sample invoices from `pnpm --filter @rcln/documents run preview`.
+# A development tool for LOOKING at the template; its output is a build
+# artefact, and the ones that matter are written outside the repo anyway.
+/packages/documents/preview/

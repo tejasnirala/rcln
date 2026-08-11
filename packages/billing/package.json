@@ -21,7 +21,8 @@
   },
   "dependencies": {
     "@rcln/db": "workspace:*",
-    "@rcln/payments": "workspace:*"
+    "@rcln/payments": "workspace:*",
+    "@rcln/tax": "workspace:*"
   },
   "devDependencies": {
     "@rcln/config": "workspace:*",

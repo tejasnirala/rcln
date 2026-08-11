@@ -53,7 +53,21 @@ export function TenantHeader({ slug, session }: { slug: string; session: AuthSes
   return (
     <AppHeader
       scopes={scopes}
-      user={{ name: session.user.fullName, href: '/verify' }}
+      user={{
+        name: session.user.fullName,
+        href: '/verify',
+        /*
+         * Offered to anyone who may read a doctor profile. For a doctor it is
+         * the only way to their own — the Doctors tab is the roster and they do
+         * not hold `doctor.directory.read`. For an admin who is not a
+         * practitioner the page says so in a sentence, which is cheaper than
+         * asking the API here whether they have a profile just to decide
+         * whether to render a link.
+         */
+        ...(session.permissions.includes('doctor.read')
+          ? { ownProfile: { href: '/profile', label: 'My profile' } }
+          : {}),
+      }}
       signOut={
         // Bound server-side, like every other action here, so the browser cannot
         // substitute another clinic's slug. The navigation is ours rather than the
@@ -83,7 +97,14 @@ function clinicNav(permissions: string[]): NavLink[] {
     // Sits next to Branches rather than under Staff: a doctor's working hours
     // are what the front desk books against, so this is a scheduling screen that
     // happens to be about people, not a personnel one.
-    { href: '/doctors', label: 'Doctors', permission: ['doctor.read'] },
+    //
+    // ⚠️ `doctor.directory.read`, NOT `doctor.read`, AND THAT IS WHAT MAKES A
+    //   DOCTOR'S NAVIGATION TWO TABS. This screen is the roster; a doctor holds
+    //   `doctor.read` for their OWN profile and does not hold this, so the tab
+    //   is not offered to them and `GET /doctors` would refuse it anyway. The
+    //   nav and the API are reading the same code, which is the only way the two
+    //   cannot drift — and no role is named anywhere (ADR-0002).
+    { href: '/doctors', label: 'Doctors', permission: ['doctor.directory.read'] },
     // First in the list that is about the people being treated rather than the
     // people doing the treating, and the only destination behind it that
     // discloses PHI. Every screen under it writes a `data_access_logs` row.
@@ -91,6 +112,26 @@ function clinicNav(permissions: string[]): NavLink[] {
     // Sits after Patients because it is about them, and before Staff because it
     // is the screen the front desk actually works from all day.
     { href: '/appointments', label: 'Appointments', permission: ['appointment.read'] },
+    /*
+     * ⚠️ "INVOICES", NOT "BILLING" — THE TAB BELOW IS ALREADY CALLED BILLING AND
+     *   IS A DIFFERENT DOCUMENT ENTIRELY. That one is rcln billing the CLINIC
+     *   for its subscription; this one is the clinic billing a PATIENT. Two
+     *   tables, two lifecycles, two permission families (`organization.billing.*`
+     *   against `billing.invoice.*`), and a clinic administrator holds both. A
+     *   second tab reading "Billing" would be the §0.1 confusion rendered as
+     *   navigation.
+     *
+     * Sits beside Appointments because that is where most of its rows come from.
+     */
+    { href: '/invoices', label: 'Invoices', permission: ['billing.invoice.read'] },
+    /*
+     * The rate card BEHIND those invoices. A separate tab rather than a panel on
+     * the Clinic screen, because `settings.organization.read` is not the
+     * permission that guards it: a clock format is a preference and a tax rate
+     * decides what every patient is charged. Read and manage are separate codes;
+     * either makes the screen worth opening.
+     */
+    { href: '/taxes', label: 'Tax', permission: ['billing.tax.read'] },
     { href: '/members', label: 'Staff', permission: ['iam.user.read'] },
     { href: '/roles', label: 'Roles', permission: ['iam.role.read'] },
     { href: '/invitations', label: 'Invitations', permission: ['iam.user.read'] },

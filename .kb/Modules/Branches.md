@@ -71,11 +71,11 @@ The places a clinic operates from. One organization, one or many branches — a 
 
 | name | kind | at |
 | --- | --- | --- |
-| `BranchActionOptions` | interface | `apps/api/src/services/branch/branch.service.ts:35` |
-| `BranchList` | component | `apps/web/src/components/tenant/branch-list.tsx:130` |
-| `createBranch` | fn | `apps/api/src/services/branch/branch.service.ts:164` |
-| `deleteBranch` | fn | `apps/api/src/services/branch/branch.service.ts:341` |
-| `getBranch` | fn | `apps/api/src/services/branch/branch.service.ts:150` |
-| `listBranches` | fn | `apps/api/src/services/branch/branch.service.ts:138` |
-| `setOperatingHours` | fn | `apps/api/src/services/branch/branch.service.ts:270` |
-| `updateBranch` | fn | `apps/api/src/services/branch/branch.service.ts:219` |
+| `BranchActionOptions` | interface | `apps/api/src/services/branch/branch.service.ts:43` |
+| `BranchList` | component | `apps/web/src/components/tenant/branch-list.tsx:209` |
+| `createBranch` | fn | `apps/api/src/services/branch/branch.service.ts:222` |
+| `deleteBranch` | fn | `apps/api/src/services/branch/branch.service.ts:434` |
+| `getBranch` | fn | `apps/api/src/services/branch/branch.service.ts:208` |
+| `listBranches` | fn | `apps/api/src/services/branch/branch.service.ts:196` |
+| `setOperatingHours` | fn | `apps/api/src/services/branch/branch.service.ts:363` |
+| `updateBranch` | fn | `apps/api/src/services/branch/branch.service.ts:299` |

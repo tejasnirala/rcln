@@ -5,7 +5,10 @@ import billingRoutes from './billing.routes.js';
 import appointmentRoutes from './appointments.routes.js';
 import branchRoutes from './branches.routes.js';
 import clinicalTaxonomyRoutes from './clinical-taxonomy.routes.js';
+import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
+import invoiceRoutes from './invoices.routes.js';
+import taxRoutes from './tax.routes.js';
 import invitationRoutes from './invitations.routes.js';
 import doctorRoutes from './doctors.routes.js';
 import designationRoutes from './designations.routes.js';
@@ -89,6 +92,28 @@ router.use('/organization', organizationRoutes);
 // app, ahead of the body parsers, because they must see the raw bytes they were
 // signed over. See the header of webhooks.routes.ts.
 router.use('/billing', billingRoutes);
+
+// What the clinic bills a PATIENT — and deliberately NOT under /billing, which
+// is the subscription rcln charges the clinic for. Two documents, two tables,
+// two lifecycles; §0.1 of the invoice-engine log is why they can never share
+// one. PHI, so every read here writes a `data_access_logs` row, and WHICH
+// invoices a caller sees is derived from the modules they work in rather than
+// from a permission code per source. Read the header of invoices.routes.ts.
+router.use('/invoices', invoiceRoutes);
+
+// What the clinic charges, and the registrations it charges under. The rate card
+// BEHIND the invoices above, and the first write path `issuer_tax_registrations`
+// and `tax_rules` have ever had — every clinic until now ran entirely on rcln's
+// published catalogue. Not PHI and not under /platform, which maintains that
+// catalogue for every clinic at once. See tax.routes.ts.
+router.use('/tax', taxRoutes);
+
+// What a VISIT costs, by kind of visit — the clinic's defaults, and the
+// per-doctor overrides that sit under /doctors/:doctorId/fees. Not under /tax,
+// which is what the government takes off a price, and not under /invoices,
+// which is a bill that already exists. This is what every future bill will say,
+// and it is quoted at the front desk before a patient has agreed to anything.
+router.use('/fee-schedule', feeRoutes);
 
 // A record's own history, for any record in this clinic. Read-only, and the only
 // way rows leave `audit_logs` — which is append-only at the database, not merely

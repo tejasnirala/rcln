@@ -4,163 +4,211 @@
 
 > Appointments: what is free, what is booked, and what happened to it.
 
-Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit.ts` · `packages/contracts/src/auth.ts` · `packages/contracts/src/billing.ts` · `packages/contracts/src/clinical-taxonomy.ts` · `packages/contracts/src/common.ts` · `packages/contracts/src/doctors.ts` · `packages/contracts/src/index.ts` · `packages/contracts/src/locale.ts` · `packages/contracts/src/marketing.ts` · `packages/contracts/src/patients.ts` · `packages/contracts/src/tenancy.ts`
+Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit.ts` · `packages/contracts/src/auth.ts` · `packages/contracts/src/billing.ts` · `packages/contracts/src/clinical-taxonomy.ts` · `packages/contracts/src/common.ts` · `packages/contracts/src/doctors.ts` · `packages/contracts/src/fees.ts` · `packages/contracts/src/index.ts` · `packages/contracts/src/invoices.ts` · `packages/contracts/src/locale.ts` · `packages/contracts/src/marketing.ts` · `packages/contracts/src/patients.ts` · `packages/contracts/src/tax.ts` · `packages/contracts/src/tenancy.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addressLabels` | `(code: string \| null \| undefined): AddressLabels` | `packages/contracts/src/locale.ts:505` | What this country calls the parts of an address. Falls back to India's. |
-| `countryInfo` | `(code: string \| null \| undefined): CountryInfo \| undefined` | `packages/contracts/src/locale.ts:474` |  |
-| `defaultTimezoneFor` | `(code: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:481` | The zone to assume before anyone has chosen. |
-| `dialFormatFor` | `(code: string \| null \| undefined): DialFormat` | `packages/contracts/src/locale.ts:520` | The calling code and national digit count. Falls back to India's. |
-| `hasTimezoneChoice` | `(code: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:486` | Whether the customer has a decision to make about the zone. |
-| `isValidPostalCode` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:534` |  |
-| `isValidRegion` | `(countryCode: string, regionCode: string \| null): boolean` | `packages/contracts/src/locale.ts:496` | Whether a region code is one this country actually has. |
-| `isValidTaxId` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:560` |  |
-| `knownCurrency` <sub>local</sub> | `(value: string): boolean` | `packages/contracts/src/common.ts:108` |  |
-| `normalizePostalCode` | `(countryCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:546` | Upper-cased, single-spaced. What we store and what we validate. |
-| `oneClassificationForm` <sub>local</sub> | `(v: { specialtyIds?: string[] \| undefined; classifications?:…, ctx: z.RefinementCtx): void` | `packages/contracts/src/doctors.ts:103` | Reject the two request forms being used at once. `specialtyIds` defaults to `[]`, so "both supplied" is `classifications` present AND `specialtyIds` non-empty. |
-| `postalFormatFor` | `(code: string \| null \| undefined): PostalFormat \| null` | `packages/contracts/src/locale.ts:510` | The postcode format, or null where the country issues none. |
-| `refineAge` <sub>local</sub> | `(v: { dateOfBirth?: string \| undefined; approxAgeYears?: num…, ctx: z.RefinementCtx): void` | `packages/contracts/src/patients.ts:121` |  |
-| `regionsFor` | `(code: string \| null \| undefined): readonly Region[]` | `packages/contracts/src/locale.ts:491` | The subdivisions worth asking about. Empty means country-wide only. |
-| `splitE164` | `(value: string \| null \| undefined): { countryCode: string \| null; national: string; }` | `packages/contracts/src/locale.ts:592` |  |
-| `taxIdFormatFor` | `(code: string \| null \| undefined): TaxIdFormat \| null` | `packages/contracts/src/locale.ts:515` | The tax registration to ask for, or null where there is no single one. |
-| `timezoneLabel` | `(zone: string): string` | `packages/contracts/src/locale.ts:612` | `Asia/Kolkata` -> `Asia/Kolkata (GMT+5:30)`. Display only. |
-| `toE164` | `(countryCode: string \| null \| undefined, national: string): string` | `packages/contracts/src/locale.ts:578` |  |
+| `acceptsAt` <sub>local</sub> | `(maskChar: string, char: string): boolean` | `packages/contracts/src/locale.ts:898` |  |
+| `addressLabels` | `(code: string \| null \| undefined): AddressLabels` | `packages/contracts/src/locale.ts:978` | What this country calls the parts of an address. Falls back to India's. |
+| `applyNationalIdMask` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:921` |  |
+| `bounded` <sub>local</sub> | `(key: VitalKey): z.ZodNumber` | `packages/contracts/src/appointments.ts:361` | A bounded number, with a message somebody can act on, from one entry. |
+| `countryInfo` | `(code: string \| null \| undefined): CountryInfo \| undefined` | `packages/contracts/src/locale.ts:572` |  |
+| `daysSpanned` <sub>local</sub> | `(from: string, to: string): number` | `packages/contracts/src/appointments.ts:430` | Whole days between two `YYYY-MM-DD` dates, inclusive of both ends. |
+| `defaultTimezoneFor` | `(code: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:579` | The zone to assume before anyone has chosen. |
+| `dialFormatFor` | `(code: string \| null \| undefined): DialFormat` | `packages/contracts/src/locale.ts:993` | The calling code and national digit count. Falls back to India's. |
+| `formatNationalId` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:969` | Regroup a stored value for display: `234567890123` -> `2345 6789 0123`. The same masking, which is why there is only one description of a document's shape in t… |
+| `fromCelsius` | `(celsius: number, unit: TemperatureUnit): number` | `packages/contracts/src/locale.ts:1135` | Celsius as stored → what this country reads it in. |
+| `hasTimezoneChoice` | `(code: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:584` | Whether the customer has a decision to make about the zone. |
+| `isValidNationalId` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:878` |  |
+| `isValidPostalCode` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:1007` |  |
+| `isValidRegion` | `(countryCode: string, regionCode: string \| null): boolean` | `packages/contracts/src/locale.ts:594` | Whether a region code is one this country actually has. |
+| `isValidTaxId` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:1033` |  |
+| `knownCurrency` <sub>local</sub> | `(value: string): boolean` | `packages/contracts/src/common.ts:119` |  |
+| `nationalIdFormatFor` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined): NationalIdFormat \| null` | `packages/contracts/src/locale.ts:851` | One ID format by country and type code, or null if that pairing is unknown. |
+| `nationalIdTypesFor` | `(code: string \| null \| undefined): readonly NationalIdFormat[]` | `packages/contracts/src/locale.ts:845` |  |
+| `normalizeNationalId` | `(value: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:867` |  |
+| `normalizePostalCode` | `(countryCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:1019` | Upper-cased, single-spaced. What we store and what we validate. |
+| `oneClassificationForm` <sub>local</sub> | `(v: { specialtyIds?: string[] \| undefined; classifications?:…, ctx: z.RefinementCtx): void` | `packages/contracts/src/doctors.ts:96` | Reject the two request forms being used at once. `specialtyIds` defaults to `[]`, so "both supplied" is `classifications` present AND `specialtyIds` non-empty. |
+| `postalFormatFor` | `(code: string \| null \| undefined): PostalFormat \| null` | `packages/contracts/src/locale.ts:983` | The postcode format, or null where the country issues none. |
+| `refineAge` <sub>local</sub> | `(v: { dateOfBirth?: string \| undefined; approxAgeYears?: num…, ctx: z.RefinementCtx): void` | `packages/contracts/src/patients.ts:138` |  |
+| `refineNationalId` <sub>local</sub> | `(v: { nationalId?: string \| undefined; nationalIdType?: stri…, ctx: z.RefinementCtx): void` | `packages/contracts/src/patients.ts:165` |  |
+| `regionsFor` | `(code: string \| null \| undefined): readonly Region[]` | `packages/contracts/src/locale.ts:589` | The subdivisions worth asking about. Empty means country-wide only. |
+| `splitE164` | `(value: string \| null \| undefined): { countryCode: string \| null; national: string; }` | `packages/contracts/src/locale.ts:1065` |  |
+| `taxIdFormatFor` | `(code: string \| null \| undefined): TaxIdFormat \| null` | `packages/contracts/src/locale.ts:988` | The tax registration to ask for, or null where there is no single one. |
+| `temperatureRangeFor` | `(unit: TemperatureUnit): VitalRange` | `packages/contracts/src/appointments.ts:345` |  |
+| `temperatureSymbol` | `(unit: TemperatureUnit): string` | `packages/contracts/src/locale.ts:1115` | `°C` or `°F`, for a label. |
+| `temperatureUnitFor` | `(code: string \| null \| undefined): TemperatureUnit` | `packages/contracts/src/locale.ts:1104` |  |
+| `timezoneLabel` | `(zone: string): string` | `packages/contracts/src/locale.ts:1192` | `Asia/Kolkata` -> `Asia/Kolkata (GMT+5:30)`. Display only. |
+| `toCelsius` | `(value: number, unit: TemperatureUnit): number` | `packages/contracts/src/locale.ts:1129` |  |
+| `toE164` | `(countryCode: string \| null \| undefined, national: string): string` | `packages/contracts/src/locale.ts:1051` |  |
+| `toTimeFormat` | `(value: unknown): TimeFormat` | `packages/contracts/src/locale.ts:1187` |  |
+| `vitalRangeMessage` | `(range: VitalRange): string` | `packages/contracts/src/appointments.ts:332` |  |
 
 ## zod
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `acceptInviteRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:87` |  |
-| `apiError` | `z.object(…)` | `packages/contracts/src/common.ts:146` |  |
-| `appointmentListQuery` | `z.object(…)` | `packages/contracts/src/appointments.ts:137` | The day board. `date` is required — an unbounded appointment list is a list of every patient the clinic has ever seen, and it is not a screen anybody asked for. |
-| `appointmentListResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:229` |  |
-| `appointmentSource` | `z.enum(…)` | `packages/contracts/src/appointments.ts:45` |  |
-| `appointmentStatus` | `z.enum(…)` | `packages/contracts/src/appointments.ts:27` |  |
-| `appointmentStatusEvent` | `z.object(…)` | `packages/contracts/src/appointments.ts:185` |  |
-| `appointmentSummary` | `z.object(…)` | `packages/contracts/src/appointments.ts:202` |  |
-| `appointmentTransitionRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:113` |  |
-| `appointmentVisitType` | `z.enum(…)` | `packages/contracts/src/appointments.ts:37` |  |
-| `assignRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:330` |  |
+| `acceptInviteRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:88` |  |
+| `apiError` | `z.object(…)` | `packages/contracts/src/common.ts:157` |  |
+| `appointmentBilling` | `z.object(…)` | `packages/contracts/src/invoices.ts:513` |  |
+| `appointmentBillingBlockedReason` | `z.enum(…)` | `packages/contracts/src/invoices.ts:480` |  |
+| `appointmentInvoiceLink` | `z.object(…)` | `packages/contracts/src/invoices.ts:422` |  |
+| `appointmentListResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:740` |  |
+| `appointmentSource` | `z.enum(…)` | `packages/contracts/src/appointments.ts:44` |  |
+| `appointmentStatus` | `z.enum(…)` | `packages/contracts/src/appointments.ts:26` |  |
+| `appointmentStatusEvent` | `z.object(…)` | `packages/contracts/src/appointments.ts:546` |  |
+| `appointmentSummary` | `z.object(…)` | `packages/contracts/src/appointments.ts:563` |  |
+| `appointmentTransitionRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:226` |  |
+| `appointmentVisitType` | `z.enum(…)` | `packages/contracts/src/appointments.ts:36` |  |
+| `assignRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:377` |  |
 | `auditAction` | `z.enum(…)` | `packages/contracts/src/audit.ts:29` |  |
 | `auditEntry` | `z.object(…)` | `packages/contracts/src/audit.ts:41` |  |
 | `auditFieldChange` | `z.object(…)` | `packages/contracts/src/audit.ts:21` | How a single field moved. `null` on either side is a real value: it was unset. |
 | `auditHistoryQuery` | `z.object(…)` | `packages/contracts/src/audit.ts:83` |  |
 | `auditHistoryResponse` | `z.object(…)` | `packages/contracts/src/audit.ts:72` |  |
-| `authSession` | `z.object(…)` | `packages/contracts/src/auth.ts:200` |  |
-| `availabilityQuery` | `z.object(…)` | `packages/contracts/src/appointments.ts:58` |  |
-| `availabilityResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:169` |  |
-| `availabilitySlot` | `z.object(…)` | `packages/contracts/src/appointments.ts:157` |  |
+| `authSession` | `z.object(…)` | `packages/contracts/src/auth.ts:245` |  |
+| `availabilityQuery` | `z.object(…)` | `packages/contracts/src/appointments.ts:57` |  |
+| `availabilityResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:530` |  |
+| `availabilitySlot` | `z.object(…)` | `packages/contracts/src/appointments.ts:518` |  |
 | `billingOverviewQuery` | `z.object(…)` | `packages/contracts/src/billing.ts:88` |  |
-| `bloodGroup` | `z.enum(…)` | `packages/contracts/src/patients.ts:65` |  |
-| `branchClosureRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:183` |  |
-| `branchDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:525` |  |
-| `branchListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:544` |  |
-| `branchOperatingHoursRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:179` |  |
-| `branchSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:183` |  |
-| `calendarDate` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/appointments.ts:25` | `YYYY-MM-DD`, a calendar date in the BRANCH's timezone. Never an instant. |
-| `calendarDate` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/doctors.ts:21` | `YYYY-MM-DD`, a calendar date in the branch's timezone. |
-| `calendarDate` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/patients.ts:23` | `YYYY-MM-DD`, a calendar date in the branch's timezone. |
-| `cancelAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:119` |  |
+| `bloodGroup` | `z.enum(…)` | `packages/contracts/src/patients.ts:66` |  |
+| `branchClosureRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:230` |  |
+| `branchDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:578` |  |
+| `branchListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:604` |  |
+| `branchOperatingHoursRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:226` |  |
+| `branchSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:184` |  |
+| `calendarDate` | `z.string().regex(…)` | `packages/contracts/src/common.ts:73` |  |
+| `calendarDate` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/doctors.ts:22` | `YYYY-MM-DD`, a calendar date in the branch's timezone. |
+| `calendarDate` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/patients.ts:24` | `YYYY-MM-DD`, a calendar date in the branch's timezone. |
+| `cancelAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:232` |  |
+| `cancelInvoiceRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:222` |  |
 | `cancelSubscriptionRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:64` |  |
-| `changePasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:50` |  |
-| `checkSlugQuery` | `z.object(…)` | `packages/contracts/src/tenancy.ts:489` |  |
-| `clockTime` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/doctors.ts:18` | `HH:MM`, wall-clock in the BRANCH's timezone. Never UTC. |
-| `createAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:65` |  |
-| `createBranchRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:136` |  |
-| `createDesignationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:228` |  |
-| `createDoctorRequest` | `z.object(doctorProfileFields).superRefine(…)` | `packages/contracts/src/doctors.ts:116` |  |
-| `createRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:365` |  |
+| `changePasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:51` |  |
+| `checkSlugQuery` | `z.object(…)` | `packages/contracts/src/tenancy.ts:542` |  |
+| `clinicTaxParams` | `z.object(…)` | `packages/contracts/src/tax.ts:390` |  |
+| `clockTime` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/doctors.ts:19` | `HH:MM`, wall-clock in the BRANCH's timezone. Never UTC. |
+| `consultationCharge` | `z.object(…)` | `packages/contracts/src/invoices.ts:488` | What the rate card proposes to charge for one visit. |
+| `consultationChargeBasis` | `z.enum(…)` | `packages/contracts/src/invoices.ts:451` |  |
+| `consultationUnpricedReason` | `z.enum(…)` | `packages/contracts/src/invoices.ts:468` |  |
+| `createAppointmentInvoiceRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:563` |  |
+| `createAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:134` |  |
+| `createBranchRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:162` |  |
+| `createClinicTaxRegistrationRequest` | `z.object(…)` | `packages/contracts/src/tax.ts:85` |  |
+| `createClinicTaxRuleRequest` | `z.object(…)` | `packages/contracts/src/tax.ts:203` |  |
+| `createDesignationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:275` |  |
+| `createRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:412` |  |
 | `createTaxonomyNodeRequest` | `z.object(…)` | `packages/contracts/src/clinical-taxonomy.ts:49` |  |
 | `createTaxRegistrationRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:411` |  |
-| `decideScheduleExceptionRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:236` | Approve or reject a pending exception. A separate permission from raising one. |
+| `createTaxRuleDefaultRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:508` |  |
+| `decideScheduleExceptionRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:354` | Approve or reject a pending exception. A separate permission from raising one. |
 | `demoRequestInput` | `z.object(…)` | `packages/contracts/src/marketing.ts:17` |  |
 | `demoRequestResponse` | `z.object(…)` | `packages/contracts/src/marketing.ts:48` |  |
-| `designationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:266` |  |
-| `designationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:240` |  |
-| `doctorBranchSettingDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:333` |  |
-| `doctorBranchSettingRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:171` |  |
-| `doctorListQuery` | `z.object(…)` | `packages/contracts/src/doctors.ts:159` |  |
-| `doctorListResponse` | `z.object(…)` | `packages/contracts/src/doctors.ts:398` |  |
-| `doctorQualificationDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:324` |  |
-| `doctorQualificationRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:165` |  |
-| `doctorScheduleDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:343` |  |
-| `doctorScheduleExceptionDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:360` |  |
-| `doctorSpecialtyDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:279` |  |
-| `doctorSummary` | `z.object(…)` | `packages/contracts/src/doctors.ts:375` | The list row: enough to choose a doctor, without loading their whole file. |
+| `designationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:313` |  |
+| `designationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:287` |  |
+| `discountInput` | `z.discriminatedUnion(…)` | `packages/contracts/src/invoices.ts:85` |  |
+| `doctorBranchSettingDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:478` |  |
+| `doctorBranchSettingRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:204` |  |
+| `doctorCompensationDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:468` |  |
+| `doctorListQuery` | `z.object(…)` | `packages/contracts/src/doctors.ts:158` |  |
+| `doctorListResponse` | `z.object(…)` | `packages/contracts/src/doctors.ts:558` |  |
+| `doctorQualificationDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:442` |  |
+| `doctorQualificationRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:164` |  |
+| `doctorScheduleDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:487` |  |
+| `doctorScheduleExceptionDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:504` |  |
+| `doctorSpecialtyDetail` | `z.object(…)` | `packages/contracts/src/doctors.ts:397` |  |
+| `doctorSummary` | `z.object(…)` | `packages/contracts/src/doctors.ts:519` | The list row: enough to choose a doctor, without loading their whole file. |
 | `email` | `z.email().max(255).toLowerCase(…)` | `packages/contracts/src/common.ts:62` |  |
-| `forgotPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:41` |  |
-| `gender` | `z.enum(…)` | `packages/contracts/src/patients.ts:64` |  |
-| `impersonateRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:130` |  |
-| `impersonationClaimRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:155` | Redeeming the ticket, at the clinic's own host. |
-| `impersonationGrant` | `z.object(…)` | `packages/contracts/src/auth.ts:146` |  |
-| `impersonationStopResult` | `z.object(…)` | `packages/contracts/src/auth.ts:159` |  |
-| `invitationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:581` |  |
-| `invitationPreview` | `z.object(…)` | `packages/contracts/src/auth.ts:266` |  |
-| `invitationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:560` |  |
-| `invitationTokenRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:62` |  |
-| `inviteMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:201` |  |
-| `loginRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:10` |  |
-| `maritalStatus` | `z.enum(…)` | `packages/contracts/src/patients.ts:66` |  |
-| `memberDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:667` |  |
-| `memberListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:696` |  |
-| `memberOverride` | `z.object(…)` | `packages/contracts/src/tenancy.ts:651` |  |
-| `memberRoleAssignment` | `z.object(…)` | `packages/contracts/src/tenancy.ts:639` | One row of `membership_roles`, named so a person can read it. |
-| `membershipSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:191` |  |
-| `memberStatusRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:410` | Suspending or restoring someone. The reason is for the audit row only. |
-| `money` <sub>local</sub> | `z.string().regex(…)` | `packages/contracts/src/doctors.ts:29` | Money as a decimal string, never a float. A fee crosses the wire as "400.00" so no JSON number ever rounds it. The service hands it straight to Prisma's Decima… |
-| `noShowAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:127` |  |
-| `operatingHour` | `z.object(…)` | `packages/contracts/src/tenancy.ts:159` | 0 = Sunday, matching Postgres `extract(dow)` and JS `Date#getDay`. |
-| `organizationProfile` | `z.object(…)` | `packages/contracts/src/tenancy.ts:726` |  |
-| `otpRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:16` |  |
-| `otpVerifyRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:20` |  |
-| `paginationQuery` | `z.object(…)` | `packages/contracts/src/common.ts:132` |  |
-| `patientAddressDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:290` |  |
-| `patientAddressRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:134` |  |
-| `patientAllergyDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:312` |  |
-| `patientAllergyRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:212` |  |
-| `patientConditionDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:322` |  |
-| `patientContactDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:302` |  |
-| `patientContactRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:145` |  |
-| `patientDuplicateMatch` | `z.object(…)` | `packages/contracts/src/patients.ts:422` |  |
-| `patientDuplicateResponse` | `z.object(…)` | `packages/contracts/src/patients.ts:433` |  |
-| `patientHistoryResponse` | `z.object(…)` | `packages/contracts/src/patients.ts:397` |  |
-| `patientListResponse` | `z.object(…)` | `packages/contracts/src/patients.ts:403` |  |
-| `patientMedicationDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:332` |  |
-| `patientRegistrationDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:281` |  |
-| `patientSummary` | `z.object(…)` | `packages/contracts/src/patients.ts:350` |  |
-| `permissionOverrideRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:346` |  |
-| `platformOrganizationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:836` |  |
-| `platformOrganizationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:826` |  |
-| `qualificationSummary` | `z.object(…)` | `packages/contracts/src/doctors.ts:272` |  |
-| `refreshRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:25` |  |
-| `registerOrganizationResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:501` |  |
-| `registerPatientAtBranchRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:185` | Register an existing patient at a second branch. Issues that branch's MRN. |
-| `rescheduleAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:93` |  |
-| `resetPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:45` |  |
-| `revokeInvitationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:308` | Revoking is an action on an invitation, not a payload — the id is in the path. The reason is optional and lands on the audit row, never on an email. |
-| `roleDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:602` |  |
-| `roleListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:614` |  |
-| `rolePairingListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:287` |  |
-| `rolePairingOption` | `z.object(…)` | `packages/contracts/src/tenancy.ts:271` | One title as it appears in the role's checkbox list on the settings screen. |
-| `rolePairings` | `z.object(…)` | `packages/contracts/src/tenancy.ts:280` |  |
-| `searchPatientQuery` | `z.object(…)` | `packages/contracts/src/patients.ts:200` |  |
+| `feeQuote` | `z.object(…)` | `packages/contracts/src/fees.ts:185` |  |
+| `feeQuoteQuery` | `z.object(…)` | `packages/contracts/src/fees.ts:177` |  |
+| `feeScheduleAmount` | `z.object(…)` | `packages/contracts/src/fees.ts:145` |  |
+| `feeScheduleEntry` | `z.object(…)` | `packages/contracts/src/fees.ts:82` | One stored row, as the grid lists it. |
+| `feeScheduleQuery` | `z.object(…)` | `packages/contracts/src/fees.ts:159` |  |
+| `feeScheduleRow` | `z.object(…)` | `packages/contracts/src/fees.ts:104` |  |
+| `feeScheduleView` | `z.object(…)` | `packages/contracts/src/fees.ts:120` | The grid for one scope. `branchId: null` is the org-wide sheet — the clinic's default everywhere, which is what a single-branch clinic edits and never thinks a… |
+| `feeScopeLevel` | `z.enum(…)` | `packages/contracts/src/fees.ts:73` |  |
+| `followUpAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:258` |  |
+| `forgotPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:42` |  |
+| `gender` | `z.enum(…)` | `packages/contracts/src/patients.ts:65` |  |
+| `impersonateRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:131` |  |
+| `impersonationClaimRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:156` | Redeeming the ticket, at the clinic's own host. |
+| `impersonationGrant` | `z.object(…)` | `packages/contracts/src/auth.ts:147` |  |
+| `impersonationStopResult` | `z.object(…)` | `packages/contracts/src/auth.ts:160` |  |
+| `invitationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:641` |  |
+| `invitationPreview` | `z.object(…)` | `packages/contracts/src/auth.ts:311` |  |
+| `invitationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:620` |  |
+| `invitationTokenRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:63` |  |
+| `inviteMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:248` |  |
+| `invoiceBody` <sub>local</sub> | `z.object(…)` | `packages/contracts/src/invoices.ts:142` |  |
+| `invoiceCustomerRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:133` |  |
+| `invoiceLineRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:107` |  |
+| `invoiceSourceType` | `z.enum(…)` | `packages/contracts/src/invoices.ts:34` |  |
+| `invoiceStatus` | `z.enum(…)` | `packages/contracts/src/invoices.ts:45` |  |
+| `issueInvoiceRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:217` |  |
+| `itemTaxTreatment` | `z.enum(…)` | `packages/contracts/src/tax.ts:51` |  |
+| `listClinicTaxRulesQuery` | `z.object(…)` | `packages/contracts/src/tax.ts:380` | Which registration and which rules a caller wants. Ids and dates only. |
+| `loginRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:11` |  |
+| `maritalStatus` | `z.enum(…)` | `packages/contracts/src/patients.ts:67` |  |
+| `memberDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:727` |  |
+| `memberListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:756` |  |
+| `memberOverride` | `z.object(…)` | `packages/contracts/src/tenancy.ts:711` |  |
+| `memberRoleAssignment` | `z.object(…)` | `packages/contracts/src/tenancy.ts:699` | One row of `membership_roles`, named so a person can read it. |
+| `membershipSummary` | `z.object(…)` | `packages/contracts/src/auth.ts:224` |  |
+| `memberStatusRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:457` | Suspending or restoring someone. The reason is for the audit row only. |
+| `noShowAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:240` |  |
+| `operatingHour` | `z.object(…)` | `packages/contracts/src/tenancy.ts:206` | 0 = Sunday, matching Postgres `extract(dow)` and JS `Date#getDay`. |
+| `organizationProfile` | `z.object(…)` | `packages/contracts/src/tenancy.ts:786` |  |
+| `otpRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:17` |  |
+| `otpVerifyRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:21` |  |
+| `paginationQuery` | `z.object(…)` | `packages/contracts/src/common.ts:143` |  |
+| `patientAddressDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:386` |  |
+| `patientAddressRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:194` |  |
+| `patientAllergyDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:408` |  |
+| `patientAllergyRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:308` |  |
+| `patientConditionDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:418` |  |
+| `patientContactDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:398` |  |
+| `patientContactRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:234` |  |
+| `patientDuplicateMatch` | `z.object(…)` | `packages/contracts/src/patients.ts:520` |  |
+| `patientDuplicateResponse` | `z.object(…)` | `packages/contracts/src/patients.ts:531` |  |
+| `patientHistoryResponse` | `z.object(…)` | `packages/contracts/src/patients.ts:495` |  |
+| `patientListResponse` | `z.object(…)` | `packages/contracts/src/patients.ts:501` |  |
+| `patientMedicationDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:428` |  |
+| `patientRegistrationDetail` | `z.object(…)` | `packages/contracts/src/patients.ts:377` |  |
+| `patientSummary` | `z.object(…)` | `packages/contracts/src/patients.ts:446` |  |
+| `payoutInterval` | `z.enum(…)` | `packages/contracts/src/doctors.ts:259` |  |
+| `permissionOverrideRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:393` |  |
+| `platformOrganizationListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:933` |  |
+| `platformOrganizationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:923` |  |
+| `qualificationSummary` | `z.object(…)` | `packages/contracts/src/doctors.ts:390` |  |
+| `refreshRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:26` |  |
+| `registerOrganizationResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:554` |  |
+| `registerPatientAtBranchRequest` | `z.object(…)` | `packages/contracts/src/patients.ts:281` | Register an existing patient at a second branch. Issues that branch's MRN. |
+| `rescheduleInitiator` | `z.enum(…)` | `packages/contracts/src/appointments.ts:171` |  |
+| `resetPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:46` |  |
+| `revokeInvitationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:355` | Revoking is an action on an invitation, not a payload — the id is in the path. The reason is optional and lands on the audit row, never on an email. |
+| `roleDetail` | `z.object(…)` | `packages/contracts/src/tenancy.ts:662` |  |
+| `roleListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:674` |  |
+| `rolePairingListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:334` |  |
+| `rolePairingOption` | `z.object(…)` | `packages/contracts/src/tenancy.ts:318` | One title as it appears in the role's checkbox list on the settings screen. |
+| `rolePairings` | `z.object(…)` | `packages/contracts/src/tenancy.ts:327` |  |
+| `searchPatientQuery` | `z.object(…)` | `packages/contracts/src/patients.ts:296` |  |
 | `setAutoRenewRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:72` | Turn unattended renewal on or off. Turning it on needs a live mandate. |
-| `setRolePairingsRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:300` |  |
-| `settingChoice` | `z.object(…)` | `packages/contracts/src/tenancy.ts:773` |  |
-| `settingItem` | `z.object(…)` | `packages/contracts/src/tenancy.ts:778` |  |
-| `settingListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:805` |  |
-| `settingValueRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:485` |  |
-| `slotUnavailableReason` | `z.enum(…)` | `packages/contracts/src/appointments.ts:149` | Why a slot cannot be booked. Null when it can. |
-| `slugAvailabilityResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:513` | Deliberately thin. This endpoint is unauthenticated and answers questions about which clinics exist, so it returns a boolean and nothing else — no name, no sta… |
-| `specialtyListResponse` | `z.object(…)` | `packages/contracts/src/doctors.ts:400` |  |
+| `setClinicTaxRegistrationBranchesRequest` | `z.object(…)` | `packages/contracts/src/tax.ts:192` |  |
+| `setFeeScheduleRequest` | `z.object(…)` | `packages/contracts/src/fees.ts:152` |  |
+| `setRolePairingsRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:347` |  |
+| `settingChoice` | `z.object(…)` | `packages/contracts/src/tenancy.ts:870` |  |
+| `settingItem` | `z.object(…)` | `packages/contracts/src/tenancy.ts:875` |  |
+| `settingListResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:902` |  |
+| `settingValueRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:538` |  |
+| `slotUnavailableReason` | `z.enum(…)` | `packages/contracts/src/appointments.ts:510` | Why a slot cannot be booked. Null when it can. |
+| `slugAvailabilityResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:566` | Deliberately thin. This endpoint is unauthenticated and answers questions about which clinics exist, so it returns a boolean and nothing else — no name, no sta… |
+| `specialtyListResponse` | `z.object(…)` | `packages/contracts/src/doctors.ts:560` |  |
 | `specialtyProficiency` | `z.enum(…)` | `packages/contracts/src/clinical-taxonomy.ts:28` |  |
-| `specialtySummary` | `z.object(…)` | `packages/contracts/src/doctors.ts:260` |  |
+| `specialtySummary` | `z.object(…)` | `packages/contracts/src/doctors.ts:378` |  |
 | `startCheckoutRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:37` |  |
-| `switchBranchRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:33` | Branch switching. Validated against the caller's own membership_roles — a branch they hold no assignment for is rejected, and the switch is audited. |
-| `switchOrganizationRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:37` |  |
+| `switchBranchRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:34` | Branch switching. Validated against the caller's own membership_roles — a branch they hold no assignment for is rejected, and the switch is audited. |
+| `switchOrganizationRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:38` |  |
 | `taxonomyNode` | `z.object(…)` | `packages/contracts/src/clinical-taxonomy.ts:95` |  |
 | `taxonomyNodeListResponse` | `z.object(…)` | `packages/contracts/src/clinical-taxonomy.ts:134` |  |
 | `taxonomyNodeType` | `z.enum(…)` | `packages/contracts/src/clinical-taxonomy.ts:19` |  |
@@ -168,230 +216,323 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `taxonomySearchQuery` | `z.object(…)` | `packages/contracts/src/clinical-taxonomy.ts:78` |  |
 | `taxonomyTreeQuery` | `z.object(…)` | `packages/contracts/src/clinical-taxonomy.ts:87` |  |
 | `taxonomyTreeResponse` | `z.object(…)` | `packages/contracts/src/clinical-taxonomy.ts:135` |  |
-| `updateAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:102` | Everything about a booking that is not its time or its status. |
-| `updateMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:400` |  |
-| `updateOrganizationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:441` |  |
-| `updateRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:385` |  |
+| `taxScheme` | `z.enum(…)` | `packages/contracts/src/tax.ts:39` |  |
+| `taxSplit` | `z.enum(…)` | `packages/contracts/src/tax.ts:55` | India's constitutional CGST/SGST halving, and nothing else. |
+| `updateAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:215` | Everything about a booking that is not its time or its status. |
+| `updateDoctorQualificationRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:185` |  |
+| `updateMemberRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:447` |  |
+| `updateOrganizationRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:496` |  |
+| `updateRoleRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:432` |  |
 | `upgradePreviewRequest` | `z.object(…)` | `packages/contracts/src/billing.ts:44` | What an upgrade would cost. Same shape as applying it, on purpose. |
 | `uuid` | `z.uuid(…)` | `packages/contracts/src/common.ts:3` |  |
-| `verificationConfirmRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:117` |  |
-| `verificationRequestResult` | `z.object(…)` | `packages/contracts/src/auth.ts:165` |  |
-| `verificationResult` | `z.object(…)` | `packages/contracts/src/auth.ts:178` |  |
+| `verificationConfirmRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:118` |  |
+| `verificationRequestResult` | `z.object(…)` | `packages/contracts/src/auth.ts:166` |  |
+| `verificationResult` | `z.object(…)` | `packages/contracts/src/auth.ts:179` |  |
+| `vitalsChange` | `z.object(…)` | `packages/contracts/src/appointments.ts:691` |  |
+| `vitalsListResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:735` |  |
+| `vitalsReading` | `z.object(…)` | `packages/contracts/src/appointments.ts:651` |  |
+| `vitalsRevision` | `z.object(…)` | `packages/contracts/src/appointments.ts:707` |  |
+| `vitalsRevisionsResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:722` |  |
+| `voidInvoiceRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:234` |  |
+| `workingDay` | `z.object(…)` | `packages/contracts/src/appointments.ts:109` |  |
+| `workingDayReason` | `z.enum(…)` | `packages/contracts/src/appointments.ts:107` | Why a whole day cannot be booked. Null when some part of it can. |
+| `workingDaysResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:125` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `COUNTRIES` | `: readonly CountryInfo[]` | `packages/contracts/src/locale.ts:217` |  |
-| `INDIA_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:128` | India's states and union territories, by ISO 3166-2 code. |
+| `APPOINTMENT_RANGE_MAX_DAYS` | `45` | `packages/contracts/src/appointments.ts:444` |  |
+| `CELSIUS_PLACES` <sub>local</sub> | `100` | `packages/contracts/src/locale.ts:1102` | Decimal places `temperature_c` is stored at — `Decimal(4, 2)`, so 0.01 °C. |
+| `COUNTRIES` | `: readonly CountryInfo[]` | `packages/contracts/src/locale.ts:305` |  |
+| `COVERAGE_MODES` | `['EXPLICIT', 'JURISDICTION'] as const` | `packages/contracts/src/tax.ts:149` |  |
+| `DEFAULT_TIME_FORMAT` | `: TimeFormat` | `packages/contracts/src/locale.ts:1176` | What a clinic gets before anybody chooses. Must match the seeded default. |
+| `INDIA_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:216` | India's states and union territories, by ISO 3166-2 code. |
+| `KNOWN_FEE_TYPES` | `[ 'NEW', 'FOLLOW_UP', 'WALK_IN', 'TELECONSULT', 'PROCEDURE', 'RESCHEDULE', ] as const` | `packages/contracts/src/fees.ts:40` |  |
+| `NATIONAL_IDS` <sub>local</sub> | `: Readonly<Record<string, readonly NationalIdFormat[]>>` | `packages/contracts/src/locale.ts:644` |  |
 | `RESERVED_SLUGS` | `new Set(…)` | `packages/contracts/src/common.ts:17` | Subdomains the platform keeps for itself. A tenant claiming `api` or `admin` would break routing for everyone, so this is checked at registration. |
-| `US_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:168` | US states that levy a sales tax, plus DC. The five that do not are omitted. |
+| `TAX_REGISTRATION_STATUSES` | `['SCHEDULED', 'ACTIVE', 'LAPSED'] as const` | `packages/contracts/src/tax.ts:137` |  |
+| `TIME_FORMATS` | `['12H', '24H'] as const` | `packages/contracts/src/locale.ts:1171` |  |
+| `UNIVERSAL_IDS` <sub>local</sub> | `: readonly NationalIdFormat[]` | `packages/contracts/src/locale.ts:621` |  |
+| `US_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:256` | US states that levy a sales tax, plus DC. The five that do not are omitted. |
+| `VITAL_RANGES` | `{ heightCm: { min: 20, max: 280, step: 0.1, unit: 'cm', nou…` | `packages/contracts/src/appointments.ts:309` |  |
+| `WORKING_DAYS_MAX_SPAN` | `62` | `packages/contracts/src/appointments.ts:70` | The longest span the working-day probe will answer for. A calendar month plus the leading and trailing days a month grid draws, with room to spare. The picker … |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `abhaNumber` <sub>local</sub> | `z .string() .max(32) .regex(…)` | `packages/contracts/src/patients.ts:75` |  |
-| `appointmentDetail` | `appointmentSummary.extend(…)` | `packages/contracts/src/appointments.ts:219` |  |
+| `abhaNumber` <sub>local</sub> | `z .string() .max(32) .regex(…)` | `packages/contracts/src/patients.ts:76` |  |
+| `appointmentDetail` | `appointmentSummary.extend(…)` | `packages/contracts/src/appointments.ts:615` |  |
+| `appointmentListQuery` | `z .object({ branchId: uuid, date: calendarDate, /** Inclusi…` | `packages/contracts/src/appointments.ts:481` |  |
 | `availableSlug` | `slug.refine(…)` | `packages/contracts/src/common.ts:52` |  |
-| `bloodGroupValues` | `[ 'A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', '…` | `packages/contracts/src/patients.ts:41` |  |
-| `contactPhone` <sub>local</sub> | `z .string() .min(6) .max(20) .regex(…)` | `packages/contracts/src/patients.ts:33` |  |
-| `createPatientRequest` | `z .object({ ...patientIdentityFields, branchId: uuid, addre…` | `packages/contracts/src/patients.ts:164` |  |
-| `currencyCode` | `z .string() .length(3) .regex(/^[A-Za-z]{3}$/, 'three lette…` | `packages/contracts/src/common.ts:117` |  |
-| `currencySet` <sub>local</sub> | `: Set<string> \| null \| undefined` | `packages/contracts/src/common.ts:106` |  |
-| `doctorClassificationInput` | `z .object({ specialtyId: uuid, /** Advisory display label. …` | `packages/contracts/src/doctors.ts:41` |  |
-| `doctorDetail` | `doctorSummary.extend(…)` | `packages/contracts/src/doctors.ts:388` |  |
-| `doctorProfileFields` <sub>local</sub> | `{ /** * An existing member of the clinic. A doctor must be able to log in before * they c…` | `packages/contracts/src/doctors.ts:54` |  |
-| `doctorScheduleExceptionRequest` | `z .object({ /** Absent = every branch this doctor practises…` | `packages/contracts/src/doctors.ts:220` |  |
-| `doctorScheduleRequest` | `z .object({ branchId: uuid, /** 0 = Sunday, matching Postgr…` | `packages/contracts/src/doctors.ts:188` |  |
-| `genderValues` | `['MALE', 'FEMALE', 'OTHER', 'UNKNOWN'] as const` | `packages/contracts/src/patients.ts:39` |  |
-| `maritalStatusValues` | `[ 'SINGLE', 'MARRIED', 'WIDOWED', 'DIVORCED', 'SEPARATED', 'UNKNOWN', ] as const` | `packages/contracts/src/patients.ts:53` |  |
-| `password` | `z .string() .min(12, 'at least 12 characters') .max(128) .r…` | `packages/contracts/src/common.ts:124` |  |
-| `patientConditionRequest` | `z .object({ conditionText: z.string().min(1).max(255).trim(…` | `packages/contracts/src/patients.ts:220` |  |
-| `patientDetail` | `patientSummary.extend(…)` | `packages/contracts/src/patients.ts:372` |  |
-| `patientIdentityFields` <sub>local</sub> | `{ firstName: z.string().min(1).max(100).trim(), lastName: z.string().max(100).trim().opti…` | `packages/contracts/src/patients.ts:94` |  |
-| `patientMedicationRequest` | `z .object({ medicineText: z.string().min(1).max(255).trim()…` | `packages/contracts/src/patients.ts:251` |  |
-| `patientStatusValues` | `['ACTIVE', 'INACTIVE', 'DECEASED', 'MERGED'] as const` | `packages/contracts/src/patients.ts:62` |  |
+| `bloodGroupValues` | `[ 'A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE', '…` | `packages/contracts/src/patients.ts:42` |  |
+| `commonContactRelations` | `[ 'Spouse', 'Parent', 'Child', 'Sibling', 'Grandparent', 'Grandchild', 'Son-in-law', 'Dau…` | `packages/contracts/src/patients.ts:218` |  |
+| `contactPhone` <sub>local</sub> | `z .string() .min(6) .max(20) .regex(…)` | `packages/contracts/src/patients.ts:34` |  |
+| `countryCode` <sub>local</sub> | `z .string() .length(2) .regex(/^[A-Za-z]{2}$/, 'two letters…` | `packages/contracts/src/tax.ts:58` |  |
+| `createDoctorRequest` | `z .object({ ...doctorProfileFields, /** Degrees, with the i…` | `packages/contracts/src/doctors.ts:321` |  |
+| `createInvoiceRequest` | `invoiceBody.superRefine(…)` | `packages/contracts/src/invoices.ts:175` |  |
+| `createPatientRequest` | `z .object({ ...patientIdentityFields, branchId: uuid, addre…` | `packages/contracts/src/patients.ts:253` |  |
+| `currencyCode` | `z .string() .length(3) .regex(/^[A-Za-z]{3}$/, 'three lette…` | `packages/contracts/src/common.ts:128` |  |
+| `currencySet` <sub>local</sub> | `: Set<string> \| null \| undefined` | `packages/contracts/src/common.ts:117` |  |
+| `doctorClassificationInput` | `z .object({ specialtyId: uuid, /** Advisory display label. …` | `packages/contracts/src/doctors.ts:34` |  |
+| `doctorDetail` | `doctorSummary.extend(…)` | `packages/contracts/src/doctors.ts:548` |  |
+| `doctorProfileFields` <sub>local</sub> | `{ /** * An existing member of the clinic. A doctor must be able to log in before * they c…` | `packages/contracts/src/doctors.ts:47` |  |
+| `doctorScheduleExceptionRequest` | `z .object({ /** Absent = every branch this doctor practises…` | `packages/contracts/src/doctors.ts:338` |  |
+| `doctorScheduleRequest` | `z .object({ branchId: uuid, /** 0 = Sunday, matching Postgr…` | `packages/contracts/src/doctors.ts:219` |  |
+| `feeType` | `z .string() .min(1) .max(64) .regex(…)` | `packages/contracts/src/fees.ts:57` |  |
+| `genderValues` | `['MALE', 'FEMALE', 'OTHER', 'UNKNOWN'] as const` | `packages/contracts/src/patients.ts:40` |  |
+| `listInvoicesQuery` | `z .object({ page: z.coerce.number().int().min(1).default(1)…` | `packages/contracts/src/invoices.ts:254` |  |
+| `maritalStatusValues` | `[ 'SINGLE', 'MARRIED', 'WIDOWED', 'DIVORCED', 'SEPARATED', 'UNKNOWN', ] as const` | `packages/contracts/src/patients.ts:54` |  |
+| `password` | `z .string() .min(12, 'at least 12 characters') .max(128) .r…` | `packages/contracts/src/common.ts:135` |  |
+| `patientConditionRequest` | `z .object({ conditionText: z.string().min(1).max(255).trim(…` | `packages/contracts/src/patients.ts:316` |  |
+| `patientDetail` | `patientSummary.extend(…)` | `packages/contracts/src/patients.ts:468` |  |
+| `patientIdentityFields` <sub>local</sub> | `{ firstName: z.string().min(1).max(100).trim(), lastName: z.string().max(100).trim().opti…` | `packages/contracts/src/patients.ts:95` |  |
+| `patientMedicationRequest` | `z .object({ medicineText: z.string().min(1).max(255).trim()…` | `packages/contracts/src/patients.ts:347` |  |
+| `patientStatusValues` | `['ACTIVE', 'INACTIVE', 'DECEASED', 'MERGED'] as const` | `packages/contracts/src/patients.ts:63` |  |
 | `phone` | `z .string() .regex(…)` | `packages/contracts/src/common.ts:58` | E.164, which is what every Indian SMS/WhatsApp provider expects. |
+| `recordVitalsRequest` | `z .object({ /** Centimetres. */ heightCm: bounded('heightCm…` | `packages/contracts/src/appointments.ts:378` |  |
+| `regionCode` <sub>local</sub> | `z .string() .max(10) .regex(/^[A-Za-z0-9-]*$/, 'letters, di…` | `packages/contracts/src/tax.ts:72` |  |
 | `registerOrganizationRequest` | `z .object({ organization: z.object({ legalName: z.string().…` | `packages/contracts/src/tenancy.ts:13` |  |
+| `rescheduleAppointmentRequest` | `z .object({ startsAt: z.iso.datetime(), durationMinutes: z.…` | `packages/contracts/src/appointments.ts:174` |  |
+| `setDoctorCompensationRequest` | `z .object({ /** Null clears the agreement. Zero is an agree…` | `packages/contracts/src/doctors.ts:278` |  |
 | `slug` | `z .string() .min(3) .max(63) .regex(/^[a-z0-9]([a-z0-9-]*[a…` | `packages/contracts/src/common.ts:6` | Subdomain label: what becomes `alpha` in alpha.xyz.com. |
 | `taxonomyCode` <sub>local</sub> | `z .string() .min(2) .max(64) .regex(…)` | `packages/contracts/src/clinical-taxonomy.ts:39` |  |
 | `taxonomyTreeNode` | `: z.ZodType<TaxonomyTreeNode>` | `packages/contracts/src/clinical-taxonomy.ts:130` |  |
-| `timezone` | `z .string() .min(1) .max(64) .refine(…)` | `packages/contracts/src/common.ts:75` |  |
-| `updateBranchRequest` | `createBranchRequest.partial().extend(…)` | `packages/contracts/src/tenancy.ts:154` |  |
-| `updateDoctorFields` <sub>local</sub> | `z .object(doctorProfileFields) .omit({ userId: true }) .par…` | `packages/contracts/src/doctors.ts:132` |  |
-| `updateDoctorRequest` | `updateDoctorFields .extend({ status: z.enum(['ACTIVE', 'INA…` | `packages/contracts/src/doctors.ts:140` |  |
-| `updatePatientRequest` | `z .object(patientIdentityFields) .partial() .superRefine(…)` | `packages/contracts/src/patients.ts:179` |  |
+| `timezone` | `z .string() .min(1) .max(64) .refine(…)` | `packages/contracts/src/common.ts:86` |  |
+| `updateBranchRequest` | `createBranchRequest.partial().extend(…)` | `packages/contracts/src/tenancy.ts:201` |  |
+| `updateClinicTaxRegistrationRequest` | `createClinicTaxRegistrationRequest.partial(…)` | `packages/contracts/src/tax.ts:125` |  |
+| `updateClinicTaxRuleRequest` | `createClinicTaxRuleRequest.partial().extend(…)` | `packages/contracts/src/tax.ts:262` |  |
+| `updateDoctorFields` <sub>local</sub> | `z .object(doctorProfileFields) .omit({ userId: true }) .par…` | `packages/contracts/src/doctors.ts:123` |  |
+| `updateDoctorRequest` | `updateDoctorFields .extend({ status: z.enum(['ACTIVE', 'INA…` | `packages/contracts/src/doctors.ts:139` |  |
+| `updateInvoiceRequest` | `invoiceBody .omit({ branchId: true, sourceType: true, appoi…` | `packages/contracts/src/invoices.ts:204` |  |
+| `updatePatientRequest` | `z .object(patientIdentityFields) .partial() .superRefine(re…` | `packages/contracts/src/patients.ts:269` |  |
 | `updateTaxonomyNodeRequest` | `z .object({ name: z.string().min(2).max(255), parentId: uui…` | `packages/contracts/src/clinical-taxonomy.ts:66` |  |
 | `updateTaxRegistrationRequest` | `createTaxRegistrationRequest.partial(…)` | `packages/contracts/src/billing.ts:466` |  |
+| `updateTaxRuleDefaultRequest` | `createTaxRuleDefaultRequest.partial().extend(…)` | `packages/contracts/src/billing.ts:568` |  |
+| `updateVitalsRequest` | `recordVitalsRequest` | `packages/contracts/src/appointments.ts:467` |  |
 | `upgradeRequest` | `upgradePreviewRequest` | `packages/contracts/src/billing.ts:50` |  |
+| `workingDaysQuery` | `z .object({ branchId: uuid, doctorProfileId: uuid, from: ca…` | `packages/contracts/src/appointments.ts:85` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AddressLabels` | `{ addressLine1, city, region, postalCode }` | `packages/contracts/src/locale.ts:62` |  |
+| `AddressLabels` | `{ addressLine1, city, region, postalCode }` | `packages/contracts/src/locale.ts:66` |  |
 | `AutoRenewResponse` | `{ autoRenew }` | `packages/contracts/src/billing.ts:363` |  |
 | `BillingOverviewResponse` | `{ subscription, plans, invoices, currency }` | `packages/contracts/src/billing.ts:194` | Everything the billing screen renders, in one call. |
 | `CancelSubscriptionResponse` | `{ status, endsAt }` | `packages/contracts/src/billing.ts:367` |  |
 | `CheckoutResponse` | `{ intentId, customer, redirectUrl, embedded, purchase, status, amountMinor, currency, invoiceId }` | `packages/contracts/src/billing.ts:263` |  |
-| `CountryInfo` | `{ code, name, currency, timezones, regions, tax, dial, labels, postal, taxId }` | `packages/contracts/src/locale.ts:102` |  |
-| `DialFormat` | `{ code, minDigits, maxDigits, example }` | `packages/contracts/src/locale.ts:92` |  |
+| `ClinicTaxRegistrationSummary` | `{ id, countryCode, regionCode, scheme, registrationNumber, legalName, effectiveFrom, effectiveTo, isLive, status, placeOfSupply, coveredBranches, coverageMode }` | `packages/contracts/src/tax.ts:152` |  |
+| `ClinicTaxRuleSummary` | `{ id, countryCode, regionCode, scheme, taxCategory, description, rateBps, treatment, lineName, regionalLineName, split, stacks, effectiveFrom, effectiveTo, isLive, jurisdiction, usedOnIssuedInvoices }` | `packages/contracts/src/tax.ts:280` |  |
+| `CountryInfo` | `{ code, name, currency, timezones, regions, tax, dial, labels, postal, taxId, temperatureUnit }` | `packages/contracts/src/locale.ts:169` |  |
+| `DialFormat` | `{ code, minDigits, maxDigits, example }` | `packages/contracts/src/locale.ts:96` |  |
 | `EmbeddedCheckout` | `{ provider, publicKey, token }` | `packages/contracts/src/billing.ts:216` |  |
+| `InvoiceDetail` | `{ appointmentId, customerPhone, customerEmail, customerAddress, customerTaxId, issuerTaxId, issuerLegalName, placeOfSupply, taxTreatment, subtotalMinor, lineDiscountTotalMinor, invoiceDiscountTotalMi…` | `packages/contracts/src/invoices.ts:372` |  |
+| `InvoiceDocumentState` | `{ status, documentId, fileName, sizeBytes, generatedAt }` | `packages/contracts/src/invoices.ts:364` |  |
+| `InvoiceItemDetail` | `{ id, lineNumber, description, taxCategory, itemCode, quantity, unitPriceMinor, grossMinor, discountMinor, apportionedDiscountMinor, taxableMinor, taxMinor, lineTotalMinor, taxTreatment, taxReason, t…` | `packages/contracts/src/invoices.ts:332` |  |
 | `InvoiceLineSummary` | `{ kind, description, amountMinor }` | `packages/contracts/src/billing.ts:171` |  |
+| `InvoiceListItem` | `{ id, invoiceNumber, status, sourceType, branchId, patientId, customerName, currency, grandTotalMinor, amountPaidMinor, balanceDueMinor, suppliedAt, issuedAt, dueDate, createdAt }` | `packages/contracts/src/invoices.ts:295` | One row of the list. Enough to render a line; never enough to be the bill. |
 | `InvoiceSummary` | `{ id, invoiceNumber, status, currency, totalMinor, amountPaidMinor, periodStart, periodEnd, issuedAt, paidAt, dueDate, lines }` | `packages/contracts/src/billing.ts:178` |  |
+| `InvoiceTaxLine` | `{ name, jurisdiction, rateBps, taxableMinor, amountMinor }` | `packages/contracts/src/invoices.ts:315` |  |
 | `MandateSetupResponse` | `{ mandateId, redirectUrl }` | `packages/contracts/src/billing.ts:322` |  |
 | `MandateStatusResponse` | `{ mandateId, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }` | `packages/contracts/src/billing.ts:335` |  |
 | `MandateSummary` | `{ id, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }` | `packages/contracts/src/billing.ts:125` |  |
-| `Paginated` | `{ data, meta }` | `packages/contracts/src/common.ts:141` |  |
+| `NationalIdFormat` | `{ code, label, pattern, example, mask, maxLength, numeric }` | `packages/contracts/src/locale.ts:118` |  |
+| `Paginated` | `{ data, meta }` | `packages/contracts/src/common.ts:152` |  |
 | `PaymentStatusResponse` | `{ intentId, status, purpose, amountMinor, currency, failureMessage, invoiceId }` | `packages/contracts/src/billing.ts:352` |  |
 | `PlanPriceSummary` | `{ id, currency, interval, amountMinor }` | `packages/contracts/src/billing.ts:105` |  |
 | `PlanSummary` | `{ id, code, name, tagline, trialDays, sortOrder, features, prices }` | `packages/contracts/src/billing.ts:112` |  |
 | `PlatformSubscriptionView` | `{ organizationId, subscription, invoices }` | `packages/contracts/src/billing.ts:384` |  |
-| `PostalFormat` | `{ pattern, example, numeric }` | `packages/contracts/src/locale.ts:69` |  |
+| `PostalFormat` | `{ pattern, example, numeric }` | `packages/contracts/src/locale.ts:73` |  |
 | `ProrationSummary` | `{ periodDays, remainingDays, creditMinor, chargeMinor, amountDueMinor, isFree }` | `packages/contracts/src/billing.ts:287` |  |
 | `PurchaseSummary` | `{ description, periodStart, periodEnd, invoiceNumber, subtotalMinor, taxLines, taxTotalMinor, totalMinor, taxNote }` | `packages/contracts/src/billing.ts:240` |  |
-| `Region` | `{ code, name }` | `packages/contracts/src/locale.ts:46` |  |
+| `Region` | `{ code, name }` | `packages/contracts/src/locale.ts:50` |  |
 | `ResumeSubscriptionResponse` | `{ nextRenewalAt }` | `packages/contracts/src/billing.ts:373` |  |
 | `SubscriptionSummary` | `{ id, status, isActive, plan, planPriceId, currency, interval, amountMinor, currentPeriodStart, currentPeriodEnd, trialEndsAt, gracePeriodEnd, cancelAtPeriodEnd, cancelAt, autoRenew, entitlements, ma…` | `packages/contracts/src/billing.ts:136` |  |
-| `TaxIdFormat` | `{ label, pattern, example, hint }` | `packages/contracts/src/locale.ts:83` |  |
+| `TaxCategoryCard` | `{ taxCategory, source, applied, overriding }` | `packages/contracts/src/tax.ts:328` |  |
+| `TaxIdFormat` | `{ label, pattern, example, hint }` | `packages/contracts/src/locale.ts:87` |  |
+| `TaxRateCardResponse` | `{ countryCode, registrations, branches, categories, unratedCategories }` | `packages/contracts/src/tax.ts:345` |  |
 | `TaxRegistrationListResponse` | `{ registrations }` | `packages/contracts/src/billing.ts:485` |  |
 | `TaxRegistrationSummary` | `{ id, countryCode, regionCode, scheme, registrationNumber, standardRateBps, effectiveFrom, effectiveTo, isLive, placeOfSupply }` | `packages/contracts/src/billing.ts:469` |  |
+| `TaxRuleDefaultListResponse` | `{ defaults }` | `packages/contracts/src/billing.ts:597` |  |
+| `TaxRuleDefaultSummary` | `{ id, countryCode, regionCode, scheme, taxCategory, description, rateBps, treatment, lineName, regionalLineName, split, stacks, sourceNote, effectiveFrom, effectiveTo, isLive, jurisdiction }` | `packages/contracts/src/billing.ts:575` |  |
 | `UpgradeQuoteResponse` | `{ taxLines, taxTotalMinor, totalDueMinor, taxNote, fromPlan, toPlan, toPlanPriceId, currency, fullAmountMinor, proration, effectiveAt, nextRenewalAt }` | `packages/contracts/src/billing.ts:297` |  |
+| `VitalRange` | `{ min, max, step, unit, noun }` | `packages/contracts/src/appointments.ts:298` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AcceptInviteRequest` | `z.infer<typeof acceptInviteRequest>` | `packages/contracts/src/auth.ts:282` |  |
-| `ApiError` | `z.infer<typeof apiError>` | `packages/contracts/src/common.ts:154` |  |
-| `AppointmentDetail` | `z.infer<typeof appointmentDetail>` | `packages/contracts/src/appointments.ts:248` |  |
-| `AppointmentListQuery` | `z.infer<typeof appointmentListQuery>` | `packages/contracts/src/appointments.ts:250` |  |
-| `AppointmentListResponse` | `z.infer<typeof appointmentListResponse>` | `packages/contracts/src/appointments.ts:249` |  |
-| `AppointmentSourceValue` | `z.infer<typeof appointmentSource>` | `packages/contracts/src/appointments.ts:241` |  |
-| `AppointmentStatusEvent` | `z.infer<typeof appointmentStatusEvent>` | `packages/contracts/src/appointments.ts:246` |  |
-| `AppointmentStatusValue` | `z.infer<typeof appointmentStatus>` | `packages/contracts/src/appointments.ts:239` |  |
-| `AppointmentSummary` | `z.infer<typeof appointmentSummary>` | `packages/contracts/src/appointments.ts:247` |  |
-| `AppointmentTransitionRequest` | `z.infer<typeof appointmentTransitionRequest>` | `packages/contracts/src/appointments.ts:254` |  |
-| `AppointmentVisitTypeValue` | `z.infer<typeof appointmentVisitType>` | `packages/contracts/src/appointments.ts:240` |  |
-| `AssignRoleRequest` | `z.infer<typeof assignRoleRequest>` | `packages/contracts/src/tenancy.ts:880` |  |
+| `AcceptInviteRequest` | `z.infer<typeof acceptInviteRequest>` | `packages/contracts/src/auth.ts:327` |  |
+| `ApiError` | `z.infer<typeof apiError>` | `packages/contracts/src/common.ts:165` |  |
+| `AppointmentBilling` | `z.infer<typeof appointmentBilling>` | `packages/contracts/src/invoices.ts:550` |  |
+| `AppointmentBillingBlockedReason` | `z.infer<typeof appointmentBillingBlockedReason>` | `packages/contracts/src/invoices.ts:485` |  |
+| `AppointmentDetail` | `z.infer<typeof appointmentDetail>` | `packages/contracts/src/appointments.ts:763` |  |
+| `AppointmentInvoiceLink` | `z.infer<typeof appointmentInvoiceLink>` | `packages/contracts/src/invoices.ts:433` |  |
+| `AppointmentListQuery` | `z.infer<typeof appointmentListQuery>` | `packages/contracts/src/appointments.ts:765` |  |
+| `AppointmentListResponse` | `z.infer<typeof appointmentListResponse>` | `packages/contracts/src/appointments.ts:764` |  |
+| `AppointmentSourceValue` | `z.infer<typeof appointmentSource>` | `packages/contracts/src/appointments.ts:752` |  |
+| `AppointmentStatusEvent` | `z.infer<typeof appointmentStatusEvent>` | `packages/contracts/src/appointments.ts:761` |  |
+| `AppointmentStatusValue` | `z.infer<typeof appointmentStatus>` | `packages/contracts/src/appointments.ts:750` |  |
+| `AppointmentSummary` | `z.infer<typeof appointmentSummary>` | `packages/contracts/src/appointments.ts:762` |  |
+| `AppointmentTransitionRequest` | `z.infer<typeof appointmentTransitionRequest>` | `packages/contracts/src/appointments.ts:769` |  |
+| `AppointmentVisitTypeValue` | `z.infer<typeof appointmentVisitType>` | `packages/contracts/src/appointments.ts:751` |  |
+| `AssignRoleRequest` | `z.infer<typeof assignRoleRequest>` | `packages/contracts/src/tenancy.ts:977` |  |
 | `AuditAction` | `z.infer<typeof auditAction>` | `packages/contracts/src/audit.ts:96` |  |
 | `AuditEntry` | `z.infer<typeof auditEntry>` | `packages/contracts/src/audit.ts:97` |  |
 | `AuditFieldChange` | `z.infer<typeof auditFieldChange>` | `packages/contracts/src/audit.ts:95` |  |
 | `AuditHistoryQuery` | `z.infer<typeof auditHistoryQuery>` | `packages/contracts/src/audit.ts:99` |  |
 | `AuditHistoryResponse` | `z.infer<typeof auditHistoryResponse>` | `packages/contracts/src/audit.ts:98` |  |
-| `AuthSession` | `z.infer<typeof authSession>` | `packages/contracts/src/auth.ts:290` |  |
-| `AvailabilityQuery` | `z.infer<typeof availabilityQuery>` | `packages/contracts/src/appointments.ts:245` |  |
-| `AvailabilityResponse` | `z.infer<typeof availabilityResponse>` | `packages/contracts/src/appointments.ts:244` |  |
-| `AvailabilitySlot` | `z.infer<typeof availabilitySlot>` | `packages/contracts/src/appointments.ts:243` |  |
+| `AuthSession` | `z.infer<typeof authSession>` | `packages/contracts/src/auth.ts:335` |  |
+| `AvailabilityQuery` | `z.infer<typeof availabilityQuery>` | `packages/contracts/src/appointments.ts:756` |  |
+| `AvailabilityResponse` | `z.infer<typeof availabilityResponse>` | `packages/contracts/src/appointments.ts:755` |  |
+| `AvailabilitySlot` | `z.infer<typeof availabilitySlot>` | `packages/contracts/src/appointments.ts:754` |  |
 | `BillingInterval` | `'MONTH' \| 'YEAR'` | `packages/contracts/src/billing.ts:103` |  |
 | `BillingOverviewQuery` | `z.infer<typeof billingOverviewQuery>` | `packages/contracts/src/billing.ts:97` |  |
-| `BloodGroup` | `z.infer<typeof bloodGroup>` | `packages/contracts/src/patients.ts:442` |  |
-| `BranchClosureRequest` | `z.infer<typeof branchClosureRequest>` | `packages/contracts/src/tenancy.ts:865` |  |
-| `BranchDetail` | `z.infer<typeof branchDetail>` | `packages/contracts/src/tenancy.ts:862` |  |
-| `BranchListResponse` | `z.infer<typeof branchListResponse>` | `packages/contracts/src/tenancy.ts:863` |  |
-| `BranchOperatingHoursRequest` | `z.infer<typeof branchOperatingHoursRequest>` | `packages/contracts/src/tenancy.ts:864` |  |
-| `BranchSummary` | `z.infer<typeof branchSummary>` | `packages/contracts/src/auth.ts:292` |  |
-| `CancelAppointmentRequest` | `z.infer<typeof cancelAppointmentRequest>` | `packages/contracts/src/appointments.ts:255` |  |
+| `BloodGroup` | `z.infer<typeof bloodGroup>` | `packages/contracts/src/patients.ts:540` |  |
+| `BranchClosureRequest` | `z.infer<typeof branchClosureRequest>` | `packages/contracts/src/tenancy.ts:962` |  |
+| `BranchDetail` | `z.infer<typeof branchDetail>` | `packages/contracts/src/tenancy.ts:959` |  |
+| `BranchListResponse` | `z.infer<typeof branchListResponse>` | `packages/contracts/src/tenancy.ts:960` |  |
+| `BranchOperatingHoursRequest` | `z.infer<typeof branchOperatingHoursRequest>` | `packages/contracts/src/tenancy.ts:961` |  |
+| `BranchSummary` | `z.infer<typeof branchSummary>` | `packages/contracts/src/auth.ts:337` |  |
+| `CancelAppointmentRequest` | `z.infer<typeof cancelAppointmentRequest>` | `packages/contracts/src/appointments.ts:770` |  |
+| `CancelInvoiceRequest` | `z.infer<typeof cancelInvoiceRequest>` | `packages/contracts/src/invoices.ts:225` |  |
 | `CancelSubscriptionRequest` | `z.infer<typeof cancelSubscriptionRequest>` | `packages/contracts/src/billing.ts:69` |  |
-| `CheckSlugQuery` | `z.infer<typeof checkSlugQuery>` | `packages/contracts/src/tenancy.ts:842` |  |
-| `CreateAppointmentRequest` | `z.infer<typeof createAppointmentRequest>` | `packages/contracts/src/appointments.ts:251` |  |
-| `CreateBranchRequest` | `z.infer<typeof createBranchRequest>` | `packages/contracts/src/tenancy.ts:870` |  |
-| `CreateDesignationRequest` | `z.infer<typeof createDesignationRequest>` | `packages/contracts/src/tenancy.ts:873` |  |
-| `CreateDoctorRequest` | `z.infer<typeof createDoctorRequest>` | `packages/contracts/src/doctors.ts:423` |  |
-| `CreatePatientRequest` | `z.infer<typeof createPatientRequest>` | `packages/contracts/src/patients.ts:445` |  |
-| `CreateRoleRequest` | `z.infer<typeof createRoleRequest>` | `packages/contracts/src/tenancy.ts:881` |  |
+| `CheckSlugQuery` | `z.infer<typeof checkSlugQuery>` | `packages/contracts/src/tenancy.ts:939` |  |
+| `ConsultationCharge` | `z.infer<typeof consultationCharge>` | `packages/contracts/src/invoices.ts:502` |  |
+| `ConsultationChargeBasis` | `z.infer<typeof consultationChargeBasis>` | `packages/contracts/src/invoices.ts:452` |  |
+| `ConsultationUnpricedReason` | `z.infer<typeof consultationUnpricedReason>` | `packages/contracts/src/invoices.ts:469` |  |
+| `CoverageMode` | `(typeof COVERAGE_MODES)[number]` | `packages/contracts/src/tax.ts:150` |  |
+| `CreateAppointmentInvoiceRequest` | `z.infer<typeof createAppointmentInvoiceRequest>` | `packages/contracts/src/invoices.ts:578` |  |
+| `CreateAppointmentRequest` | `z.infer<typeof createAppointmentRequest>` | `packages/contracts/src/appointments.ts:766` |  |
+| `CreateBranchRequest` | `z.infer<typeof createBranchRequest>` | `packages/contracts/src/tenancy.ts:967` |  |
+| `CreateClinicTaxRegistrationRequest` | `z.infer<typeof createClinicTaxRegistrationRequest>` | `packages/contracts/src/tax.ts:114` |  |
+| `CreateClinicTaxRuleRequest` | `z.infer<typeof createClinicTaxRuleRequest>` | `packages/contracts/src/tax.ts:251` |  |
+| `CreateDesignationRequest` | `z.infer<typeof createDesignationRequest>` | `packages/contracts/src/tenancy.ts:970` |  |
+| `CreateDoctorRequest` | `z.infer<typeof createDoctorRequest>` | `packages/contracts/src/doctors.ts:583` |  |
+| `CreateInvoiceRequest` | `z.infer<typeof createInvoiceRequest>` | `packages/contracts/src/invoices.ts:187` |  |
+| `CreatePatientRequest` | `z.infer<typeof createPatientRequest>` | `packages/contracts/src/patients.ts:543` |  |
+| `CreateRoleRequest` | `z.infer<typeof createRoleRequest>` | `packages/contracts/src/tenancy.ts:978` |  |
 | `CreateTaxonomyNodeRequest` | `z.infer<typeof createTaxonomyNodeRequest>` | `packages/contracts/src/clinical-taxonomy.ts:143` |  |
 | `CreateTaxRegistrationRequest` | `z.infer<typeof createTaxRegistrationRequest>` | `packages/contracts/src/billing.ts:461` |  |
-| `DecideScheduleExceptionRequest` | `z.infer<typeof decideScheduleExceptionRequest>` | `packages/contracts/src/doctors.ts:429` |  |
+| `CreateTaxRuleDefaultRequest` | `z.infer<typeof createTaxRuleDefaultRequest>` | `packages/contracts/src/billing.ts:555` |  |
+| `DecideScheduleExceptionRequest` | `z.infer<typeof decideScheduleExceptionRequest>` | `packages/contracts/src/doctors.ts:590` |  |
 | `DemoRequestInput` | `z.infer<typeof demoRequestInput>` | `packages/contracts/src/marketing.ts:46` |  |
 | `DemoRequestResponse` | `z.infer<typeof demoRequestResponse>` | `packages/contracts/src/marketing.ts:57` |  |
-| `DesignationListResponse` | `z.infer<typeof designationListResponse>` | `packages/contracts/src/tenancy.ts:875` |  |
-| `DesignationSummary` | `z.infer<typeof designationSummary>` | `packages/contracts/src/tenancy.ts:874` |  |
-| `DoctorBranchSettingDetail` | `z.infer<typeof doctorBranchSettingDetail>` | `packages/contracts/src/doctors.ts:413` |  |
-| `DoctorBranchSettingRequest` | `z.infer<typeof doctorBranchSettingRequest>` | `packages/contracts/src/doctors.ts:426` |  |
-| `DoctorClassificationInput` | `z.infer<typeof doctorClassificationInput>` | `packages/contracts/src/doctors.ts:421` |  |
-| `DoctorDetail` | `z.infer<typeof doctorDetail>` | `packages/contracts/src/doctors.ts:417` |  |
-| `DoctorListQuery` | `z.infer<typeof doctorListQuery>` | `packages/contracts/src/doctors.ts:422` |  |
-| `DoctorListResponse` | `z.infer<typeof doctorListResponse>` | `packages/contracts/src/doctors.ts:418` |  |
-| `DoctorQualificationDetail` | `z.infer<typeof doctorQualificationDetail>` | `packages/contracts/src/doctors.ts:412` |  |
-| `DoctorQualificationRequest` | `z.infer<typeof doctorQualificationRequest>` | `packages/contracts/src/doctors.ts:425` |  |
-| `DoctorScheduleDetail` | `z.infer<typeof doctorScheduleDetail>` | `packages/contracts/src/doctors.ts:414` |  |
-| `DoctorScheduleExceptionDetail` | `z.infer<typeof doctorScheduleExceptionDetail>` | `packages/contracts/src/doctors.ts:415` |  |
-| `DoctorScheduleExceptionRequest` | `z.infer<typeof doctorScheduleExceptionRequest>` | `packages/contracts/src/doctors.ts:428` |  |
-| `DoctorScheduleRequest` | `z.infer<typeof doctorScheduleRequest>` | `packages/contracts/src/doctors.ts:427` |  |
-| `DoctorSpecialtyDetail` | `z.infer<typeof doctorSpecialtyDetail>` | `packages/contracts/src/doctors.ts:411` |  |
-| `DoctorSummary` | `z.infer<typeof doctorSummary>` | `packages/contracts/src/doctors.ts:416` |  |
-| `Gender` | `z.infer<typeof gender>` | `packages/contracts/src/patients.ts:441` |  |
-| `ImpersonateRequest` | `z.infer<typeof impersonateRequest>` | `packages/contracts/src/auth.ts:286` |  |
-| `ImpersonationClaimRequest` | `z.infer<typeof impersonationClaimRequest>` | `packages/contracts/src/auth.ts:288` |  |
-| `ImpersonationGrant` | `z.infer<typeof impersonationGrant>` | `packages/contracts/src/auth.ts:287` |  |
-| `ImpersonationStopResult` | `z.infer<typeof impersonationStopResult>` | `packages/contracts/src/auth.ts:289` |  |
-| `InvitationListResponse` | `z.infer<typeof invitationListResponse>` | `packages/contracts/src/tenancy.ts:859` |  |
-| `InvitationPreview` | `z.infer<typeof invitationPreview>` | `packages/contracts/src/auth.ts:277` |  |
-| `InvitationSummary` | `z.infer<typeof invitationSummary>` | `packages/contracts/src/tenancy.ts:858` |  |
-| `InvitationTokenRequest` | `z.infer<typeof invitationTokenRequest>` | `packages/contracts/src/auth.ts:276` |  |
-| `InviteMemberRequest` | `z.infer<typeof inviteMemberRequest>` | `packages/contracts/src/tenancy.ts:872` |  |
-| `LoginRequest` | `z.infer<typeof loginRequest>` | `packages/contracts/src/auth.ts:275` |  |
-| `MaritalStatus` | `z.infer<typeof maritalStatus>` | `packages/contracts/src/patients.ts:443` |  |
-| `MemberDetail` | `z.infer<typeof memberDetail>` | `packages/contracts/src/tenancy.ts:854` |  |
-| `MemberListResponse` | `z.infer<typeof memberListResponse>` | `packages/contracts/src/tenancy.ts:855` |  |
-| `MemberOverride` | `z.infer<typeof memberOverride>` | `packages/contracts/src/tenancy.ts:853` |  |
-| `MemberRoleAssignment` | `z.infer<typeof memberRoleAssignment>` | `packages/contracts/src/tenancy.ts:852` |  |
-| `MembershipSummary` | `z.infer<typeof membershipSummary>` | `packages/contracts/src/auth.ts:291` |  |
-| `MemberStatusRequest` | `z.infer<typeof memberStatusRequest>` | `packages/contracts/src/tenancy.ts:857` |  |
-| `NoShowAppointmentRequest` | `z.infer<typeof noShowAppointmentRequest>` | `packages/contracts/src/appointments.ts:256` |  |
-| `OperatingHour` | `z.infer<typeof operatingHour>` | `packages/contracts/src/tenancy.ts:861` |  |
-| `OrganizationProfile` | `z.infer<typeof organizationProfile>` | `packages/contracts/src/tenancy.ts:844` |  |
-| `OtpRequest` | `z.infer<typeof otpRequest>` | `packages/contracts/src/auth.ts:278` |  |
-| `OtpVerifyRequest` | `z.infer<typeof otpVerifyRequest>` | `packages/contracts/src/auth.ts:279` |  |
-| `PaginationQuery` | `z.infer<typeof paginationQuery>` | `packages/contracts/src/common.ts:139` |  |
-| `PatientAddressDetail` | `z.infer<typeof patientAddressDetail>` | `packages/contracts/src/patients.ts:456` |  |
-| `PatientAddressRequest` | `z.infer<typeof patientAddressRequest>` | `packages/contracts/src/patients.ts:449` |  |
-| `PatientAllergyDetail` | `z.infer<typeof patientAllergyDetail>` | `packages/contracts/src/patients.ts:458` |  |
-| `PatientAllergyRequest` | `z.infer<typeof patientAllergyRequest>` | `packages/contracts/src/patients.ts:451` |  |
-| `PatientConditionDetail` | `z.infer<typeof patientConditionDetail>` | `packages/contracts/src/patients.ts:459` |  |
-| `PatientConditionRequest` | `z.infer<typeof patientConditionRequest>` | `packages/contracts/src/patients.ts:452` |  |
-| `PatientContactDetail` | `z.infer<typeof patientContactDetail>` | `packages/contracts/src/patients.ts:457` |  |
-| `PatientContactRequest` | `z.infer<typeof patientContactRequest>` | `packages/contracts/src/patients.ts:450` |  |
-| `PatientDetail` | `z.infer<typeof patientDetail>` | `packages/contracts/src/patients.ts:462` |  |
-| `PatientDuplicateMatch` | `z.infer<typeof patientDuplicateMatch>` | `packages/contracts/src/patients.ts:465` |  |
-| `PatientDuplicateResponse` | `z.infer<typeof patientDuplicateResponse>` | `packages/contracts/src/patients.ts:466` |  |
-| `PatientHistoryResponse` | `z.infer<typeof patientHistoryResponse>` | `packages/contracts/src/patients.ts:463` |  |
-| `PatientListResponse` | `z.infer<typeof patientListResponse>` | `packages/contracts/src/patients.ts:464` |  |
-| `PatientMedicationDetail` | `z.infer<typeof patientMedicationDetail>` | `packages/contracts/src/patients.ts:460` |  |
-| `PatientMedicationRequest` | `z.infer<typeof patientMedicationRequest>` | `packages/contracts/src/patients.ts:453` |  |
-| `PatientRegistrationDetail` | `z.infer<typeof patientRegistrationDetail>` | `packages/contracts/src/patients.ts:455` |  |
-| `PatientSummary` | `z.infer<typeof patientSummary>` | `packages/contracts/src/patients.ts:461` |  |
-| `PermissionOverrideRequest` | `z.infer<typeof permissionOverrideRequest>` | `packages/contracts/src/tenancy.ts:882` |  |
-| `PlatformOrganizationListResponse` | `z.infer<typeof platformOrganizationListResponse>` | `packages/contracts/src/tenancy.ts:841` |  |
-| `PlatformOrganizationSummary` | `z.infer<typeof platformOrganizationSummary>` | `packages/contracts/src/tenancy.ts:840` |  |
-| `QualificationSummary` | `z.infer<typeof qualificationSummary>` | `packages/contracts/src/doctors.ts:410` |  |
-| `RefreshRequest` | `z.infer<typeof refreshRequest>` | `packages/contracts/src/auth.ts:280` |  |
-| `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:869` |  |
-| `RegisterOrganizationResponse` | `z.infer<typeof registerOrganizationResponse>` | `packages/contracts/src/tenancy.ts:866` |  |
-| `RegisterPatientAtBranchRequest` | `z.infer<typeof registerPatientAtBranchRequest>` | `packages/contracts/src/patients.ts:447` |  |
-| `RescheduleAppointmentRequest` | `z.infer<typeof rescheduleAppointmentRequest>` | `packages/contracts/src/appointments.ts:252` |  |
-| `RevokeInvitationRequest` | `z.infer<typeof revokeInvitationRequest>` | `packages/contracts/src/tenancy.ts:860` |  |
-| `RoleDetail` | `z.infer<typeof roleDetail>` | `packages/contracts/src/tenancy.ts:849` |  |
-| `RoleListResponse` | `z.infer<typeof roleListResponse>` | `packages/contracts/src/tenancy.ts:850` |  |
-| `RolePairingListResponse` | `z.infer<typeof rolePairingListResponse>` | `packages/contracts/src/tenancy.ts:878` |  |
-| `RolePairingOption` | `z.infer<typeof rolePairingOption>` | `packages/contracts/src/tenancy.ts:876` |  |
-| `RolePairings` | `z.infer<typeof rolePairings>` | `packages/contracts/src/tenancy.ts:877` |  |
-| `SearchPatientQuery` | `z.infer<typeof searchPatientQuery>` | `packages/contracts/src/patients.ts:448` |  |
+| `DesignationListResponse` | `z.infer<typeof designationListResponse>` | `packages/contracts/src/tenancy.ts:972` |  |
+| `DesignationSummary` | `z.infer<typeof designationSummary>` | `packages/contracts/src/tenancy.ts:971` |  |
+| `DiscountInputRequest` | `z.infer<typeof discountInput>` | `packages/contracts/src/invoices.ts:96` |  |
+| `DoctorBranchSettingDetail` | `z.infer<typeof doctorBranchSettingDetail>` | `packages/contracts/src/doctors.ts:573` |  |
+| `DoctorBranchSettingRequest` | `z.infer<typeof doctorBranchSettingRequest>` | `packages/contracts/src/doctors.ts:587` |  |
+| `DoctorClassificationInput` | `z.infer<typeof doctorClassificationInput>` | `packages/contracts/src/doctors.ts:581` |  |
+| `DoctorCompensationDetail` | `z.infer<typeof doctorCompensationDetail>` | `packages/contracts/src/doctors.ts:476` |  |
+| `DoctorDetail` | `z.infer<typeof doctorDetail>` | `packages/contracts/src/doctors.ts:577` |  |
+| `DoctorListQuery` | `z.infer<typeof doctorListQuery>` | `packages/contracts/src/doctors.ts:582` |  |
+| `DoctorListResponse` | `z.infer<typeof doctorListResponse>` | `packages/contracts/src/doctors.ts:578` |  |
+| `DoctorQualificationDetail` | `z.infer<typeof doctorQualificationDetail>` | `packages/contracts/src/doctors.ts:572` |  |
+| `DoctorQualificationRequest` | `z.infer<typeof doctorQualificationRequest>` | `packages/contracts/src/doctors.ts:585` |  |
+| `DoctorScheduleDetail` | `z.infer<typeof doctorScheduleDetail>` | `packages/contracts/src/doctors.ts:574` |  |
+| `DoctorScheduleExceptionDetail` | `z.infer<typeof doctorScheduleExceptionDetail>` | `packages/contracts/src/doctors.ts:575` |  |
+| `DoctorScheduleExceptionRequest` | `z.infer<typeof doctorScheduleExceptionRequest>` | `packages/contracts/src/doctors.ts:589` |  |
+| `DoctorScheduleRequest` | `z.infer<typeof doctorScheduleRequest>` | `packages/contracts/src/doctors.ts:588` |  |
+| `DoctorSpecialtyDetail` | `z.infer<typeof doctorSpecialtyDetail>` | `packages/contracts/src/doctors.ts:571` |  |
+| `DoctorSummary` | `z.infer<typeof doctorSummary>` | `packages/contracts/src/doctors.ts:576` |  |
+| `FeeQuote` | `z.infer<typeof feeQuote>` | `packages/contracts/src/fees.ts:194` |  |
+| `FeeQuoteQuery` | `z.infer<typeof feeQuoteQuery>` | `packages/contracts/src/fees.ts:183` |  |
+| `FeeScheduleAmount` | `z.infer<typeof feeScheduleAmount>` | `packages/contracts/src/fees.ts:150` |  |
+| `FeeScheduleEntry` | `z.infer<typeof feeScheduleEntry>` | `packages/contracts/src/fees.ts:94` |  |
+| `FeeScheduleQuery` | `z.infer<typeof feeScheduleQuery>` | `packages/contracts/src/fees.ts:166` |  |
+| `FeeScheduleRow` | `z.infer<typeof feeScheduleRow>` | `packages/contracts/src/fees.ts:112` |  |
+| `FeeScheduleView` | `z.infer<typeof feeScheduleView>` | `packages/contracts/src/fees.ts:127` |  |
+| `FeeScopeLevel` | `z.infer<typeof feeScopeLevel>` | `packages/contracts/src/fees.ts:79` |  |
+| `FeeTypeValue` | `z.infer<typeof feeType>` | `packages/contracts/src/fees.ts:62` |  |
+| `FollowUpAppointmentRequest` | `z.infer<typeof followUpAppointmentRequest>` | `packages/contracts/src/appointments.ts:772` |  |
+| `Gender` | `z.infer<typeof gender>` | `packages/contracts/src/patients.ts:539` |  |
+| `ImpersonateRequest` | `z.infer<typeof impersonateRequest>` | `packages/contracts/src/auth.ts:331` |  |
+| `ImpersonationClaimRequest` | `z.infer<typeof impersonationClaimRequest>` | `packages/contracts/src/auth.ts:333` |  |
+| `ImpersonationGrant` | `z.infer<typeof impersonationGrant>` | `packages/contracts/src/auth.ts:332` |  |
+| `ImpersonationStopResult` | `z.infer<typeof impersonationStopResult>` | `packages/contracts/src/auth.ts:334` |  |
+| `InvitationListResponse` | `z.infer<typeof invitationListResponse>` | `packages/contracts/src/tenancy.ts:956` |  |
+| `InvitationPreview` | `z.infer<typeof invitationPreview>` | `packages/contracts/src/auth.ts:322` |  |
+| `InvitationSummary` | `z.infer<typeof invitationSummary>` | `packages/contracts/src/tenancy.ts:955` |  |
+| `InvitationTokenRequest` | `z.infer<typeof invitationTokenRequest>` | `packages/contracts/src/auth.ts:321` |  |
+| `InviteMemberRequest` | `z.infer<typeof inviteMemberRequest>` | `packages/contracts/src/tenancy.ts:969` |  |
+| `InvoiceLineRequest` | `z.infer<typeof invoiceLineRequest>` | `packages/contracts/src/invoices.ts:123` |  |
+| `InvoiceSourceTypeValue` | `z.infer<typeof invoiceSourceType>` | `packages/contracts/src/invoices.ts:43` |  |
+| `InvoiceStatusValue` | `z.infer<typeof invoiceStatus>` | `packages/contracts/src/invoices.ts:54` |  |
+| `InvoiceTaxTreatmentValue` | `\| 'STANDARD' \| 'EXEMPT' \| 'ZERO_RATED' \| 'REVERSE_CHARGE' \| 'NOT_REGISTERED' \| 'UNRATED' \| 'PROVIDER_REQUIRED'` | `packages/contracts/src/invoices.ts:67` |  |
+| `IssueInvoiceRequest` | `z.infer<typeof issueInvoiceRequest>` | `packages/contracts/src/invoices.ts:220` |  |
+| `ItemTaxTreatmentValue` | `z.infer<typeof itemTaxTreatment>` | `packages/contracts/src/tax.ts:52` |  |
+| `KnownFeeType` | `(typeof KNOWN_FEE_TYPES)[number]` | `packages/contracts/src/fees.ts:48` |  |
+| `ListClinicTaxRulesQuery` | `z.infer<typeof listClinicTaxRulesQuery>` | `packages/contracts/src/tax.ts:388` |  |
+| `ListInvoicesQuery` | `z.infer<typeof listInvoicesQuery>` | `packages/contracts/src/invoices.ts:288` |  |
+| `LoginRequest` | `z.infer<typeof loginRequest>` | `packages/contracts/src/auth.ts:320` |  |
+| `MaritalStatus` | `z.infer<typeof maritalStatus>` | `packages/contracts/src/patients.ts:541` |  |
+| `MemberDetail` | `z.infer<typeof memberDetail>` | `packages/contracts/src/tenancy.ts:951` |  |
+| `MemberListResponse` | `z.infer<typeof memberListResponse>` | `packages/contracts/src/tenancy.ts:952` |  |
+| `MemberOverride` | `z.infer<typeof memberOverride>` | `packages/contracts/src/tenancy.ts:950` |  |
+| `MemberRoleAssignment` | `z.infer<typeof memberRoleAssignment>` | `packages/contracts/src/tenancy.ts:949` |  |
+| `MembershipSummary` | `z.infer<typeof membershipSummary>` | `packages/contracts/src/auth.ts:336` |  |
+| `MemberStatusRequest` | `z.infer<typeof memberStatusRequest>` | `packages/contracts/src/tenancy.ts:954` |  |
+| `NoShowAppointmentRequest` | `z.infer<typeof noShowAppointmentRequest>` | `packages/contracts/src/appointments.ts:771` |  |
+| `OperatingHour` | `z.infer<typeof operatingHour>` | `packages/contracts/src/tenancy.ts:958` |  |
+| `OrganizationProfile` | `z.infer<typeof organizationProfile>` | `packages/contracts/src/tenancy.ts:941` |  |
+| `OtpRequest` | `z.infer<typeof otpRequest>` | `packages/contracts/src/auth.ts:323` |  |
+| `OtpVerifyRequest` | `z.infer<typeof otpVerifyRequest>` | `packages/contracts/src/auth.ts:324` |  |
+| `PaginationQuery` | `z.infer<typeof paginationQuery>` | `packages/contracts/src/common.ts:150` |  |
+| `PatientAddressDetail` | `z.infer<typeof patientAddressDetail>` | `packages/contracts/src/patients.ts:554` |  |
+| `PatientAddressRequest` | `z.infer<typeof patientAddressRequest>` | `packages/contracts/src/patients.ts:547` |  |
+| `PatientAllergyDetail` | `z.infer<typeof patientAllergyDetail>` | `packages/contracts/src/patients.ts:556` |  |
+| `PatientAllergyRequest` | `z.infer<typeof patientAllergyRequest>` | `packages/contracts/src/patients.ts:549` |  |
+| `PatientConditionDetail` | `z.infer<typeof patientConditionDetail>` | `packages/contracts/src/patients.ts:557` |  |
+| `PatientConditionRequest` | `z.infer<typeof patientConditionRequest>` | `packages/contracts/src/patients.ts:550` |  |
+| `PatientContactDetail` | `z.infer<typeof patientContactDetail>` | `packages/contracts/src/patients.ts:555` |  |
+| `PatientContactRequest` | `z.infer<typeof patientContactRequest>` | `packages/contracts/src/patients.ts:548` |  |
+| `PatientDetail` | `z.infer<typeof patientDetail>` | `packages/contracts/src/patients.ts:560` |  |
+| `PatientDuplicateMatch` | `z.infer<typeof patientDuplicateMatch>` | `packages/contracts/src/patients.ts:563` |  |
+| `PatientDuplicateResponse` | `z.infer<typeof patientDuplicateResponse>` | `packages/contracts/src/patients.ts:564` |  |
+| `PatientHistoryResponse` | `z.infer<typeof patientHistoryResponse>` | `packages/contracts/src/patients.ts:561` |  |
+| `PatientListResponse` | `z.infer<typeof patientListResponse>` | `packages/contracts/src/patients.ts:562` |  |
+| `PatientMedicationDetail` | `z.infer<typeof patientMedicationDetail>` | `packages/contracts/src/patients.ts:558` |  |
+| `PatientMedicationRequest` | `z.infer<typeof patientMedicationRequest>` | `packages/contracts/src/patients.ts:551` |  |
+| `PatientRegistrationDetail` | `z.infer<typeof patientRegistrationDetail>` | `packages/contracts/src/patients.ts:553` |  |
+| `PatientSummary` | `z.infer<typeof patientSummary>` | `packages/contracts/src/patients.ts:559` |  |
+| `PayoutIntervalValue` | `z.infer<typeof payoutInterval>` | `packages/contracts/src/doctors.ts:267` |  |
+| `PermissionOverrideRequest` | `z.infer<typeof permissionOverrideRequest>` | `packages/contracts/src/tenancy.ts:979` |  |
+| `PlatformOrganizationListResponse` | `z.infer<typeof platformOrganizationListResponse>` | `packages/contracts/src/tenancy.ts:938` |  |
+| `PlatformOrganizationSummary` | `z.infer<typeof platformOrganizationSummary>` | `packages/contracts/src/tenancy.ts:937` |  |
+| `QualificationSummary` | `z.infer<typeof qualificationSummary>` | `packages/contracts/src/doctors.ts:570` |  |
+| `RecordVitalsRequest` | `z.infer<typeof recordVitalsRequest>` | `packages/contracts/src/appointments.ts:773` |  |
+| `RefreshRequest` | `z.infer<typeof refreshRequest>` | `packages/contracts/src/auth.ts:325` |  |
+| `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:966` |  |
+| `RegisterOrganizationResponse` | `z.infer<typeof registerOrganizationResponse>` | `packages/contracts/src/tenancy.ts:963` |  |
+| `RegisterPatientAtBranchRequest` | `z.infer<typeof registerPatientAtBranchRequest>` | `packages/contracts/src/patients.ts:545` |  |
+| `RescheduleAppointmentRequest` | `z.infer<typeof rescheduleAppointmentRequest>` | `packages/contracts/src/appointments.ts:767` |  |
+| `RescheduleInitiatorValue` | `z.infer<typeof rescheduleInitiator>` | `packages/contracts/src/appointments.ts:172` |  |
+| `RevokeInvitationRequest` | `z.infer<typeof revokeInvitationRequest>` | `packages/contracts/src/tenancy.ts:957` |  |
+| `RoleDetail` | `z.infer<typeof roleDetail>` | `packages/contracts/src/tenancy.ts:946` |  |
+| `RoleListResponse` | `z.infer<typeof roleListResponse>` | `packages/contracts/src/tenancy.ts:947` |  |
+| `RolePairingListResponse` | `z.infer<typeof rolePairingListResponse>` | `packages/contracts/src/tenancy.ts:975` |  |
+| `RolePairingOption` | `z.infer<typeof rolePairingOption>` | `packages/contracts/src/tenancy.ts:973` |  |
+| `RolePairings` | `z.infer<typeof rolePairings>` | `packages/contracts/src/tenancy.ts:974` |  |
+| `SearchPatientQuery` | `z.infer<typeof searchPatientQuery>` | `packages/contracts/src/patients.ts:546` |  |
 | `SetAutoRenewRequest` | `z.infer<typeof setAutoRenewRequest>` | `packages/contracts/src/billing.ts:76` |  |
-| `SetRolePairingsRequest` | `z.infer<typeof setRolePairingsRequest>` | `packages/contracts/src/tenancy.ts:879` |  |
-| `SettingChoice` | `z.infer<typeof settingChoice>` | `packages/contracts/src/tenancy.ts:846` |  |
-| `SettingItem` | `z.infer<typeof settingItem>` | `packages/contracts/src/tenancy.ts:847` |  |
-| `SettingListResponse` | `z.infer<typeof settingListResponse>` | `packages/contracts/src/tenancy.ts:848` |  |
-| `SettingValueRequest` | `z.infer<typeof settingValueRequest>` | `packages/contracts/src/tenancy.ts:845` |  |
-| `SlotUnavailableReason` | `z.infer<typeof slotUnavailableReason>` | `packages/contracts/src/appointments.ts:242` |  |
-| `SlugAvailabilityResponse` | `z.infer<typeof slugAvailabilityResponse>` | `packages/contracts/src/tenancy.ts:867` |  |
-| `SpecialtyListResponse` | `z.infer<typeof specialtyListResponse>` | `packages/contracts/src/doctors.ts:419` |  |
+| `SetClinicTaxRegistrationBranchesRequest` | `z.infer< typeof setClinicTaxRegistrationBranchesRequest >` | `packages/contracts/src/tax.ts:195` |  |
+| `SetDoctorCompensationRequest` | `z.infer<typeof setDoctorCompensationRequest>` | `packages/contracts/src/doctors.ts:298` |  |
+| `SetFeeScheduleRequest` | `z.infer<typeof setFeeScheduleRequest>` | `packages/contracts/src/fees.ts:157` |  |
+| `SetRolePairingsRequest` | `z.infer<typeof setRolePairingsRequest>` | `packages/contracts/src/tenancy.ts:976` |  |
+| `SettingChoice` | `z.infer<typeof settingChoice>` | `packages/contracts/src/tenancy.ts:943` |  |
+| `SettingItem` | `z.infer<typeof settingItem>` | `packages/contracts/src/tenancy.ts:944` |  |
+| `SettingListResponse` | `z.infer<typeof settingListResponse>` | `packages/contracts/src/tenancy.ts:945` |  |
+| `SettingValueRequest` | `z.infer<typeof settingValueRequest>` | `packages/contracts/src/tenancy.ts:942` |  |
+| `SlotUnavailableReason` | `z.infer<typeof slotUnavailableReason>` | `packages/contracts/src/appointments.ts:753` |  |
+| `SlugAvailabilityResponse` | `z.infer<typeof slugAvailabilityResponse>` | `packages/contracts/src/tenancy.ts:964` |  |
+| `SpecialtyListResponse` | `z.infer<typeof specialtyListResponse>` | `packages/contracts/src/doctors.ts:579` |  |
 | `SpecialtyProficiency` | `z.infer<typeof specialtyProficiency>` | `packages/contracts/src/clinical-taxonomy.ts:138` |  |
-| `SpecialtySummary` | `z.infer<typeof specialtySummary>` | `packages/contracts/src/doctors.ts:409` |  |
+| `SpecialtySummary` | `z.infer<typeof specialtySummary>` | `packages/contracts/src/doctors.ts:569` |  |
 | `StartCheckoutRequest` | `z.infer<typeof startCheckoutRequest>` | `packages/contracts/src/billing.ts:41` |  |
-| `SwitchBranchRequest` | `z.infer<typeof switchBranchRequest>` | `packages/contracts/src/auth.ts:281` |  |
+| `SwitchBranchRequest` | `z.infer<typeof switchBranchRequest>` | `packages/contracts/src/auth.ts:326` |  |
 | `TaxonomyNode` | `z.infer<typeof taxonomyNode>` | `packages/contracts/src/clinical-taxonomy.ts:139` |  |
 | `TaxonomyNodeListResponse` | `z.infer<typeof taxonomyNodeListResponse>` | `packages/contracts/src/clinical-taxonomy.ts:141` |  |
 | `TaxonomyNodeType` | `z.infer<typeof taxonomyNodeType>` | `packages/contracts/src/clinical-taxonomy.ts:137` |  |
@@ -400,17 +541,39 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `TaxonomyTreeNode` | `z.infer<typeof taxonomyNode> & { children: TaxonomyTreeNode[]; }` | `packages/contracts/src/clinical-taxonomy.ts:126` | One node with its descendants inlined. Recursive, so the depth is the data's. |
 | `TaxonomyTreeQuery` | `z.infer<typeof taxonomyTreeQuery>` | `packages/contracts/src/clinical-taxonomy.ts:146` |  |
 | `TaxonomyTreeResponse` | `z.infer<typeof taxonomyTreeResponse>` | `packages/contracts/src/clinical-taxonomy.ts:142` |  |
-| `UpdateAppointmentRequest` | `z.infer<typeof updateAppointmentRequest>` | `packages/contracts/src/appointments.ts:253` |  |
-| `UpdateBranchRequest` | `z.infer<typeof updateBranchRequest>` | `packages/contracts/src/tenancy.ts:871` |  |
-| `UpdateDoctorRequest` | `z.infer<typeof updateDoctorRequest>` | `packages/contracts/src/doctors.ts:424` |  |
-| `UpdateMemberRequest` | `z.infer<typeof updateMemberRequest>` | `packages/contracts/src/tenancy.ts:856` |  |
-| `UpdateOrganizationRequest` | `z.infer<typeof updateOrganizationRequest>` | `packages/contracts/src/tenancy.ts:843` |  |
-| `UpdatePatientRequest` | `z.infer<typeof updatePatientRequest>` | `packages/contracts/src/patients.ts:446` |  |
-| `UpdateRoleRequest` | `z.infer<typeof updateRoleRequest>` | `packages/contracts/src/tenancy.ts:851` |  |
+| `TaxRegistrationStatus` | `(typeof TAX_REGISTRATION_STATUSES)[number]` | `packages/contracts/src/tax.ts:138` |  |
+| `TaxSchemeValue` | `z.infer<typeof taxScheme>` | `packages/contracts/src/tax.ts:40` |  |
+| `TaxSplitValue` | `z.infer<typeof taxSplit>` | `packages/contracts/src/tax.ts:56` |  |
+| `TemperatureUnit` | `'C' \| 'F'` | `packages/contracts/src/locale.ts:213` | How a body temperature is written down. Never how it is stored. |
+| `TimeFormat` | `(typeof TIME_FORMATS)[number]` | `packages/contracts/src/locale.ts:1173` |  |
+| `UpdateAppointmentRequest` | `z.infer<typeof updateAppointmentRequest>` | `packages/contracts/src/appointments.ts:768` |  |
+| `UpdateBranchRequest` | `z.infer<typeof updateBranchRequest>` | `packages/contracts/src/tenancy.ts:968` |  |
+| `UpdateClinicTaxRegistrationRequest` | `z.infer<typeof updateClinicTaxRegistrationRequest>` | `packages/contracts/src/tax.ts:126` |  |
+| `UpdateClinicTaxRuleRequest` | `z.infer<typeof updateClinicTaxRuleRequest>` | `packages/contracts/src/tax.ts:278` |  |
+| `UpdateDoctorQualificationRequest` | `z.infer<typeof updateDoctorQualificationRequest>` | `packages/contracts/src/doctors.ts:586` |  |
+| `UpdateDoctorRequest` | `z.infer<typeof updateDoctorRequest>` | `packages/contracts/src/doctors.ts:584` |  |
+| `UpdateInvoiceRequest` | `z.infer<typeof updateInvoiceRequest>` | `packages/contracts/src/invoices.ts:207` |  |
+| `UpdateMemberRequest` | `z.infer<typeof updateMemberRequest>` | `packages/contracts/src/tenancy.ts:953` |  |
+| `UpdateOrganizationRequest` | `z.infer<typeof updateOrganizationRequest>` | `packages/contracts/src/tenancy.ts:940` |  |
+| `UpdatePatientRequest` | `z.infer<typeof updatePatientRequest>` | `packages/contracts/src/patients.ts:544` |  |
+| `UpdateRoleRequest` | `z.infer<typeof updateRoleRequest>` | `packages/contracts/src/tenancy.ts:948` |  |
 | `UpdateTaxonomyNodeRequest` | `z.infer<typeof updateTaxonomyNodeRequest>` | `packages/contracts/src/clinical-taxonomy.ts:144` |  |
 | `UpdateTaxRegistrationRequest` | `z.infer<typeof updateTaxRegistrationRequest>` | `packages/contracts/src/billing.ts:467` |  |
+| `UpdateTaxRuleDefaultRequest` | `z.infer<typeof updateTaxRuleDefaultRequest>` | `packages/contracts/src/billing.ts:573` |  |
+| `UpdateVitalsRequest` | `z.infer<typeof updateVitalsRequest>` | `packages/contracts/src/appointments.ts:774` |  |
 | `UpgradePreviewRequest` | `z.infer<typeof upgradePreviewRequest>` | `packages/contracts/src/billing.ts:48` |  |
 | `UpgradeRequest` | `UpgradePreviewRequest` | `packages/contracts/src/billing.ts:51` |  |
-| `VerificationConfirmRequest` | `z.infer<typeof verificationConfirmRequest>` | `packages/contracts/src/auth.ts:283` |  |
-| `VerificationRequestResult` | `z.infer<typeof verificationRequestResult>` | `packages/contracts/src/auth.ts:284` |  |
-| `VerificationResult` | `z.infer<typeof verificationResult>` | `packages/contracts/src/auth.ts:285` |  |
+| `VerificationConfirmRequest` | `z.infer<typeof verificationConfirmRequest>` | `packages/contracts/src/auth.ts:328` |  |
+| `VerificationRequestResult` | `z.infer<typeof verificationRequestResult>` | `packages/contracts/src/auth.ts:329` |  |
+| `VerificationResult` | `z.infer<typeof verificationResult>` | `packages/contracts/src/auth.ts:330` |  |
+| `VitalKey` | `keyof typeof VITAL_RANGES` | `packages/contracts/src/appointments.ts:321` |  |
+| `VitalsChange` | `z.infer<typeof vitalsChange>` | `packages/contracts/src/appointments.ts:777` |  |
+| `VitalsListResponse` | `z.infer<typeof vitalsListResponse>` | `packages/contracts/src/appointments.ts:776` |  |
+| `VitalsReading` | `z.infer<typeof vitalsReading>` | `packages/contracts/src/appointments.ts:775` |  |
+| `VitalsRevision` | `z.infer<typeof vitalsRevision>` | `packages/contracts/src/appointments.ts:778` |  |
+| `VitalsRevisionsResponse` | `z.infer<typeof vitalsRevisionsResponse>` | `packages/contracts/src/appointments.ts:779` |  |
+| `VoidInvoiceRequest` | `z.infer<typeof voidInvoiceRequest>` | `packages/contracts/src/invoices.ts:237` |  |
+| `WorkingDay` | `z.infer<typeof workingDay>` | `packages/contracts/src/appointments.ts:759` |  |
+| `WorkingDayReason` | `z.infer<typeof workingDayReason>` | `packages/contracts/src/appointments.ts:758` |  |
+| `WorkingDaysQuery` | `z.infer<typeof workingDaysQuery>` | `packages/contracts/src/appointments.ts:757` |  |
+| `WorkingDaysResponse` | `z.infer<typeof workingDaysResponse>` | `packages/contracts/src/appointments.ts:760` |  |

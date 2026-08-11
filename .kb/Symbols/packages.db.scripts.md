@@ -11,7 +11,7 @@ Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.t
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/apply-grants.ts:42` |  |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:80` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:82` |  |
 
 ## const
 
@@ -19,11 +19,11 @@ Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.t
 | --- | --- | --- | --- |
 | `APPEND_ONLY` <sub>local</sub> | `['audit_logs', 'data_access_logs', 'appointment_status_history']` | `packages/db/scripts/apply-grants.ts:35` | Tables that must never be UPDATE-able or DELETE-able by the app role. |
 | `EXEMPT` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:29` | Tables intentionally not tenant-scoped. Keep in sync with prisma/rls/enable-rls.sql. |
-| `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:63` |  |
+| `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:65` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `GrantRow` <sub>local</sub> | `{ table_name, privilege_type }` | `packages/db/scripts/apply-grants.ts:37` |  |
-| `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:73` |  |
+| `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:75` |  |

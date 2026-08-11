@@ -15,6 +15,7 @@ import {
   type PatientSummary,
 } from '@rcln/contracts';
 import { api, fieldErrorsFrom } from '@/lib/api';
+import { lookupPostalCode as lookupPostalCodeImpl, type PostalLookup } from '@/lib/postal';
 import { getAccessToken } from '@/lib/session';
 
 /*
@@ -152,7 +153,23 @@ export async function searchPatients(
  */
 export async function checkForDuplicates(
   slug: string,
-  probe: { phone?: string; firstName?: string; dateOfBirth?: string }
+  probe: {
+    phone?: string;
+    firstName?: string;
+    dateOfBirth?: string;
+    /**
+     * An identity DOCUMENT, and the strongest signal of the four.
+     *
+     * ⚠️ THE ONLY TWO FIELDS THE DATABASE ACTUALLY ENFORCES. `patients` carries
+     *   partial unique indexes on `(organization_id, national_id)` and
+     *   `(organization_id, abha_number)`, so a clash on either is not a warning
+     *   the desk can work past — the registration WILL be refused. Probing them
+     *   before submit is what turns that refusal into "open the record that
+     *   already exists" instead of a dead end at the end of a long form.
+     */
+    nationalId?: string;
+    abhaNumber?: string;
+  }
 ): Promise<PatientDuplicateMatch[]> {
   const result = await api<PatientDuplicateResponse>('/api/v1/patients/duplicate-check', {
     method: 'POST',
@@ -189,12 +206,30 @@ export async function registerPatient(
     ...(text(formData, 'email') ? { email: text(formData, 'email') } : {}),
     ...(text(formData, 'abhaNumber') ? { abhaNumber: text(formData, 'abhaNumber') } : {}),
     ...(text(formData, 'nationalId') ? { nationalId: text(formData, 'nationalId') } : {}),
+    /*
+     * Only sent alongside a value. `refineNationalId` refuses a type with an
+     * empty number, and an untouched select would otherwise turn "no ID
+     * produced" into a validation error on a field nobody filled in.
+     */
+    ...(text(formData, 'nationalId') && text(formData, 'nationalIdType')
+      ? { nationalIdType: text(formData, 'nationalIdType') }
+      : {}),
     ...(line1 !== undefined
       ? {
           address: {
             line1,
             ...(text(formData, 'city') ? { city: text(formData, 'city') } : {}),
+            ...(text(formData, 'state') ? { state: text(formData, 'state') } : {}),
             ...(text(formData, 'pincode') ? { pincode: text(formData, 'pincode') } : {}),
+            /*
+             * The branch's country, carried on a hidden input. It decides the
+             * postcode format, the ID types offered and the dialling code — and
+             * it is what `refineNationalId` validates against, so it has to
+             * reach the contract rather than staying a UI-only fact.
+             */
+            ...(text(formData, 'countryCode')
+              ? { countryCode: text(formData, 'countryCode') }
+              : {}),
             isPrimary: true,
           },
         }
@@ -497,4 +532,20 @@ export async function stopMedication(
     body: {},
   });
   revalidatePath(`/t/${slug}/patients/${patientId}`);
+}
+
+/**
+ * Postcode -> city and state, for the address on the registration form.
+ *
+ * The same implementation the clinic signup form uses, wrapped as this module's
+ * own Server Action — see `lib/postal.ts`. It runs on the server, so no
+ * patient's postcode reaches a third party from the front desk's machine, and
+ * `null` (no data for that country, a timeout, a 404) is an ordinary answer that
+ * simply leaves the fields to be typed.
+ */
+export async function lookupPostalCode(
+  countryCode: string,
+  postalCode: string
+): Promise<PostalLookup | null> {
+  return lookupPostalCodeImpl(countryCode, postalCode);
 }

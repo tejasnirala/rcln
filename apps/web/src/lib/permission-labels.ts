@@ -20,6 +20,14 @@ const MODULE_LABEL: Record<string, string> = {
   patient: 'Patients',
   appointment: 'Appointments',
   clinical: 'Consultations',
+  /*
+   * ⚠️ A SETTINGS MODULE WITH NO PERMISSION CODES BEHIND IT, and it belongs here
+   *   anyway. This map is shared by the roles screen and the settings screen, and
+   *   `locale.time_format` groups under it — without a label the settings screen
+   *   heads that section with the literal word "locale", which is developer
+   *   vocabulary in a screen written for whoever runs the clinic.
+   */
+  locale: 'Dates and times',
   lab: 'Lab',
   pharmacy: 'Pharmacy',
   inventory: 'Stock',

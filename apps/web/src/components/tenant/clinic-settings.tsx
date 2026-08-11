@@ -1,7 +1,15 @@
 'use client';
 
 import { useActionState, useMemo, useRef, useState } from 'react';
-import type { OrganizationProfile, RolePairings, SettingItem } from '@rcln/contracts';
+import Link from 'next/link';
+import type {
+  BranchSummary,
+  FeeScheduleView,
+  OrganizationProfile,
+  RolePairings,
+  SettingItem,
+} from '@rcln/contracts';
+import { FeeScheduleGrid } from '@/components/tenant/fee-schedule-grid';
 import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { RecordHistory } from '@/components/tenant/record-history';
@@ -10,7 +18,13 @@ import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { cn } from '@/lib/cn';
 import { moduleLabel } from '@/lib/permission-labels';
 import { CURRENCIES, TIMEZONES, withCurrent } from '@/lib/locale-options';
-import { COUNTRIES, countryInfo, defaultTimezoneFor, regionsFor } from '@rcln/contracts';
+import {
+  COUNTRIES,
+  countryInfo,
+  defaultTimezoneFor,
+  regionsFor,
+  taxIdFormatFor,
+} from '@rcln/contracts';
 import {
   resetSetting,
   saveOrganization,
@@ -310,16 +324,6 @@ function OrganizationForm({
           required
           autoComplete="off"
         />
-        <Input
-          name="gstNumber"
-          label="GSTIN"
-          hint="Leave empty if this clinic is not registered"
-          errors={err('gstNumber')}
-          className="font-mono"
-          defaultValue={organization.gstNumber ?? ''}
-          disabled={!canEdit}
-          autoComplete="off"
-        />
         {/*
           Country and region, from the same table signup and the platform tax
           console read. Changing the country re-derives the time zone and the
@@ -441,7 +445,104 @@ function OrganizationForm({
           </Button>
         </div>
       ) : null}
+
+      <TaxRegistrationReference organization={organization} countryCode={countryCode} />
     </form>
+  );
+}
+
+/**
+ * The clinic's tax registrations, shown here and owned elsewhere.
+ *
+ * ⚠️ THIS WAS A TEXT BOX, AND MAKING IT A REFERENCE IS THE POINT OF THE CHANGE.
+ *   A clinic's tax number is not a property of the clinic — it is a property of a
+ *   REGISTRATION, which also knows the scheme, the jurisdiction it was issued in,
+ *   the name it is held in and the dates it was in force. A box here kept a second
+ *   copy of the number that nothing reconciled against the registrations the
+ *   invoices actually use, so the settings screen could show one GSTIN forever
+ *   while every bill printed another.
+ *
+ * ⚠️ AND AN ORGANIZATION MAY HOLD SEVERAL, SO A SINGLE FIELD COULD NEVER BE
+ *   RIGHT ANYWAY — one per state in India, one per country for a group operating
+ *   abroad, plus the ones it used to hold and still has to explain old invoices
+ *   under. Zero is equally ordinary: a clinic below the registration threshold.
+ *
+ * Read-only for everyone, including an owner. Editing is `/taxes`, behind
+ * `billing.tax.manage`, because who may rename the clinic and who may change the
+ * number it bills under are deliberately different questions.
+ */
+function TaxRegistrationReference({
+  organization,
+  countryCode,
+}: {
+  organization: OrganizationProfile;
+  countryCode: string;
+}) {
+  const label = taxIdFormatFor(countryCode)?.label ?? 'Tax registration';
+  const registrations = organization.taxRegistrations;
+
+  return (
+    <section className="border-rule mt-8 border-t pt-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-ink text-[0.9375rem] font-medium">Tax registrations</h3>
+        {/* Relative: proxy.ts adds the tenant segment — see apps/web/AGENTS.md. */}
+        <Link href="/taxes" className="text-drape-deep text-[0.8125rem] underline">
+          Manage in Tax
+        </Link>
+      </div>
+
+      {registrations.length === 0 ? (
+        <p className="text-muted mt-2 text-[0.8125rem]">
+          This clinic has no tax registration recorded, so its invoices are issued without tax. That
+          is correct for a clinic below the registration threshold — add one in Tax if it is not.
+        </p>
+      ) : (
+        <>
+          <p className="text-muted mt-2 text-[0.8125rem]">
+            What this clinic is registered as, and where. Each {label} belongs to its registration —
+            this is a view of it, not a second copy.
+          </p>
+          <ul className="mt-4 grid gap-2">
+            {registrations.map((registration) => (
+              <li
+                key={registration.id}
+                className="border-rule bg-card flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border px-3 py-2"
+              >
+                <span className="text-ink font-mono text-[0.875rem]">
+                  {registration.registrationNumber}
+                </span>
+                <span className="text-muted text-[0.75rem]">
+                  {registration.scheme} · {registration.placeOfSupply}
+                </span>
+                {/*
+                  Never colour alone (WCAG 1.4.1): the state is a word, and the
+                  dates behind it are spelled out for the two that are not current.
+                */}
+                <span
+                  className={cn(
+                    'rounded-xs px-2 py-0.5 text-[0.6875rem] font-medium',
+                    registration.status === 'ACTIVE'
+                      ? 'bg-drape-tint text-drape-deep'
+                      : 'bg-signal-tint text-signal'
+                  )}
+                >
+                  {registration.status === 'ACTIVE'
+                    ? 'In force'
+                    : registration.status === 'SCHEDULED'
+                      ? `From ${registration.effectiveFrom}`
+                      : `Ended ${registration.effectiveTo ?? ''}`}
+                </span>
+                {registration.legalName ? (
+                  <span className="text-muted w-full text-[0.75rem]">
+                    Registered as {registration.legalName}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -461,8 +562,11 @@ export function ClinicSettings({
   organization,
   settings,
   rolePairings,
+  fees,
+  branches,
   canEditOrganization,
   canEditSettings,
+  canEditFees,
   canReadHistory,
 }: {
   slug: string;
@@ -470,8 +574,12 @@ export function ClinicSettings({
   settings: SettingItem[] | null;
   /** Null when the caller may not manage titles — the section is then absent. */
   rolePairings: RolePairings[] | null;
+  /** Null when the caller may not read fees — the section is then absent. */
+  fees: FeeScheduleView | null;
+  branches: BranchSummary[];
   canEditOrganization: boolean;
   canEditSettings: boolean;
+  canEditFees: boolean;
   canReadHistory: boolean;
 }) {
   const groups = useMemo(() => {
@@ -565,6 +673,28 @@ export function ClinicSettings({
           ))
         )}
       </section>
+
+      {/*
+        ⚠️ NOT UNDER "Defaults", THOUGH IT IS ONE. A setting's worst failure is an
+           annoyance; a wrong fee is a patient charged the wrong amount at the
+           desk. It gets its own heading, its own permission and its own sentence
+           about where the number ends up, rather than sitting in a list beside
+           the slot length.
+      */}
+      {fees !== null ? (
+        <section className="border-rule mt-10 border-t pt-8" aria-labelledby="fees-heading">
+          <h2 id="fees-heading" className="eyebrow text-muted">
+            What a visit costs
+          </h2>
+          <p className="text-muted mt-2 max-w-xl text-[0.9375rem] leading-relaxed">
+            The price by kind of visit. Every doctor starts on these and an administrator can
+            override any of them on the doctor’s own profile. The price is fixed onto the
+            appointment when it is booked, so a change from here reaches bookings made afterwards
+            and leaves the ones already taken alone.
+          </p>
+          <FeeScheduleGrid slug={slug} branches={branches} initial={fees} canEdit={canEditFees} />
+        </section>
+      ) : null}
 
       {/*
         Clinic-wide, not per branch — a role means the same thing everywhere the

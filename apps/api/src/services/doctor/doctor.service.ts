@@ -19,14 +19,26 @@ import type {
   SpecialtyProficiency,
   DoctorDetail,
   DoctorQualificationRequest,
+  DoctorScheduleDetail,
   DoctorSummary,
   DoctorSpecialtyDetail,
   SpecialtyListResponse,
+  UpdateDoctorQualificationRequest,
   UpdateDoctorRequest,
 } from '@rcln/contracts';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { descendantRows } from './clinical-taxonomy.service.js';
+import {
+  assertNoInternalOverlap,
+  createScheduleRow,
+  isScheduleOverlap,
+  listExceptions,
+  listSchedules,
+  listSchedulesForDoctors,
+} from './doctor-schedule.service.js';
+import { writeFeeEntries } from '../fees/fee-schedule.service.js';
+import { writeDoctorCompensation } from './doctor-compensation.service.js';
 import { resolveSettings, asPositiveInt } from '../settings/resolver.service.js';
 
 export interface DoctorActionOptions {
@@ -74,8 +86,6 @@ const DOCTOR_SELECT = {
     select: {
       id: true,
       branchId: true,
-      consultationFee: true,
-      followUpFee: true,
       followUpFreeDays: true,
       isActive: true,
       branch: { select: { name: true } },
@@ -84,11 +94,6 @@ const DOCTOR_SELECT = {
 } as const;
 
 type DoctorRow = Prisma.DoctorProfileGetPayload<{ select: typeof DOCTOR_SELECT }>;
-
-/** `Decimal | null` -> the contract's decimal string. Never a float. */
-function money(value: Prisma.Decimal | null): string | null {
-  return value === null ? null : value.toFixed(2);
-}
 
 /** `Date | null` -> `YYYY-MM-DD`. The column is a bare date; read it in UTC. */
 function isoDate(value: Date | null): string | null {
@@ -201,8 +206,6 @@ function toDetail(
       id: b.id,
       branchId: b.branchId,
       branchName: b.branch.name,
-      consultationFee: money(b.consultationFee),
-      followUpFee: money(b.followUpFee),
       followUpFreeDays: b.followUpFreeDays,
       isActive: b.isActive,
     })),
@@ -298,9 +301,20 @@ export async function listMasters(ctx: TenantContext): Promise<SpecialtyListResp
  *   `includeSelf` is true: a doctor tagged Cardiology ITSELF must match a
  *   Cardiology filter, which is easy to lose when thinking only about children.
  */
+/**
+ * @param includeSchedules whether the caller holds `doctor.schedule.read`.
+ *
+ * ⚠️ FALSE OMITS THE FIELD ENTIRELY RATHER THAN SENDING `[]`. The roster is
+ *   behind `doctor.directory.read` and the week is behind `doctor.schedule.read`
+ *   — a split the router explains at length — so a caller without the second
+ *   must not be told a doctor has no working hours. Absence is a silence; an
+ *   empty array is a claim. Same three-state shape as `liveInvoice` on the day
+ *   board, for the same reason.
+ */
 export async function listDoctors(
   ctx: TenantContext,
-  query: DoctorListQuery = { includeDescendants: true }
+  query: DoctorListQuery = { includeDescendants: true },
+  includeSchedules = false
 ): Promise<DoctorSummary[]> {
   const rows = await withTenant(ctx, async (tx) => {
     let specialtyIds: string[] | undefined;
@@ -319,7 +333,11 @@ export async function listDoctors(
         // An id the tenant cannot see yields an empty subtree. Matching nothing
         // is correct; falling through to "no filter" would list every doctor.
         if (specialtyIds.length === 0) {
-          return { profiles: [] as DoctorRow[], chains: new Map() as AncestorChains };
+          return {
+            profiles: [] as DoctorRow[],
+            chains: new Map() as AncestorChains,
+            schedules: new Map<string, DoctorScheduleDetail[]>(),
+          };
         }
       } else {
         specialtyIds = [query.specialtyId];
@@ -342,9 +360,24 @@ export async function listDoctors(
     const chains = await loadAncestorChains(tx, [
       ...new Set(profiles.flatMap((p) => p.specialties.map((s) => s.specialtyId))),
     ]);
-    return { profiles, chains };
+
+    // Likewise one query for every doctor's week, not one call per row — see
+    // `listSchedulesForDoctors`, which replaced an N+1 the roster made over HTTP.
+    const schedules = includeSchedules
+      ? await listSchedulesForDoctors(
+          tx,
+          ctx,
+          profiles.map((p) => p.id)
+        )
+      : new Map<string, DoctorScheduleDetail[]>();
+
+    return { profiles, chains, schedules };
   });
-  return rows.profiles.map((p) => toSummary(p, rows.chains));
+
+  return rows.profiles.map((p) => ({
+    ...toSummary(p, rows.chains),
+    ...(includeSchedules ? { schedules: rows.schedules.get(p.id) ?? [] } : {}),
+  }));
 }
 
 /**
@@ -508,76 +541,286 @@ async function reconcileClassifications(
   }
 }
 
+/**
+ * One doctor, in full — the read-only profile screen.
+ *
+ * ⚠️ NOT PHI, AND THAT IS WHY THERE IS NO `recordDataAccess` CALL HERE. A
+ *   practitioner's registration number, qualifications and consulting fees are
+ *   facts about a member of staff, and several of them are on the clinic's
+ *   public website. `data_access_logs` exists for reads of PATIENT records; a
+ *   row per colleague-profile view would dilute the table that has to answer
+ *   "who looked up their neighbour's chart".
+ *
+ * Behind DOCTOR_READ, which a doctor holds for their own profile. The roster is
+ * a different code — see DOCTOR_DIRECTORY_READ — so this endpoint being open to
+ * a doctor does not hand them a way to enumerate their colleagues: they would
+ * need an id they have no way to obtain.
+ */
+export async function getDoctor(ctx: TenantContext, doctorId: string): Promise<DoctorDetail> {
+  const row = await withTenant(ctx, async (tx) => {
+    const profile = await tx.doctorProfile.findFirst({
+      where: { id: doctorId, deletedAt: null },
+      select: DOCTOR_SELECT,
+    });
+    if (!profile) throw new NotFoundError('Doctor');
+
+    const chains = await loadAncestorChains(
+      tx,
+      profile.specialties.map((s) => s.specialtyId)
+    );
+    return { profile, chains };
+  });
+
+  /*
+   * Schedules and exceptions come from their own service, which resolves each
+   * block's effective slot length through the settings ladder (ADR-0015). Doing
+   * it here would be a second implementation of that chain.
+   */
+  const [schedules, exceptions] = await Promise.all([
+    listSchedules(ctx, doctorId),
+    listExceptions(ctx, doctorId),
+  ]);
+
+  return { ...toDetail(row.profile, row.chains), schedules, exceptions };
+}
+
+/**
+ * The caller's own profile.
+ *
+ * WHY THIS EXISTS RATHER THAN THE CLIENT FILTERING THE ROSTER
+ *   A doctor does not hold DOCTOR_DIRECTORY_READ, so there is no roster for them
+ *   to filter — that is the whole point of the split. This resolves the profile
+ *   from `ctx.userId`, so the caller never needs an id they could not otherwise
+ *   have obtained, and it is the only doctor row they can reach.
+ *
+ * 404 when the caller is not a doctor. `NotFoundError`, not `AuthorizationError`:
+ * whether a given user has a doctor profile is tenant information, and the two
+ * responses tell an outsider apart from a colleague.
+ */
+export async function getOwnDoctor(ctx: TenantContext): Promise<DoctorDetail> {
+  const own = await withTenant(ctx, (tx) =>
+    tx.doctorProfile.findFirst({
+      where: { userId: ctx.userId, deletedAt: null },
+      select: { id: true },
+    })
+  );
+  if (!own) throw new NotFoundError('Doctor');
+
+  return getDoctor(ctx, own.id);
+}
+
+/**
+ * Attach one qualification inside a caller's transaction.
+ *
+ * The body of `addQualification` below, lifted so registration can record a
+ * doctor's degrees in the transaction that creates them. A second copy would be
+ * a second place for the "does this qualification exist" check to drift.
+ */
+async function createQualificationRow(
+  tx: TxClient,
+  ctx: TenantContext,
+  doctorId: string,
+  input: DoctorQualificationRequest,
+  options: DoctorActionOptions = {}
+): Promise<void> {
+  // As with specialties: the RESTRICTIVE policy would refuse an out-of-tenant
+  // id as an RLS violation with no field attached. This names it.
+  const qualification = await tx.qualification.findFirst({
+    where: { id: input.qualificationId, isActive: true, deletedAt: null },
+    select: { id: true },
+  });
+  if (!qualification) throw new ValidationError('That qualification does not exist.');
+
+  const created = await tx.doctorQualification.create({
+    data: {
+      organizationId: ctx.organizationId,
+      doctorProfileId: doctorId,
+      qualificationId: input.qualificationId,
+      ...(input.institute !== undefined ? { institute: input.institute } : {}),
+      ...(input.yearOfCompletion !== undefined ? { yearOfCompletion: input.yearOfCompletion } : {}),
+    },
+    select: { id: true },
+  });
+
+  await recordAudit(tx, ctx, {
+    action: 'CREATE',
+    entityType: 'doctor_qualification',
+    entityId: created.id,
+    after: {
+      doctorProfileId: doctorId,
+      qualificationId: input.qualificationId,
+      institute: input.institute ?? null,
+    },
+    ...options,
+  });
+}
+
+/**
+ * Register a doctor — profile, classifications, degrees, working hours, prices
+ * and what the clinic pays — in ONE transaction.
+ *
+ * ⚠️ ALL OF IT COMMITS OR NONE OF IT DOES, AND THAT IS THE WHOLE REASON THE
+ *   NESTED SHAPE EXISTS. The alternative the web app used to run — POST the
+ *   profile, then fire four more calls — leaves a doctor with half a week of
+ *   hours behind whenever the third call 409s, and no screen owns cleaning that
+ *   up. A clinic then books against a practitioner whose Thursday clinic silently
+ *   never made it in.
+ *
+ * ⚠️ EVERY NESTED SECTION IS AUTHORIZED AT THE ROUTE, NOT HERE. `doctor.create`
+ *   reaches this function; the hours, prices and salary each need their own code,
+ *   checked in `doctors.routes.ts` before the body is handed over. This service
+ *   trusts its caller in exactly the way `writeDoctorCompensation` documents —
+ *   there is one door and the guard is on it.
+ *
+ * ⚠️ BRANCH SCOPE AND BLOCK OVERLAP ARE CHECKED BEFORE THE TRANSACTION OPENS.
+ *   Out-of-scope branches are a 404 like everywhere else, and a clash between two
+ *   submitted blocks has to be named rather than left to the GiST constraint,
+ *   which aborts the transaction and takes the profile with it.
+ */
 export async function createDoctor(
   ctx: TenantContext,
   input: CreateDoctorRequest,
   options: DoctorActionOptions = {}
 ): Promise<DoctorDetail> {
-  const row = await withTenant(ctx, async (tx) => {
-    /*
-     * `memberships` is RLS-enforced, so this read is already tenant-scoped —
-     * but the explicit organizationId is defence in depth (ADR-0005), and it
-     * turns "not a member here" into a 404 rather than a foreign-key error.
-     */
-    const membership = await tx.membership.findFirst({
-      where: { userId: input.userId, organizationId: ctx.organizationId },
-      select: { id: true },
-    });
-    if (!membership) {
-      throw new NotFoundError('User');
-    }
+  const schedules = input.schedules ?? [];
 
-    const existing = await tx.doctorProfile.findFirst({
-      where: { userId: input.userId, deletedAt: null },
-      select: { id: true },
-    });
-    if (existing) {
-      throw new ConflictError('That person already has a doctor profile.');
-    }
+  for (const block of schedules) {
+    if (!ctx.branchIds.includes(block.branchId)) throw new NotFoundError('Branch');
+  }
+  assertNoInternalOverlap(schedules);
 
-    const entries = normaliseClassifications(input);
-    await assertSpecialtiesUsable(tx, entries, input.primarySpecialtyId);
+  const row = await createDoctorRecord(ctx, input, schedules, options);
 
-    const created = await tx.doctorProfile.create({
-      data: {
-        organizationId: ctx.organizationId,
-        userId: input.userId,
-        ...(input.registrationNumber !== undefined
-          ? { registrationNumber: input.registrationNumber }
-          : {}),
-        ...(input.registrationCouncil !== undefined
-          ? { registrationCouncil: input.registrationCouncil }
-          : {}),
-        ...(input.registrationValidTill !== undefined
-          ? { registrationValidTill: new Date(`${input.registrationValidTill}T00:00:00Z`) }
-          : {}),
-        ...(input.experienceYears !== undefined ? { experienceYears: input.experienceYears } : {}),
-        ...(input.bio !== undefined ? { bio: input.bio } : {}),
-        specialties: {
-          create: entries.map((entry) =>
-            classificationData(entry, ctx.organizationId, input.primarySpecialtyId)
-          ),
+  /*
+   * Read the week back through the schedule service rather than shaping it here,
+   * so the effective slot length comes off the one ladder (ADR-0015). Exceptions
+   * are empty by construction — a doctor created a moment ago has no leave.
+   */
+  const written = schedules.length === 0 ? [] : await listSchedules(ctx, row.created.id);
+  return { ...toDetail(row.created, row.chains), schedules: written, exceptions: [] };
+}
+
+async function createDoctorRecord(
+  ctx: TenantContext,
+  input: CreateDoctorRequest,
+  schedules: CreateDoctorRequest['schedules'] & object,
+  options: DoctorActionOptions
+): Promise<{ created: DoctorRow; chains: AncestorChains }> {
+  try {
+    return await withTenant(ctx, async (tx) => {
+      /*
+       * `memberships` is RLS-enforced, so this read is already tenant-scoped —
+       * but the explicit organizationId is defence in depth (ADR-0005), and it
+       * turns "not a member here" into a 404 rather than a foreign-key error.
+       */
+      const membership = await tx.membership.findFirst({
+        where: { userId: input.userId, organizationId: ctx.organizationId },
+        select: { id: true },
+      });
+      if (!membership) {
+        throw new NotFoundError('User');
+      }
+
+      const existing = await tx.doctorProfile.findFirst({
+        where: { userId: input.userId, deletedAt: null },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new ConflictError('That person already has a doctor profile.');
+      }
+
+      const entries = normaliseClassifications(input);
+      await assertSpecialtiesUsable(tx, entries, input.primarySpecialtyId);
+
+      const created = await tx.doctorProfile.create({
+        data: {
+          organizationId: ctx.organizationId,
+          userId: input.userId,
+          ...(input.registrationNumber !== undefined
+            ? { registrationNumber: input.registrationNumber }
+            : {}),
+          ...(input.registrationCouncil !== undefined
+            ? { registrationCouncil: input.registrationCouncil }
+            : {}),
+          ...(input.registrationValidTill !== undefined
+            ? { registrationValidTill: new Date(`${input.registrationValidTill}T00:00:00Z`) }
+            : {}),
+          ...(input.experienceYears !== undefined
+            ? { experienceYears: input.experienceYears }
+            : {}),
+          ...(input.bio !== undefined ? { bio: input.bio } : {}),
+          specialties: {
+            create: entries.map((entry) =>
+              classificationData(entry, ctx.organizationId, input.primarySpecialtyId)
+            ),
+          },
         },
-      },
-      select: DOCTOR_SELECT,
+        select: DOCTOR_SELECT,
+      });
+
+      await recordAudit(tx, ctx, {
+        action: 'CREATE',
+        entityType: 'doctor_profile',
+        entityId: created.id,
+        after: snapshot(created),
+        ...options,
+      });
+
+      /*
+       * The rest of the practitioner, each through the same writer its own
+       * endpoint uses. Sequential rather than concurrent: they share one
+       * transaction, and Prisma serialises statements on it anyway.
+       */
+      for (const qualification of input.qualifications ?? []) {
+        await createQualificationRow(tx, ctx, created.id, qualification, options);
+      }
+
+      for (const block of schedules) {
+        await createScheduleRow(tx, ctx, created.id, block, options);
+      }
+
+      if (input.fees !== undefined && input.fees.length > 0) {
+        /*
+         * At this doctor's ORGANIZATION-WIDE scope. A per-branch override is a
+         * later, deliberate act on the fee grid — pinning one at registration
+         * would make the clinic's own default unreachable for this doctor at the
+         * one branch they were first set up in.
+         */
+        await writeFeeEntries(
+          tx,
+          ctx,
+          { doctorProfileId: created.id, branchId: null },
+          input.fees,
+          options
+        );
+      }
+
+      if (input.compensation !== undefined) {
+        await writeDoctorCompensation(tx, ctx, created.id, input.compensation, options);
+      }
+
+      const chains = await loadAncestorChains(
+        tx,
+        created.specialties.map((s) => s.specialtyId)
+      );
+      return { created, chains };
     });
-
-    await recordAudit(tx, ctx, {
-      action: 'CREATE',
-      entityType: 'doctor_profile',
-      entityId: created.id,
-      after: snapshot(created),
-      ...options,
-    });
-
-    const chains = await loadAncestorChains(
-      tx,
-      created.specialties.map((s) => s.specialtyId)
-    );
-    return { created, chains };
-  });
-
-  return { ...toDetail(row.created, row.chains), schedules: [], exceptions: [] };
+  } catch (err) {
+    /*
+     * Caught OUTSIDE `withTenant`, for the reason `addSchedule` documents at
+     * length: an exclusion violation aborts the transaction, so it can only be
+     * translated once the callback has unwound. `assertNoInternalOverlap` has
+     * already ruled out the submitted blocks clashing with each other, so
+     * reaching this means a concurrent write — two admins registering the same
+     * consultant's Tuesday at once.
+     */
+    if (isScheduleOverlap(err)) {
+      throw new ConflictError(
+        'Those working hours overlap a block this doctor already has at that branch on that day.'
+      );
+    }
+    throw err;
+  }
 }
 
 export async function updateDoctor(
@@ -714,8 +957,6 @@ export async function setBranchSetting(
     });
 
     const data = {
-      ...(input.consultationFee !== undefined ? { consultationFee: input.consultationFee } : {}),
-      ...(input.followUpFee !== undefined ? { followUpFee: input.followUpFee } : {}),
       ...(input.followUpFreeDays !== undefined ? { followUpFreeDays: input.followUpFreeDays } : {}),
       isActive: input.isActive,
     };
@@ -757,35 +998,94 @@ export async function addQualification(
     });
     if (!doctor) throw new NotFoundError('Doctor');
 
-    // As with specialties: the RESTRICTIVE policy would refuse an out-of-tenant
-    // id as an RLS violation with no field attached. This names it.
-    const qualification = await tx.qualification.findFirst({
-      where: { id: input.qualificationId, isActive: true, deletedAt: null },
+    await createQualificationRow(tx, ctx, doctorId, input, options);
+  });
+}
+
+/**
+ * Correct a qualification already on a doctor.
+ *
+ * ⚠️ ABSENT LEAVES THE COLUMN ALONE; `null` CLEARS IT. Straight off the contract,
+ *   and the reason the spread guards test `!== undefined` rather than being
+ *   truthy — `yearOfCompletion: null` is an instruction and would be dropped by a
+ *   truthiness check, as would a year of 0 if the range allowed one.
+ *
+ * ⚠️ THE DUPLICATE IS CAUGHT HERE, NOT LEFT TO THE INDEX.
+ *   `doctor_qualifications` is unique on (org, doctor, qualification, institute),
+ *   so re-pointing a row at a degree the doctor already holds from the same
+ *   institute is a legitimate mistake with an illegitimate outcome: Prisma
+ *   surfaces it as P2002 with no field a form can highlight. Reading first turns
+ *   it into a sentence naming what clashed.
+ */
+export async function updateQualification(
+  ctx: TenantContext,
+  doctorId: string,
+  qualificationRowId: string,
+  input: UpdateDoctorQualificationRequest,
+  options: DoctorActionOptions = {}
+): Promise<void> {
+  await withTenant(ctx, async (tx) => {
+    const before = await tx.doctorQualification.findFirst({
+      where: { id: qualificationRowId, doctorProfileId: doctorId },
+      select: { id: true, qualificationId: true, institute: true, yearOfCompletion: true },
+    });
+    if (!before) throw new NotFoundError('Qualification');
+
+    // Only when the degree itself is being re-pointed. The catalogue check is the
+    // same one `createQualificationRow` makes, and for the same reason: an
+    // out-of-tenant id would otherwise surface as an RLS violation with no field
+    // attached.
+    if (input.qualificationId !== undefined && input.qualificationId !== before.qualificationId) {
+      const qualification = await tx.qualification.findFirst({
+        where: { id: input.qualificationId, isActive: true, deletedAt: null },
+        select: { id: true },
+      });
+      if (!qualification) throw new ValidationError('That qualification does not exist.');
+    }
+
+    const nextQualificationId = input.qualificationId ?? before.qualificationId;
+    const nextInstitute = input.institute === undefined ? before.institute : input.institute;
+
+    const clash = await tx.doctorQualification.findFirst({
+      where: {
+        doctorProfileId: doctorId,
+        qualificationId: nextQualificationId,
+        institute: nextInstitute,
+        id: { not: before.id },
+      },
       select: { id: true },
     });
-    if (!qualification) throw new ValidationError('That qualification does not exist.');
+    if (clash) {
+      throw new ConflictError('This doctor already has that qualification from that institute.');
+    }
 
-    const created = await tx.doctorQualification.create({
+    const after = await tx.doctorQualification.update({
+      where: { id: before.id },
       data: {
-        organizationId: ctx.organizationId,
-        doctorProfileId: doctorId,
-        qualificationId: input.qualificationId,
+        ...(input.qualificationId !== undefined ? { qualificationId: input.qualificationId } : {}),
         ...(input.institute !== undefined ? { institute: input.institute } : {}),
         ...(input.yearOfCompletion !== undefined
           ? { yearOfCompletion: input.yearOfCompletion }
           : {}),
       },
-      select: { id: true },
+      select: { id: true, qualificationId: true, institute: true, yearOfCompletion: true },
     });
 
     await recordAudit(tx, ctx, {
-      action: 'CREATE',
+      action: 'UPDATE',
       entityType: 'doctor_qualification',
-      entityId: created.id,
+      entityId: before.id,
+      before: {
+        doctorProfileId: doctorId,
+        qualificationId: before.qualificationId,
+        institute: before.institute,
+        yearOfCompletion: before.yearOfCompletion,
+      },
       after: {
         doctorProfileId: doctorId,
-        qualificationId: input.qualificationId,
-        institute: input.institute ?? null,
+        qualificationId: after.qualificationId,
+        institute: after.institute,
+        yearOfCompletion: after.yearOfCompletion,
       },
       ...options,
     });

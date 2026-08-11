@@ -3,7 +3,7 @@ import { setTenantContext } from '@rcln/db';
 import { unsafeDbClient } from '@rcln/db/unsafe';
 import { SYSTEM_ROLES } from '@rcln/permissions';
 import { currencyForCountry } from '@rcln/payments';
-import type { RegisterOrganizationRequest } from '@rcln/contracts';
+import { countryInfo, type RegisterOrganizationRequest } from '@rcln/contracts';
 import { config } from '../../config/index.js';
 import { logger } from '../../utils/logger.js';
 import { AppError, ConflictError } from '../../utils/errors.js';
@@ -210,7 +210,7 @@ export async function registerOrganization(
         ...(org.regionCode ? { regionCode: org.regionCode } : {}),
         ownerUserId: null, // set below; the user row does not exist yet
         onboardedAt: now,
-        ...(org.gstNumber !== undefined ? { gstNumber: org.gstNumber } : {}),
+        ...(org.taxId !== undefined ? { taxId: org.taxId } : {}),
       },
     });
 
@@ -264,6 +264,17 @@ export async function registerOrganization(
         timezone: org.timezone,
         isPrimary: true,
         status: 'ACTIVE',
+        /*
+         * ⚠️ THE BRANCH'S TAX JURISDICTION, WHICH USED TO BE MISSING HERE AND
+         *   THEREFORE `IN`. The column defaults to India, and nothing on this path
+         *   set it — so an Irish clinic's first branch was created Indian, its VAT
+         *   registration matched no branch, and every invoice it raised came out
+         *   untaxed with no error anywhere. The organization's own jurisdiction is
+         *   the only honest default at signup: it is the one the person filling in
+         *   this form just told us about.
+         */
+        countryCode: org.countryCode,
+        ...(org.regionCode ? { regionCode: org.regionCode } : {}),
         ...(branch.phone !== undefined ? { phone: branch.phone } : {}),
         ...(branch.addressLine1 !== undefined ? { addressLine1: branch.addressLine1 } : {}),
         ...(branch.city !== undefined ? { city: branch.city } : {}),
@@ -271,6 +282,46 @@ export async function registerOrganization(
         ...(branch.pincode !== undefined ? { pincode: branch.pincode } : {}),
       },
     });
+
+    /*
+     * ⚠️ THE NUMBER TYPED AT SIGNUP BECOMES A REAL TAX REGISTRATION, and this is
+     *   the one place in the product where that can happen automatically.
+     *
+     *   A registration needs a number, a country, a region and a scheme, and
+     *   signup is the single moment all four arrive together — so recording only
+     *   `organizations.tax_id` here would leave the clinic with a number on its
+     *   settings screen and nothing at all to bill under, which is exactly the
+     *   duplication this design removes. The scheme comes from the country's own
+     *   profile (`GST` in India, `VAT` in Ireland, `SALES_TAX` in the US), never
+     *   assumed.
+     *
+     *   Effective from today, because a clinic entering its number at signup is
+     *   telling us it is registered now; a different date is a correction it can
+     *   make on the tax screen. No coverage row is written: with one branch the
+     *   jurisdiction fallback already selects this registration, and stating
+     *   coverage nobody asked for would silently freeze out the second branch.
+     *
+     *   A country with no tax profile records no registration rather than guessing
+     *   a scheme — the number stays on the organization and the clinic can record
+     *   the registration properly once we know how that country works.
+     */
+    const scheme = countryInfo(org.countryCode)?.tax?.scheme;
+    if (org.taxId !== undefined && scheme) {
+      await tx.issuerTaxRegistration.create({
+        data: {
+          organizationId,
+          countryCode: org.countryCode,
+          regionCode: org.regionCode ?? null,
+          scheme,
+          registrationNumber: org.taxId,
+          // The legal name the clinic gave us, which is what a tax invoice must
+          // print. Held separately from here on: the registration's name can
+          // change without the organization's, and the reverse.
+          legalName: org.legalName,
+          effectiveFrom: new Date(now.toISOString().slice(0, 10)),
+        },
+      });
+    }
 
     const membership = await tx.membership.create({
       data: {

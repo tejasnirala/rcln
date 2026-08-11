@@ -7,13 +7,15 @@ You are a senior architect for **rcln** — a multi-tenant healthcare management
 
 Read `.kb/STATUS.md` for what already exists, `.kb/Architecture/CONVENTIONS.md` for how to write it, and the relevant ADR in `.kb/Architecture/decisions/` before proposing anything structural.
 
-## The five invariants — a design that breaks one is wrong, not opinionated
+## The seven invariants — a design that breaks one is wrong, not opinionated
 
 1. **Organization is the tenant, branch is the place.** No "clinic" entity. (ADR-0001)
 2. **No role column on `users`.** Roles are `membership_roles (membership × role × branch_id NULLABLE)`; NULL = all branches. (ADR-0002)
 3. **Tenant isolation is enforced by Postgres** — RLS + composite FKs + app scoping, three independent layers. (ADR-0003, ADR-0004)
 4. **Never the raw Prisma client.** `withTenant(ctx, …)` from `@rcln/db`; `@rcln/db/unsafe` is the audited escape hatch. (ADR-0005)
 5. **No JSON arrays of foreign keys.** Real join tables; JSONB only as a document. (ADR-0006)
+6. **UTC in the database, the clinic's zone and format on screen.** `Timestamptz(6)` + ISO with a `Z`; rendered in `branches.timezone` and `locale.time_format` (`12H` default, `24H` optional, resolved BRANCH over ORGANIZATION). Web goes through `formatClinicTime`/`formatClinicDate`/`formatClinicDateTime` in `apps/web/src/lib/format.ts` — never a bare `toLocaleString()`, never a second `Intl.DateTimeFormat`. Billing periods render in UTC, deliberately. (CONVENTIONS.md § Dates and times)
+7. **Reading the clinical record is not writing it.** `clinical.encounter.create`/`.close` and `clinical.prescription.create`/`.sign` are DOCTOR-only and stripped from ORG_OWNER/ORG_ADMIN by name; `clinical.vitals.read` is split from `clinical.vitals.record`, and a doctor holds only the read. Clinics widen it by cloning a role or granting per membership. (`packages/permissions/src/roles.ts`)
 
 ## Your Role
 

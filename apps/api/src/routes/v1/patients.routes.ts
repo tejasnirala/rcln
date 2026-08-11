@@ -24,6 +24,7 @@ import { PERMISSIONS } from '@rcln/permissions';
 import {
   authenticate,
   authorize,
+  callerHasPermission,
   requireAuth,
   tenantContextFrom,
 } from '../../middleware/auth.middleware.js';
@@ -133,15 +134,29 @@ const meta = (req: Request, pattern: string): PatientActionOptions => ({
  * `data_access_logs` row it writes, not a gate: a gate would push the front
  * desk into creating the duplicate instead.
  */
+/**
+ * ⚠️ A SECOND PERMISSION NARROWS THE RESULT — the same one, and for the same
+ *   reason, as on the day board. A caller who may not enumerate the clinic's
+ *   practitioners sees only patients who have booked with THEM; the front desk
+ *   sees the branch's register. `doctor.directory.read` is the one code that
+ *   says "you may read across practitioners", and it is asked here rather than
+ *   inventing a second rule that would have to be kept in step with the first.
+ *
+ *   Narrowing rather than refusing, again: the screen is the doctor's, the scope
+ *   is smaller.
+ */
 router.get(
   '/',
   authorize(PERMISSIONS.PATIENT_READ),
   validate(searchPatientQuery, 'query'),
   async (req: Request, res: Response): Promise<void> => {
+    const acrossDoctors = await callerHasPermission(req, PERMISSIONS.DOCTOR_DIRECTORY_READ);
+
     const result = await searchPatients(
       tenantContextFrom(req),
       req.query as unknown as SearchPatientQuery,
-      meta(req, '/')
+      meta(req, '/'),
+      { ownDoctorOnly: !acrossDoctors }
     );
     sendSuccess(res, result);
   }

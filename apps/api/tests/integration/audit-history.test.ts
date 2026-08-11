@@ -231,6 +231,71 @@ describe('reading a record’s history', () => {
     }
   });
 
+  /*
+   * ⚠️ THE WIDENING IS PER ENTITY TYPE, AND THIS IS WHAT PROVES IT IS NOT A
+   *   BLANKET GRANT. The front desk holds `clinical.vitals.read` and no
+   *   `audit.record.read`: they took the observation, so they may see that it was
+   *   corrected and by whom. They may NOT open the history of a branch, a role or
+   *   a membership — which is exactly what handing them `audit.record.read` to
+   *   fix the vitals drawer would have done.
+   */
+  describe('a caller with only the record’s own permission', () => {
+    let membershipId: string | undefined;
+
+    const denyAuditRead = async (): Promise<void> => {
+      const membership = await owner.query<{ id: string }>(
+        `SELECT id FROM memberships WHERE user_id = $1 AND organization_id = $2`,
+        [orgA.ownerUserId, orgA.organizationId]
+      );
+      membershipId = membership.rows[0]?.id;
+
+      await owner.query(
+        `INSERT INTO membership_permission_overrides
+           (id, membership_id, organization_id, permission_id, effect, reason)
+         SELECT gen_random_uuid(), $1, $2, p.id, 'DENY', 'vitals history test'
+           FROM permissions p WHERE p.code = 'audit.record.read'`,
+        [membershipId, orgA.organizationId]
+      );
+
+      const keys = await redis.keys('access:*');
+      if (keys.length > 0) await redis.del(...keys);
+    };
+
+    afterEach(async () => {
+      await owner.query(
+        `DELETE FROM membership_permission_overrides
+          WHERE membership_id = $1 AND reason = 'vitals history test'`,
+        [membershipId]
+      );
+      const keys = await redis.keys('access:*');
+      if (keys.length > 0) await redis.del(...keys);
+    });
+
+    it('may read the history of a vitals reading', async () => {
+      await denyAuditRead();
+      const res = await historyOf(SLUG_A, tokenA, 'appointment_vital', orgA.branchId);
+      /*
+       * 200 with an empty trail: that id is a branch's, not a reading's, so
+       * there is nothing to return. What is being asserted is the GATE — a 403
+       * here is the bug the front desk reported.
+       */
+      expect(res.status).toBe(200);
+    });
+
+    it('still may not read the history of a branch', async () => {
+      await denyAuditRead();
+      const res = await historyOf(SLUG_A, tokenA, 'branch', orgA.branchId);
+      expect(res.status).toBe(403);
+    });
+
+    /* An entity type nobody owns falls through the map to the same 403. */
+    it('still may not read the history of a role', async () => {
+      await denyAuditRead();
+      const res = await historyOf(SLUG_A, tokenA, 'role', orgA.branchId);
+      expect(res.status).toBe(403);
+    });
+  });
+
   it('rejects a malformed entity id before it reaches the database', async () => {
     const res = await historyOf(SLUG_A, tokenA, 'branch', 'not-a-uuid');
     expect(res.status).toBe(400);

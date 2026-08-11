@@ -15,19 +15,20 @@ Files: `apps/api/src/services/organization/organization.service.ts` · `apps/api
 | `choicesOf` <sub>local</sub> | `(value: Prisma.JsonValue): SettingChoice[] \| null` | `apps/api/src/services/organization/setting.service.ts:125` |  |
 | `clearSetting` | `(ctx: TenantContext, key: string, options: SettingActionOptions): Promise<SettingItem>` | `apps/api/src/services/organization/setting.service.ts:353` |  |
 | `fits` <sub>local</sub> | `(dataType: DataType, value: unknown): boolean` | `apps/api/src/services/organization/setting.service.ts:92` |  |
-| `getOrganization` | `(ctx: TenantContext): Promise<OrganizationProfile>` | `apps/api/src/services/organization/organization.service.ts:87` |  |
-| `invalidateOrganizationHosts` <sub>local</sub> | `(ctx: TenantContext): Promise<void>` | `apps/api/src/services/organization/organization.service.ts:186` |  |
+| `getOrganization` | `(ctx: TenantContext): Promise<OrganizationProfile>` | `apps/api/src/services/organization/organization.service.ts:142` |  |
+| `invalidateOrganizationHosts` <sub>local</sub> | `(ctx: TenantContext): Promise<void>` | `apps/api/src/services/organization/organization.service.ts:234` |  |
 | `isEditable` <sub>local</sub> | `(definition: DefinitionRow): boolean` | `apps/api/src/services/organization/setting.service.ts:172` | True when the setting may carry an organization-level value at all. |
 | `isSlugAvailable` | `(slug: string): Promise<boolean>` | `apps/api/src/services/organization/register.service.ts:84` |  |
 | `listSettings` | `(ctx: TenantContext): Promise<SettingItem[]>` | `apps/api/src/services/organization/setting.service.ts:212` |  |
+| `loadTaxRegistrations` <sub>local</sub> | `(tx: Parameters<Parameters<typeof withTenant>[1]>[0], at: Date): Promise<OrganizationProfile['taxRegistrations']>` | `apps/api/src/services/organization/organization.service.ts:102` |  |
 | `loginUrl` <sub>local</sub> | `(slug: string): string` | `apps/api/src/services/organization/register.service.ts:70` |  |
 | `registerOrganization` | `(input: RegisterOrganizationRequest, options: RegisterOptions): Promise<RegisterResult>` | `apps/api/src/services/organization/register.service.ts:95` |  |
 | `setSetting` | `(ctx: TenantContext, key: string, value: Json, options: SettingActionOptions): Promise<SettingItem>` | `apps/api/src/services/organization/setting.service.ts:248` |  |
 | `tenantHost` | `(slug: string): string` | `apps/api/src/services/organization/register.service.ts:66` | `alpha` -> `alpha.lvh.me`. The row resolveTenant looks the Host header up in. |
 | `toItem` <sub>local</sub> | `(definition: DefinitionRow, platform: ValueRow \| undefined, organization: ValueRow \| undefined): SettingItem` | `apps/api/src/services/organization/setting.service.ts:178` |  |
-| `toProfile` <sub>local</sub> | `(row: OrganizationRow): OrganizationProfile` | `apps/api/src/services/organization/organization.service.ts:80` |  |
+| `toProfile` <sub>local</sub> | `(row: OrganizationRow, taxRegistrations: OrganizationProfile['taxRegistrations']): OrganizationProfile` | `apps/api/src/services/organization/organization.service.ts:75` |  |
 | `toWritable` <sub>local</sub> | `(value: Json): Prisma.InputJsonValue \| typeof Prisma.JsonNull` | `apps/api/src/services/organization/setting.service.ts:68` |  |
-| `updateOrganization` | `(ctx: TenantContext, input: UpdateOrganizationRequest, options: OrganizationActionOptions): Promise<OrganizationProfile>` | `apps/api/src/services/organization/organization.service.ts:101` |  |
+| `updateOrganization` | `(ctx: TenantContext, input: UpdateOrganizationRequest, options: OrganizationActionOptions): Promise<OrganizationProfile>` | `apps/api/src/services/organization/organization.service.ts:159` |  |
 
 ## const
 
@@ -35,15 +36,15 @@ Files: `apps/api/src/services/organization/organization.service.ts` · `apps/api
 | --- | --- | --- | --- |
 | `DEFINITION_SELECT` <sub>local</sub> | `{ key: true, module: true, dataType: true, defaultValue: true, allowedScopes: true, allow…` | `apps/api/src/services/organization/setting.service.ts:141` |  |
 | `EXPECTED` <sub>local</sub> | `: Record<DataType, string>` | `apps/api/src/services/organization/setting.service.ts:108` |  |
-| `ORGANIZATION_SELECT` <sub>local</sub> | `{ id: true, slug: true, legalName: true, displayName: true, orgType: true, status: true, …` | `apps/api/src/services/organization/organization.service.ts:50` | What Prisma is asked for, so the read and the write paths cannot drift. |
+| `ORGANIZATION_SELECT` <sub>local</sub> | `{ id: true, slug: true, legalName: true, displayName: true, orgType: true, status: true, …` | `apps/api/src/services/organization/organization.service.ts:45` | What Prisma is asked for, so the read and the write paths cannot drift. |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `DefinitionRow` <sub>local</sub> | `{ key, module, dataType, defaultValue, allowedScopes, allowedValues, isTenantEditable, description, helpText }` | `apps/api/src/services/organization/setting.service.ts:153` |  |
-| `OrganizationActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/organization/organization.service.ts:44` | Request metadata carried onto the audit row. Same shape as the branch service. |
-| `OrganizationRow` <sub>local</sub> | `{ id, slug, legalName, displayName, orgType, status, gstNumber, timezone, currency, countryCode, regionCode, onboardedAt }` | `apps/api/src/services/organization/organization.service.ts:65` |  |
+| `OrganizationActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/organization/organization.service.ts:39` | Request metadata carried onto the audit row. Same shape as the branch service. |
+| `OrganizationRow` <sub>local</sub> | `{ id, slug, legalName, displayName, orgType, status, taxId, timezone, currency, countryCode, regionCode, onboardedAt }` | `apps/api/src/services/organization/organization.service.ts:60` |  |
 | `RegisterOptions` | `{ actorUserId, ipAddress, userAgent }` | `apps/api/src/services/organization/register.service.ts:50` | Clinic registration: the one transaction that turns a form into a tenant. WHY THIS USES |
 | `RegisterResult` | `{ organizationId, slug, ownerUserId, branchId, loginUrl }` | `apps/api/src/services/organization/register.service.ts:57` |  |
 | `SettingActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/organization/setting.service.ts:39` | Request metadata carried onto the audit row. Same shape as the branch service. |

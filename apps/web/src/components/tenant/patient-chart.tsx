@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import type {
-  BranchDetail,
   PatientAllergyDetail,
   PatientConditionDetail,
   PatientDetail,
@@ -14,7 +13,8 @@ import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { RecordHistory } from '@/components/tenant/record-history';
-import { ageLine } from '@/components/tenant/patient-search';
+import { type BranchChoice } from '@/components/tenant/patient-search';
+import { ageLine } from '@/lib/patient-words';
 import {
   addAllergy,
   addCondition,
@@ -96,7 +96,7 @@ export function PatientChart({
   slug: string;
   patient: PatientDetail;
   history: PatientHistoryResponse | null;
-  branches: BranchDetail[];
+  branches: BranchChoice[];
   canReadHistory: boolean;
   canUpdate: boolean;
   canCreate: boolean;
@@ -116,7 +116,7 @@ export function PatientChart({
   return (
     <>
       <Link
-        href={`/t/${slug}/patients`}
+        href={`/patients`}
         className="text-drape focus-visible:outline-drape text-[0.8125rem] underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         ← Back to patients
@@ -632,7 +632,7 @@ function BranchForm({
 }: {
   slug: string;
   patientId: string;
-  branches: BranchDetail[];
+  branches: BranchChoice[];
 }) {
   const [state, action, pending] = useActionState(
     registerAtBranch.bind(null, slug, patientId),

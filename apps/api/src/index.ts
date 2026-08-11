@@ -3,7 +3,9 @@ import { config } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { initDatabase, disconnectDb } from './db/prisma.js';
 import { disconnectRedis } from './utils/redis.js';
+import { disconnectJobProducer } from './queue/producer.js';
 import { initialisePayments } from './services/billing/provider.js';
+import { initDocumentStore } from './services/document/store.js';
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
@@ -18,6 +20,11 @@ const startServer = async (): Promise<void> => {
     // a deployment, not surface at 09:00 as "payment failed" for the first
     // clinic that tries to subscribe. Throws on a misconfiguration.
     initialisePayments();
+
+    // Where documents are written and read from. Constructed lazily inside the
+    // package, so this only records the configuration — a bad storage setting
+    // still surfaces at the first document rather than at boot.
+    initDocumentStore();
 
     const app = createApp();
     const server = app.listen(config.port, config.host, () => {
@@ -41,6 +48,8 @@ const startServer = async (): Promise<void> => {
           try {
             await disconnectDb();
             await disconnectRedis();
+            // Its own connection, separate from the cache's — see the producer.
+            await disconnectJobProducer();
             logger.info('shutdown complete');
             process.exit(0);
           } catch (error) {

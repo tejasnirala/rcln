@@ -146,6 +146,65 @@ export async function resolveSettings(
 }
 
 /**
+ * One setting, resolved for SEVERAL branches of one organization at once.
+ *
+ * ⚠️ EXISTS TO KEEP `GET /auth/session` AT A FIXED NUMBER OF QUERIES. The session
+ *   payload carries a per-branch clock format, and every page render resolves the
+ *   session — so calling `resolveSettings` once per branch would put an N+1 on
+ *   the single hottest endpoint in the product, for a value that changes about
+ *   once in a clinic's lifetime. One query covers every branch.
+ *
+ * ⚠️ THE ISOLATION RULE FROM THE FILE HEADER STILL BINDS, and the `branchIds`
+ *   here are not exempt from it. They must come from a list already read under
+ *   RLS — `loadUserAccess`, a `withTenant` query — never from a request body. A
+ *   branch id from a caller is another clinic's configuration, and nothing in
+ *   Postgres will stop this table handing it over.
+ *
+ * Falls back BRANCH -> ORGANIZATION -> PLATFORM -> definition default, the same
+ * ladder `resolveSettings` walks, minus the scopes a branch cannot have.
+ */
+export async function resolveSettingForBranches(
+  tx: TxClient,
+  key: string,
+  scopes: { organizationId: string; branchIds: string[] }
+): Promise<Map<string, SettingValue>> {
+  const pairs: { scopeType: ScopeName; scopeId: string | null }[] = [
+    { scopeType: 'ORGANIZATION', scopeId: scopes.organizationId },
+    { scopeType: 'PLATFORM', scopeId: null },
+    ...scopes.branchIds.map((id) => ({ scopeType: 'BRANCH' as const, scopeId: id })),
+  ];
+
+  const [definition, values] = await Promise.all([
+    tx.settingDefinition.findUnique({ where: { key }, select: { defaultValue: true } }),
+    tx.settingValue.findMany({
+      where: {
+        settingKey: key,
+        // Both halves of every key pinned, as everywhere else in this file.
+        OR: pairs.map((p) => ({ scopeType: p.scopeType, scopeId: p.scopeId })),
+      },
+      select: { scopeType: true, scopeId: true, value: true },
+    }),
+  ]);
+
+  const allowed = new Set(pairs.map((p) => `${p.scopeType}:${p.scopeId ?? ''}`));
+
+  let organizationValue: SettingValue | undefined;
+  let platformValue: SettingValue | undefined;
+  const branchValues = new Map<string, SettingValue>();
+
+  for (const row of values) {
+    if (!allowed.has(`${row.scopeType}:${row.scopeId ?? ''}`)) continue;
+    if (row.scopeType === 'BRANCH' && row.scopeId) branchValues.set(row.scopeId, row.value);
+    else if (row.scopeType === 'ORGANIZATION') organizationValue = row.value;
+    else if (row.scopeType === 'PLATFORM') platformValue = row.value;
+  }
+
+  const fallback = organizationValue ?? platformValue ?? definition?.defaultValue ?? null;
+
+  return new Map(scopes.branchIds.map((id) => [id, branchValues.get(id) ?? fallback]));
+}
+
+/**
  * One setting, coerced to a positive integer.
  *
  * `setting_values.value` is JSONB, so an INT setting can legitimately arrive as

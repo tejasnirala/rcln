@@ -2,15 +2,23 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-08-06 · **Current phase:** 0 complete; 1 complete except
+**Last updated:** 2026-08-10 · **Current phase:** 0 complete; 1 complete except
 the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
 management, email/phone verification, org settings, super-admin impersonation,
 one unified shell, remembered scope and per-record history); **2 complete except
 usage enforcement, notifications and tax** — subscriptions, payments, pro-rata
-upgrades, cancellation and recurring billing all run end to end; **3 started —
-station 1 stages 1 and 2 of 5 done** (numbering, PHI read-auditing, the setting
-resolver; doctors, specialties and working hours). No PHI table exists yet —
-`patients` lands in stage 3
+upgrades, cancellation and recurring billing all run end to end; **3 in progress
+— station 1 stages 1–4 of 5 done, plus vitals and the follow-up chain**
+(numbering, PHI read-auditing, the setting resolver; doctors, specialties and
+working hours; patients; the availability engine, appointments and the day
+board; vitals, event-driven status, follow-ups, and the doctor/front-desk split).
+Queue tokens and walk-in are stage 5; prescriptions come after. The consultation
+page exists as a route with a deliberate placeholder where the specialty-specific
+diagnosis form will go.
+
+⚠️ PHI is live from stage 3 onwards — `patients`, `appointments` and
+`appointment_vitals` all carry it, and every read of one that discloses a single
+named patient writes a `data_access_logs` row.
 
 ---
 
@@ -757,14 +765,464 @@ divided by a resolved slot duration, minus what is already booked.
         free slots can still take a block one over its cap
   - [ ] Nothing sends a reminder. `appointment.reminder_hours_before` is seeded
         and no worker reads it
+- [x] **Stage 4b — vitals, the follow-up chain, and the role split.** One table,
+      two permission codes, and the point at which the day board stops being one
+      screen for everybody.
+  - [x] `appointment_vitals` — the observations taken before the doctor sees the
+        patient. Org-scoped **and** branch-scoped, the same call as
+        `appointments`: vitals are taken at a place, so they follow attendance
+        rather than identity. `branch_id` and `patient_id` are copied off the
+        appointment and never accepted from the caller. **Many rows per
+        appointment, deliberately** — a repeat BP twenty minutes after a high
+        first reading is a second observation, not a correction, so there is no
+        update endpoint at all. ⚠️ Its audit snapshot records **which**
+        observations a row carries and never their values: `REDACTED_KEYS`
+        cannot help here, because these column names are PHI only on this table
+  - [x] BMI is **derived on read, never stored** — a stored BMI is wrong the
+        moment somebody corrects the weight, and nothing would recompute it
+  - [x] **Automatic status, driven by clinical events.** Recording vitals moves
+        a booking to CHECKED_IN; opening the consultation moves CHECKED_IN to
+        IN_PROGRESS. Both commit in the same transaction as the event that
+        caused them, both decline silently rather than throwing when the move is
+        not a legal forward step, and both write a trail row naming the trigger.
+        ⚠️ The idempotence is load-bearing: the consultation POST is issued
+        during a Server Component render, which can run more than once
+  - [x] **Follow-ups get their own appointment number**, not the parent's. The
+        chain is `parent_appointment_id`, composite-FK'd and ON DELETE RESTRICT
+        — a stronger link than a reused token string, which would also collide
+        with the branch's uniqueness constraint on the second visit. Patient and
+        branch are read off the parent and cannot be overridden
+  - [x] `appointment.delete` — withdrawing a mis-click, split from
+        `appointment.cancel` so the utilisation reports can still tell "the
+        patient called off" from "the receptionist mistyped". Future + BOOKED
+        only, checked against Postgres' clock, refused when a follow-up hangs
+        off it. ⚠️ **A soft delete that ALSO sets status to CANCELLED, and both
+        halves are required** — `appointments_no_doctor_overlap` is deliberately
+        not partial on `deleted_at`, so `deleted_at` alone would hide the
+        booking while blocking its slot forever. Measured: the slot is free again
+  - [x] `doctor.directory.read` — split out of `doctor.read`, and it is what
+        makes a doctor's navigation **two tabs** rather than three. Reading _a_
+        profile and enumerating _all_ of them are different acts. The same code
+        decides whether `GET /appointments` and `GET /patients` may read ACROSS
+        practitioners, so one rule serves the nav, the roster and both lists, and
+        no role is named anywhere (ADR-0002). It **overrides**
+        `?doctorProfileId=` rather than defaulting it — a default would leave the
+        query parameter as a working way around the boundary
+  - [x] `GET /doctors/me` and `GET /doctors/:id`, plus a read-only profile
+        screen. A doctor reaches their own profile from the header, not from a
+        Doctors tab they do not have; editing stays behind `doctor.update`
+  - [x] A consultation page at `/appointments/:id` — real route, real access
+        split, real vitals. **The diagnosis and prescription surface is a
+        deliberate placeholder**: it is specialty-specific and gets designed on
+        its own
+  - [x] 5 new isolation cases on `appointment_vitals` (no context, another
+        clinic, another branch, branch in scope, and the write side).
+        **553 API tests green**, `db:rls:check` green at 42 protected tables.
+        Verified end to end against the running stack, not only by typecheck:
+        the automatic transitions, the freed slot, and — as a second doctor over
+        real HTTP — the refused roster, the own-day-only board, and the
+        own-patients-only list
+  - [x] **`clinical.vitals.read` split out of `clinical.vitals.record`.** One
+        code used to gate both directions, which meant the only way to let
+        somebody SEE a blood pressure was to let them type one in — so a DOCTOR
+        held the write code purely to read the chart. They now hold the read and
+        **not** the write: the cuff belongs to whoever is with the patient before
+        the consultation, and a consultation cannot silently amend an observation
+        the front desk signed for. The front desk and the nurse hold both; the
+        front desk still carries no `clinical.encounter.read`. On an empty visit
+        a reader who cannot record is told the readings are taken at the desk,
+        rather than being shown a form that will never appear. ⚠️ **The read-only
+        view is a separate component, not four `canRecord &&` guards.**
+        `VitalsChart` does not import `ReadingForm`, holds no mode state and
+        takes no edit handler, so there is nothing in that subtree to leak — the
+        recording controls cannot be reintroduced by an edit that forgets one
+        condition, which is what the previous shape invited
+  - [x] **Authoring the clinical record is DOCTOR-only.** `clinical.encounter.create`,
+        `.close`, `clinical.prescription.create` and `.sign` are stripped from
+        ORG_OWNER and ORG_ADMIN by name — both are defined as `ALL_PERMISSIONS`
+        minus a list, so a new authoring code would otherwise join them silently.
+        They keep every clinical READ. ⚠️ `POST /appointments/:id/consultation`
+        moved from `encounter.read` to `encounter.create` with it: it MUTATES —
+        CHECKED_IN → IN_PROGRESS — so under the read code an administrator
+        opening a booking to look at it moved the patient to "with the doctor" on
+        the day board. Pinned by `packages/permissions/tests/roles.test.ts`
+  - [ ] **Existing org-scoped role CLONES are not migrated.** Re-seeding
+        re-syncs the system roles, but a clinic that cloned ORG_ADMIN before this
+        change keeps the authoring codes on its clone. That is arguably correct —
+        the clinic made that role — but it is not a decision anybody has taken
+        yet, and there is no report of which tenants are affected
+  - [ ] No time-based sweep. Nothing marks a stale BOOKED as NO_SHOW on its own;
+        that stays a manual button
+- [x] **Stage 4c — the clock face is the clinic's choice, and the day board reads
+      like a board.** Small, but it touches every screen that draws a time.
+  - [x] `locale.time_format` — a seeded setting, `12H` by default and `24H` on
+        request, allowed at ORGANIZATION and BRANCH so a group can run a hospital
+        wing and a walk-in clinic differently. Resolved per branch and carried on
+        `GET /auth/session` beside `timezone`, because the front desk and the
+        doctors hold no settings permission and fetching it from `GET /settings`
+        would 403 on exactly the screens that need it. One query for every branch
+        — this is the hottest endpoint in the product
+  - [x] The **storage rule written down** at last, in CLAUDE.md, CONTRIBUTING.md,
+        `.kb/Architecture/CONVENTIONS.md § Dates and times`, `Project_Context.md`,
+        the architect agent and `apps/web/AGENTS.md`: **UTC in the database, the
+        clinic's zone and the clinic's format on screen**, with billing periods
+        as the one deliberate UTC exception. Every failure it prevents is silent
+  - [x] `formatClinicTime` takes the format; the appointment board's private
+        `Intl.DateTimeFormat` — `en-IN`, `hour12: false`, hard-wired — is gone.
+        A second formatter is how a clinic's choice gets silently ignored
+  - [x] **The day tally is fixed-shape**: a Total plus all seven statuses, zeroes
+        rendered. It used to drop empty statuses, so the strip was a different
+        length on every navigation and "how many have we not seen yet?" was
+        invisible precisely when the answer was none
+  - [x] **And the tally IS the filter.** Pressing a chip narrows the list to that
+        status; Total is the unfiltered state rather than an eighth chip, because
+        it is already the sum of the rest. ⚠️ **Client state, not the URL, and it
+        never reaches the API** — the counts are derived from the rows the API
+        returned, so a server-side status filter would narrow the list AND
+        collapse the tally to agree with itself, destroying the only thing the
+        strip is for. A zero chip is disabled rather than hidden, and the filter
+        clears itself when its count drops to zero — otherwise pressing "Seen" on
+        the last With-the-doctor row leaves a full day rendering its empty state
+        behind a chip that has just greyed out
+  - [x] **The appointment row is one link, over the whole record.** The patient
+        name went to the chart and the token went to the visit; a day board is a
+        list of visits, so the record opens the visit and the number went back to
+        being an identifier. A stretched `<Link>`, not an `onClick` on a div —
+        focus, middle-click and the keyboard all still work
+  - [ ] Verified by typecheck, lint, 583 API tests and the seeded database, not
+        in a browser. The row overlay's z-index layering in particular is the
+        kind of thing that reads correctly and misbehaves on a real click
 - [ ] Stage 5 — queue tokens, walk-in, check-in
-- [ ] Encounters, vitals
-- [ ] Prescriptions + masters (symptoms, diagnoses, procedures)
+- [ ] Encounters proper (vitals landed early, above, because the front desk
+      needed them and they are what checks a patient in)
+- [ ] Prescriptions + masters (symptoms, diagnoses, procedures). The follow-up
+      chain is in place and nothing yet carries a prescription along it
 - [ ] `clinical_form_templates` — the extension point for per-specialty forms
 
-### Phase 4 — Billing
+### Consultation fees and doctor compensation
 
-- [ ] `billable_items`, `invoices`, `invoice_items`, GST tax lines
+What a clinic charges for an appointment, and what it pays the doctor who takes
+it. Requirements settled 2026-08-10, nothing built. Progress and every decision
+live in
+[`Architecture/fee-schedule-implementation.md`](Architecture/fee-schedule-implementation.md).
+
+A fee schedule keyed by the existing `AppointmentVisitType` — clinic defaults and
+per-doctor overrides, both per branch — resolved once and **frozen onto the
+appointment at booking**, plus a reschedule charge for patient-initiated moves.
+Separately, an agreed salary recorded against each doctor behind its own
+permission pair. ⚠️ **It retires
+`doctor_branch_settings.{consultation_fee,follow_up_fee}`**, which today are the
+only thing pricing a consultation; `follow_up_free_days` stays. ⚠️ **Payout runs
+remain deferred** — this records what was agreed and computes nothing.
+
+### Tax registrations, coverage and where tax meets billing
+
+**Shipped 2026-08-11.** Organization, branch and tax registration as three
+separate concepts: an organization holds zero, one or many registrations
+independently of its branch count; coverage is **stated** by the clinic rather
+than inferred from addresses, so one registration may cover several branches,
+branches may differ, and some may share one while another uses another; lapsed
+registrations are kept beside their successors. The clinic's tax number has one
+authoritative home — `organizations.tax_id` is now derived and read-only, and
+`branches.tax_id` is dead. Branch tax jurisdiction became settable and inherits
+from the organization instead of defaulting to India.
+
+Full model, selection order, the open decisions, and the checklist for wiring a
+new billable module live in
+[`Architecture/tax-registration-implementation.md`](Architecture/tax-registration-implementation.md).
+**Read it before touching `issuer_tax_registrations`, `tax_rules` or branch
+jurisdiction, and before adding pharmacy, lab or inventory billing.**
+
+### Phase 4 — Billing (patient invoicing)
+
+Being built as the **centralized Invoice & Billing Engine** — one engine, many
+billable sources, country-configurable tax, immutable issued documents. Progress
+and every decision live in
+[`Architecture/invoice-engine-implementation.md`](Architecture/invoice-engine-implementation.md);
+this is the summary.
+
+⚠️ **This is NOT `subscription_invoices`.** That table is rcln billing the
+clinic, and it is complete. This one is the clinic billing a patient — different
+issuer, different tax registration, different lifecycle, different RLS shape.
+They must never be merged. Naming: `invoices`/`invoice_items` here,
+`subscription_*` there; `services/invoicing/` here, `services/billing/` there.
+
+- [x] **Phase 0 — existing-system analysis.** Recorded, including the three
+      things already built that are being reused rather than rebuilt:
+      `issueNumber()` (already the concurrency-safe sequencer, needs one new
+      enum value), the tax engine in `@rcln/billing` (already refuses to guess a
+      rate it holds no registration for), and `@rcln/payments`' integer
+      minor-unit money. `billing.invoice.*` permission codes were already seeded
+- [x] **Phase 1 — document & storage infrastructure.** New `@rcln/storage`
+      package: `StorageProvider`, `LocalStorageProvider`, key validation, a
+      config-driven factory. `DocumentService` in `apps/api`, generic over
+      document type and deliberately knowing nothing about invoices. `files`
+      extended into the generic document table with a status lifecycle, so
+      "the invoice is issued" and "the PDF exists" can be two different facts.
+      ⚠️ Three layers stop a key escaping the storage root, and the third — a
+      **real-path** check — is the only one that sees a symlinked directory;
+      measured by removing it. ⚠️ The explicit `organizationId` pin in
+      `getDocument` is the ONLY thing stopping a tenant reading a platform-owned
+      document, because `files`' policy permits a NULL `organization_id` on
+      purpose; measured, and RLS does not cover it. 13 HTTP-free integration
+      cases + 34 package tests. **666 API tests green**, 42 protected tables
+- [x] **Phase 2 — tax engine generalisation.** New `@rcln/tax` package, extracted
+      from `@rcln/billing` and proved by its 18 subscription cases passing
+      untouched. The supplier is now an **issuer**: the same `resolveTax` serves
+      rcln billing a clinic and a clinic billing a patient. Org-scoped
+      `issuer_tax_registrations` + effective-dated `tax_rules` per item tax
+      category; `branches` learnt an ISO `country_code`/`region_code`.
+      ⚠️ **Place of supply is now explicit** — the customer for a digital
+      service, the **issuing branch** for a consultation. Reading the patient's
+      address instead makes a Karnataka clinic's supply inter-state because the
+      patient lives in Kerala, and the state's half of the tax never reaches the
+      state. ⚠️ **A category with no rule is `UNRATED`, never the registration's
+      standard rate** — a clinic registration deliberately has no such column,
+      because a rate nobody chose on an insurance claim is worse than a refusal.
+      Phase 5's `finalizeInvoice` refuses to ISSUE an `UNRATED` invoice, which
+      is that guard. ⚠️ These two tables take the **opposite** RLS decision from
+      `tax_registrations`, and exempting them by analogy would leak a
+      competitor's GSTIN and rate card with nothing failing.
+- [x] **Phase 2b — country neutrality.** Found by sweeping every supported
+      country through the engine: `GST` still meant _India_, so an Australian
+      invoice printed `IGST` for an "inter-state supply" at exactly the right
+      rate. ⚠️ **Correct arithmetic on a non-compliant document — every
+      total-based assertion passed.** A rate and a line are now separate things:
+      `tax_rules` carries `line_name`, `split` and `stacks`, so India splits
+      CGST/SGST/IGST, Australia prints one `GST`, Ontario prints one `HST`, and
+      British Columbia stacks federal `GST` + provincial `PST` — which an engine
+      that picks a single rule cannot bill at all. `PROVIDER_REQUIRED` replaces
+      the false `NOT_REGISTERED` for US sales tax and EU One Stop Shop, and
+      `TaxProviderQuote` is the seam Avalara plugs into. `gst_number` → `tax_id`
+      ⚠️ hand-written as `RENAME COLUMN`, because Prisma's DROP+ADD would have
+      silently emptied every clinic's tax identifier.
+- [x] **Phase 2c — the defaults catalogue.** `tax_rule_defaults`: the rate cards
+      rcln maintains per country, plus four platform routes to maintain them.
+      ⚠️ **Inherited at read time, never copied into a tenant** — the
+      copy-at-signup design turns a rate change into a migration across every
+      tenant and permanently destroys the difference between "this clinic chose
+      12%" and "this is a stale copy of our old default". Same shape as
+      `setting_definitions`/`setting_values`. A tenant rule beats a platform
+      default before specificity, all-or-nothing per category. ⚠️ **Only
+      healthcare-service exemptions are seeded, deliberately** — a medicine's
+      rate varies by product within a country, so any seeded figure is wrong for
+      much of what a pharmacy dispenses and wrong _invisibly_, because an
+      inherited default looks configured. Goods resolve UNRATED until a clinic
+      enters a rate it has checked. ⚠️ **Removing a rule is an end date, never a
+      DELETE** — the row that priced last year's invoice is what explains it.
+      692 API tests, 63 tax-package tests, 44 protected tables
+- [x] **Phase 3 — invoice data model.** `invoices`, `invoice_items`,
+      `invoice_taxes`, `invoice_documents`, plus `issueInvoiceNumber()` on the
+      existing gapless counter. Org **and** branch scoped, composite-FK'd, every
+      tax field snapshotted. ⚠️ **The invoice number carries the BRANCH CODE** —
+      `INV-2026-APP-MAIN-000001`. A per-branch series with the brief's format is
+      a compliance failure: two branches sharing one GSTIN both start at 1 and
+      both issue `INV-2026-APP-000001`, which is the one thing a GST series may
+      not do. ⚠️ **The children carry `organization_id` and `branch_id`
+      themselves** — the `subscription_invoice_lines` parent-scoped shape asks
+      the org question only, and their parent is branch-scoped, so a cashier at
+      one branch would read another's lines. ⚠️ **`invoice_documents.file_id` is
+      a plain FK**, because `files.organization_id` is nullable; a RESTRICTIVE
+      `file_in_same_org` policy is what stops an invoice citing another tenant's
+      PDF. ⚠️ **What an invoice bills for is an ENFORCED, typed column per
+      source** — `appointment_id` today, composite-keyed so it can never cite
+      another clinic's visit — never a generic `source_id`. A polymorphic uuid
+      cannot be foreign-keyed, and the risk was never "that appointment does not
+      exist" but "that appointment belongs to somebody else". Stub tables for the
+      absent modules were rejected: a table with only an id proves existence and
+      says nothing about ownership. ⚠️ **Nothing enforces immutability yet** — an
+      ISSUED invoice's totals can still be rewritten; that guard landed in
+      Phase 5.
+      Found by running it: `number_sequences.prefix` was VARCHAR(16) and the
+      first invoice ever numbered failed on it with a raw 22001. 714 API tests,
+      48 protected tables, all 36 migrations verified against an empty database
+- [x] **Phase 4 — calculation engine.** New `@rcln/invoicing` package: pure, no
+      Prisma, no clock, integer minor units, and now the **only** code allowed to
+      decide what goes in a money column. ⚠️ **It is NOT in `packages/billing`,
+      which is what the plan said** — §0.1 of the log had already fixed the
+      naming (`invoicing` is the clinic billing a patient, `billing` is rcln
+      billing the clinic) and §0.8 contradicted it; `@rcln/tax` was split out of
+      `@rcln/billing` in Phase 2 on the same argument. ⚠️ **The invoice-level
+      discount is apportioned onto the lines BEFORE tax**, largest-remainder, and
+      the test for it asserts the **tax** rather than the total — the brief's
+      order gives ₹1080 against this engine's ₹1062 and both totals are arguable,
+      while the ₹180 of GST inside the first is tax remitted on ₹100 the patient
+      never paid. ⚠️ **Apportionment is weighted by what is LEFT of a line**, not
+      its gross, or a line already discounted to zero goes negative. ⚠️ **Cash
+      rounding applies to the total and never to a line** — rounding a line makes
+      the stated tax stop being the rate times the base. ⚠️ **Quantity is an
+      integer count of thousandths**, matching `Decimal(14,3)`; a fourth decimal
+      place throws rather than truncating. ⚠️ **`TaxLine` now cites the rule that
+      priced it**, which is the only way `invoice_taxes`' two audit columns can
+      ever be non-NULL. Four deliberate breakages were applied and reverted to
+      prove the suite bites — and one of them (taking `quote.total` instead of
+      summing the printed lines) failed nothing until a test was added for an
+      external provider's disagreeing quote. 723 API tests, 35 invoicing-package
+      tests, 48 protected tables. Nothing persists a priced invoice yet
+- [x] **Phase 5 — lifecycle and immutability.** DRAFT → FINALIZING → ISSUED →
+      PARTIALLY_PAID/PAID, VOID from any issued state, CANCELLED from DRAFT
+      only — enforced by **three triggers**, not by the service, because the
+      service is one of several paths a write can take and a silently rewritten
+      invoice is not an error at all. ⚠️ **The frozen set is an ALLOW-LIST of
+      what may still move** (status, `amount_paid`, the cancel/void columns,
+      `updated_at`), so a column added tomorrow is immutable after issue by
+      default; `deleted_at` is deliberately not on it. ⚠️ **The lines needed
+      their own guard** — a frozen `grand_total` over editable lines is an
+      invoice stating a total that is not the sum of what it prints. ⚠️ **The
+      `region_code` check Phase 2 deferred cannot be a null check**:
+      `registrationFor()` ends `?? inCountry[0]`, so a Kerala branch under a
+      Karnataka-only clinic prices perfectly and issues under the wrong GSTIN —
+      the check has to mirror the selection rule and ask whether that fallback
+      was taken. Writing it the obvious way refuses nothing at all, measured.
+      ⚠️ **Taking the invoice number last buys the LOCK WINDOW and not the
+      serial** — moving it ahead of the issuable check fails no test, because the
+      transaction rolls the counter back; the comment claiming otherwise was
+      corrected. A draft is now priced from the moment it exists, and
+      finalisation re-prices from the stored inputs rather than trusting stored
+      totals. ⚠️ **Credit notes deferred** — no table, no series, no
+      `CREDIT_NOTE` source type, and with no patient-payments table no void can
+      yet involve money. 744 API tests, 48 protected tables
+- [x] **Phase 6 — document rendering.** ⚠️ **The screen and the PDF are the same
+      document because they are the same string.** `renderInvoiceHtml(data)` in
+      the new `@rcln/documents` produces one self-contained HTML document; the
+      web puts it in an `<iframe srcdoc>` and the worker hands it to Chromium.
+      The alternative — a PDF library plus a matching React screen — is two
+      templates kept alike by hand, with no test for "these still look the same".
+      ⚠️ **Chromium is in the WORKER and never in the api**, which is capped at
+      1g and already exits 137 running its own suite; the worker went 768m → 2g.
+      The PDF is therefore asynchronous, and that costs nothing because the UI
+      renders from data — only Download waits. ⚠️ **The typefaces are committed
+      as base64**, not read from `node_modules`: every failure of a runtime read
+      is silent in one of the three runtimes, and a missing `@font-face` does not
+      throw, it just prints the wrong typeface. ⚠️ **`latin-ext` is where ₹
+      lives** (U+20AD-20C0) — the `latin` subset stops at the euro. ⚠️ **What the
+      document calls itself is derived**: a Bill of Supply for an exempt Indian
+      supply, a plain Invoice for an unregistered clinic, a Tax Invoice in
+      AU/NZ/SG/AE and not in the UK. ⚠️ **No `timeFormat`** — an invoice is dated,
+      not timestamped. `DocumentService` moved out of `apps/api` into
+      `@rcln/documents/store` because the worker writes what the API serves, and
+      `queues.ts` became `@rcln/queue` because a queue has two ends. Verified end
+      to end: issue → job → Chromium → bytes on the host → an
+      `invoice_documents` row whose checksum matches the file. 757 API tests, 21
+      documents-package and 10 queue-package tests, 48 protected tables
+- [x] **Phase 7 — invoice APIs.** Nine routes at `/v1/invoices`:
+      list/detail/document/PDF/create/replace/issue/cancel/void. ⚠️ **Which
+      invoices a caller sees is DERIVED from the modules they work in**, not
+      granted per source — a pharmacist holds `pharmacy.dispense.read`, and that
+      is what makes a pharmacy invoice their business.
+      `billing.invoice.read_all` is the single escape for the accountant and the
+      branch administrator, so a source added later needs no re-grant anywhere.
+      ⚠️ **Applied in the QUERY and intersected with the caller's own
+      `?sourceType=`** — a filter the client controls is not a boundary — and
+      where it says no it says **404, not 403**, because a 403 on an id confirms
+      both that the invoice exists and what kind it is. ⚠️ **A calendar date
+      becomes local MIDDAY**: UTC midnight prints as the previous day west of
+      Greenwich, and local midnight falls before a `DATE`-typed
+      `effective_from` east of it, so the new tax rate silently misses its first
+      day. ⚠️ **The list's date filter is two branches of an `OR`** because a
+      draft has no issue date and would vanish from every range. ⚠️ **A write's
+      read-back files no disclosure row** — a creation is a write, and logging
+      the echo would fill `data_access_logs` with cashiers reading their own
+      work. ⚠️ **No `?q=`**, ever: a customer name in a query string is a name in
+      the proxy log, the browser history and the referrer. Found and fixed a
+      Phase 5 bug this surface made visible — a whole-bill discount was stored
+      and not priced until something re-priced the draft, so only the number the
+      cashier decided from was wrong. Verified end to end over HTTP: issue →
+      worker → 63,907 bytes of `%PDF-`. 785 API tests, 48 protected tables
+- [x] **Phase 8 — appointment billing.** The first integrated source:
+      `GET /v1/appointments/:id/billing` previews the fee and
+      `POST /v1/appointments/:id/invoice` raises the draft, and the day board and
+      appointment detail carry a `liveInvoice`. ⚠️ **No migration and no new
+      permission code** — the rate card
+      (`doctor_branch_settings.consultation_fee` / `follow_up_fee` /
+      `follow_up_free_days`) has existed since the doctors phase with nothing
+      reading it, so a service catalogue here would have been a second one.
+      ⚠️ **"Is this visit billed?" is a question about the LIVE invoice**, never
+      about `appointment_id`, which is non-unique so a void can keep its
+      reference — cancelled and voided invoices leave the visit billable and stay
+      in its history. ⚠️ **And because there is no unique index the check is a
+      race**, so the appointment row is locked `FOR UPDATE`: two cashiers on one
+      visit is an ordinary Monday. ⚠️ **The date of supply is the visit's
+      branch-local day, not `now()`** — it selects the effective-dated tax rule,
+      and `now()` would pass every other assertion in the suite. ⚠️ **A null
+      `follow_up_fee` falls back to the consultation fee and does not mean
+      free**, and a free review inside the window is a charge of ZERO rather than
+      an absent charge — "we waive this" and "we have not decided" must not be
+      the same value. ⚠️ **An unpriced visit refuses rather than billing zero**;
+      `unitPriceMinor` is the way through and confers nothing
+      `billing.invoice.create` did not already carry. ⚠️ **`liveInvoice` is
+      ABSENT, not null, for a caller without `billing.invoice.read`** — null would
+      read as "nothing has been billed today". Found while testing: the seeded
+      DOCTOR role _does_ hold `billing.invoice.read`, so the first version of that
+      assertion passed against an empty board. 806 API tests, 48 protected tables
+- [x] **Phase 9 — frontend invoice module.** The ledger at `/invoices` with
+      URL-param filters, the detail screen with the document in a sandboxed
+      iframe, the draft editor, the Raise invoice path on the consultation screen
+      and the billing column on the day board — plus the two Phase 7 known issues
+      this phase was the right home for. ⚠️ **The Phase 6 preview frame had never
+      been imported, and the first screen to import it failed `next build`
+      outright** — `renderInvoiceHtml` reaches `react-dom/server`, which Next
+      declines in a Server Component's module graph and in an App Route's alike,
+      with typecheck clean throughout. The render moved to the API as
+      `GET /v1/invoices/:id/preview`, which is the better home: the web is now a
+      conduit for both representations of an invoice rather than the renderer of
+      one and the proxy of the other. ⚠️ **`cashRoundingMinor` was not merely a
+      parameter that should have been a setting — it was silently broken.** Never
+      stored, so finalisation re-priced without it: a clinic rounding to the rupee
+      approved a rounded draft and handed the patient an unrounded document. Now
+      `billing.cash_rounding_minor`, resolved inside `priceDraftInvoice` so every
+      pricing path agrees, and gone from the wire. ⚠️ **`.partial()` keeps
+      `.default()`**, so a description-only PATCH rewrote `treatment`, `split` and
+      `stacks` — including on the platform's own catalogue, where unsplitting
+      India's GST rule changes what every clinic in the country charges. Found by
+      a test asserting a rename still saves. ⚠️ **The tenant rate card is the
+      first write path `issuer_tax_registrations` and `tax_rules` have ever
+      had** — every clinic until now ran entirely on rcln's published catalogue,
+      which is a defensible default and not a configuration. `billing.tax.read` /
+      `.manage`, not a settings code: a preference annoys somebody, a rate decides
+      what every patient is charged. ⚠️ **Ending a rule falls back to the
+      catalogue only where the catalogue covers the category** — goods
+      deliberately have no default, so ending a medicine rate leaves it UNRATED
+      and unissuable. Both outcomes asserted; the first version of the code and
+      the test both assumed the fallback was universal. 833 API tests, 48
+      protected tables. ⚠️ `next build` fails on the marketing sandbox page,
+      unrelated and pre-existing as far as its module graph shows
+- [x] **Phase 10 — audit.** ⚠️ **Not one invoice write had ever written an audit
+      row.** The phase was planned as "the screen that reads the trail back";
+      `services/invoicing/` imported `recordDataAccess` and never `recordAudit`,
+      so a bill could be opened, re-priced, issued, cancelled and voided with
+      nothing anywhere naming who did it — and `invoices.test.ts` asserted the
+      opposite in prose at the top of the file. All five writes now file a row
+      from one allow-list snapshot, plus the history drawer on the invoice detail
+      and on the rate card's rows, which have been auditable since Phase 9 with
+      nothing reading them. ⚠️ **The snapshot is read from the ROW on both sides,
+      never built from the request** — the interesting half of an invoice is
+      derived, so a snapshot from the request body would be silent about
+      finalisation's re-price, which is the one change on this surface no human
+      makes. ⚠️ **And the create's snapshot is taken after the PRICING**: the row
+      between the INSERT and the pricing has every money column at `@default(0)`,
+      and filing that would record a ₹1,120 invoice as costing nothing,
+      permanently. ⚠️ **`lineCount`, not the lines** — `invoice_items.description`
+      is "Ultrasound, obstetric". ⚠️ **`hasNotes` / `hasCancellationReason`, and
+      `notes` and `cancellation_reason` are now in `REDACTED_KEYS` as the schema
+      has claimed since Phase 3 without it being true.** ⚠️ **`billing.invoice.read`
+      does NOT imply `audit.record.read`**: the audit endpoint keys on
+      `(entityType, entityId)` and knows nothing about an invoice's source, so
+      the obvious widening would hand a receptionist the trail of a lab invoice
+      the ledger hides from them. ⚠️ **The PHI sweep expects ONE hit and the hit
+      is the finding** — a tax rule's `description` is free text recorded
+      verbatim, correctly, and no allow-list can stop a clinic typing a patient's
+      name into a field whose contents are the record. No migration, no
+      permission code, no seed row. 847 API tests, 48 protected tables
+- [ ] **Phase 11 (next)** — S3 provider + final QA, and running the pre-existing
+      `next build` failure on the marketing sandbox page to ground
+- [ ] ⚠️ **Lab, pharmacy and inventory invoice integration is deferred and cannot
+      be done yet** — those modules do not exist (Phases 5–6 below). Their source
+      types and `LAB`/`PHA`/`INV` codes ship with the engine so they land later
+      as integration rather than redesign, but there are no `lab_orders` or
+      `pharmacy_sales` tables for an invoice to reference. Each gains its typed,
+      enforced `invoices` column in the migration that creates its own table
+- [ ] `billable_items`, GST tax lines on patient invoices
 - [ ] `payments` + `payment_allocations` (one payment across several invoices)
 - [ ] `number_sequences` with financial-year reset
 - [ ] Credit notes, refunds, patient ledger

@@ -11,16 +11,16 @@ Files: `apps/api/src/services/audit/audit.service.ts` · `apps/api/src/services/
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `changesFrom` <sub>local</sub> | `(before: unknown, after: unknown): AuditFieldChange[]` | `apps/api/src/services/audit/history.service.ts:43` |  |
-| `diffSnapshots` | `(before: AuditSnapshot \| undefined, after: AuditSnapshot \| undefined): Diff` | `apps/api/src/services/audit/audit.service.ts:152` |  |
+| `diffSnapshots` | `(before: AuditSnapshot \| undefined, after: AuditSnapshot \| undefined): Diff` | `apps/api/src/services/audit/audit.service.ts:195` |  |
 | `hashSearchTerm` <sub>local</sub> | `(term: string): string` | `apps/api/src/services/audit/data-access.service.ts:74` |  |
 | `isDuplicate` <sub>local</sub> | `(ctx: TenantContext, resource: DataAccessResource, resourceId: string): Promise<boolean>` | `apps/api/src/services/audit/data-access.service.ts:92` |  |
 | `isRecord` <sub>local</sub> | `(value: unknown): value is Record<string, unknown>` | `apps/api/src/services/audit/history.service.ts:56` |  |
 | `readHistory` | `(ctx: TenantContext, input: AuditHistoryInput): Promise<AuditHistoryResponse>` | `apps/api/src/services/audit/history.service.ts:66` |  |
-| `recordAudit` | `(tx: TxClient, ctx: TenantContext, entry: AuditEntry): Promise<void>` | `apps/api/src/services/audit/audit.service.ts:191` | Write one audit row, inside the caller's transaction. |
+| `recordAudit` | `(tx: TxClient, ctx: TenantContext, entry: AuditEntry): Promise<void>` | `apps/api/src/services/audit/audit.service.ts:234` | Write one audit row, inside the caller's transaction. |
 | `recordDataAccess` | `(tx: TxClient, ctx: TenantContext, entry: DataAccessEntry): Promise<void>` | `apps/api/src/services/audit/data-access.service.ts:124` |  |
-| `redact` <sub>local</sub> | `(snapshot: AuditSnapshot): AuditSnapshot` | `apps/api/src/services/audit/audit.service.ts:115` |  |
+| `redact` <sub>local</sub> | `(snapshot: AuditSnapshot): AuditSnapshot` | `apps/api/src/services/audit/audit.service.ts:158` |  |
 | `resolveActorNames` <sub>local</sub> | `(rows: { actorUserId: string \| null; impersonatedByUserId: s…): Promise<Map<string, { id: string; fullName: string }>>` | `apps/api/src/services/audit/history.service.ts:133` |  |
-| `sameValue` <sub>local</sub> | `(a: unknown, b: unknown): boolean` | `apps/api/src/services/audit/audit.service.ts:130` |  |
+| `sameValue` <sub>local</sub> | `(a: unknown, b: unknown): boolean` | `apps/api/src/services/audit/audit.service.ts:173` |  |
 
 ## const
 
@@ -28,20 +28,20 @@ Files: `apps/api/src/services/audit/audit.service.ts` · `apps/api/src/services/
 | --- | --- | --- | --- |
 | `DEDUPE_TTL_SECONDS` <sub>local</sub> | `300` | `apps/api/src/services/audit/data-access.service.ts:65` | How long the same actor re-reading the same record stays deduplicated. |
 | `DEFAULT_LIMIT` <sub>local</sub> | `50` | `apps/api/src/services/audit/history.service.ts:31` | One page. A record with more history than this is a scroll, not a page. |
-| `REDACTED` <sub>local</sub> | `'[redacted]'` | `apps/api/src/services/audit/audit.service.ts:95` |  |
+| `REDACTED` <sub>local</sub> | `'[redacted]'` | `apps/api/src/services/audit/audit.service.ts:138` |  |
 | `REDACTED_KEYS` <sub>local</sub> | `new Set(…)` | `apps/api/src/services/audit/audit.service.ts:38` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AuditEntry` | `{ action, entityType, entityId, before, after, branchId, ipAddress, userAgent }` | `apps/api/src/services/audit/audit.service.ts:100` |  |
+| `AuditEntry` | `{ action, entityType, entityId, before, after, branchId, ipAddress, userAgent }` | `apps/api/src/services/audit/audit.service.ts:143` |  |
 | `AuditHistoryInput` | `{ entityType, entityId, limit }` | `apps/api/src/services/audit/history.service.ts:60` |  |
 | `DataAccessEntry` | `{ accessType, resource, patientId, resourceId, resultCount, searchTerm, branchId, route, ipAddress, userAgent }` | `apps/api/src/services/audit/data-access.service.ts:43` |  |
-| `Diff` <sub>local</sub> | `{ before, after }` | `apps/api/src/services/audit/audit.service.ts:141` |  |
+| `Diff` <sub>local</sub> | `{ before, after }` | `apps/api/src/services/audit/audit.service.ts:184` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AuditSnapshot` | `Record<string, unknown>` | `apps/api/src/services/audit/audit.service.ts:98` | A row shape as handed to the audit trail: flat, JSON-serialisable. |
+| `AuditSnapshot` | `Record<string, unknown>` | `apps/api/src/services/audit/audit.service.ts:141` | A row shape as handed to the audit trail: flat, JSON-serialisable. |

@@ -30,13 +30,8 @@
  */
 import { withTenant, type TenantContext } from '@rcln/db';
 import { realignUnbilledCurrency } from '@rcln/billing';
-import {
-  isValidTaxId,
-  taxIdFormatFor,
-  type OrganizationProfile,
-  type UpdateOrganizationRequest,
-} from '@rcln/contracts';
-import { NotFoundError, ValidationError } from '../../utils/errors.js';
+import type { OrganizationProfile, UpdateOrganizationRequest } from '@rcln/contracts';
+import { NotFoundError } from '../../utils/errors.js';
 import { invalidateTenantCache } from '../../middleware/tenant.middleware.js';
 import { recordAudit } from '../audit/audit.service.js';
 
@@ -54,7 +49,7 @@ const ORGANIZATION_SELECT = {
   displayName: true,
   orgType: true,
   status: true,
-  gstNumber: true,
+  taxId: true,
   timezone: true,
   currency: true,
   countryCode: true,
@@ -69,7 +64,7 @@ interface OrganizationRow {
   displayName: string;
   orgType: OrganizationProfile['orgType'];
   status: OrganizationProfile['status'];
-  gstNumber: string | null;
+  taxId: string | null;
   timezone: string;
   currency: string;
   countryCode: string;
@@ -77,25 +72,88 @@ interface OrganizationRow {
   onboardedAt: Date | null;
 }
 
-function toProfile(row: OrganizationRow): OrganizationProfile {
+function toProfile(
+  row: OrganizationRow,
+  taxRegistrations: OrganizationProfile['taxRegistrations']
+): OrganizationProfile {
   return {
     ...row,
+    taxRegistrations,
     onboardedAt: row.onboardedAt?.toISOString() ?? null,
   };
 }
 
+/**
+ * The registrations this organization holds, for DISPLAY on the settings screen.
+ *
+ * ⚠️ A REFERENCE, NOT A SECOND COPY, AND THAT DISTINCTION IS THE WHOLE REASON
+ *   THIS FUNCTION EXISTS. The clinic details screen has always shown a tax
+ *   number; it used to show `organizations.tax_id`, a value typed into that
+ *   screen and maintained nowhere else, which could disagree with what every
+ *   invoice printed. Now it shows what the registrations say. Editing them is
+ *   `/tax/registrations` — this endpoint reads and never writes them.
+ *
+ * ⚠️ ZERO IS AN ANSWER. A clinic below the registration threshold holds none, and
+ *   the screen must say so rather than render an empty field that looks unfilled.
+ *
+ * Ordered live-first, then newest — the number in force reads above the ones it
+ * succeeded.
+ */
+async function loadTaxRegistrations(
+  tx: Parameters<Parameters<typeof withTenant>[1]>[0],
+  at: Date
+): Promise<OrganizationProfile['taxRegistrations']> {
+  const rows = await tx.issuerTaxRegistration.findMany({
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      scheme: true,
+      registrationNumber: true,
+      countryCode: true,
+      regionCode: true,
+      legalName: true,
+      effectiveFrom: true,
+      effectiveTo: true,
+    },
+    orderBy: [{ effectiveTo: 'asc' }, { effectiveFrom: 'desc' }],
+  });
+
+  const day = (value: Date): string => value.toISOString().slice(0, 10);
+
+  return rows.map((row) => ({
+    id: row.id,
+    scheme: row.scheme,
+    registrationNumber: row.registrationNumber,
+    placeOfSupply: row.regionCode ? `${row.countryCode}-${row.regionCode}` : row.countryCode,
+    legalName: row.legalName,
+    // The same three-way derivation the tax service uses, from the same two
+    // dates. Never stored: a status column is wrong from the following midnight.
+    status:
+      row.effectiveFrom > at
+        ? ('SCHEDULED' as const)
+        : row.effectiveTo !== null && row.effectiveTo < at
+          ? ('LAPSED' as const)
+          : ('ACTIVE' as const),
+    effectiveFrom: day(row.effectiveFrom),
+    effectiveTo: row.effectiveTo ? day(row.effectiveTo) : null,
+  }));
+}
+
 export async function getOrganization(ctx: TenantContext): Promise<OrganizationProfile> {
-  const row = await withTenant(ctx, (tx) =>
-    tx.organization.findFirst({
+  const result = await withTenant(ctx, async (tx) => {
+    const row = await tx.organization.findFirst({
       // Not findUnique by id alone — see the header. deletedAt is checked here
       // because nothing else will: a soft-deleted organization is still a row.
       where: { id: ctx.organizationId, deletedAt: null },
       select: ORGANIZATION_SELECT,
-    })
-  );
+    });
+    if (!row) return null;
 
-  if (!row) throw new NotFoundError('Organization');
-  return toProfile(row);
+    return { row, taxRegistrations: await loadTaxRegistrations(tx, new Date()) };
+  });
+
+  if (!result) throw new NotFoundError('Organization');
+  return toProfile(result.row, result.taxRegistrations);
 }
 
 export async function updateOrganization(
@@ -111,34 +169,24 @@ export async function updateOrganization(
     if (!before) throw new NotFoundError('Organization');
 
     /*
-     * The tax registration number, checked against the country it belongs to.
+     * ⚠️ THE TAX-NUMBER CHECK THAT USED TO BE HERE IS GONE BECAUSE THE FIELD IS.
+     *   `taxId` is no longer part of this request: the clinic's number is a
+     *   property of a TAX REGISTRATION, which also carries the scheme, the
+     *   jurisdiction and the dates it was in force, and validating a bare string
+     *   here was the second of two independently maintained copies of it.
      *
-     * ⚠️ THIS CANNOT LIVE IN THE ZOD CONTRACT, and that is why it is here.
-     *   `updateOrganizationRequest` is a PATCH: `countryCode` may be absent, in
-     *   which case the country is whatever the row already says, and it may be
-     *   in the same request, in which case the number has to satisfy the NEW
-     *   country. A field-level regex sees neither. The contract used to carry a
-     *   hard GSTIN pattern instead, which meant an Irish clinic could never
-     *   save its VAT number from settings — the number was correct and the
-     *   check was Indian.
+     *   The country-aware shape check still runs at SIGNUP, where the number and
+     *   the country arrive together and seed the clinic's first registration.
+     *   `POST /tax/registrations` deliberately does not repeat it: that endpoint
+     *   records a registration in any country under any of three schemes, and
+     *   `taxIdFormatFor` knows one format per COUNTRY — checking a US sales-tax
+     *   permit against it would reject a valid number. A shape check per
+     *   (country, scheme) is the thing that would earn its place there.
      */
-    const country = input.countryCode ?? before.countryCode;
-    if (input.gstNumber != null && !isValidTaxId(country, input.gstNumber)) {
-      const format = taxIdFormatFor(country);
-      throw new ValidationError('Validation failed', {
-        gstNumber: [
-          format
-            ? `does not look like a valid ${format.label}, e.g. ${format.example}`
-            : 'invalid tax registration number',
-        ],
-      });
-    }
-
     const after = await tx.organization.update({
       where: { id: ctx.organizationId },
       // Only the keys the caller actually sent. The request is a partial, so an
-      // absent key means "leave it alone" — while `gstNumber: null` is a real
-      // instruction to clear it, and must survive this filter.
+      // absent key means "leave it alone" rather than "set null".
       data: Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined)),
       select: ORGANIZATION_SELECT,
     });
@@ -168,11 +216,11 @@ export async function updateOrganization(
       ...options,
     });
 
-    return after;
+    return { row: after, taxRegistrations: await loadTaxRegistrations(tx, new Date()) };
   });
 
   await invalidateOrganizationHosts(ctx);
-  return toProfile(updated);
+  return toProfile(updated.row, updated.taxRegistrations);
 }
 
 /**

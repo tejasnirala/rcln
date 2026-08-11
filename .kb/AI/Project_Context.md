@@ -70,10 +70,10 @@ subdomain.
 
 ---
 
-## The five invariants
+## The seven invariants
 
 Breaking any of these is a correctness or security regression, not a style
-choice. Each has an ADR; read it before arguing with it.
+choice. The first five have an ADR; read it before arguing with it.
 
 1. **Organization is the tenant, branch is the place.**
    → [ADR-0001](../Architecture/decisions/0001-organization-is-the-tenant.md)
@@ -87,6 +87,18 @@ choice. Each has an ADR; read it before arguing with it.
    → [ADR-0005](../Architecture/decisions/0005-tenant-scoped-prisma-client.md)
 5. **No JSON arrays of foreign keys.**
    → [ADR-0006](../Architecture/decisions/0006-no-json-id-arrays.md)
+6. **UTC in the database, the clinic's zone and format on screen.**
+   `Timestamptz` + ISO with a `Z`; rendered in `branches.timezone` and
+   `locale.time_format` (`12H` default, `24H` optional, per branch). Web goes
+   through `formatClinicTime` and friends — never a bare `toLocaleString()`,
+   never a second formatter. Billing periods render in UTC, deliberately.
+   → [CONVENTIONS.md § Dates and times](../Architecture/CONVENTIONS.md)
+7. **Reading the clinical record is not writing it.** `encounter.create`/`.close`
+   and `prescription.create`/`.sign` are DOCTOR-only and explicitly stripped from
+   ORG_OWNER/ORG_ADMIN; `vitals.read` (anyone who consults the chart) is split
+   from `vitals.record` (whoever holds the cuff — front desk and nurse, not the
+   doctor). Clinics widen it themselves by cloning a role or granting per
+   membership. → `packages/permissions/src/roles.ts`
 
 ---
 

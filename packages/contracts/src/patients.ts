@@ -18,6 +18,7 @@
  */
 import { z } from 'zod';
 import { uuid } from './common.js';
+import { isValidNationalId, nationalIdFormatFor } from './locale.js';
 
 /** `YYYY-MM-DD`, a calendar date in the branch's timezone. */
 const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -105,11 +106,27 @@ const patientIdentityFields = {
   abhaNumber: abhaNumber.optional(),
   /**
    * Aadhaar, passport, driving licence — whatever was produced at the counter.
-   * Not validated per-country: a country-specific regex here would reject a
-   * foreign patient's passport, and the desk would work around it by leaving
-   * the field blank.
+   *
+   * ⚠️ THE VALUE IS STILL NOT VALIDATED HERE, and the original reasoning is
+   *   unchanged: a country-specific regex on this field alone would reject a
+   *   foreign patient's passport, and the desk would work around it by leaving
+   *   the field blank — which loses the identity check entirely.
+   *
+   *   What changed is that the desk can now SAY which document it is, in
+   *   `nationalIdType`. The format check moved onto that pairing (see the
+   *   refinement below), so it applies only when somebody chose a type that has
+   *   a known shape — and `PASSPORT` and `OTHER` are offered in every country
+   *   precisely so there is always a way through.
+   *
+   * Stored normalised: no spaces, no hyphens, upper-cased.
    */
   nationalId: z.string().max(64).trim().optional(),
+  /**
+   * Which document `nationalId` is — `AADHAAR`, `PAN`, `NHS_NUMBER`, `PASSPORT`.
+   * The vocabulary is per country and lives in `locale.ts`; see the column
+   * comment for why this is not an enum.
+   */
+  nationalIdType: z.string().max(32).trim().toUpperCase().optional(),
   maritalStatus: maritalStatus.default('UNKNOWN'),
 };
 
@@ -131,6 +148,49 @@ function refineAge(
   }
 }
 
+/**
+ * The ID, against the type the desk chose.
+ *
+ * ⚠️ ADVISORY BY DESIGN, AND LENIENT WHEN IT CANNOT BE SURE. The country comes
+ *   from the address, which is optional — so a patient registered with no
+ *   address gets no format check at all. That is deliberate: the alternative is
+ *   guessing a country from the branch and rejecting a document on the strength
+ *   of a guess, and this field's whole history is that a rejection makes the
+ *   desk leave it blank. `isValidNationalId` is lenient for an unknown country
+ *   and for any type without a pattern.
+ *
+ * A type with no value is refused, because it says nothing and reads on screen
+ * as though a document was recorded.
+ */
+function refineNationalId(
+  v: {
+    nationalId?: string | undefined;
+    nationalIdType?: string | undefined;
+    address?: { countryCode?: string | undefined } | undefined;
+  },
+  ctx: z.RefinementCtx
+): void {
+  if (v.nationalIdType !== undefined && (v.nationalId ?? '').trim() === '') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['nationalId'],
+      message: 'enter the number, or clear the ID type',
+    });
+    return;
+  }
+
+  if (!isValidNationalId(v.address?.countryCode, v.nationalIdType, v.nationalId)) {
+    const format = nationalIdFormatFor(v.address?.countryCode, v.nationalIdType);
+    ctx.addIssue({
+      code: 'custom',
+      path: ['nationalId'],
+      message: format
+        ? `does not look like a ${format.label}, e.g. ${format.example}`
+        : 'does not look valid for that ID type',
+    });
+  }
+}
+
 export const patientAddressRequest = z.object({
   addressType: z.enum(['HOME', 'WORK', 'OTHER']).default('HOME'),
   line1: z.string().min(1).max(255).trim(),
@@ -141,6 +201,35 @@ export const patientAddressRequest = z.object({
   countryCode: z.string().length(2).toUpperCase().default('IN'),
   isPrimary: z.boolean().default(false),
 });
+
+/**
+ * The relations a front desk picks from, most common first.
+ *
+ * ⚠️ A SUGGESTION LIST, NOT AN ENUM, AND `relation` STAYS FREE TEXT BELOW.
+ *   The original comment is right that a closed set of family relations is a
+ *   cultural assumption — "next friend", "sister-in-law", a village elder and a
+ *   care-home key worker are all real answers a fixed list would refuse. What
+ *   the desk actually needs is not to type "Spouse" four hundred times.
+ *
+ *   So the UI offers these and keeps a free-text escape, and the CONTRACT
+ *   accepts anything. A clinic that needs a relation this list has never heard
+ *   of can still record it, which is the property worth keeping.
+ */
+export const commonContactRelations = [
+  'Spouse',
+  'Parent',
+  'Child',
+  'Sibling',
+  'Grandparent',
+  'Grandchild',
+  'Son-in-law',
+  'Daughter-in-law',
+  'Friend',
+  'Neighbour',
+  'Guardian',
+  'Carer',
+  'Employer',
+] as const;
 
 export const patientContactRequest = z.object({
   /** Free text — a closed enum of family relations is a cultural assumption. */
@@ -168,7 +257,8 @@ export const createPatientRequest = z
     address: patientAddressRequest.optional(),
     contacts: z.array(patientContactRequest).max(5).default([]),
   })
-  .superRefine(refineAge);
+  .superRefine(refineAge)
+  .superRefine(refineNationalId);
 
 /**
  * `branchId` is absent: moving a patient between branches is a registration,
@@ -179,7 +269,13 @@ export const createPatientRequest = z
 export const updatePatientRequest = z
   .object(patientIdentityFields)
   .partial()
-  .superRefine(refineAge);
+  .superRefine(refineAge)
+  /*
+   * No `address` on an edit, so the country is always unknown here and the
+   * format check is always lenient — see `refineNationalId`. The type/value
+   * pairing is still enforced, which is the half that matters on this path.
+   */
+  .superRefine(refineNationalId);
 
 /** Register an existing patient at a second branch. Issues that branch's MRN. */
 export const registerPatientAtBranchRequest = z.object({
@@ -378,6 +474,8 @@ export const patientDetail = patientSummary.extend({
   email: z.string().nullable(),
   abhaNumber: z.string().nullable(),
   nationalId: z.string().nullable(),
+  /** Which document it is. Null on rows written before the type was asked for. */
+  nationalIdType: z.string().nullable(),
   maritalStatus: maritalStatus,
   deceasedOn: z.string().nullable(),
   mergedIntoId: uuid.nullable(),

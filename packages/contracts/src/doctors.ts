@@ -13,20 +13,13 @@
 import { z } from 'zod';
 import { specialtyProficiency, taxonomyNodeType } from './clinical-taxonomy.js';
 import { uuid } from './common.js';
+import { feeScheduleAmount } from './fees.js';
 
 /** `HH:MM`, wall-clock in the BRANCH's timezone. Never UTC. */
 const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'expected HH:MM in 24-hour form');
 
 /** `YYYY-MM-DD`, a calendar date in the branch's timezone. */
 const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
-
-/**
- * Money as a decimal string, never a float.
- *
- * A fee crosses the wire as "400.00" so no JSON number ever rounds it. The
- * service hands it straight to Prisma's Decimal.
- */
-const money = z.string().regex(/^\d{1,12}(\.\d{1,2})?$/, 'expected an amount like 400 or 400.00');
 
 // ---------------------------------------------------------------------------
 // Requests
@@ -113,8 +106,6 @@ const oneClassificationForm = (
   }
 };
 
-export const createDoctorRequest = z.object(doctorProfileFields).superRefine(oneClassificationForm);
-
 /**
  * ⚠️ `specialtyIds` IS REDECLARED WITHOUT ITS `.default([])`, AND THAT FIXES A
  *   SILENT DATA-LOSS BUG. Do not "tidy" it back to inheriting the create shape.
@@ -137,6 +128,14 @@ const updateDoctorFields = z
     specialtyIds: z.array(uuid).max(12).optional(),
   });
 
+/**
+ * ⚠️ THE NESTED COLLECTIONS ON `createDoctorRequest` ARE DELIBERATELY NOT HERE.
+ *   PATCH edits the profile; qualifications, working hours, fees and pay each
+ *   have their own endpoint with its own permission, and folding them into the
+ *   partial update would give whoever may fix a typo in a bio a second, ungated
+ *   route to a colleague's salary. They exist on create only because a doctor is
+ *   registered in one sitting — see `createDoctorRequest`.
+ */
 export const updateDoctorRequest = updateDoctorFields
   .extend({
     status: z.enum(['ACTIVE', 'INACTIVE', 'ARCHIVED']).optional(),
@@ -168,10 +167,42 @@ export const doctorQualificationRequest = z.object({
   yearOfCompletion: z.number().int().min(1900).max(2100).optional(),
 });
 
+/**
+ * Correct a qualification already on a doctor.
+ *
+ * ⚠️ NULL CLEARS, ABSENT LEAVES ALONE, AND THE TWO ARE NOT THE SAME. `institute`
+ *   and `yearOfCompletion` are nullable here and merely optional on the create
+ *   request above, because correcting a record includes removing something that
+ *   was entered in error. A partial update that treated a missing key as "clear"
+ *   would wipe the institute every time somebody fixed the year — the same
+ *   data-loss shape `updateDoctorRequest` documents about `specialtyIds`.
+ *
+ * ⚠️ `qualificationId` IS EDITABLE, DELIBERATELY. The commonest correction is
+ *   picking the wrong degree from a list of near-identical names, and forcing a
+ *   delete-then-add for that loses the row's `createdAt` and files two audit
+ *   entries for one correction.
+ */
+export const updateDoctorQualificationRequest = z.object({
+  qualificationId: uuid.optional(),
+  institute: z.string().max(255).nullable().optional(),
+  yearOfCompletion: z.number().int().min(1900).max(2100).nullable().optional(),
+});
+
+/**
+ * Whether a doctor consults at a branch, and the free-revisit window there.
+ *
+ * ⚠️ NO FEES. `consultationFee` and `followUpFee` were here and are now the fee
+ *   schedule's, because a price is per VISIT TYPE and two fields could only ever
+ *   describe two of the five kinds of appointment this product books. They live
+ *   at `PUT /v1/doctors/:doctorId/fees`, where a clinic default is inherited
+ *   unless this doctor overrides it.
+ *
+ *   `followUpFreeDays` stays: it is not money. It is the window inside which a
+ *   revisit is free, which is a property of the relationship between a doctor
+ *   and a branch rather than a line on a price list.
+ */
 export const doctorBranchSettingRequest = z.object({
   branchId: uuid,
-  consultationFee: money.optional(),
-  followUpFee: money.optional(),
   /** Days after a consultation within which a revisit is free. */
   followUpFreeDays: z.number().int().min(0).max(365).optional(),
   isActive: z.boolean().default(true),
@@ -216,6 +247,93 @@ export const doctorScheduleRequest = z
       });
     }
   });
+
+/**
+ * How often the clinic has agreed to pay a doctor.
+ *
+ * ⚠️ `PER_SESSION` OVERLAPS WITH THE CONSULTATION FEE AND IS NOT THE SAME FACT.
+ *   One is what the clinic PAYS the practitioner for turning up; the other is
+ *   what the PATIENT is charged for being seen. A clinic can run both at once
+ *   and most visiting-consultant arrangements do.
+ */
+export const payoutInterval = z.enum([
+  'MONTHLY',
+  'FORTNIGHTLY',
+  'WEEKLY',
+  'DAILY',
+  'HOURLY',
+  'PER_SESSION',
+]);
+export type PayoutIntervalValue = z.infer<typeof payoutInterval>;
+
+/**
+ * Agree what the clinic pays this doctor, or clear it.
+ *
+ * ⚠️ THIS LIVES IN THE REQUESTS SECTION ABOVE `createDoctorRequest` BECAUSE THAT
+ *   SCHEMA EMBEDS IT. Zod schemas are values, so a reference below its use is a
+ *   `ReferenceError` at import time rather than a type error — which is why the
+ *   pay and schedule schemas were moved up here rather than left beside their
+ *   response shapes.
+ */
+export const setDoctorCompensationRequest = z
+  .object({
+    /** Null clears the agreement. Zero is an agreed figure of nothing. */
+    amountMinor: z.int().min(0).max(9_999_999_999).nullable(),
+    interval: payoutInterval.nullable(),
+  })
+  .superRefine((value, ctx) => {
+    /*
+     * An amount without an interval is a number nobody can act on — "800,000"
+     * is a fine salary and an absurd hourly rate — and an interval without an
+     * amount is a schedule for paying nothing. They travel together.
+     */
+    if ((value.amountMinor === null) !== (value.interval === null)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['interval'],
+        message: 'An amount and an interval are set together, or both cleared.',
+      });
+    }
+  });
+export type SetDoctorCompensationRequest = z.infer<typeof setDoctorCompensationRequest>;
+
+/**
+ * Register a doctor — the whole practitioner, in one submission.
+ *
+ * ⚠️ THE NESTED COLLECTIONS ARE PART OF THE CREATE AND OF NOTHING ELSE. A clinic
+ *   registering a consultant knows their council number, their degrees, the days
+ *   they consult, what patients are charged and what the clinic pays them, and
+ *   knows all of it at the same moment. Making them save a bare profile and then
+ *   walk five more screens produced doctors with no working hours, which is a
+ *   doctor the front desk cannot book at all.
+ *
+ * ⚠️ ONE TRANSACTION, SO A REJECTED SCHEDULE MEANS NO DOCTOR. The alternative —
+ *   the client firing five sequential calls — leaves a half-registered doctor
+ *   behind whenever the third one 409s, and no screen owns cleaning that up.
+ *
+ * ⚠️ AND EVERY NESTED SECTION IS GATED SEPARATELY AT THE ROUTE. `doctor.create`
+ *   gets you the profile; the hours need `doctor.schedule.manage`, the prices
+ *   `billing.fee_schedule.manage` and the salary `doctor.compensation.manage`.
+ *   Without those checks this body would be a way for whoever may add a
+ *   colleague to also set their pay, which is precisely the fusion
+ *   `doctor-compensation.service.ts` refuses at every other door.
+ */
+export const createDoctorRequest = z
+  .object({
+    ...doctorProfileFields,
+    /** Degrees, with the institute and year where the clinic has them. */
+    qualifications: z.array(doctorQualificationRequest).max(24).optional(),
+    /** The recurring week. Blocks are validated against each other before insert. */
+    schedules: z.array(doctorScheduleRequest).max(60).optional(),
+    /**
+     * Opening prices, at this doctor's organization-wide scope (`branchId` null).
+     * Per-branch overrides are the fee grid's job on the profile afterwards.
+     */
+    fees: z.array(feeScheduleAmount).max(64).optional(),
+    /** What the clinic pays. Omitted entirely means "nothing agreed yet". */
+    compensation: setDoctorCompensationRequest.optional(),
+  })
+  .superRefine(oneClassificationForm);
 
 export const doctorScheduleExceptionRequest = z
   .object({
@@ -330,12 +448,38 @@ export const doctorQualificationDetail = z.object({
   yearOfCompletion: z.number().int().nullable(),
 });
 
+/**
+ * What the clinic has agreed to pay this doctor.
+ *
+ * ⚠️ A RECORD, NOT A PAYROLL RUN (§0.2 decision 6). There are no periods, no
+ *   payslips, no reconciliation against what the doctor actually billed — that
+ *   is the deferred Phase 4 compensation module, and `billing.doctor_payout.manage`
+ *   was named for it. Nothing here moves money.
+ *
+ * ⚠️ ONE FIGURE PER DOCTOR, ORGANIZATION-WIDE (decision 7). A person has one
+ *   employment contract; splitting it across branches is cost allocation, which
+ *   is a different problem and not this one.
+ *
+ * ⚠️ NULL IS "NOT AGREED YET", AND IT IS NOT ZERO. An unpaid honorary consultant
+ *   is a real arrangement and a clinic that has not got round to entering a
+ *   salary is a different state; collapsing them shows every new doctor as
+ *   working for nothing.
+ */
+export const doctorCompensationDetail = z.object({
+  doctorProfileId: uuid,
+  /** The organization's currency — what `amountMinor` is denominated in. */
+  currency: z.string().length(3),
+  amountMinor: z.int().nullable(),
+  interval: payoutInterval.nullable(),
+  updatedAt: z.iso.datetime().nullable(),
+});
+export type DoctorCompensationDetail = z.infer<typeof doctorCompensationDetail>;
+
 export const doctorBranchSettingDetail = z.object({
   id: uuid,
   branchId: uuid,
   branchName: z.string(),
-  consultationFee: z.string().nullable(),
-  followUpFee: z.string().nullable(),
+  /** ⚠️ Fees are no longer here — see `doctorBranchSettingRequest`. */
   followUpFreeDays: z.number().int().nullable(),
   isActive: z.boolean(),
 });
@@ -383,6 +527,22 @@ export const doctorSummary = z.object({
   specialties: z.array(doctorSpecialtyDetail),
   /** Branches where this doctor has an ACTIVE branch setting. */
   branchIds: z.array(uuid),
+  /**
+   * The recurring week, so the roster can show who consults when.
+   *
+   * ⚠️ THREE STATES, AND THE THIRD IS THE FIELD NOT BEING THERE — the same shape
+   *   as `liveInvoice` on `appointmentSummary`, for the same reason. An array
+   *   means the caller holds `doctor.schedule.read`; `undefined` means nobody
+   *   asked and the column is simply not on their screen. Sending `[]` to a
+   *   caller who may not read schedules would state that a doctor has no working
+   *   hours, which is a claim where absence is a silence.
+   *
+   * ⚠️ THE SPLIT FROM `doctor.directory.read` IS LOAD-BEARING. The roster is
+   *   readable by the front desk; block caps, validity windows and inherited slot
+   *   lengths are configuration, and the portal reads free slots through the
+   *   availability engine without ever seeing them. See `doctors.routes.ts`.
+   */
+  schedules: z.array(doctorScheduleDetail).optional(),
 });
 
 export const doctorDetail = doctorSummary.extend({
@@ -423,6 +583,7 @@ export type DoctorListQuery = z.infer<typeof doctorListQuery>;
 export type CreateDoctorRequest = z.infer<typeof createDoctorRequest>;
 export type UpdateDoctorRequest = z.infer<typeof updateDoctorRequest>;
 export type DoctorQualificationRequest = z.infer<typeof doctorQualificationRequest>;
+export type UpdateDoctorQualificationRequest = z.infer<typeof updateDoctorQualificationRequest>;
 export type DoctorBranchSettingRequest = z.infer<typeof doctorBranchSettingRequest>;
 export type DoctorScheduleRequest = z.infer<typeof doctorScheduleRequest>;
 export type DoctorScheduleExceptionRequest = z.infer<typeof doctorScheduleExceptionRequest>;

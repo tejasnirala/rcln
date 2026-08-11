@@ -42,6 +42,7 @@ import type {
   SearchPatientQuery,
   UpdatePatientRequest,
 } from '@rcln/contracts';
+import { normalizeNationalId } from '@rcln/contracts';
 import { AuthorizationError, ConflictError, NotFoundError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { recordDataAccess } from '../audit/data-access.service.js';
@@ -75,6 +76,7 @@ const PATIENT_SELECT = {
   email: true,
   abhaNumber: true,
   nationalId: true,
+  nationalIdType: true,
   maritalStatus: true,
   status: true,
   deceasedOn: true,
@@ -183,6 +185,7 @@ function toDetail(row: PatientRow): PatientDetail {
     email: row.email,
     abhaNumber: row.abhaNumber,
     nationalId: row.nationalId,
+    nationalIdType: row.nationalIdType,
     maritalStatus: row.maritalStatus,
     deceasedOn: isoDate(row.deceasedOn),
     mergedIntoId: row.mergedIntoId,
@@ -412,7 +415,17 @@ function identityData(input: UpdatePatientRequest): PatientIdentityData {
     ...(input.phone !== undefined ? { phone: input.phone } : {}),
     ...(input.email !== undefined ? { email: input.email } : {}),
     ...(input.abhaNumber !== undefined ? { abhaNumber: input.abhaNumber } : {}),
-    ...(input.nationalId !== undefined ? { nationalId: input.nationalId } : {}),
+    /*
+     * ⚠️ NORMALISED ON THE WAY IN — no spaces, no hyphens, upper-cased. The form
+     *   shows `2345 6789 0123` because that is how a person reads an Aadhaar off
+     *   a card; storing it that way would make the duplicate check in
+     *   `findDuplicates` miss the same number typed with hyphens, which is the
+     *   one job that column has.
+     */
+    ...(input.nationalId !== undefined
+      ? { nationalId: normalizeNationalId(input.nationalId) }
+      : {}),
+    ...(input.nationalIdType !== undefined ? { nationalIdType: input.nationalIdType } : {}),
     ...(input.maritalStatus !== undefined ? { maritalStatus: input.maritalStatus } : {}),
   };
 }
@@ -511,7 +524,14 @@ export async function findDuplicates(
   const firstName = probe.firstName ?? null;
   const dateOfBirth = probe.dateOfBirth ?? null;
   const abhaNumber = probe.abhaNumber ?? null;
-  const nationalId = probe.nationalId ?? null;
+  /*
+   * ⚠️ NORMALISED, LIKE THE COLUMN. The stored value has no spaces or hyphens
+   *   (see `identityWrite`), so probing with `2345 6789 0123` against a stored
+   *   `234567890123` matches nothing — and a duplicate check that silently
+   *   never matches is worse than not having one, because the desk trusts it.
+   */
+  const normalizedId = normalizeNationalId(probe.nationalId);
+  const nationalId = normalizedId === '' ? null : normalizedId;
 
   if (phone === null && abhaNumber === null && nationalId === null && firstName === null) {
     return [];
@@ -595,6 +615,104 @@ export async function findDuplicates(
 // ---------------------------------------------------------------------------
 
 /**
+ * Which identity claim a unique-index violation was, or null if it was neither.
+ *
+ * Narrowed STRUCTURALLY by index name and SQLSTATE, per CONVENTIONS — never
+ * `instanceof`, which breaks when the generated client and the app end up with
+ * separate class identities under pnpm's symlinked node_modules.
+ *
+ * ⚠️ THE INDEX NAMES ARE LOAD-BEARING STRINGS. They are declared in the
+ *   `patients` migration as PARTIAL unique indexes (`WHERE ... IS NOT NULL AND
+ *   deleted_at IS NULL`) and so cannot be expressed in schema.prisma. Renaming
+ *   one there silently turns every message below back into the generic "A
+ *   record with this value already exists" that sent the front desk looking for
+ *   a patient it could not name.
+ */
+function conflictingIdentity(err: unknown): 'nationalId' | 'abhaNumber' | null {
+  if (typeof err !== 'object' || err === null) return null;
+
+  const code = String((err as { code?: unknown }).code ?? '');
+  const meta = (err as { meta?: Record<string, unknown> }).meta ?? {};
+
+  /*
+   * ⚠️ THE CONSTRAINT NAME IS IN `meta`, NOT IN `message`. Prisma's top-level
+   *   message names the FIELDS ("organization_id, national_id"); the index name
+   *   only appears on the driver adapter's cause. An earlier version of this
+   *   checked `message` for the index name, matched nothing, and silently left
+   *   every clash reporting the generic "A record with this value already
+   *   exists" — which is exactly the failure this function exists to remove.
+   *   Measured against a real violation, not reasoned about.
+   *
+   * Both routes are read, because a partial unique index sometimes reports its
+   * fields as "(not available)" and only the name survives.
+   */
+  const adapterCause = ((
+    meta['driverAdapterError'] as { cause?: Record<string, unknown> } | undefined
+  )?.cause ?? {}) as Record<string, unknown>;
+
+  const original = String(adapterCause['originalMessage'] ?? '');
+  const sqlState = String(adapterCause['originalCode'] ?? '');
+  if (code !== 'P2002' && sqlState !== '23505') return null;
+
+  const fields = ((adapterCause['constraint'] as { fields?: unknown[] } | undefined)?.fields ??
+    []) as unknown[];
+  const named = fields.map(String);
+
+  if (original.includes('patients_org_national_id_key') || named.includes('national_id')) {
+    return 'nationalId';
+  }
+  if (original.includes('patients_org_abha_key') || named.includes('abha_number')) {
+    return 'abhaNumber';
+  }
+  return null;
+}
+
+/**
+ * Turn "that ID is taken" into a sentence the front desk can act on.
+ *
+ * ⚠️ THIS NAMES THE EXISTING PATIENT'S UHID, AND THAT IS A DELIBERATE
+ *   DISCLOSURE. It is the one fact that makes the error useful — without it the
+ *   desk is told the registration failed and given no way to find the record
+ *   that already exists, which in practice means trying again with the ID left
+ *   blank. That is a worse outcome for the patient than telling a member of
+ *   staff at this clinic a hospital number for a record they may already read:
+ *   `patient.read` is required to be on this endpoint at all, and the same
+ *   person could find the record by searching for the ID.
+ *
+ *   It does NOT name the patient. A UHID is a lookup key; a name is an
+ *   assertion about who somebody is, and this path is reached by typing a
+ *   number that may have been mistyped.
+ *
+ * The lookup runs on its own connection because the caller's transaction is
+ * aborted — a 23505 poisons it, and anything attempted inside afterwards fails
+ * with 25P02 instead of answering.
+ */
+async function identityTakenError(
+  ctx: TenantContext,
+  field: 'nationalId' | 'abhaNumber',
+  input: { nationalId?: string | undefined; abhaNumber?: string | undefined }
+): Promise<ConflictError> {
+  const value = field === 'nationalId' ? normalizeNationalId(input.nationalId) : input.abhaNumber;
+  const label = field === 'nationalId' ? 'That ID' : 'That ABHA number';
+
+  const existing =
+    value === undefined || value === ''
+      ? null
+      : await withTenant(ctx, (tx) =>
+          tx.patient.findFirst({
+            where: { [field]: value, deletedAt: null },
+            select: { uhid: true },
+          })
+        );
+
+  return new ConflictError(
+    existing
+      ? `${label} is already on record ${existing.uhid}. Open that record instead of making a second one.`
+      : `${label} is already registered at this clinic.`
+  );
+}
+
+/**
  * Register a new patient at a branch.
  *
  * The patient row and its first registration are created in ONE transaction, so
@@ -612,6 +730,25 @@ export async function createPatient(
 ): Promise<PatientDetail> {
   assertBranchInScope(ctx, input.branchId);
 
+  try {
+    return await createPatientRow(ctx, input, options);
+  } catch (err) {
+    /*
+     * ⚠️ CAUGHT OUTSIDE THE TRANSACTION. A 23505 aborts it, so anything
+     *   attempted inside afterwards — including the lookup that finds the
+     *   existing record — fails with 25P02 instead of answering.
+     */
+    const field = conflictingIdentity(err);
+    if (field) throw await identityTakenError(ctx, field, input);
+    throw err;
+  }
+}
+
+async function createPatientRow(
+  ctx: TenantContext,
+  input: CreatePatientRequest,
+  options: PatientActionOptions
+): Promise<PatientDetail> {
   const row = await withTenant(ctx, async (tx) => {
     const uhidPrefix = await resolvePrefix(tx, ctx, UHID_PREFIX_KEY, DEFAULT_UHID_PREFIX);
     const uhid = await issueNumber(tx, ctx, { type: 'UHID', prefix: uhidPrefix });
@@ -763,10 +900,23 @@ interface SearchRow {
  * with the number of patients on the PLATFORM, because RLS filters after the
  * scan, not before it.
  */
+/**
+ * How wide a caller's view of the patient list is.
+ *
+ * ⚠️ `ownDoctorOnly` IS AN ACCESS CONTROL, NOT A CONVENIENCE FILTER — the same
+ *   one the day board uses, set from the same permission, for the same reason.
+ *   A doctor's Patients tab is the people who have booked with THEM; the clinic's
+ *   full register is the front desk's screen. See `DayBoardScope`.
+ */
+export interface PatientSearchScope {
+  ownDoctorOnly: boolean;
+}
+
 export async function searchPatients(
   ctx: TenantContext,
   query: SearchPatientQuery,
-  options: PatientActionOptions = {}
+  options: PatientActionOptions = {},
+  scope: PatientSearchScope = { ownDoctorOnly: false }
 ): Promise<PatientListResponse> {
   const term = query.q ?? null;
   const status = query.status ?? null;
@@ -774,6 +924,36 @@ export async function searchPatients(
   const offset = (query.page - 1) * query.limit;
 
   return withTenant(ctx, async (tx) => {
+    /*
+     * Null when the caller may read across practitioners, and the predicate
+     * below is then a no-op. When it is set, only patients with a booking
+     * against THIS doctor come back — and because it is resolved from
+     * `ctx.userId` rather than from the query, there is no parameter to tamper
+     * with.
+     */
+    let ownDoctorProfileId: string | null = null;
+
+    if (scope.ownDoctorOnly) {
+      const own = await tx.doctorProfile.findFirst({
+        where: { userId: ctx.userId, deletedAt: null },
+        select: { id: true },
+      });
+      /*
+       * No profile and no directory access means no patients are theirs. An
+       * empty page, not an error: their navigation offered them this screen.
+       *
+       * No `recordDataAccess` row either — nothing was disclosed, and a search
+       * that returned nobody is not a read of anybody's record.
+       */
+      if (!own) {
+        return {
+          patients: [],
+          meta: { page: query.page, limit: query.limit, total: 0, totalPages: 0 },
+        };
+      }
+      ownDoctorProfileId = own.id;
+    }
+
     /*
      * Two passes. The raw statement chooses WHICH patients and in what order —
      * that is the part needing the expression index — and Prisma then loads the
@@ -799,6 +979,22 @@ export async function searchPatients(
             WHERE r.organization_id = p.organization_id
               AND r.patient_id = p.id
               AND r.branch_id = ANY (${ctx.branchIds}::uuid[])
+          )
+        )
+        /*
+         * A doctor sees the people who have booked with them, and nobody else.
+         * Cancelled and not-attended bookings still count: someone who booked
+         * and did not come is still this doctor's patient, and dropping them
+         * would make the list disagree with the day board they came from.
+         */
+        AND (
+          ${ownDoctorProfileId}::uuid IS NULL
+          OR EXISTS (
+            SELECT 1 FROM appointments a
+            WHERE a.organization_id = p.organization_id
+              AND a.patient_id = p.id
+              AND a.doctor_profile_id = ${ownDoctorProfileId}::uuid
+              AND a.deleted_at IS NULL
           )
         )
         AND (
@@ -897,6 +1093,22 @@ export async function updatePatient(
   patientId: string,
   input: UpdatePatientRequest,
   options: PatientActionOptions = {}
+): Promise<PatientDetail> {
+  try {
+    return await updatePatientRow(ctx, patientId, input, options);
+  } catch (err) {
+    // Same reasoning as `createPatient` — see the note there.
+    const field = conflictingIdentity(err);
+    if (field) throw await identityTakenError(ctx, field, input);
+    throw err;
+  }
+}
+
+async function updatePatientRow(
+  ctx: TenantContext,
+  patientId: string,
+  input: UpdatePatientRequest,
+  options: PatientActionOptions
 ): Promise<PatientDetail> {
   const row = await withTenant(ctx, async (tx) => {
     const before = await tx.patient.findFirst({

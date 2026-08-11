@@ -11,26 +11,29 @@ Files: `packages/db/prisma/seed.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `describe` <sub>local</sub> | `(code: PermissionCode): string` | `packages/db/prisma/seed.ts:36` |  |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1433` |  |
-| `seedClinicalMasters` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1300` |  |
-| `seedDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1278` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1680` |  |
+| `seedClinicalMasters` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1547` |  |
+| `seedDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1525` |  |
 | `seedPermissions` <sub>local</sub> | `(): Promise<Map<PermissionCode, string>>` | `packages/db/prisma/seed.ts:41` |  |
-| `seedPlans` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:343` |  |
-| `seedRoleDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1230` |  |
+| `seedPlans` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:590` |  |
+| `seedRoleDesignations` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1477` |  |
 | `seedSettingDefinitions` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:134` |  |
-| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1403` |  |
+| `seedSuperAdmin` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:1650` |  |
 | `seedSystemRoles` <sub>local</sub> | `(permissionIds: Map<PermissionCode, string>): Promise<void>` | `packages/db/prisma/seed.ts:63` |  |
+| `seedTaxRuleDefaults` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:536` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ARGON2` <sub>local</sub> | `{ memoryCost: 19_456, timeCost: 2, parallelism: 1 } as const` | `packages/db/prisma/seed.ts:34` |  |
-| `DESIGNATIONS` <sub>local</sub> | `: { code: string; name: string }[]` | `packages/db/prisma/seed.ts:1145` |  |
+| `DESIGNATIONS` <sub>local</sub> | `: { code: string; name: string }[]` | `packages/db/prisma/seed.ts:1392` |  |
+| `HEALTHCARE_DEFAULTS` <sub>local</sub> | `: { countryCode: string; scheme: 'GST' \| 'VAT'; lineName: string; split: 'NONE' \|…` | `packages/db/prisma/seed.ts:465` |  |
+| `HEALTHCARE_SERVICE_CATEGORIES` <sub>local</sub> | `[ { category: 'CONSULTATION', description: 'Doctor consultation' }, { category: 'PROCEDUR…` | `packages/db/prisma/seed.ts:451` |  |
 | `MONTHS` <sub>local</sub> | `[ 'January', 'February', 'March', 'April', 'May', 'June', '…` | `packages/db/prisma/seed.ts:109` |  |
-| `QUALIFICATIONS` <sub>local</sub> | `: { code: string; name: string }[]` | `packages/db/prisma/seed.ts:1042` |  |
-| `ROLE_DESIGNATIONS` <sub>local</sub> | `: Record<string, string[]>` | `packages/db/prisma/seed.ts:1198` |  |
-| `SPECIALTIES` <sub>local</sub> | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed.ts:512` |  |
+| `QUALIFICATIONS` <sub>local</sub> | `: { code: string; name: string }[]` | `packages/db/prisma/seed.ts:1289` |  |
+| `ROLE_DESIGNATIONS` <sub>local</sub> | `: Record<string, string[]>` | `packages/db/prisma/seed.ts:1445` |  |
+| `SPECIALTIES` <sub>local</sub> | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed.ts:759` |  |
 
 ## var
 

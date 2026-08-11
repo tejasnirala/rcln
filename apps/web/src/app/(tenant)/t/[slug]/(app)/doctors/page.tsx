@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import type {
   BranchListResponse,
   DoctorListResponse,
-  DoctorScheduleDetail,
   MemberListResponse,
   SpecialtyListResponse,
 } from '@rcln/contracts';
@@ -11,6 +10,7 @@ import { api } from '@/lib/api';
 import { getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { DoctorList } from '@/components/tenant/doctor-list';
+import { loadFeeSchedule } from '@/app/(tenant)/t/[slug]/(app)/fees/actions';
 
 export const metadata: Metadata = {
   title: 'Doctors',
@@ -30,15 +30,21 @@ export default async function DoctorsPage({ params }: { params: Promise<{ slug: 
   const accessToken = await getAccessToken();
 
   /*
-   * Fetched together, not in sequence. Four dependent awaits would serialise
-   * four round trips before anything renders, and none of these needs the
+   * Fetched together, not in sequence. Five dependent awaits would serialise
+   * five round trips before anything renders, and none of these needs the
    * others' answer.
+   *
+   * The clinic's own price sheet is here for the registration form: it supplies
+   * the currency and the defaults a new doctor inherits, so the form can show
+   * what a blank box will actually charge. Null when the caller may not read
+   * fees, which removes that section of the form.
    */
-  const [doctors, branches, masters, members, session] = await Promise.all([
+  const [doctors, branches, masters, members, fees, session] = await Promise.all([
     api<DoctorListResponse>('/api/v1/doctors', { slug, accessToken }),
     api<BranchListResponse>('/api/v1/branches', { slug, accessToken }),
     api<SpecialtyListResponse>('/api/v1/doctors/masters', { slug, accessToken }),
     api<MemberListResponse>('/api/v1/members', { slug, accessToken }),
+    loadFeeSchedule(slug, {}),
     getSession(slug),
   ]);
 
@@ -53,35 +59,24 @@ export default async function DoctorsPage({ params }: { params: Promise<{ slug: 
   }
 
   const permissions = session?.permissions ?? [];
-  const canReadSchedules = permissions.includes(PERMISSIONS.DOCTOR_SCHEDULE_READ);
 
   /*
-   * Working hours are a second call per doctor, and only worth making for a
-   * caller who may read them. Fetched in parallel across the roster; a clinic
-   * has tens of doctors, not thousands.
+   * ⚠️ WORKING HOURS COME BACK ON THE ROSTER ITSELF NOW. This used to be a second
+   *   HTTP call per doctor — thirty doctors, thirty extra round trips, each
+   *   opening its own transaction — which is the N+1 `listSchedulesForDoctors`
+   *   replaced with one query. The API decides whether to include them from
+   *   `doctor.schedule.read` and omits the field entirely otherwise, so nothing
+   *   here needs to ask twice.
    */
-  const schedules = new Map<string, DoctorScheduleDetail[]>();
-  if (canReadSchedules) {
-    const results = await Promise.all(
-      doctors.data.doctors.map(async (doctor) => {
-        const res = await api<{ schedules: DoctorScheduleDetail[] }>(
-          `/api/v1/doctors/${doctor.id}/schedules`,
-          { slug, accessToken }
-        );
-        return [doctor.id, res.ok && res.data ? res.data.schedules : []] as const;
-      })
-    );
-    for (const [id, rows] of results) schedules.set(id, rows);
-  }
-
   return (
     <DoctorList
       slug={slug}
       doctors={doctors.data.doctors}
-      schedules={Object.fromEntries(schedules)}
       // A secondary 403 degrades to an empty picker rather than erroring the page.
       branches={branches.ok && branches.data ? branches.data.branches : []}
       specialties={masters.ok && masters.data ? masters.data.specialties : []}
+      qualifications={masters.ok && masters.data ? masters.data.qualifications : []}
+      fees={fees}
       /*
        * Who can be made a doctor: an ACTIVE member who does not already have a
        * profile. Filtered here rather than in the picker so the "add" button can
@@ -96,12 +91,18 @@ export default async function DoctorsPage({ params }: { params: Promise<{ slug: 
               .map((m) => ({ userId: m.userId, fullName: m.fullName }))
           : []
       }
-      canReadSchedules={canReadSchedules}
+      canReadSchedules={permissions.includes(PERMISSIONS.DOCTOR_SCHEDULE_READ)}
+      /*
+       * These four gate SECTIONS OF THE REGISTRATION FORM, not row actions —
+       * there are none left. The API refuses a section the caller may not set
+       * rather than dropping it silently, so a section that would 403 is not
+       * offered in the first place.
+       */
       canManageSchedules={permissions.includes(PERMISSIONS.DOCTOR_SCHEDULE_MANAGE)}
       canCreate={permissions.includes(PERMISSIONS.DOCTOR_CREATE)}
       canUpdate={permissions.includes(PERMISSIONS.DOCTOR_UPDATE)}
-      canArchive={permissions.includes(PERMISSIONS.DOCTOR_ARCHIVE)}
-      canReadHistory={permissions.includes(PERMISSIONS.AUDIT_READ)}
+      canManageFees={permissions.includes(PERMISSIONS.FEE_SCHEDULE_MANAGE)}
+      canManagePay={permissions.includes(PERMISSIONS.DOCTOR_COMPENSATION_MANAGE)}
     />
   );
 }

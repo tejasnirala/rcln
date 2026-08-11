@@ -30,15 +30,19 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 
 | method | path | at |
 | --- | --- | --- |
-| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:60` |
-| GET | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:111` |
-| POST | `/organizations/:organizationId/impersonate` | `apps/api/src/routes/v1/platform.routes.ts:173` |
-| GET | `/organizations/:organizationId/subscription` | `apps/api/src/routes/v1/platform.routes.ts:211` |
-| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:243` |
-| GET | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:292` |
-| POST | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:300` |
-| PATCH | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:312` |
-| DELETE | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:327` |
+| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:68` |
+| GET | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:119` |
+| POST | `/organizations/:organizationId/impersonate` | `apps/api/src/routes/v1/platform.routes.ts:181` |
+| GET | `/organizations/:organizationId/subscription` | `apps/api/src/routes/v1/platform.routes.ts:219` |
+| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:251` |
+| GET | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:300` |
+| POST | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:308` |
+| PATCH | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:320` |
+| DELETE | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:335` |
+| GET | `/tax-rule-defaults` | `apps/api/src/routes/v1/platform.routes.ts:384` |
+| POST | `/tax-rule-defaults` | `apps/api/src/routes/v1/platform.routes.ts:394` |
+| PATCH | `/tax-rule-defaults/:id` | `apps/api/src/routes/v1/platform.routes.ts:406` |
+| PATCH | `/tax-rule-defaults/:id/retire` | `apps/api/src/routes/v1/platform.routes.ts:421` |
 
 ## Database impact
 
@@ -88,7 +92,7 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 | `ImpersonateState` | type | `apps/web/src/app/(platform)/platform/organizations/actions.ts:23` |
 | `metadata` | var | `apps/web/src/app/(platform)/platform/layout.tsx:12` |
 | `metadata` | var | `apps/web/src/app/(platform)/platform/taxes/page.tsx:7` |
-| `OrganizationList` | component | `apps/web/src/components/platform/organization-list.tsx:27` |
+| `OrganizationList` | component | `apps/web/src/components/platform/organization-list.tsx:28` |
 | `PlatformHome` | component | `apps/web/src/app/(platform)/platform/page.tsx:16` |
 | `PlatformLayout` | component | `apps/web/src/app/(platform)/platform/layout.tsx:37` |
 | `PlatformLogin` | component | `apps/web/src/components/platform/platform-login.tsx:10` |

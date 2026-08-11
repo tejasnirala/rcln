@@ -36,7 +36,14 @@
 import type { TenantContext, TxClient } from '@rcln/db';
 
 /** Matches the `NumberSequenceType` enum in schema.prisma. */
-export type SequenceType = 'UHID' | 'MRN' | 'APPOINTMENT' | 'QUEUE_TOKEN' | 'EMPLOYEE';
+export type SequenceType =
+  | 'UHID'
+  | 'MRN'
+  | 'APPOINTMENT'
+  | 'QUEUE_TOKEN'
+  | 'EMPLOYEE'
+  /** Patient invoice serials. Built by `invoice-number.service.ts`, never here. */
+  | 'INVOICE';
 
 export interface IssueNumberSpec {
   type: SequenceType;

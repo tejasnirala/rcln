@@ -1,6 +1,11 @@
 import { cache } from 'react';
 import { cookies } from 'next/headers';
-import type { AuthSession } from '@rcln/contracts';
+import {
+  DEFAULT_TIME_FORMAT,
+  type AuthSession,
+  type BranchSummary,
+  type TimeFormat,
+} from '@rcln/contracts';
 import { ADMIN_HOST, api } from './api';
 import { ACCESS_COOKIE, REFRESH_COOKIE, REFRESH_MAX_AGE, baseCookie } from './session-cookie';
 
@@ -107,6 +112,117 @@ export const getSession = cache(async (slug: string): Promise<AuthSession | null
   const result = await api<AuthSession>('/api/v1/auth/session', { slug, accessToken });
   return result.ok && result.data ? result.data : null;
 });
+
+/**
+ * The branches this session may actually work in, in switcher order.
+ *
+ * ⚠️ USE THIS, NOT `GET /api/v1/branches`, ANYWHERE A SCREEN NEEDS "which
+ *   clinics am I working in". That endpoint is behind `branch.read`, which only
+ *   the org-wide roles and BRANCH_ADMIN hold, because it opens the branch
+ *   MANAGEMENT screen. A receptionist or a doctor calling it gets a 403 — and
+ *   since a failed call degrades to an empty list, the screen silently concludes
+ *   the person has no clinic at all. That is precisely how the appointment board
+ *   came to tell the front desk, whose main screen it is, "No clinic is in scope
+ *   for you yet."
+ *
+ * Costs nothing: `getSession` is memoised per request and the layout has already
+ * resolved it. Discloses nothing either — these are the branches the caller is
+ * already scoped to, which is why no permission guards them.
+ *
+ * Empty genuinely means empty: a member of staff whose roles carry no branch.
+ */
+export async function branchesInScope(slug: string): Promise<BranchSummary[]> {
+  const session = await getSession(slug);
+  if (!session) return [];
+
+  return (
+    session.memberships.find((m) => m.organizationId === session.activeOrganizationId)?.branches ??
+    []
+  );
+}
+
+/**
+ * The clinic's own country, ISO 3166-1 alpha-2.
+ *
+ * ⚠️ THE ORGANIZATION'S, BECAUSE A BRANCH DOES NOT HAVE ONE. `branches` carries
+ *   its own `timezone` — a group can run clinics in two zones — but not a
+ *   country code, so every branch is in the organization's country until the
+ *   schema says otherwise. That is the right default anyway: the things this
+ *   decides (identity documents, postcode format, dialling code, and now the
+ *   unit a temperature is written in) follow the jurisdiction the clinic is
+ *   registered in.
+ *
+ * ⚠️ FROM THE SESSION, NOT `GET /organization` — that is behind
+ *   `organization.read`, which the front desk does not hold, and these are all
+ *   front-desk forms. Defaults to `IN`, which is what every screen already
+ *   assumed before this existed.
+ */
+export async function countryOf(slug: string): Promise<string> {
+  const session = await getSession(slug);
+  if (!session) return 'IN';
+
+  return (
+    session.memberships.find((m) => m.organizationId === session.activeOrganizationId)
+      ?.countryCode ?? 'IN'
+  );
+}
+
+/**
+ * The zone this clinic reads its clock in — the active branch's, or the first
+ * one in scope.
+ *
+ * ⚠️ FOR SCREENS THAT ARE NOT ABOUT ONE APPOINTMENT. An appointment carries its
+ *   OWN branch's `timezone` on the row, and that is the one to format it with:
+ *   an org-wide admin scoped to Bengaluru can open a booking made in Dubai, and
+ *   the caller's active branch is then the wrong answer. This is for everything
+ *   else — a doctor's leave, an audit trail — where the reader's own clinic is
+ *   what "when did this happen" means.
+ *
+ * ⚠️ NEVER THE BROWSER'S OR THE CONTAINER'S ZONE. See `formatClinicTime`.
+ *
+ * Falls back to `Asia/Kolkata`, which is the schema default on both
+ * `organizations.timezone` and `branches.timezone` — a caller with no branch in
+ * scope has no clinical times to read anyway.
+ */
+export async function timezoneOf(slug: string): Promise<string> {
+  const session = await getSession(slug);
+  if (!session) return 'Asia/Kolkata';
+
+  const branches =
+    session.memberships.find((m) => m.organizationId === session.activeOrganizationId)?.branches ??
+    [];
+
+  const active = branches.find((b) => b.id === session.activeBranchId) ?? branches[0];
+  return active?.timezone ?? 'Asia/Kolkata';
+}
+
+/**
+ * The clock face this clinic reads — `12H` or `24H`.
+ *
+ * ⚠️ THE COMPANION TO `timezoneOf`, AND SUBJECT TO THE SAME CAVEAT: it answers
+ *   for the READER'S active branch, so an appointment carrying its own branch's
+ *   `timeFormat` should be rendered with that instead. An org-wide admin scoped
+ *   to a 24-hour hospital wing opening a booking made at the 12-hour walk-in
+ *   clinic should see the clinic's clock, not their own.
+ *
+ * ⚠️ DISPLAY ONLY. Every instant is stored in UTC and rendered in the branch's
+ *   zone; this decides nothing but the shape. See `formatClinicTime`.
+ *
+ * Costs nothing — `getSession` is memoised per request and the shell has already
+ * resolved it. Falls back to the product default, which is what a caller with no
+ * branch in scope would see anyway.
+ */
+export async function timeFormatOf(slug: string): Promise<TimeFormat> {
+  const session = await getSession(slug);
+  if (!session) return DEFAULT_TIME_FORMAT;
+
+  const branches =
+    session.memberships.find((m) => m.organizationId === session.activeOrganizationId)?.branches ??
+    [];
+
+  const active = branches.find((b) => b.id === session.activeBranchId) ?? branches[0];
+  return active?.timeFormat ?? DEFAULT_TIME_FORMAT;
+}
 
 /**
  * The signed-in platform admin, or null.

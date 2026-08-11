@@ -4,18 +4,22 @@
 
 Source: `packages/db/prisma/schema.prisma` · RLS policies: `packages/db/prisma/rls/enable-rls.sql`
 
-58 models · 48 enums · 37 tenant-scoped.
+70 models · 56 enums · 48 tenant-scoped.
 One file per model in this directory; the tables below are the overview.
 
 | model | table | org col | RLS | columns |
 | --- | --- | --- | --- | --- |
-| [`Organization`](Organization.md) | `organizations` | — | exempt | `id` `slug` `legalName` `displayName` `orgType` `status` `currency` `timezone` `countryCode` `regionCode` `gstNumber` `taxIdStatus` `ownerUserId` `onboardedAt` `createdAt` `updatedAt` `deletedAt` |
+| [`Organization`](Organization.md) | `organizations` | — | exempt | `id` `slug` `legalName` `displayName` `orgType` `status` `currency` `timezone` `countryCode` `regionCode` `taxId` `taxIdStatus` `ownerUserId` `onboardedAt` `createdAt` `updatedAt` `deletedAt` |
 | [`OrganizationDomain`](OrganizationDomain.md) | `organization_domains` | yes | exempt | `id` `organizationId` `domain` `isPrimary` `isPlatformSub` `verifiedAt` `createdAt` |
-| [`Branch`](Branch.md) | `branches` | yes | org | `id` `organizationId` `code` `name` `branchType` `timezone` `phone` `email` `addressLine1` `addressLine2` `city` `state` `pincode` `gstNumber` `isPrimary` `status` `createdAt` `updatedAt` `deletedAt` |
+| [`Branch`](Branch.md) | `branches` | yes | org | `id` `organizationId` `code` `name` `branchType` `timezone` `phone` `email` `addressLine1` `addressLine2` `city` `state` `pincode` `countryCode` `regionCode` `taxId` `isPrimary` `status` `createdAt` `updatedAt` `deletedAt` |
 | [`BranchOperatingHour`](BranchOperatingHour.md) | `branch_operating_hours` | — | parent | `id` `branchId` `dayOfWeek` `opensAt` `closesAt` `isClosed` `slotMinutes` |
 | [`BranchClosure`](BranchClosure.md) | `branch_closures` | — | parent | `id` `branchId` `closureDate` `reason` |
 | [`Plan`](Plan.md) | `plans` | — | exempt | `id` `code` `name` `tagline` `trialDays` `isPublic` `sortOrder` `createdAt` `updatedAt` |
 | [`TaxRegistration`](TaxRegistration.md) | `tax_registrations` | — | exempt | `id` `countryCode` `regionCode` `scheme` `registrationNumber` `standardRateBps` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
+| [`IssuerTaxRegistration`](IssuerTaxRegistration.md) | `issuer_tax_registrations` | yes | org | `id` `organizationId` `countryCode` `regionCode` `scheme` `registrationNumber` `legalName` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
+| [`IssuerTaxRegistrationBranch`](IssuerTaxRegistrationBranch.md) | `issuer_tax_registration_branches` | yes | org | `id` `organizationId` `taxRegistrationId` `branchId` `createdAt` `updatedAt` `deletedAt` |
+| [`TaxRule`](TaxRule.md) | `tax_rules` | yes | org | `id` `organizationId` `countryCode` `regionCode` `scheme` `taxCategory` `description` `rateBps` `treatment` `lineName` `regionalLineName` `split` `stacks` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
+| [`TaxRuleDefault`](TaxRuleDefault.md) | `tax_rule_defaults` | — | exempt | `id` `countryCode` `regionCode` `scheme` `taxCategory` `description` `rateBps` `treatment` `lineName` `regionalLineName` `split` `stacks` `sourceNote` `effectiveFrom` `effectiveTo` `createdAt` `updatedAt` `deletedAt` |
 | [`PlanPrice`](PlanPrice.md) | `plan_prices` | — | exempt | `id` `planId` `currency` `billingInterval` `amount` `taxBehavior` `isActive` |
 | [`PlanFeature`](PlanFeature.md) | `plan_features` | — | exempt | `id` `planId` `featureKey` `valueType` `intValue` `boolValue` |
 | [`Subscription`](Subscription.md) | `subscriptions` | yes | org | `id` `organizationId` `planId` `planPriceId` `status` `currency` `trialEndsAt` `currentPeriodStart` `currentPeriodEnd` `cancelAt` `canceledAt` `cancelAtPeriodEnd` `cancelReason` `autoRenew` `seatQuantity` `provider` `mandateId` `gracePeriodEnd` `dunningAttempts` `lastRenewalAt` `startedAt` `endedAt` `createdAt` `updatedAt` |
@@ -48,21 +52,29 @@ One file per model in this directory; the tables below are the overview.
 | [`DoctorProfile`](DoctorProfile.md) | `doctor_profiles` | yes | org | `id` `organizationId` `userId` `registrationNumber` `registrationCouncil` `registrationValidTill` `experienceYears` `bio` `signatureFileId` `status` `createdAt` `updatedAt` `deletedAt` |
 | [`DoctorSpecialty`](DoctorSpecialty.md) | `doctor_specialties` | yes | org | `id` `organizationId` `doctorProfileId` `specialtyId` `isPrimary` `proficiency` `effectiveFrom` `effectiveTo` `isActive` `createdAt` `updatedAt` |
 | [`DoctorQualification`](DoctorQualification.md) | `doctor_qualifications` | yes | org | `id` `organizationId` `doctorProfileId` `qualificationId` `institute` `yearOfCompletion` `createdAt` |
-| [`DoctorBranchSetting`](DoctorBranchSetting.md) | `doctor_branch_settings` | yes | org | `id` `organizationId` `doctorProfileId` `branchId` `consultationFee` `followUpFee` `followUpFreeDays` `isActive` `createdAt` `updatedAt` |
+| [`DoctorBranchSetting`](DoctorBranchSetting.md) | `doctor_branch_settings` | yes | org | `id` `organizationId` `doctorProfileId` `branchId` `followUpFreeDays` `isActive` `createdAt` `updatedAt` |
+| [`FeeScheduleEntry`](FeeScheduleEntry.md) | `fee_schedule_entries` | yes | org | `id` `organizationId` `branchId` `doctorProfileId` `feeType` `amount` `createdAt` `updatedAt` `updatedBy` |
+| [`DoctorCompensation`](DoctorCompensation.md) | `doctor_compensation` | yes | org | `id` `organizationId` `doctorProfileId` `amount` `interval` `createdAt` `updatedAt` `updatedBy` |
 | [`DoctorSchedule`](DoctorSchedule.md) | `doctor_schedules` | yes | branch | `id` `organizationId` `doctorProfileId` `branchId` `dayOfWeek` `startTime` `endTime` `slotMinutes` `maxPatients` `validFrom` `validTo` `isActive` `createdAt` `updatedAt` |
 | [`DoctorScheduleException`](DoctorScheduleException.md) | `doctor_schedule_exceptions` | yes | **MISSING** | `id` `organizationId` `doctorProfileId` `branchId` `exceptionType` `startsAt` `endsAt` `reason` `status` `requestedBy` `decidedBy` `decidedAt` `createdAt` `updatedAt` |
-| [`Patient`](Patient.md) | `patients` | yes | **MISSING** | `id` `organizationId` `uhid` `userId` `firstName` `lastName` `dateOfBirth` `approxAgeYears` `gender` `bloodGroup` `phone` `email` `abhaNumber` `nationalId` `maritalStatus` `status` `deceasedOn` `mergedIntoId` `createdAt` `updatedAt` `deletedAt` |
+| [`Patient`](Patient.md) | `patients` | yes | **MISSING** | `id` `organizationId` `uhid` `userId` `firstName` `lastName` `dateOfBirth` `approxAgeYears` `gender` `bloodGroup` `phone` `email` `abhaNumber` `nationalId` `nationalIdType` `maritalStatus` `status` `deceasedOn` `mergedIntoId` `createdAt` `updatedAt` `deletedAt` |
 | [`PatientRegistration`](PatientRegistration.md) | `patient_registrations` | yes | **MISSING** | `id` `organizationId` `patientId` `branchId` `mrn` `registeredAt` `registeredBy` `status` `createdAt` `updatedAt` |
 | [`PatientAddress`](PatientAddress.md) | `patient_addresses` | yes | **MISSING** | `id` `organizationId` `patientId` `addressType` `line1` `line2` `city` `state` `pincode` `countryCode` `isPrimary` `createdAt` `updatedAt` |
 | [`PatientContact`](PatientContact.md) | `patient_contacts` | yes | **MISSING** | `id` `organizationId` `patientId` `relation` `name` `phone` `email` `isEmergency` `isGuardian` `createdAt` `updatedAt` |
 | [`PatientAllergy`](PatientAllergy.md) | `patient_allergies` | yes | **MISSING** | `id` `organizationId` `patientId` `allergenType` `allergenText` `severity` `reaction` `notedOn` `notedBy` `deletedAt` `createdAt` `updatedAt` |
 | [`PatientCondition`](PatientCondition.md) | `patient_conditions` | yes | **MISSING** | `id` `organizationId` `patientId` `conditionText` `status` `onsetDate` `resolvedDate` `note` `notedBy` `deletedAt` `createdAt` `updatedAt` |
 | [`PatientMedication`](PatientMedication.md) | `patient_medications` | yes | **MISSING** | `id` `organizationId` `patientId` `medicineText` `dosage` `startedOn` `stoppedOn` `isOngoing` `notedBy` `deletedAt` `createdAt` `updatedAt` |
-| [`Appointment`](Appointment.md) | `appointments` | yes | **MISSING** | `id` `organizationId` `branchId` `patientId` `patientRegistrationId` `doctorProfileId` `appointmentNumber` `scheduledStart` `scheduledEnd` `visitType` `source` `status` `reason` `checkedInAt` `startedAt` `completedAt` `bookedBy` `cancelledBy` `cancellationReason` `createdAt` `updatedAt` `deletedAt` |
+| [`Appointment`](Appointment.md) | `appointments` | yes | **MISSING** | `id` `organizationId` `branchId` `patientId` `patientRegistrationId` `doctorProfileId` `appointmentNumber` `scheduledStart` `scheduledEnd` `visitType` `source` `status` `parentAppointmentId` `reason` `checkedInAt` `startedAt` `completedAt` `bookedBy` `cancelledBy` `cancellationReason` `bookedFee` `createdAt` `updatedAt` `deletedAt` |
+| [`AppointmentReschedule`](AppointmentReschedule.md) | `appointment_reschedules` | yes | **MISSING** | `id` `organizationId` `branchId` `appointmentId` `fromStart` `toStart` `fromDoctorProfileId` `toDoctorProfileId` `initiatedBy` `reason` `chargeAmount` `createdAt` `createdBy` |
+| [`AppointmentVital`](AppointmentVital.md) | `appointment_vitals` | yes | **MISSING** | `id` `organizationId` `branchId` `appointmentId` `patientId` `heightCm` `weightKg` `temperatureC` `pulseBpm` `respiratoryRateBpm` `systolicMmHg` `diastolicMmHg` `spo2Percent` `bloodGlucoseMgDl` `notes` `recordedAt` `recordedBy` `revisionOfId` `supersededAt` `supersededBy` `createdAt` `updatedAt` `deletedAt` |
 | [`AppointmentStatusHistory`](AppointmentStatusHistory.md) | `appointment_status_history` | yes | explicit | `id` `organizationId` `appointmentId` `fromStatus` `toStatus` `changedBy` `note` `changedAt` |
+| [`Invoice`](Invoice.md) | `invoices` | yes | branch | `id` `organizationId` `branchId` `invoiceNumber` `sourceType` `appointmentId` `patientId` `customerName` `customerPhone` `customerEmail` `customerAddress` `customerTaxId` `practitionerName` `practitionerRegistrationNumber` `practitionerProfileId` `suppliedAt` `issuedAt` `dueDate` `issuerTaxRegistrationId` `issuerTaxId` `issuerLegalName` `placeOfSupply` `taxTreatment` `currency` `subtotal` `lineDiscountTotal` `discountType` `discountBps` `discountFixed` `invoiceDiscountTotal` `taxableAmount` `taxTotal` `roundingAdjustment` `grandTotal` `amountPaid` `status` `notes` `cancellationReason` `createdBy` `issuedBy` `cancelledBy` `cancelledAt` `voidedAt` `createdAt` `updatedAt` `deletedAt` |
+| [`InvoiceItem`](InvoiceItem.md) | `invoice_items` | yes | branch | `id` `organizationId` `branchId` `invoiceId` `lineNumber` `description` `itemCode` `taxCategory` `quantity` `unitPrice` `grossAmount` `discountType` `discountBps` `discountFixed` `discountAmount` `apportionedDiscount` `taxableAmount` `taxAmount` `lineTotal` `taxTreatment` `taxReason` `createdAt` `updatedAt` |
+| [`InvoiceTax`](InvoiceTax.md) | `invoice_taxes` | yes | branch | `id` `organizationId` `branchId` `invoiceId` `invoiceItemId` `taxRuleId` `taxRuleDefaultId` `name` `jurisdiction` `rateBps` `taxableAmount` `taxAmount` `treatment` `createdAt` |
+| [`InvoiceDocument`](InvoiceDocument.md) | `invoice_documents` | yes | branch | `id` `organizationId` `branchId` `invoiceId` `fileId` `documentType` `templateKey` `templateVersion` `generatedAt` `generatedBy` `supersededAt` `createdAt` |
 | [`SettingDefinition`](SettingDefinition.md) | `setting_definitions` | — | exempt | `key` `module` `dataType` `defaultValue` `allowedScopes` `isTenantEditable` `description` `helpText` `allowedValues` |
 | [`SettingValue`](SettingValue.md) | `setting_values` | — | exempt | `id` `settingKey` `scopeType` `scopeId` `value` `updatedBy` `updatedAt` |
-| [`StoredFile`](StoredFile.md) | `files` | yes | explicit | `id` `organizationId` `branchId` `storageKey` `originalName` `mimeType` `sizeBytes` `checksum` `uploadedBy` `uploadedAt` `deletedAt` |
+| [`StoredFile`](StoredFile.md) | `files` | yes | explicit | `id` `organizationId` `branchId` `documentType` `status` `storageProvider` `storageKey` `originalName` `mimeType` `sizeBytes` `checksum` `version` `failureReason` `uploadedBy` `uploadedAt` `deletedAt` |
 | [`AuditLog`](AuditLog.md) | `audit_logs` | yes | org | `id` `organizationId` `branchId` `actorUserId` `impersonatedByUserId` `action` `entityType` `entityId` `beforeData` `afterData` `ipAddress` `userAgent` `occurredAt` |
 | [`DataAccessLog`](DataAccessLog.md) | `data_access_logs` | yes | org | `id` `organizationId` `branchId` `actorUserId` `impersonatedByUserId` `patientId` `accessType` `resource` `resourceId` `resultCount` `queryHash` `route` `ipAddress` `userAgent` `occurredAt` |
 | [`NumberSequence`](NumberSequence.md) | `number_sequences` | yes | org | `id` `organizationId` `branchId` `sequenceType` `periodKey` `prefix` `padding` `lastNumber` `createdAt` `updatedAt` |
@@ -90,6 +102,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `setting_definitions` | static catalogue |
 | `setting_values` | scoped by (scope_type, scope_id), not organization_id |
 | `tax_registrations` | describes the SUPPLIER (rcln), not any clinic — one set of rows for the whole platform, like plans. Scoping it by organ… |
+| `tax_rule_defaults` | the published rate cards rcln maintains per country — the law, identical for every clinic in a jurisdiction, like plans… |
 | `user_identities` | SSO callback happens pre-context |
 | `users` | global identity — one login spans organizations |
 
@@ -97,12 +110,16 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 
 | model | relation fields |
 | --- | --- |
-| `Organization` | `owner: User?` `domains: OrganizationDomain[]` `branches: Branch[]` `memberships: Membership[]` `roles: Role[]` `invitations: Invitation[]` `subscriptions: Subscription[]` `subscriptionInvoices: SubscriptionInvoice[]` `subscriptionChanges: SubscriptionChange[]` `paymentMandates: PaymentMandate[]` `paymentIntents: PaymentIntent[]` `usageCounters: UsageCounter[]` `files: StoredFile[]` `auditLogs: AuditLog[]` `dataAccessLogs: DataAccessLog[]` `numberSequences: NumberSequence[]` `specialties: Specialty[]` `qualifications: Qualification[]` `designations: Designation[]` `roleDesignations: RoleDesignation[]` `doctorProfiles: DoctorProfile[]` `doctorSpecialties: DoctorSpecialty[]` `doctorQualifications: DoctorQualification[]` `doctorBranchSettings: DoctorBranchSetting[]` `doctorSchedules: DoctorSchedule[]` `doctorExceptions: DoctorScheduleException[]` `patients: Patient[]` `patientRegistrations: PatientRegistration[]` `patientAddresses: PatientAddress[]` `patientContacts: PatientContact[]` `patientAllergies: PatientAllergy[]` `patientConditions: PatientCondition[]` `patientMedications: PatientMedication[]` `appointments: Appointment[]` `appointmentHistory: AppointmentStatusHistory[]` `lastForPlatformAdmins: User[]` |
+| `Organization` | `owner: User?` `domains: OrganizationDomain[]` `branches: Branch[]` `memberships: Membership[]` `roles: Role[]` `invitations: Invitation[]` `subscriptions: Subscription[]` `subscriptionInvoices: SubscriptionInvoice[]` `subscriptionChanges: SubscriptionChange[]` `issuerTaxRegistrations: IssuerTaxRegistration[]` `taxRegistrationBranches: IssuerTaxRegistrationBranch[]` `taxRules: TaxRule[]` `paymentMandates: PaymentMandate[]` `paymentIntents: PaymentIntent[]` `usageCounters: UsageCounter[]` `files: StoredFile[]` `auditLogs: AuditLog[]` `dataAccessLogs: DataAccessLog[]` `numberSequences: NumberSequence[]` `specialties: Specialty[]` `qualifications: Qualification[]` `designations: Designation[]` `roleDesignations: RoleDesignation[]` `doctorProfiles: DoctorProfile[]` `doctorSpecialties: DoctorSpecialty[]` `doctorQualifications: DoctorQualification[]` `doctorBranchSettings: DoctorBranchSetting[]` `doctorCompensation: DoctorCompensation[]` `feeScheduleEntries: FeeScheduleEntry[]` `appointmentReschedules: AppointmentReschedule[]` `doctorSchedules: DoctorSchedule[]` `doctorExceptions: DoctorScheduleException[]` `patients: Patient[]` `patientRegistrations: PatientRegistration[]` `patientAddresses: PatientAddress[]` `patientContacts: PatientContact[]` `patientAllergies: PatientAllergy[]` `patientConditions: PatientCondition[]` `patientMedications: PatientMedication[]` `appointments: Appointment[]` `appointmentHistory: AppointmentStatusHistory[]` `appointmentVitals: AppointmentVital[]` `invoices: Invoice[]` `invoiceItems: InvoiceItem[]` `invoiceTaxes: InvoiceTax[]` `invoiceDocuments: InvoiceDocument[]` `lastForPlatformAdmins: User[]` |
 | `OrganizationDomain` | `organization: Organization` |
-| `Branch` | `organization: Organization` `operatingHours: BranchOperatingHour[]` `closures: BranchClosure[]` `membershipRoles: MembershipRole[]` `membershipOverrides: MembershipPermissionOverride[]` `invitationBranches: InvitationBranch[]` `sessions: Session[]` `lastForMemberships: Membership[]` `doctorSettings: DoctorBranchSetting[]` `doctorSchedules: DoctorSchedule[]` `doctorExceptions: DoctorScheduleException[]` `patientRegistrations: PatientRegistration[]` `appointments: Appointment[]` |
+| `Branch` | `organization: Organization` `operatingHours: BranchOperatingHour[]` `closures: BranchClosure[]` `membershipRoles: MembershipRole[]` `membershipOverrides: MembershipPermissionOverride[]` `invitationBranches: InvitationBranch[]` `sessions: Session[]` `lastForMemberships: Membership[]` `doctorSettings: DoctorBranchSetting[]` `doctorSchedules: DoctorSchedule[]` `doctorExceptions: DoctorScheduleException[]` `patientRegistrations: PatientRegistration[]` `appointments: Appointment[]` `appointmentVitals: AppointmentVital[]` `appointmentReschedules: AppointmentReschedule[]` `feeScheduleEntries: FeeScheduleEntry[]` `invoices: Invoice[]` `invoiceItems: InvoiceItem[]` `invoiceTaxes: InvoiceTax[]` `invoiceDocuments: InvoiceDocument[]` `taxRegistrationCoverage: IssuerTaxRegistrationBranch[]` |
 | `BranchOperatingHour` | `branch: Branch` |
 | `BranchClosure` | `branch: Branch` |
 | `Plan` | `prices: PlanPrice[]` `features: PlanFeature[]` `subscriptions: Subscription[]` |
+| `IssuerTaxRegistration` | `organization: Organization` `invoices: Invoice[]` `branchCoverage: IssuerTaxRegistrationBranch[]` |
+| `IssuerTaxRegistrationBranch` | `organization: Organization` `registration: IssuerTaxRegistration` `branch: Branch` |
+| `TaxRule` | `organization: Organization` `invoiceTaxes: InvoiceTax[]` |
+| `TaxRuleDefault` | `invoiceTaxes: InvoiceTax[]` |
 | `PlanPrice` | `plan: Plan` `subscriptions: Subscription[]` |
 | `PlanFeature` | `plan: Plan` |
 | `Subscription` | `organization: Organization` `plan: Plan` `planPrice: PlanPrice` `mandate: PaymentMandate?` `featureOverrides: SubscriptionFeatureOverride[]` `invoices: SubscriptionInvoice[]` `intents: PaymentIntent[]` `changes: SubscriptionChange[]` |
@@ -114,7 +131,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `PaymentIntent` | `organization: Organization` `subscription: Subscription?` `invoice: SubscriptionInvoice?` `mandate: PaymentMandate?` `payments: SubscriptionPayment[]` |
 | `SubscriptionChange` | `organization: Organization` `subscription: Subscription` `invoice: SubscriptionInvoice?` |
 | `UsageCounter` | `organization: Organization` |
-| `User` | `identities: UserIdentity[]` `sessions: Session[]` `authTokens: AuthToken[]` `memberships: Membership[]` `ownedOrganizations: Organization[]` `lastPlatformOrganization: Organization?` `invitationsSent: Invitation[]` `auditLogs: AuditLog[]` `dataAccessLogs: DataAccessLog[]` `uploadedFiles: StoredFile[]` `doctorProfiles: DoctorProfile[]` `patientRecords: Patient[]` `patientRegistrations: PatientRegistration[]` `allergiesNoted: PatientAllergy[]` `conditionsNoted: PatientCondition[]` `medicationsNoted: PatientMedication[]` `appointmentsBooked: Appointment[]` `appointmentsCancelled: Appointment[]` `appointmentStatusChanges: AppointmentStatusHistory[]` |
+| `User` | `identities: UserIdentity[]` `sessions: Session[]` `authTokens: AuthToken[]` `memberships: Membership[]` `ownedOrganizations: Organization[]` `lastPlatformOrganization: Organization?` `invitationsSent: Invitation[]` `auditLogs: AuditLog[]` `dataAccessLogs: DataAccessLog[]` `uploadedFiles: StoredFile[]` `doctorProfiles: DoctorProfile[]` `patientRecords: Patient[]` `patientRegistrations: PatientRegistration[]` `allergiesNoted: PatientAllergy[]` `conditionsNoted: PatientCondition[]` `medicationsNoted: PatientMedication[]` `appointmentsBooked: Appointment[]` `appointmentsCancelled: Appointment[]` `appointmentStatusChanges: AppointmentStatusHistory[]` `vitalsRecorded: AppointmentVital[]` `vitalsAmended: AppointmentVital[]` `invoicesCreated: Invoice[]` `invoicesIssued: Invoice[]` `invoicesCancelled: Invoice[]` `invoiceDocumentsGenerated: InvoiceDocument[]` |
 | `UserIdentity` | `user: User` |
 | `Session` | `user: User` `activeBranch: Branch?` |
 | `AuthToken` | `user: User?` |
@@ -131,24 +148,32 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `StaffProfile` | `membership: Membership` `designation: Designation?` |
 | `Specialty` | `organization: Organization?` `parent: Specialty?` `children: Specialty[]` `doctors: DoctorSpecialty[]` |
 | `Qualification` | `organization: Organization?` `doctors: DoctorQualification[]` |
-| `DoctorProfile` | `organization: Organization` `user: User` `specialties: DoctorSpecialty[]` `qualifications: DoctorQualification[]` `branchSettings: DoctorBranchSetting[]` `schedules: DoctorSchedule[]` `exceptions: DoctorScheduleException[]` `appointments: Appointment[]` |
+| `DoctorProfile` | `organization: Organization` `user: User` `specialties: DoctorSpecialty[]` `qualifications: DoctorQualification[]` `branchSettings: DoctorBranchSetting[]` `compensation: DoctorCompensation?` `fees: FeeScheduleEntry[]` `invoices: Invoice[]` `schedules: DoctorSchedule[]` `exceptions: DoctorScheduleException[]` `appointments: Appointment[]` |
 | `DoctorSpecialty` | `organization: Organization` `doctorProfile: DoctorProfile` `specialty: Specialty` |
 | `DoctorQualification` | `organization: Organization` `doctorProfile: DoctorProfile` `qualification: Qualification` |
 | `DoctorBranchSetting` | `organization: Organization` `doctorProfile: DoctorProfile` `branch: Branch` |
+| `FeeScheduleEntry` | `organization: Organization` `branch: Branch?` `doctorProfile: DoctorProfile?` |
+| `DoctorCompensation` | `organization: Organization` `doctorProfile: DoctorProfile` |
 | `DoctorSchedule` | `organization: Organization` `doctorProfile: DoctorProfile` `branch: Branch` |
 | `DoctorScheduleException` | `organization: Organization` `doctorProfile: DoctorProfile` `branch: Branch?` |
-| `Patient` | `organization: Organization` `user: User?` `mergedInto: Patient?` `mergedFrom: Patient[]` `registrations: PatientRegistration[]` `addresses: PatientAddress[]` `contacts: PatientContact[]` `allergies: PatientAllergy[]` `conditions: PatientCondition[]` `medications: PatientMedication[]` `appointments: Appointment[]` |
+| `Patient` | `organization: Organization` `user: User?` `mergedInto: Patient?` `mergedFrom: Patient[]` `registrations: PatientRegistration[]` `addresses: PatientAddress[]` `contacts: PatientContact[]` `allergies: PatientAllergy[]` `conditions: PatientCondition[]` `medications: PatientMedication[]` `appointments: Appointment[]` `vitals: AppointmentVital[]` `invoices: Invoice[]` |
 | `PatientRegistration` | `organization: Organization` `patient: Patient` `branch: Branch` `registrar: User?` `appointments: Appointment[]` |
 | `PatientAddress` | `organization: Organization` `patient: Patient` |
 | `PatientContact` | `organization: Organization` `patient: Patient` |
 | `PatientAllergy` | `organization: Organization` `patient: Patient` `noter: User?` |
 | `PatientCondition` | `organization: Organization` `patient: Patient` `noter: User?` |
 | `PatientMedication` | `organization: Organization` `patient: Patient` `noter: User?` |
-| `Appointment` | `organization: Organization` `branch: Branch` `patient: Patient` `registration: PatientRegistration` `doctorProfile: DoctorProfile` `booker: User?` `canceller: User?` `statusHistory: AppointmentStatusHistory[]` |
+| `Appointment` | `organization: Organization` `branch: Branch` `patient: Patient` `registration: PatientRegistration` `doctorProfile: DoctorProfile` `booker: User?` `canceller: User?` `statusHistory: AppointmentStatusHistory[]` `vitals: AppointmentVital[]` `invoices: Invoice[]` `reschedules: AppointmentReschedule[]` `parent: Appointment?` `followUps: Appointment[]` |
+| `AppointmentReschedule` | `organization: Organization` `branch: Branch` `appointment: Appointment` |
+| `AppointmentVital` | `organization: Organization` `branch: Branch` `appointment: Appointment` `patient: Patient` `recorder: User?` `amender: User?` `revisionOf: AppointmentVital?` `revisions: AppointmentVital[]` |
 | `AppointmentStatusHistory` | `organization: Organization` `appointment: Appointment` `changer: User?` |
+| `Invoice` | `organization: Organization` `branch: Branch` `patient: Patient?` `appointment: Appointment?` `issuerRegistration: IssuerTaxRegistration?` `practitioner: DoctorProfile?` `creator: User?` `issuer: User?` `canceller: User?` `items: InvoiceItem[]` `taxes: InvoiceTax[]` `documents: InvoiceDocument[]` |
+| `InvoiceItem` | `organization: Organization` `branch: Branch` `invoice: Invoice` `taxes: InvoiceTax[]` |
+| `InvoiceTax` | `organization: Organization` `branch: Branch` `invoice: Invoice` `item: InvoiceItem` `taxRule: TaxRule?` `taxRuleDefault: TaxRuleDefault?` |
+| `InvoiceDocument` | `organization: Organization` `branch: Branch` `invoice: Invoice` `file: StoredFile` `generator: User?` |
 | `SettingDefinition` | `values: SettingValue[]` |
 | `SettingValue` | `definition: SettingDefinition` |
-| `StoredFile` | `organization: Organization?` `uploader: User?` |
+| `StoredFile` | `organization: Organization?` `uploader: User?` `invoiceDocuments: InvoiceDocument[]` |
 | `AuditLog` | `organization: Organization?` `actor: User?` |
 | `DataAccessLog` | `organization: Organization` `actor: User?` |
 | `NumberSequence` | `organization: Organization` |
@@ -171,7 +196,8 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `PaymentPurpose` | `SUBSCRIPTION_START` `UPGRADE` `RENEWAL` `MANDATE_SETUP` `INVOICE_PAYMENT` |
 | `SubscriptionChangeType` | `SUBSCRIBE` `UPGRADE` `RENEW` `CANCEL_AT_PERIOD_END` `CANCEL_IMMEDIATE` `RESUME` `REACTIVATE` `TRIAL_EXPIRED` `PAYMENT_FAILED` `SUSPENDED` |
 | `TaxBehavior` | `EXCLUSIVE` `INCLUSIVE` |
-| `TaxTreatment` | `STANDARD` `REVERSE_CHARGE` `ZERO_RATED` `EXEMPT` `NOT_REGISTERED` |
+| `TaxTreatment` | `STANDARD` `REVERSE_CHARGE` `ZERO_RATED` `EXEMPT` `NOT_REGISTERED` `UNRATED` `PROVIDER_REQUIRED` |
+| `TaxSplit` | `NONE` `INTRA_STATE_HALVES` |
 | `TaxIdStatus` | `NOT_PROVIDED` `UNVALIDATED` `VALID` `INVALID` |
 | `TaxScheme` | `GST` `VAT` `SALES_TAX` |
 | `InvoiceLineKind` | `SUBSCRIPTION` `PRORATION_CREDIT` `PRORATION_CHARGE` `TAX` `ADJUSTMENT` |
@@ -200,8 +226,15 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `PatientConditionStatus` | `ACTIVE` `CHRONIC` `RESOLVED` |
 | `AppointmentVisitType` | `NEW` `FOLLOW_UP` `WALK_IN` `TELECONSULT` `PROCEDURE` |
 | `AppointmentSource` | `FRONT_DESK` `ONLINE` `PHONE` `WHATSAPP` |
+| `PayoutInterval` | `MONTHLY` `FORTNIGHTLY` `WEEKLY` `DAILY` `HOURLY` `PER_SESSION` |
+| `RescheduleInitiator` | `PATIENT` `CLINIC` |
 | `AppointmentStatus` | `BOOKED` `CONFIRMED` `CHECKED_IN` `IN_PROGRESS` `COMPLETED` `CANCELLED` `NO_SHOW` |
+| `InvoiceSourceType` | `APPOINTMENT` `PROCEDURE` `SERVICE` `LAB` `PHARMACY` `INVENTORY` `OTHER` |
+| `InvoiceStatus` | `DRAFT` `FINALIZING` `ISSUED` `PARTIALLY_PAID` `PAID` `CANCELLED` `VOID` |
+| `InvoiceDiscountType` | `PERCENTAGE` `FIXED` |
+| `DocumentType` | `INVOICE_PDF` `CREDIT_NOTE_PDF` `UPLOAD` |
+| `DocumentStatus` | `PENDING` `GENERATING` `READY` `FAILED` |
 | `DataAccessType` | `VIEW` `SEARCH` `PRINT` `EXPORT` `SHARE` |
-| `DataAccessResource` | `PATIENT` `PATIENT_LIST` `MEDICAL_HISTORY` `APPOINTMENT` `PRESCRIPTION` `LAB_REPORT` `INVOICE` `DOCUMENT` |
-| `NumberSequenceType` | `UHID` `MRN` `APPOINTMENT` `QUEUE_TOKEN` `EMPLOYEE` |
+| `DataAccessResource` | `PATIENT` `PATIENT_LIST` `MEDICAL_HISTORY` `APPOINTMENT` `VITALS` `PRESCRIPTION` `LAB_REPORT` `INVOICE` `DOCUMENT` |
+| `NumberSequenceType` | `UHID` `MRN` `APPOINTMENT` `QUEUE_TOKEN` `EMPLOYEE` `INVOICE` |
 | `DemoRequestStatus` | `NEW` `CONTACTED` `CONVERTED` `SPAM` |

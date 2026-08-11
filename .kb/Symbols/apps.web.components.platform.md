@@ -16,11 +16,11 @@ Files: `apps/web/src/components/platform/clinic-switcher.tsx` · `apps/web/src/c
 | `EnterClinicForm` <sub>local</sub> | `({ organizationId, organizationName, onCancel, onOpen, activ…)` | `apps/web/src/components/platform/clinic-switcher.tsx:96` | The reason, and then the handoff. Keyed by organization id in the parent, so choosing a different clinic gets a fresh action state rather than the previous cli… |
 | `INITIAL` <sub>local</sub> | `: ImpersonateState` | `apps/web/src/components/platform/clinic-switcher.tsx:40` |  |
 | `INITIAL` <sub>local</sub> | `: ProvisionState` | `apps/web/src/components/platform/demo-request-list.tsx:30` |  |
-| `INITIAL` <sub>local</sub> | `: ImpersonateState` | `apps/web/src/components/platform/organization-list.tsx:25` |  |
+| `INITIAL` <sub>local</sub> | `: ImpersonateState` | `apps/web/src/components/platform/organization-list.tsx:26` |  |
 | `INITIAL` <sub>local</sub> | `: PlatformLoginState` | `apps/web/src/components/platform/platform-login.tsx:8` |  |
 | `INITIAL` <sub>local</sub> | `: TaxFormState` | `apps/web/src/components/platform/tax-registration-list.tsx:35` |  |
-| `OrganizationList` | `({ organizations, }: { organizations: PlatformOrganizationSu…)` | `apps/web/src/components/platform/organization-list.tsx:27` |  |
-| `OrganizationRow` <sub>local</sub> | `({ organization, open, onToggle, }: { organization: Platform…)` | `apps/web/src/components/platform/organization-list.tsx:59` |  |
+| `OrganizationList` | `({ organizations, }: { organizations: PlatformOrganizationSu…)` | `apps/web/src/components/platform/organization-list.tsx:28` |  |
+| `OrganizationRow` <sub>local</sub> | `({ organization, open, onToggle, }: { organization: Platform…)` | `apps/web/src/components/platform/organization-list.tsx:60` |  |
 | `PlatformLogin` | `()` | `apps/web/src/components/platform/platform-login.tsx:10` |  |
 | `ProvisionForm` <sub>local</sub> | `({ request, onDone }: { request: DemoRequest; onDone: () => …)` | `apps/web/src/components/platform/demo-request-list.tsx:137` |  |
 | `RegistrationForm` <sub>local</sub> | `({ id, registration, onDone, }: { id: string \| null; registr…)` | `apps/web/src/components/platform/tax-registration-list.tsx:178` |  |

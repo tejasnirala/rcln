@@ -119,6 +119,8 @@ const asOrg = (slug: string, token: string) => {
       auth(request(app).post(`/api/v1/appointments${path}`)).send(body),
     patch: (path: string, body: object) =>
       auth(request(app).patch(`/api/v1/appointments${path}`)).send(body),
+    put: (path: string, body: object) =>
+      auth(request(app).put(`/api/v1/appointments${path}`)).send(body),
     doctors: (path: string, body: object) =>
       auth(request(app).post(`/api/v1/doctors${path}`)).send(body),
     patients: (path: string, body: object) =>
@@ -249,6 +251,57 @@ describe('the availability engine', () => {
 
   it("refuses a branch outside the caller's scope with a 404, never a 403", async () => {
     const res = await availability(A, orgB.branchId, doctorA, MONDAY);
+    expect(res.status).toBe(404);
+  });
+});
+
+/*
+ * What the date picker greys out. The doctor here works Mondays and nothing
+ * else, which is the whole case: a receptionist should not be able to land on a
+ * Wednesday and be told the diary is empty.
+ */
+describe('the working-day probe', () => {
+  const days = (branchId: string, doctorId: string, from: string, to: string) =>
+    A.get(
+      `/availability/days?branchId=${branchId}&doctorProfileId=${doctorId}&from=${from}&to=${to}`
+    );
+
+  it('answers for every day in the span, and says why each is shut', async () => {
+    const res = await days(orgA.branchId, doctorA, MONDAY, '2027-03-07');
+
+    expect(res.status).toBe(200);
+    // None missing: the picker indexes by date and a hole would render as
+    // "bookable" by omission.
+    expect(res.body.data.days).toHaveLength(7);
+
+    type Day = { date: string; bookable: boolean; reason: string | null };
+    const byDate: Record<string, Day> = Object.fromEntries(
+      (res.body.data.days as Day[]).map((day) => [day.date, day])
+    );
+
+    expect(byDate[MONDAY]?.bookable).toBe(true);
+    expect(byDate[MONDAY]?.reason).toBeNull();
+    expect(byDate['2027-03-03']?.bookable).toBe(false);
+    expect(byDate['2027-03-03']?.reason).toBe('NOT_SCHEDULED');
+  });
+
+  /*
+   * The doctor's rota does not reach back to 2020 either, so this is also the
+   * precedence check: a day that has gone reads as PAST, not NOT_SCHEDULED.
+   */
+  it('marks a day that has gone as past, whatever the rota says', async () => {
+    const res = await days(orgA.branchId, doctorA, '2020-03-02', '2020-03-02');
+    expect(res.body.data.days[0].reason).toBe('PAST');
+    expect(res.body.data.days[0].bookable).toBe(false);
+  });
+
+  it('refuses a span wider than a picker asks for', async () => {
+    const res = await days(orgA.branchId, doctorA, '2027-03-01', '2027-12-31');
+    expect(res.status).toBe(400);
+  });
+
+  it("refuses a branch outside the caller's scope with a 404, never a 403", async () => {
+    const res = await days(orgB.branchId, doctorA, MONDAY, MONDAY);
     expect(res.status).toBe(404);
   });
 });
@@ -392,6 +445,35 @@ describe('the day board', () => {
   });
 
   /*
+   * ⚠️ WITHOUT THIS THE CLIENT GUESSES, AND ITS GUESS IS THE CONTAINER'S UTC.
+   *   `scheduledStart` is an instant; the wall-clock time a receptionist reads
+   *   off it is that instant in the BRANCH's zone, and nothing in an ISO-8601
+   *   string says which zone was meant. The consultation header formatted
+   *   without one and rendered a 09:00 IST booking as 03:30.
+   */
+  it('carries the zone its times are to be read in', async () => {
+    const res = await A.get(`/?branchId=${orgA.branchId}&date=${MONDAY}`);
+    expect(res.body.data.appointments[0].timezone).toBe('Asia/Kolkata');
+
+    // And on the detail response, which is what the consultation page reads.
+    const id = res.body.data.appointments[0].id as string;
+    const one = await A.get(`/${id}`);
+    expect(one.body.data.timezone).toBe('Asia/Kolkata');
+
+    /*
+     * The pair together is the actual contract: 09:00 at an IST branch is
+     * 03:30Z, and it is only readable as "09:00" with the zone beside it.
+     */
+    const shown = new Intl.DateTimeFormat('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: one.body.data.timezone as string,
+    }).format(new Date(one.body.data.scheduledStart as string));
+    expect(shown).toBe('09:00');
+  });
+
+  /*
    * The row carries the patient's NAME — a desk that cannot see who is arriving
    * cannot work — but not the reason. Name plus reason on a screen anybody can
    * glance at is a diagnosis with extra steps.
@@ -408,6 +490,32 @@ describe('the day board', () => {
     const res = await B.get(`/?branchId=${orgB.branchId}&date=${MONDAY}`);
     expect(res.status).toBe(200);
     expect(res.body.data.appointments).toHaveLength(0);
+  });
+
+  /*
+   * The week and month views are this same read with a wider bound. What is
+   * worth testing is that the bound is INCLUSIVE of its last day and that the
+   * span is capped — an uncapped range is every patient the clinic has seen.
+   */
+  it('widens to a range, inclusive of the last day', async () => {
+    const day = await A.get(`/?branchId=${orgA.branchId}&date=${MONDAY}`);
+    const week = await A.get(`/?branchId=${orgA.branchId}&date=2027-02-28&to=2027-03-06`);
+
+    expect(week.status).toBe(200);
+    expect(week.body.data.appointments.length).toBe(day.body.data.appointments.length);
+
+    // Ending the range the day BEFORE excludes them, which is what makes the
+    // line above evidence of an inclusive bound rather than of a wide net.
+    const before = await A.get(`/?branchId=${orgA.branchId}&date=2027-02-22&to=2027-02-28`);
+    expect(before.body.data.appointments).toHaveLength(0);
+  });
+
+  it('refuses a range that runs backwards or too far', async () => {
+    const backwards = await A.get(`/?branchId=${orgA.branchId}&date=${MONDAY}&to=2027-02-01`);
+    expect(backwards.status).toBe(400);
+
+    const tooWide = await A.get(`/?branchId=${orgA.branchId}&date=${MONDAY}&to=2027-12-31`);
+    expect(tooWide.status).toBe(400);
   });
 });
 
@@ -583,6 +691,226 @@ describe('the tenant boundary', () => {
 
     const res = await B.get(`/${id}`);
     expect(res.status).toBe(404);
+  });
+});
+
+/*
+ * Vitals: recording accumulates, correcting amends in place, and neither ever
+ * lets a measurement reach the audit trail.
+ */
+describe('vitals', () => {
+  let appointmentId: string;
+  let readingId: string;
+
+  beforeAll(async () => {
+    const list = await A.get(`/?branchId=${orgA.branchId}&date=${MONDAY}`);
+    appointmentId = list.body.data.appointments[0].id as string;
+  });
+
+  it('records a reading', async () => {
+    const res = await A.post(`/${appointmentId}/vitals`, {
+      systolicMmHg: 180,
+      diastolicMmHg: 110,
+      pulseBpm: 96,
+    });
+
+    expect(res.status).toBe(201);
+    readingId = res.body.data.id as string;
+    expect(res.body.data.systolicMmHg).toBe(180);
+  });
+
+  /*
+   * ⚠️ THE READING THAT PROMPTED THE INTERVENTION STAYS ON THE CHART. A repeat
+   *   blood pressure twenty minutes after a high first one is a SECOND
+   *   observation; if it replaced the first, the record could no longer explain
+   *   why the patient was sat down. Correcting is a different act — see below.
+   */
+  it('keeps a repeat as a second reading rather than replacing the first', async () => {
+    await A.post(`/${appointmentId}/vitals`, { systolicMmHg: 150, diastolicMmHg: 95 });
+
+    const res = await A.get(`/${appointmentId}/vitals`);
+    expect(res.body.data.vitals).toHaveLength(2);
+    // Oldest first, so the one that mattered is still the one at the top.
+    expect(res.body.data.vitals[0].systolicMmHg).toBe(180);
+    expect(res.body.data.vitals[1].systolicMmHg).toBe(150);
+  });
+
+  it('corrects a mistyped value in place, without adding a reading', async () => {
+    const res = await A.put(`/${appointmentId}/vitals/${readingId}`, {
+      systolicMmHg: 120,
+      diastolicMmHg: 80,
+      pulseBpm: 96,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.systolicMmHg).toBe(120);
+    expect(res.body.data.id).toBe(readingId);
+
+    const list = await A.get(`/${appointmentId}/vitals`);
+    expect(list.body.data.vitals).toHaveLength(2);
+  });
+
+  /*
+   * ⚠️ A REPLACEMENT, NOT A MERGE. The form arrives populated, so a box left
+   *   empty means "not measured" — the same thing it means when the reading is
+   *   first taken. A merge would leave a wrongly-entered value unclearable.
+   */
+  it('clears a measurement the correction leaves out', async () => {
+    const res = await A.put(`/${appointmentId}/vitals/${readingId}`, {
+      systolicMmHg: 120,
+      diastolicMmHg: 80,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.pulseBpm).toBeNull();
+  });
+
+  /*
+   * ⚠️ THE VALUES, WHICH `audit_logs` DELIBERATELY CANNOT CARRY. A medical record
+   *   has to answer "who changed this blood pressure from 180 to 120, and when"
+   *   years later. The audit row says an amendment happened and which
+   *   measurements moved; this says what they were, from the clinical side.
+   */
+  /* Newest first: "what changed last?" is the question somebody opening a trail
+     has, and it is the same order the audit drawer uses. */
+  it('lists the newest correction first', async () => {
+    const res = await A.get(`/${appointmentId}/vitals/${readingId}/revisions`);
+    const times = (res.body.data.revisions as { supersededAt: string }[]).map((r) =>
+      Date.parse(r.supersededAt)
+    );
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+  });
+
+  it('keeps both values of every measurement that was corrected', async () => {
+    const res = await A.get(`/${appointmentId}/vitals/${readingId}/revisions`);
+
+    expect(res.status).toBe(200);
+    // Two corrections have been made above. NEWEST FIRST, so the one that fixed
+    // the blood pressure is the LAST entry, not the first.
+    expect(res.body.data.revisions).toHaveLength(2);
+
+    const first = res.body.data.revisions[1] as {
+      changes: { field: string; before: number | null; after: number | null }[];
+      supersededByName: string | null;
+      supersededAt: string;
+    };
+
+    expect(first.changes).toEqual(
+      expect.arrayContaining([
+        { field: 'systolicMmHg', before: 180, after: 120 },
+        { field: 'diastolicMmHg', before: 110, after: 80 },
+      ])
+    );
+    // Who corrected it, which is a different question from who took it.
+    expect(first.supersededByName).not.toBeNull();
+    expect(Date.parse(first.supersededAt)).not.toBeNaN();
+  });
+
+  /*
+   * ⚠️ A SUPERSEDED VERSION IS NOT AN OBSERVATION. It lives on the same table, so
+   *   a chart query that forgets `revision_of_id IS NULL` shows one blood
+   *   pressure once per time somebody fixed a typo in it — each copy looking
+   *   exactly like a repeat measurement.
+   */
+  it('keeps superseded versions off the chart', async () => {
+    const res = await A.get(`/${appointmentId}/vitals`);
+    // Still the two real readings, after two corrections to one of them.
+    expect(res.body.data.vitals).toHaveLength(2);
+  });
+
+  /* A cleared box is a real change, and the trail has to say so — otherwise a
+     measurement can be removed from a record with nothing recording it. */
+  it('reports a cleared measurement as a change to null', async () => {
+    const res = await A.get(`/${appointmentId}/vitals/${readingId}/revisions`);
+    const revisions = res.body.data.revisions as {
+      changes: { field: string; before: number | null; after: number | null }[];
+    }[];
+
+    // The second correction above dropped `pulseBpm` by leaving it out — and
+    // newest first means it is at the top.
+    const second = revisions[0];
+    expect(second?.changes).toEqual(
+      expect.arrayContaining([{ field: 'pulseBpm', before: 96, after: null }])
+    );
+  });
+
+  it("shows another clinic nothing of this reading's corrections", async () => {
+    const res = await B.get(`/${appointmentId}/vitals/${readingId}/revisions`);
+    expect(res.status).toBe(404);
+  });
+
+  it("refuses an id belonging to another visit's reading", async () => {
+    const other = await A.post('/', {
+      branchId: orgA.branchId,
+      patientId: patientA,
+      doctorProfileId: doctorA,
+      startsAt: '2027-03-22T03:30:00.000Z',
+    });
+    const otherId = other.body.data.id as string;
+
+    // The path says one appointment, the reading belongs to another.
+    const res = await A.put(`/${otherId}/vitals/${readingId}`, { pulseBpm: 70 });
+    expect(res.status).toBe(404);
+  });
+
+  it('shows another clinic nothing, and lets it correct nothing', async () => {
+    const res = await B.put(`/${appointmentId}/vitals/${readingId}`, { pulseBpm: 70 });
+    expect(res.status).toBe(404);
+  });
+
+  /*
+   * ⚠️ THE WHOLE POINT OF `snapshot()`. An audit trail is read by compliance
+   *   staff who have no business reading a patient's numbers, and an amendment
+   *   is where the naive implementation is most tempting — a before/after of the
+   *   VALUES is exactly what a diff wants to show. What the row may say is WHICH
+   *   measurements moved.
+   */
+  it('records which measurements changed and never what they were', async () => {
+    const rows = await owner.query<{
+      before_data: Record<string, unknown> | null;
+      after_data: Record<string, unknown> | null;
+    }>(
+      `SELECT before_data, after_data FROM audit_logs
+        WHERE organization_id = $1 AND entity_type = 'appointment_vital'`,
+      [orgA.organizationId]
+    );
+
+    /*
+     * ⚠️ AN ALLOW-LIST OF KEYS, NOT A GREP FOR THE NUMBERS. Searching the JSON
+     *   text for "120" would pass by luck and fail by luck — a uuid containing
+     *   those three digits is perfectly possible. This asserts the SHAPE: if a
+     *   measurement column ever reaches `snapshot()`, its key appears here and
+     *   this fails, whatever the value happened to be.
+     */
+    const ALLOWED = new Set([
+      'appointment_id',
+      'patient_id',
+      'recorded_at',
+      'observations',
+      'has_note',
+      'amended',
+    ]);
+
+    expect(rows.rowCount).toBeGreaterThan(0);
+    for (const row of rows.rows) {
+      for (const blob of [row.before_data, row.after_data]) {
+        if (blob === null) continue;
+        expect(Object.keys(blob).filter((key) => !ALLOWED.has(key))).toEqual([]);
+      }
+    }
+
+    const amended = await owner.query<{ after_data: { amended?: string[] } }>(
+      `SELECT after_data FROM audit_logs
+        WHERE organization_id = $1 AND entity_type = 'appointment_vital' AND action = 'UPDATE'
+        ORDER BY occurred_at ASC LIMIT 1`,
+      [orgA.organizationId]
+    );
+
+    // The names of what moved, so the trail can answer "the blood pressure on
+    // this visit was corrected, by whom, and when".
+    expect(amended.rows[0]?.after_data.amended).toEqual(
+      expect.arrayContaining(['systolic_mm_hg', 'diastolic_mm_hg'])
+    );
   });
 });
 

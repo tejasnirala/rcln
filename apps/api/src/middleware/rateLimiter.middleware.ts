@@ -18,9 +18,21 @@ const store = (prefix: string): RedisStore =>
       redis.call(...(args as [string, ...string[]])) as Promise<never>,
   });
 
+/**
+ * Every `max` in this file goes through here.
+ *
+ * The budgets below are sized for a person using a clinic, not for a developer
+ * hammering a screen through a hot reload. `RATE_LIMIT_RELAXED=true` scales all
+ * of them by the same factor rather than letting local development run without
+ * limiters at all — the code path stays identical, so a 429 you hit in staging
+ * is one you could have hit locally. The factor is pinned to 1 in production by
+ * config, and by tests/setup-env.ts in the suite, where the budgets are asserted.
+ */
+const budget = (max: number): number => max * config.rateLimit.relaxedFactor;
+
 export const generalLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.maxRequests,
+  max: budget(config.rateLimit.maxRequests),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:general:'),
@@ -32,7 +44,7 @@ export const generalLimiter = rateLimit({
 /** Auth endpoints are the ones worth brute-forcing, so they get their own budget. */
 export const authLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.authMaxRequests,
+  max: budget(config.rateLimit.authMaxRequests),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:auth:'),
@@ -50,7 +62,7 @@ export const authLimiter = rateLimit({
  */
 export const publicFormLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: budget(5),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:public-form:'),
@@ -66,7 +78,7 @@ export const publicFormLimiter = rateLimit({
  */
 export const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 3,
+  max: budget(3),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:registration:'),
@@ -86,7 +98,7 @@ export const registrationLimiter = rateLimit({
  */
 export const slugCheckLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 30,
+  max: budget(30),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:slug-check:'),
@@ -120,7 +132,7 @@ export const slugCheckLimiter = rateLimit({
  */
 export const identityLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: budget(10),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:identity:'),
@@ -157,7 +169,7 @@ export const identityLimiter = rateLimit({
  */
 export const inviteLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 30,
+  max: budget(30),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:invite:'),
@@ -192,7 +204,7 @@ export const inviteLimiter = rateLimit({
  */
 export const verificationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: budget(10),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:verification:'),
@@ -211,7 +223,7 @@ export const verificationLimiter = rateLimit({
  */
 export const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 3,
+  max: budget(3),
   standardHeaders: true,
   legacyHeaders: false,
   store: store('rl:otp:'),

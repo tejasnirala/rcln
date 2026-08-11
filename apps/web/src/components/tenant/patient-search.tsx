@@ -2,17 +2,34 @@
 
 import Link from 'next/link';
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
-import type { BranchDetail, PatientDuplicateMatch, PatientSummary } from '@rcln/contracts';
-import { Input, Select, type SelectOption } from '@/components/ui/field';
+import type { PatientDuplicateMatch, PatientSummary } from '@rcln/contracts';
+import { addressLabels, commonContactRelations, toE164 } from '@rcln/contracts';
+import { Field, Input, Select, describedBy, type SelectOption } from '@/components/ui/field';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Button } from '@/components/ui/button';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
+import { NationalIdInput } from '@/components/tenant/national-id-input';
+import { GENDERS, ageLine } from '@/lib/patient-words';
 import {
   checkForDuplicates,
+  lookupPostalCode,
   registerPatient,
   searchPatients,
   type PatientFormState,
   type SearchState,
 } from '@/app/(tenant)/t/[slug]/(app)/patients/actions';
+
+/**
+ * A branch, as much of one as a picker needs.
+ *
+ * ⚠️ DELIBERATELY NARROWER THAN `BranchDetail`. These screens only ever render a
+ *   name against an id, and the branches they are handed come from the SESSION.
+ *   `GET /branches` is behind `branch.read` — a permission the front desk does
+ *   not hold, because it opens the branch MANAGEMENT screen — and asking for the
+ *   fuller shape here is what forced that call and left this picker empty for
+ *   the very people who need it. See `branchesInScope` in lib/session.ts.
+ */
+export type BranchChoice = { id: string; name: string };
 
 const IDLE: PatientFormState = { status: 'idle' };
 
@@ -33,12 +50,25 @@ const EMPTY_SEARCH: SearchState = {
   total: 0,
 };
 
-const GENDERS: SelectOption[] = [
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'MALE', label: 'Male' },
-  { value: 'OTHER', label: 'Other' },
-  { value: 'UNKNOWN', label: 'Not recorded' },
-];
+/**
+ * The sentinel the relation select uses to reveal a free-text box.
+ *
+ * ⚠️ NEVER SUBMITTED. `patientContactRequest.relation` is deliberately free text
+ *   — a closed set of family relations is a cultural assumption, and "next
+ *   friend" or a care-home key worker are real answers a fixed list refuses. The
+ *   select is a shortcut for the four hundred times a day the answer is "Spouse",
+ *   not a constraint; picking this swaps in an input and that is what is sent.
+ */
+const OTHER_RELATION = '__OTHER__';
+
+/** What the duplicate banner should call the thing that matched. */
+function matchWord(matches: PatientDuplicateMatch[]): string {
+  const reasons = new Set(matches.flatMap((m) => m.matchedOn));
+  if (reasons.has('NATIONAL_ID')) return 'ID';
+  if (reasons.has('ABHA')) return 'ABHA number';
+  if (reasons.has('PHONE')) return 'phone number';
+  return 'name and date of birth';
+}
 
 const BLOOD_GROUPS: SelectOption[] = [
   { value: 'UNKNOWN', label: 'Not known' },
@@ -52,23 +82,41 @@ const BLOOD_GROUPS: SelectOption[] = [
   { value: 'AB_NEGATIVE', label: 'AB negative' },
 ];
 
-const GENDER_WORDS: Record<string, string> = {
-  FEMALE: 'Female',
-  MALE: 'Male',
-  OTHER: 'Other',
-  UNKNOWN: 'Sex not recorded',
-};
+/**
+ * Whole years between a date of birth and today.
+ *
+ * ⚠️ DISPLAY ONLY — NOTHING COMPUTED HERE IS EVER SUBMITTED. `patients` carries a
+ *   `patients_age_single_source` CHECK constraint and the contract refuses a date
+ *   of birth and an approximate age together, precisely so a stale stored age can
+ *   never be read instead of the date. Sending this back would be that bug with
+ *   an extra step. The API derives the same number on read (`ageFrom`).
+ *
+ * Returns null for an unparseable or future date rather than a negative age, so
+ * a half-typed year shows nothing instead of "-1980 years".
+ */
+function ageFromDob(value: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
 
-/** "34 · Female", or "approx. 60 · Male" when the age was estimated. */
-export function ageLine(patient: {
-  age: number | null;
-  ageIsApproximate: boolean;
-  gender: string;
-}): string {
-  const sex = GENDER_WORDS[patient.gender] ?? 'Sex not recorded';
-  if (patient.age === null) return sex;
-  return `${patient.ageIsApproximate ? 'approx. ' : ''}${String(patient.age)} · ${sex}`;
+  const born = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(born.getTime())) return null;
+
+  const now = new Date();
+  let years = now.getUTCFullYear() - born.getUTCFullYear();
+  const monthDelta = now.getUTCMonth() - born.getUTCMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < born.getUTCDate())) years -= 1;
+
+  return years < 0 || years > 130 ? null : years;
 }
+
+/** Plain words for the age line under the date field. */
+function ageLabel(years: number): string {
+  return years === 0 ? 'Under a year old' : `${String(years)} year${years === 1 ? '' : 's'} old`;
+}
+
+const RELATIONS: SelectOption[] = [
+  ...commonContactRelations.map((r) => ({ value: r, label: r })),
+  { value: OTHER_RELATION, label: 'Someone else…' },
+];
 
 /**
  * Patient lookup.
@@ -85,15 +133,34 @@ export function ageLine(patient: {
 export function PatientSearch({
   slug,
   branches,
+  countryCode,
   canCreate,
 }: {
   slug: string;
-  branches: BranchDetail[];
+  branches: BranchChoice[];
+  /** The clinic's country, off the session. Drives every format on the form. */
+  countryCode: string;
   canCreate: boolean;
 }) {
   const [state, action, pending] = useActionState(searchPatients.bind(null, slug), EMPTY_SEARCH);
   const [registering, setRegistering] = useState(false);
-  const closeRegister = useCallback(() => setRegistering(false), []);
+
+  /**
+   * The record just created, kept HERE rather than in the form.
+   *
+   * ⚠️ THE FORM UNMOUNTS ON SUCCESS, TAKING ITS OWN STATE WITH IT. That is why
+   *   registering somebody used to look like it had failed: the action returned
+   *   "Registered as P000001" and an id, the effect closed the panel, and the
+   *   screen fell back to "Nothing loaded yet" — which reads as *nothing
+   *   happened*. The outcome has to outlive the component that produced it, so
+   *   the parent holds it.
+   */
+  const [registered, setRegistered] = useState<{ patientId: string; message: string } | null>(null);
+
+  const closeRegister = useCallback((outcome?: { patientId: string; message: string }) => {
+    setRegistering(false);
+    if (outcome) setRegistered(outcome);
+  }, []);
 
   return (
     <>
@@ -107,7 +174,16 @@ export function PatientSearch({
           </p>
         </div>
         {canCreate && branches.length > 0 ? (
-          <Button onClick={() => setRegistering((open) => !open)} aria-expanded={registering}>
+          <Button
+            onClick={() => {
+              // Opening the form clears the last confirmation — it belongs to
+              // the person before this one, and leaving it up would have the
+              // screen congratulating the desk about the wrong patient.
+              setRegistered(null);
+              setRegistering((open) => !open);
+            }}
+            aria-expanded={registering}
+          >
             {registering ? 'Cancel' : 'Register a patient'}
           </Button>
         ) : null}
@@ -115,7 +191,36 @@ export function PatientSearch({
 
       {registering ? (
         <div className="border-drape bg-drape-tint/40 mt-6 rounded-lg border p-5">
-          <RegisterForm slug={slug} branches={branches} onDone={closeRegister} />
+          <RegisterForm
+            slug={slug}
+            branches={branches}
+            countryCode={countryCode}
+            onDone={closeRegister}
+          />
+        </div>
+      ) : null}
+
+      {/*
+       * ⚠️ THE UHID IS THE POINT OF THIS BANNER, not the reassurance. It is the
+       *   number that goes on the file cover and gets read back down a phone,
+       *   and the desk has no other way to learn it — the patient list is not
+       *   rendered until somebody searches (see `Results`), deliberately, so a
+       *   newly registered patient does not appear on their own.
+       *
+       * The name is NOT repeated here. It is already on the screen the desk just
+       *   typed it into, and this banner persists after the form is gone.
+       */}
+      {registered ? (
+        <div className="mt-6">
+          <Alert tone="info">
+            <span className="font-medium">{registered.message}.</span>{' '}
+            <Link
+              href={`/patients/${registered.patientId}`}
+              className="text-drape font-medium underline underline-offset-2"
+            >
+              Open the record
+            </Link>
+          </Alert>
         </div>
       ) : null}
 
@@ -126,7 +231,7 @@ export function PatientSearch({
         multiBranch={branches.length > 1}
       />
 
-      <Results state={state} slug={slug} pending={pending} />
+      <Results state={state} pending={pending} registered={registered !== null} />
     </>
   );
 }
@@ -144,20 +249,32 @@ function SearchForm({
 }) {
   return (
     <form action={action} className="border-rule bg-card mt-8 rounded-lg border p-5">
-      <div className="flex flex-wrap items-end gap-4">
+      {/*
+       * ⚠️ THE HINT IS OUTSIDE THE ROW, NOT ON THE FIELD, and that is what makes
+       *   the button line up. `Field` renders its hint INSIDE the field wrapper,
+       *   below the control — so with a hint the wrapper is a line taller than
+       *   the input, and `items-end` dutifully aligned the button to the bottom
+       *   of the hint instead of the bottom of the box. Moving the sentence out
+       *   makes the wrapper exactly as tall as its input again.
+       */}
+      <div className="flex flex-wrap items-end gap-3">
         <Input
           name="q"
           label="Find a patient"
           placeholder="Name, phone, P000123 or MRN000123"
           autoComplete="off"
+          type="search"
           fieldClassName="min-w-[16rem] flex-1"
-          hint="At least two characters."
           minLength={2}
+          aria-describedby="q-note"
         />
         <Button type="submit" disabled={pending}>
           {pending ? 'Searching…' : 'Search'}
         </Button>
       </div>
+      <p id="q-note" className="text-muted mt-1.5 text-[0.8125rem] leading-snug">
+        At least two characters.
+      </p>
 
       {/*
        * Widening the search past this clinic is a deliberate act with a plain
@@ -199,7 +316,16 @@ function SearchForm({
   );
 }
 
-function Results({ state, slug, pending }: { state: SearchState; slug: string; pending: boolean }) {
+function Results({
+  state,
+  pending,
+  registered,
+}: {
+  state: SearchState;
+  pending: boolean;
+  /** Something was just registered, and the banner above is already saying so. */
+  registered: boolean;
+}) {
   if (state.status === 'error') {
     return (
       <div className="mt-6">
@@ -209,6 +335,16 @@ function Results({ state, slug, pending }: { state: SearchState; slug: string; p
   }
 
   if (state.status === 'idle') {
+    /*
+     * ⚠️ SUPPRESSED RIGHT AFTER A REGISTRATION. "Search above, or register
+     *   someone new" directly under "Registered as P000001" reads as a denial
+     *   that anything happened — which is exactly how the successful
+     *   registration of a real patient got reported as a bug. The banner answers
+     *   "what just happened"; this panel answers "why is this list empty", and
+     *   only one of those questions is being asked at a time.
+     */
+    if (registered) return null;
+
     return (
       <div className="border-rule bg-card mt-6 rounded-lg border border-dashed p-8 text-center">
         <p className="text-ink text-[0.9375rem] font-medium">Nothing loaded yet</p>
@@ -243,7 +379,7 @@ function Results({ state, slug, pending }: { state: SearchState; slug: string; p
       <ul className="mt-3 grid gap-2">
         {state.patients.map((patient) => (
           <li key={patient.id}>
-            <ResultRow slug={slug} patient={patient} />
+            <ResultRow patient={patient} />
           </li>
         ))}
       </ul>
@@ -259,10 +395,17 @@ function Results({ state, slug, pending }: { state: SearchState; slug: string; p
  * reads back down the phone and what is written on a file cover. Name is the
  * heading; the identifiers are the index.
  */
-function ResultRow({ slug, patient }: { slug: string; patient: PatientSummary }) {
+/*
+ * ⚠️ NO `slug` PROP, AND NO `/t/<slug>` IN THE HREF. The proxy derives the
+ *   tenant from the Host header and rewrites `pmch.lvh.me/patients` to
+ *   `/t/pmch/patients` — so a link that already carries the prefix is rewritten
+ *   a second time, to `/t/pmch/t/pmch/patients/...`, and 404s. Relative links
+ *   also cannot leak across tenants: the host decides which clinic you are in.
+ */
+function ResultRow({ patient }: { patient: PatientSummary }) {
   return (
     <Link
-      href={`/t/${slug}/patients/${patient.id}`}
+      href={`/patients/${patient.id}`}
       className="border-rule bg-card hover:bg-drape-tint/30 focus-visible:outline-drape flex flex-wrap items-center justify-between gap-4 rounded-lg border px-5 py-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       <div className="min-w-0">
@@ -315,28 +458,105 @@ function ResultRow({ slug, patient }: { slug: string; patient: PatientSummary })
 function RegisterForm({
   slug,
   branches,
+  countryCode,
   onDone,
 }: {
   slug: string;
-  branches: BranchDetail[];
-  onDone: () => void;
+  branches: BranchChoice[];
+  /** The clinic's country. Decides address labels, ID types and dialling code. */
+  countryCode: string;
+  /**
+   * Called once the panel should close. The outcome is handed UP rather than
+   * rendered here, because this component is about to unmount — see the note on
+   * `registered` in PatientSearch.
+   */
+  onDone: (outcome?: { patientId: string; message: string }) => void;
 }) {
   const [state, action, pending] = useActionState(registerPatient.bind(null, slug), IDLE);
   const [matches, setMatches] = useState<PatientDuplicateMatch[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
   useOutcomeFocus(state.status, formRef);
 
-  useEffect(() => {
-    if (state.status === 'saved') onDone();
-  }, [state.status, onDone]);
+  const labels = addressLabels(countryCode);
 
+  /*
+   * The date of birth is held in state only so the age can be shown beside it.
+   * It is submitted as itself, and the age is never submitted at all — see
+   * `ageFromDob`.
+   */
+  const [dob, setDob] = useState('');
+  const age = ageFromDob(dob);
+
+  const [city, setCity] = useState('');
+  const [region, setRegion] = useState('');
+  const [postcode, setPostcode] = useState('');
+  const [lookingUp, setLookingUp] = useState(false);
+
+  const [phoneCountry, setPhoneCountry] = useState(countryCode);
+  const [phone, setPhone] = useState('');
+  const [contactCountry, setContactCountry] = useState(countryCode);
+  const [contactPhone, setContactPhone] = useState('');
+
+  const [relation, setRelation] = useState('');
+
+  /**
+   * Fill the city and region from the postcode, on leaving the field.
+   *
+   * ⚠️ FILLS ONLY WHAT IS STILL EMPTY, AND NEVER BLOCKS. A desk that has already
+   *   typed the city knows something the lookup does not — the patient's village
+   *   rather than the district's post town — and overwriting it would be the
+   *   form arguing with the person holding the address. A null answer (no data
+   *   for that country, a timeout, a 404) is ordinary and silent.
+   */
+  const fillFromPostcode = useCallback(
+    async (value: string) => {
+      if (value.trim() === '') return;
+
+      setLookingUp(true);
+      try {
+        const found = await lookupPostalCode(countryCode, value);
+        if (!found) return;
+        setCity((current) => (current.trim() === '' ? (found.city ?? '') : current));
+        setRegion((current) => (current.trim() === '' ? (found.region ?? '') : current));
+      } finally {
+        setLookingUp(false);
+      }
+    },
+    [countryCode]
+  );
+
+  useEffect(() => {
+    if (state.status !== 'saved') return;
+    onDone(
+      state.patientId !== undefined
+        ? { patientId: state.patientId, message: state.message ?? 'Patient registered' }
+        : undefined
+    );
+  }, [state.status, state.patientId, state.message, onDone]);
+
+  /**
+   * Ask whether this person is already here, on leaving a field that could say.
+   *
+   * ⚠️ THE ID AND THE ABHA ARE NOT ADVISORY LIKE THE PHONE IS. Two siblings can
+   *   share a phone number, so a phone match is a question. `national_id` and
+   *   `abha_number` each carry a partial unique index, so a match there means
+   *   the registration is going to be REFUSED — probing on blur is what lets the
+   *   desk find the existing record now rather than after filling in the rest of
+   *   the form and being told a number is taken.
+   *
+   * Accumulating rather than replacing would be wrong: each probe is a fresh
+   * question about the field just left, and stale matches from a phone the desk
+   * has since corrected would keep accusing them of a duplicate.
+   */
   const probe = useCallback(
-    async (phone: string) => {
-      if (phone.trim().length < 6) {
+    async (field: 'phone' | 'nationalId' | 'abhaNumber', value: string) => {
+      const trimmed = value.trim();
+      // Below this nothing is specific enough to be worth a logged read.
+      if (trimmed.length < 6) {
         setMatches([]);
         return;
       }
-      setMatches(await checkForDuplicates(slug, { phone: phone.trim() }));
+      setMatches(await checkForDuplicates(slug, { [field]: trimmed }));
     },
     [slug]
   );
@@ -357,16 +577,25 @@ function RegisterForm({
         <Alert tone="error">
           <span className="font-medium">
             {matches.length === 1
-              ? 'Someone with this phone number is already registered.'
-              : `${String(matches.length)} people with this phone number are already registered.`}
+              ? `Someone with this ${matchWord(matches)} is already registered.`
+              : `${String(matches.length)} people with this ${matchWord(matches)} are already registered.`}
           </span>{' '}
-          Open the existing record instead of making a second one — a new record starts with an
-          empty allergy list.
+          {/*
+           * ⚠️ THE ADVICE DIFFERS BY WHAT MATCHED, because the consequence does.
+           *   A phone match is a question — two siblings share a number — and the
+           *   desk may legitimately carry on. An ID or ABHA match is not: both
+           *   columns are uniquely indexed, so registering will be REFUSED, and
+           *   telling somebody to "consider" opening the existing record would
+           *   send them to fill in the rest of a form that cannot be submitted.
+           */}
+          {matches.some((m) => m.matchedOn.includes('NATIONAL_ID') || m.matchedOn.includes('ABHA'))
+            ? 'That identifier belongs to one record only, so this registration will be refused. Open the existing record.'
+            : 'Open the existing record instead of making a second one — a new record starts with an empty allergy list.'}
           <ul className="mt-2 grid gap-1">
             {matches.map((match) => (
               <li key={match.id}>
                 <Link
-                  href={`/t/${slug}/patients/${match.id}`}
+                  href={`/patients/${match.id}`}
                   className="text-drape font-medium underline underline-offset-2"
                 >
                   {match.fullName}
@@ -394,15 +623,40 @@ function RegisterForm({
         />
         <Input name="lastName" label="Last name" autoComplete="off" />
 
-        <Input
+        {/*
+         * ⚠️ ONE CONTROL, NOT TWO FIELDS, and the calling code IS selectable
+         *   here — unlike the clinic's own reception number, which is fixed to
+         *   the clinic's country. A patient may be a visitor, and a front desk
+         *   that cannot enter a foreign mobile writes it into the notes instead.
+         *   Submits E.164 from a hidden input; see PhoneInput.
+         */}
+        <Field
           name="phone"
           label="Phone"
-          type="tel"
-          autoComplete="off"
           hint="Checked against existing records as you leave the field."
-          onBlur={(event) => void probe(event.currentTarget.value)}
           {...(state.fieldErrors?.['phone'] ? { errors: state.fieldErrors['phone'] } : {})}
-        />
+        >
+          {/*
+           * `onBlur` on the wrapper, because React's onBlur bubbles (it is
+           * focusout underneath) and PhoneInput exposes no blur of its own. The
+           * value probed is composed from STATE, not read off the DOM — the
+           * visible box holds national digits, and what has to be matched is the
+           * E.164 the form will submit and the column now stores.
+           */}
+          <div onBlur={() => void probe('phone', phone === '' ? '' : toE164(phoneCountry, phone))}>
+            <PhoneInput
+              id="phone"
+              name="phone"
+              countryCode={phoneCountry}
+              national={phone}
+              onCountryChange={setPhoneCountry}
+              onNationalChange={setPhone}
+              autoComplete="off"
+              invalid={Boolean(state.fieldErrors?.['phone'])}
+              describedBy={describedBy('phone', true, Boolean(state.fieldErrors?.['phone']))}
+            />
+          </div>
+        </Field>
         <Select
           name="branchId"
           label="Registering at"
@@ -415,28 +669,44 @@ function RegisterForm({
           name="dateOfBirth"
           label="Date of birth"
           type="date"
+          value={dob}
+          onChange={(event) => setDob(event.target.value)}
+          // Nobody is born tomorrow. Stops a typo becoming a negative age.
+          max={new Date().toISOString().slice(0, 10)}
+          {...(age !== null ? { hint: ageLabel(age) } : {})}
           {...(state.fieldErrors?.['dateOfBirth']
             ? { errors: state.fieldErrors['dateOfBirth'] }
             : {})}
         />
         {/*
-         * Both age fields on the form, and the contract refuses both filled.
-         * Offering only the date would push the desk into inventing one for the
-         * patient who knows they are "about 60" — and an invented birthday is
-         * the number a paediatric dose gets calculated from.
+         * ⚠️ THE APPROXIMATE AGE DISAPPEARS ONCE A DATE OF BIRTH IS ENTERED, and
+         *   it is UNMOUNTED rather than disabled — an unmounted input submits
+         *   nothing, and the contract refuses a date and an age together
+         *   (mirroring the `patients_age_single_source` CHECK). Disabling would
+         *   look the same on screen and still leave the pair to be rejected on
+         *   whichever browser ignores it.
+         *
+         *   Both fields exist because offering only the date pushes the desk into
+         *   inventing one for the patient who knows they are "about 60" — and an
+         *   invented birthday is what a paediatric dose gets calculated from. The
+         *   age beside the date field above is computed, never stored.
          */}
-        <Input
-          name="approxAgeYears"
-          label="…or age in years"
-          type="number"
-          inputMode="numeric"
-          min={0}
-          max={130}
-          hint="Only if the date of birth is not known."
-          {...(state.fieldErrors?.['approxAgeYears']
-            ? { errors: state.fieldErrors['approxAgeYears'] }
-            : {})}
-        />
+        {dob === '' ? (
+          <Input
+            name="approxAgeYears"
+            label="…or age in years"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={130}
+            hint="Only if the date of birth is not known."
+            {...(state.fieldErrors?.['approxAgeYears']
+              ? { errors: state.fieldErrors['approxAgeYears'] }
+              : {})}
+          />
+        ) : (
+          <div aria-hidden="true" />
+        )}
 
         <Select name="gender" label="Sex" options={GENDERS} defaultValue="UNKNOWN" />
         <Select
@@ -446,29 +716,130 @@ function RegisterForm({
           defaultValue="UNKNOWN"
         />
 
-        <Input name="line1" label="Address" autoComplete="off" fieldClassName="sm:col-span-2" />
-        <Input name="city" label="City" autoComplete="off" />
-        <Input name="pincode" label="PIN code" inputMode="numeric" autoComplete="off" />
+        {/*
+         * The country is the clinic's and is not asked for — it is what decides
+         * the labels, the postcode lookup and the ID list. Carried on a hidden
+         * input because the contract validates the ID against it.
+         */}
+        <input type="hidden" name="countryCode" value={countryCode} />
+
+        <Input
+          name="line1"
+          label={labels.addressLine1}
+          autoComplete="off"
+          fieldClassName="sm:col-span-2"
+        />
+
+        {/*
+         * ⚠️ THE POSTCODE COMES FIRST, ABOVE THE FIELDS IT FILLS. Reading order
+         *   is the instruction: type this and the two below answer themselves.
+         *   Under them it would read as an afterthought and be typed last, when
+         *   the desk has already filled in what it would have populated.
+         */}
+        <Input
+          name="pincode"
+          label={labels.postalCode}
+          value={postcode}
+          onChange={(event) => setPostcode(event.target.value)}
+          onBlur={(event) => void fillFromPostcode(event.target.value)}
+          inputMode="numeric"
+          autoComplete="off"
+          hint={lookingUp ? 'Looking it up…' : `Fills in the ${labels.city.toLowerCase()} below.`}
+        />
+        <Input
+          name="city"
+          label={labels.city}
+          value={city}
+          onChange={(event) => setCity(event.target.value)}
+          autoComplete="off"
+        />
+        {/*
+         * Only where the country has a second level to ask for — Singapore and
+         * the UAE do not, and an empty "State" box in a city-state is a question
+         * with no answer.
+         */}
+        {labels.region !== null ? (
+          <Input
+            name="state"
+            label={labels.region}
+            value={region}
+            onChange={(event) => setRegion(event.target.value)}
+            autoComplete="off"
+          />
+        ) : null}
 
         <Input
           name="abhaNumber"
           label="ABHA number"
           autoComplete="off"
           className="font-mono"
-          hint="14 digits, or an address like someone@abdm."
+          hint="14 digits, or an address like someone@abdm. One per person."
+          onBlur={(event) => void probe('abhaNumber', event.currentTarget.value)}
           {...(state.fieldErrors?.['abhaNumber']
             ? { errors: state.fieldErrors['abhaNumber'] }
             : {})}
         />
-        <Input name="nationalId" label="ID produced" autoComplete="off" hint="Aadhaar, passport." />
+        <NationalIdInput
+          countryCode={countryCode}
+          typeName="nationalIdType"
+          valueName="nationalId"
+          onSettled={(value) => void probe('nationalId', value)}
+          {...(state.fieldErrors?.['nationalId']
+            ? { errors: state.fieldErrors['nationalId'] }
+            : {})}
+        />
       </div>
 
       <fieldset className="border-rule border-t pt-4">
         <legend className="eyebrow text-drape">Who to ring</legend>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <Input name="contactName" label="Name" autoComplete="off" />
-          <Input name="contactRelation" label="Relation" autoComplete="off" placeholder="Spouse" />
-          <Input name="contactPhone" label="Phone" type="tel" autoComplete="off" />
+
+          {/*
+           * A shortcut, not a constraint — see OTHER_RELATION. The select
+           * submits under `contactRelation`; choosing "Someone else…" swaps in a
+           * text input under the same name, so the action reads one field either
+           * way.
+           */}
+          {relation === OTHER_RELATION ? (
+            <Input
+              name="contactRelation"
+              label="Relation"
+              autoComplete="off"
+              autoFocus
+              hint="Type it as the patient would say it."
+              action={
+                <button
+                  type="button"
+                  className="text-muted hover:text-drape text-[0.75rem] underline underline-offset-2"
+                  onClick={() => setRelation('')}
+                >
+                  Pick from the list
+                </button>
+              }
+            />
+          ) : (
+            <Select
+              name="contactRelation"
+              label="Relation"
+              value={relation}
+              onChange={(event) => setRelation(event.target.value)}
+              placeholder="Not said"
+              options={RELATIONS}
+            />
+          )}
+
+          <Field name="contactPhone" label="Phone">
+            <PhoneInput
+              id="contactPhone"
+              name="contactPhone"
+              countryCode={contactCountry}
+              national={contactPhone}
+              onCountryChange={setContactCountry}
+              onNationalChange={setContactPhone}
+              autoComplete="off"
+            />
+          </Field>
         </div>
       </fieldset>
 

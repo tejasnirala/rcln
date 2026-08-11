@@ -24,6 +24,13 @@ COPY packages/db/package.json          packages/db/
 COPY packages/contracts/package.json   packages/contracts/
 COPY packages/permissions/package.json packages/permissions/
 COPY packages/config/package.json      packages/config/
+COPY packages/documents/package.json   packages/documents/
+COPY packages/queue/package.json       packages/queue/
+COPY packages/storage/package.json     packages/storage/
+COPY packages/payments/package.json    packages/payments/
+COPY packages/billing/package.json     packages/billing/
+COPY packages/tax/package.json         packages/tax/
+COPY packages/invoicing/package.json   packages/invoicing/
 RUN pnpm install --frozen-lockfile
 
 # -----------------------------------------------------------------------------
@@ -34,7 +41,10 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm install --frozen-lockfile --offline \
  && pnpm --filter @rcln/db run generate \
- && pnpm --filter @rcln/permissions --filter @rcln/contracts --filter @rcln/db run build \
+ && pnpm --filter @rcln/permissions --filter @rcln/contracts --filter @rcln/db \
+      --filter @rcln/payments --filter @rcln/tax --filter @rcln/invoicing \
+      --filter @rcln/storage --filter @rcln/queue --filter @rcln/documents \
+      --filter @rcln/billing run build \
  && pnpm --filter @rcln/worker run build \
  && pnpm --filter @rcln/worker --prod --legacy deploy /pruned
 
@@ -44,8 +54,16 @@ RUN pnpm install --frozen-lockfile --offline \
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache libc6-compat \
+
+# ⚠️ CHROMIUM IS IN THE WORKER IMAGE AND IN NEITHER OF THE OTHER TWO. It is here
+#   because this is the process that renders invoice PDFs, and it is NOT in the
+#   api image because that container serves requests under a memory cap — see
+#   apps/worker/src/documents/browser.ts. It is the distribution's build, not one
+#   Playwright downloaded: Playwright's is glibc and this base is musl, so its
+#   binary installs fine and then cannot start.
+RUN apk add --no-cache libc6-compat chromium nss freetype harfbuzz ttf-freefont \
  && addgroup -g 1001 -S nodejs && adduser -S rcln -u 1001
+ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
 # `pnpm deploy` flattens the workspace into a self-contained tree with only the
 # production dependencies this app actually reaches.

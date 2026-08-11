@@ -20,7 +20,7 @@ export const registerOrganizationRequest = z
       /**
        * The clinic's tax registration number, WHATEVER THIS COUNTRY CALLS IT.
        *
-       * ⚠️ THE COLUMN IS NAMED `gstNumber` AND THE VALUE IS OFTEN NOT A GSTIN.
+       * ⚠️ THE COLUMN IS NAMED `taxId` AND THE VALUE IS OFTEN NOT A GSTIN.
        *   It holds an Irish VAT number, a UAE TRN or an Australian ABN just as
        *   readily. The name is India-first history and renaming it is a migration
        *   across every screen that reads it; the format check is what actually
@@ -29,8 +29,16 @@ export const registerOrganizationRequest = z
        *
        * The shape is checked against `countryCode` in the root superRefine below
        * — it cannot be done here, because a field cannot see its siblings.
+       *
+       * ⚠️ GIVING IT HERE CREATES THE CLINIC'S FIRST TAX REGISTRATION, not just a
+       *   column value. Registration is the only moment the number, the country
+       *   and the region arrive together, which is exactly what a registration
+       *   record needs — so `register.service` writes an `issuer_tax_registrations`
+       *   row with the scheme the country uses, effective from today, covering the
+       *   first branch. Leaving it out is the clinic that is not registered, which
+       *   is a legitimate answer and stays a legitimate answer.
        */
-      gstNumber: z.string().trim().min(2).max(32).optional(),
+      taxId: z.string().trim().min(2).max(32).optional(),
       /**
        * Where the clinic is. ISO 3166-1 alpha-2.
        *
@@ -121,11 +129,11 @@ export const registerOrganizationRequest = z
       });
     }
 
-    if (!isValidTaxId(country, value.organization.gstNumber)) {
+    if (!isValidTaxId(country, value.organization.taxId)) {
       const format = taxIdFormatFor(country);
       ctx.addIssue({
         code: 'custom',
-        path: ['organization', 'gstNumber'],
+        path: ['organization', 'taxId'],
         message: format
           ? `does not look like a valid ${format.label}, e.g. ${format.example}`
           : 'invalid tax registration number',
@@ -133,6 +141,24 @@ export const registerOrganizationRequest = z
     }
   });
 
+/**
+ * A place the organization operates. NOT a tax registration.
+ *
+ * ⚠️ THERE IS NO `taxId` HERE ANY MORE, AND ITS ABSENCE IS THE POINT. The column
+ *   still exists and is documented as dead: a branch cannot hold a registration,
+ *   because a registration has a scheme, a jurisdiction and an effective date and
+ *   a 20-character string on a branch row has none of them. What a branch bills
+ *   under is stated in `issuer_tax_registration_branches` — one registration may
+ *   cover many branches, and a branch is not automatically a registration.
+ *
+ * ⚠️ `countryCode` AND `regionCode`, ON THE OTHER HAND, ARE NEW AND LOAD-BEARING.
+ *   They are the branch's TAX JURISDICTION — a different fact from `state`, which
+ *   is free text for an address label — and they were previously unsettable
+ *   through the API at all, so every branch took the column default `IN`
+ *   regardless of where its organization was. Both default from the organization
+ *   when omitted, which is right for the single-country clinic and correctable
+ *   for the group that opens abroad or in a second state.
+ */
 export const createBranchRequest = z.object({
   name: z.string().min(2).max(255),
   code: z.string().min(1).max(32),
@@ -143,12 +169,33 @@ export const createBranchRequest = z.object({
   addressLine2: z.string().max(255).optional(),
   city: z.string().max(100).optional(),
   state: z.string().max(100).optional(),
-  pincode: z
+  /**
+   * The postcode. Six digits in India, four in Australia, `D02 AF30` in Ireland,
+   * and nothing at all in the UAE — so the shape is checked against the branch's
+   * effective country in the service, where the organization's default is finally
+   * known. A hard `^\d{6}$` here made a non-Indian branch unsaveable.
+   */
+  pincode: z.string().trim().max(16).optional(),
+  countryCode: z
     .string()
-    .regex(/^\d{6}$/)
+    .length(2)
+    .regex(/^[A-Za-z]{2}$/, 'two letters, like IN or IE')
+    .transform((value) => value.toUpperCase())
     .optional(),
-  gstNumber: z.string().max(20).optional(),
-  timezone: z.string().default('Asia/Kolkata'),
+  /** ISO 3166-2 subdivision without the country prefix — `KA`, never `IN-KA`. */
+  regionCode: z
+    .string()
+    .max(10)
+    .regex(/^[A-Za-z0-9-]*$/, 'letters, digits and hyphens only')
+    .transform((value) => (value ? value.toUpperCase() : null))
+    .optional()
+    .nullable(),
+  /**
+   * Defaulted in the service from the organization rather than here, for the
+   * same reason as the country: a literal `Asia/Kolkata` default made every
+   * branch of an Irish clinic render its appointment times in IST.
+   */
+  timezone: z.string().optional(),
 });
 
 export const updateBranchRequest = createBranchRequest.partial().extend({
@@ -434,9 +481,17 @@ export const memberStatusRequest = z.object({
  *   the invoice at the moment it is raised, precisely so this edit cannot
  *   rewrite history.
  *
- * Every field is optional (a PATCH), and `gstNumber` is additionally nullable —
- * a clinic below the registration threshold clearing a number it entered by
- * mistake has to be distinguishable from not mentioning it.
+ * ⚠️ `taxId` IS ABSENT, AND REMOVING IT IS THE WHOLE DE-DUPLICATION.
+ *   The clinic's tax number is a property of a TAX REGISTRATION — which also
+ *   carries the scheme, the jurisdiction, the registered legal name and the dates
+ *   it was in force, none of which a bare string on the organization can hold.
+ *   Maintaining a second copy here meant a clinic could show one GSTIN on its
+ *   settings screen and print a different one on every invoice, forever, with
+ *   nothing to reconcile them. `organizations.tax_id` is now derived from the
+ *   registration that currently applies and is returned for display only;
+ *   `POST /tax/registrations` is where it is actually set.
+ *
+ * Every field is optional — this is a PATCH.
  */
 export const updateOrganizationRequest = z.object({
   countryCode: z
@@ -452,20 +507,18 @@ export const updateOrganizationRequest = z.object({
     .transform((value) => (value ? value.toUpperCase() : null))
     .optional()
     .nullable(),
+  /**
+   * The name the business is registered under — an ORGANIZATION fact, and not
+   * the same fact as a registration's `legalName`.
+   *
+   * ⚠️ THREE NAMES, THREE CONCEPTS, AND THEY MAY ALL READ THE SAME. This one is
+   *   how the company is constituted; `displayName` is what a patient sees over
+   *   the door; a registration's `legalName` is the name THAT REGISTRATION is
+   *   held in, which a tax invoice must print verbatim and which can differ from
+   *   both. Two of them agreeing today is not evidence that they are one field.
+   */
   legalName: z.string().min(2).max(255).optional(),
   displayName: z.string().min(2).max(255).optional(),
-  /**
-   * The tax registration number, and NOT necessarily a GSTIN — see the note on
-   * the same field in `registerOrganizationRequest`.
-   *
-   * Deliberately shape-agnostic here, unlike registration. A PATCH may change
-   * `countryCode` and `gstNumber` in the same request or in either order, so
-   * there is no one country to check against that is not already stale; the
-   * India-only regex that used to be here meant a clinic that registered in
-   * Ireland could never save its VAT number from settings. The country-aware
-   * check runs at registration, where the country arrives with the number.
-   */
-  gstNumber: z.string().trim().min(2).max(32).nullable().optional(),
   timezone: timezone.optional(),
   currency: currencyCode.optional(),
 });
@@ -535,9 +588,16 @@ export const branchDetail = z.object({
   addressLine1: z.string().nullable(),
   addressLine2: z.string().nullable(),
   city: z.string().nullable(),
+  /** Free text, for the address label. `regionCode` is the tax jurisdiction. */
   state: z.string().nullable(),
   pincode: z.string().nullable(),
-  gstNumber: z.string().nullable(),
+  /**
+   * The branch's TAX JURISDICTION, which is a different fact from its address
+   * even when the two agree. It selects the registration for a branch that has
+   * no stated coverage, and it is the place of supply for the RATE either way.
+   */
+  countryCode: z.string(),
+  regionCode: z.string().nullable(),
   operatingHours: z.array(operatingHour),
 });
 
@@ -730,9 +790,46 @@ export const organizationProfile = z.object({
   displayName: z.string(),
   orgType: z.enum(['CLINIC', 'HOSPITAL', 'CHAIN', 'LAB']),
   status: z.enum(['PENDING', 'ACTIVE', 'SUSPENDED', 'CANCELLED']),
-  gstNumber: z.string().nullable(),
+  /**
+   * READ-ONLY, AND A REFLECTION OF `taxRegistrations` RATHER THAN A FIELD.
+   *
+   * It is the number of the registration that currently applies to the
+   * organization as a whole, kept in step by the tax service. Still returned
+   * because the subscription side genuinely needs one number for this clinic as
+   * rcln's CUSTOMER — but no longer writable, because the moment two screens can
+   * both set it they can disagree.
+   */
+  taxId: z.string().nullable(),
+  /**
+   * Every registration this organization holds, current and historical.
+   *
+   * ⚠️ AN ARRAY, AND IT MAY BE EMPTY. Zero registrations is a clinic below the
+   *   registration threshold, one is the common case, and several is a group
+   *   registered in more than one jurisdiction, or under more than one scheme, or
+   *   holding the one it replaced. The settings screen displays these; it does not
+   *   own them.
+   */
+  taxRegistrations: z.array(
+    z.object({
+      id: uuid,
+      scheme: z.enum(['GST', 'VAT', 'SALES_TAX']),
+      registrationNumber: z.string(),
+      /** `IN-KA` or `IN`. */
+      placeOfSupply: z.string(),
+      /** The name THIS REGISTRATION is held in, not the organization's. */
+      legalName: z.string().nullable(),
+      status: z.enum(['SCHEDULED', 'ACTIVE', 'LAPSED']),
+      effectiveFrom: z.string(),
+      effectiveTo: z.string().nullable(),
+    })
+  ),
   timezone: z.string(),
   currency: z.string(),
+  /**
+   * The organization's own country and region — where the business sits, which
+   * decides the tax on its SUBSCRIPTION. Not the same fact as a branch's
+   * jurisdiction, and not the same fact as a registration's.
+   */
   countryCode: z.string(),
   regionCode: z.string().nullable(),
   onboardedAt: z.iso.datetime().nullable(),

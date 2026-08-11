@@ -10,6 +10,9 @@ const config: Config = {
     // ESM source uses .js specifiers that point at .ts files.
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
+  // Pins RATE_LIMIT_RELAXED off before config reads the environment; the
+  // rate-limit cases in auth.test.ts assert the budgets as written.
+  setupFiles: ['<rootDir>/tests/setup-env.ts'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { useESM: true, tsconfig: { verbatimModuleSyntax: false } }],
   },

@@ -7,6 +7,8 @@ import {
   type PermissionOverride,
   type RoleAssignment,
 } from '@rcln/permissions';
+import { toTimeFormat, type TimeFormat } from '@rcln/contracts';
+import { resolveSettingForBranches } from '../settings/resolver.service.js';
 import { redis } from '../../utils/redis.js';
 import { logger } from '../../utils/logger.js';
 
@@ -293,8 +295,20 @@ export interface MembershipSummaryRow {
   organizationId: string;
   organizationName: string;
   organizationSlug: string;
+  /** The clinic's country. Drives address, ID and phone formats on every form. */
+  countryCode: string;
   roles: string[];
-  branches: { id: string; name: string; code: string; city: string | null; isPrimary: boolean }[];
+  branches: {
+    id: string;
+    name: string;
+    code: string;
+    city: string | null;
+    isPrimary: boolean;
+    /** For the screens that render a clock. See the contract for why it is here. */
+    timezone: string;
+    /** The clock FACE, `12H` or `24H`. The other half of the same question. */
+    timeFormat: TimeFormat;
+  }[];
 }
 
 export async function listMemberships(userId: string): Promise<MembershipSummaryRow[]> {
@@ -302,7 +316,15 @@ export async function listMemberships(userId: string): Promise<MembershipSummary
     tx.membership.findMany({
       where: { userId, status: 'ACTIVE', deletedAt: null },
       select: {
-        organization: { select: { id: true, displayName: true, slug: true, deletedAt: true } },
+        organization: {
+          select: {
+            id: true,
+            displayName: true,
+            slug: true,
+            countryCode: true,
+            deletedAt: true,
+          },
+        },
       },
     })
   );
@@ -318,18 +340,46 @@ export async function listMemberships(userId: string): Promise<MembershipSummary
 
     const branches = await withTenant(
       { organizationId: org.id, branchIds: access.branchIds, userId },
-      async (tx) =>
-        tx.branch.findMany({
+      async (tx) => {
+        const rows = await tx.branch.findMany({
           where: { id: { in: access.branchIds }, status: 'ACTIVE', deletedAt: null },
-          select: { id: true, name: true, code: true, city: true, isPrimary: true },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            city: true,
+            isPrimary: true,
+            timezone: true,
+          },
           orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
-        })
+        });
+
+        /*
+         * ⚠️ ONE QUERY FOR EVERY BRANCH, NOT ONE PER BRANCH. This runs on every
+         *   render of every page — `getSession` is memoised per request, but a
+         *   request is one page — so an N+1 here is an N+1 on the hottest path
+         *   in the product. `resolveSettingForBranches` exists for that.
+         *
+         * ⚠️ THE IDS COME FROM `rows`, WHICH WAS READ UNDER RLS. `setting_values`
+         *   is RLS-EXEMPT: it is keyed by (scope_type, scope_id) with no
+         *   organization_id, so a branch id from anywhere else would read another
+         *   clinic's configuration and nothing in Postgres would object. See the
+         *   header of resolver.service.ts.
+         */
+        const formats = await resolveSettingForBranches(tx, 'locale.time_format', {
+          organizationId: org.id,
+          branchIds: rows.map((b) => b.id),
+        });
+
+        return rows.map((b) => ({ ...b, timeFormat: toTimeFormat(formats.get(b.id)) }));
+      }
     );
 
     summaries.push({
       organizationId: org.id,
       organizationName: org.displayName,
       organizationSlug: org.slug,
+      countryCode: org.countryCode,
       roles: [...new Set(access.roleAssignments.map((a) => a.roleCode))].sort(),
       branches,
     });

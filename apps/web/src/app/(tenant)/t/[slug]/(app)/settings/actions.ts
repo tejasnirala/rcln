@@ -33,10 +33,13 @@ export async function saveOrganization(
   _previous: SettingsFormState,
   formData: FormData
 ): Promise<SettingsFormState> {
-  const gstNumber = String(formData.get('gstNumber') ?? '')
-    .trim()
-    .toUpperCase();
-
+  /*
+   * ⚠️ NO `taxId` HERE ANY MORE. The clinic's tax number belongs to a tax
+   *   registration — which also knows the scheme, the jurisdiction and the dates
+   *   it was in force — and this form used to keep a second copy of it that could
+   *   drift from the one every invoice printed. The settings screen now displays
+   *   the registrations and links to where they are managed.
+   */
   const parsed = updateOrganizationRequest.safeParse({
     legalName: String(formData.get('legalName') ?? '').trim(),
     displayName: String(formData.get('displayName') ?? '').trim(),
@@ -44,14 +47,11 @@ export async function saveOrganization(
     /*
      * Blank is meaningful: it clears the state back to "not set", which falls
      * the clinic to IGST. Sent as an empty string so the contract's transform
-     * turns it into null, the same way `gstNumber` is cleared below.
+     * turns it into null.
      */
     regionCode: String(formData.get('regionCode') ?? '').trim(),
     timezone: String(formData.get('timezone') ?? '').trim(),
     currency: String(formData.get('currency') ?? '').trim(),
-    // An empty box is an instruction to clear it. The contract makes this field
-    // nullable for exactly that, and null survives the PATCH's absent-key filter.
-    gstNumber: gstNumber === '' ? null : gstNumber,
   });
 
   if (!parsed.success) {

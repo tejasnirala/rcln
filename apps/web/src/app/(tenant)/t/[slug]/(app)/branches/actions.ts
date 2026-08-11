@@ -54,7 +54,16 @@ export async function createBranch(
       .trim()
       .toUpperCase(),
     branchType: formData.get('branchType') ?? 'CLINIC',
-    timezone: formData.get('timezone') ?? 'Asia/Kolkata',
+    /*
+     * ⚠️ OMITTED RATHER THAN DEFAULTED, ALL THREE. Country, region and time zone
+     *   now fall back to the ORGANIZATION's when the form does not send them —
+     *   sending a literal `Asia/Kolkata` from here, as this action used to, is
+     *   what made every branch of a non-Indian clinic Indian for tax and IST for
+     *   appointment times.
+     */
+    ...(text(formData, 'timezone') ? { timezone: text(formData, 'timezone') } : {}),
+    ...(text(formData, 'countryCode') ? { countryCode: text(formData, 'countryCode') } : {}),
+    ...(text(formData, 'regionCode') ? { regionCode: text(formData, 'regionCode') } : {}),
     ...(text(formData, 'phone') ? { phone: text(formData, 'phone') } : {}),
     ...(text(formData, 'email') ? { email: text(formData, 'email') } : {}),
     ...(text(formData, 'addressLine1') ? { addressLine1: text(formData, 'addressLine1') } : {}),
@@ -106,6 +115,18 @@ export async function updateBranch(
     ...(text(formData, 'city') !== undefined ? { city: text(formData, 'city') } : {}),
     ...(text(formData, 'state') !== undefined ? { state: text(formData, 'state') } : {}),
     ...(text(formData, 'pincode') !== undefined ? { pincode: text(formData, 'pincode') } : {}),
+    ...(text(formData, 'countryCode') !== undefined
+      ? { countryCode: text(formData, 'countryCode') }
+      : {}),
+    /*
+     * An empty region is meaningful and must survive: it clears the branch back
+     * to the country-wide registration. Sent as '' so the contract's transform
+     * turns it into null, which is why this one tests the raw field rather than
+     * `text()`.
+     */
+    ...(formData.get('regionCode') !== null
+      ? { regionCode: String(formData.get('regionCode')).trim() }
+      : {}),
     ...(formData.get('status') ? { status: formData.get('status') } : {}),
   });
 

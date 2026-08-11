@@ -8,8 +8,8 @@ Source: `apps/api/src/routes/v1/audit.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/audit.routes.ts:36` |
-| GET | `/` | `authorize(PERMISSIONS.AUDIT_READ)` → `validate(auditHistoryQuery)` → `<inline>` | `apps/api/src/routes/v1/audit.routes.ts:38` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/audit.routes.ts:44` |
+| GET | `/` | `authorizeHistory(…)` → `validate(auditHistoryQuery)` → `<inline>` | `apps/api/src/routes/v1/audit.routes.ts:123` |
 
 ## Contracts imported from `@rcln/contracts`
 

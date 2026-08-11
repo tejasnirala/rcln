@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { BranchListResponse } from '@rcln/contracts';
+import type { BranchListResponse, OrganizationProfile } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
 import { getAccessToken, getSession } from '@/lib/session';
@@ -23,10 +23,17 @@ export const metadata: Metadata = {
 export default async function BranchesPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  const result = await api<BranchListResponse>('/api/v1/branches', {
-    slug,
-    accessToken: await getAccessToken(),
-  });
+  const accessToken = await getAccessToken();
+
+  /*
+   * Both in parallel: the organization is needed only to seed a NEW branch's tax
+   * jurisdiction, and waterfalling it behind the branch list would add a round
+   * trip to a page that renders fine without it.
+   */
+  const [result, organization] = await Promise.all([
+    api<BranchListResponse>('/api/v1/branches', { slug, accessToken }),
+    api<OrganizationProfile>('/api/v1/organization', { slug, accessToken }),
+  ]);
 
   if (!result.ok || !result.data) {
     return (
@@ -49,5 +56,20 @@ export default async function BranchesPage({ params }: { params: Promise<{ slug:
   const session = await getSession(slug);
   const canReadHistory = session?.permissions.includes(PERMISSIONS.AUDIT_READ) ?? false;
 
-  return <BranchList slug={slug} branches={result.data.branches} canReadHistory={canReadHistory} />;
+  return (
+    <BranchList
+      slug={slug}
+      branches={result.data.branches}
+      /*
+       * A caller who may read branches but not the organization still gets the
+       * screen; the new-branch form just falls back to India's defaults, and the
+       * API applies the clinic's real jurisdiction on save either way.
+       */
+      organization={{
+        countryCode: organization.data?.countryCode ?? 'IN',
+        regionCode: organization.data?.regionCode ?? null,
+      }}
+      canReadHistory={canReadHistory}
+    />
+  );
 }

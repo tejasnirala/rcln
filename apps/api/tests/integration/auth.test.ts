@@ -133,6 +133,53 @@ describe('POST /auth/login', () => {
     expect(res.body.data.memberships[0].roles).toEqual(['ORG_OWNER']);
   });
 
+  /*
+   * ⚠️ THE TWO HALVES OF "WHAT TIME IS THIS?" TRAVEL ON THE SESSION, AND NOTHING
+   *   ELSE CAN SUPPLY THEM. Every screen that draws a clock — the day board, the
+   *   consultation, the vitals chart — needs a zone and a clock format, and is
+   *   opened by people who hold neither `branch.read` nor `settings.branch.read`.
+   *   If either drops off this payload the screens do not error: they fall back,
+   *   and a fallback zone renders a plausible time five and a half hours out.
+   *
+   *   `timeFormat` is resolved from `locale.time_format` per branch, which means
+   *   it also proves the settings ladder is being walked here at all.
+   */
+  it('carries the branch’s timezone and clock format for the screens that render one', async () => {
+    const res = await login(SLUG_A, { identifier: emailFor(SLUG_A), password: PASSWORD });
+
+    const branch = res.body.data.memberships[0].branches.find(
+      (b: { id: string }) => b.id === orgA.branchId
+    );
+
+    expect(branch.timezone).toBe('Asia/Kolkata');
+    // The seeded default, with nothing set at either scope.
+    expect(branch.timeFormat).toBe('12H');
+  });
+
+  it('follows a clinic that has chosen the 24-hour clock', async () => {
+    await owner.query(
+      `INSERT INTO setting_values (id, setting_key, scope_type, scope_id, value, updated_at)
+       VALUES (gen_random_uuid(), 'locale.time_format', 'ORGANIZATION', $1, '"24H"'::jsonb, now())`,
+      [orgA.organizationId]
+    );
+
+    try {
+      const res = await login(SLUG_A, { identifier: emailFor(SLUG_A), password: PASSWORD });
+
+      const branch = res.body.data.memberships[0].branches.find(
+        (b: { id: string }) => b.id === orgA.branchId
+      );
+
+      expect(branch.timeFormat).toBe('24H');
+    } finally {
+      await owner.query(
+        `DELETE FROM setting_values
+          WHERE setting_key = 'locale.time_format' AND scope_type = 'ORGANIZATION' AND scope_id = $1`,
+        [orgA.organizationId]
+      );
+    }
+  });
+
   it('never returns the password hash', async () => {
     const res = await login(SLUG_A, { identifier: emailFor(SLUG_A), password: PASSWORD });
     expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|argon2/i);

@@ -1,0 +1,22 @@
+-- Body temperature: keep storing Celsius, at two decimal places.
+--
+-- ⚠️ THE COLUMN STAYS CELSIUS. India, the rest of the subcontinent and the
+--   United States write a body temperature in Fahrenheit, and the vitals form
+--   now asks in Fahrenheit for clinics in those countries — but the STORED unit
+--   is Celsius everywhere. A column whose unit depends on the row cannot be
+--   trended, range-checked or exported, and FHIR/UCUM `Cel` is what ABDM will
+--   want a reading in. The conversion happens once, at the edge, in
+--   `toCelsius`/`fromCelsius` in @rcln/contracts.
+--
+-- ⚠️ WHY THE SECOND DECIMAL. 0.1 °C is 0.18 °F, so a Fahrenheit reading rounded
+--   into one decimal of Celsius does not survive the trip back: a nurse types
+--   99.4, it stores 37.4, and the chart redraws as 99.3 a second later. At two
+--   decimals 99.4 stores 37.44 and reads back 99.4. Nothing clinical needs
+--   0.01 °C — the round trip does.
+--
+-- WIDENING, SO EXISTING ROWS ARE UNTOUCHED IN VALUE. numeric(4,1) -> numeric(4,2)
+-- only adds a place: 37.4 becomes 37.40, which is the same number. Precision
+-- stays 4, so the range (up to 99.99) still covers every survivable temperature
+-- and no existing value can overflow.
+ALTER TABLE "appointment_vitals"
+  ALTER COLUMN "temperature_c" TYPE DECIMAL(4, 2);
