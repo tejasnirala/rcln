@@ -1,0 +1,594 @@
+// =============================================================================
+// PATIENT INVOICING
+//
+// ⚠️ THIS IS NOT `subscription_invoices`, AND THE TWO MUST NEVER BE MERGED.
+//   `subscription_invoices` is RCLN billing the CLINIC for its SaaS
+//   subscription: our GSTIN, the customer's location as the place of supply,
+//   a gateway-driven lifecycle. These tables are the CLINIC billing a PATIENT:
+//   the clinic's own GSTIN out of `issuer_tax_registrations`, the BRANCH as the
+//   place of supply, a cashier-driven lifecycle, and branch-scoped RLS on top
+//   of the tenant policy. Two issuers, two legal obligations, two tables. The
+//   full comparison is §0.1 of `.kb/Architecture/invoice-engine-implementation.md`.
+//
+// PHI-ADJACENT, AND TREATED AS PHI.
+//   An invoice names a patient and lists what was done to them — a line reading
+//   "MRI Brain with contrast" is a clinical fact. Same rules as the PATIENTS
+//   block above: allow-list snapshots into `audit_logs`, ids only in Redis and
+//   in logs, never a name in a URL.
+//
+// WHAT IS AND IS NOT DECIDED HERE
+//   Phase 3 is the data model. The arithmetic that fills the money columns is
+//   Phase 4 (`packages/invoicing`, pure), and the lifecycle that defends them is
+//   Phase 5 — landed, in `20260811090000_invoice_lifecycle_immutability`.
+//
+//   THREE TRIGGERS, WHICH `prisma migrate diff` CANNOT SEE AND WILL NOT WARN
+//   YOU ABOUT. `invoices_lifecycle_guard` holds the transition table and freezes
+//   every column of an ISSUED row except status, `amount_paid`, the
+//   cancel/void fields and `updated_at`; `invoices_no_delete_after_issue` keeps
+//   a numbered invoice in its series; `invoice_children_follow_parent` freezes
+//   the lines and tax rows with the document that prints them. The frozen set is
+//   an ALLOW-LIST, so a column added to this model tomorrow is immutable after
+//   issue by default and somebody has to go and argue for it.
+// =============================================================================
+
+/// What the invoice was raised FOR. Drives the `{SOURCE}` segment of the number
+/// and, from Phase 7, which invoices a caller is allowed to see at all.
+///
+/// ⚠️ THE ENUM IS COMPLETE; THE INTEGRATIONS ARE NOT.
+///   `LAB`, `PHARMACY` and `INVENTORY` ship as values with nothing writing them,
+///   because those modules do not exist yet (roadmap Phases 5 and 6). That is
+///   deliberate: an enum value costs a migration to add later and nothing to
+///   carry now, and shipping the shape means those modules land as integrations
+///   rather than as a redesign of the invoice.
+///
+/// ⚠️ EACH SOURCE THAT EXISTS GETS ITS OWN COLUMN AND ITS OWN FOREIGN KEY.
+///   There is deliberately NO generic `source_id`. A single polymorphic id
+///   cannot be foreign-keyed anywhere, and — the part that actually matters —
+///   the composite `(organization_id, id)` reference is what makes a
+///   cross-tenant link unrepresentable (ADR-0004). A loose uuid would let an
+///   invoice cite another clinic's appointment with nothing raising an error,
+///   and the mitigation would be "the service remembers to re-read it", which is
+///   the class of guarantee this schema exists to replace.
+///
+///   Stub tables holding just an id were considered and rejected: a link to a
+///   table with no `organization_id` proves the row EXISTS and says nothing
+///   about who it belongs to, which is the wrong half of the problem. Giving a
+///   stub a tenant column makes it a half-designed `lab_orders` written with no
+///   lab module behind it — plus an RLS policy and an isolation test for a table
+///   that can never hold a row. The column and its FK arrive with the module, in
+///   the migration that creates its table anyway.
+///
+///   `invoices_source_reference_matches_type` is the CHECK that keeps this enum
+///   and the columns honest. It gains one clause per module.
+enum InvoiceSourceType {
+  /// A consultation. The only source integrated end to end today (Phase 8).
+  APPOINTMENT
+  /// A billable clinical procedure that is not a consultation.
+  PROCEDURE
+  /// Anything from the clinic's own service catalogue.
+  SERVICE
+  LAB
+  PHARMACY
+  INVENTORY
+  /// A manual invoice typed by the cashier, citing nothing.
+  OTHER
+}
+
+/// Where an invoice is in its life.
+///
+/// ⚠️ `DRAFT` IS THE ONLY STATE IN WHICH ANY MONEY COLUMN MAY MOVE. Everything
+///   from ISSUED onwards is a document a patient has been handed and may have
+///   claimed against insurance; a mistake is corrected with a credit note and a
+///   new invoice, never by editing the totals of one already shown.
+///   `invoices_lifecycle_guard` enforces that in the database rather than in the
+///   service, and it is the transition table below as well: anything not on the
+///   arrows is refused, including the ones that look harmless.
+///
+///     DRAFT ──▶ FINALIZING ──▶ ISSUED ──▶ PARTIALLY_PAID ──▶ PAID
+///       │                        │              │             │
+///       ▼                        └──────────────┴─────────────┴──▶ VOID
+///     CANCELLED
+enum InvoiceStatus {
+  /// Being assembled. No number has been issued, so nothing here consumes a
+  /// serial — an abandoned draft leaves no gap in the series.
+  DRAFT
+  /// The brief moment inside finalisation: the number has been taken and the
+  /// totals frozen, but the transaction has not committed. A row observed in
+  /// this state after a crash is a failed finalisation, not a lost invoice.
+  FINALIZING
+  /// Issued to the patient. Immutable from here.
+  ISSUED
+  /// Some money has arrived, and less than `grand_total` has.
+  PARTIALLY_PAID
+  PAID
+  /// Abandoned before it was ever issued. Only reachable from DRAFT, which is
+  /// what distinguishes it from VOID — nothing was ever shown to anybody, so
+  /// there is nothing to reverse and no credit note to raise.
+  CANCELLED
+  /// Issued and then reversed. The row and its number stay for ever: voiding is
+  /// how a series stays contiguous when a document has to be undone. A void
+  /// that involved money also produces a credit note.
+  VOID
+}
+
+/// How a discount was expressed by whoever entered it.
+///
+/// The INPUT is kept alongside the computed amount because "10% off" and "₹150
+/// off" print differently and are re-derivable from each other only by knowing
+/// which one was typed.
+enum InvoiceDiscountType {
+  /// Basis points, in `discount_bps`. 10% is 1000.
+  PERCENTAGE
+  /// A currency amount, in `discount_fixed`.
+  FIXED
+}
+
+/// One patient invoice.
+///
+/// ⚠️ `invoice_number` IS NULL UNTIL FINALISATION, AND THAT IS THE POINT.
+///   The number comes from `issueNumber()`, whose row lock is held to COMMIT, so
+///   it is taken as late as possible — at finalisation, not at creation. A draft
+///   the cashier abandons therefore burns no serial. See §0.6 of the
+///   implementation log for the scope decision behind the format.
+///
+/// ⚠️ THE NUMBER'S SERIES IS PER BRANCH, AND THE BRANCH CODE IS IN THE NUMBER.
+///   `INV-{PERIOD_YEAR}-{SOURCE}-{BRANCH_CODE}-{000001}`. The branch segment is
+///   not decoration: GST requires a serial that is consecutive and unique per
+///   ISSUER, and the issuer is the GSTIN, which in India is per state. A
+///   per-branch counter without a per-branch discriminator gives two branches
+///   sharing one GSTIN two different invoices both numbered
+///   `INV-2026-APP-000001`, which is the one thing the series may not do.
+///   Multiple series under one registration are allowed; a repeated number is
+///   not. Branch codes are org-unique, so the whole string is too.
+///
+/// ⚠️ EVERY TAX FIELD BELOW IS A SNAPSHOT AND IS NEVER RE-READ.
+///   Registrations lapse, rates change by statute, and a branch's `region_code`
+///   gets corrected. An invoice that recomputed itself from today's
+///   configuration would silently restate a document somebody has already filed
+///   a return on. What was true at issue is what stays on the row.
+model Invoice {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  /// NOT NULL: the branch is the place of supply, the number series and the RLS
+  /// boundary. An invoice with no branch could not be taxed or numbered.
+  branchId       String  @map("branch_id") @db.Uuid
+  /// Null while DRAFT. See the header.
+  invoiceNumber  String? @map("invoice_number") @db.VarChar(64)
+
+  /// What kind of thing this invoice bills for. The discriminator over the
+  /// typed reference columns below — see the enum's header.
+  sourceType    InvoiceSourceType @map("source_type")
+  /// The visit this invoice bills for. Set iff `sourceType` is APPOINTMENT, and
+  /// composite-FK'd, so an invoice can never bill another clinic's appointment.
+  ///
+  /// The first of what will be one column per integrated source: `labOrderId`
+  /// arrives with the lab module, `pharmacySaleId` with the pharmacy module,
+  /// each in the migration that creates its own table. PROCEDURE, SERVICE and
+  /// OTHER carry no reference at all — a manual invoice cites nothing, and the
+  /// service catalogue those first two will point at does not exist either.
+  ///
+  /// ⚠️ NOT UNIQUE, DELIBERATELY. A visit billed, voided and billed again has
+  ///   two invoices citing it, and the void must keep its reference or the
+  ///   correction cannot be explained. "Is this visit already billed?" is a
+  ///   question about the LIVE invoice, which is a lifecycle concern (Phase 5)
+  ///   rather than a uniqueness one.
+  appointmentId String?           @map("appointment_id") @db.Uuid
+
+  /// Null for a walk-in customer with no record — a supplier's rep buying a
+  /// consumable, or a bill raised to a company. Composite-FK'd when present, so
+  /// an invoice can never name another tenant's patient.
+  patientId String? @map("patient_id") @db.Uuid
+
+  /// ⚠️ THE CUSTOMER BLOCK IS A SNAPSHOT, NOT A JOIN, AND THAT IS NOT
+  ///   DENORMALISATION FOR SPEED. A patient marries and changes their surname;
+  ///   an address is corrected. The invoice must keep printing what it printed,
+  ///   because the copy in the patient's file and the copy in the clinic's
+  ///   records have to agree years later. `patient_id` is the link for querying;
+  ///   these columns are the document.
+  customerName    String  @map("customer_name") @db.VarChar(255)
+  customerPhone   String? @map("customer_phone") @db.VarChar(20)
+  customerEmail   String? @map("customer_email") @db.VarChar(255)
+  customerAddress String? @map("customer_address") @db.Text
+  /// The customer's own GSTIN/VAT number, on the rare invoice raised to a
+  /// business. Passed to the engine as UNVALIDATED — nothing checks it.
+  customerTaxId   String? @map("customer_tax_id") @db.VarChar(32)
+
+  /// WHO PROVIDED THE CARE THIS INVOICE BILLS.
+  ///
+  /// A bill for a consultation that does not name the clinician is a receipt for
+  /// an unattributed service: the patient cannot claim it, an insurer will not
+  /// accept it, and the clinic cannot answer "who saw them?" from the document.
+  ///
+  /// ⚠️ SNAPSHOTTED FOR EXACTLY THE REASON THE CUSTOMER BLOCK ABOVE IS. A doctor
+  ///   leaves the clinic, changes their name, or renews under a new council
+  ///   number — and the invoices they were named on must go on saying what they
+  ///   said. `appointment_id` is the link for querying; these are the document.
+  ///   Nothing in the template joins to `appointments` or `doctor_profiles`.
+  ///
+  /// Null on every source that is not a consultation. A pharmacy dispense has a
+  /// PRESCRIBER, which is a different fact deserving its own column when that
+  /// module exists — putting it here would print "attended by" on a bill for a
+  /// box of tablets nobody was attended for.
+  practitionerName               String? @map("practitioner_name") @db.VarChar(255)
+  /// Their registration with their council, printed under the name where they
+  /// hold one. Read from `doctor_profiles.registration_number` at billing time.
+  practitionerRegistrationNumber String? @map("practitioner_registration_number") @db.VarChar(64)
+  /// WHO THIS INVOICE BELONGS TO, FOR QUERYING. The live link, where the two
+  /// columns above are the printed document — exactly the split between
+  /// `patient_id` and `customer_name`.
+  ///
+  /// ⚠️ IT IS A VISIBILITY BOUNDARY AND NOT A CONVENIENCE. A doctor holds
+  ///   `billing.invoice.read` and not `.read_all`, and sees the invoices for the
+  ///   care THEY gave — this column is what that filter runs on, in the query
+  ///   rather than in a route guard. Reading it off the appointment through a
+  ///   join would work today and stop working the moment a lab or pharmacy
+  ///   invoice has an ordering clinician and no appointment.
+  ///
+  /// Null on anything nobody attended: a counter sale, a manual invoice.
+  practitionerProfileId          String? @map("practitioner_profile_id") @db.Uuid
+
+  /// ⚠️ THE DATE OF SUPPLY, WHICH IS NOT `issued_at` AND NOT `now()`.
+  ///   It is what selects the effective-dated tax rule and the registration, so
+  ///   an invoice raised in April for a consultation given in March is taxed as
+  ///   March was. Every caller passes it explicitly; `loadTaxContext(at)` is
+  ///   handed this value and nothing else.
+  suppliedAt DateTime  @map("supplied_at") @db.Timestamptz(6)
+  /// When it became a document. Null until then, and the pair with
+  /// `invoice_number` — both are set by finalisation or neither is.
+  issuedAt   DateTime? @map("issued_at") @db.Timestamptz(6)
+  dueDate    DateTime? @map("due_date") @db.Date
+
+  /// Which of the clinic's registrations this was issued under. Composite-FK'd,
+  /// so an invoice can never be raised under another tenant's GSTIN. Null when
+  /// the clinic holds none covering the branch — a legal position, not an
+  /// error, and the reason `tax_treatment` has a NOT_REGISTERED value.
+  issuerTaxRegistrationId String?      @map("issuer_tax_registration_id") @db.Uuid
+  /// The registration number as printed. Snapshotted beside the id because the
+  /// row it came from can be corrected and this string may not change.
+  issuerTaxId             String?      @map("issuer_tax_id") @db.VarChar(64)
+  /// The legal name the registration is held in, which is not always the name
+  /// over the door. A GST invoice must print the registered name.
+  issuerLegalName         String?      @map("issuer_legal_name") @db.VarChar(255)
+  /// Where this supply was deemed to take place — `IN-KA`, `AE`. The BRANCH's
+  /// jurisdiction, never the patient's address. Getting this backwards bills a
+  /// Karnataka consultation for a Kerala patient as inter-state: IGST instead of
+  /// CGST+SGST, and the state's half never reaches the state.
+  placeOfSupply           String?      @map("place_of_supply") @db.VarChar(10)
+  /// The document-level position, which is the worst of its lines: one UNRATED
+  /// line makes the whole invoice unissuable. `isIssuable()` in `@rcln/tax` is
+  /// the single definition, so this column and the engine cannot drift.
+  taxTreatment            TaxTreatment @default(NOT_REGISTERED) @map("tax_treatment")
+
+  currency String @default("INR") @db.Char(3)
+
+  /// Σ line gross, before any discount. The order every column below is computed
+  /// in is fixed in §0.5 of the implementation log and implemented once, in
+  /// Phase 4's `priceInvoice`.
+  subtotal             Decimal              @default(0) @db.Decimal(14, 2)
+  /// Σ per-line discounts.
+  lineDiscountTotal    Decimal              @default(0) @map("line_discount_total") @db.Decimal(14, 2)
+  /// The invoice-level discount AS ENTERED. Null means none.
+  discountType         InvoiceDiscountType? @map("discount_type")
+  /// Set iff `discount_type` is PERCENTAGE. Basis points, so the input stays an
+  /// integer. Enforced by CHECK — the two input columns and the type agree or
+  /// the row does not go in.
+  discountBps          Int?                 @map("discount_bps")
+  /// Set iff `discount_type` is FIXED.
+  discountFixed        Decimal?             @map("discount_fixed") @db.Decimal(14, 2)
+  /// What the invoice-level discount came to once apportioned.
+  ///
+  /// ⚠️ APPORTIONED ACROSS THE LINES BEFORE TAX, NOT SUBTRACTED AFTER IT.
+  ///   A discount that reduces what the customer pays reduces the taxable value
+  ///   of the supply. Tax computed on the pre-discount amount is over-collected
+  ///   tax, remitted to an authority on money nobody ever received. The split is
+  ///   pro-rata by taxable amount, largest-remainder so the parts sum to the
+  ///   whole exactly, and it lands in `invoice_items.apportioned_discount`. This
+  ///   is a deliberate deviation from the original brief's §7 sketch.
+  invoiceDiscountTotal Decimal              @default(0) @map("invoice_discount_total") @db.Decimal(14, 2)
+  /// Σ line taxable — what tax was actually computed on.
+  taxableAmount        Decimal              @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  /// Σ every `invoice_taxes` row. Rounded PER LINE, not per invoice: the two
+  /// differ by up to (n−1) minor units, and per-line is what a GST invoice does
+  /// and what makes each printed line internally consistent.
+  taxTotal             Decimal              @default(0) @map("tax_total") @db.Decimal(14, 2)
+  /// Cash rounding to the nearest note, where a clinic does that. Signed, and
+  /// kept as its own column so `grand_total` never has to be explained.
+  roundingAdjustment   Decimal              @default(0) @map("rounding_adjustment") @db.Decimal(14, 2)
+  grandTotal           Decimal              @default(0) @map("grand_total") @db.Decimal(14, 2)
+  /// Settled so far. The balance is `grand_total − amount_paid` and is
+  /// deliberately NOT a column: a stored balance is a third number that can
+  /// disagree with the two it is derived from.
+  amountPaid           Decimal              @default(0) @map("amount_paid") @db.Decimal(14, 2)
+
+  status InvoiceStatus @default(DRAFT)
+
+  /// ⚠️ PHI-CAPABLE FREE TEXT, printed on the invoice. In `REDACTED_KEYS`.
+  notes              String? @db.Text
+  /// Why it was cancelled or voided. Same PHI treatment as `notes`.
+  cancellationReason String? @map("cancellation_reason") @db.Text
+
+  createdBy   String?   @map("created_by") @db.Uuid
+  /// Who finalised it. The accountable act — a draft's editor is in audit_logs.
+  issuedBy    String?   @map("issued_by") @db.Uuid
+  cancelledBy String?   @map("cancelled_by") @db.Uuid
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  voidedAt    DateTime? @map("voided_at") @db.Timestamptz(6)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Soft delete for a DRAFT only. An issued invoice is never deleted by any
+  /// path — it is VOIDed, which keeps the number and the trail.
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch             Branch                 @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  patient            Patient?               @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Restrict)
+  /// Restrict: a visit that has been billed cannot be deleted out from under its
+  /// invoice. Appointments are soft-deleted anyway, so this only ever fires on a
+  /// hard delete somebody meant to be harmless.
+  appointment        Appointment?           @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  /// Restrict: a registration that priced issued invoices cannot be deleted out
+  /// from under them. `effective_to` is how a registration is retired.
+  issuerRegistration IssuerTaxRegistration? @relation(fields: [organizationId, issuerTaxRegistrationId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  /// Composite FK, per ADR-0004: the tenant travels in the key, so an invoice can
+  /// never be attributed to another clinic's clinician.
+  ///
+  /// Restrict, like `appointment` above and for the same reason — a clinician
+  /// whose work has been billed cannot be hard-deleted out from under the
+  /// invoices that name them. Doctor profiles are soft-deleted anyway, so this
+  /// only ever fires on a delete somebody meant to be harmless. (`SetNull` is not
+  /// available: the key includes `organization_id`, which is NOT NULL.)
+  practitioner       DoctorProfile?         @relation("InvoicePractitioner", fields: [organizationId, practitionerProfileId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  creator            User?                  @relation("InvoiceCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  issuer             User?                  @relation("InvoiceIssuedBy", fields: [issuedBy], references: [id], onDelete: SetNull)
+  canceller          User?                  @relation("InvoiceCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
+
+  items     InvoiceItem[]
+  taxes     InvoiceTax[]
+  documents InvoiceDocument[]
+
+  /// ⚠️ THE ONE UNIQUE IN THIS SCHEMA THAT WANTS NULLS **DISTINCT**, WHICH IS
+  ///   POSTGRES' DEFAULT — so it is written plainly and this comment exists
+  ///   because CONVENTIONS.md says every nullable unique gets NULLS NOT
+  ///   DISTINCT. Here the opposite is required: every DRAFT has a NULL
+  ///   `invoice_number`, and a clinic has many drafts open at once. NULLS NOT
+  ///   DISTINCT would let it hold exactly one.
+  ///
+  ///   Org-wide rather than per branch, which is STRONGER than the legal
+  ///   requirement and safe because the branch code is inside the string.
+  @@unique([organizationId, invoiceNumber])
+  /// Composite-FK target for items, taxes and documents (ADR-0004).
+  @@unique([organizationId, id])
+  /// The invoice list: one branch, newest first, filtered by state.
+  @@index([organizationId, branchId, status, createdAt])
+  /// "What does this patient owe?" — and the ledger on the patient page.
+  @@index([organizationId, patientId, createdAt])
+  /// "Has this appointment been billed?", asked once per row on the day board.
+  @@index([organizationId, appointmentId])
+  @@map("invoices")
+}
+
+/// One billable line.
+///
+/// ⚠️ CARRIES ITS OWN `organization_id` AND `branch_id` RATHER THAN HANGING OFF
+///   THE INVOICE, and that is a security decision rather than a convenience.
+///   Its parent is BRANCH-scoped. A child with no tenant columns can only be
+///   protected by a policy that reaches into the parent, and such a policy
+///   evaluates with row security DISABLED on the table it reads — so the branch
+///   half has to be restated by hand, exactly as `appointment_status_history`
+///   was forced to. Carrying both columns makes this an ordinary member of both
+///   RLS loops instead, which is the same call `appointment_vitals` made and for
+///   the same reason. The service copies both from the invoice; the composite FK
+///   is what stops them disagreeing.
+///
+/// ⚠️ NO `deleted_at`, DELIBERATELY. A line is hard-deleted while the invoice is
+///   DRAFT and cannot be touched afterwards. A soft-deleted line is a row that
+///   every total in Phase 4 must remember to exclude, and the first query that
+///   forgets prices an invoice that does not match its own printout.
+model InvoiceItem {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  invoiceId      String @map("invoice_id") @db.Uuid
+
+  /// Print order, 1-based. Explicit rather than implied by `created_at`,
+  /// because a cashier reorders lines and a reprint must match the original.
+  lineNumber  Int     @map("line_number") @db.SmallInt
+  description String  @db.VarChar(255)
+  /// The HSN/SAC code printed on the line. Presentation only — `tax_category`
+  /// is what actually selects the rate, and the two are separate so a clinic can
+  /// print a code without that string silently becoming a lookup key.
+  itemCode    String? @map("item_code") @db.VarChar(32)
+  /// ⚠️ THE KEY INTO `tax_rules`, MATCHED EXACTLY. There is no HSN prefix tree,
+  ///   deliberately: a prefix match that resolved `30049099` to the broader
+  ///   `3004` heading would apply a confident, unreviewed rate. A category with
+  ///   no rule comes back UNRATED and Phase 5 refuses to issue the invoice.
+  taxCategory String  @map("tax_category") @db.VarChar(64)
+
+  /// Decimal(14,3): half a tablet is real, and so is 0.5 hours of physiotherapy.
+  quantity  Decimal @default(1) @db.Decimal(14, 3)
+  unitPrice Decimal @map("unit_price") @db.Decimal(14, 2)
+
+  /// round(unit_price × quantity). Stored rather than derived because every
+  /// later column is computed from the ROUNDED value, and re-deriving it in a
+  /// query would reintroduce the fraction the rounding removed.
+  grossAmount         Decimal              @map("gross_amount") @db.Decimal(14, 2)
+  /// The line's own discount, as entered. Same three-column shape and same
+  /// CHECK as the invoice.
+  discountType        InvoiceDiscountType? @map("discount_type")
+  discountBps         Int?                 @map("discount_bps")
+  discountFixed       Decimal?             @map("discount_fixed") @db.Decimal(14, 2)
+  discountAmount      Decimal              @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  /// This line's share of the INVOICE-level discount, pro-rata by taxable
+  /// amount with the remainder distributed largest-first. Kept apart from
+  /// `discount_amount` so the printed line can show the discount the customer
+  /// asked for separately from the one the whole bill got.
+  apportionedDiscount Decimal              @default(0) @map("apportioned_discount") @db.Decimal(14, 2)
+  /// gross − discount − apportioned. What tax is computed on.
+  taxableAmount       Decimal              @map("taxable_amount") @db.Decimal(14, 2)
+  /// Σ this line's `invoice_taxes` rows.
+  taxAmount           Decimal              @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  lineTotal           Decimal              @map("line_total") @db.Decimal(14, 2)
+
+  /// Why this line was taxed the way it was, per line and not per invoice: a
+  /// bill can carry an EXEMPT consultation and a STANDARD-rated medicine.
+  taxTreatment TaxTreatment @default(UNRATED) @map("tax_treatment")
+  /// The engine's own explanation, printed on the invoice where a jurisdiction
+  /// requires one ("Healthcare services — exempt under Notification 12/2017").
+  /// ⚠️ Never a message built for a developer: this reaches a patient.
+  taxReason    String?      @map("tax_reason") @db.VarChar(255)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  invoice      Invoice      @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Cascade)
+
+  taxes InvoiceTax[]
+
+  /// Composite-FK target so `invoice_taxes` can cite the line it priced.
+  @@unique([organizationId, id])
+  /// Two lines cannot claim the same position on one document.
+  @@unique([organizationId, invoiceId, lineNumber])
+  @@index([organizationId, invoiceId])
+  @@map("invoice_items")
+}
+
+/// One PRINTED tax line on one invoice item.
+///
+/// ⚠️ A RATE AND A LINE ARE NOT THE SAME THING, WHICH IS WHY THIS TABLE IS PER
+///   LINE AND NOT PER RATE. 12% in Karnataka prints as two rows of 6% owed to
+///   two different governments; the same 12% in Singapore prints as one; British
+///   Columbia prints two rows at two different rates. The arithmetic is
+///   identical and only the presentation differs, so the presentation is data —
+///   `@rcln/tax` decides it, and this table records what it decided.
+///
+/// ⚠️ EVERYTHING HERE IS SNAPSHOTTED, INCLUDING THE NAME. Rates change by
+///   statute and a rule can be retired. `name` is what the authority calls it,
+///   printed verbatim: a line reading "Tax" is compliant nowhere.
+model InvoiceTax {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  /// Denormalised from the item so the invoice's tax summary is one indexed
+  /// read rather than a join through every line.
+  invoiceId      String @map("invoice_id") @db.Uuid
+  invoiceItemId  String @map("invoice_item_id") @db.Uuid
+
+  /// Which rule priced this line, for the auditor who asks why.
+  ///
+  /// ⚠️ EXACTLY ONE OF THE TWO IS SET, ENFORCED BY CHECK — a rate resolves
+  ///   either from the clinic's own `tax_rules` or, inherited, from rcln's
+  ///   `tax_rule_defaults`, and which one it was is the difference between "the
+  ///   clinic chose this" and "the clinic accepted our published default".
+  ///   Collapsing them into one nullable id would destroy that distinction, and
+  ///   it is the distinction the rate-card screen exists to show. Both are NULL
+  ///   only where no rule was involved at all: an UNRATED or NOT_REGISTERED
+  ///   line, or a rate that came from an external tax provider.
+  taxRuleId        String? @map("tax_rule_id") @db.Uuid
+  taxRuleDefaultId String? @map("tax_rule_default_id") @db.Uuid
+
+  /// `CGST`, `SGST`, `IGST`, `VAT`, `HST`, `PST`, `Consumption Tax`.
+  name          String       @db.VarChar(32)
+  /// Which authority it is owed to — `IN` for CGST, `IN-KA` for SGST. One supply
+  /// carrying two lines to two governments is exactly what a GST split is, and
+  /// without this column the two halves are indistinguishable on a return.
+  jurisdiction  String?      @db.VarChar(10)
+  /// Basis points, snapshotted. 6% is 600.
+  rateBps       Int          @map("rate_bps")
+  /// What this rate was applied to. Equal to the item's `taxable_amount` for
+  /// every rule this engine computes, and NOT redundant: a stacked provincial
+  /// tax elsewhere may be levied on a different base, and a provider quote
+  /// supplies its own.
+  taxableAmount Decimal      @map("taxable_amount") @db.Decimal(14, 2)
+  taxAmount     Decimal      @map("tax_amount") @db.Decimal(14, 2)
+  treatment     TaxTreatment
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch         Branch          @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  invoice        Invoice         @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Cascade)
+  item           InvoiceItem     @relation(fields: [organizationId, invoiceItemId], references: [organizationId, id], onDelete: Cascade, onUpdate: NoAction)
+  /// Restrict on both: the row that explains a charge outlives the screen that
+  /// created it. A rate is withdrawn with `effective_to`, never a DELETE.
+  taxRule        TaxRule?        @relation(fields: [organizationId, taxRuleId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  taxRuleDefault TaxRuleDefault? @relation(fields: [taxRuleDefaultId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, invoiceId])
+  @@index([organizationId, invoiceItemId])
+  @@map("invoice_taxes")
+}
+
+/// The join between an invoice and a file in `files`.
+///
+/// A separate table rather than a `file_id` column on `invoices` because one
+/// invoice legitimately has several documents over its life — the invoice PDF, a
+/// credit note against it, a reprint after a FAILED render — and the current one
+/// of each kind has to be findable without the invoice row growing a column per
+/// document type.
+///
+/// ⚠️ `file_id` IS A PLAIN FK, NOT THE COMPOSITE ONE ADR-0004 ASKS FOR.
+///   `files.organization_id` is NULLABLE — platform assets live in the same
+///   table — so a composite FK from a NOT NULL column cannot reference it. The
+///   tenant guarantee is therefore restored in the policy layer instead: a
+///   RESTRICTIVE `file_in_same_org` policy in enable-rls.sql, written the same
+///   way `invitation_branches.branch_in_same_org` was and for the same reason.
+///   Removing that policy silently re-opens a cross-tenant reference.
+model InvoiceDocument {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  branchId       String       @map("branch_id") @db.Uuid
+  invoiceId      String       @map("invoice_id") @db.Uuid
+  fileId         String       @map("file_id") @db.Uuid
+  documentType   DocumentType @map("document_type")
+
+  /// Which template drew it, and which revision of that template.
+  ///
+  /// ⚠️ PROVENANCE, NOT A FEATURE FLAG. Nothing reads these back to choose a
+  ///   renderer — an issued invoice's PDF is generated once and never
+  ///   regenerated, so there is no code path that could. They exist so that
+  ///   "what did the document this patient is holding actually look like?" has
+  ///   an answer years later, when the template has moved on several revisions
+  ///   and the only copy of the old one is in the git history. Without them the
+  ///   stored bytes are the sole record of their own layout, which is fine until
+  ///   the question is about a document somebody has disputed.
+  ///
+  ///   `@rcln/documents` owns both values — `INVOICE_TEMPLATE_KEY` and
+  ///   `INVOICE_TEMPLATE_VERSION`. A second document type takes a new KEY; a
+  ///   change to how this one looks bumps the VERSION.
+  templateKey     String @map("template_key") @db.VarChar(64)
+  templateVersion Int    @map("template_version") @db.SmallInt
+
+  generatedAt  DateTime  @default(now()) @map("generated_at") @db.Timestamptz(6)
+  generatedBy  String?   @map("generated_by") @db.Uuid
+  /// Set when a newer document of the same kind replaces this one — which can
+  /// only happen for a render that FAILED. An issued invoice's PDF is immutable,
+  /// so a corrected invoice is a credit note plus a new invoice, never a version
+  /// 2 of this file.
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  invoice      Invoice      @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Cascade)
+  /// Restrict: nothing may delete the PDF an issued invoice points at. There is
+  /// deliberately no `deleteDocument` in DocumentService either.
+  file         StoredFile   @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  generator    User?        @relation("InvoiceDocumentGeneratedBy", fields: [generatedBy], references: [id], onDelete: SetNull)
+
+  /// ⚠️ THE "ONE CURRENT DOCUMENT PER TYPE" UNIQUE IS **NOT DECLARED HERE**, and
+  ///   that is deliberate. It is PARTIAL — `WHERE superseded_at IS NULL` — which
+  ///   Prisma cannot express, and a declared total unique would both be a lie
+  ///   about the shape and make `migrate diff` propose renaming the real index
+  ///   on every run. It is created by hand in the migration as
+  ///   `invoice_documents_current_per_type_key`, the same treatment the
+  ///   expression trigram index on `patients` gets. A non-partial unique would
+  ///   refuse the retry after a FAILED render, which is the exact case
+  ///   `superseded_at` exists to allow.
+  @@index([organizationId, invoiceId])
+  @@index([organizationId, fileId])
+  @@map("invoice_documents")
+}

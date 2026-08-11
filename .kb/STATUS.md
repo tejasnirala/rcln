@@ -1229,6 +1229,18 @@ They must never be merged. Naming: `invoices`/`invoice_items` here,
 
 ### Phase 5 — Pharmacy and inventory
 
+➡️ **Planned in full at [`.kb/PharmacyInventory/`](PharmacyInventory/README.md).**
+That directory supersedes the five lines below, which understate the scope: the
+programme is a global Product + Inventory + Pharmacy + Clinical Consumption +
+Procurement + Regulatory platform serving clinical, dental, veterinary and lab
+workflows across ten jurisdictions, not a pharmacy module. Discovery and
+architecture are complete (2026-08-11); no code written yet. Start at
+`PharmacyInventory/NEXT_SESSION.md`.
+
+⚠️ Its pharmacy-dispensing and clinical-consumption phases are hard-blocked on
+`prescriptions` and `encounters`/`procedures`, which Phase 3 owns. Its product,
+inventory, procurement and regulatory phases are not blocked and can start now.
+
 Strictly in this order; dispensing depends on batches existing.
 
 - [ ] Catalogue: generics, medicines, manufacturers, HSN + versioned tax rates

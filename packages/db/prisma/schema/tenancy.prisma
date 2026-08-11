@@ -1,0 +1,271 @@
+// =============================================================================
+// TENANCY
+// =============================================================================
+
+enum OrganizationStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+}
+
+enum OrganizationType {
+  CLINIC
+  HOSPITAL
+  CHAIN
+  LAB
+}
+
+enum BranchType {
+  CLINIC
+  HOSPITAL
+  LAB
+  PHARMACY
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+  CLOSED
+}
+
+/// The tenant. A single-location clinic and a 3-branch hospital are the same
+/// shape: one organization, one or three branches.
+model Organization {
+  id          String             @id @default(uuid()) @db.Uuid
+  /// Subdomain label. `alpha` -> alpha.xyz.com
+  slug        String             @unique @db.VarChar(63)
+  legalName   String             @map("legal_name") @db.VarChar(255)
+  displayName String             @map("display_name") @db.VarChar(255)
+  orgType     OrganizationType   @default(CLINIC) @map("org_type")
+  status      OrganizationStatus @default(PENDING)
+  currency    String             @default("INR") @db.Char(3)
+  timezone    String             @default("Asia/Kolkata") @db.VarChar(64)
+  countryCode String             @default("IN") @map("country_code") @db.Char(2)
+  /// Sub-national jurisdiction, where tax depends on one. `KA` for Karnataka,
+  /// `CA` for California — the part after the country in ISO 3166-2.
+  ///
+  /// India needs this and a country code is not enough: a supply from our
+  /// Karnataka registration to a Karnataka clinic is CGST+SGST, and to a Kerala
+  /// clinic it is IGST. Same country, same rate, different taxes, different
+  /// returns. Null means "not captured", which forces the inter-state treatment
+  /// — the safe direction, because IGST is fully creditable to the customer
+  /// whereas a wrongly-split CGST/SGST is not.
+  regionCode  String?            @map("region_code") @db.VarChar(10)
+  /// The clinic's own tax identifier, whatever its country calls it — a GSTIN in
+  /// India, a TRN in the UAE, a VAT number in Ireland, an ABN in Australia.
+  /// `locale.ts` supplies the label, the format and the example per country;
+  /// nothing here assumes which.
+  ///
+  /// ⚠️ THIS IS THE CLINIC AS RCLN'S CUSTOMER, NOT AS AN ISSUER. It is what goes
+  ///   on the SUBSCRIPTION invoice rcln raises against the clinic, and what
+  ///   decides reverse charge if the clinic is ever in a VAT country. The number
+  ///   the clinic prints on invoices it raises against ITS OWN patients lives in
+  ///   `issuer_tax_registrations`, effective-dated, because one business can hold
+  ///   several. Do not read this one when issuing a patient invoice.
+  ///
+  /// ⚠️ AND IT IS NOW DERIVED, NOT TYPED. The registration is the authoritative
+  ///   record; this column is a cache of the one that currently applies to the
+  ///   organization, maintained by `syncOrganizationTaxIdentity` whenever the
+  ///   registrations or their coverage change. It is no longer editable through
+  ///   the organization API, because two independently maintained copies of one
+  ///   GSTIN is precisely how a clinic ends up billing under a number its own
+  ///   settings screen disagrees with.
+  taxId       String?            @map("tax_id") @db.VarChar(32)
+  /// Whether that identifier has been checked against the issuing authority.
+  ///
+  /// It decides the TREATMENT, not just data quality: an EU business with a
+  /// VIES-valid VAT number is reverse-charged and pays no VAT to us, and the
+  /// same business with an unvalidated one is charged at its country's consumer
+  /// rate. Guessing VALID is revenue we never collected and cannot reclaim.
+  taxIdStatus TaxIdStatus        @default(NOT_PROVIDED) @map("tax_id_status")
+  ownerUserId String?            @map("owner_user_id") @db.Uuid
+  onboardedAt DateTime?          @map("onboarded_at") @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(6)
+
+  owner                  User?                      @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  domains                OrganizationDomain[]
+  branches               Branch[]
+  memberships            Membership[]
+  roles                  Role[]
+  invitations            Invitation[]
+  subscriptions          Subscription[]
+  subscriptionInvoices   SubscriptionInvoice[]
+  subscriptionChanges    SubscriptionChange[]
+  issuerTaxRegistrations IssuerTaxRegistration[]
+  taxRegistrationBranches IssuerTaxRegistrationBranch[]
+  taxRules               TaxRule[]
+  paymentMandates        PaymentMandate[]
+  paymentIntents         PaymentIntent[]
+  usageCounters          UsageCounter[]
+  files                  StoredFile[]
+  auditLogs              AuditLog[]
+  dataAccessLogs         DataAccessLog[]
+  numberSequences        NumberSequence[]
+  specialties            Specialty[]
+  qualifications         Qualification[]
+  designations           Designation[]
+  roleDesignations       RoleDesignation[]
+  doctorProfiles         DoctorProfile[]
+  doctorSpecialties      DoctorSpecialty[]
+  doctorQualifications   DoctorQualification[]
+  doctorBranchSettings   DoctorBranchSetting[]
+  doctorCompensation     DoctorCompensation[]
+  feeScheduleEntries     FeeScheduleEntry[]
+  appointmentReschedules AppointmentReschedule[]
+  doctorSchedules        DoctorSchedule[]
+  doctorExceptions       DoctorScheduleException[]
+  patients               Patient[]
+  patientRegistrations   PatientRegistration[]
+  patientAddresses       PatientAddress[]
+  patientContacts        PatientContact[]
+  patientAllergies       PatientAllergy[]
+  patientConditions      PatientCondition[]
+  patientMedications     PatientMedication[]
+  appointments           Appointment[]
+  appointmentHistory     AppointmentStatusHistory[]
+  appointmentVitals      AppointmentVital[]
+  invoices               Invoice[]
+  invoiceItems           InvoiceItem[]
+  invoiceTaxes           InvoiceTax[]
+  invoiceDocuments       InvoiceDocument[]
+  lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
+
+  @@unique([id, slug])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("organizations")
+}
+
+/// Every host the tenant is reachable on. The platform subdomain is created at
+/// registration; custom domains (portal.pmcs.com) are verified later.
+model OrganizationDomain {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  domain         String    @unique @db.VarChar(255)
+  isPrimary      Boolean   @default(false) @map("is_primary")
+  isPlatformSub  Boolean   @default(true) @map("is_platform_subdomain")
+  verifiedAt     DateTime? @map("verified_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("organization_domains")
+}
+
+/// A physical location. PMCS branch A / B / C are three rows here.
+model Branch {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  code           String       @db.VarChar(32)
+  name           String       @db.VarChar(255)
+  branchType     BranchType   @default(CLINIC) @map("branch_type")
+  timezone       String       @default("Asia/Kolkata") @db.VarChar(64)
+  phone          String?      @db.VarChar(20)
+  email          String?      @db.VarChar(255)
+  addressLine1   String?      @map("address_line1") @db.VarChar(255)
+  addressLine2   String?      @map("address_line2") @db.VarChar(255)
+  city           String?      @db.VarChar(100)
+  /// The state as it is printed on an address — "Karnataka". Free text, for
+  /// humans. `regionCode` is what the tax engine reads; the two are separate
+  /// because "Karnataka", "KARNATAKA" and "Karnatak" are the same address and
+  /// three different lookup keys.
+  state          String?      @db.VarChar(100)
+  pincode        String?      @db.VarChar(10)
+  /// ⚠️ WHERE A PATIENT INVOICE RAISED HERE IS DEEMED TO BE SUPPLIED.
+  ///   A clinical service is performed at a place, so the place of supply is the
+  ///   BRANCH — not the patient's address, and not the organization's. These two
+  ///   columns are what `resolveTax` is handed as `placeOfSupply`, and they pick
+  ///   the `issuer_tax_registrations` row whose GSTIN goes on the invoice.
+  ///
+  ///   Defaulted from the ORGANIZATION when a branch is created, not from this
+  ///   column's `IN` — which was the old behaviour and stamped an Irish clinic's
+  ///   branches as Indian, so its VAT registration covered nothing and its
+  ///   invoices came out untaxed with no error. Both fields are editable per
+  ///   branch, because the group that opens in a second state is exactly the case
+  ///   the default cannot serve.
+  ///
+  ///   ⚠️ THIS IS THE FALLBACK FOR SELECTING A REGISTRATION, NOT THE RULE.
+  ///     `issuer_tax_registration_branches` states coverage outright; these two
+  ///     columns are consulted only for a branch that has no such statement, and
+  ///     they remain the place of supply for the RATE either way.
+  countryCode    String       @default("IN") @map("country_code") @db.Char(2)
+  /// ISO 3166-2 subdivision without the country prefix — `KA`, never `IN-KA`.
+  /// NULL means the country-wide registration applies.
+  regionCode     String?      @map("region_code") @db.VarChar(10)
+  /// ⚠️ DEPRECATED AND UNREACHABLE. NOT THE INVOICING AUTHORITY, AND NEVER WAS.
+  ///   `issuer_tax_registrations` plus `issuer_tax_registration_branches` decide
+  ///   which number a patient invoice raised at this branch is issued under. This
+  ///   column cannot do that job: no scheme, no effective date, no way to express
+  ///   a clinic that holds two — reading it would print a number that looks right
+  ///   and is unverifiable.
+  ///
+  ///   It is no longer accepted by the branch API and no longer returned by it.
+  ///   The column is kept rather than dropped so that anything typed into it
+  ///   before is still recoverable; nothing in the application reads or writes it.
+  taxId          String?      @map("tax_id") @db.VarChar(32)
+  isPrimary      Boolean      @default(false) @map("is_primary")
+  status         BranchStatus @default(ACTIVE)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  organization           Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  operatingHours         BranchOperatingHour[]
+  closures               BranchClosure[]
+  membershipRoles        MembershipRole[]
+  membershipOverrides    MembershipPermissionOverride[]
+  invitationBranches     InvitationBranch[]
+  sessions               Session[]
+  lastForMemberships     Membership[]                   @relation("MembershipLastBranch")
+  doctorSettings         DoctorBranchSetting[]
+  doctorSchedules        DoctorSchedule[]
+  doctorExceptions       DoctorScheduleException[]
+  patientRegistrations   PatientRegistration[]
+  appointments           Appointment[]
+  appointmentVitals      AppointmentVital[]
+  appointmentReschedules AppointmentReschedule[]
+  feeScheduleEntries     FeeScheduleEntry[]
+  invoices               Invoice[]
+  invoiceItems           InvoiceItem[]
+  invoiceTaxes           InvoiceTax[]
+  invoiceDocuments       InvoiceDocument[]
+  taxRegistrationCoverage IssuerTaxRegistrationBranch[]
+
+  @@unique([organizationId, code])
+  /// Composite-FK target: children reference (organization_id, id) so a row can
+  /// never point at a branch belonging to a different tenant.
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+  @@map("branches")
+}
+
+model BranchOperatingHour {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  dayOfWeek   Int      @map("day_of_week") @db.SmallInt
+  opensAt     DateTime @map("opens_at") @db.Time(0)
+  closesAt    DateTime @map("closes_at") @db.Time(0)
+  isClosed    Boolean  @default(false) @map("is_closed")
+  slotMinutes Int      @default(15) @map("slot_minutes") @db.SmallInt
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, dayOfWeek])
+  @@map("branch_operating_hours")
+}
+
+model BranchClosure {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  closureDate DateTime @map("closure_date") @db.Date
+  reason      String?  @db.VarChar(255)
+
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, closureDate])
+  @@map("branch_closures")
+}

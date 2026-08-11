@@ -148,6 +148,12 @@ docker compose exec api pnpm validate      # typecheck + lint + test
 docker compose exec api pnpm db:rls:check  # if you touched the schema
 ```
 
+The schema is a **folder**, `packages/db/prisma/schema/`, not one file: Prisma
+concatenates every `*.prisma` in it. Models live in the file for their domain
+(`patients.prisma`, `invoicing.prisma`, …) with their enums beside them, and
+`schema.prisma` carries only `generator` and `datasource`. Its `output` path is
+relative to that folder, so it is `../../generated/prisma`.
+
 If you added a tenant table, it needs an RLS policy in
 `packages/db/prisma/rls/enable-rls.sql`, appended to the generated migration,
 plus a case in `apps/api/tests/integration/tenant-isolation.test.ts`.
@@ -171,7 +177,7 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
   tenant-isolation test rather than at a 200 response.
 - **`/db-migration <change>`** — the schema-change sequence: model conventions,
   the RLS gauntlet, the SQL Prisma Migrate cannot manage, the isolation test.
-  **Use this for any `schema.prisma` change.**
+  **Use this for any change under `packages/db/prisma/schema/`.**
 - **`/api-integration <endpoint>`** — contract in `@rcln/contracts` → permission
   code → service via `withTenant` → route with the correct middleware chain → web
   consumer.

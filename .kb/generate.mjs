@@ -386,11 +386,19 @@ for (const file of files) {
 // prisma schema
 // ---------------------------------------------------------------------------
 
-const PRISMA = 'packages/db/prisma/schema.prisma';
+// A folder, not a file: Prisma concatenates every *.prisma inside it, so each
+// model carries the domain file it was declared in rather than one shared path.
+const PRISMA = 'packages/db/prisma/schema';
 const prismaModels = [];
 const prismaEnums = [];
-if (existsSync(join(ROOT, PRISMA))) {
-  const text = readFileSync(join(ROOT, PRISMA), 'utf8');
+const prismaFiles = existsSync(join(ROOT, PRISMA))
+  ? readdirSync(join(ROOT, PRISMA))
+      .filter((f) => f.endsWith('.prisma'))
+      .sort()
+      .map((f) => `${PRISMA}/${f}`)
+  : [];
+for (const file of prismaFiles) {
+  const text = readFileSync(join(ROOT, file), 'utf8');
   const lines = text.split('\n');
   let current = null;
   lines.forEach((raw, i) => {
@@ -398,12 +406,20 @@ if (existsSync(join(ROOT, PRISMA))) {
     const model = line.match(/^model\s+(\w+)\s*\{/);
     const enm = line.match(/^enum\s+(\w+)\s*\{/);
     if (model) {
-      current = { kind: 'model', name: model[1], line: i + 1, fields: [], attrs: [], mapped: '' };
+      current = {
+        kind: 'model',
+        name: model[1],
+        file,
+        line: i + 1,
+        fields: [],
+        attrs: [],
+        mapped: '',
+      };
       prismaModels.push(current);
       return;
     }
     if (enm) {
-      current = { kind: 'enum', name: enm[1], line: i + 1, values: [] };
+      current = { kind: 'enum', name: enm[1], file, line: i + 1, values: [] };
       prismaEnums.push(current);
       return;
     }
@@ -432,6 +448,8 @@ if (existsSync(join(ROOT, PRISMA))) {
     }
   });
 }
+prismaModels.sort((a, b) => a.name.localeCompare(b.name));
+prismaEnums.sort((a, b) => a.name.localeCompare(b.name));
 
 /**
  * RLS coverage, so schema.md can flag a tenant table that has no policy.
@@ -754,7 +772,7 @@ const modelNames = new Set(prismaModels.map((m) => m.name));
     '',
     STAMP,
     '',
-    `Source: \`${PRISMA}\` · RLS policies: \`${RLS_SQL}\``,
+    `Source: \`${PRISMA}/*.prisma\` · RLS policies: \`${RLS_SQL}\``,
     '',
     `${prismaModels.length} models · ${prismaEnums.length} enums · ${[...prismaModels].filter((m) => m.fields.some((f) => f.name === 'organizationId')).length} tenant-scoped.`,
     'One file per model in this directory; the tables below are the overview.',
@@ -813,7 +831,7 @@ for (const m of prismaModels) {
     '',
     STAMP,
     '',
-    `Declared at \`${PRISMA}:${m.line}\`.`,
+    `Declared at \`${m.file}:${m.line}\`.`,
     '',
     '| property | value |',
     '| --- | --- |',

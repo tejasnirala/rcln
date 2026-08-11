@@ -32,7 +32,7 @@ Closes #
 
 ## Schema changes
 
-<!-- Delete this section if schema.prisma is untouched. -->
+<!-- Delete this section if packages/db/prisma/schema/ is untouched. -->
 
 - [ ] RLS policy added to `packages/db/prisma/rls/enable-rls.sql`
 - [ ] Policy SQL appended to the generated migration

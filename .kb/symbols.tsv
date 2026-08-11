@@ -139,7 +139,7 @@ AppointmentVisitTypeValue	type	export	packages/contracts/src/appointments.ts:751
 apportion	fn	export	packages/invoicing/src/discount.ts:84	packages/invoicing	(total: number, weights: readonly number[]): number[]	
 archiveDoctor	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:898	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, options: DoctorActionOptions): Promise<void>	Retire a doctor. Soft delete, because prescriptions and appointments point at this row and must keep resolving after th…
 ARGON2	const	local	apps/api/src/services/auth/password.service.ts:12	apps/api/services/auth	{ memoryCost: 19_456, timeCost: 2, parallelism: 1, } as const	
-ARGON2	const	local	packages/db/prisma/seed.ts:34	packages/db/prisma	{ memoryCost: 19_456, timeCost: 2, parallelism: 1 } as const	
+ARGON2	const	local	packages/db/prisma/seed/super-admin.ts:9	packages/db/prisma/seed	{ memoryCost: 19_456, timeCost: 2, parallelism: 1 } as const	
 arr	fn	export	packages/payments/src/providers/shared.ts:42	packages/payments/providers	(source: Json | undefined, key: string): Json[]	
 as	fn	local	apps/api/tests/integration/verification.test.ts:88	apps/api/tests/integration	(slug: string, token: string)	
 asApp	fn	local	apps/api/tests/integration/invoice-lifecycle.test.ts:220	apps/api/tests/integration	(ctx: TenantContext, fn: (tx: Parameters<Parameters<typeof withTenant>[1]>[0]) =…)	
@@ -511,7 +511,7 @@ conflict	fn	local	apps/api/src/services/platform/tax-registration.service.ts:85	
 ConflictError	class	export	apps/api/src/utils/errors.ts:75	apps/api/utils	{ }	409 - Conflict Error
 conflictingIdentity	fn	local	apps/api/src/services/patient/patient.service.ts:631	apps/api/services/patient	(err: unknown): 'nationalId' | 'abhaNumber' | null	
 connection	var	local	apps/worker/src/index.ts:132	apps/worker	createRedisConnection(…)	
-connectionString	var	local	packages/db/prisma/seed.ts:28	packages/db/prisma	process.env['DIRECT_DATABASE_URL']	
+connectionString	var	local	packages/db/prisma/seed/client.ts:19	packages/db/prisma/seed	process.env['DIRECT_DATABASE_URL']	
 CONSULTATION_TAX_CATEGORY	const	local	apps/api/src/services/invoicing/appointment-billing.service.ts:98	apps/api/services/invoicing	'CONSULTATION'	
 consultationCharge	zod	export	packages/contracts/src/invoices.ts:488	packages/contracts	z.object(…)	What the rate card proposes to charge for one visit.
 ConsultationCharge	type	export	packages/contracts/src/invoices.ts:502	packages/contracts	z.infer<typeof consultationCharge>	
@@ -707,7 +707,7 @@ demoRequestQuery	zod	local	apps/api/src/routes/v1/platform.routes.ts:245	apps/ap
 demoRequestResponse	zod	export	packages/contracts/src/marketing.ts:48	packages/contracts	z.object(…)	
 DemoRequestResponse	type	export	packages/contracts/src/marketing.ts:57	packages/contracts	z.infer<typeof demoRequestResponse>	
 descendantRows	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:244	apps/api/services/doctor	(tx: TxClient, id: string, includeInactive: boolean, includeSelf: boolean): Promise<NodeRow[]>	
-describe	fn	local	packages/db/prisma/seed.ts:36	packages/db/prisma	(code: PermissionCode): string	
+describe	fn	local	packages/db/prisma/seed/permissions.ts:10	packages/db/prisma/seed	(code: PermissionCode): string	
 describe	fn	local	packages/storage/src/providers/local.ts:356	packages/storage/providers	(error: unknown): string	Never returned to a client — `StorageError.detail` is server-side only.
 describedBy	fn	export	apps/web/src/components/ui/field.tsx:30	apps/web/components/ui	(name: string, hint: boolean, invalid: boolean): string | undefined	
 describeImpersonation	fn/async	export	apps/api/src/services/platform/impersonation.service.ts:334	apps/api/services/platform	(organizationId: string | null, impersonatedByUserId: string | null, sessionStartedAt: Date): Promise<ImpersonationDescriptor | null>	The banner's content, for the endpoints that re-describe an existing session. Returns null for an ordinary session, so …
@@ -717,7 +717,7 @@ DescriptionCell	component	local	packages/documents/src/invoice/items.tsx:59	pack
 DesignationActionOptions	interface	export	apps/api/src/services/iam/designation.service.ts:25	apps/api/services/iam	{ ipAddress, userAgent }	
 designationListResponse	zod	export	packages/contracts/src/tenancy.ts:313	packages/contracts	z.object(…)	
 DesignationListResponse	type	export	packages/contracts/src/tenancy.ts:972	packages/contracts	z.infer<typeof designationListResponse>	
-DESIGNATIONS	const	local	packages/db/prisma/seed.ts:1392	packages/db/prisma	: { code: string; name: string }[]	
+DESIGNATIONS	const	local	packages/db/prisma/seed/designations.ts:12	packages/db/prisma/seed	: { code: string; name: string }[]	
 designationSummary	zod	export	packages/contracts/src/tenancy.ts:287	packages/contracts	z.object(…)	
 DesignationSummary	type	export	packages/contracts/src/tenancy.ts:971	packages/contracts	z.infer<typeof designationSummary>	
 DETAIL_SELECT	const	local	apps/api/src/services/invoicing/invoice.service.ts:109	apps/api/services/invoicing	{ ...LIST_SELECT, appointmentId: true, /* Not printed — `lo…	
@@ -1074,8 +1074,8 @@ hasModule	fn	export	packages/billing/src/entitlements.ts:101	packages/billing	(f
 hasPermission	fn	export	apps/api/src/services/auth/access.service.ts:270	apps/api/services/auth	(access: UserAccess, userId: string, branchId: string | null, isPlatformAdmin: boolean, permission: PermissionCode): boolean	
 hasTimezoneChoice	fn	export	packages/contracts/src/locale.ts:584	packages/contracts	(code: string | null | undefined): boolean	Whether the customer has a decision to make about the zone.
 headerValue	fn	export	packages/payments/src/providers/shared.ts:92	packages/payments/providers	(headers: Readonly<Record<string, string | string[] | undefi…, name: string): string | undefined	
-HEALTHCARE_DEFAULTS	const	local	packages/db/prisma/seed.ts:465	packages/db/prisma	: { countryCode: string; scheme: 'GST' | 'VAT'; lineName: string; split: 'NONE' |…	
-HEALTHCARE_SERVICE_CATEGORIES	const	local	packages/db/prisma/seed.ts:451	packages/db/prisma	[ { category: 'CONSULTATION', description: 'Doctor consultation' }, { category: 'PROCEDUR…	
+HEALTHCARE_DEFAULTS	const	local	packages/db/prisma/seed/tax-rule-defaults.ts:75	packages/db/prisma/seed	: { countryCode: string; scheme: 'GST' | 'VAT'; lineName: string; split: 'NONE' |…	
+HEALTHCARE_SERVICE_CATEGORIES	const	local	packages/db/prisma/seed/tax-rule-defaults.ts:61	packages/db/prisma/seed	[ { category: 'CONSULTATION', description: 'Doctor consultation' }, { category: 'PROCEDUR…	
 HISTORY_ALSO_READABLE_BY	const	local	apps/api/src/routes/v1/audit.routes.ts:78	apps/api/routes/v1	: Record<string, PermissionCode>	
 HistoryDialog	component	export	apps/web/src/components/tenant/record-history.tsx:117	apps/web/components/tenant	({ ref, label, children, }: { ref: React.RefObject<HTMLDialo…)	
 historyOf	fn	local	apps/api/tests/integration/audit-history.test.ts:90	apps/api/tests/integration	(slug: string, token: string, entityType: string, entityId: string)	
@@ -1493,7 +1493,7 @@ lookupPostalCode	fn/async	export	apps/web/src/lib/postal.ts:52	apps/web/lib	(cou
 LookupState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:57	apps/web/app/(tenant)/t/[slug]/(app)/appointments	{ status: 'idle' | 'error' | 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the "nobody matched" panel can offer to register them. */…	
 lookupTenant	fn/async	local	apps/api/src/middleware/tenant.middleware.ts:70	apps/api/middleware	(host: string): Promise<ResolvedTenant | null>	
 lookupZippopotam	fn/async	local	apps/web/src/lib/postal.ts:122	apps/web/lib	(country: string, postalCode: string): Promise<PostalLookup | null>	
-main	fn/async	local	packages/db/prisma/seed.ts:1680	packages/db/prisma	(): Promise<void>	
+main	fn/async	local	packages/db/prisma/seed.ts:37	packages/db/prisma	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/apply-grants.ts:42	packages/db/scripts	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/check-rls.ts:82	packages/db/scripts	(): Promise<void>	
 MANDATE_HEADROOM_MULTIPLIER	const	export	packages/billing/src/policy.ts:62	packages/billing	3	
@@ -1625,7 +1625,7 @@ MONTH_YEAR	const	local	apps/web/src/lib/calendar-range.ts:227	apps/web/lib	new I
 MonthArrow	component	local	apps/web/src/components/tenant/working-day-picker.tsx:241	apps/web/components/tenant	({ label, glyph, disabled, onClick, }: { label: string; glyp…)	
 monthCells	fn	local	apps/web/src/components/tenant/working-day-picker.tsx:323	apps/web/components/tenant	(month: string): (string | null)[]	
 monthLabel	fn	export	apps/web/src/lib/calendar-range.ts:242	apps/web/lib	(date: string): string	"August 2026" — the heading over a month grid.
-MONTHS	const	local	packages/db/prisma/seed.ts:109	packages/db/prisma	[ 'January', 'February', 'March', 'April', 'May', 'June', '…	
+MONTHS	const	local	packages/db/prisma/seed/setting-definitions.ts:15	packages/db/prisma/seed	[ 'January', 'February', 'March', 'April', 'May', 'June', '…	
 moveAppointment	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:328	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, status: 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPL…): Promise<BookingState>	Confirm, check in, start, complete — one step at a time.
 MRN_PREFIX_KEY	const	local	apps/api/src/services/patient/patient.service.ts:61	apps/api/services/patient	'patient.mrn_prefix'	
 MS_PER_DAY	const	local	packages/billing/src/periods.ts:32	packages/billing	86_400_000	
@@ -1906,7 +1906,7 @@ priceInvoice	fn	export	packages/invoicing/src/pricing.ts:75	packages/invoicing	(
 priceLines	fn	local	packages/tax/src/engine.ts:262	packages/tax	(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction, rate: ResolvedRate): Quote	
 priceWithTax	fn/async	export	packages/billing/src/engine/shared.ts:404	packages/billing/engine	(tx: TxClient, ctx: TenantContext, price: Money, behavior: 'EXCLUSIVE' | 'INCLUSIVE', at: Date): Promise<{ net: Money; tax: TaxQuote }>	
 PricingRequest	interface	local	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:908	apps/api/services/invoicing	{ invoiceId, branchId, currency, suppliedAt, customerTaxId, discount, lines }	
-prisma	var	local	packages/db/prisma/seed.ts:31	packages/db/prisma	new PrismaClient(…)	
+prisma	var	export	packages/db/prisma/seed/client.ts:22	packages/db/prisma/seed	new PrismaClient(…)	
 PrivacyPolicyPage	component	export	apps/web/src/app/(marketing)/legal/privacy/page.tsx:34	apps/web/app/(marketing)/legal/privacy	()	
 processBillingJob	fn/async	export	apps/worker/src/billing/processor.ts:137	apps/worker/billing	(job: BillingJob, deps: BillingProcessorDeps): Promise<void>	
 PROCESSORS	const	local	apps/worker/src/index.ts:147	apps/worker	: Partial<Record<QueueName, (jobName: string, data: unknown) => Promise<void>>>	Processors land here as each phase is built. Registering the queues means jobs enqueued by the API are durably held rat…
@@ -1943,7 +1943,7 @@ PURPOSE	component	local	apps/web/src/components/tenant/contact-verification.tsx:
 PutObjectInput	interface	export	packages/storage/src/types.ts:29	packages/storage	{ key, body, contentType, overwrite }	
 qualificationParams	var	local	apps/api/src/routes/v1/doctors.routes.ts:99	apps/api/routes/v1	doctorParams.extend(…)	
 QualificationRow	component	local	apps/web/src/components/tenant/doctor-sections.tsx:572	apps/web/components/tenant	({ slug, doctorId, row, qualifications, }: { slug: string; d…)	
-QUALIFICATIONS	const	local	packages/db/prisma/seed.ts:1289	packages/db/prisma	: { code: string; name: string }[]	
+QUALIFICATIONS	const	export	packages/db/prisma/seed/data/qualifications.ts:34	packages/db/prisma/seed/data	: { code: string; name: string }[]	
 qualificationSummary	zod	export	packages/contracts/src/doctors.ts:390	packages/contracts	z.object(…)	
 QualificationSummary	type	export	packages/contracts/src/doctors.ts:570	packages/contracts	z.infer<typeof qualificationSummary>	
 QUANTITY_SCALE	const	export	packages/invoicing/src/quantity.ts:21	packages/invoicing	1000	`Decimal(14,3)` — the scale the column is declared at.
@@ -2165,7 +2165,7 @@ revokeMandate	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billi
 revokeMandate	fn/async	export	packages/billing/src/engine/lifecycle.ts:600	packages/billing/engine	(ctx: TenantContext, runtime: BillingRuntime, run: TenantRunner): Promise<void>	
 revokeRole	fn/async	export	apps/api/src/services/iam/member.service.ts:426	apps/api/services/iam	(ctx: TenantContext, membershipId: string, assignmentId: string, options: MemberActionOptions): Promise<MemberDetail>	
 revokeSession	fn/async	export	apps/api/src/services/auth/session.service.ts:264	apps/api/services/auth	(sessionId: string): Promise<void>	
-ROLE_DESIGNATIONS	const	local	packages/db/prisma/seed.ts:1445	packages/db/prisma	: Record<string, string[]>	
+ROLE_DESIGNATIONS	const	local	packages/db/prisma/seed/role-designations.ts:21	packages/db/prisma/seed	: Record<string, string[]>	
 ROLE_SELECT	const	local	apps/api/src/services/iam/role.service.ts:60	apps/api/services/iam	{ id: true, code: true, name: true, description: true, scopeLevel: true, isSystem: true, …	What Prisma is asked for, so the list and the write paths cannot drift.
 RoleActionOptions	interface	export	apps/api/src/services/iam/role.service.ts:45	apps/api/services/iam	{ ipAddress, userAgent }	Request metadata carried onto the audit row. Same shape as the branch service.
 RoleAssignment	interface	export	packages/permissions/src/resolver.ts:20	packages/permissions	{ roleId, roleCode, branchId, permissions, validFrom, validTo }	
@@ -2291,17 +2291,17 @@ SearchState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/action
 Section	component	export	apps/web/src/components/marketing/section.tsx:18	apps/web/components/marketing	({ id, tone = 'paper', className, children, }: { id?: string…)	
 Section	component	local	apps/web/src/components/tenant/doctor-create-form.tsx:575	apps/web/components/tenant	({ title, note, children, }: { title: string; note?: string;…)	
 SectionHead	component	export	apps/web/src/components/marketing/section.tsx:40	apps/web/components/marketing	({ eyebrow, title, lead, tone = 'paper', className, }: { eye…)	A section's opening. `eyebrow` is set in mono because it is a label the interface applies, not prose someone wrote.
-seedClinicalMasters	fn/async	local	packages/db/prisma/seed.ts:1547	packages/db/prisma	(): Promise<void>	
-seedDesignations	fn/async	local	packages/db/prisma/seed.ts:1525	packages/db/prisma	(): Promise<void>	
+seedClinicalMasters	fn/async	export	packages/db/prisma/seed/clinical-masters.ts:12	packages/db/prisma/seed	(): Promise<void>	
+seedDesignations	fn/async	export	packages/db/prisma/seed/designations.ts:50	packages/db/prisma/seed	(): Promise<void>	
 seedDoctor	fn/async	local	apps/api/tests/integration/appointments.test.ts:132	apps/api/tests/integration	(client: ReturnType<typeof asOrg>, userId: string, branchId: string): Promise<string>	A doctor working Mondays 09:00–13:00 at the org's main branch.
 seedDoctor	fn/async	local	apps/api/tests/integration/fee-schedule.test.ts:137	apps/api/tests/integration	(client: ReturnType<typeof asOrg>, userId: string, branchId: string, registrationNumber: string): Promise<string>	
-seedPermissions	fn/async	local	packages/db/prisma/seed.ts:41	packages/db/prisma	(): Promise<Map<PermissionCode, string>>	
-seedPlans	fn/async	local	packages/db/prisma/seed.ts:590	packages/db/prisma	(): Promise<void>	
-seedRoleDesignations	fn/async	local	packages/db/prisma/seed.ts:1477	packages/db/prisma	(): Promise<void>	
-seedSettingDefinitions	fn/async	local	packages/db/prisma/seed.ts:134	packages/db/prisma	(): Promise<void>	
-seedSuperAdmin	fn/async	local	packages/db/prisma/seed.ts:1650	packages/db/prisma	(): Promise<void>	
-seedSystemRoles	fn/async	local	packages/db/prisma/seed.ts:63	packages/db/prisma	(permissionIds: Map<PermissionCode, string>): Promise<void>	
-seedTaxRuleDefaults	fn/async	local	packages/db/prisma/seed.ts:536	packages/db/prisma	(): Promise<void>	
+seedPermissions	fn/async	export	packages/db/prisma/seed/permissions.ts:15	packages/db/prisma/seed	(): Promise<Map<PermissionCode, string>>	
+seedPlans	fn/async	export	packages/db/prisma/seed/plans.ts:6	packages/db/prisma/seed	(): Promise<void>	
+seedRoleDesignations	fn/async	export	packages/db/prisma/seed/role-designations.ts:53	packages/db/prisma/seed	(): Promise<void>	
+seedSettingDefinitions	fn/async	export	packages/db/prisma/seed/setting-definitions.ts:40	packages/db/prisma/seed	(): Promise<void>	
+seedSuperAdmin	fn/async	export	packages/db/prisma/seed/super-admin.ts:11	packages/db/prisma/seed	(): Promise<void>	
+seedSystemRoles	fn/async	export	packages/db/prisma/seed/system-roles.ts:10	packages/db/prisma/seed	(permissionIds: Map<PermissionCode, string>): Promise<void>	
+seedTaxRuleDefaults	fn/async	export	packages/db/prisma/seed/tax-rule-defaults.ts:146	packages/db/prisma/seed	(): Promise<void>	
 seeOther	fn	local	apps/web/src/app/(tenant)/t/[slug]/impersonate/route.ts:61	apps/web/app/(tenant)/t/[slug]/impersonate	(path: string): NextResponse	303, so the browser follows with GET rather than re-POSTing the ticket.
 SEGMENT	const	local	packages/storage/src/keys.ts:47	packages/storage	/^(?=.*[^.])[A-Za-z0-9._-]+$/	
 Select	component	export	apps/web/src/components/ui/field.tsx:330	apps/web/components/ui	({ label, hint, errors, action, fieldClassName, className, i…)	
@@ -2423,7 +2423,7 @@ snapshot	fn	local	apps/api/src/services/patient/patient.service.ts:240	apps/api/
 snapshotSchedule	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:108	apps/api/services/doctor	(row: ScheduleRow): Record<string, unknown>	
 SOURCE_CODES	const	local	apps/api/src/services/invoicing/invoice-number.service.ts:56	apps/api/services/invoicing	{ APPOINTMENT: 'APP', PROCEDURE: 'PRO', SERVICE: 'SRV', LAB: 'LAB', PHARMACY: 'PHA', INVE…	
 SpanListing	component	local	apps/web/src/components/tenant/appointment-board.tsx:636	apps/web/components/tenant	({ slug, timezone, timeFormat, view, appointments, status, t…)	
-SPECIALTIES	const	local	packages/db/prisma/seed.ts:759	packages/db/prisma	: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…	
+SPECIALTIES	const	export	packages/db/prisma/seed/data/specialties.ts:57	packages/db/prisma/seed/data	: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…	
 specialtyListResponse	zod	export	packages/contracts/src/doctors.ts:560	packages/contracts	z.object(…)	
 SpecialtyListResponse	type	export	packages/contracts/src/doctors.ts:579	packages/contracts	z.infer<typeof specialtyListResponse>	
 specialtyProficiency	zod	export	packages/contracts/src/clinical-taxonomy.ts:28	packages/contracts	z.enum(…)	

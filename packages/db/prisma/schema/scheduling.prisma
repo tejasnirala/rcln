@@ -1,0 +1,388 @@
+// =============================================================================
+// SCHEDULING
+//
+// ⚠️ AN APPOINTMENT IS PHI. It names a patient, a doctor and a reason, and the
+//   three together disclose more than any one of them: "cardiology, Tuesday" is
+//   a diagnosis with extra steps. The patient rules apply unchanged — allow-list
+//   snapshots into `audit_logs`, `recordDataAccess` on any read that discloses
+//   one patient, ids only in Redis and in a URL.
+//
+// A BOOKING IS NOT A VISIT. `appointments` is the intention; `encounters`
+// (Phase 3, later) is the clinical event. A walk-in has an encounter with no
+// appointment and a no-show has an appointment with no encounter, so folding
+// them into one table loses both facts.
+// =============================================================================
+
+/// Why the patient is coming. Billing reads this later — a follow-up inside the
+/// free window is not chargeable — which is why WALK_IN is a visit type rather
+/// than only a `source`: the walk-in that becomes a booking still needs to bill
+/// as a walk-in.
+enum AppointmentVisitType {
+  NEW
+  FOLLOW_UP
+  WALK_IN
+  TELECONSULT
+  PROCEDURE
+}
+
+/// Who made the booking. Kept apart from `visitType` because "a follow-up booked
+/// on WhatsApp" is two independent facts, and the online-booking setting is
+/// enforced against this one.
+enum AppointmentSource {
+  FRONT_DESK
+  ONLINE
+  PHONE
+  WHATSAPP
+}
+
+/// Who asked for an appointment to be moved.
+///
+/// ⚠️ THIS EXISTS SO THE CLINIC IS NEVER CHARGED FOR ITS OWN LEAVE. A
+///   patient-initiated move adds the `RESCHEDULE` fee; a clinic-initiated one
+///   adds nothing. Before this column the system could not tell the two apart,
+///   and the only safe default would have been to charge nobody.
+enum RescheduleInitiator {
+  PATIENT
+  CLINIC
+}
+
+enum AppointmentStatus {
+  BOOKED
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+/// One booked slot: this patient, this doctor, this branch, this instant.
+///
+/// ⚠️ `scheduledStart`/`scheduledEnd` ARE ABSOLUTE INSTANTS, unlike
+///   `doctor_schedules.start_time`, which is wall-clock in the branch's zone.
+///   The conversion from one to the other happens in Postgres inside the
+///   availability engine (`($date::date + start_time) AT TIME ZONE b.timezone`)
+///   and nowhere else — the container runs UTC, so composing a Date from local
+///   components in Node silently turns 09:00 IST into 03:30.
+///
+/// ⚠️ DOUBLE-BOOKING IS REFUSED BY POSTGRES, NOT BY THE SERVICE.
+///   A GiST EXCLUDE constraint over (doctor_profile_id, tstzrange(start, end))
+///   WHERE the status still holds the slot is written by hand in the migration —
+///   Prisma cannot declare one. The service checks availability first so the
+///   common case gets a sentence rather than a constraint name, but two
+///   receptionists clicking the same 10:20 within the same millisecond is
+///   exactly the case a check cannot win. Cancelling frees the slot because the
+///   constraint's predicate excludes CANCELLED and NO_SHOW.
+///
+///   The constraint is deliberately NOT partial on `deleted_at`: a soft-deleted
+///   appointment that still reads as BOOKED is a bug, and letting it keep its
+///   slot is the safer failure.
+model Appointment {
+  id                    String               @id @default(uuid()) @db.Uuid
+  organizationId        String               @map("organization_id") @db.Uuid
+  branchId              String               @map("branch_id") @db.Uuid
+  patientId             String               @map("patient_id") @db.Uuid
+  /// The branch-local attendance row this booking was made against. Composite-
+  /// FK'd, so a booking can never cite a registration at a different branch.
+  patientRegistrationId String               @map("patient_registration_id") @db.Uuid
+  doctorProfileId       String               @map("doctor_profile_id") @db.Uuid
+  /// Branch-local, issued from the `APPOINTMENT` counter. Said out loud on the
+  /// phone, so it is issued rather than typed.
+  appointmentNumber     String               @map("appointment_number") @db.VarChar(32)
+  scheduledStart        DateTime             @map("scheduled_start") @db.Timestamptz(6)
+  scheduledEnd          DateTime             @map("scheduled_end") @db.Timestamptz(6)
+  visitType             AppointmentVisitType @default(NEW) @map("visit_type")
+  source                AppointmentSource    @default(FRONT_DESK)
+  status                AppointmentStatus    @default(BOOKED)
+  /// The visit this one follows up on. Composite-FK'd to (organization_id, id),
+  /// so a follow-up can never cite a parent in another tenant.
+  ///
+  /// ⚠️ THE FOLLOW-UP GETS ITS OWN `appointment_number`, NOT THE PARENT'S. The
+  ///   number is issued from a branch counter with a unique constraint behind it
+  ///   and is what the patient is called by in the waiting room; two live rows
+  ///   sharing one token is an ambiguous call, not a feature. The continuity the
+  ///   clinic actually needs — same chain, cumulative prescription — is this
+  ///   column, which is a stronger link than a reused string because the database
+  ///   enforces it.
+  parentAppointmentId   String?              @map("parent_appointment_id") @db.Uuid
+  /// ⚠️ PHI, AND IN `REDACTED_KEYS`. "Chest pain since Tuesday" is a clinical
+  /// statement typed at the front desk. It never reaches an audit row.
+  reason                String?              @db.Text
+  checkedInAt           DateTime?            @map("checked_in_at") @db.Timestamptz(6)
+  startedAt             DateTime?            @map("started_at") @db.Timestamptz(6)
+  completedAt           DateTime?            @map("completed_at") @db.Timestamptz(6)
+  /// SetNull: the receptionist may leave; the booking stays.
+  bookedBy              String?              @map("booked_by") @db.Uuid
+  cancelledBy           String?              @map("cancelled_by") @db.Uuid
+  /// ⚠️ PHI by the same reasoning as `reason`.
+  cancellationReason    String?              @map("cancellation_reason") @db.Text
+  /// What this visit will be billed at, RESOLVED AND FROZEN WHEN IT WAS BOOKED.
+  ///
+  /// ⚠️ THE PRICE THE PATIENT WAS QUOTED, NOT THE PRICE IN FORCE TODAY. The fee
+  ///   schedule can be edited between a booking and the visit, and the patient
+  ///   standing at the desk was told a number. Re-resolving at invoice time —
+  ///   which is what happened before this column — silently bills a rise nobody
+  ///   was told about.
+  ///
+  ///   It is re-resolved in exactly ONE case: a reschedule that moves the visit
+  ///   to a DIFFERENT DOCTOR, because that is a different consultation rather
+  ///   than a price change. A move that only changes the time keeps this value.
+  ///
+  /// NULL means the schedule priced nothing — no entry at any level — and the
+  /// billing panel says so rather than billing zero.
+  bookedFee             Decimal?             @map("booked_fee") @db.Decimal(14, 2)
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt             DateTime?            @map("deleted_at") @db.Timestamptz(6)
+
+  organization  Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch        Branch                     @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  patient       Patient                    @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  registration  PatientRegistration        @relation(fields: [organizationId, patientRegistrationId], references: [organizationId, id], onDelete: Cascade)
+  doctorProfile DoctorProfile              @relation(fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Restrict)
+  booker        User?                      @relation("AppointmentBookedBy", fields: [bookedBy], references: [id], onDelete: SetNull)
+  canceller     User?                      @relation("AppointmentCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
+  statusHistory AppointmentStatusHistory[]
+  vitals        AppointmentVital[]
+  invoices      Invoice[]
+  reschedules   AppointmentReschedule[]
+
+  /// Restrict, not Cascade: deleting a visit must never silently take the
+  /// follow-ups hanging off it — and the follow-up is the row that carries the
+  /// cumulative prescription.
+  parent    Appointment?  @relation("AppointmentFollowUp", fields: [organizationId, parentAppointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  followUps Appointment[] @relation("AppointmentFollowUp")
+
+  @@unique([organizationId, branchId, appointmentNumber])
+  /// Composite-FK target: encounters, invoices and queue tokens will reference
+  /// (organization_id, id) so a cross-tenant child is unrepresentable (ADR-0004).
+  @@unique([organizationId, id])
+  /// The day board: one branch, one day, in time order.
+  @@index([organizationId, branchId, scheduledStart])
+  /// "What does my afternoon look like?" — and the read the engine does on every
+  /// availability request.
+  @@index([organizationId, doctorProfileId, scheduledStart])
+  /// "When was this patient last here?"
+  @@index([organizationId, patientId, scheduledStart])
+  /// "What follows this visit?" — walked in both directions when the diagnosis
+  /// page assembles the cumulative prescription for a chain.
+  @@index([organizationId, parentAppointmentId])
+  @@map("appointments")
+}
+
+/// One move of one appointment: who asked, why, and what it cost.
+///
+/// ⚠️ A TABLE AND NOT A COUNTER, BECAUSE A REASON IS WANTED PER MOVE. A patient
+///   who moves an appointment three times is billed three times and has given
+///   three explanations, and "why do patients keep moving Dr Tejas's slots?" is
+///   a question a clinic can only answer from rows. A `reschedule_count` column
+///   plus a JSON list of reasons would be ADR-0006 exactly.
+///
+/// ⚠️ `charge_amount` IS SNAPSHOTTED, NOT LOOKED UP. It is what the `RESCHEDULE`
+///   fee resolved to at the moment of the move. Re-reading the schedule when the
+///   invoice is raised would re-price moves that happened before the clinic
+///   changed the charge — the same mistake `bookedFee` exists to prevent.
+///   A clinic-initiated move stores 0, not NULL: nothing was charged, and that
+///   is a decision rather than a missing value.
+///
+/// ⚠️ `reason` IS PHI-CAPABLE FREE TEXT and is in `REDACTED_KEYS`. "Can't come
+///   Thursday, chemo" is a clinical statement typed at the front desk, exactly
+///   like `appointments.reason`. It never reaches an audit row.
+///
+/// Append-only in practice: nothing updates or deletes a row here, because the
+/// history of a booking is not editable. Not enforced by a trigger — unlike
+/// `audit_logs`, this is an ordinary business table and a correction to a
+/// mistyped reason is legitimate.
+model AppointmentReschedule {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  /// Copied from the appointment, so this row is an ordinary member of the
+  /// branch RLS loop rather than inheriting only the org half through a parent.
+  /// Contrast `appointment_status_history`, which has neither and pays for it.
+  branchId       String @map("branch_id") @db.Uuid
+  appointmentId  String @map("appointment_id") @db.Uuid
+
+  /// Where the visit was, and where it went. Both instants, both UTC.
+  fromStart DateTime @map("from_start") @db.Timestamptz(6)
+  toStart   DateTime @map("to_start") @db.Timestamptz(6)
+
+  /// Who was going to see the patient, and who will now. Equal on an ordinary
+  /// move; different when the swap is what re-resolved the fee.
+  fromDoctorProfileId String @map("from_doctor_profile_id") @db.Uuid
+  toDoctorProfileId   String @map("to_doctor_profile_id") @db.Uuid
+
+  initiatedBy  RescheduleInitiator @map("initiated_by")
+  /// ⚠️ PHI. See the model note.
+  reason       String?             @db.Text
+  /// What the move cost. Always 0 for a CLINIC move.
+  chargeAmount Decimal             @default(0) @map("charge_amount") @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  appointment  Appointment  @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Cascade)
+
+  /// The billing read: every move of one appointment, oldest first.
+  @@index([organizationId, appointmentId, createdAt])
+  @@map("appointment_reschedules")
+}
+
+/// A set of observations taken for one appointment: the numbers the front desk
+/// or the nurse writes down before the doctor is handed the patient.
+///
+/// ⚠️ PHI, ALL OF IT. A blood pressure attached to a named person is a clinical
+///   record. Nothing here reaches an audit row, and reads are logged to
+///   `data_access_logs` like every other chart read.
+///
+/// APPEND-ONLY IN PRACTICE, AND DELIBERATELY MANY-PER-APPOINTMENT. A repeat
+/// blood pressure twenty minutes after a high first reading is the normal
+/// clinical act, and it is a second observation rather than a correction of the
+/// first. `deletedAt` exists for the genuine mistyping, which is a different
+/// thing and leaves a trail.
+///
+/// BRANCH-SCOPED, like `appointments`. Vitals are taken at a place.
+model AppointmentVital {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  appointmentId  String @map("appointment_id") @db.Uuid
+  /// Denormalised from the appointment so the patient timeline ("show me every
+  /// BP this year") does not have to join through every visit to find them.
+  /// Composite-FK'd, so it cannot drift to a patient in another tenant; the
+  /// service copies it from the appointment rather than trusting the caller.
+  patientId      String @map("patient_id") @db.Uuid
+
+  /// Centimetres. Decimal because paediatric heights are recorded to the mm.
+  heightCm           Decimal? @map("height_cm") @db.Decimal(5, 1)
+  /// Kilograms, to 100g — the resolution of a clinic scale.
+  weightKg           Decimal? @map("weight_kg") @db.Decimal(5, 1)
+  /// ⚠️ NOT STORED. BMI is derived from the two above and would go stale the
+  ///   moment either is corrected. Computed at read time.
+  /// Degrees Celsius. 37.00, never 37.
+  ///
+  /// ⚠️ CELSIUS IN EVERY COUNTRY, INCLUDING THE ONES THAT WRITE FAHRENHEIT.
+  ///   India, the rest of the subcontinent and the United States record a body
+  ///   temperature in °F at the bedside, and the vitals form asks in °F there —
+  ///   but the COLUMN is Celsius everywhere, because a column whose unit depends
+  ///   on the row cannot be trended, range-checked or exported, and FHIR/UCUM
+  ///   `Cel` is what ABDM will want it in. The conversion happens once, at the
+  ///   edge, in `toCelsius`/`fromCelsius` in @rcln/contracts.
+  ///
+  /// ⚠️ TWO DECIMALS, NOT ONE, AND THE SECOND ONE IS LOAD-BEARING. 0.1 °C is
+  ///   0.18 °F, so a °F reading rounded into one decimal of Celsius does not
+  ///   survive the trip back: a nurse types 99.4, it stores 37.4, and the chart
+  ///   redraws as 99.3 seconds later. At two decimals 99.4 stores 37.44 and
+  ///   reads back 99.4. Nothing clinical needs 0.01 °C; the round trip does.
+  temperatureC       Decimal? @map("temperature_c") @db.Decimal(4, 2)
+  pulseBpm           Int?     @map("pulse_bpm") @db.SmallInt
+  respiratoryRateBpm Int?     @map("respiratory_rate_bpm") @db.SmallInt
+  /// The two halves of the blood pressure, apart rather than as "120/80". They
+  /// are independently trended and independently out of range.
+  systolicMmHg       Int?     @map("systolic_mm_hg") @db.SmallInt
+  diastolicMmHg      Int?     @map("diastolic_mm_hg") @db.SmallInt
+  /// Oxygen saturation, whole percent.
+  spo2Percent        Int?     @map("spo2_percent") @db.SmallInt
+  /// mg/dL — the unit Indian clinics report in. Decimal, not float.
+  bloodGlucoseMgDl   Decimal? @map("blood_glucose_mg_dl") @db.Decimal(5, 1)
+  /// ⚠️ PHI. Free text — "patient was distressed, repeated after 10 min".
+  notes              String?  @db.Text
+
+  /// When the observation was taken, which is not when the row was written. The
+  /// front desk types up a paper slip an hour later often enough that inferring
+  /// one from the other would misdate the trend.
+  recordedAt DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  /// SetNull: the nurse may leave; the reading stays.
+  recordedBy String?  @map("recorded_by") @db.Uuid
+
+  /// ⚠️ SET ON A SUPERSEDED VERSION, NULL ON A LIVE READING, AND EVERY QUERY THAT
+  ///   RENDERS A CHART MUST FILTER ON IT.
+  ///
+  ///   A correction keeps the reading's identity and rewrites its values (see
+  ///   `amendVitals`), so the numbers that were there before would otherwise be
+  ///   gone — and "who changed a blood pressure from 180 to 120, and when" is the
+  ///   question a medical record has to be able to answer years later. Before
+  ///   each amendment the previous version is copied here, pointing at the
+  ///   reading it is a version OF.
+  ///
+  ///   These rows are NOT observations. They never appear on a chart, never
+  ///   count towards a trend, and `listVitals` filters them out with
+  ///   `revision_of_id IS NULL`. A future "every BP this year" query must do the
+  ///   same, or it will count one measurement once per time somebody fixed a typo
+  ///   in it.
+  ///
+  /// ⚠️ THE VALUES LIVE HERE AND NOT IN `audit_logs`, DELIBERATELY. That table is
+  ///   read through `audit.record.read` — a compliance code held by people with
+  ///   no clinical access at all — so a blood pressure in it is a disclosure with
+  ///   a timestamp. This table is the clinical record: same RLS policy, same
+  ///   branch scoping, read behind `clinical.vitals.record`, and every read
+  ///   writes a `data_access_logs` row. `audit_logs` still records THAT the
+  ///   amendment happened and which measurements moved.
+  revisionOfId String?   @map("revision_of_id") @db.Uuid
+  /// When this version stopped being the current one. Null on a live reading.
+  supersededAt DateTime? @map("superseded_at") @db.Timestamptz(6)
+  /// Who amended it — NOT who took the observation, which stays in `recordedBy`.
+  supersededBy String?   @map("superseded_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  appointment  Appointment  @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  recorder     User?        @relation("VitalRecordedBy", fields: [recordedBy], references: [id], onDelete: SetNull)
+  amender      User?        @relation("VitalSupersededBy", fields: [supersededBy], references: [id], onDelete: SetNull)
+
+  /// Composite, so a version cannot point at a reading in another tenant —
+  /// ADR-0004 applied to a self-relation.
+  revisionOf AppointmentVital?  @relation("VitalRevisions", fields: [organizationId, revisionOfId], references: [organizationId, id], onDelete: Cascade)
+  revisions  AppointmentVital[] @relation("VitalRevisions")
+
+  /// Composite-FK target, so a later child (an observation flag, say) is
+  /// cross-tenant-unrepresentable by construction (ADR-0004).
+  @@unique([organizationId, id])
+  /// The visit's readings, oldest first — how the diagnosis page renders them.
+  @@index([organizationId, appointmentId, recordedAt])
+  /// The trend: every reading for one person, newest first.
+  @@index([organizationId, patientId, recordedAt])
+  /// One reading's earlier versions, oldest first.
+  @@index([organizationId, revisionOfId, supersededAt])
+  @@map("appointment_vitals")
+}
+
+/// Every status change, in order. Append-only by construction — nothing updates
+/// a row here, and the service writes one inside the same transaction as the
+/// change it records.
+///
+/// WHY A TABLE AND NOT `audit_logs`
+///   The clinical questions — how long between check-in and being seen, how many
+///   were cancelled after confirmation — are asked of this trail constantly and
+///   by ordinary screens. `audit_logs` is the compliance record and gets a row
+///   too; it is not something a waiting-time report should have to parse.
+///
+/// ⚠️ NO `branch_id`, DELIBERATELY. It is reached only through its appointment,
+///   and its RLS is an EXISTS against `appointments` — whose own RESTRICTIVE
+///   branch policy applies to that subquery, so the branch boundary composes
+///   rather than being restated and drifting.
+model AppointmentStatusHistory {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  appointmentId  String             @map("appointment_id") @db.Uuid
+  /// Null only for the row recording the booking itself.
+  fromStatus     AppointmentStatus? @map("from_status")
+  toStatus       AppointmentStatus  @map("to_status")
+  changedBy      String?            @map("changed_by") @db.Uuid
+  /// ⚠️ PHI. Free text a clinician typed. Never audited, never exported.
+  note           String?            @db.Text
+  changedAt      DateTime           @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointment  Appointment  @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Cascade)
+  changer      User?        @relation("AppointmentStatusChangedBy", fields: [changedBy], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, appointmentId, changedAt])
+  @@map("appointment_status_history")
+}

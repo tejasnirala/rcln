@@ -536,7 +536,7 @@
     "paths": [
       "packages/invoicing/src/",
       "packages/documents/src/",
-      "packages/db/prisma/schema.prisma",
+      "packages/db/prisma/schema/invoicing.prisma",
       "apps/api/src/services/invoicing/",
       "apps/worker/src/documents/"
     ],

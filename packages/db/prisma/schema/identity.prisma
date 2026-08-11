@@ -1,0 +1,154 @@
+// =============================================================================
+// IDENTITY
+// =============================================================================
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  LOCKED
+}
+
+enum AuthTokenPurpose {
+  LOGIN_OTP
+  PASSWORD_RESET
+  VERIFY_EMAIL
+  VERIFY_PHONE
+  INVITE_ACCEPT
+}
+
+/// ONE table for every human: super admin, doctor, receptionist, patient.
+/// Deliberately global (not org-scoped) so one person can hold memberships in
+/// several organizations with a single login. There is NO role column here —
+/// roles live on membership_roles, scoped per branch.
+model User {
+  id                         String     @id @default(uuid()) @db.Uuid
+  email                      String?    @unique @db.VarChar(255)
+  phone                      String?    @unique @db.VarChar(20)
+  passwordHash               String?    @map("password_hash") @db.VarChar(255)
+  fullName                   String     @map("full_name") @db.VarChar(255)
+  avatarFileId               String?    @map("avatar_file_id") @db.Uuid
+  status                     UserStatus @default(INVITED)
+  /// The seeded platform operator. Bypasses membership checks entirely and can
+  /// enter any tenant — every such action is written to audit_logs.
+  isPlatformAdmin            Boolean    @default(false) @map("is_platform_admin")
+  mfaEnabled                 Boolean    @default(false) @map("mfa_enabled")
+  mfaSecret                  String?    @map("mfa_secret") @db.VarChar(255)
+  locale                     String     @default("en") @db.VarChar(10)
+  /// The clinic this platform admin last worked inside, so the console can offer
+  /// it again on their next sign-in instead of making them find it.
+  ///
+  /// A PREFERENCE, NOT A GRANT. It confers nothing — entering a clinic still goes
+  /// through the impersonation handoff, which re-checks `isPlatformAdmin` at
+  /// redemption and writes an audit row with a stated reason (ADR-0012). A stale
+  /// or deleted organization here is harmless: the console validates it on read
+  /// and offers nothing if it no longer resolves.
+  ///
+  /// It lives on `users` rather than on a tenant table because the person it
+  /// describes belongs to no tenant — that is what makes them a platform admin.
+  /// Null for everyone else, which is almost everyone.
+  lastPlatformOrganizationId String?    @map("last_platform_organization_id") @db.Uuid
+  emailVerifiedAt            DateTime?  @map("email_verified_at") @db.Timestamptz(6)
+  phoneVerifiedAt            DateTime?  @map("phone_verified_at") @db.Timestamptz(6)
+  lastLoginAt                DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  failedAttempts             Int        @default(0) @map("failed_login_attempts") @db.SmallInt
+  lockedUntil                DateTime?  @map("locked_until") @db.Timestamptz(6)
+  createdAt                  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                  DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  identities                UserIdentity[]
+  sessions                  Session[]
+  authTokens                AuthToken[]
+  memberships               Membership[]
+  ownedOrganizations        Organization[]             @relation("OrganizationOwner")
+  // SetNull, and safe as a single-column FK on a nullable column: forgetting a
+  // preference is the correct outcome when the clinic it named is gone.
+  lastPlatformOrganization  Organization?              @relation("PlatformAdminLastOrganization", fields: [lastPlatformOrganizationId], references: [id], onDelete: SetNull)
+  invitationsSent           Invitation[]               @relation("InvitedBy")
+  auditLogs                 AuditLog[]
+  dataAccessLogs            DataAccessLog[]
+  uploadedFiles             StoredFile[]
+  doctorProfiles            DoctorProfile[]
+  /// The portal login for a patient record. Optional on both sides — most
+  /// patients never sign up.
+  patientRecords            Patient[]
+  patientRegistrations      PatientRegistration[]      @relation("PatientRegisteredBy")
+  allergiesNoted            PatientAllergy[]           @relation("AllergyNotedBy")
+  conditionsNoted           PatientCondition[]         @relation("ConditionNotedBy")
+  medicationsNoted          PatientMedication[]        @relation("MedicationNotedBy")
+  appointmentsBooked        Appointment[]              @relation("AppointmentBookedBy")
+  appointmentsCancelled     Appointment[]              @relation("AppointmentCancelledBy")
+  appointmentStatusChanges  AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
+  vitalsRecorded            AppointmentVital[]         @relation("VitalRecordedBy")
+  vitalsAmended             AppointmentVital[]         @relation("VitalSupersededBy")
+  invoicesCreated           Invoice[]                  @relation("InvoiceCreatedBy")
+  invoicesIssued            Invoice[]                  @relation("InvoiceIssuedBy")
+  invoicesCancelled         Invoice[]                  @relation("InvoiceCancelledBy")
+  invoiceDocumentsGenerated InvoiceDocument[]          @relation("InvoiceDocumentGeneratedBy")
+
+  @@index([status])
+  @@index([isPlatformAdmin])
+  @@map("users")
+}
+
+model UserIdentity {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  provider    String   @db.VarChar(32)
+  providerUid String   @map("provider_uid") @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUid])
+  @@index([userId])
+  @@map("user_identities")
+}
+
+/// Where branch switching physically lives. Changing the active branch is an
+/// UPDATE here plus a re-issued access token — never a re-login.
+model Session {
+  id                   String    @id @default(uuid()) @db.Uuid
+  userId               String    @map("user_id") @db.Uuid
+  activeOrganizationId String?   @map("active_organization_id") @db.Uuid
+  activeBranchId       String?   @map("active_branch_id") @db.Uuid
+  impersonatedByUserId String?   @map("impersonated_by_user_id") @db.Uuid
+  /// Opaque 256-bit token, hashed. Rotated on every refresh; presenting an
+  /// already-rotated token revokes the whole family (theft signal).
+  refreshTokenHash     String    @unique @map("refresh_token_hash") @db.VarChar(255)
+  previousTokenHash    String?   @map("previous_token_hash") @db.VarChar(255)
+  ipAddress            String?   @map("ip_address") @db.Inet
+  userAgent            String?   @map("user_agent") @db.VarChar(512)
+  expiresAt            DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt            DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastUsedAt           DateTime? @map("last_used_at") @db.Timestamptz(6)
+
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeBranch Branch? @relation(fields: [activeBranchId], references: [id], onDelete: SetNull)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// OTP and one-shot links. Phone-first login is non-negotiable in Indian
+/// healthcare, so this carries attempt counting and hard expiry.
+model AuthToken {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String?          @map("user_id") @db.Uuid
+  purpose    AuthTokenPurpose
+  identifier String           @db.VarChar(255)
+  codeHash   String           @map("code_hash") @db.VarChar(255)
+  attempts   Int              @default(0) @db.SmallInt
+  expiresAt  DateTime         @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime?        @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([identifier, purpose])
+  @@index([expiresAt])
+  @@map("auth_tokens")
+}

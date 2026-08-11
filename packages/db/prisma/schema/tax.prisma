@@ -1,0 +1,433 @@
+// =============================================================================
+// TAX (registrations and rate rules, platform + clinic)
+// =============================================================================
+/// What an invoice line is for. A prorated upgrade produces a credit line and a
+/// charge line on the same invoice, and a clinic reading its own invoice has to
+/// be able to tell which is which without doing the arithmetic itself.
+/// How a price relates to the tax on it.
+enum TaxBehavior {
+  /// The catalogue figure is net; tax is added on top. The default, and what
+  /// every current `plan_prices` row means.
+  EXCLUSIVE
+  /// The catalogue figure is what the customer pays, tax already inside it.
+  /// Required for consumer-facing prices in the EU and UK.
+  INCLUSIVE
+}
+
+/// Why a supply was taxed the way it was. Recorded on the invoice because it is
+/// the thing an auditor asks about, and it cannot be recomputed later — the
+/// registrations and the customer's validation status will both have moved on.
+enum TaxTreatment {
+  /// Tax charged at the rate of the place of supply.
+  STANDARD
+  /// The customer accounts for the tax themselves. EU cross-border B2B with a
+  /// valid VAT number, and India's reverse-charge cases.
+  REVERSE_CHARGE
+  /// Taxable at 0% — an export of services out of a jurisdiction we collect in.
+  /// Different from EXEMPT: a zero-rated supply still appears on a return.
+  ZERO_RATED
+  /// Outside the scope of the tax entirely.
+  EXEMPT
+  /// We hold no registration covering this place of supply, so we may not
+  /// collect. NOT a rate of zero — it is an absence of authority to charge, and
+  /// the distinction is the whole reason this value exists.
+  NOT_REGISTERED
+  /// We ARE registered here, but no `tax_rules` row says what this item's tax
+  /// category is taxed at, so nothing was charged.
+  ///
+  /// ⚠️ THE ONE TREATMENT THAT MEANS "THIS DOCUMENT IS NOT FIT TO ISSUE".
+  ///   Every other value is a legal position. This one is a configuration gap,
+  ///   and the safe direction for a gap is to charge nothing and say so rather
+  ///   than to apply the registration's standard rate — a rate nobody chose,
+  ///   on a document a patient may claim against insurance. A DRAFT may carry
+  ///   it; finalisation refuses to ISSUE an invoice that still does.
+  UNRATED
+  /// The jurisdiction's tax cannot be computed from a rate table at all, and no
+  /// external tax provider is configured to compute it.
+  ///
+  /// ⚠️ DIFFERENT FROM `UNRATED`, BECAUSE THE REMEDY IS DIFFERENT. `UNRATED`
+  ///   means "add a `tax_rules` row" and a clinic can fix it in a screen.
+  ///   This means "subscribe to Avalara / Stripe Tax", and no amount of data
+  ///   entry will help: US sales tax is ~11,000 jurisdictions with
+  ///   economic-nexus thresholds, and EU cross-border consumer VAT needs all 27
+  ///   rates plus VIES. Both are honest refusals rather than plausible guesses.
+  ///   Like `UNRATED`, finalisation must refuse to ISSUE an invoice carrying it.
+  PROVIDER_REQUIRED
+}
+
+/// How ONE rate becomes the tax LINES printed on an invoice.
+///
+/// A rate and a line are not the same thing, and conflating them is what makes a
+/// tax engine India-shaped. 12% GST in Karnataka prints as two lines of 6%; the
+/// same 12% in Singapore prints as one line; 12% across an Indian state border
+/// prints as one line called something else again. The arithmetic is identical
+/// and only the presentation differs, so the presentation is data.
+enum TaxSplit {
+  /// One rate, one line. Every VAT country, and every GST country except India.
+  NONE
+  /// India's constitutional split. A supply INSIDE the state the issuer is
+  /// registered in is halved between the centre and the state — `CGST` + `SGST`,
+  /// or `UTGST` in a union territory without a legislature. A supply to any
+  /// other state is one line for the whole amount, `IGST`.
+  ///
+  /// The halves are derived from the rule's `line_name` by prefix (`GST` ->
+  /// `CGST`/`SGST`/`IGST`), which is exactly how the names are constructed in
+  /// law. `regional_line_name` overrides the state half for a union territory.
+  INTRA_STATE_HALVES
+}
+
+/// Whether a customer's tax identifier has been checked with the authority that
+/// issued it.
+enum TaxIdStatus {
+  NOT_PROVIDED
+  /// Given, not yet checked. Treated as absent when deciding reverse charge.
+  UNVALIDATED
+  VALID
+  /// Checked and refused. Kept rather than blanked, so the customer is not asked
+  /// for it again in a loop and support can see what happened.
+  INVALID
+}
+
+/// The kind of tax a registration is for. Determines which engine handles it.
+enum TaxScheme {
+  GST
+  VAT
+  SALES_TAX
+}
+
+/// Where rcln itself is registered to collect tax.
+///
+/// ⚠️ THIS TABLE IS THE AUTHORITY ON WHETHER TAX MAY BE CHARGED AT ALL, AND THAT
+///    IS A LEGAL QUESTION RATHER THAN AN ARITHMETIC ONE.
+///   Charging tax in a jurisdiction we hold no registration for is collecting
+///   money we have no authority to collect, and it cannot be fixed by remitting
+///   it later — there is nobody to remit it to. So the tax engine charges
+///   nothing unless a row here covers the place of supply, and records
+///   `NOT_REGISTERED` on the invoice saying so. An empty table means every
+///   supply is untaxed, which is the correct behaviour for a business that has
+///   not registered anywhere yet.
+///
+/// NOT TENANT-SCOPED, AND NOT A CATALOGUE EITHER
+///   It describes the SUPPLIER — us — not any clinic. There is one set of rows
+///   for the whole platform, like `plans`. It is listed in EXEMPT in
+///   check-rls.ts with that reason.
+///
+/// ONE ROW PER PLACE WE REGISTERED SEPARATELY
+///   India issues a GSTIN per state, so a multi-state presence is several rows
+///   with the same `country_code` and different `region_code`. A country-wide
+///   registration — most VAT regimes, and India's OIDAR route for a foreign
+///   supplier — is one row with `region_code` NULL.
+model TaxRegistration {
+  id                 String    @id @default(uuid()) @db.Uuid
+  countryCode        String    @map("country_code") @db.Char(2)
+  /// ISO 3166-2 subdivision, without the country prefix. NULL = country-wide.
+  regionCode         String?   @map("region_code") @db.VarChar(10)
+  scheme             TaxScheme
+  /// Our number in that jurisdiction, printed on every invoice it covers.
+  registrationNumber String    @map("registration_number") @db.VarChar(64)
+  /// The rate to charge, in basis points, for the digital-services category we
+  /// sell in. 18% GST is 1800.
+  ///
+  /// Held here rather than in a rate table because a rate table for the world is
+  /// a subscription to a tax provider, not a column — see the header of
+  /// `@rcln/tax`. One rate per registration is honest for the jurisdictions a
+  /// business registers in early, and the provider engine ignores it entirely.
+  standardRateBps    Int       @map("standard_rate_bps")
+  /// When this registration took effect. A supply before it is not taxable by
+  /// us even though the row exists, which matters for the first invoices after
+  /// registering.
+  effectiveFrom      DateTime  @map("effective_from") @db.Date
+  /// When it lapsed, if it has. Kept rather than deleted so historical invoices
+  /// remain explicable.
+  effectiveTo        DateTime? @map("effective_to") @db.Date
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  /// `region_code` is nullable, so this needs NULLS NOT DISTINCT to actually
+  /// constrain the country-wide rows — appended by hand to the migration, as
+  /// ADR-0004 requires.
+  @@unique([countryCode, regionCode, scheme])
+  @@index([countryCode])
+  @@map("tax_registrations")
+}
+
+/// Where a CLINIC is registered to collect tax. The tenant-scoped twin of
+/// `tax_registrations`.
+///
+/// ⚠️ THIS IS NOT `tax_registrations` AND MUST NEVER BE MERGED WITH IT.
+///   That table holds rcln's own numbers and answers "may WE charge this clinic
+///   for its subscription?". This one holds the clinic's numbers and answers
+///   "may THIS CLINIC charge its patient?". Different issuer, different
+///   authority, different return. They are the same shape for the same reason
+///   two businesses fill in the same form, and `@rcln/tax` reads both through
+///   one `IssuerRegistration` interface precisely so neither can learn which of
+///   the two it is serving.
+///
+/// TENANT-SCOPED, WHERE ITS TWIN IS EXEMPT
+///   The reasoning that exempts `tax_registrations` — a policy would return zero
+///   rows inside a tenant transaction and every invoice would silently come out
+///   untaxed — does not apply here, because these rows ARE the tenant's. It gets
+///   an ordinary `tenant_isolation` policy, and one clinic reading another's
+///   GSTIN would be a straightforward tenancy leak.
+///
+/// ONE ROW PER REGISTRATION THE CLINIC ACTUALLY HOLDS, AND NOT ONE PER PLACE
+///   India issues a GSTIN per state, so a group with branches in Karnataka and
+///   Kerala usually holds two rows and its two branches bill under different
+///   numbers. USUALLY, not always, and the table must not assume it:
+///
+///   - a clinic may hold NONE (below the registration threshold),
+///   - it may hold two in ONE jurisdiction — India has allowed a second GSTIN per
+///     state for a separate business vertical since 2019,
+///   - and it keeps the ones it no longer uses, because an invoice raised today
+///     for last year's consultation has to cite the number in force THEN.
+///
+///   So the key is (organization, country, scheme, NUMBER): you cannot record the
+///   same registration twice, and everything else is a business fact rather than
+///   a constraint. What a registration COVERS is stated in
+///   `issuer_tax_registration_branches`, not inferred from geography.
+model IssuerTaxRegistration {
+  id                 String    @id @default(uuid()) @db.Uuid
+  organizationId     String    @map("organization_id") @db.Uuid
+  countryCode        String    @map("country_code") @db.Char(2)
+  /// ISO 3166-2 subdivision, without the country prefix. NULL = country-wide.
+  regionCode         String?   @map("region_code") @db.VarChar(10)
+  scheme             TaxScheme
+  /// The clinic's number in that jurisdiction, printed on every invoice it
+  /// covers. Snapshotted onto the invoice at issue, never re-read afterwards.
+  registrationNumber String    @map("registration_number") @db.VarChar(64)
+  /// The name the registration is held in, which is not always the name over
+  /// the door. A GST invoice must print the registered legal name.
+  legalName          String?   @map("legal_name") @db.VarChar(255)
+  /// When this registration took effect. A supply before it is not taxable by
+  /// the clinic even though the row exists.
+  effectiveFrom      DateTime  @map("effective_from") @db.Date
+  /// When it lapsed, if it has. Kept rather than deleted so historical invoices
+  /// remain explicable.
+  effectiveTo        DateTime? @map("effective_to") @db.Date
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization   Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices       Invoice[]
+  branchCoverage IssuerTaxRegistrationBranch[]
+
+  /// ⚠️ THE NUMBER, NOT THE JURISDICTION, IS WHAT CANNOT REPEAT.
+  ///   This used to be (organization, country, region, scheme), which read as
+  ///   "one registration per place" and made two true things unrecordable: a
+  ///   second concurrent registration in one state, and a lapsed registration
+  ///   kept alongside the one that replaced it. Both are ordinary. Recording the
+  ///   SAME number twice is not, and is what this key still refuses.
+  ///
+  ///   Selecting between several live registrations is therefore a matter of
+  ///   coverage rather than of uniqueness — see the branch link table.
+  @@unique([organizationId, countryCode, scheme, registrationNumber])
+  /// Composite-FK target: `invoices` and `issuer_tax_registration_branches`
+  /// reference (organization_id, id) so neither can point at another tenant's
+  /// registration.
+  @@unique([organizationId, id])
+  @@index([organizationId, countryCode])
+  @@map("issuer_tax_registrations")
+}
+
+/// WHICH BRANCHES A REGISTRATION COVERS. Stated by the clinic, never inferred.
+///
+/// ⚠️ THIS TABLE EXISTS BECAUSE COVERAGE IS A BUSINESS FACT AND ADDRESSES ARE NOT
+///   EVIDENCE OF IT. Before it, "which branches does this GSTIN cover?" was
+///   answered by matching the branch's (country, region) against the
+///   registration's — so the answer was *whichever branches happen to sit in the
+///   same state*, and a clinic could not say otherwise. That silently forbids
+///   three shapes the business genuinely has: two branches in one state billing
+///   under two different numbers, one number deliberately covering only some of
+///   the branches in its state, and any arrangement in a country whose
+///   registrations are not drawn on state lines at all.
+///
+/// A BRANCH WITH NO ROW HERE FALLS BACK TO JURISDICTION MATCHING, and that
+///   fallback is what makes this table additive rather than a migration of
+///   behaviour. A clinic that never opens the coverage screen bills exactly as it
+///   did before; the moment it states coverage for a branch, the statement wins.
+///
+/// ⚠️ AT MOST ONE LIVE REGISTRATION PER (BRANCH, SCHEME) — enforced in the
+///   service, not here, because "live" is a date range and Postgres cannot
+///   express the overlap in a unique index without an exclusion constraint over
+///   a join. Two live GSTINs on one branch is not a richer configuration, it is
+///   an invoice whose number depends on planner order.
+model IssuerTaxRegistrationBranch {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  taxRegistrationId String    @map("tax_registration_id") @db.Uuid
+  branchId          String    @map("branch_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite FKs, per ADR-0004: the tenant travels in the key, so a link can
+  /// never join this org's branch to another org's registration.
+  registration IssuerTaxRegistration @relation(fields: [organizationId, taxRegistrationId], references: [organizationId, id], onDelete: Cascade)
+  branch       Branch                @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, taxRegistrationId, branchId])
+  @@index([organizationId, branchId])
+  @@index([organizationId, taxRegistrationId])
+  @@map("issuer_tax_registration_branches")
+}
+
+/// What ONE KIND OF THING is taxed at, here, on this date.
+///
+/// ⚠️ THE REASON A RATE CANNOT LIVE ON THE REGISTRATION.
+///   `tax_registrations.standard_rate_bps` is one rate per place, which is
+///   honest when you sell one product. A clinic sells several with genuinely
+///   different treatments: in India a consultation is EXEMPT, medicines are 5%
+///   or 12%, most consumables are 12% or 18%. Billing a consultation at the
+///   registration's standard rate is not a rounding error — it charges GST on
+///   an exempt supply, which the clinic then owes to the government on money it
+///   should never have collected.
+///
+/// EFFECTIVE-DATED, BECAUSE RATES CHANGE AND OLD INVOICES MUST STILL EXPLAIN
+///   A rate change is a new row, not an edit: `effective_to` on the old one is
+///   the day BEFORE `effective_from` on the new one, which is how a rate
+///   notification reads. Both ends are inclusive. An invoice issued last year
+///   remains explicable because the row that priced it is still here.
+///
+/// ⚠️ `treatment` IS CONSTRAINED TO THREE VALUES BY A CHECK, NOT BY THE ENUM.
+///   An item can be STANDARD, ZERO_RATED or EXEMPT. It can never be
+///   REVERSE_CHARGE (a fact about the two parties) or NOT_REGISTERED / UNRATED
+///   (facts about the issuer). Prisma cannot express a subset of an enum, so
+///   the constraint is hand-appended to the migration — without it a catalogue
+///   row could assert a legal position it knows nothing about. Mirrored in TS
+///   as `ItemTaxTreatment`.
+model TaxRule {
+  id               String       @id @default(uuid()) @db.Uuid
+  organizationId   String       @map("organization_id") @db.Uuid
+  countryCode      String       @map("country_code") @db.Char(2)
+  /// ISO 3166-2 subdivision, without the country prefix. NULL = country-wide,
+  /// which is what almost every GST rate is — the rate is national even though
+  /// the registration is per state.
+  regionCode       String?      @map("region_code") @db.VarChar(10)
+  scheme           TaxScheme
+  /// The item key. An HSN/SAC code (`999312`, `3004`) or a clinic's own category
+  /// (`CONSULTATION`). Matched EXACTLY against the item's category — there is no
+  /// HSN prefix-tree here, deliberately, because a prefix match that silently
+  /// finds a broader heading is how the wrong rate gets applied confidently.
+  taxCategory      String       @map("tax_category") @db.VarChar(64)
+  /// What a human calls it on the rate-configuration screen. Never printed on an
+  /// invoice — the invoice prints the tax LINE's name (`CGST`), not this.
+  description      String?      @db.VarChar(255)
+  /// Basis points. 5% is 500. Must be 0 when `treatment` is not STANDARD.
+  rateBps          Int          @map("rate_bps")
+  treatment        TaxTreatment @default(STANDARD)
+  /// ⚠️ WHAT THE AUTHORITY CALLS THIS TAX, PRINTED VERBATIM ON THE INVOICE.
+  ///   `GST`, `VAT`, `HST`, `PST`, `QST`, `Sales Tax`. It is per-RULE and not
+  ///   per-country because a single country needs several: an Ontario clinic
+  ///   charges one 13% `HST` line, a British Columbia one charges 5% `GST` plus
+  ///   7% `PST`, and both are Canada. A generic "Tax" is not compliant anywhere.
+  lineName         String       @map("line_name") @db.VarChar(32)
+  /// The state half's name when `split` is INTRA_STATE_HALVES. NULL derives it
+  /// from `line_name` (`GST` -> `SGST`), which is right for a state and wrong
+  /// for a union territory, where it is `UTGST`.
+  regionalLineName String?      @map("regional_line_name") @db.VarChar(32)
+  split            TaxSplit     @default(NONE)
+  /// Whether this rule applies IN ADDITION to the country-wide rule for the same
+  /// category, rather than instead of it.
+  ///
+  /// ⚠️ THE DIFFERENCE BETWEEN CANADA AND EVERYWHERE ELSE. A region-specific
+  ///   rule normally OVERRIDES the country-wide one — an Indian state rate
+  ///   replaces the national rate. In Canada it STACKS: federal GST at 5% is
+  ///   charged as well as provincial PST at 7%, as two separate lines owed to
+  ///   two separate authorities. US state + county + city would stack the same
+  ///   way, three deep, if this engine ever computed them (it does not — see
+  ///   PROVIDER_REQUIRED).
+  ///
+  ///   A stacking rule is only ever regional; a country-wide rule that stacked
+  ///   would stack on itself. Enforced by CHECK.
+  stacks           Boolean      @default(false)
+  effectiveFrom    DateTime     @map("effective_from") @db.Date
+  effectiveTo      DateTime?    @map("effective_to") @db.Date
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoiceTaxes InvoiceTax[]
+
+  /// ⚠️ Needs NULLS NOT DISTINCT, same as the registration above — appended by
+  ///   hand. It stops two rules for one category starting on the same day; it
+  ///   does NOT stop overlapping ranges, which is why `ruleFor` resolves ties by
+  ///   taking the latest `effective_from` rather than trusting the row order.
+  @@unique([organizationId, countryCode, regionCode, scheme, taxCategory, effectiveFrom])
+  /// Composite-FK target, so `invoice_taxes` can cite the rule that priced it.
+  @@unique([organizationId, id])
+  /// The engine's read: every rule for one category, effective-dated.
+  @@index([organizationId, taxCategory, effectiveFrom])
+  @@map("tax_rules")
+}
+
+/// The rate cards rcln maintains, which every clinic inherits until it says
+/// otherwise. The platform-owned twin of `tax_rules`.
+///
+/// ⚠️ THE DEFAULTS ARE INHERITED, NEVER COPIED INTO A TENANT.
+///   The obvious implementation — seed a clinic's `tax_rules` from this table at
+///   registration — is a trap, and it is worth stating why because it is the
+///   change somebody will eventually propose:
+///
+///     1. A rate change becomes a migration across every tenant, instead of one
+///        effective-dated INSERT here.
+///     2. It permanently destroys the difference between "this clinic chose 12%"
+///        and "this is a stale copy of our 2025 default". Both are just rows.
+///     3. A clinic that never touches its rate card keeps an obsolete rate for
+///        ever — and its screen shows it as fully configured, so nobody looks.
+///
+///   Resolution is therefore at READ time: a tenant rule wins, else this table,
+///   else `UNRATED`. Exactly the shape of `setting_definitions` /
+///   `setting_values`, which solved this problem here first. See `rulesFor`.
+///
+/// ⚠️ A CLINIC THAT OVERRIDES A CATEGORY OWNS IT COMPLETELY.
+///   Resolution is all-or-nothing per tax category, not per row. If a tenant
+///   holds ANY applicable rule for a category, its whole set is used and this
+///   table is ignored for that category. Mixing a tenant's base rate with an
+///   inherited stacked provincial tax would produce a combination nobody
+///   authored and nobody could explain to an auditor.
+///
+/// NOT TENANT-SCOPED, AND NOT A LEGAL CLAIM EITHER
+///   One set of rows for the whole platform, like `plans`. Unlike
+///   `tax_registrations` it asserts nothing about who is registered where — it
+///   says only "in this country, this kind of thing is taxed like this", and it
+///   has no effect at all on a clinic holding no registration. That is why this
+///   table IS seeded and that one deliberately is not.
+model TaxRuleDefault {
+  id               String       @id @default(uuid()) @db.Uuid
+  countryCode      String       @map("country_code") @db.Char(2)
+  /// ISO 3166-2 subdivision, without the country prefix. NULL = country-wide,
+  /// which is what almost every published rate is.
+  regionCode       String?      @map("region_code") @db.VarChar(10)
+  scheme           TaxScheme
+  taxCategory      String       @map("tax_category") @db.VarChar(64)
+  /// What a human calls it in the platform console. Never printed on an invoice.
+  description      String?      @db.VarChar(255)
+  rateBps          Int          @map("rate_bps")
+  treatment        TaxTreatment @default(STANDARD)
+  lineName         String       @map("line_name") @db.VarChar(32)
+  regionalLineName String?      @map("regional_line_name") @db.VarChar(32)
+  split            TaxSplit     @default(NONE)
+  stacks           Boolean      @default(false)
+  /// ⚠️ WHERE THIS FIGURE CAME FROM, IN WORDS A HUMAN CAN CHECK.
+  ///   A rate with no provenance is a rate nobody can verify, and this table is
+  ///   the one place a wrong number becomes wrong invoices for every clinic in a
+  ///   country at once. Name the notification, the schedule, or the section.
+  sourceNote       String?      @map("source_note") @db.VarChar(500)
+  effectiveFrom    DateTime     @map("effective_from") @db.Date
+  effectiveTo      DateTime?    @map("effective_to") @db.Date
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  invoiceTaxes InvoiceTax[]
+
+  /// ⚠️ NULLS NOT DISTINCT, appended by hand — country-wide is the common case
+  ///   here, so without it the table does not constrain its own primary shape.
+  @@unique([countryCode, regionCode, scheme, taxCategory, effectiveFrom])
+  @@index([countryCode, taxCategory, effectiveFrom])
+  @@map("tax_rule_defaults")
+}

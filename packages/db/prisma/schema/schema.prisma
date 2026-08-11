@@ -1,0 +1,34 @@
+// =============================================================================
+// rcln — Multi-tenant healthcare SaaS
+//
+// PHASE 0 SCOPE: tenancy, subscriptions, identity, RBAC, settings, audit.
+// Clinical / lab / pharmacy / inventory / billing land in later phases —
+// see .kb/Database/schema-design.md for the full target design.
+//
+// Conventions:
+//   - uuid PKs, snake_case columns via @map, plural table names
+//   - organizationId on every tenant table (RLS predicate + composite FK target)
+//   - deletedAt for soft delete, never an is_deleted boolean
+//   - tenant tables carry @@unique([organizationId, id]) so children can
+//     reference (organization_id, id) and make cross-tenant rows unrepresentable
+//
+// The models are split by domain across the sibling *.prisma files in this
+// folder; Prisma concatenates all of them. `generator` and `datasource` must be
+// declared exactly once, and live here.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+  // ⚠️ Relative to THIS file, i.e. prisma/schema/, so it is two levels up.
+  //   package.json exports ./generated/prisma — a single `../` silently emits to
+  //   prisma/generated/ instead and every import of @rcln/db/generated breaks.
+  output   = "../../generated/prisma"
+}
+
+// Prisma 7 no longer accepts `url` here.
+//   - Migrations / seeds  -> DIRECT_DATABASE_URL (owner role), set in prisma.config.ts
+//   - Running application -> DATABASE_URL (app role, RLS enforced), passed to
+//     PrismaClient via the pg adapter in src/client.ts
+datasource db {
+  provider = "postgresql"
+}
