@@ -115,7 +115,10 @@ jobs:
           } > .env
 
       - run: pnpm db:generate
-      - run: pnpm --filter @rcln/permissions --filter @rcln/contracts --filter @rcln/db run build
+      # Every workspace package resolves through its built `dist/`, so the API
+      # test run needs all of them, not just the three the migration step uses.
+      # Naming them individually silently rotted as packages were added.
+      - run: pnpm --filter "./packages/*" run build
       - run: pnpm --filter @rcln/db exec prisma migrate deploy
       - run: pnpm db:seed
 
