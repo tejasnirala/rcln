@@ -5,7 +5,7 @@
 # which live outside this directory.
 # =============================================================================
 
-FROM node:24-alpine AS base
+FROM node:26-alpine AS base
 RUN apk add --no-cache libc6-compat && corepack enable pnpm
 WORKDIR /app
 ENV HUSKY=0
@@ -63,7 +63,7 @@ RUN pnpm install --frozen-lockfile --offline \
 # -----------------------------------------------------------------------------
 # Runtime
 # -----------------------------------------------------------------------------
-FROM node:24-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apk add --no-cache libc6-compat \
