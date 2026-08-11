@@ -103,7 +103,7 @@ const ERROR_KEYS: Record<string, readonly string[]> = {
   displayName: ['organization.displayName'],
   legalName: ['organization.legalName'],
   orgType: ['organization.orgType'],
-  gstNumber: ['organization.gstNumber'],
+  taxId: ['organization.taxId'],
   slug: ['organization.slug'],
   countryCode: ['organization.countryCode'],
   regionCode: ['organization.regionCode'],
@@ -149,7 +149,7 @@ function stepForError(key: string): number {
     key === 'organization.countryCode' ||
     key === 'organization.regionCode' ||
     key === 'organization.timezone' ||
-    key === 'organization.gstNumber'
+    key === 'organization.taxId'
   ) {
     return 2;
   }
@@ -224,7 +224,7 @@ export function SignupForm() {
   const [regionName, setRegionName] = useState(state.values?.['state'] ?? '');
   const [city, setCity] = useState(state.values?.['city'] ?? '');
   const [postalCode, setPostalCode] = useState(state.values?.['pincode'] ?? '');
-  const [taxId, setTaxId] = useState(state.values?.['gstNumber'] ?? '');
+  const [taxId, setTaxId] = useState(state.values?.['taxId'] ?? '');
 
   /** National digits only. `PhoneInput` submits the E.164 form. */
   const [branchPhone, setBranchPhone] = useState('');
@@ -471,7 +471,7 @@ export function SignupForm() {
       }
 
       if (!isValidTaxId(countryCode, taxId)) {
-        next['organization.gstNumber'] = [
+        next['organization.taxId'] = [
           `That does not look like a ${taxFormat?.label ?? 'tax registration number'}. For example, ${taxFormat?.example ?? ''}.`,
         ];
       }
@@ -850,14 +850,14 @@ export function SignupForm() {
           */}
           {taxFormat ? (
             <Input
-              name="gstNumber"
+              name="taxId"
               label={taxFormat.label}
               hint={`Optional — ${taxFormat.hint} You can add it later from settings.`}
-              errors={errorFor('gstNumber')}
+              errors={errorFor('taxId')}
               value={taxId}
               onChange={(event) => {
                 setTaxId(event.target.value.toUpperCase());
-                clearError('gstNumber');
+                clearError('taxId');
               }}
               autoCapitalize="characters"
               spellCheck={false}

@@ -4,29 +4,71 @@
 
 > Analytics seam.
 
-Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts`
+Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/calendar-range.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/invoice-filters.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/patient-words.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/postal.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `actionLabel` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:47` |  |
-| `api` | `(path: string, request: ApiRequest): Promise<ApiResult<T>>` | `apps/web/src/lib/api.ts:99` |  |
-| `clearSessionCookies` | `(): Promise<void>` | `apps/web/src/lib/session.ts:75` |  |
-| `clientAddress` <sub>local</sub> | `(): Promise<string \| undefined>` | `apps/web/src/lib/api.ts:66` |  |
+| `actionLabel` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:55` |  |
+| `ageLine` | `(patient: { age: number \| null; ageIsApproximate: boolean; g…): string` | `apps/web/src/lib/patient-words.ts:32` | "34 · Female", or "approx. 60 · Male" when the age was estimated. |
+| `ancestorLabel` | `(tree: TaxonomyTree, id: string): string` | `apps/web/src/lib/taxonomy.ts:88` | `Medical › Cardiology › Interventional Cardiology`, excluding the node itself. |
+| `api` | `(path: string, request: ApiRequest): Promise<ApiResult<T>>` | `apps/web/src/lib/api.ts:160` |  |
+| `apiBinary` | `(path: string, request: ApiRequest): Promise<ApiFile>` | `apps/web/src/lib/api.ts:221` |  |
+| `apiHeaders` <sub>local</sub> | `(request: ApiRequest, accept: string): Promise<Record<string, string>>` | `apps/web/src/lib/api.ts:133` |  |
+| `branchesInScope` | `(slug: string): Promise<BranchSummary[]>` | `apps/web/src/lib/session.ts:134` |  |
+| `buildTree` | `(nodes: SpecialtySummary[]): TaxonomyTree` | `apps/web/src/lib/taxonomy.ts:41` |  |
+| `byOrderThenName` <sub>local</sub> | `(a: SpecialtySummary, b: SpecialtySummary): number` | `apps/web/src/lib/taxonomy.ts:38` |  |
+| `calendarDateIn` | `(instant: string, timezone: string): string` | `apps/web/src/lib/calendar-range.ts:198` |  |
+| `childrenOf` | `(tree: TaxonomyTree, id: string \| null): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:95` |  |
+| `clearSessionCookies` | `(): Promise<void>` | `apps/web/src/lib/session.ts:80` |  |
+| `clientAddress` <sub>local</sub> | `(): Promise<string \| undefined>` | `apps/web/src/lib/api.ts:85` |  |
 | `cn` | `(inputs: ClassValue[]): string` | `apps/web/src/lib/cn.ts:9` | Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be overridden by its caller without specifici… |
-| `fieldErrorsFrom` | `(issues: { path: PropertyKey[]; message: string }[]): Record<string, string[]>` | `apps/web/src/lib/api.ts:153` | Flatten Zod issues into the `fieldErrors` shape the forms render. |
-| `formatCount` | `(value: number): string` | `apps/web/src/lib/format.ts:60` |  |
-| `formatDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:39` | `25 Jul 2026`. For dense rows, tables and the period strip. |
-| `formatLongDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:47` | `25 July 2026`. For prose, where the month should not be abbreviated. |
-| `getAccessToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:81` |  |
-| `getRefreshToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:85` |  |
+| `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:116` |  |
+| `countryOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:160` |  |
+| `eachDay` | `(from: string, to: string): string[]` | `apps/web/src/lib/calendar-range.ts:109` |  |
+| `endOfMonth` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:97` |  |
+| `fieldErrorsFrom` | `(issues: { path: PropertyKey[]; message: string }[]): Record<string, string[]>` | `apps/web/src/lib/api.ts:259` | Flatten Zod issues into the `fieldErrors` shape the forms render. |
+| `format` <sub>local</sub> | `(at: Date): string` | `apps/web/src/lib/calendar-range.ts:48` |  |
+| `formatClinicDate` | `(value: string \| Date, timeZone: string): string` | `apps/web/src/lib/format.ts:120` | `9 Aug 2026`. |
+| `formatClinicDateTime` | `(value: string \| Date, timeZone: string, timeFormat: TimeFormat): string` | `apps/web/src/lib/format.ts:128` | `9 Aug 2026, 4:40 pm`. The full stamp, for a heading or an audit row. |
+| `formatClinicTime` | `(value: string \| Date, timeZone: string, timeFormat: TimeFormat): string` | `apps/web/src/lib/format.ts:101` |  |
+| `formatCount` | `(value: number): string` | `apps/web/src/lib/format.ts:142` |  |
+| `formatDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:41` | `25 Jul 2026`. For dense rows, tables and the period strip. |
+| `formatLongDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:49` | `25 July 2026`. For prose, where the month should not be abbreviated. |
+| `getAccessToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:86` |  |
+| `getRefreshToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:90` |  |
 | `hardNavigate` | `(path: string): void` | `apps/web/src/lib/hard-navigate.ts:32` |  |
+| `isCalendarDate` | `(value: string \| undefined): value is string` | `apps/web/src/lib/calendar-range.ts:35` |  |
+| `isWithin` | `(range: DateRange, date: string): boolean` | `apps/web/src/lib/calendar-range.ts:159` |  |
 | `listTaxRegistrations` | `(): Promise<ApiResult<TaxRegistrationListResponse>>` | `apps/web/src/lib/platform.ts:44` |  |
-| `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:36` |  |
-| `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:32` |  |
-| `setSessionCookies` | `(session: AuthSession): Promise<void>` | `apps/web/src/lib/session.ts:49` |  |
+| `longDate` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:247` | "Monday, 9 August 2026". |
+| `lookupIndiaPost` <sub>local</sub> | `(pincode: string): Promise<PostalLookup \| null>` | `apps/web/src/lib/postal.ts:95` |  |
+| `lookupPostalCode` | `(countryCode: string, postalCode: string): Promise<PostalLookup \| null>` | `apps/web/src/lib/postal.ts:52` |  |
+| `lookupZippopotam` <sub>local</sub> | `(country: string, postalCode: string): Promise<PostalLookup \| null>` | `apps/web/src/lib/postal.ts:122` |  |
+| `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:44` |  |
+| `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:40` |  |
+| `monthLabel` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:242` | "August 2026" — the heading over a month grid. |
+| `parse` <sub>local</sub> | `(date: string): Date` | `apps/web/src/lib/calendar-range.ts:44` |  |
+| `pathTo` | `(tree: TaxonomyTree, id: string): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:76` |  |
+| `rangeFor` | `(view: BoardView, anchor: string): DateRange` | `apps/web/src/lib/calendar-range.ts:141` | The span a view covers around its anchor day. |
+| `rangeLabel` | `(view: BoardView, range: DateRange): string` | `apps/web/src/lib/calendar-range.ts:264` |  |
+| `searchNodes` | `(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:133` |  |
+| `setSessionCookies` | `(session: AuthSession): Promise<void>` | `apps/web/src/lib/session.ts:54` |  |
+| `shiftDays` | `(date: string, days: number): string` | `apps/web/src/lib/calendar-range.ts:53` | `YYYY-MM-DD` shifted by whole days. |
+| `shiftMonths` | `(date: string, months: number): string` | `apps/web/src/lib/calendar-range.ts:67` |  |
+| `shortDate` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:252` | "Mon, 9 Aug" — the heading on a day inside a week or month listing. |
+| `startOfMonth` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:93` |  |
+| `startOfWeek` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:87` |  |
+| `stepAnchor` | `(view: BoardView, anchor: string, direction: -1 \| 1): string` | `apps/web/src/lib/calendar-range.ts:153` | Where the arrows go: one day, one week or one month either side. |
+| `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:148` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
+| `timeFormatOf` | `(slug: string): Promise<TimeFormat>` | `apps/web/src/lib/session.ts:215` |  |
+| `timezoneOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:187` |  |
+| `toBoardView` | `(value: string \| undefined): BoardView` | `apps/web/src/lib/calendar-range.ts:40` | Anything else — a hand-edited URL, a missing parameter — is the day view. |
+| `todayIn` | `(timezone: string): string` | `apps/web/src/lib/calendar-range.ts:170` |  |
 | `track` | `(event: AnalyticsEvent, props?: Record<string, string \| number>): void` | `apps/web/src/lib/analytics.ts:24` |  |
+| `weekdayIndex` | `(date: string): number` | `apps/web/src/lib/calendar-range.ts:127` |  |
+| `weekdayName` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:136` | "Monday", "Tuesday" … for the day a date falls on. |
 | `withCurrent` | `(options: LocaleOption[], current: string): LocaleOption[]` | `apps/web/src/lib/locale-options.ts:59` |  |
 
 ## const
@@ -34,36 +76,62 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ACCESS_COOKIE` | `'rcln_at'` | `apps/web/src/lib/session-cookie.ts:15` |  |
-| `ADMIN_HOST` | ``admin.${ROOT_DOMAIN}`` | `apps/web/src/lib/api.ts:92` | The admin console's host. `resolveTenant` matches this exactly and skips it. |
+| `ADMIN_HOST` | ``admin.${ROOT_DOMAIN}`` | `apps/web/src/lib/api.ts:119` | The admin console's host. `resolveTenant` matches this exactly and skips it. |
 | `API_URL` <sub>local</sub> | `process.env['API_INTERNAL_URL'] ?? 'http://api:5000'` | `apps/web/src/lib/api.ts:31` |  |
-| `BILLING_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:36` |  |
+| `BILLING_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:38` |  |
+| `BOARD_VIEWS` | `: BoardView[]` | `apps/web/src/lib/calendar-range.ts:25` |  |
+| `CLINICAL_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:90` |  |
 | `CURRENCIES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:40` |  |
+| `DATE_PATTERN` <sub>local</sub> | `/^\d{4}-\d{2}-\d{2}$/` | `apps/web/src/lib/calendar-range.ts:33` |  |
+| `DAY_MONTH` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:233` |  |
+| `GENDER_WORDS` | `: Record<string, string>` | `apps/web/src/lib/patient-words.ts:24` |  |
+| `GENDERS` | `: SelectOption[]` | `apps/web/src/lib/patient-words.ts:17` |  |
+| `INVOICE_FILTER_KEYS` | `[ 'status', 'sourceType', 'branchId', 'patientId', 'invoiceNumber', 'from', 'to', 'page',…` | `apps/web/src/lib/invoice-filters.ts:21` |  |
+| `INVOICE_SOURCE_LABELS` | `: Record<InvoiceSourceTypeValue, string>` | `apps/web/src/lib/invoice-filters.ts:61` |  |
+| `INVOICE_STATUS_LABELS` | `: Record<InvoiceStatusValue, string>` | `apps/web/src/lib/invoice-filters.ts:43` |  |
+| `INVOICE_STATUS_TONE` | `: Record<InvoiceStatusValue, string>` | `apps/web/src/lib/invoice-filters.ts:81` |  |
+| `LONG_DAY` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:212` |  |
+| `LOOKUP_TIMEOUT_MS` <sub>local</sub> | `4000` | `apps/web/src/lib/postal.ts:30` | How long we will wait for a third party before giving up and letting the customer type. |
 | `MODULE_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/lib/permission-labels.ts:16` |  |
+| `MONTH_YEAR` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:227` |  |
 | `REFRESH_COOKIE` | `'rcln_rt'` | `apps/web/src/lib/session-cookie.ts:16` |  |
 | `REFRESH_MAX_AGE` | `30 * 24 * 60 * 60` | `apps/web/src/lib/session-cookie.ts:19` | Refresh tokens live 30 days server-side; the cookie must not outlive that. |
 | `ROOT_DOMAIN` <sub>local</sub> | `process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me'` | `apps/web/src/lib/api.ts:32` |  |
+| `ROOTS` | `'__roots__'` | `apps/web/src/lib/taxonomy.ts:36` |  |
+| `SHORT_DAY` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:220` |  |
 | `TIMEZONES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:25` |  |
+| `TYPE_LABELS` <sub>local</sub> | `: Record<TaxonomyNodeType, string>` | `apps/web/src/lib/taxonomy.ts:107` |  |
+| `WEEKDAY_INITIALS` | `['M', 'T', 'W', 'T', 'F', 'S', 'S']` | `apps/web/src/lib/calendar-range.ts:133` | Column headings for a Monday-first grid. |
+| `WEEKDAY_NAME` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:239` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `baseCookie` | `{ httpOnly: true, // Lax, not Strict: Strict would drop the cookie on the cross-host redi…` | `apps/web/src/lib/session-cookie.ts:21` |  |
-| `getPlatformSession` | `cache(…)` | `apps/web/src/lib/session.ts:128` |  |
-| `getSession` | `cache(…)` | `apps/web/src/lib/session.ts:103` |  |
+| `getPlatformSession` | `cache(…)` | `apps/web/src/lib/session.ts:244` |  |
+| `getSession` | `cache(…)` | `apps/web/src/lib/session.ts:108` |  |
 | `listPlatformOrganizations` | `cache(…)` | `apps/web/src/lib/platform.ts:26` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ApiEnvelope` | `{ success, message, data, errors }` | `apps/web/src/lib/api.ts:35` | The API's envelope. Every route answers in this shape. |
-| `ApiRequest` | `{ method, body, slug, host, accessToken }` | `apps/web/src/lib/api.ts:73` |  |
-| `ApiResult` | `{ ok, status, data, message, fieldErrors }` | `apps/web/src/lib/api.ts:42` |  |
+| `ApiEnvelope` | `{ success, message, data, meta, errors }` | `apps/web/src/lib/api.ts:52` | The API's envelope. Every route answers in this shape. |
+| `ApiFile` | `{ ok, status, body, contentType, contentDisposition, message }` | `apps/web/src/lib/api.ts:195` | A file the API served, on its way to the browser through a Route Handler. |
+| `ApiPagination` | `{ page, limit, total, totalPages }` | `apps/web/src/lib/api.ts:44` |  |
+| `ApiRequest` | `{ method, body, slug, host, accessToken, accept }` | `apps/web/src/lib/api.ts:92` |  |
+| `ApiResult` | `{ ok, status, data, meta, message, fieldErrors }` | `apps/web/src/lib/api.ts:60` |  |
+| `DateRange` | `{ from, to }` | `apps/web/src/lib/calendar-range.ts:28` | An inclusive span of calendar days, both ends `YYYY-MM-DD`. |
 | `LocaleOption` | `{ value, label }` | `apps/web/src/lib/locale-options.ts:20` |  |
+| `PostalLookup` | `{ city, region, regionCode }` | `apps/web/src/lib/postal.ts:21` | What a postcode told us about where it is. Every field optional — a lookup that resolves the state but not the city is still worth having. |
+| `TaxonomyTree` | `{ byId, childrenOf }` | `apps/web/src/lib/taxonomy.ts:22` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `AnalyticsEvent` | `\| 'cta_book_demo' \| 'cta_log_in' \| 'demo_request_submitted' \| 'demo_request_failed' \| 'pricing_viewed' \| 'cta_start_clinic' \| 'signup_completed' \| 'signup_fail…` | `apps/web/src/lib/analytics.ts:14` |  |
+| `BoardView` | `'day' \| 'week' \| 'month'` | `apps/web/src/lib/calendar-range.ts:23` | How much of the diary is on screen. |
+| `InvoiceFilterKey` | `(typeof INVOICE_FILTER_KEYS)[number]` | `apps/web/src/lib/invoice-filters.ts:32` |  |
+| `InvoiceFilters` | `Partial<Record<InvoiceFilterKey, string>>` | `apps/web/src/lib/invoice-filters.ts:33` |  |

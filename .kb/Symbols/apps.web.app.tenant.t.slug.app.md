@@ -19,7 +19,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `readRecordHistory` | `(slug: string, entityType: string, entityId: string): Promise<HistoryState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:26` |  |
+| `readRecordHistory` | `(slug: string, entityType: string, entityId: string): Promise<HistoryState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:42` |  |
 
 ## var
 
@@ -32,4 +32,4 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `HistoryState` | `{ status: 'ok'; history: AuditHistoryResponse } \| { status: 'error'; message: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:23` |  |
+| `HistoryState` | `\| { status: 'ok'; history: AuditHistoryResponse; /** * The clinic's zone, so the drawer can stamp each entry in it. * * ⚠️ RETURNED WITH THE PAYLOAD RATHER THA…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:23` |  |

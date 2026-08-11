@@ -57,9 +57,9 @@ describe('diffSnapshots', () => {
   });
 
   it('detects a field appearing or disappearing', () => {
-    const { before, after } = diffSnapshots({ gstNumber: null }, { gstNumber: '27AAAAA0000A1Z5' });
-    expect(before).toEqual({ gstNumber: null });
-    expect(after).toEqual({ gstNumber: '27AAAAA0000A1Z5' });
+    const { before, after } = diffSnapshots({ taxId: null }, { taxId: '27AAAAA0000A1Z5' });
+    expect(before).toEqual({ taxId: null });
+    expect(after).toEqual({ taxId: '27AAAAA0000A1Z5' });
   });
 
   it('records that a credential changed without recording the credential', () => {
@@ -74,5 +74,47 @@ describe('diffSnapshots', () => {
   it('redacts credentials on a create too, where there is nothing to diff against', () => {
     const { after } = diffSnapshots(undefined, { token: 'raw-invite-token', email: 'a@b.com' });
     expect(after).toEqual({ token: '[redacted]', email: 'a@b.com' });
+  });
+
+  /**
+   * ⚠️ THE BACKSTOP UNDER THE INVOICE SNAPSHOT, TESTED WHERE IT CAN BE REACHED.
+   *   `invoiceAuditSnapshot()` never selects these columns, so nothing in the
+   *   product passes them today and no integration test can produce a row that
+   *   exercises this. That is exactly why it is worth pinning: the layer exists
+   *   for the next service that writes an invoice and reaches for `{...row}`,
+   *   and a deny-list nobody has ever seen fire is a deny-list that quietly
+   *   stopped containing the key it was written for.
+   */
+  it('redacts an invoice’s customer block, which is the patient', () => {
+    const { after } = diffSnapshots(undefined, {
+      customerName: 'Meenakshi Varadarajan',
+      customerPhone: '+919845011223',
+      customerEmail: 'meenakshi@example.test',
+      customerAddress: '12, Cross Road, Bengaluru',
+      customerTaxId: '29AAACR1234K1ZP',
+      patientId: 'a3f1…',
+    });
+
+    expect(after).toEqual({
+      customerName: '[redacted]',
+      customerPhone: '[redacted]',
+      customerEmail: '[redacted]',
+      customerAddress: '[redacted]',
+      /* The two identifiers a reader follows are NOT redacted, deliberately:
+         one is a business's public tax number, the other names nobody. */
+      customerTaxId: '29AAACR1234K1ZP',
+      patientId: 'a3f1…',
+    });
+  });
+
+  /** Both columns say so in the schema, and neither was in the set until now. */
+  it('redacts the free text on an invoice while still reporting that it moved', () => {
+    const { before, after } = diffSnapshots(
+      { notes: null, cancellationReason: null },
+      { notes: 'Discussed at the counter', cancellationReason: 'Duplicate of INV-2026-…' }
+    );
+
+    expect(before).toEqual({ notes: '[redacted]', cancellationReason: '[redacted]' });
+    expect(after).toEqual({ notes: '[redacted]', cancellationReason: '[redacted]' });
   });
 });

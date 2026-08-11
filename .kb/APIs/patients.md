@@ -8,35 +8,35 @@ Source: `apps/api/src/routes/v1/patients.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/patients.routes.ts:84` |
-| GET | `/` | `authorize(PERMISSIONS.PATIENT_READ)` → `validate(searchPatientQuery)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:136` |
-| POST | `/duplicate-check` | `authorize(PERMISSIONS.PATIENT_CREATE)` → `validate(duplicateProbeRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:159` |
-| POST | `/` | `authorize(PERMISSIONS.PATIENT_CREATE)` → `validate(createPatientRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:172` |
-| GET | `/:patientId` | `authorize(PERMISSIONS.PATIENT_READ)` → `validate(patientParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:188` |
-| PATCH | `/:patientId` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(patientParams)` → `validate(updatePatientRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:199` |
-| DELETE | `/:patientId` | `authorize(PERMISSIONS.PATIENT_DELETE)` → `validate(patientParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:223` |
-| POST | `/:patientId/registrations` | `authorize(PERMISSIONS.PATIENT_CREATE)` → `validate(patientParams)` → `validate(registerPatientAtBranchRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:235` |
-| POST | `/:patientId/addresses` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(patientParams)` → `validate(patientAddressRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:254` |
-| DELETE | `/:patientId/addresses/:addressId` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(addressParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:271` |
-| POST | `/:patientId/contacts` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(patientParams)` → `validate(patientContactRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:287` |
-| DELETE | `/:patientId/contacts/:contactId` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(contactParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:304` |
-| GET | `/:patientId/history` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_READ)` → `validate(patientParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:325` |
-| POST | `/:patientId/allergies` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(patientParams)` → `validate(patientAllergyRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:340` |
-| DELETE | `/:patientId/allergies/:allergyId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(allergyParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:357` |
-| POST | `/:patientId/conditions` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(patientParams)` → `validate(patientConditionRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:373` |
-| PUT | `/:patientId/conditions/:conditionId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(conditionParams)` → `validate(patientConditionRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:390` |
-| DELETE | `/:patientId/conditions/:conditionId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(conditionParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:408` |
-| POST | `/:patientId/medications` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(patientParams)` → `validate(patientMedicationRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:424` |
-| POST | `/:patientId/medications/:medicationId/stop` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(medicationParams)` → `validate(stopMedicationRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:446` |
-| DELETE | `/:patientId/medications/:medicationId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(medicationParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:465` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/patients.routes.ts:85` |
+| GET | `/` | `authorize(PERMISSIONS.PATIENT_READ)` → `validate(searchPatientQuery)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:148` |
+| POST | `/duplicate-check` | `authorize(PERMISSIONS.PATIENT_CREATE)` → `validate(duplicateProbeRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:174` |
+| POST | `/` | `authorize(PERMISSIONS.PATIENT_CREATE)` → `validate(createPatientRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:187` |
+| GET | `/:patientId` | `authorize(PERMISSIONS.PATIENT_READ)` → `validate(patientParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:203` |
+| PATCH | `/:patientId` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(patientParams)` → `validate(updatePatientRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:214` |
+| DELETE | `/:patientId` | `authorize(PERMISSIONS.PATIENT_DELETE)` → `validate(patientParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:238` |
+| POST | `/:patientId/registrations` | `authorize(PERMISSIONS.PATIENT_CREATE)` → `validate(patientParams)` → `validate(registerPatientAtBranchRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:250` |
+| POST | `/:patientId/addresses` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(patientParams)` → `validate(patientAddressRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:269` |
+| DELETE | `/:patientId/addresses/:addressId` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(addressParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:286` |
+| POST | `/:patientId/contacts` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(patientParams)` → `validate(patientContactRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:302` |
+| DELETE | `/:patientId/contacts/:contactId` | `authorize(PERMISSIONS.PATIENT_UPDATE)` → `validate(contactParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:319` |
+| GET | `/:patientId/history` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_READ)` → `validate(patientParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:340` |
+| POST | `/:patientId/allergies` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(patientParams)` → `validate(patientAllergyRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:355` |
+| DELETE | `/:patientId/allergies/:allergyId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(allergyParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:372` |
+| POST | `/:patientId/conditions` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(patientParams)` → `validate(patientConditionRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:388` |
+| PUT | `/:patientId/conditions/:conditionId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(conditionParams)` → `validate(patientConditionRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:405` |
+| DELETE | `/:patientId/conditions/:conditionId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(conditionParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:423` |
+| POST | `/:patientId/medications` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(patientParams)` → `validate(patientMedicationRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:439` |
+| POST | `/:patientId/medications/:medicationId/stop` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(medicationParams)` → `validate(stopMedicationRequest)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:461` |
+| DELETE | `/:patientId/medications/:medicationId` | `authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)` → `validate(medicationParams)` → `<inline>` | `apps/api/src/routes/v1/patients.routes.ts:480` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `patientParams` | `apps/api/src/routes/v1/patients.routes.ts:86` |
-| `duplicateProbeRequest` | `apps/api/src/routes/v1/patients.routes.ts:94` |
-| `stopMedicationRequest` | `apps/api/src/routes/v1/patients.routes.ts:105` |
+| `patientParams` | `apps/api/src/routes/v1/patients.routes.ts:87` |
+| `duplicateProbeRequest` | `apps/api/src/routes/v1/patients.routes.ts:95` |
+| `stopMedicationRequest` | `apps/api/src/routes/v1/patients.routes.ts:106` |
 
 ## Contracts imported from `@rcln/contracts`
 

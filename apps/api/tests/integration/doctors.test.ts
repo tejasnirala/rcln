@@ -499,7 +499,15 @@ describe('qualifications', () => {
   });
 });
 
-describe('per-branch fees', () => {
+/**
+ * ⚠️ NO LONGER "per-branch fees". `consultation_fee` and `follow_up_fee` left
+ *   this table for the fee schedule, which prices every VISIT TYPE rather than
+ *   two of the five — see `fee-schedule.test.ts`, which owns the money cases and
+ *   the exact-decimal one among them. What is left here is what the row is
+ *   actually for: whether a doctor consults at a branch, and how long a revisit
+ *   stays free there.
+ */
+describe('where a doctor consults', () => {
   let doctorId: string;
 
   beforeAll(async () => {
@@ -507,27 +515,24 @@ describe('per-branch fees', () => {
     doctorId = res.body.data.doctors[0].id as string;
   });
 
-  it('stores money as an exact decimal, never a float', async () => {
+  it('records the free-revisit window against the branch', async () => {
     const res = await A.put(`/${doctorId}/branch-settings`, {
       branchId: orgA.branchId,
-      consultationFee: '400.50',
-      followUpFee: '0',
       followUpFreeDays: 7,
       isActive: true,
     });
     expect(res.status).toBe(200);
 
-    const { rows } = await owner.query<{ consultation_fee: string }>(
-      'SELECT consultation_fee FROM doctor_branch_settings WHERE doctor_profile_id = $1',
+    const { rows } = await owner.query<{ follow_up_free_days: number }>(
+      'SELECT follow_up_free_days FROM doctor_branch_settings WHERE doctor_profile_id = $1',
       [doctorId]
     );
-    expect(rows[0]?.consultation_fee).toBe('400.50');
+    expect(rows[0]?.follow_up_free_days).toBe(7);
   });
 
   it('refuses a branch outside the caller’s scope', async () => {
     const res = await A.put(`/${doctorId}/branch-settings`, {
       branchId: orgB.branchId,
-      consultationFee: '100',
       isActive: true,
     });
     expect(res.status).toBe(404);

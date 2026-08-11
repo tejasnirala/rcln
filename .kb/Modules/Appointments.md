@@ -34,15 +34,26 @@ Booking, and the availability engine behind it. PHI: a patient, a doctor and a r
 
 | method | path | at |
 | --- | --- | --- |
-| GET | `/availability` | `apps/api/src/routes/v1/appointments.routes.ts:86` |
-| GET | `/` | `apps/api/src/routes/v1/appointments.routes.ts:101` |
-| POST | `/` | `apps/api/src/routes/v1/appointments.routes.ts:114` |
-| GET | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:130` |
-| PATCH | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:145` |
-| POST | `/:appointmentId/reschedule` | `apps/api/src/routes/v1/appointments.routes.ts:163` |
-| POST | `/:appointmentId/status` | `apps/api/src/routes/v1/appointments.routes.ts:186` |
-| POST | `/:appointmentId/cancel` | `apps/api/src/routes/v1/appointments.routes.ts:203` |
-| POST | `/:appointmentId/no-show` | `apps/api/src/routes/v1/appointments.routes.ts:227` |
+| GET | `/availability` | `apps/api/src/routes/v1/appointments.routes.ts:113` |
+| GET | `/availability/days` | `apps/api/src/routes/v1/appointments.routes.ts:139` |
+| GET | `/` | `apps/api/src/routes/v1/appointments.routes.ts:171` |
+| POST | `/` | `apps/api/src/routes/v1/appointments.routes.ts:195` |
+| GET | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:211` |
+| GET | `/:appointmentId/billing` | `apps/api/src/routes/v1/appointments.routes.ts:242` |
+| POST | `/:appointmentId/invoice` | `apps/api/src/routes/v1/appointments.routes.ts:265` |
+| PATCH | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:291` |
+| POST | `/:appointmentId/reschedule` | `apps/api/src/routes/v1/appointments.routes.ts:309` |
+| POST | `/:appointmentId/status` | `apps/api/src/routes/v1/appointments.routes.ts:332` |
+| POST | `/:appointmentId/cancel` | `apps/api/src/routes/v1/appointments.routes.ts:349` |
+| POST | `/:appointmentId/no-show` | `apps/api/src/routes/v1/appointments.routes.ts:373` |
+| DELETE | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:406` |
+| POST | `/:appointmentId/follow-up` | `apps/api/src/routes/v1/appointments.routes.ts:424` |
+| POST | `/:appointmentId/consultation` | `apps/api/src/routes/v1/appointments.routes.ts:461` |
+| GET | `/:appointmentId/vitals` | `apps/api/src/routes/v1/appointments.routes.ts:494` |
+| POST | `/:appointmentId/vitals` | `apps/api/src/routes/v1/appointments.routes.ts:518` |
+| GET | `/:appointmentId/vitals/:vitalsId/revisions` | `apps/api/src/routes/v1/appointments.routes.ts:547` |
+| PUT | `/:appointmentId/vitals/:vitalsId` | `apps/api/src/routes/v1/appointments.routes.ts:589` |
+| DELETE | `/:appointmentId/vitals/:vitalsId` | `apps/api/src/routes/v1/appointments.routes.ts:611` |
 
 ## Database impact
 
@@ -60,13 +71,15 @@ Booking, and the availability engine behind it. PHI: a patient, a doctor and a r
 - `apps/api/src/routes/v1/appointments.routes.ts`
 - `apps/api/src/services/appointment/appointment.service.ts`
 - `apps/api/src/services/appointment/availability.service.ts`
+- `apps/api/src/services/appointment/vitals.service.ts`
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx`
 - `apps/web/src/components/tenant/appointment-board.tsx`
 
 ## Workspace dependencies
 
-`@rcln/contracts` · `@rcln/db` · `@rcln/permissions`
+`@rcln/contracts` · `@rcln/db` · `@rcln/payments/money` · `@rcln/permissions`
 
 ## Known limitations
 
@@ -82,27 +95,54 @@ Booking, and the availability engine behind it. PHI: a patient, a doctor and a r
 
 | name | kind | at |
 | --- | --- | --- |
-| `AppointmentActionOptions` | interface | `apps/api/src/services/appointment/appointment.service.ts:45` |
-| `AppointmentBoard` | component | `apps/web/src/components/tenant/appointment-board.tsx:131` |
-| `AppointmentsPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:33` |
-| `bookAppointment` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:128` |
-| `BookingState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:31` |
-| `branchLocalDate` | fn | `apps/api/src/services/appointment/availability.service.ts:365` |
-| `cancelAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:676` |
-| `cancelBooking` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:196` |
-| `computeAvailability` | fn | `apps/api/src/services/appointment/availability.service.ts:275` |
-| `createAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:415` |
-| `getAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:356` |
-| `getAvailability` | fn | `apps/api/src/services/appointment/appointment.service.ts:276` |
-| `listDay` | fn | `apps/api/src/services/appointment/appointment.service.ts:299` |
-| `loadAvailability` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:64` |
-| `loadDay` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:78` |
-| `lookupPatients` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:99` |
-| `LookupState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:39` |
-| `markAbsent` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:230` |
-| `markNoShow` | fn | `apps/api/src/services/appointment/appointment.service.ts:736` |
-| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:10` |
-| `moveAppointment` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:176` |
-| `rescheduleAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:515` |
-| `transitionAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:623` |
-| `updateAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:578` |
+| `amendVitals` | fn | `apps/api/src/services/appointment/vitals.service.ts:438` |
+| `AppointmentActionOptions` | interface | `apps/api/src/services/appointment/appointment.service.ts:53` |
+| `AppointmentBoard` | component | `apps/web/src/components/tenant/appointment-board.tsx:161` |
+| `AppointmentsPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:34` |
+| `bookAppointment` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:280` |
+| `bookFollowUp` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:431` |
+| `BookingState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:49` |
+| `branchLocalDate` | fn | `apps/api/src/services/appointment/availability.service.ts:512` |
+| `cancelAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:1150` |
+| `cancelBooking` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:348` |
+| `computeAvailability` | fn | `apps/api/src/services/appointment/availability.service.ts:277` |
+| `computeWorkingDays` | fn | `apps/api/src/services/appointment/availability.service.ts:403` |
+| `ConsultationPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:66` |
+| `correctVitals` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:678` |
+| `createAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:768` |
+| `createFollowUp` | fn | `apps/api/src/services/appointment/appointment.service.ts:1274` |
+| `DayBoardScope` | interface | `apps/api/src/services/appointment/appointment.service.ts:535` |
+| `deleteAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:1415` |
+| `deleteBooking` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:407` |
+| `deleteVitals` | fn | `apps/api/src/services/appointment/vitals.service.ts:554` |
+| `getAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:645` |
+| `getAvailability` | fn | `apps/api/src/services/appointment/appointment.service.ts:485` |
+| `getWorkingDays` | fn | `apps/api/src/services/appointment/appointment.service.ts:497` |
+| `listDay` | fn | `apps/api/src/services/appointment/appointment.service.ts:548` |
+| `listVitals` | fn | `apps/api/src/services/appointment/vitals.service.ts:157` |
+| `listVitalsRevisions` | fn | `apps/api/src/services/appointment/vitals.service.ts:340` |
+| `loadAppointmentBilling` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:720` |
+| `loadAvailability` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:93` |
+| `loadDay` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:138` |
+| `loadVitals` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:501` |
+| `loadVitalsRevisions` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:488` |
+| `loadWorkingDays` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:123` |
+| `lookupPatients` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:182` |
+| `LookupState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:57` |
+| `markAbsent` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:382` |
+| `markNoShow` | fn | `apps/api/src/services/appointment/appointment.service.ts:1210` |
+| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:15` |
+| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:11` |
+| `moveAppointment` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:328` |
+| `onConsultationOpened` | fn | `apps/api/src/services/appointment/appointment.service.ts:465` |
+| `onVitalsRecorded` | fn | `apps/api/src/services/appointment/appointment.service.ts:440` |
+| `openConsultation` | fn | `apps/api/src/services/appointment/appointment.service.ts:741` |
+| `QuickRegisterState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:66` |
+| `raiseAppointmentInvoice` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:748` |
+| `recordVitals` | fn | `apps/api/src/services/appointment/vitals.service.ts:216` |
+| `registerAndPick` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:222` |
+| `rescheduleAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:898` |
+| `saveVitals` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:639` |
+| `transitionAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:1097` |
+| `updateAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:1030` |
+| `VitalsState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:472` |

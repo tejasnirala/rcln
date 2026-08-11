@@ -58,6 +58,25 @@ x-dev-env: &dev-env
   EMAIL_PROVIDER: smtp
   # Quoted display name: an unquoted `(dev)` is an RFC 5322 comment and vanishes.
   EMAIL_FROM: '"rcln dev" <noreply@rcln.local>'
+  # Where DocumentService writes.
+  #
+  # ⚠️ ONE VARIABLE, USED ON BOTH SIDES OF A BIND MOUNT, SO THE PATH IS THE SAME
+  #   ON THE HOST AND IN EVERY CONTAINER. Change it in `.env` and the documents
+  #   move — no compose edit, no second setting to keep in sync, and the folder
+  #   is a real one you can open in Finder.
+  #
+  #   Mounted identically in the API and the worker, because when PDF generation
+  #   moves onto a queue the worker writes the bytes and the API serves them.
+  #
+  # ⚠️ IT MUST BE ABSOLUTE, AND UNDER A PATH DOCKER DESKTOP SHARES.
+  #   Docker Desktop shares /Users by default and NOT /var/lib. Pointing this at
+  #   an unshared path does NOT fail — Docker silently creates the directory
+  #   inside its own Linux VM, the app writes there happily, and the files never
+  #   appear on the host. Measured: a bind mount of /var/lib/rcln-mount-test
+  #   returned success and left nothing on the Mac. If you want a path outside
+  #   your home directory, add it to Docker Desktop → Settings → Resources →
+  #   File sharing first.
+  STORAGE_LOCAL_PATH: ${STORAGE_LOCAL_PATH:-${HOME}/rcln/documents}
   SMTP_HOST: mailpit
   SMTP_PORT: '1025'
   SMTP_SECURE: 'false'
@@ -198,6 +217,13 @@ services:
       - permissions_node_modules:/app/packages/permissions/node_modules
       - config_node_modules:/app/packages/config/node_modules
       - db_generated:/app/packages/db/generated
+      # Stored documents — a real folder on the host, mounted at the SAME path
+      # inside the container, so `STORAGE_LOCAL_PATH` alone decides where they
+      # live. See the anchor above for why the path must be one Docker Desktop
+      # shares. Outside /app on purpose: an invoice PDF names a patient, and a
+      # directory inside a git working tree is one `git add -f` from being
+      # published permanently.
+      - ${STORAGE_LOCAL_PATH:-${HOME}/rcln/documents}:${STORAGE_LOCAL_PATH:-${HOME}/rcln/documents}
     command: pnpm --filter @rcln/api run dev
     depends_on:
       postgres:
@@ -285,13 +311,31 @@ services:
       - permissions_node_modules:/app/packages/permissions/node_modules
       - config_node_modules:/app/packages/config/node_modules
       - db_generated:/app/packages/db/generated
+      # ⚠️ THE SAME FOLDER AT THE SAME PATH AS THE API. When PDF generation
+      #   moves onto the queue (invoice engine, phase 11), the worker writes the
+      #   bytes and the API serves them. Mount either one differently and the
+      #   download 404s while every row insists the document exists.
+      - ${STORAGE_LOCAL_PATH:-${HOME}/rcln/documents}:${STORAGE_LOCAL_PATH:-${HOME}/rcln/documents}
     command: pnpm --filter @rcln/worker run dev
     depends_on:
       redis:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
-    mem_limit: 768m
+    # ⚠️ RAISED FROM 768m FOR CHROMIUM, AND THIS IS THE WHOLE REASON THE PDF
+    #   RENDER LIVES HERE RATHER THAN IN THE API. A browser plus one renderer
+    #   process needs roughly a gigabyte on a document with a long table; 768m
+    #   killed it mid-render, which surfaces as a "target closed" naming nothing.
+    #   The api container keeps its 1g and never launches a browser — see the
+    #   header of apps/worker/src/documents/browser.ts.
+    #
+    #   Document rendering is deliberately concurrency 1 (apps/worker/src/index.ts),
+    #   so this is sized for ONE browser, not five.
+    mem_limit: 2g
+    # Chromium's renderer uses /dev/shm, which Docker caps at 64MB by default.
+    # The launch flags pass --disable-dev-shm-usage as well; both are cheap and
+    # the failure mode of neither is legible.
+    shm_size: 512m
     networks: [rcln]
 
 networks:
@@ -301,6 +345,13 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  # NOTE: stored documents are deliberately NOT a named volume. They live in a
+  # real host folder bind-mounted at the same path — see STORAGE_LOCAL_PATH on
+  # the dev-env anchor. That keeps them browsable in Finder and makes the
+  # location one variable rather than a variable plus a mount.
+  #
+  # Consequence worth knowing: `docker compose down -v` does NOT delete them,
+  # unlike everything below. Removing documents is a host `rm`.
   web_next:
   db_generated:
   workspace_node_modules:

@@ -1,0 +1,516 @@
+// =============================================================================
+// DOCTORS
+//
+// A doctor is a `users` row plus a `doctor_profiles` row. Practising at three
+// branches is three `membership_roles` — the profile is org-level, and anything
+// that genuinely varies by location (fees, working hours) is its own table
+// keyed by branch. That is why there is no `consultation_fee` column here.
+// =============================================================================
+
+/// What KIND of node this is in the clinical taxonomy tree.
+///
+/// ⚠️ THIS IS A LABEL, NOT A DEPTH. Nothing in the database or the services
+///   asserts that a SUB_SPECIALTY sits exactly three levels down, and nothing
+///   should start. The tree's shape is `parent_id` and only `parent_id`:
+///
+///     Medical → Cardiology → Interventional Cardiology → Structural Heart
+///     DOMAIN    DEPARTMENT   SPECIALTY                   SUB_SPECIALTY
+///
+///     Dental  → Endodontics
+///     DOMAIN    SPECIALTY
+///
+///   Both are valid. A branch that needs four levels and one that needs two are
+///   the same shape to every query here, which is the whole point — the moment
+///   a `depth` column or a fixed domain/department/specialty column triple
+///   appears, adding a fifth level becomes a migration instead of a row.
+///
+/// The type exists so the UI can LABEL a cascading selector ("Clinical Domain",
+/// "Sub-specialty") and so reporting can roll up consistently. It is presentation
+/// and grouping metadata. Never branch authorization on it.
+enum TaxonomyNodeType {
+  /// Tree root — Medical, Dental, Allied Health. Practically never assigned to
+  /// a doctor directly.
+  DOMAIN
+  /// A broad grouping that a hospital would plausibly also run as an org unit.
+  /// ⚠️ Still the CLINICAL concept, not `branches` and not an org chart.
+  DEPARTMENT
+  SPECIALTY
+  SUB_SPECIALTY
+  /// Narrower than a sub-specialty and not a recognised training pathway —
+  /// "Sports Rehabilitation" under Physiotherapy.
+  FOCUS_AREA
+  /// The finest grain. ⚠️ NOT a procedure — see the note on `Specialty`.
+  EXPERTISE
+}
+
+/// How deeply a doctor practises one node. ADVISORY AND DISPLAY-ONLY.
+///
+/// ⚠️ NEVER an authorization input. "Is this doctor allowed to do X" is a
+///   permission question answered by `membership_roles`, and answering it from
+///   a self-declared proficiency label would make a profile edit a privilege
+///   escalation. This exists so a directory can say "Expert in" rather than
+///   "Practises", and for nothing else.
+enum SpecialtyProficiency {
+  PRACTISING
+  SPECIALIST
+  EXPERT
+}
+
+enum DoctorStatus {
+  ACTIVE
+  INACTIVE
+  /// Retired from practice here. Kept because prescriptions reference them.
+  ARCHIVED
+}
+
+/// LEAVE and BLOCK remove availability; EXTRA_SHIFT adds it.
+enum ScheduleExceptionType {
+  LEAVE
+  BLOCK
+  EXTRA_SHIFT
+}
+
+/// Only APPROVED exceptions affect the availability engine. A REQUESTED leave
+/// shows on the doctor's own calendar as pending and changes nothing else.
+enum ScheduleExceptionStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// ⚠️ DECLARATION ORDER IS LOAD-BEARING — it is the Postgres enum's sort order,
+///   and the day board is read `ORDER BY scheduled_start, status` so that a
+///   patient still waiting sorts above one already seen.
+///
+/// The two terminal states are not interchangeable: CANCELLED is somebody's
+/// decision and NO_SHOW is the absence of one. Both free the slot; only the
+/// second is a fact about the patient.
+/// How often a doctor is paid. Recorded beside the amount on
+/// `doctor_compensation`; nothing computes a payout from it yet.
+///
+/// ⚠️ `PER_SESSION` OVERLAPS WITH THE CONSULTATION FEE AND IS NOT THE SAME
+///   THING. The fee is what the PATIENT pays for an appointment; this is what
+///   the CLINIC pays the doctor for turning up to a sitting. A visiting
+///   consultant can have both.
+enum PayoutInterval {
+  MONTHLY
+  FORTNIGHTLY
+  WEEKLY
+  DAILY
+  HOURLY
+  PER_SESSION
+}
+
+/// Clinical specialties. Platform catalogue with per-tenant extension:
+/// `organizationId = NULL` is a platform row every clinic sees.
+///
+/// WHY BOTH, RATHER THAN ONE OR THE OTHER
+///   Per-tenant only means every clinic re-types "Cardiology", and cross-clinic
+///   reporting plus the later `procedures.specialty_id` become unjoinable.
+///   Platform only means a clinic that invents a sub-specialty ("Trichology —
+///   PRP") needs a deploy to record it.
+///
+/// ⚠️ ITS RLS POLICY IS NOT THE ONE ON `files`.
+///   `files` allows a NULL organization_id in its WITH CHECK. Copying that here
+///   would let any clinic INSERT a platform-wide specialty visible to every
+///   other tenant. Read is permissive, write is not — see the migration.
+model Specialty {
+  id             String           @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?          @map("organization_id") @db.Uuid
+  /// Self-reference: a sub-specialty of another specialty. Collapses the old
+  /// specialties / sub_specialties / specialization_map triple into one master.
+  ///
+  /// ⚠️ `onDelete: Restrict`, NOT SetNull. SetNull "succeeds" at deleting a node
+  ///   and silently promotes its entire subtree to the root — Interventional
+  ///   Cardiology reappears as a top-level domain next to Medical, with no error
+  ///   and nothing in the logs. Refusing the delete is the honest outcome; the
+  ///   caller deactivates or re-parents the children first. See `deactivateNode`.
+  parentId       String?          @map("parent_id") @db.Uuid
+  code           String           @db.VarChar(64)
+  name           String           @db.VarChar(255)
+  /// Descriptive label only — see the enum. NOT the tree's shape.
+  type           TaxonomyNodeType @default(SPECIALTY)
+  description    String?          @db.Text
+  /// Sort among siblings. Ties break by `name` so the order is total.
+  displayOrder   Int              @default(0) @map("display_order")
+  /// Free-form document: display labels per locale, external system codes
+  /// (SNOMED CT, NUCC), regional applicability flags.
+  ///
+  /// ⚠️ A DOCUMENT, NEVER FOREIGN KEYS. ADR-0006 — no JSON arrays of ids. If you
+  ///   find yourself putting a `specialty_id` list in here, you want a join table.
+  metadata       Json?            @db.JsonB
+  isActive       Boolean          @default(true) @map("is_active")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Specialty?        @relation("SpecialtyParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Specialty[]       @relation("SpecialtyParent")
+  doctors      DoctorSpecialty[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// rows (organization_id NULL) are not unique among themselves.
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  /// Descendant walks recurse on `parent_id`. Without this the recursive CTE
+  /// seq-scans the table once PER LEVEL.
+  @@index([parentId])
+  @@index([organizationId, type])
+  @@map("specialties")
+}
+
+/// Medical qualifications (MBBS, MD, MS…). Same platform-plus-tenant shape and
+/// the same non-permissive WITH CHECK as `specialties`.
+model Qualification {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(255)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctors      DoctorQualification[]
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration, as above.
+  @@unique([organizationId, code])
+  @@map("qualifications")
+}
+
+/// The practitioner. One row per doctor PER ORGANIZATION.
+///
+/// ⚠️ `userId` IS UNIQUE PER ORGANIZATION, NOT GLOBALLY.
+///   The design ERD draws `user_id UK`, which is wrong for this codebase:
+///   `users` is global and RLS-exempt — one login spans organizations — so a
+///   bare unique would mean a doctor consulting at two clinics can hold exactly
+///   one profile. The failure appears only when the SECOND clinic tries to
+///   onboard them, which is late and confusing. It also gives the row an
+///   `organization_id` for `tenant_isolation` to filter on, which a bare
+///   `user_id` unique does not.
+///
+/// `userId` is NOT NULL: a doctor must be invited before they can be scheduled,
+/// because they must be able to log in to prescribe. A visiting consultant with
+/// no login is a known future request; the additive change is a nullable column
+/// plus a `displayName`.
+model DoctorProfile {
+  id                    String       @id @default(uuid()) @db.Uuid
+  organizationId        String       @map("organization_id") @db.Uuid
+  userId                String       @map("user_id") @db.Uuid
+  /// Medical council registration. The number that makes a prescription legal.
+  registrationNumber    String?      @map("registration_number") @db.VarChar(64)
+  registrationCouncil   String?      @map("registration_council") @db.VarChar(255)
+  registrationValidTill DateTime?    @map("registration_valid_till") @db.Date
+  experienceYears       Int?         @map("experience_years") @db.SmallInt
+  bio                   String?      @db.Text
+  signatureFileId       String?      @map("signature_file_id") @db.Uuid
+  status                DoctorStatus @default(ACTIVE)
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt             DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  organization   Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialties    DoctorSpecialty[]
+  qualifications DoctorQualification[]
+  branchSettings DoctorBranchSetting[]
+  compensation   DoctorCompensation?
+  fees           FeeScheduleEntry[]
+  invoices       Invoice[]                 @relation("InvoicePractitioner")
+  schedules      DoctorSchedule[]
+  exceptions     DoctorScheduleException[]
+  appointments   Appointment[]
+
+  @@unique([organizationId, userId])
+  /// Composite-FK target: schedules, appointments and queue tokens reference
+  /// (organization_id, id) so a cross-tenant row is unrepresentable.
+  @@unique([organizationId, id])
+  /// ⚠️ NULLS NOT DISTINCT in the migration — the column is nullable, and a
+  /// council number appearing twice in one clinic is a data-entry error worth
+  /// refusing.
+  @@unique([organizationId, registrationNumber])
+  @@index([organizationId, status])
+  @@map("doctor_profiles")
+}
+
+/// Which specialties a doctor practises.
+///
+/// Org-scoped rather than parent-scoped because it points at TWO parents, one of
+/// which (`specialties`) may be a platform row — so scoping through
+/// `doctor_profiles` alone would leave the specialty side unconstrained. The
+/// second parent gets a RESTRICTIVE `specialty_visible` policy instead, exactly
+/// as `invitation_branches` does for its branch.
+model DoctorSpecialty {
+  id              String                @id @default(uuid()) @db.Uuid
+  organizationId  String                @map("organization_id") @db.Uuid
+  doctorProfileId String                @map("doctor_profile_id") @db.Uuid
+  specialtyId     String                @map("specialty_id") @db.Uuid
+  /// At most one TRUE per doctor, enforced by the partial unique index
+  /// `doctor_specialties_one_primary` from the doctors migration — Prisma cannot
+  /// express `WHERE is_primary`. Zero is legal: a doctor may have specialties
+  /// recorded with none nominated as the headline.
+  isPrimary       Boolean               @default(false) @map("is_primary")
+  /// Advisory display label. ⚠️ Never an authorization input — see the enum.
+  proficiency     SpecialtyProficiency?
+  /// When this classification began and ended. Both NULL is the ordinary case:
+  /// "practises this, no dates recorded".
+  ///
+  /// ⚠️ `isActive` IS NOT DERIVED FROM THESE, deliberately. A fellowship that
+  ///   lapsed and one that was entered in error are different facts, and only
+  ///   the second should vanish from the directory. Dates are evidence; the flag
+  ///   is the decision.
+  effectiveFrom   DateTime?             @map("effective_from") @db.Date
+  effectiveTo     DateTime?             @map("effective_to") @db.Date
+  isActive        Boolean               @default(true) @map("is_active")
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  specialty     Specialty     @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, doctorProfileId, specialtyId])
+  @@index([organizationId, specialtyId])
+  @@map("doctor_specialties")
+}
+
+/// Which qualifications a doctor holds. Same two-parent shape as above.
+model DoctorQualification {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  doctorProfileId  String   @map("doctor_profile_id") @db.Uuid
+  qualificationId  String   @map("qualification_id") @db.Uuid
+  institute        String?  @db.VarChar(255)
+  yearOfCompletion Int?     @map("year_of_completion") @db.SmallInt
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  qualification Qualification @relation(fields: [qualificationId], references: [id], onDelete: Restrict)
+
+  /// `institute` is part of the key: the same degree from two institutions is
+  /// two legitimate rows. ⚠️ NULLS NOT DISTINCT in the migration.
+  @@unique([organizationId, doctorProfileId, qualificationId, institute])
+  @@map("doctor_qualifications")
+}
+
+/// What a doctor charges at one branch.
+///
+/// ⚠️ DELIBERATELY NO `slotMinutes` AND NO `acceptsOnlineBooking`.
+///   Both were on the design ERD and both are removed. Slot duration has ONE
+///   authoritative chain — `doctor_schedules.slot_minutes`, else the resolved
+///   `appointment.slot_minutes` setting at DOCTOR → BRANCH → ORGANIZATION —
+///   and online booking resolves `appointment.allow_online_booking` the same
+///   way. Three columns claiming the same number with no reconciliation rule is
+///   how the receptionist's calendar and the patient portal end up disagreeing
+///   about whether 10:20 exists. See ADR-0015.
+model DoctorBranchSetting {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  doctorProfileId  String   @map("doctor_profile_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  /// ⚠️ `consultation_fee` AND `follow_up_fee` WERE HERE AND ARE NOW ON
+  ///   `fee_schedule_entries`, migrated by
+  ///   `fee_schedule_and_doctor_compensation`. A fee is per VISIT TYPE, and
+  ///   two columns could only price two of the five kinds of appointment this
+  ///   product books. Do not re-add them: two places that look like the fee is
+  ///   how a clinic bills a number nobody set.
+  ///
+  /// `follow_up_free_days` deliberately STAYS. It is not money — it is the
+  /// window inside which a review is free, and it belongs to the relationship
+  /// between a doctor and a branch rather than to a price list.
+  followUpFreeDays Int?     @map("follow_up_free_days") @db.SmallInt
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, doctorProfileId, branchId])
+  @@index([organizationId, branchId, isActive])
+  @@map("doctor_branch_settings")
+}
+
+/// What an appointment costs: one row per (branch, doctor, kind of visit).
+///
+/// ⚠️ BOTH `branch_id` AND `doctor_profile_id` ARE NULLABLE, AND NULL MEANS
+///   "ALL" ON EACH AXIS INDEPENDENTLY. That is the `membership_roles` idiom
+///   (ADR-0002) applied twice, and it is what lets one table hold the clinic's
+///   default and a doctor's override without a second table or a discriminator:
+///
+///     doctor NULL, branch NULL   the clinic's default everywhere
+///     doctor NULL, branch set    the clinic's default at that branch
+///     doctor set,  branch NULL   that doctor's price wherever they consult
+///     doctor set,  branch set    that doctor's price at that branch
+///
+///   Resolution is most-specific-first, in `resolveFee()` and nowhere else. A
+///   second implementation is how a booking screen quotes one number and the
+///   invoice states another.
+///
+/// ⚠️ A ROW HOLDING ZERO IS A RESOLVED ROW. Free is a price a clinic can choose,
+///   and only the ABSENCE of a row falls through to the next level. Reading a
+///   zero as "unset" would bill every free follow-up at the full rate the moment
+///   somebody deliberately set it to nothing.
+///
+/// ⚠️ `fee_type` IS A VARCHAR AND NOT `AppointmentVisitType`, DELIBERATELY.
+///   Today every value is a visit type plus `RESCHEDULE`, and the contract
+///   validates against that closed set. The column is loose so a clinic-defined
+///   fee catalogue can arrive without a migration on a table that will by then
+///   hold every clinic's price list. The looseness is in the column only —
+///   nothing accepts an unrecognised value today.
+model FeeScheduleEntry {
+  id              String  @id @default(uuid()) @db.Uuid
+  organizationId  String  @map("organization_id") @db.Uuid
+  /// NULL = every branch. Composite-FK'd when present.
+  branchId        String? @map("branch_id") @db.Uuid
+  /// NULL = the clinic's default, which every doctor inherits.
+  doctorProfileId String? @map("doctor_profile_id") @db.Uuid
+  /// `NEW`, `FOLLOW_UP`, `WALK_IN`, `TELECONSULT`, `PROCEDURE`, `RESCHEDULE`.
+  feeType         String  @map("fee_type") @db.VarChar(64)
+  /// Currency is the organization's, as everywhere else in this schema.
+  amount          Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch        Branch?        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  doctorProfile DoctorProfile? @relation(fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Cascade)
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration. Both scoping columns are nullable,
+  /// and a plain unique index does not constrain NULLs — without it a clinic
+  /// can hold two different org-wide `NEW` prices and the planner decides which
+  /// one a patient pays.
+  @@unique([organizationId, doctorProfileId, branchId, feeType])
+  /// The resolver's read: every candidate row for one fee type, in one index.
+  @@index([organizationId, feeType])
+  @@map("fee_schedule_entries")
+}
+
+/// What the clinic has agreed to pay a doctor. A RECORD, NOT A PAYROLL RUN.
+///
+/// ⚠️ NOTHING COMPUTES ANYTHING FROM THIS. There are no payout periods, no
+///   payslips and no reconciliation against what the doctor actually billed —
+///   that is the deferred compensation module, and `billing.doctor_payout.manage`
+///   is the permission already seeded for it. This table answers one question:
+///   "what did we agree to pay Tejas, and how often?"
+///
+/// ⚠️ ONE ROW PER DOCTOR, ORGANIZATION-WIDE, WITH NO `branch_id`. A person has
+///   one employment contract. Splitting a salary across the branches they
+///   consult at is cost allocation, which is a reporting question and not this
+///   row's business.
+///
+/// ⚠️ ITS OWN PERMISSION PAIR, `doctor.compensation.read` / `.manage`, AND NOT
+///   `doctor.update`. Every BRANCH_ADMIN holds `doctor.update`, so reusing it
+///   would mean whoever can fix a typo in a bio can also read what every
+///   colleague earns. This is the most gossip-sensitive field in the product.
+model DoctorCompensation {
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @map("organization_id") @db.Uuid
+  doctorProfileId String          @map("doctor_profile_id") @db.Uuid
+  /// Gross, in the organization's currency. Null means "not agreed yet", which
+  /// is different from zero — an unpaid honorary consultant is a real thing.
+  amount          Decimal?        @db.Decimal(14, 2)
+  /// Null alongside a null amount. Meaningless without one.
+  interval        PayoutInterval?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, doctorProfileId])
+  @@map("doctor_compensation")
+}
+
+/// A recurring block of working hours: this doctor, this branch, this weekday.
+///
+/// ⚠️ `startTime`/`endTime` ARE WALL-CLOCK IN THE BRANCH'S TIMEZONE.
+///   Not UTC, not the org's zone, not the server's. `branches.timezone` is the
+///   only authority for what "09:00" means, and the conversion to an instant
+///   happens in Postgres — `($date::date + start_time) AT TIME ZONE b.timezone`
+///   — never in Node, where the container's TZ would silently shift IST by 5:30.
+///   `dayOfWeek` is 0-6 with 0 = Sunday, matching `branch_operating_hours`.
+///
+/// Two blocks a day (morning and evening) is normal, so there is no natural
+/// unique key. Non-overlap is a GiST EXCLUDE constraint in the migration.
+///
+/// An overnight block is forbidden by a CHECK: it would produce an inverted
+/// range that `tstzrange` refuses. An overnight OPD is two rows.
+model DoctorSchedule {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  doctorProfileId String    @map("doctor_profile_id") @db.Uuid
+  branchId        String    @map("branch_id") @db.Uuid
+  dayOfWeek       Int       @map("day_of_week") @db.SmallInt
+  startTime       DateTime  @map("start_time") @db.Time(0)
+  endTime         DateTime  @map("end_time") @db.Time(0)
+  /// NULL = fall back to the resolved `appointment.slot_minutes` setting. This
+  /// is the ONLY per-block override, and the only column the engine reads.
+  slotMinutes     Int?      @map("slot_minutes") @db.SmallInt
+  /// Cap on bookings in this block. ⚠️ ADVISORY — no constraint enforces it, so
+  /// two concurrent bookings into different free slots can exceed it by one.
+  /// Enforcing it would serialise every booking for the block. See the service.
+  maxPatients     Int?      @map("max_patients") @db.SmallInt
+  validFrom       DateTime  @map("valid_from") @db.Date
+  validTo         DateTime? @map("valid_to") @db.Date
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, branchId, dayOfWeek])
+  @@index([doctorProfileId, dayOfWeek])
+  @@map("doctor_schedules")
+}
+
+/// A one-off departure from the recurring schedule: leave, a block, an extra shift.
+///
+/// Stored as `timestamptz` rather than a date plus a time, because an exception
+/// is an absolute interval — "away from Friday 18:00 until Monday 09:00" — and
+/// does not repeat, so there is nothing for a wall-clock reading to anchor to.
+///
+/// ⚠️ ORG-SCOPED, WITH NO `branch_isolation` POLICY, DELIBERATELY.
+///   `branchId` NULL means "every branch". A doctor's leave is org-level
+///   information, and hiding it from a branch-scoped reader would not restrict
+///   anything useful — it would make the engine offer slots on a day the doctor
+///   is away. Phantom availability is worse than a visible absence. The service
+///   filters by branch instead.
+model DoctorScheduleException {
+  id              String                  @id @default(uuid()) @db.Uuid
+  organizationId  String                  @map("organization_id") @db.Uuid
+  doctorProfileId String                  @map("doctor_profile_id") @db.Uuid
+  /// NULL = applies at every branch.
+  branchId        String?                 @map("branch_id") @db.Uuid
+  exceptionType   ScheduleExceptionType   @map("exception_type")
+  startsAt        DateTime                @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime                @map("ends_at") @db.Timestamptz(6)
+  reason          String?                 @db.VarChar(255)
+  status          ScheduleExceptionStatus @default(REQUESTED)
+  requestedBy     String?                 @map("requested_by") @db.Uuid
+  decidedBy       String?                 @map("decided_by") @db.Uuid
+  decidedAt       DateTime?               @map("decided_at") @db.Timestamptz(6)
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  doctorProfile DoctorProfile @relation(fields: [doctorProfileId], references: [id], onDelete: Cascade)
+  branch        Branch?       @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, doctorProfileId, startsAt])
+  /// The approvals inbox.
+  @@index([organizationId, status, startsAt])
+  @@map("doctor_schedule_exceptions")
+}

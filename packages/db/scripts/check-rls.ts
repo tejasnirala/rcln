@@ -40,6 +40,8 @@ const EXEMPT: Record<string, string> = {
   plans: 'platform-wide product catalogue',
   tax_registrations:
     'describes the SUPPLIER (rcln), not any clinic — one set of rows for the whole platform, like plans. Scoping it by organization would be meaningless and would hide our own registrations from the engine that has to read them (see enable-rls.sql)',
+  tax_rule_defaults:
+    'the published rate cards rcln maintains per country — the law, identical for every clinic in a jurisdiction, like plans. Every tenant reads it inside its OWN transaction to price its OWN invoices, so a policy requiring a matching organization_id (a column this table does not have) would return zero rows for everyone and no clinic on the platform could issue an invoice. Tenant overrides live in `tax_rules`, which IS scoped (see enable-rls.sql)',
   plan_prices: 'platform-wide product catalogue',
   plan_features: 'platform-wide product catalogue',
   payment_webhook_events:

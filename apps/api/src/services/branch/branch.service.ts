@@ -27,7 +27,15 @@ import type {
   OperatingHour,
   UpdateBranchRequest,
 } from '@rcln/contracts';
-import { ConflictError, NotFoundError } from '../../utils/errors.js';
+import {
+  countryInfo,
+  defaultTimezoneFor,
+  isValidPostalCode,
+  isValidRegion,
+  postalFormatFor,
+  regionsFor,
+} from '@rcln/contracts';
+import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { invalidateOrganizationAccess } from '../auth/access.service.js';
 import { recordAudit } from '../audit/audit.service.js';
 
@@ -35,6 +43,54 @@ import { recordAudit } from '../audit/audit.service.js';
 export interface BranchActionOptions {
   ipAddress?: string | undefined;
   userAgent?: string | undefined;
+}
+
+/**
+ * The branch's tax jurisdiction and postcode, checked against each other.
+ *
+ * ⚠️ CHECKED HERE AND NOT IN THE ZOD CONTRACT BECAUSE THE COUNTRY MAY BE
+ *   INHERITED. A PATCH that sets only a region, or a create that omits the
+ *   country entirely, has to be judged against the country the branch will
+ *   actually end up with — which is known here and nowhere earlier. The old
+ *   contract-level `^\d{6}$` on the postcode was India's PIN format applied to
+ *   every country, and it made an Irish or Emirati branch unsaveable.
+ *
+ * A region on a country that does not register tax by subdivision is refused
+ * rather than ignored: `IE-D` looks like a jurisdiction and matches no
+ * registration, so an invoice raised there would silently carry no tax.
+ */
+function assertJurisdiction(
+  countryCode: string,
+  regionCode: string | null,
+  pincode: string | undefined
+): void {
+  if (!countryInfo(countryCode)) {
+    throw new ValidationError('Unknown country', {
+      countryCode: [`${countryCode} is not a country this product knows how to bill in`],
+    });
+  }
+
+  if (!isValidRegion(countryCode, regionCode)) {
+    const known = regionsFor(countryCode);
+    throw new ValidationError('Unknown region', {
+      regionCode: [
+        known.length === 0
+          ? `${countryCode} does not register tax by state or province — leave this empty`
+          : `not a ${countryCode} subdivision, e.g. ${known[0]?.code ?? ''}`,
+      ],
+    });
+  }
+
+  if (!isValidPostalCode(countryCode, pincode)) {
+    const format = postalFormatFor(countryCode);
+    throw new ValidationError('Invalid postcode', {
+      pincode: [
+        format
+          ? `does not look like a valid ${countryCode} postcode, e.g. ${format.example}`
+          : 'this country has no postcode',
+      ],
+    });
+  }
 }
 
 /**
@@ -71,7 +127,8 @@ const BRANCH_SELECT = {
   city: true,
   state: true,
   pincode: true,
-  gstNumber: true,
+  countryCode: true,
+  regionCode: true,
   operatingHours: {
     select: {
       dayOfWeek: true,
@@ -99,7 +156,8 @@ interface BranchRow {
   city: string | null;
   state: string | null;
   pincode: string | null;
-  gstNumber: string | null;
+  countryCode: string;
+  regionCode: string | null;
   operatingHours: {
     dayOfWeek: number;
     opensAt: Date;
@@ -175,13 +233,36 @@ export async function createBranch(
     // Checking first only buys a message that names the field.
     if (clash) throw new ConflictError(`A branch with code ${input.code} already exists.`);
 
+    /*
+     * ⚠️ THE ORGANIZATION IS THE DEFAULT, NOT THE COLUMN'S `IN`.
+     *   Country, region and time zone were previously unsettable through this
+     *   endpoint at all, so every branch took the schema defaults — `IN` and
+     *   `Asia/Kolkata` — no matter where its organization was. For an Irish clinic
+     *   that meant its branches looked Indian to the tax engine, so its VAT
+     *   registration covered nothing and every invoice came out untaxed with no
+     *   error. Inheriting is right for the single-country clinic and correctable
+     *   for the group that opens abroad.
+     */
+    const organization = await tx.organization.findFirst({
+      where: { id: ctx.organizationId },
+      select: { countryCode: true, regionCode: true, timezone: true },
+    });
+
+    const countryCode = input.countryCode ?? organization?.countryCode ?? 'IN';
+    const regionCode =
+      input.regionCode !== undefined ? input.regionCode : (organization?.regionCode ?? null);
+
+    assertJurisdiction(countryCode, regionCode, input.pincode);
+
     const created = await tx.branch.create({
       data: {
         organizationId: ctx.organizationId,
         name: input.name,
         code: input.code,
         branchType: input.branchType,
-        timezone: input.timezone,
+        timezone: input.timezone ?? organization?.timezone ?? defaultTimezoneFor(countryCode),
+        countryCode,
+        regionCode,
         // exactOptionalPropertyTypes: a conditional spread, never `key: undefined`.
         ...(input.phone !== undefined ? { phone: input.phone } : {}),
         ...(input.email !== undefined ? { email: input.email } : {}),
@@ -190,7 +271,6 @@ export async function createBranch(
         ...(input.city !== undefined ? { city: input.city } : {}),
         ...(input.state !== undefined ? { state: input.state } : {}),
         ...(input.pincode !== undefined ? { pincode: input.pincode } : {}),
-        ...(input.gstNumber !== undefined ? { gstNumber: input.gstNumber } : {}),
         // isPrimary stays false: the first branch was made primary at
         // registration, and moving that flag is its own deliberate action.
       },
@@ -238,6 +318,19 @@ export async function updateBranch(
       });
       if (clash) throw new ConflictError(`A branch with code ${input.code} already exists.`);
     }
+
+    /*
+     * Judged against what the branch will END UP as, not against what was sent: a
+     * PATCH that moves only the region has to be checked against the country
+     * already on the row, and one that moves only the country has to re-check the
+     * region and postcode that stay behind. Checking the payload alone lets
+     * `{ countryCode: 'IE' }` land on a branch still carrying `KA`.
+     */
+    assertJurisdiction(
+      input.countryCode ?? before.countryCode,
+      input.regionCode !== undefined ? input.regionCode : before.regionCode,
+      input.pincode ?? before.pincode ?? undefined
+    );
 
     const after = await tx.branch.update({
       where: { organizationId_id: { organizationId: ctx.organizationId, id: branchId } },

@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
-import type { BranchListResponse } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
-import { api } from '@/lib/api';
-import { getAccessToken, getSession } from '@/lib/session';
+import { branchesInScope, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { PatientSearch } from '@/components/tenant/patient-search';
 
@@ -35,14 +33,23 @@ export const metadata: Metadata = {
  */
 export default async function PatientsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const accessToken = await getAccessToken();
 
   const [branches, session] = await Promise.all([
-    api<BranchListResponse>('/api/v1/branches', { slug, accessToken }),
+    /*
+     * ⚠️ FROM THE SESSION, NOT `GET /branches` — that endpoint is behind
+     *   `branch.read`, which the front desk does not hold, so it 403'd and left
+     *   this picker empty. An empty picker here means a receptionist cannot
+     *   choose where to register a new patient, which is most of what this
+     *   screen is for. See `branchesInScope`.
+     */
+    branchesInScope(slug),
     getSession(slug),
   ]);
 
   const permissions = session?.permissions ?? [];
+  const countryCode =
+    session?.memberships.find((m) => m.organizationId === session.activeOrganizationId)
+      ?.countryCode ?? 'IN';
 
   if (!permissions.includes(PERMISSIONS.PATIENT_READ)) {
     return (
@@ -55,8 +62,15 @@ export default async function PatientsPage({ params }: { params: Promise<{ slug:
   return (
     <PatientSearch
       slug={slug}
-      // A secondary 403 degrades to an empty picker rather than erroring the page.
-      branches={branches.ok && branches.data ? branches.data.branches : []}
+      branches={branches}
+      /*
+       * The clinic's own country, off the session. It decides the address
+       * labels, which identity documents the desk is offered, the postcode
+       * lookup and the dialling code — none of which the front desk could
+       * otherwise learn, because `GET /organization` is behind a permission
+       * they do not hold.
+       */
+      countryCode={countryCode}
       canCreate={permissions.includes(PERMISSIONS.PATIENT_CREATE)}
     />
   );

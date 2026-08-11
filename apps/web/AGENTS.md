@@ -26,6 +26,50 @@ Two calibrations for this product, which the skill cannot know:
   screen with its own distinct direction is a bug, not a fresh design. Read what
   the existing screens already do before proposing anything new.
 
+## Links inside a tenant never carry `/t/<slug>`
+
+`proxy.ts` rewrites `alpha.rcln.com/patients` to `/t/alpha/patients` on the way
+in. The `/t/<slug>` segment is an internal routing detail, not a URL anybody
+visits — so a `<Link href={`/t/${slug}/patients/${id}`}>` produces the browser
+URL `alpha.rcln.com/t/alpha/patients/<id>`, which the proxy rewrites a SECOND
+time to `/t/alpha/t/alpha/patients/<id>` and 404s.
+
+Write tenant links relative: `/patients/${id}`, `/appointments`, `/doctors/${id}`.
+They cannot leak across tenants — the Host header decides which clinic you are
+in, not the path. This is worth knowing because the failure is invisible in
+review: the href reads plausibly, typechecks, and only 404s when clicked.
+
+## Never format a date or a time by hand
+
+Everything is stored in UTC. Everything clinical is rendered in the branch's
+timezone and the clinic's chosen clock format. Both come from
+`src/lib/format.ts` and nowhere else:
+
+```tsx
+formatClinicTime(iso, timezone, timeFormat); // 4:40 pm  |  16:40
+formatClinicDate(iso, timezone); //  9 Aug 2026
+formatClinicDateTime(iso, timezone, timeFormat); //  9 Aug 2026, 4:40 pm
+formatDate(iso); //  billing only — UTC, deliberately
+```
+
+- **The zone** is the row's own `timezone` when it has one (appointments carry
+  it, because an org-wide admin can open a booking made at another branch),
+  otherwise `timezoneOf(slug)`.
+- **The format** is `locale.time_format` — `12H` by default, `24H` if the clinic
+  chose it, per branch. Take it from `branch.timeFormat` on the session where you
+  have a branch in hand, otherwise `timeFormatOf(slug)`.
+- Both ride on the session next to each other precisely because the front desk
+  and the doctors hold no settings permission: fetching either from
+  `GET /settings` 403s on the screens that need them most.
+
+**`new Date(x).toLocaleString()` is always a bug here**, and a silent one. With
+no zone it is the browser's zone in the browser and the CONTAINER'S UTC on a
+server-rendered page — that is how a 16:40 IST booking rendered as 11:10, and
+nothing on screen said it had shifted. With no locale it renders differently on
+the two sides and breaks hydration. A local `Intl.DateTimeFormat` is the same bug
+one level up: it typechecks, it looks careful, and it silently ignores whatever
+the clinic chose.
+
 ## Form controls come from `components/ui/field.tsx`
 
 `Input`, `Select` and `Textarea` are the whole form vocabulary. Each is `Field`

@@ -20,15 +20,15 @@
 
 import { Prisma, type TenantContext, type TxClient } from '@rcln/db';
 import { fromMajor, money, toMajorString, type Money, type PaymentProvider } from '@rcln/payments';
-import { formatInvoiceNumber, yearBounds } from '../numbering.js';
-import { toDateOnly } from '../periods.js';
 import {
   netOf,
   resolveTax,
-  type SupplierRegistration,
+  type IssuerRegistration,
   type TaxIdStatus,
   type TaxQuote,
-} from '../tax/engine.js';
+} from '@rcln/tax';
+import { formatInvoiceNumber, yearBounds } from '../numbering.js';
+import { toDateOnly } from '../periods.js';
 
 /**
  * Everything the engine needs from the process it is running in.
@@ -353,7 +353,7 @@ export async function taxFor(
 ): Promise<TaxQuote> {
   const organization = await tx.organization.findUnique({
     where: { id: ctx.organizationId },
-    select: { countryCode: true, regionCode: true, gstNumber: true, taxIdStatus: true },
+    select: { countryCode: true, regionCode: true, taxId: true, taxIdStatus: true },
   });
 
   const rows = await tx.taxRegistration.findMany({
@@ -364,7 +364,7 @@ export async function taxFor(
     },
   });
 
-  const registrations: SupplierRegistration[] = rows.map((row) => ({
+  const registrations: IssuerRegistration[] = rows.map((row) => ({
     countryCode: row.countryCode,
     regionCode: row.regionCode,
     scheme: row.scheme,
@@ -379,7 +379,7 @@ export async function taxFor(
       // keeps this total rather than throwing inside an invoice write.
       countryCode: organization?.countryCode ?? 'IN',
       regionCode: organization?.regionCode ?? null,
-      taxId: organization?.gstNumber ?? null,
+      taxId: organization?.taxId ?? null,
       taxIdStatus: (organization?.taxIdStatus ?? 'NOT_PROVIDED') as TaxIdStatus,
     },
     registrations,

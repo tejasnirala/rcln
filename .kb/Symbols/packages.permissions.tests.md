@@ -4,7 +4,7 @@
 
 > The branch-scoping matrix, asserted directly.
 
-Files: `packages/permissions/tests/resolver.test.ts`
+Files: `packages/permissions/tests/resolver.test.ts` · `packages/permissions/tests/roles.test.ts`
 
 ## fn
 
@@ -12,3 +12,4 @@ Files: `packages/permissions/tests/resolver.test.ts`
 | --- | --- | --- | --- |
 | `assignment` <sub>local</sub> | `(branchId: string \| null, permissions): RoleAssignment` | `packages/permissions/tests/resolver.test.ts:37` |  |
 | `ctx` <sub>local</sub> | `(overrides: Partial<AccessContext>): AccessContext` | `packages/permissions/tests/resolver.test.ts:25` |  |
+| `permissionsOf` <sub>local</sub> | `(code: SystemRoleCode): string[]` | `packages/permissions/tests/roles.test.ts:24` |  |

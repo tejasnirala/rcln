@@ -1,0 +1,581 @@
+// =============================================================================
+// SUBSCRIPTIONS (the platform bills the clinic)
+// =============================================================================
+
+enum BillingInterval {
+  MONTH
+  YEAR
+}
+
+enum FeatureValueType {
+  INT
+  BOOL
+}
+
+enum SubscriptionStatus {
+  /// Inside the free trial. No money has been asked for yet.
+  TRIALING
+  /// Checkout has started and the first payment has not landed. Entitlements are
+  /// NOT granted here — a subscription that grants access before the money
+  /// arrives is a subscription anyone can have for free.
+  INCOMPLETE
+  ACTIVE
+  /// A renewal was attempted and failed. Access continues until
+  /// `grace_period_end`, which is what dunning is retrying against.
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum SubscriptionInvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+/// An authorisation to debit without the customer present.
+///
+/// PENDING means the customer was shown the authorisation page and has not
+/// finished. ACTIVE is the ONLY state a debit may be attempted from — see
+/// `@rcln/payments/types.ts`, which these mirror exactly so no translation
+/// table is needed between the provider seam and the database.
+enum MandateStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  CANCELLED
+  FAILED
+}
+
+/// One attempt to move money, and the row a provider's webhook is matched to.
+///
+/// CREATED is before the provider has been asked; PENDING is after, while the
+/// customer is on the hosted page or a UPI collect is outstanding. Neither
+/// grants anything.
+enum PaymentIntentStatus {
+  CREATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+/// Why money is being asked for. Drives what the webhook handler does on
+/// success, so it is a column and not something inferred from which foreign
+/// keys happen to be set.
+enum PaymentPurpose {
+  /// First payment for a subscription — from trial, or after expiry.
+  SUBSCRIPTION_START
+  /// The prorated difference on a mid-period plan change.
+  UPGRADE
+  /// An automatic charge at period end.
+  RENEWAL
+  /// A zero-or-nominal charge whose only job is to authorise future debits.
+  MANDATE_SETUP
+  /// A customer paying an open invoice by hand, typically after dunning.
+  INVOICE_PAYMENT
+}
+
+/// What happened to a subscription, and why. The billing audit trail proper —
+/// `audit_logs` records that a row changed; this records the commercial event.
+enum SubscriptionChangeType {
+  SUBSCRIBE
+  UPGRADE
+  RENEW
+  CANCEL_AT_PERIOD_END
+  CANCEL_IMMEDIATE
+  RESUME
+  REACTIVATE
+  TRIAL_EXPIRED
+  PAYMENT_FAILED
+  SUSPENDED
+}
+
+enum InvoiceLineKind {
+  SUBSCRIPTION
+  PRORATION_CREDIT
+  PRORATION_CHARGE
+  TAX
+  ADJUSTMENT
+}
+
+/// The lifecycle of one inbound webhook delivery.
+///
+/// IGNORED is a success, not a failure: providers send event types we do not
+/// act on, and recording that we saw and dismissed one is what makes the ledger
+/// answer "did we ever receive this?" rather than only "did we act on it?".
+enum WebhookProcessingStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+model Plan {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(64)
+  name      String   @db.VarChar(255)
+  tagline   String?  @db.VarChar(255)
+  trialDays Int      @default(14) @map("trial_days") @db.SmallInt
+  isPublic  Boolean  @default(true) @map("is_public")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  prices        PlanPrice[]
+  features      PlanFeature[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model PlanPrice {
+  id              String          @id @default(uuid()) @db.Uuid
+  planId          String          @map("plan_id") @db.Uuid
+  currency        String          @default("INR") @db.Char(3)
+  billingInterval BillingInterval @map("billing_interval")
+  amount          Decimal         @db.Decimal(14, 2)
+  /// Whether `amount` already includes tax. See `TaxBehavior`.
+  taxBehavior     TaxBehavior     @default(EXCLUSIVE) @map("tax_behavior")
+  isActive        Boolean         @default(true) @map("is_active")
+
+  plan          Plan           @relation(fields: [planId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+
+  @@unique([planId, currency, billingInterval])
+  @@map("plan_prices")
+}
+
+/// Entitlements. Runtime resolution order:
+/// subscription_feature_overrides -> plan_features -> hard default in code.
+model PlanFeature {
+  id         String           @id @default(uuid()) @db.Uuid
+  planId     String           @map("plan_id") @db.Uuid
+  featureKey String           @map("feature_key") @db.VarChar(64)
+  valueType  FeatureValueType @map("value_type")
+  intValue   Int?             @map("int_value")
+  boolValue  Boolean?         @map("bool_value")
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureKey])
+  @@map("plan_features")
+}
+
+/// What a clinic is paying for, and where it is in the cycle.
+///
+/// ⚠️ THE BILLING CLOCK IS OURS, NOT THE PROVIDER'S (ADR-0013).
+///   `current_period_end` is the authority on when the next charge happens, and
+///   the worker's due-sweep reads it. Cashfree's own subscription object is used
+///   only as a mandate holder (`payment_mandates`) — it has no schedule of its
+///   own, so a provider swap does not move a single renewal date.
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @map("organization_id") @db.Uuid
+  planId             String             @map("plan_id") @db.Uuid
+  planPriceId        String             @map("plan_price_id") @db.Uuid
+  status             SubscriptionStatus @default(TRIALING)
+  /// The currency this subscription is billed in, fixed at subscribe time.
+  ///
+  /// Denormalised from `plan_prices` on purpose. A plan may gain, lose or
+  /// re-price a currency at any time, and none of that may silently change what
+  /// an existing customer is charged in — an upgrade must find a price in THIS
+  /// currency or be refused. Reading it off the joined price would make the
+  /// answer depend on the catalogue's current state rather than on the contract.
+  currency           String             @default("INR") @db.Char(3)
+  trialEndsAt        DateTime?          @map("trial_ends_at") @db.Timestamptz(6)
+  currentPeriodStart DateTime           @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd   DateTime           @map("current_period_end") @db.Timestamptz(6)
+  /// When a scheduled cancellation takes effect. Always `current_period_end`
+  /// for a cancel-at-period-end; `now()` for an immediate one.
+  cancelAt           DateTime?          @map("cancel_at") @db.Timestamptz(6)
+  canceledAt         DateTime?          @map("canceled_at") @db.Timestamptz(6)
+  /// Set the moment the customer asks to cancel; the subscription keeps running
+  /// and keeps its entitlements until `cancel_at`. Separate from `canceled_at`
+  /// because "has asked to leave" and "has left" are different states and the
+  /// screen has to say which one the clinic is in.
+  cancelAtPeriodEnd  Boolean            @default(false) @map("cancel_at_period_end")
+  /// Free text from the cancellation form. Never a patient-identifying string.
+  cancelReason       String?            @map("cancel_reason") @db.VarChar(500)
+  /// Whether the renewal engine may debit the mandate unattended.
+  ///
+  /// NOT derivable from `mandate_id IS NOT NULL`: a clinic may hold a live
+  /// mandate and still choose to approve every invoice by hand, and turning
+  /// auto-renewal off must not throw away the authorisation they already gave.
+  autoRenew          Boolean            @default(false) @map("auto_renew")
+  seatQuantity       Int                @default(1) @map("seat_quantity")
+  /// The provider that holds the money relationship, once there is one.
+  provider           String?            @db.VarChar(32)
+  mandateId          String?            @map("mandate_id") @db.Uuid
+  /// How long access survives a failed renewal. Null outside dunning.
+  gracePeriodEnd     DateTime?          @map("grace_period_end") @db.Timestamptz(6)
+  dunningAttempts    Int                @default(0) @map("dunning_attempts") @db.SmallInt
+  lastRenewalAt      DateTime?          @map("last_renewal_attempt_at") @db.Timestamptz(6)
+  /// First successful payment. Null for a subscription still in trial.
+  startedAt          DateTime?          @map("started_at") @db.Timestamptz(6)
+  endedAt            DateTime?          @map("ended_at") @db.Timestamptz(6)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization     Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan             Plan                          @relation(fields: [planId], references: [id])
+  planPrice        PlanPrice                     @relation(fields: [planPriceId], references: [id])
+  // Composite, so a subscription can only ever hold a mandate belonging to its
+  // own organization — the cross-tenant version is unrepresentable (ADR-0004).
+  // NoAction, not SetNull: the FK spans (organization_id, mandate_id) and
+  // organization_id is NOT NULL, so Postgres cannot null half of it. Nothing
+  // deletes a mandate anyway — revoking one sets `status = CANCELLED`, which
+  // keeps the history of what the customer authorised.
+  mandate          PaymentMandate?               @relation(fields: [organizationId, mandateId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  featureOverrides SubscriptionFeatureOverride[]
+  invoices         SubscriptionInvoice[]
+  intents          PaymentIntent[]
+  changes          SubscriptionChange[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+  @@index([currentPeriodEnd])
+  // The due-sweep's query: everything renewable whose period has run out.
+  @@index([status, currentPeriodEnd])
+  @@map("subscriptions")
+}
+
+model SubscriptionFeatureOverride {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  featureKey     String   @map("feature_key") @db.VarChar(64)
+  intValue       Int?     @map("int_value")
+  boolValue      Boolean? @map("bool_value")
+  reason         String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, featureKey])
+  @@map("subscription_feature_overrides")
+}
+
+/// What was owed for one period. Immutable once issued, in the accounting sense:
+/// a mistake is corrected with an adjustment line or a VOID, never by editing
+/// the totals of an invoice a customer has already been shown.
+model SubscriptionInvoice {
+  id             String                    @id @default(uuid()) @db.Uuid
+  organizationId String                    @map("organization_id") @db.Uuid
+  subscriptionId String                    @map("subscription_id") @db.Uuid
+  invoiceNumber  String                    @unique @map("invoice_number") @db.VarChar(64)
+  periodStart    DateTime                  @map("period_start") @db.Date
+  periodEnd      DateTime                  @map("period_end") @db.Date
+  currency       String                    @default("INR") @db.Char(3)
+  subtotal       Decimal                   @db.Decimal(14, 2)
+  taxAmount      Decimal                   @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  total          Decimal                   @db.Decimal(14, 2)
+  /// Where this supply was deemed to take place — `IN-KA`, `IE`, `US-CA`.
+  ///
+  /// For digital services it is the CUSTOMER's location, not ours, in every
+  /// regime that matters. It is what selects the rate, so it is snapshotted:
+  /// a clinic that later moves state must not retrospectively change the tax on
+  /// invoices already issued.
+  placeOfSupply  String?                   @map("place_of_supply") @db.VarChar(10)
+  /// Why it was taxed the way it was. See `TaxTreatment`.
+  taxTreatment   TaxTreatment              @default(NOT_REGISTERED) @map("tax_treatment")
+  /// OUR registration number for that place of supply, as printed. Snapshotted
+  /// because registrations lapse and change, and a reissued invoice must say
+  /// what the original said.
+  supplierTaxId  String?                   @map("supplier_tax_id") @db.VarChar(64)
+  /// THEIR identifier, as it stood when the invoice was issued. Both numbers are
+  /// a legal requirement on a GST invoice and on an EU reverse-charge one.
+  customerTaxId  String?                   @map("customer_tax_id") @db.VarChar(64)
+  /// Settled so far. A partial payment is a real state — a proration credit can
+  /// cover part of an upgrade and leave a smaller balance to collect.
+  amountPaid     Decimal                   @default(0) @map("amount_paid") @db.Decimal(14, 2)
+  status         SubscriptionInvoiceStatus @default(DRAFT)
+  dueDate        DateTime?                 @map("due_date") @db.Date
+  paidAt         DateTime?                 @map("paid_at") @db.Timestamptz(6)
+  voidedAt       DateTime?                 @map("voided_at") @db.Timestamptz(6)
+  /// How many times collection has been attempted. Drives the dunning schedule.
+  attemptCount   Int                       @default(0) @map("attempt_count") @db.SmallInt
+  createdAt      DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription              @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  lines        SubscriptionInvoiceLine[]
+  payments     SubscriptionPayment[]
+  intents      PaymentIntent[]
+  changes      SubscriptionChange[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status])
+  @@index([subscriptionId, createdAt])
+  @@map("subscription_invoices")
+}
+
+model SubscriptionInvoiceLine {
+  id                    String          @id @default(uuid()) @db.Uuid
+  subscriptionInvoiceId String          @map("subscription_invoice_id") @db.Uuid
+  /// A prorated upgrade puts a credit and a charge on one invoice. Without this
+  /// the customer sees two lines of arithmetic and has to work out which is
+  /// which; with it the screen can label them.
+  kind                  InvoiceLineKind @default(SUBSCRIPTION)
+  description           String          @db.VarChar(255)
+  quantity              Decimal         @default(1) @db.Decimal(14, 3)
+  unitAmount            Decimal         @map("unit_amount") @db.Decimal(14, 2)
+  lineTotal             Decimal         @map("line_total") @db.Decimal(14, 2)
+  /// The stretch of time this line covers, where it covers one. Null for tax.
+  periodStart           DateTime?       @map("period_start") @db.Date
+  periodEnd             DateTime?       @map("period_end") @db.Date
+  /// On a TAX line: the rate applied, in basis points. 18% is 1800.
+  ///
+  /// ⚠️ SNAPSHOTTED, NEVER LOOKED UP AGAIN. Rates change by statute. An invoice
+  ///   that re-reads today's rate would silently restate a two-year-old
+  ///   document, which is the kind of thing that is discovered during an audit.
+  ///   Basis points and not a decimal so the arithmetic stays in integers.
+  taxRateBps            Int?            @map("tax_rate_bps")
+  /// What the customer's jurisdiction calls it: CGST, SGST, IGST, VAT.
+  /// Printed as-is, because "Tax" on an Indian invoice is not compliant.
+  taxName               String?         @map("tax_name") @db.VarChar(32)
+  /// Which authority this line is owed to — `IN-KA`, `IE`. One supply can carry
+  /// two lines to two authorities; that is exactly what CGST + SGST is.
+  taxJurisdiction       String?         @map("tax_jurisdiction") @db.VarChar(10)
+
+  invoice SubscriptionInvoice @relation(fields: [subscriptionInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionInvoiceId])
+  @@map("subscription_invoice_lines")
+}
+
+/// Money that actually arrived (or did not). One row per attempt, never updated
+/// in place from FAILED to SUCCESS — a retry is a new attempt, and collapsing
+/// the two loses the fact that the first card was declined.
+model SubscriptionPayment {
+  id                    String        @id @default(uuid()) @db.Uuid
+  subscriptionInvoiceId String        @map("subscription_invoice_id") @db.Uuid
+  /// The attempt this settles. Null only for a payment recorded by hand.
+  paymentIntentId       String?       @map("payment_intent_id") @db.Uuid
+  amount                Decimal       @db.Decimal(14, 2)
+  currency              String        @default("INR") @db.Char(3)
+  method                String?       @db.VarChar(32)
+  /// Last four digits, or a UPI handle's domain. NEVER a full instrument.
+  instrumentLabel       String?       @map("instrument_label") @db.VarChar(32)
+  gateway               String?       @db.VarChar(32)
+  gatewayPaymentId      String?       @map("gateway_payment_id") @db.VarChar(128)
+  status                PaymentStatus @default(PENDING)
+  failureCode           String?       @map("failure_code") @db.VarChar(64)
+  failureMessage        String?       @map("failure_message") @db.VarChar(500)
+  refundedAmount        Decimal       @default(0) @map("refunded_amount") @db.Decimal(14, 2)
+  paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  invoice SubscriptionInvoice @relation(fields: [subscriptionInvoiceId], references: [id], onDelete: Cascade)
+  intent  PaymentIntent?      @relation(fields: [paymentIntentId], references: [id], onDelete: SetNull)
+
+  @@unique([gateway, gatewayPaymentId])
+  @@index([subscriptionInvoiceId])
+  @@map("subscription_payments")
+}
+
+/// A standing authorisation to debit this clinic without anyone present.
+///
+/// WHAT IS AND IS NOT STORED HERE
+///   The provider's id for the mandate, its ceiling, and a four-digit tail for
+///   the customer to recognise it by. No card number, no token that could be
+///   replayed by anyone holding this row, and nothing that would let a database
+///   dump be turned into a charge. The instrument lives at the provider; this is
+///   a pointer to it.
+///
+/// THE CEILING IS THE CUSTOMER'S CONSENT, AND IT IS ENFORCED TWICE
+///   `max_amount` is what the customer saw and approved. The provider enforces
+///   it, and the renewal engine checks it before asking — because a debit that
+///   is going to be refused should be turned into an invoice the customer can
+///   pay by hand, not into a dunning cycle.
+model PaymentMandate {
+  id                String        @id @default(uuid()) @db.Uuid
+  organizationId    String        @map("organization_id") @db.Uuid
+  provider          String        @db.VarChar(32)
+  /// The provider's identifier. Null until the provider has accepted it.
+  providerMandateId String?       @map("provider_mandate_id") @db.VarChar(128)
+  status            MandateStatus @default(PENDING)
+  currency          String        @db.Char(3)
+  maxAmount         Decimal       @map("max_amount") @db.Decimal(14, 2)
+  method            String?       @db.VarChar(32)
+  instrumentLabel   String?       @map("instrument_label") @db.VarChar(32)
+  activatedAt       DateTime?     @map("activated_at") @db.Timestamptz(6)
+  revokedAt         DateTime?     @map("revoked_at") @db.Timestamptz(6)
+  expiresAt         DateTime?     @map("expires_at") @db.Timestamptz(6)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  intents       PaymentIntent[]
+
+  @@unique([organizationId, id])
+  @@unique([provider, providerMandateId])
+  @@index([organizationId, status])
+  @@map("payment_mandates")
+}
+
+/// One attempt to move money, and the row every webhook is matched back to.
+///
+/// WHY THE ROW EXISTS BEFORE THE PROVIDER IS CALLED
+///   Its id IS the idempotency key sent to the provider. Creating it first means
+///   a call that times out can be retried with the same reference — the provider
+///   deduplicates, and we reconcile rather than charging twice. A row written
+///   after a successful call could not do that, because the interesting failure
+///   is the one where we never learn whether the call succeeded.
+///
+/// WHY IT CANNOT GRANT ANYTHING BY ITSELF
+///   The return URL is a browser hint and is trivially forged. Entitlement is
+///   granted only when the provider says SUCCEEDED — on a verified webhook, or
+///   on an explicit `getCharge` — never because a customer arrived back at a
+///   page with a success-looking query string.
+model PaymentIntent {
+  id               String              @id @default(uuid()) @db.Uuid
+  organizationId   String              @map("organization_id") @db.Uuid
+  subscriptionId   String?             @map("subscription_id") @db.Uuid
+  invoiceId        String?             @map("subscription_invoice_id") @db.Uuid
+  /// Set when this is an off-session debit rather than a hosted checkout.
+  mandateId        String?             @map("mandate_id") @db.Uuid
+  provider         String              @db.VarChar(32)
+  providerChargeId String?             @map("provider_charge_id") @db.VarChar(128)
+  purpose          PaymentPurpose
+  status           PaymentIntentStatus @default(CREATED)
+  amount           Decimal             @db.Decimal(14, 2)
+  currency         String              @db.Char(3)
+  description      String              @db.VarChar(255)
+  /// Where the customer was sent, and where they come back to. Both are URLs on
+  /// our own hosts; neither carries anything secret, because a browser holds it.
+  redirectUrl      String?             @map("redirect_url") @db.Text
+  returnUrl        String?             @map("return_url") @db.Text
+  method           String?             @db.VarChar(32)
+  instrumentLabel  String?             @map("instrument_label") @db.VarChar(32)
+  failureCode      String?             @map("failure_code") @db.VarChar(64)
+  failureMessage   String?             @map("failure_message") @db.VarChar(500)
+  settledAt        DateTime?           @map("settled_at") @db.Timestamptz(6)
+  expiresAt        DateTime?           @map("expires_at") @db.Timestamptz(6)
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription?         @relation(fields: [organizationId, subscriptionId], references: [organizationId, id], onDelete: Cascade)
+  invoice      SubscriptionInvoice?  @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Cascade)
+  // NoAction for the same reason as on `subscriptions.mandate` above.
+  mandate      PaymentMandate?       @relation(fields: [organizationId, mandateId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+  payments     SubscriptionPayment[]
+
+  @@unique([organizationId, id])
+  @@unique([provider, providerChargeId])
+  @@index([organizationId, status])
+  @@index([subscriptionId])
+  @@map("payment_intents")
+}
+
+/// The commercial history of a subscription: what changed, what it cost, and who
+/// asked for it.
+///
+/// SEPARATE FROM `audit_logs` ON PURPOSE. That table records that a row's
+/// columns changed, which answers a security question. This one answers a
+/// billing question — "why was I charged ₹1,832 on the 14th?" — and the answer
+/// has to survive the plan being re-priced afterwards, so the amounts are
+/// copied here rather than recomputed from the catalogue.
+model SubscriptionChange {
+  id              String                 @id @default(uuid()) @db.Uuid
+  organizationId  String                 @map("organization_id") @db.Uuid
+  subscriptionId  String                 @map("subscription_id") @db.Uuid
+  changeType      SubscriptionChangeType @map("change_type")
+  fromPlanId      String?                @map("from_plan_id") @db.Uuid
+  fromPlanPriceId String?                @map("from_plan_price_id") @db.Uuid
+  toPlanId        String?                @map("to_plan_id") @db.Uuid
+  toPlanPriceId   String?                @map("to_plan_price_id") @db.Uuid
+  currency        String                 @db.Char(3)
+  /// Unused time on the old plan, as a positive number.
+  prorationCredit Decimal                @default(0) @map("proration_credit") @db.Decimal(14, 2)
+  /// Remaining time on the new plan, as a positive number.
+  prorationCharge Decimal                @default(0) @map("proration_charge") @db.Decimal(14, 2)
+  /// charge - credit, floored at zero. We do not refund a downgrade because
+  /// there is no downgrade (ADR-0014); a credit larger than the charge would
+  /// mean the arithmetic is wrong.
+  amountDue       Decimal                @default(0) @map("amount_due") @db.Decimal(14, 2)
+  invoiceId       String?                @map("subscription_invoice_id") @db.Uuid
+  effectiveAt     DateTime               @map("effective_at") @db.Timestamptz(6)
+  /// Who asked. Null for a change the renewal engine made on its own.
+  actorUserId     String?                @map("actor_user_id") @db.Uuid
+  reason          String?                @db.VarChar(500)
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription Subscription         @relation(fields: [organizationId, subscriptionId], references: [organizationId, id], onDelete: Cascade)
+  // NoAction: composite FK with a NOT NULL organization_id. An invoice is
+  // voided, never deleted, so this is unreachable in practice.
+  invoice      SubscriptionInvoice? @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([organizationId, subscriptionId, createdAt])
+  @@map("subscription_changes")
+}
+
+/// Every webhook delivery we have ever accepted, and what we did with it.
+///
+/// ⚠️ DELIBERATELY NOT TENANT-SCOPED, AND THAT IS THE POINT
+///   A webhook arrives on a public endpoint with no host, no session and no
+///   tenant. Which organization it concerns is only known AFTER the signature
+///   verifies and the reference resolves — so scoping the table by a tenant we
+///   have not yet identified is circular. It is listed in the EXEMPT map in
+///   `packages/db/scripts/check-rls.ts` with that reason.
+///
+///   Deduplication must be global for the same reason: a replayed delivery has
+///   to collide whether or not we can work out whose it is. That is what
+///   `@@unique([provider, providerEventId])` buys, and it is the only thing
+///   standing between a re-sent `charge.succeeded` and a second free month.
+///
+///   Nothing tenant-identifying is exposed through it. It is read by the
+///   platform console and by the worker, never by a tenant-facing route.
+model PaymentWebhookEvent {
+  id              String                  @id @default(uuid()) @db.Uuid
+  provider        String                  @db.VarChar(32)
+  /// The provider's own event id, or a hash of the signed bytes when it sends
+  /// none. See `WebhookEvent.id` in @rcln/payments.
+  providerEventId String                  @map("provider_event_id") @db.VarChar(255)
+  eventType       String                  @map("event_type") @db.VarChar(64)
+  /// Our `payment_intents` / `payment_mandates` id, once resolved.
+  reference       String?                 @db.VarChar(128)
+  /// Resolved after the fact, for the console. Not a scoping column.
+  organizationId  String?                 @map("organization_id") @db.Uuid
+  status          WebhookProcessingStatus @default(RECEIVED)
+  attempts        Int                     @default(0) @db.SmallInt
+  error           String?                 @db.VarChar(1000)
+  /// The provider's payload as received. Retained for reconciliation and the
+  /// support desk; it contains billing contact details and never patient data.
+  payload         Json
+  receivedAt      DateTime                @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt     DateTime?               @map("processed_at") @db.Timestamptz(6)
+
+  @@unique([provider, providerEventId])
+  @@index([status, receivedAt])
+  @@index([reference])
+  @@map("payment_webhook_events")
+}
+
+/// Enforces plan limits (max_branches, max_users) at write time.
+model UsageCounter {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  featureKey     String   @map("feature_key") @db.VarChar(64)
+  periodStart    DateTime @map("period_start") @db.Date
+  usedValue      Decimal  @default(0) @map("used_value") @db.Decimal(14, 2)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, featureKey, periodStart])
+  @@map("usage_counters")
+}

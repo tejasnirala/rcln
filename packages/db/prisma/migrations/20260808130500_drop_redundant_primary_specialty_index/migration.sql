@@ -1,0 +1,31 @@
+-- Drops `doctor_specialties_one_primary_key`, added minutes earlier by
+-- 20260808124153_clinical_taxonomy. It was redundant on arrival.
+--
+-- WHAT WAS MISSED
+--   The doctors migration (20260806163502_doctors) already ships
+--
+--     CREATE UNIQUE INDEX doctor_specialties_one_primary
+--       ON doctor_specialties (doctor_profile_id) WHERE is_primary;
+--
+--   "at most one primary classification per doctor" was ALREADY enforced. The
+--   taxonomy migration added a second index spelling the same rule as
+--   (organization_id, doctor_profile_id) WHERE is_primary.
+--
+-- WHY THE OLDER ONE IS THE ONE TO KEEP
+--   Adding organization_id constrains nothing. doctor_profile_id is a uuid
+--   primary key of doctor_profiles, so it is unique across every tenant already
+--   — the org column is carried on the row for RLS to filter on, not to
+--   disambiguate the doctor. The narrower index is strictly the better one: same
+--   guarantee, one fewer column, and it is the spelling the rest of the doctors
+--   schema was written against.
+--
+-- WHY THIS IS A SECOND MIGRATION RATHER THAN AN EDIT
+--   The taxonomy migration is applied and Prisma checksums it. Editing one in
+--   place makes every environment that already ran it fail with a checksum
+--   mismatch that reads as corruption. Same reasoning, same remedy, as
+--   20260807093000_appointment_status_history_immutability.
+--
+-- Two indexes enforcing one rule is not merely wasted writes: it is two places
+-- to update when the rule changes, and the near-certainty that a later migration
+-- relaxes one and leaves the other silently still enforcing.
+DROP INDEX IF EXISTS "doctor_specialties_one_primary_key";

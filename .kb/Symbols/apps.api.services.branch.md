@@ -10,26 +10,27 @@ Files: `apps/api/src/services/branch/branch.service.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `createBranch` | `(ctx: TenantContext, input: CreateBranchRequest, options: BranchActionOptions): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:164` |  |
-| `deleteBranch` | `(ctx: TenantContext, branchId: string, options: BranchActionOptions): Promise<void>` | `apps/api/src/services/branch/branch.service.ts:341` |  |
-| `fromTime` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/branch/branch.service.ts:52` |  |
-| `getBranch` | `(ctx: TenantContext, branchId: string): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:150` |  |
-| `listBranches` | `(ctx: TenantContext): Promise<BranchDetail[]>` | `apps/api/src/services/branch/branch.service.ts:138` |  |
-| `setOperatingHours` | `(ctx: TenantContext, branchId: string, hours: OperatingHour[], options: BranchActionOptions): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:270` | Replace a branch's whole week of operating hours. Not a partial update: see the contract. A day absent from `hours` is removed, which is how a branch drops to … |
-| `snapshot` <sub>local</sub> | `(row: BranchRow): Record<string, unknown>` | `apps/api/src/services/branch/branch.service.ts:132` |  |
-| `toDetail` <sub>local</sub> | `(row: BranchRow): BranchDetail` | `apps/api/src/services/branch/branch.service.ts:112` |  |
-| `toTime` <sub>local</sub> | `(hhmm: string): Date` | `apps/api/src/services/branch/branch.service.ts:48` |  |
-| `updateBranch` | `(ctx: TenantContext, branchId: string, input: UpdateBranchRequest, options: BranchActionOptions): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:219` |  |
+| `assertJurisdiction` <sub>local</sub> | `(countryCode: string, regionCode: string \| null, pincode: string \| undefined): void` | `apps/api/src/services/branch/branch.service.ts:62` |  |
+| `createBranch` | `(ctx: TenantContext, input: CreateBranchRequest, options: BranchActionOptions): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:222` |  |
+| `deleteBranch` | `(ctx: TenantContext, branchId: string, options: BranchActionOptions): Promise<void>` | `apps/api/src/services/branch/branch.service.ts:434` |  |
+| `fromTime` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/branch/branch.service.ts:108` |  |
+| `getBranch` | `(ctx: TenantContext, branchId: string): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:208` |  |
+| `listBranches` | `(ctx: TenantContext): Promise<BranchDetail[]>` | `apps/api/src/services/branch/branch.service.ts:196` |  |
+| `setOperatingHours` | `(ctx: TenantContext, branchId: string, hours: OperatingHour[], options: BranchActionOptions): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:363` | Replace a branch's whole week of operating hours. Not a partial update: see the contract. A day absent from `hours` is removed, which is how a branch drops to … |
+| `snapshot` <sub>local</sub> | `(row: BranchRow): Record<string, unknown>` | `apps/api/src/services/branch/branch.service.ts:190` |  |
+| `toDetail` <sub>local</sub> | `(row: BranchRow): BranchDetail` | `apps/api/src/services/branch/branch.service.ts:170` |  |
+| `toTime` <sub>local</sub> | `(hhmm: string): Date` | `apps/api/src/services/branch/branch.service.ts:104` |  |
+| `updateBranch` | `(ctx: TenantContext, branchId: string, input: UpdateBranchRequest, options: BranchActionOptions): Promise<BranchDetail>` | `apps/api/src/services/branch/branch.service.ts:299` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BRANCH_SELECT` <sub>local</sub> | `{ id: true, name: true, code: true, branchType: true, status: true, isPrimary: true, time…` | `apps/api/src/services/branch/branch.service.ts:59` | The shape Prisma is asked for, so list and detail cannot drift apart. |
+| `BRANCH_SELECT` <sub>local</sub> | `{ id: true, name: true, code: true, branchType: true, status: true, isPrimary: true, time…` | `apps/api/src/services/branch/branch.service.ts:115` | The shape Prisma is asked for, so list and detail cannot drift apart. |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BranchActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/branch/branch.service.ts:35` | Request metadata carried onto the audit row. |
-| `BranchRow` <sub>local</sub> | `{ id, name, code, branchType, status, isPrimary, timezone, phone, email, addressLine1, addressLine2, city, state, pincode, gstNumber, operatingHours }` | `apps/api/src/services/branch/branch.service.ts:87` |  |
+| `BranchActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/branch/branch.service.ts:43` | Request metadata carried onto the audit row. |
+| `BranchRow` <sub>local</sub> | `{ id, name, code, branchType, status, isPrimary, timezone, phone, email, addressLine1, addressLine2, city, state, pincode, countryCode, regionCode, operatingHours }` | `apps/api/src/services/branch/branch.service.ts:144` |  |

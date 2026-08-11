@@ -34,6 +34,35 @@ export interface SystemRoleDefinition {
 
 const P = PERMISSIONS;
 
+/**
+ * Writing up a consultation. NOT reading one.
+ *
+ * ⚠️ ORG_OWNER AND ORG_ADMIN ARE "EVERYTHING EXCEPT…" ROLES, SO A NEW AUTHORING
+ *   CODE JOINS THEM BY DEFAULT UNLESS IT IS NAMED HERE. Diagnosing a patient,
+ *   closing an encounter and signing a prescription are acts a clinician
+ *   performs and signs their name to. An administrator has every reason to READ
+ *   what was written — that is oversight, and it lands in the audit trail — and
+ *   no business authoring it. Running the clinic is not practising in it.
+ *
+ * ⚠️ THIS IS A DEFAULT, NOT A CEILING. A clinic that wants a doctor's assistant
+ *   or associate to write up the consultation clones DOCTOR into an org-scoped
+ *   role, names it whatever the clinic calls that job, and keeps these codes on
+ *   it — or grants them to one person through the per-membership override. That
+ *   path is deliberately open: this list decides what a role starts with, and
+ *   never what a clinic is allowed to decide.
+ *
+ * SUPER_ADMIN keeps them: it is `ALL_PERMISSIONS` by definition and it is the
+ * platform's break-glass account, not a role anybody at a clinic is assigned.
+ */
+const CLINICAL_AUTHORING: PermissionCode[] = [
+  P.ENCOUNTER_CREATE,
+  P.ENCOUNTER_CLOSE,
+  P.PRESCRIPTION_CREATE,
+  P.PRESCRIPTION_SIGN,
+];
+
+const authorsClinicalNotes = (p: PermissionCode): boolean => CLINICAL_AUTHORING.includes(p);
+
 export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
   {
     code: SYSTEM_ROLES.SUPER_ADMIN,
@@ -47,8 +76,10 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     name: 'Organization Owner',
     description: 'Registered the clinic. Full control including subscription and billing.',
     scopeLevel: 'ORGANIZATION',
-    // Everything except platform-level permissions.
-    permissions: ALL_PERMISSIONS.filter((p) => !p.startsWith('platform.')),
+    // Everything except platform-level permissions and authoring a consultation.
+    permissions: ALL_PERMISSIONS.filter(
+      (p) => !p.startsWith('platform.') && !authorsClinicalNotes(p)
+    ),
   },
   {
     code: SYSTEM_ROLES.ORG_ADMIN,
@@ -58,6 +89,7 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     permissions: ALL_PERMISSIONS.filter(
       (p) =>
         !p.startsWith('platform.') &&
+        !authorsClinicalNotes(p) &&
         p !== P.ORG_BILLING_MANAGE &&
         p !== P.BRANCH_DELETE &&
         p !== P.PATIENT_DELETE &&
@@ -85,6 +117,7 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * profile. That stays with the owner, alongside PATIENT_DELETE.
        */
       P.DOCTOR_READ,
+      P.DOCTOR_DIRECTORY_READ,
       P.DOCTOR_CREATE,
       P.DOCTOR_UPDATE,
       P.DOCTOR_SCHEDULE_READ,
@@ -100,10 +133,18 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.APPOINTMENT_CREATE,
       P.APPOINTMENT_UPDATE,
       P.APPOINTMENT_CANCEL,
+      P.APPOINTMENT_DELETE,
       P.APPOINTMENT_CHECKIN,
       P.APPOINTMENT_AVAILABILITY_READ,
       P.QUEUE_MANAGE,
+      /*
+       * Reads the clinical record and cannot author it — see CLINICAL_AUTHORING.
+       * `VITALS_READ` without `VITALS_RECORD` for the same reason: a branch
+       * administrator checks that the observations were taken, they do not take
+       * them.
+       */
       P.ENCOUNTER_READ,
+      P.VITALS_READ,
       P.PRESCRIPTION_READ,
       P.LAB_ORDER_READ,
       P.LAB_MASTER_MANAGE,
@@ -119,9 +160,32 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.STOCK_TRANSFER,
       P.BATCH_MANAGE,
       P.INVOICE_READ,
+      /*
+       * The whole ledger for the branches they run. A branch administrator
+       * reconciling the day's takings cannot do it from the invoices of one
+       * module — and see INVOICE_READ_ALL's own comment for why this is a single
+       * escape rather than a grant per source.
+       */
+      P.INVOICE_READ_ALL,
       P.INVOICE_CREATE,
       P.INVOICE_UPDATE,
       P.INVOICE_CANCEL,
+      /*
+       * Read, and not manage. The rate card is what explains a bill their
+       * counter raised, so they can look it up; a rate is an organization-wide
+       * legal position, so they cannot change it. See BILLING_TAX_MANAGE.
+       */
+      P.BILLING_TAX_READ,
+      /*
+       * Reads the fee grid and does not set it, for the same reason as the tax
+       * card immediately above — and see FEE_SCHEDULE_MANAGE's own note. A
+       * branch administrator explaining "why was this patient charged 800?"
+       * needs the grid; deciding that it is 800 is the organization's call.
+       *
+       * ⚠️ NO DOCTOR_COMPENSATION_READ EITHER, and that omission is deliberate:
+       *   whoever can fix a typo in a bio must not thereby read the payroll.
+       */
+      P.FEE_SCHEDULE_READ,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,
@@ -156,6 +220,12 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * cannot approve it, nor edit the schedule that decides when the clinic
        * can book them. Editing their own bio and qualifications is allowed under
        * DOCTOR_READ by an ownership check in the service, not by a code.
+       *
+       * ⚠️ NO DOCTOR_DIRECTORY_READ, DELIBERATELY. This is the one omission that
+       *   makes a doctor's navigation two tabs — Appointments and Patients — and
+       *   it is a real access decision, not a UI preference: the colleague
+       *   roster is a personnel list, and `GET /doctors` refuses it here too.
+       *   Their own profile comes from `GET /doctors/me` under DOCTOR_READ.
        */
       P.DOCTOR_READ,
       P.DOCTOR_SCHEDULE_READ,
@@ -175,7 +245,22 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.ENCOUNTER_READ,
       P.ENCOUNTER_CREATE,
       P.ENCOUNTER_CLOSE,
-      P.VITALS_RECORD,
+      /*
+       * ⚠️ READS VITALS, DOES NOT RECORD THEM — the one clinical code a doctor
+       *   deliberately lacks, and the only role in this file that reads without
+       *   being able to write. A consultation is what a doctor is for; the cuff
+       *   and the scales belong to whoever is standing with the patient before
+       *   they come in, which is the front desk or the nurse. Giving the doctor
+       *   `VITALS_RECORD` too would let a consultation quietly amend an
+       *   observation somebody else is accountable for, and the chart would no
+       *   longer say who measured what.
+       *
+       *   A clinic where the doctor genuinely does take the readings — a
+       *   single-handed practice with no front desk — grants `VITALS_RECORD` to
+       *   that person through the per-membership override, or onto its own
+       *   clone of this role. That is a clinic's decision to make explicitly.
+       */
+      P.VITALS_READ,
       P.PRESCRIPTION_READ,
       P.PRESCRIPTION_CREATE,
       P.PRESCRIPTION_SIGN,
@@ -183,6 +268,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.LAB_ORDER_CREATE,
       P.MEDICINE_READ,
       P.INVOICE_READ,
+      /*
+       * Sees what the clinic charges for their own consultations, and cannot
+       * change it — §0.2 decision 5. The read is org-wide rather than
+       * self-scoped, like every other code here: the grid names fee types,
+       * branches and amounts, which is commercial rather than personal. Their
+       * own SALARY is a different matter and a different pair; see
+       * DOCTOR_COMPENSATION_READ, which this role deliberately does not hold —
+       * a doctor reads their own pay by ownership, not by a code.
+       */
+      P.FEE_SCHEDULE_READ,
       P.REPORT_DASHBOARD,
       P.REPORT_CLINICAL,
       P.SETTINGS_USER_WRITE,
@@ -198,12 +293,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PATIENT_UPDATE,
       P.PATIENT_MEDICAL_HISTORY_READ,
       P.DOCTOR_READ,
+      /* Works alongside the whole roster and needs to see who is on today. */
+      P.DOCTOR_DIRECTORY_READ,
       P.DOCTOR_SCHEDULE_READ,
       P.APPOINTMENT_READ,
       P.APPOINTMENT_CHECKIN,
       P.APPOINTMENT_AVAILABILITY_READ,
       P.QUEUE_MANAGE,
       P.ENCOUNTER_READ,
+      /* Takes the observation AND reads it back — both codes, explicitly. */
+      P.VITALS_READ,
       P.VITALS_RECORD,
       P.PRESCRIPTION_READ,
       P.LAB_ORDER_READ,
@@ -225,14 +324,41 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * editable from here.
        */
       P.DOCTOR_READ,
+      /* The Doctors tab. Booking is choosing a practitioner from the roster. */
+      P.DOCTOR_DIRECTORY_READ,
       P.DOCTOR_SCHEDULE_READ,
       P.APPOINTMENT_READ,
       P.APPOINTMENT_CREATE,
       P.APPOINTMENT_UPDATE,
       P.APPOINTMENT_CANCEL,
+      /*
+       * Withdrawing a mistyped booking is the front desk's own mistake to undo,
+       * and the service will only let it touch a future one still in BOOKED.
+       */
+      P.APPOINTMENT_DELETE,
       P.APPOINTMENT_CHECKIN,
       P.APPOINTMENT_AVAILABILITY_READ,
       P.QUEUE_MANAGE,
+      /*
+       * ⚠️ THE ONLY CLINICAL CODES THE FRONT DESK HOLDS, and the role description
+       *   above says "no clinical access" for everything else. Height, weight,
+       *   temperature and blood pressure are taken at the desk before the
+       *   patient is handed over — that is who is standing there with the cuff,
+       *   and it is why THIS role owns the observations and the doctor's does
+       *   not. It does NOT carry ENCOUNTER_READ or PRESCRIPTION_READ: the front
+       *   desk writes observations and cannot read back what the doctor
+       *   concluded from them.
+       */
+      P.VITALS_READ,
+      P.VITALS_RECORD,
+      /*
+       * ⚠️ THE FEE IS QUOTED AT THIS DESK, which is why the front desk holds the
+       *   read (§0.2 decision 13). The booking form shows what the visit will
+       *   cost as the doctor and visit type are chosen, and the number it shows
+       *   is the number frozen onto the appointment. A receptionist who cannot
+       *   read the grid books a price the patient is told at the till instead.
+       */
+      P.FEE_SCHEDULE_READ,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
       P.PAYMENT_COLLECT,
@@ -316,13 +442,38 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.DOCTOR_READ,
       P.APPOINTMENT_READ,
       P.INVOICE_READ,
+      /** Billing IS the job. Every invoice the organization raises, everywhere. */
+      P.INVOICE_READ_ALL,
       P.INVOICE_CREATE,
       P.INVOICE_UPDATE,
       P.INVOICE_CANCEL,
+      /*
+       * The rate card is the accountant's, and they are the only role besides
+       * the two "everything except" ones that gets to change it. A branch
+       * administrator reads it — it explains a bill their counter raised — and
+       * does not set it: a rate is an organization-wide legal position, and a
+       * per-branch override of one is how two branches under one registration
+       * start filing different returns.
+       */
+      P.BILLING_TAX_READ,
+      P.BILLING_TAX_MANAGE,
+      /*
+       * Reads the fee grid — it is what reconciles a consultation line against
+       * what the clinic meant to charge — and does not set it. Unlike the tax
+       * card, a fee is a commercial decision rather than a legal one, and the
+       * organization takes it; see FEE_SCHEDULE_MANAGE.
+       */
+      P.FEE_SCHEDULE_READ,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,
       P.DOCTOR_PAYOUT_MANAGE,
+      /*
+       * Reads what each doctor is paid, and does not agree it. They already hold
+       * DOCTOR_PAYOUT_MANAGE and cannot pay a figure they cannot see; setting
+       * the figure is the employment decision, which stays with the owner.
+       */
+      P.DOCTOR_COMPENSATION_READ,
       P.REPORT_DASHBOARD,
       P.REPORT_REVENUE,
       P.REPORT_EXPORT,

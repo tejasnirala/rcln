@@ -344,19 +344,36 @@ describe('the organization profile', () => {
     await A.patch('/api/v1/organization', { timezone: 'Asia/Kolkata' });
   });
 
-  it('clears a GSTIN with an explicit null, and ignores an absent key', async () => {
-    await A.patch('/api/v1/organization', { gstNumber: '27AAAPA1234A1ZV' });
+  /*
+   * ⚠️ THESE TWO CASES USED TO SET AND CLEAR A GSTIN HERE, AND THE FIELD IS GONE
+   *   ON PURPOSE. A tax number is a property of a TAX REGISTRATION — which also
+   *   carries the scheme, the jurisdiction, the name it is held in and the dates
+   *   it was in force — and keeping an editable copy on the organization meant
+   *   the settings screen could show one number while every invoice printed
+   *   another, permanently, with nothing to reconcile them.
+   *
+   *   `organizations.tax_id` still exists and is still returned: the subscription
+   *   side needs one number for this clinic as rcln's CUSTOMER. It is now derived
+   *   from the registration that applies, by the tax service, and
+   *   `tax-registration-coverage.test.ts` is where that derivation is asserted.
+   */
+  it('ignores a tax number sent to the organization, because registrations own it', async () => {
+    const before = (await A.get('/api/v1/organization')).body.data.taxId;
 
-    const untouched = await A.patch('/api/v1/organization', { displayName: 'Set A Healthcare' });
-    expect(untouched.body.data.gstNumber).toBe('27AAAPA1234A1ZV');
+    // Not a 400: the key is simply not in the contract, and Zod strips it. What
+    // matters is that it cannot become a second source of truth.
+    await A.patch('/api/v1/organization', { taxId: '27AAAPA1234A1ZV' });
 
-    const cleared = await A.patch('/api/v1/organization', { gstNumber: null });
-    expect(cleared.body.data.gstNumber).toBeNull();
+    expect((await A.get('/api/v1/organization')).body.data.taxId).toBe(before);
   });
 
-  it('rejects a malformed GSTIN', async () => {
-    const res = await A.patch('/api/v1/organization', { gstNumber: 'NOPE' });
-    expect(res.status).toBe(400);
+  it('reports the clinic’s registrations on the profile, for display', async () => {
+    const res = await A.get('/api/v1/organization');
+
+    expect(res.status).toBe(200);
+    // An array, and an empty one is a clinic below the registration threshold —
+    // a legitimate steady state rather than an unfilled field.
+    expect(Array.isArray(res.body.data.taxRegistrations)).toBe(true);
   });
 
   it('rejects a time zone that is not one', async () => {

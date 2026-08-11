@@ -11,7 +11,13 @@ The riskiest workflow in this repo. A schema change that forgets one step produc
 
 Read `docs/schema/schema-design.md` for the ERD and `docs/CONVENTIONS.md` for the column rules before editing.
 
-## 1. Model the change — `packages/db/prisma/schema.prisma`
+## 1. Model the change — `packages/db/prisma/schema/<domain>.prisma`
+
+The schema is a FOLDER of domain files (`tenancy`, `identity`, `access-control`,
+`doctors`, `patients`, `scheduling`, `invoicing`, `tax`, `subscriptions`,
+`settings-files-audit`, `numbering`, `marketing`), all concatenated by Prisma.
+Add the model to the domain it belongs to; put its enums in the same file.
+`schema.prisma` holds only `generator` and `datasource` — nothing else.
 
 | Concern             | Rule                                                                                 |
 | ------------------- | ------------------------------------------------------------------------------------ |

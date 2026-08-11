@@ -10,8 +10,9 @@ Files: `apps/api/src/services/settings/resolver.service.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `asBoolean` | `(value: SettingValue, fallback: boolean): boolean` | `apps/api/src/services/settings/resolver.service.ts:162` | One setting, coerced to a boolean. Anything unparseable takes the fallback. |
-| `asPositiveInt` | `(value: SettingValue, fallback: number): number` | `apps/api/src/services/settings/resolver.service.ts:156` |  |
+| `asBoolean` | `(value: SettingValue, fallback: boolean): boolean` | `apps/api/src/services/settings/resolver.service.ts:221` | One setting, coerced to a boolean. Anything unparseable takes the fallback. |
+| `asPositiveInt` | `(value: SettingValue, fallback: number): number` | `apps/api/src/services/settings/resolver.service.ts:215` |  |
+| `resolveSettingForBranches` | `(tx: TxClient, key: string, scopes: { organizationId: string; branchIds: string[] }): Promise<Map<string, SettingValue>>` | `apps/api/src/services/settings/resolver.service.ts:166` |  |
 | `resolveSettings` | `(tx: TxClient, keys: string[], scopes: SettingScopes): Promise<Map<string, SettingValue>>` | `apps/api/src/services/settings/resolver.service.ts:69` |  |
 
 ## const

@@ -400,17 +400,26 @@
   {
     "name": "Worker",
     "layer": "worker",
-    "status": "stub",
-    "purpose": "Background jobs on BullMQ. Every queue is registered; only stubs process them.",
-    "paths": ["apps/worker/src/"],
-    "features": ["Redis connection and queue registration"],
+    "status": "in progress",
+    "purpose": "Background jobs on BullMQ. Every queue is registered; the billing clock and invoice PDF rendering are implemented, the rest are stubs.",
+    "paths": ["apps/worker/src/", "packages/queue/src/"],
+    "features": [
+      "Redis connection and queue registration, defined in `@rcln/queue` — a package because a queue has TWO ends and the API is now a producer",
+      "Job payloads are a WIRE FORMAT across a rolling deploy: plain JSON, ids only, never PHI. A payload sits in Redis, is echoed into every failure log line, and stays in the dead-letter queue for seven days",
+      "The billing clock — an hourly repeatable sweep fanning out one job per subscription",
+      "Invoice PDF rendering — Chromium in THIS container and never in the api, which is capped at 1g and already exits 137 running its own test suite",
+      "Document rendering runs at concurrency 1, because each job holds a renderer process",
+      "`jobId.invoicePdf(id, attempt)` — BullMQ de-duplicates on job id even for a RECENTLY COMPLETED job, which is right for a double-clicked button and silently wrong for a deliberate regeneration"
+    ],
     "userActions": [],
     "businessRules": [],
-    "tables": [],
+    "tables": ["StoredFile", "InvoiceDocument"],
     "permissions": [],
     "limitations": [
-      "No processors exist — queues accept jobs that nothing consumes",
-      "No scheduled jobs, no dead-letter handling, no metrics rollup"
+      "Notifications, reports, inventory, integrations and outbox accept jobs that nothing consumes",
+      "No dead-letter handling and no metrics rollup",
+      "A render that fails all five attempts leaves the invoice with no current document and nothing asks again",
+      "`InvoicePdfJob.requestedBy` is required, so a future non-human producer has to decide what actor to record rather than defaulting one"
     ]
   },
   {
@@ -430,6 +439,166 @@
     "limitations": [
       "No runtime response validation on the web side — contracts type the response but nothing parses it",
       "Chosen over tRPC/ts-rest deliberately; revisit if a mobile client appears"
+    ]
+  },
+  {
+    "name": "Documents",
+    "layer": "api + package",
+    "status": "shipped",
+    "purpose": "Stores, retrieves and RENDERS every document the platform holds. One provider interface for the bytes (local disk in development, a private S3 bucket in production, nothing above the seam knows which) and one template function for the look — where the SAME function produces the on-screen preview and the printed PDF, so the two cannot drift.",
+    "paths": [
+      "packages/storage/src/",
+      "packages/documents/src/",
+      "apps/worker/src/documents/",
+      "apps/api/src/services/document/"
+    ],
+    "features": [
+      "`StorageProvider` — put / get / head / exists / remove / getSignedUrl, and deliberately nothing else",
+      "`LocalStorageProvider` — atomic write-then-rename, a metadata sidecar so content type is never sniffed from the extension, and three independent layers stopping a key escaping the storage root",
+      "`createStorageProvider()` — the single place `STORAGE_PROVIDER` is read; selecting s3 fails loudly rather than falling back to local disk",
+      "`DocumentService` — generic over `DocumentType`, so lab reports and prescriptions land here without editing it. Lives in `@rcln/documents/store` because the WORKER writes a document and the API serves it",
+      "Row → bytes → READY ordering, so a failed render leaves evidence rather than a document the system swears exists and cannot serve",
+      "SHA-256 recorded by the provider over what it actually wrote, and verified again on every read",
+      "`renderInvoiceHtml(data)` — ONE function, TWO destinations: an `<iframe srcdoc>` preview in apps/web and Chromium's `setContent` in the worker. That is the whole guarantee that the screen and the PDF are the same document",
+      "The rendered HTML is self-contained — inlined CSS, inlined typefaces, NOT ONE external request. `page.pdf()` snapshots what is painted, so a font still in flight is a PDF silently set in the fallback",
+      "IBM Plex Sans/Mono vendored as base64 constants (`latin` + `latin-ext`, which is where ₹ lives) rather than read from node_modules, because every failure of a runtime read is silent in one of the three runtimes",
+      "`playwright-core` driving the DISTRIBUTION's Chromium in the worker — one browser per process, one context per job",
+      "`invoice_documents.template_key` / `.template_version` — provenance, so a disputed reprint years later can be explained"
+    ],
+    "userActions": [],
+    "businessRules": [],
+    "tables": ["StoredFile", "InvoiceDocument"],
+    "permissions": [],
+    "limitations": [
+      "The S3 provider is designed but not implemented — `STORAGE_PROVIDER=s3` is a fatal boot error until phase 11 of the invoice engine",
+      "⚠️ `files`' RLS policy permits a NULL `organization_id` for platform assets, so the explicit `organizationId` pin in `getDocument` is the ONLY thing stopping a tenant reading a platform-owned document — `db:rls:check` can never notice its removal",
+      "⚠️ `getSignedUrl` returns null on local disk by design; the download route must be able to stream bytes itself, and a signed URL is an optimisation rather than a boundary",
+      "⚠️ Non-Latin scripts (Devanagari, Tamil, Kannada…) render as missing-glyph boxes — the vendored subsets are Latin. The render job LOGS the script name, never the characters, so the gap is known rather than silent. The fix is another `@font-face`",
+      "⚠️ The Alpine Chromium moves with the base image, not with the lockfile, so a layout regression can arrive from a `docker build` with no dependency change",
+      "No route serves a PDF and no screen renders the preview — phases 7 and 9",
+      "No sweep for rows stuck in GENERATING, and no sweep that retries a render that failed its five attempts",
+      "No delete path"
+    ]
+  },
+  {
+    "name": "Tax",
+    "layer": "package + api",
+    "status": "shipped",
+    "purpose": "Decides whether an issuer may charge tax on a supply at all, and only then at what rate. One set of rules, two issuers: rcln billing a clinic for its subscription, and a clinic billing a patient.",
+    "paths": [
+      "packages/tax/src/",
+      "apps/api/src/services/invoicing/tax.service.ts",
+      "apps/api/src/services/platform/tax-rule-default.service.ts"
+    ],
+    "features": [
+      "`resolveTax()` — starts from \"do we hold a registration here?\", never from \"what rate?\", and returns NOT_REGISTERED with the reason on the document when nothing covers the place of supply",
+      "`placeOfSupply` as an explicit input — the customer's location for a digital service (a subscription), the issuing BRANCH for a service performed at a place (a consultation)",
+      "`tax_rules` — effective-dated rates per item tax category, carrying the LINE NAME and split behaviour so the presentation is data rather than an assumption about India",
+      "`tax_rule_defaults` — the rate cards rcln maintains per country, INHERITED at read time and never copied into a tenant, so a published rate change reaches every clinic that has not overridden it with one INSERT",
+      "Precedence: a tenant rule beats a platform default before specificity is considered, all-or-nothing per tax category — the clinic signs the return, and a half-inherited rate card is one nobody authored",
+      "`rulesFor()` returns every applicable rule — a regional rule normally overrides the country-wide one, but a `stacks` rule adds to it, which is the only way Canada's federal GST + provincial PST can be billed at all",
+      "India's CGST/SGST/IGST split is one rule with `split: INTRA_STATE_HALVES`; every other GST country prints one line, and `regionalLineName` covers UTGST",
+      "`TaxProviderQuote` — the seam for US sales tax and EU One Stop Shop; the engine stays pure and prices from the provider's own lines, or returns PROVIDER_REQUIRED",
+      "`UNRATED` / `PROVIDER_REQUIRED` — a category with no rule, or a regime no table can compute, charges nothing and says so rather than borrowing a rate",
+      "`UNISSUABLE_TREATMENTS` + `isIssuable()` — the shared list so the engine and Phase 5's finalisation guard cannot drift",
+      "`loadTaxContext()` — one read per invoice, after which pricing every line is pure"
+    ],
+    "userActions": [],
+    "businessRules": [
+      "Tax may only be charged where the issuer holds a registration covering the place of supply; an empty registration set means nothing is ever taxed",
+      "A clinical service is supplied at the branch that performed it, never at the patient's home address",
+      "The rate is a property of the item, not of the registration — a clinic's registration carries no standard rate at all",
+      "What a tax line is CALLED is a property of the rule, not of the country: Ontario prints one HST line and British Columbia prints GST plus PST",
+      "A stacked regional tax is charged on the net, never on the net plus the federal tax — that would be a tax on a tax",
+      "A rate change is a new effective-dated row, never an edit, so an issued invoice stays explicable",
+      "Removing a tax rule is an end date, never a delete — the row that priced an issued invoice is what explains it to an auditor",
+      "Only healthcare-service exemptions are seeded; goods rates vary by product within a country, so an unverified default would be wrong invisibly for every clinic in it"
+    ],
+    "tables": ["TaxRegistration", "IssuerTaxRegistration", "TaxRule", "TaxRuleDefault"],
+    "permissions": ["platform.tax.manage"],
+    "limitations": [
+      "No platform console SCREEN for the defaults catalogue — the four routes exist but are curl-only until phase 7",
+      "No tenant-facing screen or permission for a clinic's own registrations and overrides — phase 7",
+      "The divergence warning that makes tenant-beats-platform safe needs a screen to live on, so it does not exist yet",
+      "⚠️ Canada is fully supported by the engine and tested, but is absent from `locale.ts`, so no clinic can select it at signup",
+      "⚠️ Goods are deliberately unseeded, so a clinic billing medicines gets UNRATED until it configures rates it has checked",
+      "⚠️ UNRATED and PROVIDER_REQUIRED lines are reported, not refused — the finalisation guard that must not ISSUE them is phase 5",
+      "No tax provider is implemented, so US sales tax and EU cross-border consumer VAT charge nothing; the seam takes a quote but nothing fills it",
+      "A customer tax id is always UNVALIDATED — no VIES or GSTIN validation path, so a B2B invoice cannot reach reverse charge",
+      "Seeded defaults are a starting point with provenance, not tax advice — each needs a per-country review before billing"
+    ]
+  },
+  {
+    "name": "Invoicing",
+    "layer": "package + database + api",
+    "status": "in progress",
+    "purpose": "The clinic billing a PATIENT: one engine, many billable sources, the clinic's own registration, immutable once issued. ⚠️ NOT `subscription_invoices`, which is rcln billing the clinic and is complete — see §0.1 of the invoice-engine log for why the two cannot share a table.",
+    "paths": [
+      "packages/invoicing/src/",
+      "packages/documents/src/",
+      "packages/db/prisma/schema/invoicing.prisma",
+      "apps/api/src/services/invoicing/",
+      "apps/worker/src/documents/"
+    ],
+    "features": [
+      "`invoices` / `invoice_items` / `invoice_taxes` / `invoice_documents` — org AND branch scoped, composite-FK'd throughout",
+      "`issueInvoiceNumber()` — `INV-{PERIOD_YEAR}-{SOURCE}-{BRANCH_CODE}-{000001}` on top of the existing gapless `issueNumber()` counter",
+      "The reset cadence is resolved from the branch's country — financial year for IN, calendar year elsewhere — and the period is the BRANCH-LOCAL date, resolved in Postgres",
+      "Every tax field on an invoice is a snapshot: registration number, legal name, place of supply, line names, rates. Nothing is ever re-read",
+      "One TYPED, enforced reference column per integrated source — `appointment_id` today, `lab_order_id` and `pharmacy_sale_id` with their modules — never a generic polymorphic id. `source_type` still ships as the full seven-value enum so the shape does not change when they land",
+      "`priceInvoice()` in `@rcln/invoicing` — the ONLY code allowed to decide what goes in a money column. Pure: integer minor units, no Prisma, no clock, `quoteTax` passed in as a function",
+      "The calculation order is fixed once and implemented once: gross → line discount → apportioned invoice discount → per-line tax → cash rounding, each step rounded at the currency's own scale before the next reads it",
+      "`apportion()` — largest-remainder split of the invoice-level discount pro-rata by taxable amount, ties broken on the lower index so a reprint matches the original exactly",
+      "Quantity is an integer count of THOUSANDTHS, matching `Decimal(14,3)` — a float unit price is how a line comes out a paisa short of the sum of its parts",
+      "Cash rounding is applied to the TOTAL and never to a line, and lands in its own column so `grand_total` never needs explaining",
+      "`priceDraftInvoice()` — the seam: one tax-context read per invoice, then pure arithmetic. Persists nothing; finalisation is phase 5",
+      "`createDraftInvoice()` / `repriceDraftInvoice()` — a draft is PRICED from the moment it exists; there is no state in which an invoice's totals are not the totals of its lines",
+      "`finalizeInvoice()` — price, refuse an unrated line, refuse a branch its registration does not cover, then take the number: DRAFT → FINALIZING → ISSUED in one transaction",
+      "`cancelDraftInvoice()` / `voidInvoice()` — cancel is for a draft nobody ever saw, void is for a document that keeps its number for ever",
+      "Three database triggers, not one service: `invoices_lifecycle_guard` (the transition table + a frozen-column ALLOW-LIST), `invoices_no_delete_after_issue`, `invoice_children_follow_parent`",
+      "The frozen set is an allow-list, so a column added to `invoices` tomorrow is immutable after issue by default and somebody has to argue for it",
+      "`toDecimal()` / `toMoney()` — the ONE `numeric(14,2)` ↔ minor-units boundary for patient invoices, via the string form and never `.toNumber()`",
+      "The finalisation check `branches.region_code` was always missing: a clinic registered in one state cannot issue from a branch in another, because `registrationFor()` would silently fall back to the wrong GSTIN",
+      "`loadInvoiceDocumentData()` — an invoice row assembled into the plain-JSON snapshot the document renders from. The ONE place an invoice becomes a document, so the preview and the PDF cannot be assembled differently",
+      "The snapshot beats the live row: a clinic that renames itself does not silently restate an invoice somebody is holding",
+      "What the document CALLS ITSELF is derived, not a constant — a Bill of Supply for an exempt Indian supply, a plain Invoice for an unregistered clinic, a Tax Invoice in AU/NZ/SG/AE and not in the UK or Ireland",
+      "`issueInvoice()` — finalise in a transaction, COMMIT, then enqueue the render. Enqueueing inside the transaction races the worker against the commit; a failed enqueue is logged and never fails the request, because by then the invoice IS a document"
+    ],
+    "userActions": [],
+    "businessRules": [
+      "A number is taken at finalisation, never at creation, so an abandoned draft burns no serial — enforced by the `invoices_number_matches_status` CHECK, not by a service remembering to",
+      "The series is per branch and the branch code is IN the number: two branches sharing one GSTIN must never issue the same serial",
+      "An invoice-level discount is apportioned onto the lines BEFORE tax, largest-remainder — tax on a pre-discount amount is over-collected tax remitted on money nobody received",
+      "Tax is rounded per line, not per invoice, which is what makes each printed line internally consistent",
+      "The customer block is a snapshot, not a join: a patient who changes their surname does not change an invoice already issued",
+      "An issued invoice is VOIDed, never deleted — the number stays so the series stays contiguous",
+      "An invoice's link to what it bills is enforced by the database, composite-keyed to (organization_id, id), so it can never cite another clinic's row; `invoices_source_reference_matches_type` keeps the source type and the reference column agreeing",
+      "A discount larger than what it reduces is REFUSED, never clamped: a negative charge is a credit note and goes through a different door",
+      "The invoice-level discount is weighted by what is LEFT of a line after its own discount, not by its gross — weighting by gross pushes an already-free line negative",
+      "One UNRATED or PROVIDER_REQUIRED line makes the whole document unissuable, decided by `isIssuable()` so the engine and finalisation cannot drift",
+      "The invoice tax total is summed from the PRINTED lines, never taken from a quote's own total — the lines are what a patient can add up on the page",
+      "An ISSUED invoice's document may not change — status, `amount_paid` and the cancel/void fields are the only columns that still move, enforced by trigger and not by the service",
+      "An issued invoice's LINES are frozen with it: a frozen `grand_total` over editable lines is an invoice stating a total that is not the sum of what it prints",
+      "CANCELLED is reachable from DRAFT only and VOID from an issued state only — the difference is whether anybody ever saw the document",
+      "A draft is re-priced at finalisation from its stored INPUTS, never trusted, so a rate corrected since the draft was opened reaches the document"
+    ],
+    "tables": ["Invoice", "InvoiceItem", "InvoiceTax", "InvoiceDocument"],
+    "permissions": [
+      "billing.invoice.read",
+      "billing.invoice.create",
+      "billing.invoice.update",
+      "billing.invoice.cancel"
+    ],
+    "limitations": [
+      "Only APPOINTMENT has a reference column, because it is the only source whose table exists. PROCEDURE and SERVICE carry no reference at all until a service catalogue exists, and LAB / PHARMACY / INVENTORY gain theirs in the migration that creates their own table",
+      "No routes, no contracts, no screen and no permission wiring — phases 5 to 9",
+      "Lab, pharmacy and inventory sources have no tables to point at; only APPOINTMENT, PROCEDURE, SERVICE and OTHER can be billed",
+      "Tax behaviour is EXCLUSIVE only — there is no inclusive-pricing path, and `netOf()` in `@rcln/tax` has no caller. It matters for consumer-facing EU/UK prices",
+      "No credit note: no table, no series, no `CREDIT_NOTE` source type. A void records a reason and nothing else — and with no patient-payments table `amount_paid` is always zero, so no void can yet involve money",
+      "PARTIALLY_PAID and PAID are reachable transitions with nothing to drive them; there is no patient payments/allocations pair",
+      "Cash rounding and the invoice currency are parameters, not settings — `resolveSettings()` has no billing keys and Phase 7's settings screen is where they belong",
+      "No routes, no contracts, no screen and no permission wiring — phases 6 to 9. `billing.invoice.*` still gates nothing",
+      "The PDF is asynchronous: an invoice is ISSUED before its document exists. The screen renders from data so nothing waits to SEE the invoice — only Download waits"
     ]
   }
 ]

@@ -10,73 +10,78 @@ Files: `apps/api/src/services/patient/patient-history.service.ts` · `apps/api/s
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addAddress` | `(ctx: TenantContext, patientId: string, input: PatientAddressRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:982` |  |
+| `addAddress` | `(ctx: TenantContext, patientId: string, input: PatientAddressRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:1194` |  |
 | `addAllergy` | `(ctx: TenantContext, patientId: string, input: PatientAllergyRequest, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:172` |  |
 | `addCondition` | `(ctx: TenantContext, patientId: string, input: PatientConditionRequest, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:243` |  |
-| `addContact` | `(ctx: TenantContext, patientId: string, input: PatientContactRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:1052` |  |
+| `addContact` | `(ctx: TenantContext, patientId: string, input: PatientContactRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:1264` |  |
 | `addMedication` | `(ctx: TenantContext, patientId: string, input: PatientMedicationRequest, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:347` |  |
-| `addressData` <sub>local</sub> | `(input: PatientAddressRequest): { addressType: PatientAddressRequest['addressType']; line1:…` | `apps/api/src/services/patient/patient.service.ts:428` |  |
-| `ageFrom` <sub>local</sub> | `(dateOfBirth: Date \| null, approxAgeYears: number \| null): number \| null` | `apps/api/src/services/patient/patient.service.ts:138` |  |
-| `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/patient/patient.service.ts:267` |  |
+| `addressData` <sub>local</sub> | `(input: PatientAddressRequest): { addressType: PatientAddressRequest['addressType']; line1:…` | `apps/api/src/services/patient/patient.service.ts:441` |  |
+| `ageFrom` <sub>local</sub> | `(dateOfBirth: Date \| null, approxAgeYears: number \| null): number \| null` | `apps/api/src/services/patient/patient.service.ts:140` |  |
+| `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/patient/patient.service.ts:270` |  |
 | `assertPatientExists` <sub>local</sub> | `(tx: TxClient, patientId: string): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:57` | Confirm the patient exists — and is not soft-deleted — before touching them. |
-| `assertPatientExists` <sub>local</sub> | `(tx: TxClient, patientId: string): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:974` | Confirm the patient exists before writing a child row against them. |
-| `contactData` <sub>local</sub> | `(input: PatientContactRequest): { relation: string; name: string; phone: string; isEmergenc…` | `apps/api/src/services/patient/patient.service.ts:450` |  |
-| `createPatient` | `(ctx: TenantContext, input: CreatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:608` |  |
-| `createRegistration` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, patientId: string, branchId: string): Promise<{ id: string; mrn: string }>` | `apps/api/src/services/patient/patient.service.ts:302` |  |
-| `deletePatient` | `(ctx: TenantContext, patientId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:942` |  |
-| `ensureRegistration` | `(tx: TxClient, ctx: TenantContext, patientId: string, branchId: string): Promise<{ id: string; mrn: string; created: boolean }>` | `apps/api/src/services/patient/patient.service.ts:342` |  |
-| `findDuplicates` | `(ctx: TenantContext, probe: { phone?: string \| undefined; firstName?: string \| u…): Promise<PatientDuplicateMatch[]>` | `apps/api/src/services/patient/patient.service.ts:500` |  |
-| `fullNameOf` <sub>local</sub> | `(firstName: string, lastName: string \| null): string` | `apps/api/src/services/patient/patient.service.ts:149` |  |
+| `assertPatientExists` <sub>local</sub> | `(tx: TxClient, patientId: string): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:1186` | Confirm the patient exists before writing a child row against them. |
+| `conflictingIdentity` <sub>local</sub> | `(err: unknown): 'nationalId' \| 'abhaNumber' \| null` | `apps/api/src/services/patient/patient.service.ts:631` |  |
+| `contactData` <sub>local</sub> | `(input: PatientContactRequest): { relation: string; name: string; phone: string; isEmergenc…` | `apps/api/src/services/patient/patient.service.ts:463` |  |
+| `createPatient` | `(ctx: TenantContext, input: CreatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:726` |  |
+| `createPatientRow` <sub>local</sub> | `(ctx: TenantContext, input: CreatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:747` |  |
+| `createRegistration` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, patientId: string, branchId: string): Promise<{ id: string; mrn: string }>` | `apps/api/src/services/patient/patient.service.ts:305` |  |
+| `deletePatient` | `(ctx: TenantContext, patientId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:1154` |  |
+| `ensureRegistration` | `(tx: TxClient, ctx: TenantContext, patientId: string, branchId: string): Promise<{ id: string; mrn: string; created: boolean }>` | `apps/api/src/services/patient/patient.service.ts:345` |  |
+| `findDuplicates` | `(ctx: TenantContext, probe: { phone?: string \| undefined; firstName?: string \| u…): Promise<PatientDuplicateMatch[]>` | `apps/api/src/services/patient/patient.service.ts:513` |  |
+| `fullNameOf` <sub>local</sub> | `(firstName: string, lastName: string \| null): string` | `apps/api/src/services/patient/patient.service.ts:151` |  |
 | `getHistory` | `(ctx: TenantContext, patientId: string, options: PatientActionOptions): Promise<PatientHistoryResponse>` | `apps/api/src/services/patient/patient-history.service.ts:72` |  |
-| `getPatient` | `(ctx: TenantContext, patientId: string, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:864` |  |
-| `identityData` <sub>local</sub> | `(input: UpdatePatientRequest): PatientIdentityData` | `apps/api/src/services/patient/patient.service.ts:394` | The identity fields, mapped from a request onto Prisma input. Shared by create and update so the two cannot diverge — in particular so the age-exclusivity rule… |
+| `getPatient` | `(ctx: TenantContext, patientId: string, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:1060` |  |
+| `identityData` <sub>local</sub> | `(input: UpdatePatientRequest): PatientIdentityData` | `apps/api/src/services/patient/patient.service.ts:397` | The identity fields, mapped from a request onto Prisma input. Shared by create and update so the two cannot diverge — in particular so the age-exclusivity rule… |
+| `identityTakenError` <sub>local</sub> | `(ctx: TenantContext, field: 'nationalId' \| 'abhaNumber', input: { nationalId?: string \| undefined; abhaNumber?: stri…): Promise<ConflictError>` | `apps/api/src/services/patient/patient.service.ts:690` |  |
 | `isoDate` <sub>local</sub> | `(value: Date \| null): string \| null` | `apps/api/src/services/patient/patient-history.service.ts:38` | `Date \| null` -> `YYYY-MM-DD`. The columns are bare dates; read them in UTC. |
-| `isoDate` <sub>local</sub> | `(value: Date \| null): string \| null` | `apps/api/src/services/patient/patient.service.ts:128` | `Date \| null` -> `YYYY-MM-DD`. The columns are bare dates; read them in UTC. |
-| `registerAtBranch` | `(ctx: TenantContext, patientId: string, input: RegisterPatientAtBranchRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:685` | Register an existing patient at a second branch. One `patients` row, a second MRN. This is what keeps a hospital group from accumulating two records for one pe… |
-| `removeAddress` | `(ctx: TenantContext, patientId: string, addressId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:1027` |  |
+| `isoDate` <sub>local</sub> | `(value: Date \| null): string \| null` | `apps/api/src/services/patient/patient.service.ts:130` | `Date \| null` -> `YYYY-MM-DD`. The columns are bare dates; read them in UTC. |
+| `registerAtBranch` | `(ctx: TenantContext, patientId: string, input: RegisterPatientAtBranchRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:822` | Register an existing patient at a second branch. One `patients` row, a second MRN. This is what keeps a hospital group from accumulating two records for one pe… |
+| `removeAddress` | `(ctx: TenantContext, patientId: string, addressId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:1239` |  |
 | `removeAllergy` | `(ctx: TenantContext, patientId: string, allergyId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:211` |  |
 | `removeCondition` | `(ctx: TenantContext, patientId: string, conditionId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:315` |  |
-| `removeContact` | `(ctx: TenantContext, patientId: string, contactId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:1090` |  |
+| `removeContact` | `(ctx: TenantContext, patientId: string, contactId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient.service.ts:1302` |  |
 | `removeMedication` | `(ctx: TenantContext, patientId: string, medicationId: string, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:428` |  |
-| `resolvePrefix` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, key: string, fallback: string, branchId?: string): Promise<string>` | `apps/api/src/services/patient/patient.service.ts:280` |  |
-| `searchPatients` | `(ctx: TenantContext, query: SearchPatientQuery, options: PatientActionOptions): Promise<PatientListResponse>` | `apps/api/src/services/patient/patient.service.ts:766` |  |
-| `snapshot` <sub>local</sub> | `(row: PatientRow): Record<string, unknown>` | `apps/api/src/services/patient/patient.service.ts:237` |  |
+| `resolvePrefix` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, key: string, fallback: string, branchId?: string): Promise<string>` | `apps/api/src/services/patient/patient.service.ts:283` |  |
+| `searchPatients` | `(ctx: TenantContext, query: SearchPatientQuery, options: PatientActionOptions, scope: PatientSearchScope): Promise<PatientListResponse>` | `apps/api/src/services/patient/patient.service.ts:915` |  |
+| `snapshot` <sub>local</sub> | `(row: PatientRow): Record<string, unknown>` | `apps/api/src/services/patient/patient.service.ts:240` |  |
 | `stopMedication` | `(ctx: TenantContext, patientId: string, medicationId: string, stoppedOn: string \| undefined, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:389` |  |
 | `toDateColumn` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/patient/patient-history.service.ts:43` | `YYYY-MM-DD` -> a UTC midnight `Date`, which is how bare dates are stored. |
-| `toDateColumn` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/patient/patient.service.ts:365` | `YYYY-MM-DD` -> a UTC midnight `Date`, which is how bare dates are stored. |
-| `toDetail` <sub>local</sub> | `(row: PatientRow): PatientDetail` | `apps/api/src/services/patient/patient.service.ts:175` |  |
-| `toSummary` <sub>local</sub> | `(row: PatientRow): PatientSummary` | `apps/api/src/services/patient/patient.service.ts:158` | The list row. `mrn`/`branchId` come from the first registration RLS let through — which is to say, one at a branch the caller is scoped to. None visible means … |
+| `toDateColumn` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/patient/patient.service.ts:368` | `YYYY-MM-DD` -> a UTC midnight `Date`, which is how bare dates are stored. |
+| `toDetail` <sub>local</sub> | `(row: PatientRow): PatientDetail` | `apps/api/src/services/patient/patient.service.ts:177` |  |
+| `toSummary` <sub>local</sub> | `(row: PatientRow): PatientSummary` | `apps/api/src/services/patient/patient.service.ts:160` | The list row. `mrn`/`branchId` come from the first registration RLS let through — which is to say, one at a branch the caller is scoped to. None visible means … |
 | `updateCondition` | `(ctx: TenantContext, patientId: string, conditionId: string, input: PatientConditionRequest, options: PatientActionOptions): Promise<void>` | `apps/api/src/services/patient/patient-history.service.ts:279` |  |
-| `updatePatient` | `(ctx: TenantContext, patientId: string, input: UpdatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:895` |  |
+| `updatePatient` | `(ctx: TenantContext, patientId: string, input: UpdatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:1091` |  |
+| `updatePatientRow` <sub>local</sub> | `(ctx: TenantContext, patientId: string, input: UpdatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>` | `apps/api/src/services/patient/patient.service.ts:1107` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DEFAULT_MRN_PREFIX` <sub>local</sub> | `'MRN'` | `apps/api/src/services/patient/patient.service.ts:63` |  |
-| `DEFAULT_UHID_PREFIX` <sub>local</sub> | `'P'` | `apps/api/src/services/patient/patient.service.ts:62` | Fallbacks when the settings are unset. Both match the seed. |
-| `MRN_PREFIX_KEY` <sub>local</sub> | `'patient.mrn_prefix'` | `apps/api/src/services/patient/patient.service.ts:60` |  |
+| `DEFAULT_MRN_PREFIX` <sub>local</sub> | `'MRN'` | `apps/api/src/services/patient/patient.service.ts:64` |  |
+| `DEFAULT_UHID_PREFIX` <sub>local</sub> | `'P'` | `apps/api/src/services/patient/patient.service.ts:63` | Fallbacks when the settings are unset. Both match the seed. |
+| `MRN_PREFIX_KEY` <sub>local</sub> | `'patient.mrn_prefix'` | `apps/api/src/services/patient/patient.service.ts:61` |  |
 | `NOTER` <sub>local</sub> | `{ select: { fullName: true } } as const` | `apps/api/src/services/patient/patient-history.service.ts:54` |  |
-| `PATIENT_SELECT` <sub>local</sub> | `{ id: true, uhid: true, firstName: true, lastName: true, dateOfBirth: true, approxAgeYear…` | `apps/api/src/services/patient/patient.service.ts:65` |  |
-| `UHID_PREFIX_KEY` <sub>local</sub> | `'patient.uhid_prefix'` | `apps/api/src/services/patient/patient.service.ts:59` |  |
+| `PATIENT_SELECT` <sub>local</sub> | `{ id: true, uhid: true, firstName: true, lastName: true, dateOfBirth: true, approxAgeYear…` | `apps/api/src/services/patient/patient.service.ts:66` |  |
+| `UHID_PREFIX_KEY` <sub>local</sub> | `'patient.uhid_prefix'` | `apps/api/src/services/patient/patient.service.ts:60` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `__testing` | `{ snapshot, ageFrom }` | `apps/api/src/services/patient/patient.service.ts:1121` |  |
+| `__testing` | `{ snapshot, ageFrom }` | `apps/api/src/services/patient/patient.service.ts:1333` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DuplicateRow` <sub>local</sub> | `{ id, uhid, first_name, last_name, date_of_birth, approx_age_years, gender, phone, matched_phone, matched_name_dob, matched_abha, matched_national_id }` | `apps/api/src/services/patient/patient.service.ts:472` |  |
-| `PatientActionOptions` | `{ ipAddress, userAgent, route }` | `apps/api/src/services/patient/patient.service.ts:52` | Request metadata, carried onto both trails. |
-| `SearchRow` <sub>local</sub> | `{ id, total }` | `apps/api/src/services/patient/patient.service.ts:744` |  |
+| `DuplicateRow` <sub>local</sub> | `{ id, uhid, first_name, last_name, date_of_birth, approx_age_years, gender, phone, matched_phone, matched_name_dob, matched_abha, matched_national_id }` | `apps/api/src/services/patient/patient.service.ts:485` |  |
+| `PatientActionOptions` | `{ ipAddress, userAgent, route }` | `apps/api/src/services/patient/patient.service.ts:53` | Request metadata, carried onto both trails. |
+| `PatientSearchScope` | `{ ownDoctorOnly }` | `apps/api/src/services/patient/patient.service.ts:911` |  |
+| `SearchRow` <sub>local</sub> | `{ id, total }` | `apps/api/src/services/patient/patient.service.ts:881` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PatientIdentityData` <sub>local</sub> | `Partial<{ firstName: string; lastName: string; dateOfBirth: Date \| null; approxAgeYears: number \| null; gender: PatientRow['gender']; bloodGroup: PatientRow['b…` | `apps/api/src/services/patient/patient.service.ts:374` |  |
-| `PatientRow` <sub>local</sub> | `Prisma.PatientGetPayload<{ select: typeof PATIENT_SELECT }>` | `apps/api/src/services/patient/patient.service.ts:121` |  |
+| `PatientIdentityData` <sub>local</sub> | `Partial<{ firstName: string; lastName: string; dateOfBirth: Date \| null; approxAgeYears: number \| null; gender: PatientRow['gender']; bloodGroup: PatientRow['b…` | `apps/api/src/services/patient/patient.service.ts:377` |  |
+| `PatientRow` <sub>local</sub> | `Prisma.PatientGetPayload<{ select: typeof PATIENT_SELECT }>` | `apps/api/src/services/patient/patient.service.ts:123` |  |

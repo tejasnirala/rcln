@@ -90,6 +90,49 @@ const REDACTED_KEYS = new Set([
    */
   'reaction',
   'dosage',
+
+  /*
+   * Added with the invoice engine. These four are the `invoices` table's
+   * customer block, and on a clinic's invoice the customer is the patient: the
+   * name, the phone, the address and the email are copied onto the row at
+   * creation precisely so the document keeps printing them after the patient
+   * marries and changes their surname.
+   *
+   * ⚠️ THEY DO NOT CONTRADICT THE `email`/`phone` PARAGRAPH ABOVE — THEY ARE
+   *   WHY IT IS WORDED THE WAY IT IS. Blanket-redacting `email` would gut the
+   *   invitation trail, where the invited address IS the record. `customerEmail`
+   *   is a different key on one table, and the only entity in this system that
+   *   carries it is a bill raised to a patient. A B2B invoice's contact details
+   *   are the price of the rule, and they are a price worth paying: nothing in
+   *   the audit trail needs them, because `patientId` and `customerTaxId` are
+   *   what a reader follows.
+   *
+   * The first layer is still the allow-list snapshot — `invoiceAuditSnapshot()`
+   * in `invoice-lifecycle.service.ts` never selects these columns at all. This
+   * is the backstop for the next service that writes an invoice row and reaches
+   * for a convenient `{...invoice}`.
+   */
+  'customerName',
+  'customerPhone',
+  'customerEmail',
+  'customerAddress',
+
+  /*
+   * ⚠️ THE TWO FREE-TEXT COLUMNS ON AN INVOICE, WHICH THE SCHEMA HAS SAID BELONG
+   *   HERE SINCE PHASE 3 AND WHICH WERE NOT HERE. `invoices.notes` carries the
+   *   comment "PHI-CAPABLE FREE TEXT, printed on the invoice. In REDACTED_KEYS",
+   *   and `cancellation_reason` says "same PHI treatment as notes". Both are
+   *   boxes a cashier types a sentence into, and a sentence about why a bill was
+   *   reversed is a sentence about a patient often enough to count.
+   *
+   *   The snapshot in `invoice-lifecycle.service.ts` reports them as
+   *   `hasNotes` / `hasCancellationReason` — "a reason was recorded" is the
+   *   auditable fact, and the text itself stays on the invoice, where a reader
+   *   who may see the bill can read it. These entries are the backstop under
+   *   that, so a caller passing the raw column gets `[redacted]` instead.
+   */
+  'notes',
+  'cancellationReason',
 ]);
 
 const REDACTED = '[redacted]';

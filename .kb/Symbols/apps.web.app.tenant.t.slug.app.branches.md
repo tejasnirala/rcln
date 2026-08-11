@@ -17,9 +17,9 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts` · `apps/w
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `createBranch` | `(slug: string, _previous: BranchFormState, formData: FormData): Promise<BranchFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:46` |  |
-| `removeBranch` | `(slug: string, branchId: string, _previous: BranchFormState): Promise<BranchFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:190` |  |
-| `saveOperatingHours` | `(slug: string, branchId: string, _previous: BranchFormState, formData: FormData): Promise<BranchFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:147` |  |
-| `updateBranch` | `(slug: string, branchId: string, _previous: BranchFormState, formData: FormData): Promise<BranchFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:93` |  |
+| `removeBranch` | `(slug: string, branchId: string, _previous: BranchFormState): Promise<BranchFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:211` |  |
+| `saveOperatingHours` | `(slug: string, branchId: string, _previous: BranchFormState, formData: FormData): Promise<BranchFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:168` |  |
+| `updateBranch` | `(slug: string, branchId: string, _previous: BranchFormState, formData: FormData): Promise<BranchFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:102` |  |
 
 ## fn
 

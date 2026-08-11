@@ -485,3 +485,115 @@ export interface TaxRegistrationSummary {
 export interface TaxRegistrationListResponse {
   registrations: TaxRegistrationSummary[];
 }
+
+// ---------------------------------------------------------------------------
+// Default tax rules — the rate cards rcln maintains per country
+// ---------------------------------------------------------------------------
+
+/**
+ * A row in the catalogue every clinic inherits until it overrides it.
+ *
+ * ⚠️ NOT A `tax_registration`, AND NOT A CLAIM THAT ANYBODY IS REGISTERED.
+ *   A registration says "rcln collects tax here"; one of these says only "this
+ *   country taxes this kind of thing this way". It has no effect at all on a
+ *   clinic holding no registration of its own — the engine asks whether tax may
+ *   be charged before it ever asks at what rate.
+ *
+ * ⚠️ BUT A WRONG ROW HERE IS WRONG INVOICES FOR EVERY CLINIC IN A COUNTRY AT
+ *   ONCE, silently, because an inherited default looks configured. That is why
+ *   `sourceNote` is required on create rather than optional: a rate with no
+ *   stated basis cannot be reviewed by the next person, and this table is
+ *   maintained by whoever is on shift when a rate notification lands.
+ */
+export const createTaxRuleDefaultRequest = z.object({
+  countryCode: z
+    .string()
+    .length(2)
+    .regex(/^[A-Za-z]{2}$/, 'two letters, like IN or IE')
+    .transform((value) => value.toUpperCase()),
+  /** ISO 3166-2 without the country prefix. Null/empty means country-wide. */
+  regionCode: z
+    .string()
+    .max(10)
+    .regex(/^[A-Za-z0-9-]*$/, 'letters, digits and hyphens only')
+    .transform((value) => value.toUpperCase())
+    .optional()
+    .transform((value) => (value ? value : null))
+    .nullable(),
+  scheme: z.enum(['GST', 'VAT', 'SALES_TAX']),
+  /** The item key. An HSN/SAC code or a category. Matched EXACTLY. */
+  taxCategory: z.string().trim().min(1).max(64),
+  description: z.string().trim().max(255).optional().nullable(),
+  /** Basis points. 5% is 500. Must be 0 unless the treatment is STANDARD. */
+  rateBps: z.number().int().min(0).max(10_000),
+  /**
+   * ⚠️ Only the three an ITEM can be. `REVERSE_CHARGE` is a fact about two
+   *   parties and `NOT_REGISTERED` / `UNRATED` / `PROVIDER_REQUIRED` are facts
+   *   about the issuer — none is something a consultation can be. Mirrored by a
+   *   CHECK constraint, which is what holds when a row arrives from psql.
+   */
+  treatment: z.enum(['STANDARD', 'ZERO_RATED', 'EXEMPT']).default('STANDARD'),
+  /** What the authority calls it. Printed verbatim; "Tax" is compliant nowhere. */
+  lineName: z.string().trim().min(1).max(32),
+  /** The state half's name when splitting. Null derives `S` + lineName. */
+  regionalLineName: z.string().trim().max(32).optional().nullable(),
+  /** `INTRA_STATE_HALVES` is India's constitutional split and nothing else. */
+  split: z.enum(['NONE', 'INTRA_STATE_HALVES']).default('NONE'),
+  /** Charges IN ADDITION to the country-wide rule — Canada's provincial taxes. */
+  stacks: z.boolean().default(false),
+  /** Where the figure came from, in words a reviewer can check. */
+  sourceNote: z.string().trim().min(1).max(500),
+  effectiveFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD'),
+  effectiveTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'use YYYY-MM-DD')
+    .optional()
+    .transform((value) => (value ? value : null))
+    .nullable(),
+});
+
+export type CreateTaxRuleDefaultRequest = z.infer<typeof createTaxRuleDefaultRequest>;
+
+/**
+ * ⚠️ THE DEFAULTED FIELDS ARE RE-DECLARED WITHOUT THEIR DEFAULTS, BECAUSE
+ *   `.partial()` KEEPS THEM AND THAT IS A SILENT REWRITE. Zod's `.partial()`
+ *   makes a key optional and leaves any `.default()` in place, so a PATCH sending
+ *   only `{ description }` parses to `{ description, treatment: 'STANDARD',
+ *   split: 'NONE', stacks: false }` — and `updateTaxRuleDefault` writes exactly
+ *   the keys it receives. Renaming India's split GST rule would have unsplit it,
+ *   and unsplitting a rule in this table changes what every clinic in the country
+ *   charges. Found while building the tenant equivalent in `tax.ts`; the same
+ *   note is on that one.
+ */
+export const updateTaxRuleDefaultRequest = createTaxRuleDefaultRequest.partial().extend({
+  treatment: z.enum(['STANDARD', 'ZERO_RATED', 'EXEMPT']).optional(),
+  split: z.enum(['NONE', 'INTRA_STATE_HALVES']).optional(),
+  stacks: z.boolean().optional(),
+});
+export type UpdateTaxRuleDefaultRequest = z.infer<typeof updateTaxRuleDefaultRequest>;
+
+export interface TaxRuleDefaultSummary {
+  id: string;
+  countryCode: string;
+  regionCode: string | null;
+  scheme: 'GST' | 'VAT' | 'SALES_TAX';
+  taxCategory: string;
+  description: string | null;
+  rateBps: number;
+  treatment: 'STANDARD' | 'ZERO_RATED' | 'EXEMPT';
+  lineName: string;
+  regionalLineName: string | null;
+  split: 'NONE' | 'INTRA_STATE_HALVES';
+  stacks: boolean;
+  sourceNote: string | null;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  /** Whether it applies today — derived from the dates, never stored. */
+  isLive: boolean;
+  /** `IN-KA` or `IN`. What it matches against a clinic's place of supply. */
+  jurisdiction: string;
+}
+
+export interface TaxRuleDefaultListResponse {
+  defaults: TaxRuleDefaultSummary[];
+}

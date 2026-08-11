@@ -65,6 +65,24 @@ DECLARE
     'payment_mandates',
     'payment_intents',
     'usage_counters',
+    -- The clinic's OWN tax position, for the invoices it raises against its
+    -- patients.
+    --
+    -- ⚠️ THE OPPOSITE DECISION FROM `tax_registrations`, AND DELIBERATELY SO.
+    -- That table is EXEMPT because it holds rcln's numbers and is read inside a
+    -- tenant transaction: a policy on it returns zero rows, zero rows reads as
+    -- NOT_REGISTERED, and every subscription invoice silently comes out
+    -- untaxed. None of that reasoning transfers to these three, whose rows
+    -- belong to the very organization reading them — so they get an ordinary
+    -- policy, and without one a clinic reads another clinic's GSTIN and rate
+    -- card.
+    --
+    -- The link table is not exempt for holding only ids: both are tenant ids,
+    -- and reading another org's row says which of its branches bills under
+    -- which of its registrations.
+    'issuer_tax_registrations',
+    'issuer_tax_registration_branches',
+    'tax_rules',
     'audit_logs',
     -- Read-side PHI trail. Same org isolation as audit_logs, and append-only by
     -- the same two independent layers — see the data_access_log_immutability
@@ -80,6 +98,17 @@ DECLARE
     'doctor_specialties',
     'doctor_qualifications',
     'doctor_branch_settings',
+    -- What an appointment costs. ALSO in the branch_scoped array below, and the
+    -- NULL-tolerant predicate there is load-bearing rather than incidental:
+    -- `branch_id IS NULL` is this table's way of saying "the clinic's default,
+    -- everywhere", so a branch-scoped receptionist must be able to read it or
+    -- the resolver falls through to unpriced and the bill says "no rate card".
+    'fee_schedule_entries',
+    -- What the clinic pays the doctor. Org-scoped only and no branch_id at all:
+    -- one employment contract per person (see the model). Gated in the
+    -- application by `doctor.compensation.read`, which RLS knows nothing about —
+    -- this policy answers "whose organization", not "whose business".
+    'doctor_compensation',
     'doctor_schedules',
     -- Org-scoped only, no branch_isolation: branch_id NULL means "every branch",
     -- and hiding a doctor's leave from a branch-scoped reader would make the
@@ -109,7 +138,34 @@ DECLARE
     -- Scheduling. `appointments` IS branch-scoped as well (see the array below)
     -- — unlike `patients`, a booking belongs to the clinic it was made at, and
     -- the argument that keeps identity org-wide does not apply to it.
-    'appointments'
+    'appointments',
+    -- Every move of a booking. Carries organization_id AND branch_id copied
+    -- from the appointment for the same reason `appointment_vitals` does, and
+    -- is in the branch_scoped array below as well. ⚠️ Its `reason` column is
+    -- PHI, so the branch half is not optional: a move explained by "chemo on
+    -- Thursdays" must not be readable from another branch.
+    'appointment_reschedules',
+    -- Observations taken at a visit. Carries its own organization_id AND
+    -- branch_id rather than hanging off the appointment, so it is an ordinary
+    -- member of both loops instead of a hand-written parent predicate. Contrast
+    -- `appointment_status_history`, which has neither and pays for it below.
+    'appointment_vitals',
+    -- Patient invoicing. ALL FOUR are also in the branch_scoped array below,
+    -- and the children are here rather than in the parent_scoped loop for a
+    -- specific reason: that loop's predicate asks the ORGANIZATION question
+    -- only, and their parent is branch-scoped. A child of a branch-scoped
+    -- parent that inherits only the org half is exactly the hole
+    -- `appointment_status_history` had to restate by hand. Carrying
+    -- organization_id AND branch_id on every row makes them ordinary members of
+    -- both loops instead, with the composite FK stopping the columns from
+    -- disagreeing with the invoice they belong to.
+    --
+    -- ⚠️ An invoice line is PHI-adjacent: "MRI Brain with contrast" is a
+    -- clinical fact about a named person, and it is answerable by primary key.
+    'invoices',
+    'invoice_items',
+    'invoice_taxes',
+    'invoice_documents'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -308,7 +364,30 @@ DECLARE
     -- absolute. Note this is the opposite call from `patients` and the same one
     -- as `patient_registrations`: identity follows the person, attendance
     -- belongs to the clinic, and an appointment is attendance.
-    'appointments'
+    'appointments',
+    -- branch_id is NOT NULL and is copied from the appointment by the service,
+    -- so this is absolute: a reading taken at another branch is invisible here
+    -- even to someone who guesses its primary key.
+    'appointment_vitals',
+    -- Same shape, same reasoning, and the reason text is PHI.
+    'appointment_reschedules',
+    -- ⚠️ THE ONLY TABLE HERE WHOSE NULL BRANCH IS MEANINGFUL RATHER THAN
+    -- TOLERATED. Everywhere else in this array branch_id is NOT NULL and the
+    -- `branch_id IS NULL OR ...` predicate never fires; here NULL is how the
+    -- clinic states a default that applies at every branch, and this policy
+    -- letting it through is what makes inheritance work for a branch-scoped
+    -- caller. A branch's OWN row stays invisible to other branches, which is
+    -- correct: what one site charges is not another site's business.
+    'fee_schedule_entries',
+    -- An invoice is raised AT a branch: that branch is the place of supply, the
+    -- number series and the till it was paid into. branch_id is NOT NULL on all
+    -- four tables, so this policy is absolute — a cashier scoped to one branch
+    -- cannot read another branch's takings, and the children are scoped in
+    -- their own right rather than through the parent (see the org_scoped note).
+    'invoices',
+    'invoice_items',
+    'invoice_taxes',
+    'invoice_documents'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP
@@ -434,6 +513,35 @@ CREATE POLICY branch_in_same_org ON invitation_branches AS RESTRICTIVE
                         AND b.organization_id = app_current_org()));
 
 -- ---------------------------------------------------------------------------
+-- invoice_documents.file_id is a PLAIN foreign key, and this policy is what
+-- replaces the composite one ADR-0004 would otherwise require.
+--
+-- ⚠️ THE COMPOSITE FK IS NOT AVAILABLE HERE, AND NOT BY OVERSIGHT.
+--   `files.organization_id` is NULLABLE — platform assets share the table — so
+--   a FK from invoice_documents' NOT NULL organization_id cannot reference
+--   (files.organization_id, files.id). Without this policy an invoice could
+--   point at another tenant's PDF: tenant_isolation checks the row's OWN
+--   organization_id, which would be perfectly correct, and says nothing at all
+--   about the file it cites.
+--
+--   Note this is STRICTER than `files`' own tenant_isolation, which permits a
+--   NULL organization_id so platform assets are readable by everyone. An
+--   invoice document is never a platform asset, so NULL is refused outright —
+--   the same distinction the explicit organizationId pin in `getDocument`
+--   exists to make.
+--
+-- RESTRICTIVE so it ANDs with tenant_isolation and branch_isolation.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS file_in_same_org ON invoice_documents;
+CREATE POLICY file_in_same_org ON invoice_documents AS RESTRICTIVE
+  USING      (EXISTS (SELECT 1 FROM files f
+                      WHERE f.id = invoice_documents.file_id
+                        AND f.organization_id = app_current_org()))
+  WITH CHECK (EXISTS (SELECT 1 FROM files f
+                      WHERE f.id = invoice_documents.file_id
+                        AND f.organization_id = app_current_org()));
+
+-- ---------------------------------------------------------------------------
 -- Identity bootstrap: your own membership rows.
 --
 -- "Which organizations do I belong to?" is the question whose answer tells you
@@ -516,6 +624,23 @@ CREATE POLICY own_membership ON memberships FOR SELECT
 --                      rows means NOT_REGISTERED, which means every invoice
 --                      silently comes out untaxed. Read-only to the application;
 --                      rows are written by seed and by platform admins.
+--   tax_rule_defaults  the published rate cards rcln maintains per country. The
+--                      law of a jurisdiction, identical for every clinic in it,
+--                      exactly like `plans` — there is nothing tenant-specific
+--                      in a row, so there is no organization_id to scope by.
+--
+--                      ⚠️ EVERY TENANT READS IT INSIDE ITS OWN TRANSACTION, to
+--                      price its own invoices. A tenant_isolation policy would
+--                      therefore return zero rows for everyone, every category
+--                      would fall through to UNRATED, and no clinic on the
+--                      platform could issue an invoice. Fail-closed, unlike
+--                      tax_registrations above where the same mistake silently
+--                      untaxes everything — but broken platform-wide either way.
+--
+--                      A clinic's OWN overrides live in `tax_rules`, which is
+--                      org-scoped and carries a policy. The two are separate
+--                      tables precisely so this one can be exempt without
+--                      widening that one.
 --
 -- Access to these is gated in the application layer. `check-rls.ts` holds the
 -- same list, so adding a table without a policy fails CI until it is either

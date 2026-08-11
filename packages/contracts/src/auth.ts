@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { email, password, phone, uuid } from './common.js';
+import { TIME_FORMATS } from './locale.js';
 
 /**
  * Login is identifier-based: everyone — super admin, doctor, receptionist,
@@ -186,12 +187,56 @@ export const branchSummary = z.object({
   code: z.string(),
   city: z.string().nullable(),
   isPrimary: z.boolean(),
+  /**
+   * The branch's IANA zone.
+   *
+   * ⚠️ NOT FOR THE BRANCH SWITCHER, WHICH NEVER RENDERS IT. It is here because
+   *   this list is the ONLY un-gated statement of which branches a caller may
+   *   work in, and the day board needs a zone to render a time in. `GET
+   *   /branches` is behind `branch.read`, which the front desk and the doctors
+   *   deliberately do not hold — that permission opens the branch MANAGEMENT
+   *   screen. Without the zone here, every screen that shows a clock would have
+   *   to choose between a permission it should not need and the browser's
+   *   timezone, and the browser's is wrong for a receptionist working remotely
+   *   in a way that looks entirely plausible.
+   */
+  timezone: z.string(),
+  /**
+   * The clock face this branch reads — `12H` or `24H`, resolved from
+   * `locale.time_format`.
+   *
+   * ⚠️ IT RIDES ALONGSIDE `timezone` BECAUSE IT ANSWERS THE OTHER HALF OF THE
+   *   SAME QUESTION, and it is needed by exactly the same screens for exactly
+   *   the same reason: the zone decides WHICH instant to draw, this decides what
+   *   the drawing looks like, and neither is a permission a receptionist holds.
+   *   Fetching it from `GET /settings` would put the day board behind
+   *   `settings.branch.read`.
+   *
+   * ⚠️ DISPLAY ONLY. Storage is UTC everywhere in rcln — see `TIME_FORMATS` in
+   *   `locale.ts`. Nothing parses against this and no arithmetic reads it.
+   *
+   * Per branch, not per organization, because a group can run a hospital wing on
+   * a 24-hour clock and its walk-in clinic on a 12-hour one.
+   */
+  timeFormat: z.enum(TIME_FORMATS),
 });
 
 export const membershipSummary = z.object({
   organizationId: uuid,
   organizationName: z.string(),
   organizationSlug: z.string(),
+  /**
+   * ISO 3166-1 alpha-2, the clinic's own country.
+   *
+   * ⚠️ LOAD-BEARING FOR FORMS, NOT DECORATION — and here for the same reason
+   *   `timezone` is on `branchSummary`. It decides the postcode format and its
+   *   lookup, which identity documents the front desk is offered, the address
+   *   labels ("PIN code" vs "ZIP code"), and the dialling code a phone field
+   *   starts on. Every one of those is on the patient registration form, which
+   *   the front desk opens and which cannot call `GET /organization` — that is
+   *   behind `organization.read`, which they do not hold.
+   */
+  countryCode: z.string().length(2),
   roles: z.array(z.string()),
   /** Exactly what the UI branch switcher renders. */
   branches: z.array(branchSummary),

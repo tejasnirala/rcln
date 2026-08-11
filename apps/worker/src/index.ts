@@ -10,7 +10,13 @@ import {
   createRedisConnection,
   type BillingJob,
   type QueueName,
-} from './queues.js';
+} from '@rcln/queue';
+import { configureDocumentStore } from '@rcln/documents/store';
+import { DOCUMENT_JOB, type InvoicePdfJob } from '@rcln/queue';
+import { isAbsolute, resolve as resolvePath } from 'node:path';
+
+import { closeBrowser } from './documents/browser.js';
+import { renderInvoicePdf } from './documents/invoice-pdf.job.js';
 import {
   disconnectPayments,
   initialisePayments,
@@ -89,6 +95,40 @@ const paymentsConfig: WorkerPaymentsConfig = {
 
 initialisePayments(paymentsConfig);
 
+/*
+ * Where documents are written.
+ *
+ * ⚠️ THE SAME FOLDER AS THE API, AT THE SAME PATH. The worker writes the invoice
+ *   PDF and the API serves it, from one host folder bind-mounted identically
+ *   into both containers — which is what `STORAGE_LOCAL_PATH` being a single
+ *   variable is for. Point the two anywhere different and NOTHING FAILS HERE:
+ *   the bytes are written, the `files` row says READY, and the download 404s.
+ *
+ * ⚠️ AND A RELATIVE PATH IS ANCHORED TO THE REPO ROOT, NEVER `cwd`. This process
+ *   runs from `apps/worker` and the API from `apps/api`, so `resolve('./x')`
+ *   gives the two different folders. That was a real bug, found by probing the
+ *   running container rather than by any test, because every test pointed
+ *   storage at a temp directory. Compose requires an absolute path, so this only
+ *   bites a native run — but it has to hold there too.
+ */
+const workerRepoRoot = new URL('../../../', import.meta.url).pathname;
+const storageLocalPath = process.env['STORAGE_LOCAL_PATH'] ?? './storage/documents';
+
+configureDocumentStore({
+  provider: process.env['STORAGE_PROVIDER'] === 's3' ? 's3' : 'local',
+  local: {
+    rootDir: isAbsolute(storageLocalPath)
+      ? storageLocalPath
+      : resolvePath(workerRepoRoot, storageLocalPath),
+  },
+  s3: {
+    bucket: optional(process.env['S3_BUCKET']) ?? '',
+    region: optional(process.env['S3_REGION']) ?? '',
+    keyPrefix: optional(process.env['S3_KEY_PREFIX']),
+  },
+  logger,
+});
+
 const connection = createRedisConnection(redisUrl);
 const queues = createQueues(connection);
 const workers: Worker[] = [];
@@ -105,6 +145,21 @@ const billingDeps = {
  * until a processor exists.
  */
 const PROCESSORS: Partial<Record<QueueName, (jobName: string, data: unknown) => Promise<void>>> = {
+  /**
+   * Rendering.
+   *
+   * ⚠️ THIS IS THE ONLY QUEUE THAT LAUNCHES A BROWSER, WHICH IS WHY IT IS THE
+   *   ONLY ONE THAT MATTERS FOR THE CONTAINER'S MEMORY LIMIT. See the worker's
+   *   `mem_limit` in docker-compose and the header of `documents/browser.ts`.
+   */
+  [QUEUE.DOCUMENTS]: async (jobName, data) => {
+    if (jobName === DOCUMENT_JOB.INVOICE_PDF) {
+      await renderInvoicePdf(data as InvoicePdfJob, logger);
+      return;
+    }
+    logger.warn({ jobName }, 'unknown document job — no processor for it');
+  },
+
   [QUEUE.NOTIFICATIONS]: async (jobName, data) => {
     logger.info({ jobName, data }, 'notification job received — processor not implemented yet');
   },
@@ -145,7 +200,14 @@ for (const name of Object.values(QUEUE)) {
        * verdict" and retries, making the burst worse. Serial is fast enough:
        * the work is one clinic's renewal, not a batch.
        */
-      concurrency: name === QUEUE.BILLING ? 1 : 5,
+      /*
+       * Documents run one at a time for a different reason than billing does.
+       * Billing is serial because gateways rate-limit per merchant; rendering is
+       * serial because each job holds a Chromium renderer process, and five of
+       * those in a container sized for one is the OOM this whole placement
+       * decision was made to avoid.
+       */
+      concurrency: name === QUEUE.BILLING || name === QUEUE.DOCUMENTS ? 1 : 5,
     }
   );
 
@@ -190,6 +252,8 @@ async function shutdown(signal: string): Promise<void> {
   logger.info({ signal }, 'shutting down');
   await Promise.all(workers.map((w) => w.close()));
   await Promise.all(Object.values(queues).map((q) => q.close()));
+  // Before the process exits, or Chromium is orphaned and keeps its memory.
+  await closeBrowser();
   await connection.quit();
   await disconnectPayments();
   await disconnectDb();

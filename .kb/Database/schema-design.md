@@ -1428,54 +1428,82 @@ erDiagram
   INVOICES {
     uuid id PK
     uuid organization_id FK
-    uuid branch_id FK
-    uuid patient_id FK
-    string invoice_number "UK with branch+fy"
-    date invoice_date
-    string source_type "APPOINTMENT|ENCOUNTER|DISPENSE|LAB_ORDER|MANUAL"
-    uuid appointment_id FK
-    uuid encounter_id FK
-    uuid dispense_id FK
-    uuid lab_order_id FK
-    uuid doctor_profile_id FK
+    uuid branch_id FK "NOT NULL — place of supply, series and RLS boundary"
+    string invoice_number "NULL until finalisation. UK(org, number), NULLS DISTINCT"
+    string source_type "APPOINTMENT|PROCEDURE|SERVICE|LAB|PHARMACY|INVENTORY|OTHER"
+    uuid appointment_id FK "one typed, enforced column per integrated source"
+    uuid patient_id FK "NULL for a walk-in customer"
+    string customer_name "snapshot, not a join"
+    string customer_tax_id
+    timestamptz supplied_at "the date of supply, NOT now() — selects the rate"
+    timestamptz issued_at
+    uuid issuer_tax_registration_id FK
+    string issuer_tax_id "snapshotted, never re-read"
+    string issuer_legal_name
+    string place_of_supply "the BRANCH's jurisdiction"
+    string tax_treatment "worst of its lines; UNRATED blocks issue"
     char currency
     numeric subtotal
-    numeric discount_amount
+    numeric line_discount_total
+    string discount_type "PERCENTAGE|FIXED, with discount_bps / discount_fixed"
+    numeric invoice_discount_total "apportioned onto lines BEFORE tax"
     numeric taxable_amount
-    numeric tax_amount
-    numeric round_off
-    numeric total_amount
-    numeric paid_amount
-    numeric balance_amount
-    string status "DRAFT|ISSUED|PARTIALLY_PAID|PAID|CANCELLED|REFUNDED"
+    numeric tax_total
+    numeric rounding_adjustment
+    numeric grand_total
+    numeric amount_paid "balance is derived, never stored"
+    string status "DRAFT|FINALIZING|ISSUED|PARTIALLY_PAID|PAID|CANCELLED|VOID"
     uuid created_by FK
-    timestamptz deleted_at
+    uuid issued_by FK
+    uuid cancelled_by FK
+    timestamptz deleted_at "DRAFT only — an issued invoice is VOIDed"
   }
   INVOICE_ITEMS {
     uuid id PK
-    uuid invoice_id FK
-    uuid billable_item_id FK
-    string item_type
-    uuid reference_id "medicine_id | lab_test_id | procedure_id"
-    uuid medicine_batch_id FK
+    uuid organization_id FK "carried, not inherited — the parent is branch-scoped"
+    uuid branch_id FK
+    uuid invoice_id FK "composite (organization_id, invoice_id)"
+    smallint line_number "UK with invoice"
     string description
-    numeric quantity
+    string item_code "HSN/SAC, printed only"
+    string tax_category "the key into tax_rules, matched EXACTLY"
+    numeric quantity "14,3 — half a tablet is real"
     numeric unit_price
-    numeric discount_percent
+    numeric gross_amount
+    string discount_type
     numeric discount_amount
+    numeric apportioned_discount "this line's share of the invoice discount"
     numeric taxable_amount
-    numeric tax_percent
     numeric tax_amount
     numeric line_total
-    uuid doctor_profile_id FK "for revenue attribution"
+    string tax_treatment "per line — EXEMPT consultation beside a STANDARD medicine"
+    string tax_reason "printed where a jurisdiction requires one"
   }
-  INVOICE_TAX_LINES {
+  INVOICE_TAXES {
     uuid id PK
-    uuid invoice_id FK
-    string tax_type "CGST|SGST|IGST|CESS"
-    numeric rate_percent
+    uuid organization_id FK
+    uuid branch_id FK
+    uuid invoice_id FK "denormalised for the summary read"
+    uuid invoice_item_id FK "one row per PRINTED line, per item"
+    uuid tax_rule_id FK "the clinic's own rule"
+    uuid tax_rule_default_id FK "or rcln's published default — never both"
+    string name "CGST|SGST|IGST|VAT|HST|PST — printed verbatim"
+    string jurisdiction "which authority it is owed to"
+    int rate_bps "snapshotted"
     numeric taxable_amount
     numeric tax_amount
+    string treatment
+  }
+  INVOICE_DOCUMENTS {
+    uuid id PK
+    uuid organization_id FK
+    uuid branch_id FK
+    uuid invoice_id FK
+    uuid file_id FK "PLAIN fk — files.organization_id is nullable"
+    string document_type "INVOICE_PDF|CREDIT_NOTE_PDF"
+    timestamptz generated_at
+    uuid generated_by FK
+    timestamptz superseded_at "partial UK: one CURRENT document per type"
   }
   PAYMENTS {
     uuid id PK
@@ -1551,12 +1579,17 @@ erDiagram
 
   PATIENTS ||--o{ INVOICES : "billed"
   BRANCHES ||--o{ INVOICES : "issues"
+  APPOINTMENTS ||--o{ INVOICES : "billed as (composite FK)"
   APPOINTMENTS ||--o| INVOICES : "billed as"
   DISPENSES ||--o| INVOICES : "billed as"
   LAB_ORDERS ||--o| INVOICES : "billed as"
   INVOICES ||--o{ INVOICE_ITEMS : "lists"
   BILLABLE_ITEMS ||--o{ INVOICE_ITEMS : "charged as"
-  INVOICES ||--o{ INVOICE_TAX_LINES : "taxed as"
+  INVOICE_ITEMS ||--o{ INVOICE_TAXES : "taxed as"
+  ISSUER_TAX_REGISTRATIONS ||--o{ INVOICES : "issued under"
+  TAX_RULES ||--o{ INVOICE_TAXES : "priced by"
+  INVOICES ||--o{ INVOICE_DOCUMENTS : "rendered as"
+  FILES ||--o{ INVOICE_DOCUMENTS : "stores"
   PAYMENTS ||--o{ PAYMENT_ALLOCATIONS : "applied to"
   INVOICES ||--o{ PAYMENT_ALLOCATIONS : "settled by"
   INVOICES ||--o{ CREDIT_NOTES : "credited by"
@@ -1568,6 +1601,13 @@ erDiagram
 ```
 
 `payment_allocations` (rather than `payments.invoice_id`) supports the real cases: one payment covering three invoices, and advance payments applied later. `number_sequences` generalizes the current per-clinic invoice counter to every document type and adds financial-year reset — required for GST compliance.
+
+⚠️ **`invoices`, `invoice_items`, `invoice_taxes` and `invoice_documents` are BUILT and are drawn above as they actually are.** Everything else in this section — `billable_items`, `payments`, `payment_allocations`, `credit_notes`, `refunds`, `patient_ledger` — is still the target design. Four differences from the original sketch are deliberate and are reasoned about in `.kb/Architecture/invoice-engine-implementation.md`:
+
+- **The source is a typed, enforced column per integrated source**, not a generic `source_id`. A polymorphic uuid cannot be foreign-keyed, and the composite `(organization_id, id)` reference is the only thing that makes a cross-tenant link unrepresentable — a loose uuid would let an invoice bill another clinic's appointment with nothing raising an error. `appointment_id` exists today; `lab_order_id` arrives in the migration that creates `lab_orders`. `invoices_source_reference_matches_type` keeps the enum and the columns agreeing, and gains one clause per module.
+- **Tax lines hang off the ITEM, not the invoice.** A bill carries an EXEMPT consultation beside a STANDARD-rated medicine; a per-invoice tax line cannot express that, and per-line rounding is what makes each printed line internally consistent.
+- **The children carry `organization_id` and `branch_id` themselves.** Their parent is branch-scoped, and an RLS policy that reaches into a parent evaluates with row security disabled on it — so a parent-scoped child inherits the org half of the boundary and none of the branch half.
+- **The invoice number carries the branch code**, `INV-2026-APP-MAIN-000001`. The series is per branch, and two branches sharing one GSTIN must never issue the same serial.
 
 ---
 

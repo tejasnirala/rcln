@@ -4,26 +4,34 @@
 
 > Step one, on `admin.<root>`: check the clinic exists and issue the ticket.
 
-Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/src/services/platform/tax-registration.service.ts`
+Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/src/services/platform/tax-registration.service.ts` · `apps/api/src/services/platform/tax-rule-default.service.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `assertCoherent` <sub>local</sub> | `(input: { treatment?: string \| undefined; rateBps?: number \|…): void` | `apps/api/src/services/platform/tax-rule-default.service.ts:101` |  |
 | `claimImpersonation` | `(input: ClaimImpersonationInput): Promise<AuthSession>` | `apps/api/src/services/platform/impersonation.service.ts:177` |  |
 | `conflict` <sub>local</sub> | `(input: { countryCode?: string; regionCode?: string \| null }): ConflictError` | `apps/api/src/services/platform/tax-registration.service.ts:85` |  |
 | `createTaxRegistration` | `(input: CreateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>` | `apps/api/src/services/platform/tax-registration.service.ts:105` |  |
+| `createTaxRuleDefault` | `(input: CreateTaxRuleDefaultRequest): Promise<TaxRuleDefaultSummary>` | `apps/api/src/services/platform/tax-rule-default.service.ts:156` |  |
 | `deleteTaxRegistration` | `(id: string): Promise<void>` | `apps/api/src/services/platform/tax-registration.service.ts:185` |  |
 | `describeImpersonation` | `(organizationId: string \| null, impersonatedByUserId: string \| null, sessionStartedAt: Date): Promise<ImpersonationDescriptor \| null>` | `apps/api/src/services/platform/impersonation.service.ts:334` | The banner's content, for the endpoints that re-describe an existing session. Returns null for an ordinary session, so a caller can hand it straight to `descri… |
 | `fromDateOnly` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/platform/tax-registration.service.ts:38` | `2026-08-06`. The inverse, for the wire. |
+| `fromDateOnly` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/platform/tax-rule-default.service.ts:44` | `2026-08-10`. The inverse, for the wire. |
 | `handoffKey` <sub>local</sub> | `(token: string): string` | `apps/api/src/services/platform/impersonation.service.ts:84` |  |
 | `isUniqueViolation` <sub>local</sub> | `(error: unknown): boolean` | `apps/api/src/services/platform/tax-registration.service.ts:81` |  |
 | `listTaxRegistrations` | `(at): Promise<TaxRegistrationListResponse>` | `apps/api/src/services/platform/tax-registration.service.ts:94` |  |
+| `listTaxRuleDefaults` | `(countryCode?: string): Promise<TaxRuleDefaultListResponse>` | `apps/api/src/services/platform/tax-rule-default.service.ts:136` |  |
+| `retireTaxRuleDefault` | `(id: string, effectiveTo: string): Promise<TaxRuleDefaultSummary>` | `apps/api/src/services/platform/tax-rule-default.service.ts:267` |  |
 | `startImpersonation` | `(input: StartImpersonationInput): Promise<ImpersonationGrant>` | `apps/api/src/services/platform/impersonation.service.ts:106` |  |
 | `stopImpersonation` | `(input: StopImpersonationInput): Promise<void>` | `apps/api/src/services/platform/impersonation.service.ts:382` |  |
 | `toDateOnly` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/platform/tax-registration.service.ts:33` | A `Date` at UTC midnight from `YYYY-MM-DD`, matching the `date` column. |
+| `toDateOnly` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/platform/tax-rule-default.service.ts:39` | A `Date` at UTC midnight from `YYYY-MM-DD`, matching the `date` column. |
 | `toSummary` <sub>local</sub> | `(row: Row, at: Date): TaxRegistrationSummary` | `apps/api/src/services/platform/tax-registration.service.ts:53` |  |
+| `toSummary` <sub>local</sub> | `(row: Row, at: Date): TaxRuleDefaultSummary` | `apps/api/src/services/platform/tax-rule-default.service.ts:66` |  |
 | `updateTaxRegistration` | `(id: string, input: UpdateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>` | `apps/api/src/services/platform/tax-registration.service.ts:129` |  |
+| `updateTaxRuleDefault` | `(id: string, input: UpdateTaxRuleDefaultRequest): Promise<TaxRuleDefaultSummary>` | `apps/api/src/services/platform/tax-rule-default.service.ts:202` |  |
 
 ## const
 
@@ -38,5 +46,6 @@ Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/sr
 | `ClaimImpersonationInput` | `{ organizationId, handoffToken, ipAddress, userAgent }` | `apps/api/src/services/platform/impersonation.service.ts:161` |  |
 | `HandoffPayload` <sub>local</sub> | `{ organizationId, adminUserId, reason }` | `apps/api/src/services/platform/impersonation.service.ts:87` |  |
 | `Row` <sub>local</sub> | `{ id, countryCode, regionCode, scheme, registrationNumber, standardRateBps, effectiveFrom, effectiveTo }` | `apps/api/src/services/platform/tax-registration.service.ts:42` |  |
+| `Row` <sub>local</sub> | `{ id, countryCode, regionCode, scheme, taxCategory, description, rateBps, treatment, lineName, regionalLineName, split, stacks, sourceNote, effectiveFrom, effectiveTo }` | `apps/api/src/services/platform/tax-rule-default.service.ts:48` |  |
 | `StartImpersonationInput` | `{ organizationId, adminUserId, reason }` | `apps/api/src/services/platform/impersonation.service.ts:93` |  |
 | `StopImpersonationInput` | `{ sessionId, organizationId, adminUserId, branchId, branchIds, ipAddress, userAgent }` | `apps/api/src/services/platform/impersonation.service.ts:372` |  |

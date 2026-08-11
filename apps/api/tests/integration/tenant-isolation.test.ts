@@ -1282,9 +1282,14 @@ describe('doctors', () => {
       await expect(
         asTenant(ORG_A, () =>
           app.query(
+            // `updated_at` is supplied even though this INSERT is meant to fail:
+            // without it the statement can also fail on the NOT NULL constraint,
+            // and a test asserting /row-level security/ that passes for a
+            // different reason is a test that would keep passing after the
+            // policy was dropped.
             `INSERT INTO doctor_specialties
-               (id, organization_id, doctor_profile_id, specialty_id)
-             VALUES (gen_random_uuid(), $1, $2, $3)`,
+               (id, organization_id, doctor_profile_id, specialty_id, updated_at)
+             VALUES (gen_random_uuid(), $1, $2, $3, now())`,
             [ORG_A, DOC_A, SPEC_PRIVATE_B]
           )
         )
@@ -1295,13 +1300,157 @@ describe('doctors', () => {
       const inserted = await asTenant(ORG_A, async () => {
         const res = await app.query(
           `INSERT INTO doctor_specialties
-             (id, organization_id, doctor_profile_id, specialty_id)
-           VALUES (gen_random_uuid(), $1, $2, $3)`,
+             (id, organization_id, doctor_profile_id, specialty_id, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, now())`,
           [ORG_A, DOC_A, SPEC_PLATFORM]
         );
         return res.rowCount;
       });
       expect(inserted).toBe(1);
+    });
+  });
+
+  /**
+   * The taxonomy tree's structural guards, at the DATABASE, under a tenant
+   * connection. The service checks these first and returns friendlier errors —
+   * these tests exist because the service is not the only thing that writes
+   * here, and because a guard nobody exercises is a guard nobody notices losing.
+   */
+  describe('the classification tree cannot be corrupted', () => {
+    const SPEC_A_PARENT = 'dddddddd-3333-4333-8333-0000000000a2';
+    const SPEC_A_CHILD = 'dddddddd-3333-4333-8333-0000000000a3';
+
+    beforeAll(async () => {
+      await owner.query(
+        `INSERT INTO specialties (id, organization_id, parent_id, code, name, updated_at)
+         VALUES ($1, $2, NULL, 'ISO_TREE_PARENT', 'Iso Tree Parent', now()),
+                ($3, $2, $1,   'ISO_TREE_CHILD',  'Iso Tree Child',  now())
+         ON CONFLICT DO NOTHING`,
+        [SPEC_A_PARENT, ORG_A, SPEC_A_CHILD]
+      );
+    });
+
+    afterAll(async () => {
+      // Child first: parent_id is ON DELETE RESTRICT, which is the point.
+      await owner.query('DELETE FROM specialties WHERE id = $1', [SPEC_A_CHILD]);
+      await owner.query('DELETE FROM specialties WHERE id = $1', [SPEC_A_PARENT]);
+    });
+
+    it('refuses a node that is its own parent', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query('UPDATE specialties SET parent_id = id WHERE id = $1', [SPEC_A_PARENT])
+        )
+      ).rejects.toThrow(/its own parent/i);
+    });
+
+    /*
+     * A cycle is not a bad row, it is a hang: `WITH RECURSIVE` spins on A -> B
+     * -> A until the statement timeout, so every ancestor walk and every
+     * breadcrumb render stops working at once.
+     */
+    it('refuses a cycle through a descendant', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query('UPDATE specialties SET parent_id = $1 WHERE id = $2', [
+            SPEC_A_CHILD,
+            SPEC_A_PARENT,
+          ])
+        )
+      ).rejects.toThrow(/descendant of itself/i);
+    });
+
+    it('refuses to delete a node that still has children, rather than orphaning them', async () => {
+      /*
+       * ⚠️ THE FK IS `ON DELETE RESTRICT`, NOT `SET NULL`. Under SET NULL this
+       *   DELETE succeeded and silently promoted the child to a ROOT — it would
+       *   render beside "Medical" as though it were a clinical domain, with no
+       *   error anywhere.
+       */
+      await expect(
+        asTenant(ORG_A, () => app.query('DELETE FROM specialties WHERE id = $1', [SPEC_A_PARENT]))
+      ).rejects.toThrow(/foreign key constraint/i);
+    });
+
+    it('refuses two live siblings with the same name, ignoring case', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(
+            `INSERT INTO specialties (id, organization_id, parent_id, code, name, updated_at)
+             VALUES (gen_random_uuid(), $1, $2, 'ISO_TREE_DUP', 'iso tree child', now())`,
+            [ORG_A, SPEC_A_PARENT]
+          )
+        )
+      ).rejects.toThrow(/specialties_sibling_name_key/i);
+    });
+
+    /*
+     * The scoping half. Without this the suite would pass against a GLOBAL
+     * unique on name, which would be wrong: two domains legitimately contain a
+     * node of the same name, and so do two different tenants.
+     */
+    it('allows the same name under a different parent', async () => {
+      const inserted = await asTenant(ORG_A, async () => {
+        const res = await app.query(
+          `INSERT INTO specialties (id, organization_id, parent_id, code, name, updated_at)
+           VALUES (gen_random_uuid(), $1, NULL, 'ISO_TREE_SAME_NAME', 'Iso Tree Child', now())`,
+          [ORG_A]
+        );
+        return res.rowCount;
+      });
+      expect(inserted).toBe(1);
+      await owner.query(`DELETE FROM specialties WHERE code = 'ISO_TREE_SAME_NAME'`);
+    });
+
+    /*
+     * ⚠️ THE ASYMMETRY IN `tenant_isolation` IS WHAT MAKES THIS WORK, AND IT IS
+     *   EASY TO TALK YOURSELF OUT OF.
+     *
+     *     USING      (organization_id IS NULL OR organization_id = app_current_org())
+     *     WITH CHECK (organization_id = app_current_org())
+     *
+     *   The permissive USING clause is what lets every clinic READ the platform
+     *   catalogue, and it is tempting to reason from there that an UPDATE
+     *   targeting a platform row therefore passes too — the row is visible, so
+     *   the update finds it. It does find it. It then fails the WITH CHECK,
+     *   which is evaluated against the row AS IT WOULD BE AFTER the update, and
+     *   a platform row's organization_id stays NULL.
+     *
+     *   So Postgres refuses it. `assertMutable` in the service is the SECOND
+     *   layer, not the only one: it turns this into a 400 naming the problem
+     *   instead of an opaque row-level-security error. Both are wanted; neither
+     *   is redundant.
+     *
+     *   Copying `files`' NULL-permissive WITH CHECK here would remove this
+     *   protection entirely and let one clinic rename Cardiology for all of
+     *   them. The schema comment on `Specialty` warns about exactly that. This
+     *   test is what would catch it.
+     */
+    it('refuses a tenant updating a platform row', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(`UPDATE specialties SET description = 'written by a tenant' WHERE id = $1`, [
+            SPEC_PLATFORM,
+          ])
+        )
+      ).rejects.toThrow(/row-level security/i);
+
+      const check = await owner.query<{ description: string | null }>(
+        'SELECT description FROM specialties WHERE id = $1',
+        [SPEC_PLATFORM]
+      );
+      expect(check.rows[0]?.description).toBeNull();
+    });
+
+    it('still refuses a tenant INSERTING a platform-wide row', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(
+            `INSERT INTO specialties (id, organization_id, code, name, updated_at)
+             VALUES (gen_random_uuid(), NULL, 'ISO_SNEAKY_PLATFORM', 'Sneaky', now())`
+          )
+        )
+      ).rejects.toThrow(/row-level security/i);
     });
   });
 
@@ -1862,6 +2011,8 @@ describe('appointments', () => {
   /** Booked at B2, so a reader scoped to B1 must not see it. */
   const APT_B2 = 'ffffffff-5555-4555-8555-0000000000b2';
   const HISTORY_B2 = 'ffffffff-6666-4666-8666-0000000000b2';
+  /** A reading taken at B2. Same branch reasoning as the booking it hangs off. */
+  const VITALS_B2 = 'ffffffff-7777-4777-8777-0000000000b2';
 
   async function asTenantAtBranches<T>(
     organizationId: string,
@@ -1940,9 +2091,19 @@ describe('appointments', () => {
        VALUES ($1, $2, $3, 'BOOKED') ON CONFLICT DO NOTHING`,
       [HISTORY_B2, ORG_B, APT_B2]
     );
+    await owner.query(
+      `INSERT INTO appointment_vitals
+         (id, organization_id, branch_id, appointment_id, patient_id,
+          systolic_mm_hg, diastolic_mm_hg, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 128, 82, now()) ON CONFLICT DO NOTHING`,
+      [VITALS_B2, ORG_B, BRANCH_B2, APT_B2, APT_PATIENT_B]
+    );
   });
 
   afterAll(async () => {
+    // Before the appointments — the FK is ON DELETE CASCADE, but deleting the
+    // child explicitly keeps this teardown readable as the inverse of the setup.
+    await owner.query('DELETE FROM appointment_vitals WHERE id = ANY($1)', [[VITALS_B2]]);
     await owner.query('DELETE FROM appointments WHERE id = ANY($1)', [[APT_A, APT_B2]]);
     await owner.query('DELETE FROM doctor_profiles WHERE id = ANY($1)', [[APT_DOC_A, APT_DOC_B]]);
     await owner.query('DELETE FROM patients WHERE id = ANY($1)', [[APT_PATIENT_A, APT_PATIENT_B]]);
@@ -2030,5 +2191,1207 @@ describe('appointments', () => {
       return rows.length;
     });
     expect(found).toBe(0);
+  });
+
+  /*
+   * Vitals — the most mechanically sensitive rows in the schema. A blood
+   * pressure against a named patient needs no interpretation and no join to be a
+   * clinical record, so this table gets the full four-case treatment: no
+   * context, another clinic, another branch, and the branch in scope.
+   *
+   * ⚠️ UNLIKE `appointment_status_history`, THIS TABLE CARRIES ITS OWN
+   *   `organization_id` AND `branch_id`, so it is an ordinary member of both
+   *   loops in enable-rls.sql rather than an EXISTS against its parent. These
+   *   cases would pass on inheritance alone, which is exactly why they are
+   *   written against the table directly — a future change that drops the
+   *   branch policy while keeping the org one leaves the parent's boundary
+   *   intact and silently opens this one.
+   */
+  it('vitals fail closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM appointment_vitals'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('hides another clinic’s vitals entirely', async () => {
+    const found = await asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_vitals WHERE id = $1', [
+        VITALS_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('hides vitals taken at a branch out of scope, inside the same clinic', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_vitals WHERE id = $1', [
+        VITALS_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('shows vitals once their branch is in scope', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_vitals WHERE id = $1', [
+        VITALS_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(1);
+  });
+
+  /*
+   * ⚠️ A SUPERSEDED VERSION CARRIES THE VALUES A READING USED TO HOLD, SO IT IS
+   *   AS MUCH PHI AS THE READING. It lives on the same table and therefore under
+   *   the same policy — which is exactly why the prior version was put HERE
+   *   rather than into `audit_logs`, a table with no branch scoping at all. This
+   *   asserts that the policy really does cover it rather than that it ought to.
+   */
+  it('hides another clinic’s superseded readings too', async () => {
+    const revisionId = 'ffffffff-7777-4777-8777-0000000000r1'.replace('r', 'e');
+
+    await owner.query(
+      `INSERT INTO appointment_vitals
+         (id, organization_id, branch_id, appointment_id, patient_id,
+          systolic_mm_hg, diastolic_mm_hg, revision_of_id, superseded_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, 180, 110, $6, now(), now()) ON CONFLICT DO NOTHING`,
+      [revisionId, ORG_B, BRANCH_B2, APT_B2, APT_PATIENT_B, VITALS_B2]
+    );
+
+    try {
+      const found = await asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B2], async () => {
+        const { rows } = await app.query('SELECT id FROM appointment_vitals WHERE id = $1', [
+          revisionId,
+        ]);
+        return rows.length;
+      });
+      expect(found).toBe(0);
+    } finally {
+      await owner.query('DELETE FROM appointment_vitals WHERE id = $1', [revisionId]);
+    }
+  });
+
+  /*
+   * The write side. A caller scoped to B1 filing a reading against B1 — but
+   * onto a booking that lives at B2 — must be refused: without the WITH CHECK
+   * half of the branch policy, a reading could be planted into a visit the
+   * caller cannot see, and then read back by whoever can.
+   */
+  it('rejects recording vitals into another clinic’s branch', async () => {
+    await expect(
+      asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B1], () =>
+        app.query(
+          `INSERT INTO appointment_vitals
+             (id, organization_id, branch_id, appointment_id, patient_id, pulse_bpm, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 72, now())`,
+          [ORG_A, BRANCH_B1, APT_A, APT_PATIENT_A]
+        )
+      )
+    ).rejects.toThrow(/row-level security|foreign key/i);
+  });
+});
+
+/*
+ * The clinic's own tax position.
+ *
+ * ⚠️ THESE TWO TABLES ARE THE OPPOSITE DECISION FROM `tax_registrations`, WHICH
+ *   IS EXEMPT FROM RLS ON PURPOSE. That one holds rcln's numbers, is read inside
+ *   a tenant transaction, and a policy on it would return zero rows — which
+ *   reads as NOT_REGISTERED and silently untaxes every subscription invoice.
+ *   None of that applies here: these rows belong to the organization reading
+ *   them. Someone who knows the exemption and not the reason for it could
+ *   plausibly exempt these too, and nothing would fail — a clinic would simply
+ *   start being able to read its competitor's GSTIN and its whole rate card.
+ *   That is what these cases exist to catch.
+ */
+describe('issuer tax registrations and rules', () => {
+  const REG_A = 'aaaaaaaa-7a11-4a11-8a11-000000000001';
+  const REG_B = 'bbbbbbbb-7b11-4b11-8b11-000000000001';
+  const RULE_B = 'bbbbbbbb-7b22-4b22-8b22-000000000001';
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO issuer_tax_registrations
+         (id, organization_id, country_code, region_code, scheme, registration_number,
+          effective_from, updated_at)
+       VALUES ($1,$3,'IN','KA','GST','29AAACR1234K1ZP','2025-04-01',now()),
+              ($2,$4,'IN','KL','GST','32AAACR9999K1ZQ','2025-04-01',now())
+       ON CONFLICT (id) DO NOTHING`,
+      [REG_A, REG_B, ORG_A, ORG_B]
+    );
+
+    await owner.query(
+      `INSERT INTO tax_rules
+         (id, organization_id, country_code, scheme, tax_category, rate_bps, treatment,
+          line_name, effective_from, updated_at)
+       VALUES ($1,$2,'IN','GST','MEDICINE',500,'STANDARD','GST','2025-04-01',now())
+       ON CONFLICT (id) DO NOTHING`,
+      [RULE_B, ORG_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM tax_rules WHERE id = $1', [RULE_B]);
+    await owner.query('DELETE FROM issuer_tax_registrations WHERE id = ANY($1)', [[REG_A, REG_B]]);
+  });
+
+  it('fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM issuer_tax_registrations'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  /*
+   * A GSTIN is the number every invoice a business issues is filed under. It is
+   * not PHI, but it identifies the competitor completely and is exactly the sort
+   * of row that reads as harmless configuration right up until it leaks.
+   */
+  it('hides another clinic’s registration', async () => {
+    const found = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM issuer_tax_registrations WHERE id = $1', [
+        REG_B,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('shows a clinic its own registration', async () => {
+    const number = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query<{ registration_number: string }>(
+        'SELECT registration_number FROM issuer_tax_registrations WHERE id = $1',
+        [REG_A]
+      );
+      return rows[0]?.registration_number;
+    });
+    expect(number).toBe('29AAACR1234K1ZP');
+  });
+
+  it('hides another clinic’s rate card', async () => {
+    const found = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM tax_rules WHERE id = $1', [RULE_B]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  /*
+   * The write half. Without WITH CHECK, a clinic could plant a registration
+   * under another organization's id — and the invoices raised against it would
+   * then carry a GSTIN belonging to somebody else.
+   */
+  it('rejects writing a registration into another clinic', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO issuer_tax_registrations
+             (id, organization_id, country_code, scheme, registration_number,
+              effective_from, updated_at)
+           VALUES (gen_random_uuid(), $1, 'IN', 'GST', '29PLANTED0000ZZ', '2025-04-01', now())`,
+          [ORG_B]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  /*
+   * ⚠️ THE LINK TABLE IS NOT EXEMPT FOR HOLDING ONLY IDS. Both of them are tenant
+   *   ids, so another clinic's row says which of its branches bills under which
+   *   of its registrations — the same disclosure as reading the registration
+   *   itself, one join later.
+   */
+  describe('coverage links', () => {
+    const LINK_B = 'bbbbbbbb-7b33-4b33-8b33-000000000001';
+
+    beforeAll(async () => {
+      await owner.query(
+        `INSERT INTO issuer_tax_registration_branches
+           (id, organization_id, tax_registration_id, branch_id, updated_at)
+         VALUES ($1, $2, $3, $4, now())
+         ON CONFLICT (id) DO NOTHING`,
+        [LINK_B, ORG_B, REG_B, BRANCH_B1]
+      );
+    });
+
+    afterAll(async () => {
+      await owner.query('DELETE FROM issuer_tax_registration_branches WHERE id = $1', [LINK_B]);
+    });
+
+    it('fails closed with no tenant context', async () => {
+      const { rows } = await app.query<{ count: string }>(
+        'SELECT count(*) AS count FROM issuer_tax_registration_branches'
+      );
+      expect(Number(rows[0]?.count)).toBe(0);
+    });
+
+    it('hides which of another clinic’s branches bills under which registration', async () => {
+      const found = await asTenant(ORG_A, async () => {
+        const { rows } = await app.query(
+          'SELECT id FROM issuer_tax_registration_branches WHERE id = $1',
+          [LINK_B]
+        );
+        return rows.length;
+      });
+      expect(found).toBe(0);
+    });
+
+    it('shows a clinic its own coverage', async () => {
+      const branch = await asTenant(ORG_B, async () => {
+        const { rows } = await app.query<{ branch_id: string }>(
+          'SELECT branch_id FROM issuer_tax_registration_branches WHERE id = $1',
+          [LINK_B]
+        );
+        return rows[0]?.branch_id;
+      });
+      expect(branch).toBe(BRANCH_B1);
+    });
+
+    it('rejects writing coverage into another clinic', async () => {
+      await expect(
+        asTenant(ORG_A, () =>
+          app.query(
+            `INSERT INTO issuer_tax_registration_branches
+               (id, organization_id, tax_registration_id, branch_id, updated_at)
+             VALUES (gen_random_uuid(), $1, $2, $3, now())`,
+            [ORG_B, REG_B, BRANCH_B2]
+          )
+        )
+      ).rejects.toThrow(/row-level security/i);
+    });
+
+    /*
+     * ⚠️ THE COMPOSITE FK, WHICH IS THE LAYER BELOW RLS. Even as the owner —
+     *   who bypasses every policy — a link cannot join one organization's branch
+     *   to another's registration, because the tenant travels inside both keys.
+     *   Without it, a bug in the service could point a Karnataka clinic's invoice
+     *   at a competitor's GSTIN and no policy would notice.
+     */
+    it('cannot join one clinic’s branch to another clinic’s registration', async () => {
+      await expect(
+        owner.query(
+          `INSERT INTO issuer_tax_registration_branches
+             (id, organization_id, tax_registration_id, branch_id, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, now())`,
+          [ORG_A, REG_B, BRANCH_A]
+        )
+      ).rejects.toThrow(/foreign key|violates/i);
+    });
+  });
+
+  /*
+   * ⚠️ The CHECK that stops a catalogue row asserting a legal position it knows
+   *   nothing about. `treatment` is the full six-value enum because Prisma
+   *   cannot express a subset of one, so the database is the only thing holding
+   *   the line — and the service layer casts to `ItemTaxTreatment` on the way
+   *   out, trusting exactly this.
+   */
+  it('refuses a tax rule claiming a treatment an item cannot have', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO tax_rules
+           (id, organization_id, country_code, scheme, tax_category, rate_bps, treatment,
+            line_name, effective_from, updated_at)
+         VALUES (gen_random_uuid(), $1, 'IN', 'GST', 'BOGUS', 0, 'REVERSE_CHARGE', 'GST', '2025-04-01', now())`,
+        [ORG_B]
+      )
+    ).rejects.toThrow(/tax_rules_treatment_is_item_level/);
+  });
+
+  /*
+   * An "EXEMPT at 18%" row is not a legal position, it is a typo — and it prints
+   * an invoice line that contradicts itself.
+   */
+  it('refuses an untaxed treatment carrying a non-zero rate', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO tax_rules
+           (id, organization_id, country_code, scheme, tax_category, rate_bps, treatment,
+            line_name, effective_from, updated_at)
+         VALUES (gen_random_uuid(), $1, 'IN', 'GST', 'BOGUS', 1800, 'EXEMPT', 'GST', '2025-04-01', now())`,
+        [ORG_B]
+      )
+    ).rejects.toThrow(/tax_rules_untaxed_means_zero_rate/);
+  });
+
+  /*
+   * NULLS NOT DISTINCT. A country-wide rule has a NULL region_code, and in
+   * ordinary SQL two NULLs are never equal — so without it a clinic can hold any
+   * number of country-wide rules for one category and one start date, and
+   * `ruleFor` picks whichever the planner returns first.
+   */
+  it('refuses a second country-wide rule for the same category and date', async () => {
+    const first = 'bbbbbbbb-7b33-4b33-8b33-000000000001';
+    await owner.query(
+      `INSERT INTO tax_rules
+         (id, organization_id, country_code, scheme, tax_category, rate_bps, treatment,
+          line_name, effective_from, updated_at)
+       VALUES ($1,$2,'IN','GST','DUPE',500,'STANDARD','GST','2025-04-01',now())`,
+      [first, ORG_B]
+    );
+
+    try {
+      await expect(
+        owner.query(
+          `INSERT INTO tax_rules
+             (id, organization_id, country_code, scheme, tax_category, rate_bps, treatment,
+              line_name, effective_from, updated_at)
+           VALUES (gen_random_uuid(), $1, 'IN', 'GST', 'DUPE', 1200, 'STANDARD', 'GST', '2025-04-01', now())`,
+          [ORG_B]
+        )
+      ).rejects.toThrow(/duplicate key|unique/i);
+    } finally {
+      await owner.query('DELETE FROM tax_rules WHERE id = $1', [first]);
+    }
+  });
+  /*
+   * ⚠️ A stacking rule is always regional. `stacks` means "charge this IN
+   *   ADDITION to the country-wide rule for the same category" — Canada's
+   *   provincial PST on top of federal GST. A country-wide rule that stacked
+   *   would be both the base AND the addition, so the same rate would be charged
+   *   twice on one line item and the invoice would silently overcharge.
+   */
+  it('refuses a country-wide rule that claims to stack', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO tax_rules
+           (id, organization_id, country_code, region_code, scheme, tax_category, rate_bps,
+            treatment, line_name, stacks, effective_from, updated_at)
+         VALUES (gen_random_uuid(), $1, 'CA', NULL, 'GST', 'MEDICINE', 700, 'STANDARD',
+                 'PST', true, '2025-04-01', now())`,
+        [ORG_B]
+      )
+    ).rejects.toThrow(/tax_rules_stacking_is_regional/);
+  });
+
+  /* And the same rule scoped to a province is accepted. */
+  it('accepts a regional stacking rule', async () => {
+    const id = 'bbbbbbbb-7b44-4b44-8b44-000000000001';
+    await owner.query(
+      `INSERT INTO tax_rules
+         (id, organization_id, country_code, region_code, scheme, tax_category, rate_bps,
+          treatment, line_name, stacks, effective_from, updated_at)
+       VALUES ($1, $2, 'CA', 'BC', 'GST', 'MEDICINE', 700, 'STANDARD',
+               'PST', true, '2025-04-01', now())`,
+      [id, ORG_B]
+    );
+    await owner.query('DELETE FROM tax_rules WHERE id = $1', [id]);
+  });
+
+  /*
+   * ⚠️ India's split derives `CGST`/`SGST`/`IGST` from `line_name` by prefixing,
+   *   which is how those names are constructed in law. A `line_name` of
+   *   'Sales Tax' would derive 'CSales Tax' and print it on an invoice.
+   */
+  it('refuses a split rule whose line name cannot be prefixed', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO tax_rules
+           (id, organization_id, country_code, scheme, tax_category, rate_bps, treatment,
+            line_name, split, effective_from, updated_at)
+         VALUES (gen_random_uuid(), $1, 'IN', 'GST', 'MEDICINE', 1200, 'STANDARD',
+                 'Sales Tax', 'INTRA_STATE_HALVES', '2025-04-01', now())`,
+        [ORG_B]
+      )
+    ).rejects.toThrow(/tax_rules_split_name_is_prefixable/);
+  });
+});
+
+describe('patient invoices', () => {
+  const INV_PATIENT_A = 'dddddddd-1111-4111-8111-0000000000a1';
+  const INV_PATIENT_B = 'dddddddd-1111-4111-8111-0000000000b1';
+  const INV_REG_A = 'dddddddd-7777-4777-8777-0000000000a1';
+  const INV_REG_B2 = 'dddddddd-7777-4777-8777-0000000000b2';
+  const INV_DOC_USER_A = 'dddddddd-8888-4888-8888-0000000000a1';
+  const INV_DOC_USER_B = 'dddddddd-8888-4888-8888-0000000000b1';
+  const INV_DOC_A = 'dddddddd-9999-4999-8999-0000000000a1';
+  const INV_DOC_B = 'dddddddd-9999-4999-8999-0000000000b1';
+  /** The visits the seeded invoices bill for — the new composite FK's target. */
+  const INV_APT_A = 'dddddddd-aaaa-4aaa-8aaa-0000000000a1';
+  const INV_APT_B2 = 'dddddddd-aaaa-4aaa-8aaa-0000000000b2';
+  const INV_A = 'dddddddd-2222-4222-8222-0000000000a1';
+  /** Raised at B2, so a reader scoped to B1 must not see it. */
+  const INV_B2 = 'dddddddd-2222-4222-8222-0000000000b2';
+  const ITEM_B2 = 'dddddddd-3333-4333-8333-0000000000b2';
+  const TAX_B2 = 'dddddddd-4444-4444-8444-0000000000b2';
+  const FILE_A = 'dddddddd-5555-4555-8555-0000000000a1';
+  const FILE_B = 'dddddddd-5555-4555-8555-0000000000b1';
+  const DOC_B2 = 'dddddddd-6666-4666-8666-0000000000b2';
+
+  async function asTenantAtBranches<T>(
+    organizationId: string,
+    branchIds: string[],
+    fn: () => Promise<T>
+  ): Promise<T> {
+    await app.query('BEGIN');
+    try {
+      await app.query(`SELECT set_config('app.current_org', $1, true)`, [organizationId]);
+      await app.query(`SELECT set_config('app.branch_scope', $1, true)`, [
+        `{${branchIds.join(',')}}`,
+      ]);
+      const result = await fn();
+      await app.query('COMMIT');
+      return result;
+    } catch (err) {
+      await app.query('ROLLBACK');
+      throw err;
+    }
+  }
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO patients (id, organization_id, uhid, first_name, updated_at)
+       VALUES ($1, $2, 'INVA0001', 'Inv A', now()), ($3, $4, 'INVB0001', 'Inv B', now())
+       ON CONFLICT DO NOTHING`,
+      [INV_PATIENT_A, ORG_A, INV_PATIENT_B, ORG_B]
+    );
+
+    /*
+     * A real visit per tenant, so the seeded invoices cite an appointment
+     * through the composite FK rather than a bare uuid. Without these the
+     * `invoices_source_reference_matches_type` CHECK refuses the rows outright,
+     * which is the point of the constraint.
+     */
+    await owner.query(
+      `INSERT INTO patient_registrations
+         (id, organization_id, patient_id, branch_id, mrn, updated_at)
+       VALUES ($1, $2, $3, $4, 'INVMRNA', now()), ($5, $6, $7, $8, 'INVMRNB', now())
+       ON CONFLICT DO NOTHING`,
+      [INV_REG_A, ORG_A, INV_PATIENT_A, BRANCH_A, INV_REG_B2, ORG_B, INV_PATIENT_B, BRANCH_B2]
+    );
+    await owner.query(
+      `INSERT INTO users (id, full_name, email, updated_at)
+       VALUES ($1, 'Inv Doc A', 'inv-doc-a@example.test', now()),
+              ($2, 'Inv Doc B', 'inv-doc-b@example.test', now())
+       ON CONFLICT DO NOTHING`,
+      [INV_DOC_USER_A, INV_DOC_USER_B]
+    );
+    await owner.query(
+      `INSERT INTO doctor_profiles (id, organization_id, user_id, updated_at)
+       VALUES ($1, $2, $3, now()), ($4, $5, $6, now())
+       ON CONFLICT DO NOTHING`,
+      [INV_DOC_A, ORG_A, INV_DOC_USER_A, INV_DOC_B, ORG_B, INV_DOC_USER_B]
+    );
+    await owner.query(
+      `INSERT INTO appointments
+         (id, organization_id, branch_id, patient_id, patient_registration_id,
+          doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'INVA000001',
+               '2027-07-01T04:00:00Z', '2027-07-01T04:15:00Z', now()),
+              ($7, $8, $9, $10, $11, $12, 'INVB000001',
+               '2027-07-01T05:00:00Z', '2027-07-01T05:15:00Z', now())
+       ON CONFLICT DO NOTHING`,
+      [
+        INV_APT_A,
+        ORG_A,
+        BRANCH_A,
+        INV_PATIENT_A,
+        INV_REG_A,
+        INV_DOC_A,
+        INV_APT_B2,
+        ORG_B,
+        BRANCH_B2,
+        INV_PATIENT_B,
+        INV_REG_B2,
+        INV_DOC_B,
+      ]
+    );
+
+    await owner.query(
+      `INSERT INTO invoices
+         (id, organization_id, branch_id, patient_id, invoice_number, source_type,
+          appointment_id, customer_name, supplied_at, issued_at, status, grand_total,
+          updated_at)
+       VALUES ($1, $2, $3, $4, 'INV-2026-APP-MAIN-000001', 'APPOINTMENT', $9,
+               'Inv A', now(), now(), 'ISSUED', 500.00, now()),
+              ($5, $6, $7, $8, 'INV-2026-APP-B2-000001', 'APPOINTMENT', $10,
+               'Inv B', now(), now(), 'ISSUED', 900.00, now())
+       ON CONFLICT DO NOTHING`,
+      [
+        INV_A,
+        ORG_A,
+        BRANCH_A,
+        INV_PATIENT_A,
+        INV_B2,
+        ORG_B,
+        BRANCH_B2,
+        INV_PATIENT_B,
+        INV_APT_A,
+        INV_APT_B2,
+      ]
+    );
+
+    await owner.query(
+      `INSERT INTO invoice_items
+         (id, organization_id, branch_id, invoice_id, line_number, description,
+          tax_category, unit_price, gross_amount, taxable_amount, line_total, updated_at)
+       VALUES ($1, $2, $3, $4, 1, 'MRI Brain with contrast', 'PROCEDURE',
+               900.00, 900.00, 900.00, 900.00, now())
+       ON CONFLICT DO NOTHING`,
+      [ITEM_B2, ORG_B, BRANCH_B2, INV_B2]
+    );
+
+    await owner.query(
+      `INSERT INTO invoice_taxes
+         (id, organization_id, branch_id, invoice_id, invoice_item_id, name,
+          jurisdiction, rate_bps, taxable_amount, tax_amount, treatment)
+       VALUES ($1, $2, $3, $4, $5, 'CGST', 'IN', 600, 900.00, 54.00, 'STANDARD')
+       ON CONFLICT DO NOTHING`,
+      [TAX_B2, ORG_B, BRANCH_B2, INV_B2, ITEM_B2]
+    );
+
+    await owner.query(
+      `INSERT INTO files
+         (id, organization_id, branch_id, document_type, status, storage_key,
+          original_name, mime_type)
+       VALUES ($1, $2, $3, 'INVOICE_PDF', 'READY', $7, 'a.pdf', 'application/pdf'),
+              ($4, $5, $6, 'INVOICE_PDF', 'READY', $8, 'b.pdf', 'application/pdf')
+       ON CONFLICT DO NOTHING`,
+      [FILE_A, ORG_A, BRANCH_A, FILE_B, ORG_B, BRANCH_B2, `iso/${FILE_A}.pdf`, `iso/${FILE_B}.pdf`]
+    );
+
+    await owner.query(
+      `INSERT INTO invoice_documents
+         (id, organization_id, branch_id, invoice_id, file_id, document_type,
+            template_key, template_version)
+       VALUES ($1, $2, $3, $4, $5, 'INVOICE_PDF', 'invoice', 1)
+       ON CONFLICT DO NOTHING`,
+      [DOC_B2, ORG_B, BRANCH_B2, INV_B2, FILE_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM invoice_documents WHERE id = $1', [DOC_B2]);
+    await owner.query('DELETE FROM files WHERE id = ANY($1)', [[FILE_A, FILE_B]]);
+    await owner.query('DELETE FROM invoice_taxes WHERE id = $1', [TAX_B2]);
+    await owner.query('DELETE FROM invoice_items WHERE id = $1', [ITEM_B2]);
+    await owner.query('DELETE FROM invoices WHERE id = ANY($1)', [[INV_A, INV_B2]]);
+    await owner.query('DELETE FROM appointments WHERE id = ANY($1)', [[INV_APT_A, INV_APT_B2]]);
+    await owner.query('DELETE FROM doctor_profiles WHERE id = ANY($1)', [[INV_DOC_A, INV_DOC_B]]);
+    await owner.query('DELETE FROM users WHERE id = ANY($1)', [[INV_DOC_USER_A, INV_DOC_USER_B]]);
+    await owner.query('DELETE FROM patient_registrations WHERE id = ANY($1)', [
+      [INV_REG_A, INV_REG_B2],
+    ]);
+    await owner.query('DELETE FROM patients WHERE id = ANY($1)', [[INV_PATIENT_A, INV_PATIENT_B]]);
+  });
+
+  it('fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>('SELECT count(*) AS count FROM invoices');
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('hides an invoice belonging to another clinic, even by primary key', async () => {
+    const rows = await asTenantAtBranches(ORG_A, [BRANCH_A], async () => {
+      const r = await app.query('SELECT id FROM invoices WHERE id = $1', [INV_B2]);
+      return r.rows;
+    });
+    expect(rows).toHaveLength(0);
+  });
+
+  /*
+   * ⚠️ THE CASE THE CHILDREN CARRY THEIR OWN TENANT COLUMNS FOR. A line reads
+   *   "MRI Brain with contrast" — a clinical fact about a named person — and it
+   *   is answerable by primary key. Isolated through a parent it would be
+   *   protected only by the code never asking; here the database refuses.
+   */
+  it('hides the lines, taxes and documents of another clinic', async () => {
+    const counts = await asTenantAtBranches(ORG_A, [BRANCH_A], async () => {
+      const items = await app.query('SELECT id FROM invoice_items WHERE id = $1', [ITEM_B2]);
+      const taxes = await app.query('SELECT id FROM invoice_taxes WHERE id = $1', [TAX_B2]);
+      const docs = await app.query('SELECT id FROM invoice_documents WHERE id = $1', [DOC_B2]);
+      return [items.rows.length, taxes.rows.length, docs.rows.length];
+    });
+    expect(counts).toEqual([0, 0, 0]);
+  });
+
+  /*
+   * ⚠️ THE HALF A PARENT-SCOPED POLICY CANNOT ENFORCE. B1 and B2 are the same
+   *   tenant, so tenant_isolation passes for both. Only branch_isolation — on
+   *   the CHILD, in its own right — hides B2's takings from a cashier at B1. A
+   *   child protected through its parent inherits the org half of that
+   *   predicate and none of the branch half, which is the hole
+   *   `appointment_status_history` had to restate by hand.
+   */
+  it('hides another BRANCH of the same clinic, lines included', async () => {
+    const counts = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const invoices = await app.query('SELECT id FROM invoices WHERE id = $1', [INV_B2]);
+      const items = await app.query('SELECT id FROM invoice_items WHERE id = $1', [ITEM_B2]);
+      const taxes = await app.query('SELECT id FROM invoice_taxes WHERE id = $1', [TAX_B2]);
+      const docs = await app.query('SELECT id FROM invoice_documents WHERE id = $1', [DOC_B2]);
+      return [invoices.rows.length, items.rows.length, taxes.rows.length, docs.rows.length];
+    });
+    expect(counts).toEqual([0, 0, 0, 0]);
+
+    const own = await asTenantAtBranches(ORG_B, [BRANCH_B2], async () => {
+      const r = await app.query('SELECT id FROM invoice_items WHERE id = $1', [ITEM_B2]);
+      return r.rows.length;
+    });
+    expect(own).toBe(1);
+  });
+
+  it('refuses to write an invoice into another tenant', async () => {
+    await expect(
+      asTenantAtBranches(ORG_A, [BRANCH_A], () =>
+        app.query(
+          `INSERT INTO invoices
+             (id, organization_id, branch_id, source_type, customer_name,
+              supplied_at, status, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, 'OTHER', 'Nobody', now(), 'DRAFT', now())`,
+          [ORG_B, BRANCH_B2]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  /*
+   * ⚠️ THE POLICY THAT REPLACES A COMPOSITE FK THAT CANNOT EXIST.
+   *   `files.organization_id` is nullable, so invoice_documents.file_id is a
+   *   plain FK and ADR-0004 does not apply. The row's OWN organization_id would
+   *   be perfectly correct here and tenant_isolation would pass; only
+   *   `file_in_same_org` notices that the FILE belongs to somebody else.
+   */
+  it('refuses an invoice document citing a file from another tenant', async () => {
+    await expect(
+      asTenantAtBranches(ORG_A, [BRANCH_A], () =>
+        app.query(
+          `INSERT INTO invoice_documents
+             (id, organization_id, branch_id, invoice_id, file_id, document_type,
+            template_key, template_version)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'CREDIT_NOTE_PDF', 'credit-note', 1)`,
+          [ORG_A, BRANCH_A, INV_A, FILE_B]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  it('accepts an invoice document citing a file from its own tenant', async () => {
+    const inserted = await asTenantAtBranches(ORG_A, [BRANCH_A], async () => {
+      const r = await app.query(
+        `INSERT INTO invoice_documents
+           (id, organization_id, branch_id, invoice_id, file_id, document_type,
+            template_key, template_version)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, 'CREDIT_NOTE_PDF', 'credit-note', 1)
+         RETURNING id`,
+        [ORG_A, BRANCH_A, INV_A, FILE_A]
+      );
+      return r.rows.length;
+    });
+    expect(inserted).toBe(1);
+    await owner.query('DELETE FROM invoice_documents WHERE invoice_id = $1', [INV_A]);
+  });
+
+  /*
+   * ⚠️ The one unique in this schema that wants NULLS DISTINCT, which is
+   *   Postgres' default. Every DRAFT has a NULL invoice_number and a clinic has
+   *   many drafts open at once; NULLS NOT DISTINCT would let it hold one.
+   */
+  it('allows many numberless drafts and still refuses a duplicate number', async () => {
+    await owner.query(
+      `INSERT INTO invoices
+         (id, organization_id, branch_id, source_type, customer_name, supplied_at,
+          status, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, 'OTHER', 'Draft one', now(), 'DRAFT', now()),
+              (gen_random_uuid(), $1, $2, 'OTHER', 'Draft two', now(), 'DRAFT', now())`,
+      [ORG_A, BRANCH_A]
+    );
+
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, customer_name, invoice_number,
+            supplied_at, issued_at, status, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'OTHER', 'Clash', 'INV-2026-APP-MAIN-000001',
+                 now(), now(), 'ISSUED', now())`,
+        [ORG_A, BRANCH_A]
+      )
+    ).rejects.toThrow(/invoices_organization_id_invoice_number_key/);
+
+    await owner.query('DELETE FROM invoices WHERE organization_id = $1 AND status = $2', [
+      ORG_A,
+      'DRAFT',
+    ]);
+  });
+
+  /*
+   * ⚠️ An ISSUED invoice with no number cannot be cited on a return; a DRAFT
+   *   that already holds one has burnt a serial that will never appear on any
+   *   document, leaving a gap somebody has to explain years later.
+   */
+  it('refuses an issued invoice with no number, and a numbered draft', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, customer_name, supplied_at,
+            issued_at, status, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'OTHER', 'No number', now(), now(), 'ISSUED', now())`,
+        [ORG_A, BRANCH_A]
+      )
+    ).rejects.toThrow(/invoices_number_matches_status/);
+
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, customer_name, invoice_number,
+            supplied_at, status, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'OTHER', 'Early number',
+                 'INV-2026-OTH-MAIN-000099', now(), 'DRAFT', now())`,
+        [ORG_A, BRANCH_A]
+      )
+    ).rejects.toThrow(/invoices_number_matches_status/);
+  });
+
+  /*
+   * ⚠️ THE WHOLE REASON `source_id` IS NOT A LOOSE UUID.
+   *   The risk was never "this invoice bills an appointment that does not
+   *   exist" — ids are random and nobody stumbles onto one. It is "this invoice
+   *   bills ANOTHER CLINIC'S appointment", and only the composite
+   *   (organization_id, appointment_id) reference answers that. A plain FK to
+   *   `appointments(id)` would accept this row, and so would a stub table
+   *   holding nothing but an id.
+   */
+  it('refuses an invoice billing an appointment from another clinic', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, appointment_id, customer_name,
+            supplied_at, status, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'APPOINTMENT', $3, 'Cross tenant', now(),
+                 'DRAFT', now())`,
+        [ORG_A, BRANCH_A, INV_APT_B2]
+      )
+    ).rejects.toThrow(/invoices_organization_id_appointment_id_fkey/);
+  });
+
+  /*
+   * ⚠️ The clause list grows with the modules. An APPOINTMENT invoice that cites
+   *   nothing has lost the link the moment it was created, and an OTHER invoice
+   *   carrying an appointment is billing a visit while claiming to be manual —
+   *   two rows that read as fine and reconcile against nothing.
+   */
+  it('refuses a source type and a reference column that disagree', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, customer_name, supplied_at,
+            status, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'APPOINTMENT', 'No visit', now(),
+                 'DRAFT', now())`,
+        [ORG_A, BRANCH_A]
+      )
+    ).rejects.toThrow(/invoices_source_reference_matches_type/);
+
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, appointment_id, customer_name,
+            supplied_at, status, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'OTHER', $3, 'Manual with a visit', now(),
+                 'DRAFT', now())`,
+        [ORG_A, BRANCH_A, INV_APT_A]
+      )
+    ).rejects.toThrow(/invoices_source_reference_matches_type/);
+  });
+
+  /*
+   * ⚠️ "10% off" and "₹150 off" are different instructions that can produce the
+   *   same amount, and the invoice prints which was given. A type without its
+   *   input computes one way and prints another.
+   */
+  it('refuses a discount whose type and input disagree', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, customer_name, supplied_at,
+            status, discount_type, discount_fixed, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'OTHER', 'Wrong shape', now(), 'DRAFT',
+                 'PERCENTAGE', 150.00, now())`,
+        [ORG_A, BRANCH_A]
+      )
+    ).rejects.toThrow(/invoices_discount_input_matches_type/);
+
+    await expect(
+      owner.query(
+        `INSERT INTO invoices
+           (id, organization_id, branch_id, source_type, customer_name, supplied_at,
+            status, discount_type, discount_bps, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 'OTHER', 'Over 100%', now(), 'DRAFT',
+                 'PERCENTAGE', 12000, now())`,
+        [ORG_A, BRANCH_A]
+      )
+    ).rejects.toThrow(/invoices_discount_input_matches_type/);
+  });
+
+  /*
+   * ⚠️ Which table priced a line is the difference between a rate the clinic
+   *   authored and one it merely inherited — the question the rate-card screen
+   *   and an auditor both ask. A row citing both answers neither.
+   */
+  it('refuses a tax line citing both a tenant rule and a platform default', async () => {
+    const { rows } = await owner.query<{ id: string }>(
+      `INSERT INTO tax_rules
+         (id, organization_id, country_code, scheme, tax_category, rate_bps, treatment,
+          line_name, effective_from, updated_at)
+       VALUES (gen_random_uuid(), $1, 'IN', 'GST', 'INVCHECK', 1200, 'STANDARD', 'GST',
+               '2025-04-01', now())
+       RETURNING id`,
+      [ORG_B]
+    );
+    const ruleId = rows[0]!.id;
+
+    const defaults = await owner.query<{ id: string }>(`SELECT id FROM tax_rule_defaults LIMIT 1`);
+
+    if (defaults.rows[0]) {
+      await expect(
+        owner.query(
+          `INSERT INTO invoice_taxes
+             (id, organization_id, branch_id, invoice_id, invoice_item_id, tax_rule_id,
+              tax_rule_default_id, name, rate_bps, taxable_amount, tax_amount, treatment)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'CGST', 600, 900.00, 54.00,
+                   'STANDARD')`,
+          [ORG_B, BRANCH_B2, INV_B2, ITEM_B2, ruleId, defaults.rows[0].id]
+        )
+      ).rejects.toThrow(/invoice_taxes_one_rule_source/);
+    }
+
+    await owner.query('DELETE FROM tax_rules WHERE id = $1', [ruleId]);
+  });
+
+  /*
+   * ⚠️ A render that FAILED and was retried leaves a dead row behind, because
+   *   the row is written before the bytes and the failure has to stay findable.
+   *   A non-partial unique would refuse the retry: invoice issued, PDF
+   *   permanently missing, discovered by a patient at the front desk.
+   */
+  it('allows a superseded document beside the current one, but not two current', async () => {
+    await owner.query(`UPDATE invoice_documents SET superseded_at = now() WHERE id = $1`, [DOC_B2]);
+
+    const { rows } = await owner.query<{ id: string }>(
+      `INSERT INTO invoice_documents
+         (id, organization_id, branch_id, invoice_id, file_id, document_type,
+            template_key, template_version)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, 'INVOICE_PDF', 'invoice', 1)
+       RETURNING id`,
+      [ORG_B, BRANCH_B2, INV_B2, FILE_B]
+    );
+
+    await expect(
+      owner.query(
+        `INSERT INTO invoice_documents
+           (id, organization_id, branch_id, invoice_id, file_id, document_type,
+            template_key, template_version)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, 'INVOICE_PDF', 'invoice', 1)`,
+        [ORG_B, BRANCH_B2, INV_B2, FILE_B]
+      )
+    ).rejects.toThrow(/invoice_documents_current_per_type_key/);
+
+    await owner.query('DELETE FROM invoice_documents WHERE id = $1', [rows[0]!.id]);
+    await owner.query('UPDATE invoice_documents SET superseded_at = NULL WHERE id = $1', [DOC_B2]);
+  });
+
+  /**
+   * ⚠️ A DOCUMENT MUST SAY WHICH TEMPLATE DREW IT, AND THE COLUMNS HAVE NO
+   *   DEFAULT ON PURPOSE. They exist so that "what did the document this patient
+   *   is holding look like?" has an answer years later, when the template has
+   *   moved on several revisions. A DEFAULT would be the reflexive way to make
+   *   the migration safe and would stamp a confident, wrong answer onto any row
+   *   that did not supply one — indistinguishable from a real one.
+   */
+  it('refuses an invoice document that does not say which template drew it', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO invoice_documents
+           (id, organization_id, branch_id, invoice_id, file_id, document_type)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, 'CREDIT_NOTE_PDF')`,
+        [ORG_A, BRANCH_A, INV_A, FILE_A]
+      )
+    ).rejects.toThrow(/template_key/);
+  });
+
+  /* A version is a count of revisions. Zero means nothing; negative is a typo. */
+  it('refuses a template version that is not a positive count', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO invoice_documents
+           (id, organization_id, branch_id, invoice_id, file_id, document_type,
+            template_key, template_version)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, 'CREDIT_NOTE_PDF', 'invoice', 0)`,
+        [ORG_A, BRANCH_A, INV_A, FILE_A]
+      )
+    ).rejects.toThrow(/invoice_documents_template_version_positive/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Fees, pay and the reschedule trail.
+ *
+ * Three tables, three different shapes of boundary, and the first one is the
+ * only table in this repository where a NULL `branch_id` is a MEANING rather
+ * than a tolerated absence:
+ *
+ *   - `fee_schedule_entries` — NULL branch means "the clinic's default,
+ *     everywhere", so the branch policy MUST let it through or inheritance
+ *     stops working for a branch-scoped receptionist. A branch's own row must
+ *     still be hidden from other branches. Both directions are asserted,
+ *     because a policy that got either one wrong would pass a test that only
+ *     checked the other.
+ *   - `doctor_compensation` — org-scoped only, deliberately: one contract per
+ *     person. RLS answers "whose organization"; who may READ a salary is
+ *     `doctor.compensation.read`, which is the application's business and not
+ *     this file's.
+ *   - `appointment_reschedules` — org AND branch, like `appointment_vitals`,
+ *     because its `reason` column is PHI. "Can't come Thursday, chemo" must not
+ *     be readable from another branch.
+ */
+describe('fee schedule, compensation and reschedules', () => {
+  const FEE_DOC_USER_B = 'ffffffff-8888-4888-8888-00000000ae01';
+  const FEE_DOC_B = 'ffffffff-8888-4888-8888-0000000000d1';
+  /** B's organization-wide default. Visible at every branch of B, and nowhere else. */
+  const FEE_ORGWIDE_B = 'ffffffff-8888-4888-8888-0000000000f0';
+  /** B's price at B2 only. */
+  const FEE_AT_B2 = 'ffffffff-8888-4888-8888-0000000000f2';
+  const COMP_B = 'ffffffff-9999-4999-8999-0000000000c1';
+  const RESCHED_B2 = 'ffffffff-9999-4999-8999-00000000be02';
+  const RESCHED_APT_B2 = 'ffffffff-9999-4999-8999-0000000000a2';
+  const RESCHED_PATIENT_B = 'ffffffff-9999-4999-8999-00000000be03';
+  const RESCHED_REG_B2 = 'ffffffff-9999-4999-8999-00000000be04';
+
+  async function asTenantAtBranches<T>(
+    organizationId: string,
+    branchIds: string[],
+    fn: () => Promise<T>
+  ): Promise<T> {
+    await app.query('BEGIN');
+    try {
+      await app.query(`SELECT set_config('app.current_org', $1, true)`, [organizationId]);
+      await app.query(`SELECT set_config('app.branch_scope', $1, true)`, [
+        `{${branchIds.join(',')}}`,
+      ]);
+      const result = await fn();
+      await app.query('COMMIT');
+      return result;
+    } catch (err) {
+      await app.query('ROLLBACK');
+      throw err;
+    }
+  }
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO users (id, full_name, email, updated_at)
+       VALUES ($1, 'Fee Doc B', 'fee-doc-b@example.test', now()) ON CONFLICT DO NOTHING`,
+      [FEE_DOC_USER_B]
+    );
+    await owner.query(
+      `INSERT INTO doctor_profiles (id, organization_id, user_id, updated_at)
+       VALUES ($1, $2, $3, now()) ON CONFLICT DO NOTHING`,
+      [FEE_DOC_B, ORG_B, FEE_DOC_USER_B]
+    );
+
+    await owner.query(
+      `INSERT INTO fee_schedule_entries
+         (id, organization_id, branch_id, doctor_profile_id, fee_type, amount, updated_at)
+       VALUES ($1, $2, NULL, NULL, 'NEW', 500.00, now()),
+              ($3, $4, $5, $6, 'NEW', 900.00, now())
+       ON CONFLICT DO NOTHING`,
+      [FEE_ORGWIDE_B, ORG_B, FEE_AT_B2, ORG_B, BRANCH_B2, FEE_DOC_B]
+    );
+
+    await owner.query(
+      `INSERT INTO doctor_compensation
+         (id, organization_id, doctor_profile_id, amount, "interval", updated_at)
+       VALUES ($1, $2, $3, 250000.00, 'MONTHLY', now()) ON CONFLICT DO NOTHING`,
+      [COMP_B, ORG_B, FEE_DOC_B]
+    );
+
+    await owner.query(
+      `INSERT INTO patients (id, organization_id, uhid, first_name, updated_at)
+       VALUES ($1, $2, 'RESB0001', 'Res B', now()) ON CONFLICT DO NOTHING`,
+      [RESCHED_PATIENT_B, ORG_B]
+    );
+    await owner.query(
+      `INSERT INTO patient_registrations
+         (id, organization_id, patient_id, branch_id, mrn, updated_at)
+       VALUES ($1, $2, $3, $4, 'RESMRNB', now()) ON CONFLICT DO NOTHING`,
+      [RESCHED_REG_B2, ORG_B, RESCHED_PATIENT_B, BRANCH_B2]
+    );
+    await owner.query(
+      `INSERT INTO appointments
+         (id, organization_id, branch_id, patient_id, patient_registration_id,
+          doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'RES-B2-0001',
+               now() + interval '1 day', now() + interval '1 day 15 minutes', now())
+       ON CONFLICT DO NOTHING`,
+      [RESCHED_APT_B2, ORG_B, BRANCH_B2, RESCHED_PATIENT_B, RESCHED_REG_B2, FEE_DOC_B]
+    );
+    await owner.query(
+      `INSERT INTO appointment_reschedules
+         (id, organization_id, branch_id, appointment_id, from_start, to_start,
+          from_doctor_profile_id, to_doctor_profile_id, initiated_by, reason, charge_amount)
+       VALUES ($1, $2, $3, $4, now(), now() + interval '2 days', $5, $6,
+               'PATIENT', 'Chemotherapy on Thursdays', 200.00)
+       ON CONFLICT DO NOTHING`,
+      [RESCHED_B2, ORG_B, BRANCH_B2, RESCHED_APT_B2, FEE_DOC_B, FEE_DOC_B]
+    );
+  });
+
+  afterAll(async () => {
+    await owner.query('DELETE FROM appointment_reschedules WHERE id = $1', [RESCHED_B2]);
+    await owner.query('DELETE FROM appointments WHERE id = $1', [RESCHED_APT_B2]);
+    await owner.query('DELETE FROM patients WHERE id = $1', [RESCHED_PATIENT_B]);
+    await owner.query('DELETE FROM doctor_compensation WHERE id = $1', [COMP_B]);
+    await owner.query('DELETE FROM fee_schedule_entries WHERE id = ANY($1)', [
+      [FEE_ORGWIDE_B, FEE_AT_B2],
+    ]);
+    await owner.query('DELETE FROM doctor_profiles WHERE id = $1', [FEE_DOC_B]);
+    await owner.query('DELETE FROM users WHERE id = $1', [FEE_DOC_USER_B]);
+  });
+
+  // --- fee_schedule_entries ------------------------------------------------
+
+  it('fees fail closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM fee_schedule_entries'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('hides another clinic’s price list entirely, branch-wide row included', async () => {
+    const found = await asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM fee_schedule_entries WHERE id = ANY($1)', [
+        [FEE_ORGWIDE_B, FEE_AT_B2],
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  /**
+   * ⚠️ THE CASE THE NULL PREDICATE EXISTS FOR. A receptionist scoped to B1 has
+   *   no business reading what B2 charges, but they MUST be able to read the
+   *   clinic's organization-wide default or the resolver falls through to
+   *   unpriced and every bill at B1 says "no rate card".
+   */
+  it('shows the clinic-wide default to a branch that has no row of its own', async () => {
+    const ids = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query<{ id: string }>(
+        'SELECT id FROM fee_schedule_entries WHERE id = ANY($1)',
+        [[FEE_ORGWIDE_B, FEE_AT_B2]]
+      );
+      return rows.map((r) => r.id);
+    });
+
+    expect(ids).toContain(FEE_ORGWIDE_B);
+    /* …and still not what the other branch charges. */
+    expect(ids).not.toContain(FEE_AT_B2);
+  });
+
+  it('shows a branch’s own price once that branch is in scope', async () => {
+    const ids = await asTenantAtBranches(ORG_B, [BRANCH_B1, BRANCH_B2], async () => {
+      const { rows } = await app.query<{ id: string }>(
+        'SELECT id FROM fee_schedule_entries WHERE id = ANY($1)',
+        [[FEE_ORGWIDE_B, FEE_AT_B2]]
+      );
+      return rows.map((r) => r.id);
+    });
+
+    expect(ids).toHaveLength(2);
+  });
+
+  /**
+   * ⚠️ WITHOUT `NULLS NOT DISTINCT` THIS INSERT SUCCEEDS, and the clinic then
+   *   holds two organization-wide `NEW` prices with nothing deciding which one a
+   *   patient pays. A plain unique index does not constrain NULLs, and both
+   *   scoping columns here are nullable by design.
+   */
+  it('refuses a second clinic-wide price for the same fee type', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO fee_schedule_entries
+           (id, organization_id, branch_id, doctor_profile_id, fee_type, amount, updated_at)
+         VALUES (gen_random_uuid(), $1, NULL, NULL, 'NEW', 750.00, now())`,
+        [ORG_B]
+      )
+    ).rejects.toThrow(/fee_schedule_entries_scope_key/);
+  });
+
+  // --- doctor_compensation -------------------------------------------------
+
+  it('compensation fails closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM doctor_compensation'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('hides another clinic’s salaries entirely', async () => {
+    const found = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM doctor_compensation WHERE id = $1', [
+        COMP_B,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  /*
+   * Org-scoped ONLY, so a branch-scoped reader inside the right clinic DOES see
+   * it — one contract per person, not one per branch. Asserted so that adding a
+   * branch policy later is a deliberate act with a failing test behind it rather
+   * than a quiet tightening that hides a doctor's pay from their own employer.
+   */
+  it('shows a salary to any branch scope inside the owning clinic', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query('SELECT id FROM doctor_compensation WHERE id = $1', [
+        COMP_B,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(1);
+  });
+
+  // --- appointment_reschedules ---------------------------------------------
+
+  it('reschedules fail closed with no tenant context', async () => {
+    const { rows } = await app.query<{ count: string }>(
+      'SELECT count(*) AS count FROM appointment_reschedules'
+    );
+    expect(Number(rows[0]?.count)).toBe(0);
+  });
+
+  it('hides another clinic’s reschedule trail entirely', async () => {
+    const found = await asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_reschedules WHERE id = $1', [
+        RESCHED_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  /* The reason is PHI, so the branch half is not optional. */
+  it('hides a reschedule made at a branch out of scope, inside the same clinic', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_reschedules WHERE id = $1', [
+        RESCHED_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(0);
+  });
+
+  it('shows a reschedule once its branch is in scope', async () => {
+    const found = await asTenantAtBranches(ORG_B, [BRANCH_B1, BRANCH_B2], async () => {
+      const { rows } = await app.query('SELECT id FROM appointment_reschedules WHERE id = $1', [
+        RESCHED_B2,
+      ]);
+      return rows.length;
+    });
+    expect(found).toBe(1);
   });
 });

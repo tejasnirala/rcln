@@ -35,6 +35,57 @@ constraints. They live in hand-edited SQL blocks inside the migration.
 
 ---
 
+## Dates and times
+
+**One rule, three parts, no exceptions:**
+
+1. **Store in UTC.** Every instant is `DateTime @db.Timestamptz(6)` in Postgres
+   and an ISO-8601 string with a `Z` on the wire. Nothing is ever stored in a
+   local zone, and no column carries a naive wall-clock time except where it
+   genuinely is one (`branch_operating_hours` holds `09:00` as an opening time,
+   not as an instant — a rule about every Monday cannot be an instant).
+2. **Display in the clinic's zone.** Never the browser's, never the container's.
+   `branches.timezone` is the answer; `organizations.timezone` is the fallback
+   when no branch is in play. A row that will be rendered as a clock face
+   carries its own branch's zone with it, because an org-wide admin can open a
+   booking made at a clinic in a different one.
+3. **Display in the clinic's chosen format.** `locale.time_format` —
+   `12H` (the default) or `24H` — resolved at BRANCH scope over ORGANIZATION.
+   Display only: nothing parses it, nothing stores against it, no arithmetic
+   reads it.
+
+**Why it is written down.** Every failure this rule prevents is silent. A
+`toLocaleString()` with no zone is the browser's zone in the browser and the
+container's UTC on the server — that is how a 16:40 IST booking rendered as
+11:10 on the consultation page, plausibly, with nothing on screen saying it had
+shifted. `new Date().toISOString().slice(0, 10)` is today in UTC, which from
+17:30 IST onwards opened every Indian clinic's day board on YESTERDAY. Neither
+throws, neither fails a test, and both look right to whoever wrote them.
+
+**In practice**
+
+| Where                | Use                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| Web, clinical times  | `formatClinicTime` / `formatClinicDate` / `formatClinicDateTime` in `lib/format.ts`              |
+| Web, the zone        | The row's own `timezone` if it has one, else `timezoneOf(slug)`                                  |
+| Web, the format      | The row's branch `timeFormat` if in hand, else `timeFormatOf(slug)`                              |
+| Web, billing periods | `formatDate` / `formatLongDate` — UTC and pinned, deliberately NOT the clinic's zone             |
+| API, date arithmetic | Postgres, `AT TIME ZONE b.timezone`. Never rebuilt from local components in Node                 |
+| Anywhere             | A pinned locale (`en-GB`). `undefined` renders differently on the two sides and breaks hydration |
+
+⚠️ **Billing is the one deliberate exception to part 2.** A billing period is a
+contractual interval, not an event in somebody's day: "this period ends on 25
+July" must read identically to the clinic owner in Kolkata, the accountant in
+Dublin and the support engineer looking over their shoulder, and it has to match
+the invoice, which was generated in UTC. Those render in UTC and say so. An
+appointment is the opposite — 09:00 means 09:00 where the clinic is.
+
+⚠️ **Never add a second clock formatter.** `formatClinicTime` is the only place
+the zone and the 12/24 choice are decided. A local `Intl.DateTimeFormat` in a
+component typechecks perfectly and silently ignores whatever the clinic chose.
+
+---
+
 ## API
 
 Middleware order is the security model. Do not reorder casually:

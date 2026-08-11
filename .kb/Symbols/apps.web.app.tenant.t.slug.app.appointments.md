@@ -10,41 +10,56 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts` · `ap
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AppointmentsPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:33` |  |
+| `AppointmentsPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:34` |  |
 
 ## action
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `bookAppointment` | `(slug: string, _previous: BookingState, formData: FormData): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:128` |  |
-| `cancelBooking` | `(slug: string, appointmentId: string, _previous: BookingState, formData: FormData): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:196` |  |
-| `loadAvailability` | `(slug: string, branchId: string, doctorProfileId: string, date: string): Promise<AvailabilityResponse \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:64` | What is free for one doctor on one day. Never names who holds a taken slot. |
-| `loadDay` | `(slug: string, branchId: string, date: string): Promise<AppointmentListResponse \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:78` |  |
-| `lookupPatients` | `(slug: string, _previous: LookupState, formData: FormData): Promise<LookupState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:99` |  |
-| `markAbsent` | `(slug: string, appointmentId: string): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:230` | Nobody came. A different fact from a cancellation, and a different button. |
-| `moveAppointment` | `(slug: string, appointmentId: string, status: 'CONFIRMED' \| 'CHECKED_IN' \| 'IN_PROGRESS' \| 'COMPL…): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:176` | Confirm, check in, start, complete — one step at a time. |
+| `bookAppointment` | `(slug: string, _previous: BookingState, formData: FormData): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:280` |  |
+| `bookFollowUp` | `(slug: string, appointmentId: string, _previous: BookingState, formData: FormData): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:431` |  |
+| `cancelBooking` | `(slug: string, appointmentId: string, _previous: BookingState, formData: FormData): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:348` |  |
+| `correctVitals` | `(slug: string, appointmentId: string, vitalsId: string, _previous: VitalsState, formData: FormData): Promise<VitalsState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:678` |  |
+| `deleteBooking` | `(slug: string, appointmentId: string): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:407` |  |
+| `loadAppointmentBilling` | `(slug: string, appointmentId: string): Promise<AppointmentBilling \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:720` |  |
+| `loadAvailability` | `(slug: string, branchId: string, doctorProfileId: string, date: string): Promise<AvailabilityResponse \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:93` | What is free for one doctor on one day. Never names who holds a taken slot. |
+| `loadDay` | `(slug: string, branchId: string, date: string, to?: string, doctorProfileId?: string): Promise<AppointmentListResponse \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:138` |  |
+| `loadVitals` | `(slug: string, appointmentId: string): Promise<VitalsReading[] \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:501` | One visit's readings, oldest first. Null when the caller may not read them. |
+| `loadVitalsRevisions` | `(slug: string, appointmentId: string, vitalsId: string): Promise<VitalsRevision[] \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:488` |  |
+| `loadWorkingDays` | `(slug: string, branchId: string, doctorProfileId: string, from: string, to: string): Promise<WorkingDaysResponse \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:123` |  |
+| `lookupPatients` | `(slug: string, rawTerm: string): Promise<LookupState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:182` |  |
+| `markAbsent` | `(slug: string, appointmentId: string): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:382` | Nobody came. A different fact from a cancellation, and a different button. |
+| `moveAppointment` | `(slug: string, appointmentId: string, status: 'CONFIRMED' \| 'CHECKED_IN' \| 'IN_PROGRESS' \| 'COMPL…): Promise<BookingState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:328` | Confirm, check in, start, complete — one step at a time. |
+| `raiseAppointmentInvoice` | `(slug: string, appointmentId: string, input: CreateAppointmentInvoiceRequest): Promise<{ status: 'error'; message: string } \| { status: 'd…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:748` |  |
+| `registerAndPick` | `(slug: string, branchId: string, input: { firstName: string; lastName?: string; phone?: stri…): Promise<QuickRegisterState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:222` |  |
+| `saveVitals` | `(slug: string, appointmentId: string, _previous: VitalsState, formData: FormData): Promise<VitalsState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:639` | Record a set of observations. Side effect at the API: this may check the patient in. The board is revalidated for that reason, not only for the reading itself. |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:54` |  |
+| `forTemperatureBox` <sub>local</sub> | `(errors: Record<string, string[]>): Record<string, string[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:528` | `temperatureC` (the contract's field) -> `temperature` (the form's box). |
+| `measurement` <sub>local</sub> | `(formData: FormData, key: string): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:520` |  |
+| `readingFrom` <sub>local</sub> | `(slug: string, formData: FormData): Promise<{ ok: true; body: RecordVitalsRequest } \| { ok: fal…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:542` |  |
+| `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:83` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `EMPTY_LOOKUP` <sub>local</sub> | `: LookupState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:52` |  |
+| `EMPTY_LOOKUP` <sub>local</sub> | `: LookupState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:81` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:10` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:11` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BookingState` | `{ status: 'idle' \| 'error' \| 'booked'; message?: string; fieldErrors?: Record<string, string[]>; /** The number to read back to the patient, once there is one.…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:31` |  |
-| `LookupState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; patients: PatientSummary[]; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:39` |  |
+| `BookingState` | `{ status: 'idle' \| 'error' \| 'booked'; message?: string; fieldErrors?: Record<string, string[]>; /** The number to read back to the patient, once there is one.…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:49` |  |
+| `LookupState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the "nobody matched" panel can offer to register them. */…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:57` |  |
+| `QuickRegisterState` | `{ status: 'idle' \| 'error' \| 'created'; message?: string; fieldErrors?: Record<string, string[]>; /** The record just created, ready to be booked without a sec…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:66` | The outcome of registering a walk-in from inside the booking panel. |
+| `VitalsState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:472` |  |

@@ -1,9 +1,13 @@
 'use client';
 
 import { useRef, useState, useTransition } from 'react';
-import type { AuditEntry, AuditHistoryResponse } from '@rcln/contracts';
-import { readRecordHistory } from '@/app/(tenant)/t/[slug]/(app)/history-actions';
+import type { AuditEntry, AuditHistoryResponse, TimeFormat } from '@rcln/contracts';
+import {
+  readRecordHistory,
+  type HistoryState,
+} from '@/app/(tenant)/t/[slug]/(app)/history-actions';
 import { Alert } from '@/components/ui/alert';
+import { formatClinicDateTime } from '@/lib/format';
 
 /**
  * What has happened to one record: who changed it, what moved, and when.
@@ -48,11 +52,14 @@ export function RecordHistory({
   label: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [state, setState] = useState<
-    | { status: 'idle' }
-    | { status: 'ok'; history: AuditHistoryResponse }
-    | { status: 'error'; message: string }
-  >({ status: 'idle' });
+  /*
+   * ⚠️ THE ACTION'S OWN `HistoryState`, NOT A HAND-WRITTEN COPY OF IT. This used
+   *   to restate the shape inline, so adding `timezone` to what the action
+   *   returns left the component typed as if it had never arrived. A type
+   *   crosses the `'use server'` boundary happily — it erases — and is the one
+   *   thing that keeps the two ends in step.
+   */
+  const [state, setState] = useState<HistoryState | { status: 'idle' }>({ status: 'idle' });
   const [pending, startTransition] = useTransition();
 
   const open = (): void => {
@@ -85,13 +92,29 @@ export function RecordHistory({
 
         {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
 
-        {state.status === 'ok' ? <Trail history={state.history} /> : null}
+        {state.status === 'ok' ? (
+          <Trail history={state.history} timezone={state.timezone} timeFormat={state.timeFormat} />
+        ) : null}
       </HistoryDialog>
     </>
   );
 }
 
-function HistoryDialog({
+/**
+ * The sheet every history opens in.
+ *
+ * ⚠️ EXPORTED, BECAUSE THERE IS A SECOND TRAIL AND IT MUST NOT LOOK DIFFERENT.
+ *   The vitals drawer shows before/after VALUES, which `audit_logs` deliberately
+ *   does not carry — a different endpoint and a different permission, but the
+ *   same sheet, the same heading and the same close affordance. Two drawers that
+ *   open the same way and look different is the failure this avoids.
+ *
+ * ⚠️ IT SCROLLS VERTICALLY AND MUST NEVER SCROLL HORIZONTALLY. A trail is a list
+ *   of unknown length, so "fits without scrolling" is not a property it can have
+ *   — what it CAN have is every line readable without dragging sideways, which is
+ *   what `max-w-2xl`, wrapping values and a two-column grid buy. See `Change`.
+ */
+export function HistoryDialog({
   ref,
   label,
   children,
@@ -122,7 +145,12 @@ function HistoryDialog({
        * opened, and a flex utility would override that and leave it on screen.
        * `backdrop:` styles the ::backdrop pseudo-element.
        */
-      className="open:flex bg-card text-ink ml-auto h-dvh max-h-dvh w-full max-w-md flex-col p-0 shadow-2xl backdrop:bg-ink/40"
+      /*
+       * `max-w-2xl`, up from `max-w-md`. At 28rem a "was 120, now 80" line wrapped
+       * three times and the sheet became a column of fragments; the extra width
+       * is what lets a change render as one line.
+       */
+      className="open:flex bg-card text-ink ml-auto h-dvh max-h-dvh w-full max-w-2xl flex-col p-0 shadow-2xl backdrop:bg-ink/40"
     >
       <div className="border-rule flex items-start gap-4 border-b p-5">
         <div className="min-w-0">
@@ -148,11 +176,20 @@ function HistoryDialog({
   );
 }
 
-function Trail({ history }: { history: AuditHistoryResponse }) {
+function Trail({
+  history,
+  timezone,
+  timeFormat,
+}: {
+  history: AuditHistoryResponse;
+  timezone: string;
+  timeFormat: TimeFormat;
+}) {
   if (history.entries.length === 0) {
     return (
       <p className="text-muted text-[0.875rem] leading-relaxed">
-        Nothing recorded yet. Every change from here on is listed here, with who made it and when.
+        Nothing recorded yet. Every change from here on appears here, with who made it and when,
+        most recent first.
       </p>
     );
   }
@@ -162,7 +199,7 @@ function Trail({ history }: { history: AuditHistoryResponse }) {
       <ol className="grid gap-5">
         {history.entries.map((entry) => (
           <li key={entry.id}>
-            <Entry entry={entry} />
+            <Entry entry={entry} timezone={timezone} timeFormat={timeFormat} />
           </li>
         ))}
       </ol>
@@ -189,7 +226,15 @@ const ACTION_LABEL: Record<AuditEntry['action'], string> = {
   PERMISSION_CHANGE: 'Access changed',
 };
 
-function Entry({ entry }: { entry: AuditEntry }) {
+function Entry({
+  entry,
+  timezone,
+  timeFormat,
+}: {
+  entry: AuditEntry;
+  timezone: string;
+  timeFormat: TimeFormat;
+}) {
   return (
     <article>
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -207,26 +252,35 @@ function Entry({ entry }: { entry: AuditEntry }) {
         </p>
       </div>
 
-      {/* Absolute, in the reader's own zone. `suppressHydrationWarning` because the
-          server renders it in the container's — the reader's clock is correct. */}
+      {/*
+        ⚠️ IN THE CLINIC'S ZONE, NOT THE READER'S, AND THAT IS A CHANGE. This used
+          to render in whatever zone the browser was set to, with
+          `suppressHydrationWarning` papering over the server disagreeing — the
+          note said "the reader's clock is correct", which is true for a laptop
+          and wrong for a record. "Edited at 16:40" has to mean the same 16:40 as
+          the appointment it is about, or two screens describe one afternoon
+          differently. Pinning the zone also makes the two renders agree, so the
+          hydration suppression is gone rather than hidden.
+
+          `dateTime` stays the raw instant, which is what a machine should read.
+      */}
       <p className="text-muted mt-0.5 font-mono text-[0.75rem]">
-        <time dateTime={entry.occurredAt} suppressHydrationWarning>
-          {new Date(entry.occurredAt).toLocaleString([], {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+        <time dateTime={entry.occurredAt}>
+          {formatClinicDateTime(entry.occurredAt, timezone, timeFormat)}
         </time>
       </p>
 
       {entry.changes.length > 0 ? (
         <dl className="border-rule mt-2 grid gap-1.5 border-l pl-3">
           {entry.changes.map((change) => (
-            <div key={change.field} className="grid gap-0.5">
+            /* The same two-column shape as the vitals trail, so the two drawers
+               read alike: a fixed label column and a value column that wraps
+               inside itself rather than pushing the sheet sideways. */
+            <div key={change.field} className="grid gap-0.5 sm:grid-cols-[9rem_1fr] sm:gap-3">
               <dt className="text-muted text-[0.75rem]">{fieldLabel(change.field)}</dt>
-              <dd className="text-ink flex flex-wrap items-baseline gap-1.5 font-mono text-[0.75rem]">
+              {/* `break-words` and `min-w-0`: an unbroken id or a long setting
+                  value used to push the sheet sideways rather than wrap. */}
+              <dd className="text-ink flex min-w-0 flex-wrap items-baseline gap-1.5 font-mono text-[0.75rem] break-words">
                 {'before' in change ? (
                   <span className="text-muted line-through">{format(change.before)}</span>
                 ) : null}
@@ -254,13 +308,93 @@ function Entry({ entry }: { entry: AuditEntry }) {
   );
 }
 
-/** `displayName` -> "display name". The API stores the column as it is written. */
+/**
+ * `displayName` -> "display name". The API stores the column as it is written.
+ *
+ * ⚠️ A FEW KEYS ARE NOT COLUMN NAMES AND MUST NOT BE DE-CAMELED INTO NONSENSE.
+ *   `has_note` became "has note" against a bare "yes", and `observations`
+ *   rendered a JSON array. Both are shapes a service put on the row
+ *   deliberately, and both read as gibberish under the generic rule — so the
+ *   ones that exist get a written label, and everything else keeps the
+ *   mechanical one.
+ */
+const FIELD_LABELS: Record<string, string> = {
+  has_note: 'Note recorded',
+  observations: 'Observations taken',
+  amended: 'Measurements corrected',
+  recorded_at: 'Taken at',
+  appointment_id: 'Appointment',
+  patient_id: 'Patient',
+
+  /*
+   * The invoice trail. Two shapes here are deliberate on the audit row and read
+   * as nonsense without a written label:
+   *
+   *   - `…Minor` — money as an integer count of the currency's smallest unit,
+   *     which is what `audit_logs` stores so a ledger figure cannot round on its
+   *     way through JSON. The row does not reliably carry a currency (a diff
+   *     holds only what MOVED), so this drawer cannot render ₹1,999.00 honestly
+   *     and says which unit it is showing instead.
+   *   - `hasNotes` / `hasCancellationReason` — booleans standing in for free
+   *     text that must not reach this table. "Reason recorded: no → yes" is the
+   *     auditable fact; the sentence itself is on the invoice.
+   */
+  lineCount: 'Lines',
+  sourceType: 'Raised from',
+  suppliedAt: 'Date of supply',
+  invoiceNumber: 'Invoice number',
+  customerTaxId: 'Customer’s tax number',
+  subtotalMinor: 'Subtotal (smallest unit)',
+  lineDiscountTotalMinor: 'Line discounts (smallest unit)',
+  invoiceDiscountTotalMinor: 'Bill discount (smallest unit)',
+  taxableAmountMinor: 'Taxable amount (smallest unit)',
+  taxTotalMinor: 'Tax (smallest unit)',
+  roundingAdjustmentMinor: 'Cash rounding (smallest unit)',
+  grandTotalMinor: 'Grand total (smallest unit)',
+  taxTreatment: 'Tax treatment',
+  placeOfSupply: 'Place of supply',
+  issuerTaxId: 'Issued under',
+  issuerTaxRegistrationId: 'Registration',
+  hasNotes: 'Note recorded',
+  hasCancellationReason: 'Reason recorded',
+
+  /* The rate card, whose rows have been auditable since Phase 9 unread. */
+  registrationNumber: 'Registration number',
+  effectiveFrom: 'In force from',
+  effectiveTo: 'In force until',
+  taxCategory: 'Category',
+};
+
 function fieldLabel(field: string): string {
-  return field
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/_/g, ' ')
-    .toLowerCase();
+  return (
+    FIELD_LABELS[field] ??
+    field
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/_/g, ' ')
+      .toLowerCase()
+  );
 }
+
+/** `systolic_mm_hg` -> "systolic". What a person calls the measurement. */
+const MEASUREMENT_WORDS: Record<string, string> = {
+  height: 'height',
+  weight: 'weight',
+  temperature: 'temperature',
+  pulse: 'pulse',
+  respiratory_rate: 'respiratory rate',
+  blood_pressure: 'blood pressure',
+  spo2: 'oxygen saturation',
+  spo2_percent: 'oxygen saturation',
+  blood_glucose: 'blood glucose',
+  height_cm: 'height',
+  weight_kg: 'weight',
+  temperature_c: 'temperature',
+  pulse_bpm: 'pulse',
+  respiratory_rate_bpm: 'respiratory rate',
+  systolic_mm_hg: 'systolic',
+  diastolic_mm_hg: 'diastolic',
+  blood_glucose_mg_dl: 'blood glucose',
+};
 
 /**
  * A stored value, as one line of text.
@@ -273,6 +407,24 @@ function format(value: unknown): string {
   if (value === null || value === undefined) return 'not set';
   if (value === '') return 'empty';
   if (typeof value === 'boolean') return value ? 'yes' : 'no';
+
+  /*
+   * ⚠️ A LIST IS READ OUT, NOT JSON.stringify-D. `observations` and `amended`
+   *   are both arrays of measurement names, and they rendered as
+   *   `["systolic_mm_hg","diastolic_mm_hg"]` — brackets, quotes, underscores and
+   *   all — in a drawer meant to be read by a clinic administrator. They are the
+   *   only arrays this trail carries today; anything else still falls through to
+   *   JSON rather than being guessed at.
+   */
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'none';
+    const words = value.map((item) =>
+      typeof item === 'string' ? (MEASUREMENT_WORDS[item] ?? item.replace(/_/g, ' ')) : String(item)
+    );
+    const last = words.pop();
+    return words.length === 0 ? String(last) : `${words.join(', ')} and ${String(last)}`;
+  }
+
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }

@@ -76,7 +76,7 @@ and runs automatically — a `Stop` hook after any session that touched
 was stale. Never hand-edit a file carrying the generated banner; edit the
 source, `.kb/modules.json`, or `.kb/generate.mjs`.
 
-## The five invariants
+## The seven invariants
 
 Breaking any of these is a correctness or security regression, not a style
 choice. Each has an ADR explaining why; read it before arguing with it.
@@ -110,6 +110,28 @@ choice. Each has an ADR explaining why; read it before arguing with it.
    goes through versioned form templates — JSONB as a document, never as a
    foreign key. → [ADR-0006](.kb/Architecture/decisions/0006-no-json-id-arrays.md)
 
+6. **Store time in UTC, display it in the clinic's zone and the clinic's
+   format.** `Timestamptz` in Postgres, ISO with a `Z` on the wire — always.
+   Rendered in `branches.timezone` (never the browser's, never the container's)
+   and in `locale.time_format`, a per-branch setting that is `12H` by default
+   and `24H` if the clinic says so. On the web that means `formatClinicTime` and
+   friends in `apps/web/src/lib/format.ts`, with the zone from the row or
+   `timezoneOf(slug)` and the format from the row's branch or `timeFormatOf(slug)`
+   — never a fresh `Intl.DateTimeFormat` and never a bare `toLocaleString()`.
+   Billing periods are the one deliberate exception and render in UTC.
+   → [CONVENTIONS.md § Dates and times](.kb/Architecture/CONVENTIONS.md)
+
+7. **Reading a patient's record is not writing in it.** Authoring the clinical
+   record — `clinical.encounter.create`/`.close`, `clinical.prescription.create`/`.sign`
+   — belongs to DOCTOR alone among the system roles, and is stripped from
+   ORG_OWNER and ORG_ADMIN by name in `roles.ts` because they are defined as
+   "everything except", so a new authoring code would otherwise join them
+   silently. Vitals split the same way: `clinical.vitals.read` for anyone who
+   consults the chart, `clinical.vitals.record` for whoever actually holds the
+   cuff — the front desk and the nurse, not the doctor. Clinics widen this
+   themselves by cloning a role or granting a code per membership; that is a
+   clinic's decision, not a default.
+
 ## Running it
 
 ```bash
@@ -125,6 +147,12 @@ Workspace commands inside the container:
 docker compose exec api pnpm validate      # typecheck + lint + test
 docker compose exec api pnpm db:rls:check  # if you touched the schema
 ```
+
+The schema is a **folder**, `packages/db/prisma/schema/`, not one file: Prisma
+concatenates every `*.prisma` in it. Models live in the file for their domain
+(`patients.prisma`, `invoicing.prisma`, …) with their enums beside them, and
+`schema.prisma` carries only `generator` and `datasource`. Its `output` path is
+relative to that folder, so it is `../../generated/prisma`.
 
 If you added a tenant table, it needs an RLS policy in
 `packages/db/prisma/rls/enable-rls.sql`, appended to the generated migration,
@@ -149,7 +177,7 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
   tenant-isolation test rather than at a 200 response.
 - **`/db-migration <change>`** — the schema-change sequence: model conventions,
   the RLS gauntlet, the SQL Prisma Migrate cannot manage, the isolation test.
-  **Use this for any `schema.prisma` change.**
+  **Use this for any change under `packages/db/prisma/schema/`.**
 - **`/api-integration <endpoint>`** — contract in `@rcln/contracts` → permission
   code → service via `withTenant` → route with the correct middleware chain → web
   consumer.

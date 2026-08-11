@@ -41,7 +41,7 @@ import {
 } from '@rcln/billing';
 import { PaymentUnavailableError } from '@rcln/payments';
 import type { Logger } from 'pino';
-import { QUEUE, jobId, type BillingJob } from '../queues.js';
+import { QUEUE, jobId, type BillingJob } from '@rcln/queue';
 
 /** How the engine opens a scoped transaction here — the ordinary `withTenant`. */
 const run: Parameters<typeof renewSubscription>[3] = (ctx, fn) => withTenant(ctx, fn);

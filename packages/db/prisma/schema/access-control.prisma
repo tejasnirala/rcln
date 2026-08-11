@@ -1,0 +1,329 @@
+// =============================================================================
+// ACCESS CONTROL
+// =============================================================================
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+enum RoleScopeLevel {
+  PLATFORM
+  ORGANIZATION
+  BRANCH
+}
+
+enum OverrideEffect {
+  GRANT
+  DENY
+}
+
+/// user × organization. The join that makes one login work across tenants.
+model Membership {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @map("user_id") @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  status         MembershipStatus @default(INVITED)
+  invitedBy      String?          @map("invited_by") @db.Uuid
+  joinedAt       DateTime?        @map("joined_at") @db.Timestamptz(6)
+  /// The branch this person last worked in, so signing in puts them back where
+  /// they were rather than in whichever branch happens to be primary.
+  ///
+  /// WHY IT LIVES HERE AND NOT ON `users`
+  ///   Someone who works at two clinics has a different last branch at each, so
+  ///   the preference belongs to the (user × organization) pair — which is exactly
+  ///   what a membership is. On `users` it would be one slot for two answers, and
+  ///   switching organization would silently clobber the other clinic's.
+  ///
+  /// A PREFERENCE, NOT A GRANT. Never trusted on read. Sign-in and switch both
+  /// re-resolve the caller's branch scope from `membership_roles` and fall back to
+  /// the primary branch unless this branch is still in that scope and still
+  /// ACTIVE. A branch that has been closed or un-assigned is therefore inert
+  /// rather than a way back in.
+  lastBranchId   String?          @map("last_branch_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz(6)
+
+  user         User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roles        MembershipRole[]
+  overrides    MembershipPermissionOverride[]
+  staffProfile StaffProfile?
+  /**
+   * Composite, against `(organization_id, id)` — ADR-0004. Without it this column
+   * could name another clinic's branch, and "we validate it on read" is exactly
+   * the assurance ADR-0004 exists to replace.
+   * NoAction is deliberate, and neither alternative works:
+   * - Cascade would delete the MEMBERSHIP when a branch is hard-deleted. Losing
+   * someone's access because a location closed is not a preference being
+   * forgotten.
+   * - SetNull on a composite FK nulls every referencing column, including
+   * `organization_id`, which is NOT NULL — so the delete would fail at runtime
+   * with a constraint violation rather than doing what it says.
+   * Nothing in the application hard-deletes a branch (branch.service.ts sets
+   * `deletedAt` and CLOSED), so this constraint is a backstop, not a workflow. If
+   * a hard delete is ever needed, clear this column first.
+   */
+  lastBranch   Branch?                        @relation("MembershipLastBranch", fields: [organizationId, lastBranchId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, status])
+  @@map("memberships")
+}
+
+/// System roles have organizationId = null and are never edited by a tenant.
+/// A tenant clones one into an org-scoped custom role instead.
+model Role {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String?        @map("organization_id") @db.Uuid
+  code           String         @db.VarChar(64)
+  name           String         @db.VarChar(128)
+  description    String?        @db.VarChar(512)
+  scopeLevel     RoleScopeLevel @map("scope_level")
+  isSystem       Boolean        @default(false) @map("is_system")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions  RolePermission[]
+  assignments  MembershipRole[]
+  invitations  Invitation[]
+  designations RoleDesignation[]
+
+  @@unique([organizationId, code])
+  @@index([isSystem])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique @db.VarChar(128)
+  module      String   @db.VarChar(64)
+  action      String   @db.VarChar(64)
+  description String?  @db.VarChar(512)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  roles     RolePermission[]
+  overrides MembershipPermissionOverride[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// The heart of the access model.
+///
+///   branchId NULL  -> the role applies to EVERY branch in the organization
+///   branchId set   -> the role applies to that branch only
+///
+/// One admin over all three branches  = 1 row, branchId null
+/// A separate admin per branch        = 1 row each, branchId set
+/// Admin over A and B, another over A = 2 rows + 1 row
+model MembershipRole {
+  id             String    @id @default(uuid()) @db.Uuid
+  membershipId   String    @map("membership_id") @db.Uuid
+  /// Denormalised from membership so RLS can filter without a join, and so the
+  /// composite FK to branches can be enforced.
+  organizationId String    @map("organization_id") @db.Uuid
+  roleId         String    @map("role_id") @db.Uuid
+  branchId       String?   @map("branch_id") @db.Uuid
+  validFrom      DateTime? @map("valid_from") @db.Timestamptz(6)
+  validTo        DateTime? @map("valid_to") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  branch     Branch?    @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([membershipId, roleId, branchId])
+  @@index([organizationId, branchId])
+  @@index([membershipId])
+  @@map("membership_roles")
+}
+
+/// Per-person exceptions. DENY always beats GRANT, and both beat role grants.
+model MembershipPermissionOverride {
+  id             String         @id @default(uuid()) @db.Uuid
+  membershipId   String         @map("membership_id") @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  permissionId   String         @map("permission_id") @db.Uuid
+  branchId       String?        @map("branch_id") @db.Uuid
+  effect         OverrideEffect
+  reason         String?        @db.VarChar(512)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  branch     Branch?    @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([membershipId, permissionId, branchId])
+  @@index([organizationId])
+  @@map("membership_permission_overrides")
+}
+
+model Invitation {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  email          String    @db.VarChar(255)
+  phone          String?   @db.VarChar(20)
+  roleId         String    @map("role_id") @db.Uuid
+  /// The job title this invite is for. Copied onto the staff profile when the
+  /// invitation is accepted, so the answer is decided by whoever knows it —
+  /// the person sending the invite — rather than guessed from the role.
+  designationId  String?   @map("designation_id") @db.Uuid
+  token          String    @unique @db.VarChar(255)
+  invitedBy      String    @map("invited_by") @db.Uuid
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz(6)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role               @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  designation  Designation?       @relation(fields: [designationId], references: [id], onDelete: SetNull)
+  inviter      User               @relation("InvitedBy", fields: [invitedBy], references: [id])
+  branches     InvitationBranch[]
+
+  @@index([organizationId, email])
+  @@map("invitations")
+}
+
+model InvitationBranch {
+  id           String @id @default(uuid()) @db.Uuid
+  invitationId String @map("invitation_id") @db.Uuid
+  branchId     String @map("branch_id") @db.Uuid
+
+  invitation Invitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([invitationId, branchId])
+  @@map("invitation_branches")
+}
+
+/// The job titles a clinic hands out. Platform catalogue with per-tenant
+/// extension: `organizationId = NULL` is a platform row every clinic sees.
+///
+/// Exists as a table rather than free text on `staff_profiles` because a
+/// designation is a closed set the clinic curates — the invite form picks from
+/// it, and an admin adds to it. Free text produces "Sr. Consultant",
+/// "Senior Consultant" and "Sr Consultant" as three different things and makes
+/// "how many consultants do we have" unanswerable.
+///
+/// ⚠️ ITS RLS POLICY IS READ-PERMISSIVE AND WRITE-STRICT, exactly as
+/// `specialties` is, and NOT the policy on `files`. A NULL-permissive WITH CHECK
+/// would let any clinic insert a platform-wide designation visible to every
+/// other tenant. See the migration and enable-rls.sql.
+model Designation {
+  id             String    @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?   @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(64)
+  name           String    @db.VarChar(128)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization  Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitations   Invitation[]
+  staffProfiles StaffProfile[]
+  roles         RoleDesignation[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// rows are not unique among themselves.
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  @@map("designations")
+}
+
+/// Which job titles fit which role. A "Receptionist" is not a "Radiologist".
+///
+/// A real join table rather than an array on either side (ADR-0006): the
+/// relationship is genuinely many-to-many — "Consultant" fits only DOCTOR, while
+/// "Clinic Manager" fits ORG_ADMIN, BRANCH_ADMIN and RECEPTIONIST — and a JSONB
+/// array of ids cannot be joined, constrained by a foreign key, or filtered in
+/// SQL.
+///
+/// `organizationId = NULL` is a platform pairing, seeded for the built-in roles
+/// so the feature works on day one. A clinic adds its own for its own custom
+/// roles and titles, and cannot touch the platform ones.
+///
+/// ⚠️ AN UNMAPPED DESIGNATION FITS EVERY ROLE, DELIBERATELY.
+///   The eligibility query treats "has no POSITIVE pairing anywhere" as "fits
+///   anywhere", not as "fits nowhere". The alternative makes this a trap: a
+///   clinic adds a title, forgets to map it, and watches it disappear from every
+///   menu with nothing explaining why. Titles added from the invite form are
+///   auto-mapped to the role being invited, so that path is mapped from birth.
+///
+/// ⚠️ "POSITIVE" IS LOAD-BEARING IN THAT SENTENCE — see `isExcluded`.
+model RoleDesignation {
+  id             String   @id @default(uuid()) @db.Uuid
+  /// NULL = platform pairing, visible to every tenant.
+  organizationId String?  @map("organization_id") @db.Uuid
+  roleId         String   @map("role_id") @db.Uuid
+  designationId  String   @map("designation_id") @db.Uuid
+  /// A tenant row that SUPPRESSES a platform default rather than adding one:
+  /// "our Receptionists are never Clinic Managers". Always false on a platform
+  /// row — the platform states what fits, never what does not.
+  ///
+  /// Excluded rows are deliberately NOT counted when deciding whether a title
+  /// is "unmapped". Two things break if they are:
+  ///
+  ///   - Unticking an unmapped title for ONE role would create its only row,
+  ///     making the title look mapped, and it would vanish from every OTHER
+  ///     role's menu too.
+  ///   - Unticking every one of a title's platform pairings would leave only
+  ///     exclusions, making it look unmapped again — and therefore valid
+  ///     everywhere, which is the exact opposite of what was asked for.
+  isExcluded     Boolean  @default(false) @map("is_excluded")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  designation  Designation   @relation(fields: [designationId], references: [id], onDelete: Cascade)
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration — platform pairings carry a NULL
+  /// organization_id and must be unique among themselves.
+  @@unique([organizationId, roleId, designationId])
+  @@index([roleId])
+  @@index([designationId])
+  @@map("role_designations")
+}
+
+/// Employment facts are per-organization, so this keys on membership, not user.
+///
+/// `employeeCode`, `designationId` and `joinedOn` are AUTO-POPULATED when an
+/// invitation is accepted — see `acceptInvitation`. They stay editable
+/// afterwards from the Staff screen.
+model StaffProfile {
+  id            String    @id @default(uuid()) @db.Uuid
+  membershipId  String    @unique @map("membership_id") @db.Uuid
+  /// Issued from the EMPLOYEE sequence at accept time. Stable for life: it is
+  /// how the clinic refers to this person, so a re-join keeps the original.
+  employeeCode  String?   @map("employee_code") @db.VarChar(64)
+  department    String?   @db.VarChar(128)
+  /// Replaced the free-text `designation` column, which had no rows. One source
+  /// of truth: a designation is a row in `designations`, never a typed string.
+  designationId String?   @map("designation_id") @db.Uuid
+  joinedOn      DateTime? @map("joined_on") @db.Date
+  relievedOn    DateTime? @map("relieved_on") @db.Date
+
+  membership  Membership   @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  designation Designation? @relation(fields: [designationId], references: [id], onDelete: SetNull)
+
+  @@index([designationId])
+  @@map("staff_profiles")
+}

@@ -13,8 +13,13 @@ loadEnv({ path: new URL('../../.env', import.meta.url).pathname });
  * DATABASE_URL through the pg adapter in src/client.ts, where RLS is enforced.
  */
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  // A FOLDER, not a file. Prisma concatenates every *.prisma inside it, so the
+  // models are split by domain (tenancy, doctors, patients, …) instead of living
+  // in one 4k-line file. `generator` and `datasource` stay in schema.prisma.
+  schema: 'prisma/schema',
   migrations: {
+    // Explicit because a folder-based schema otherwise defaults the migrations
+    // directory to a sibling of the schema folder (prisma/schema/migrations).
     path: 'prisma/migrations',
     seed: 'tsx prisma/seed.ts',
   },

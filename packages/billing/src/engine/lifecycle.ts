@@ -25,7 +25,7 @@ import { subtractMoney, type Money } from '@rcln/payments';
 import { billingError } from '../errors.js';
 import { canUpgrade } from '../policy.js';
 import { periodFrom } from '../periods.js';
-import type { TaxQuote } from '../tax/engine.js';
+import type { TaxQuote } from '@rcln/tax';
 import {
   classifyChange,
   prorate,

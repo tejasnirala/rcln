@@ -1,8 +1,8 @@
 'use server';
 
-import type { AuditHistoryResponse } from '@rcln/contracts';
+import type { AuditHistoryResponse, TimeFormat } from '@rcln/contracts';
 import { api } from '@/lib/api';
-import { getAccessToken } from '@/lib/session';
+import { getAccessToken, timeFormatOf, timezoneOf } from '@/lib/session';
 
 /**
  * A record's history, fetched when somebody asks for it.
@@ -21,7 +21,23 @@ import { getAccessToken } from '@/lib/session';
  */
 
 export type HistoryState =
-  { status: 'ok'; history: AuditHistoryResponse } | { status: 'error'; message: string };
+  | {
+      status: 'ok';
+      history: AuditHistoryResponse;
+      /**
+       * The clinic's zone, so the drawer can stamp each entry in it.
+       *
+       * ⚠️ RETURNED WITH THE PAYLOAD RATHER THAN PASSED IN AS A PROP. The drawer
+       *   is rendered from six different lists, none of which has any other
+       *   reason to know a timezone — threading one through all six is six
+       *   chances to forget. This action already runs on the server with the
+       *   slug bound to it, so it is the cheapest honest place to answer.
+       */
+      timezone: string;
+      /** And the clock face it reads in — same argument as `timezone` above. */
+      timeFormat: TimeFormat;
+    }
+  | { status: 'error'; message: string };
 
 export async function readRecordHistory(
   slug: string,
@@ -50,5 +66,6 @@ export async function readRecordHistory(
     };
   }
 
-  return { status: 'ok', history: result.data };
+  const [timezone, timeFormat] = await Promise.all([timezoneOf(slug), timeFormatOf(slug)]);
+  return { status: 'ok', history: result.data, timezone, timeFormat };
 }

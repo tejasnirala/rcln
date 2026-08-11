@@ -18,7 +18,13 @@ export * from './proration.js';
 export * from './entitlements.js';
 export * from './policy.js';
 export * from './numbering.js';
-export * from './tax/engine.js';
+
+/*
+ * The tax seam moved to `@rcln/tax` — a clinic billing a patient needs the same
+ * rules with a different issuer, and a second copy of them would be a second
+ * opinion about a legal position. It is NOT re-exported here: one symbol, one
+ * home, so nothing ends up importing `TaxQuote` from two places.
+ */
 
 export * from './engine/shared.js';
 export * from './engine/checkout.js';

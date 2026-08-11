@@ -2,6 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
 import type { BranchDetail, OperatingHour } from '@rcln/contracts';
+import { COUNTRIES, addressLabels, regionsFor } from '@rcln/contracts';
 import { Input, Select, type SelectOption } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { RecordHistory } from '@/components/tenant/record-history';
@@ -55,6 +56,84 @@ const DAYS = [
 
 function hourFor(hours: OperatingHour[], day: number): OperatingHour | undefined {
   return hours.find((h) => h.dayOfWeek === day);
+}
+
+const COUNTRY_OPTIONS: SelectOption[] = COUNTRIES.map((country) => ({
+  value: country.code,
+  label: country.name,
+}));
+
+/**
+ * Where this branch is, for TAX. A different question from its address.
+ *
+ * ⚠️ TWO FIELDS THAT LOOK LIKE THE ADDRESS AND ARE NOT IT. `city` and the state
+ *   text box above are what gets printed on a letter; these decide which tax
+ *   registration an invoice raised here is issued under, and which rate applies.
+ *   They were previously unsettable through this screen at all, so every branch
+ *   carried the column default `IN` — which is invisible until an Irish clinic
+ *   wonders why its invoices carry no VAT.
+ *
+ * The region select only appears for countries that actually register tax by
+ * subdivision; `regionsFor` is empty for Ireland and the UK, and offering an
+ * empty dropdown there implies a choice that does not exist.
+ */
+function JurisdictionFields({
+  idPrefix,
+  countryCode,
+  onCountryChange,
+  regionCode,
+  onRegionChange,
+  errors,
+  disabled,
+}: {
+  idPrefix: string;
+  countryCode: string;
+  onCountryChange: (value: string) => void;
+  regionCode: string;
+  onRegionChange: (value: string) => void;
+  errors: (name: string) => string[] | undefined;
+  disabled?: boolean;
+}) {
+  const regions = regionsFor(countryCode);
+
+  return (
+    <>
+      <Select
+        id={`${idPrefix}-countryCode`}
+        name="countryCode"
+        label="Tax country"
+        hint="Which country's tax rules this branch bills under"
+        errors={errors('countryCode')}
+        value={countryCode}
+        onChange={(event) => {
+          onCountryChange(event.target.value);
+          // A region belongs to its country. Keeping `KA` while switching to
+          // Ireland leaves a jurisdiction that matches no registration.
+          onRegionChange('');
+        }}
+        disabled={disabled}
+        options={COUNTRY_OPTIONS}
+      />
+      {regions.length > 0 ? (
+        <Select
+          id={`${idPrefix}-regionCode`}
+          name="regionCode"
+          label={addressLabels(countryCode).region ?? 'State or province'}
+          hint="Decides which registration covers this branch, where none is stated"
+          errors={errors('regionCode')}
+          value={regionCode}
+          onChange={(event) => onRegionChange(event.target.value)}
+          disabled={disabled}
+          placeholder="Country-wide"
+          options={regions.map((region) => ({ value: region.code, label: region.name }))}
+        />
+      ) : (
+        // Still submitted, so switching away from India actually clears the old
+        // state rather than leaving it on the row.
+        <input type="hidden" name="regionCode" value="" />
+      )}
+    </>
+  );
 }
 
 /**
@@ -130,10 +209,19 @@ function StatusChip({ branch }: { branch: BranchDetail }) {
 export function BranchList({
   slug,
   branches,
+  organization,
   canReadHistory,
 }: {
   slug: string;
   branches: BranchDetail[];
+  /**
+   * The clinic's own jurisdiction, used only to seed a new branch's.
+   *
+   * Not the same fact as the branch's — a group registered in Karnataka may open
+   * in Kerala — which is exactly why the new branch shows the inherited value in
+   * an editable field rather than silently taking it.
+   */
+  organization: { countryCode: string; regionCode: string | null };
   canReadHistory: boolean;
 }) {
   const [adding, setAdding] = useState(false);
@@ -159,7 +247,12 @@ export function BranchList({
 
       {adding ? (
         <div className="border-drape bg-drape-tint/40 mt-6 rounded-lg border p-5">
-          <CreateForm slug={slug} onDone={closeCreate} />
+          <CreateForm
+            slug={slug}
+            defaultCountry={organization.countryCode}
+            defaultRegion={organization.regionCode ?? ''}
+            onDone={closeCreate}
+          />
         </div>
       ) : null}
 
@@ -255,10 +348,28 @@ function BranchCard({
   );
 }
 
-function CreateForm({ slug, onDone }: { slug: string; onDone: () => void }) {
+function CreateForm({
+  slug,
+  defaultCountry,
+  defaultRegion,
+  onDone,
+}: {
+  slug: string;
+  defaultCountry: string;
+  defaultRegion: string;
+  onDone: () => void;
+}) {
   const [state, action, pending] = useActionState(createBranch.bind(null, slug), IDLE);
   const formRef = useRef<HTMLFormElement>(null);
   useOutcomeFocus(state.status, formRef);
+
+  /*
+   * Seeded from the clinic's own jurisdiction, which is what the API would apply
+   * anyway if these were left out — shown rather than implied, so somebody
+   * opening a branch in a second state notices that this is a thing to change.
+   */
+  const [countryCode, setCountryCode] = useState(defaultCountry);
+  const [regionCode, setRegionCode] = useState(defaultRegion);
 
   // Collapse the form once the branch exists. In an effect, not in render:
   // calling a parent's setState during render is what produces the
@@ -307,6 +418,22 @@ function CreateForm({ slug, onDone }: { slug: string; onDone: () => void }) {
           autoComplete="off"
         />
         <Input name="city" label="City" hint="Optional" errors={err('city')} autoComplete="off" />
+        <Input
+          name="pincode"
+          label={addressLabels(countryCode).postalCode}
+          hint="Optional"
+          errors={err('pincode')}
+          className="font-mono"
+          autoComplete="off"
+        />
+        <JurisdictionFields
+          idPrefix="create"
+          countryCode={countryCode}
+          onCountryChange={setCountryCode}
+          regionCode={regionCode}
+          onRegionChange={setRegionCode}
+          errors={err}
+        />
       </div>
 
       {state.status === 'error' ? (
@@ -339,6 +466,9 @@ function EditForm({
   const [state, action, pending] = useActionState(updateBranch.bind(null, slug, branch.id), IDLE);
   const formRef = useRef<HTMLFormElement>(null);
   useOutcomeFocus(state.status, formRef);
+
+  const [countryCode, setCountryCode] = useState(branch.countryCode);
+  const [regionCode, setRegionCode] = useState(branch.regionCode ?? '');
 
   const err = (name: string): string[] | undefined => state.fieldErrors?.[name];
 
@@ -386,10 +516,18 @@ function EditForm({
         <Input
           id={`pincode-${branch.id}`}
           name="pincode"
-          label="PIN code"
+          label={addressLabels(countryCode).postalCode}
           errors={err('pincode')}
           className="font-mono"
           defaultValue={branch.pincode ?? ''}
+        />
+        <JurisdictionFields
+          idPrefix={branch.id}
+          countryCode={countryCode}
+          onCountryChange={setCountryCode}
+          regionCode={regionCode}
+          onRegionChange={setRegionCode}
+          errors={err}
         />
       </div>
 

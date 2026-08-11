@@ -4,12 +4,10 @@
 
 > The rules that decide what a clinic is charged.
 
-Files: `packages/billing/tests/billing-rules.test.ts` · `packages/billing/tests/tax.test.ts`
+Files: `packages/billing/tests/billing-rules.test.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `customer` <sub>local</sub> | `(over: Partial<TaxableCustomer>): TaxableCustomer` | `packages/billing/tests/tax.test.ts:36` |  |
-| `supply` <sub>local</sub> | `(registrations: SupplierRegistration[], over: Partial<TaxableCustomer>, netMinor)` | `packages/billing/tests/tax.test.ts:44` |  |
 | `utc` <sub>local</sub> | `(iso: string): Date` | `packages/billing/tests/billing-rules.test.ts:24` |  |

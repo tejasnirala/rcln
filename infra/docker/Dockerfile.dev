@@ -21,6 +21,28 @@ FROM node:22-alpine
 RUN apk add --no-cache libc6-compat curl \
   && corepack enable pnpm
 
+# ---------------------------------------------------------------------------
+# Chromium, for the WORKER's PDF renderer.
+#
+# ⚠️ IT IS IN THE SHARED DEV IMAGE AND ONLY THE WORKER EVER LAUNCHES IT, WHICH
+#   IS THE POINT. The api container is capped at 1g and already exits 137
+#   running its own test suite beside the dev server; a browser process there
+#   would land on top of that. This costs the api and web containers image SIZE,
+#   which is a developer's disk, and costs them no memory at all, which is the
+#   thing that was actually breaking. The production images are separate per app
+#   (apps/*/Dockerfile) and only the worker's installs this.
+#
+#   The alternative — a second dev image for the worker alone — reintroduces the
+#   footgun the compose header warns about at length: `docker compose build api`
+#   leaving the other services on a stale image.
+#
+# ⚠️ THE DISTRIBUTION'S CHROMIUM, NOT PLAYWRIGHT'S. `npx playwright install`
+#   downloads a glibc build that cannot start on alpine's musl at all, and it
+#   fails at launch rather than at install. `playwright-core` is the dependency
+#   for exactly this reason and is pointed at the binary below.
+RUN apk add --no-cache chromium nss freetype harfbuzz ttf-freefont
+ENV CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+
 WORKDIR /app
 
 # The husky prepare script runs on install and needs git, which this image
@@ -37,6 +59,13 @@ COPY packages/db/package.json          packages/db/
 COPY packages/contracts/package.json   packages/contracts/
 COPY packages/permissions/package.json packages/permissions/
 COPY packages/config/package.json      packages/config/
+COPY packages/documents/package.json   packages/documents/
+COPY packages/queue/package.json       packages/queue/
+COPY packages/storage/package.json     packages/storage/
+COPY packages/payments/package.json    packages/payments/
+COPY packages/billing/package.json     packages/billing/
+COPY packages/tax/package.json         packages/tax/
+COPY packages/invoicing/package.json   packages/invoicing/
 
 # Full install (dev dependencies included — tsx, prisma CLI, next all live there).
 RUN pnpm install --frozen-lockfile

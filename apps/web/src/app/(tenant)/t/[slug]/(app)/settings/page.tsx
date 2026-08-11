@@ -6,7 +6,8 @@ import type {
 } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken, getSession } from '@/lib/session';
+import { branchesInScope, getAccessToken, getSession } from '@/lib/session';
+import { loadFeeSchedule } from '@/app/(tenant)/t/[slug]/(app)/fees/actions';
 import { Alert } from '@/components/ui/alert';
 import { ClinicSettings } from '@/components/tenant/clinic-settings';
 
@@ -34,7 +35,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const accessToken = await getAccessToken();
 
-  const [organization, settings, pairings, session] = await Promise.all([
+  const [organization, settings, pairings, session, fees, branches] = await Promise.all([
     api<OrganizationProfile>('/api/v1/organization', { slug, accessToken }),
     api<SettingListResponse>('/api/v1/organization/settings', { slug, accessToken }),
     // 403 for anyone without iam.designation.manage, which simply removes the
@@ -42,6 +43,14 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
     api<RolePairingListResponse>('/api/v1/designations/pairings', { slug, accessToken }),
     // React-cached, and the layout already called it for this render — free.
     getSession(slug),
+    /*
+     * The org-wide sheet, so the fee grid paints with prices rather than
+     * fetching them a beat later. Null for anyone without
+     * `billing.fee_schedule.read`, which removes the section rather than
+     * erroring the page — the same treatment the titles section gets.
+     */
+    loadFeeSchedule(slug, {}),
+    branchesInScope(slug),
   ]);
 
   if (!organization.ok && !settings.ok) {
@@ -62,8 +71,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
       organization={organization.data ?? null}
       settings={settings.data?.settings ?? null}
       rolePairings={pairings.ok ? (pairings.data?.roles ?? null) : null}
+      fees={fees}
+      branches={branches}
       canEditOrganization={permissions.includes('organization.update')}
       canEditSettings={permissions.includes('settings.organization.write')}
+      canEditFees={permissions.includes(PERMISSIONS.FEE_SCHEDULE_MANAGE)}
       canReadHistory={permissions.includes(PERMISSIONS.AUDIT_READ)}
     />
   );

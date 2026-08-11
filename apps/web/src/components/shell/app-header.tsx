@@ -37,8 +37,20 @@ export function AppHeader({
 }: {
   /** The scope chain. Segments are separated for you; pass them in order. */
   scopes: React.ReactNode[];
-  /** Who you are. `href` is your own account, where there is a page for it. */
-  user: { name: string; href?: string | undefined };
+  /**
+   * Who you are. `href` is your own account, where there is a page for it.
+   *
+   * `ownProfile` is a second link about YOU rather than about this place, which
+   * is why it sits here and not in the nav below. A doctor's own practitioner
+   * profile arrives through it: they hold no `doctor.directory.read`, so the
+   * Doctors tab is not theirs, and their profile is not a destination the nav
+   * should imply is one.
+   */
+  user: {
+    name: string;
+    href?: string | undefined;
+    ownProfile?: { href: string; label: string } | undefined;
+  };
   signOut: React.ReactNode;
   nav: { label: string; links: NavLink[] };
 }) {
@@ -79,6 +91,14 @@ export function AppHeader({
           ) : (
             <span className="text-muted text-[0.8125rem]">{user.name}</span>
           )}
+          {user.ownProfile ? (
+            <Link
+              href={user.ownProfile.href}
+              className="text-muted hover:text-drape py-1 text-[0.8125rem] underline-offset-2 hover:underline"
+            >
+              {user.ownProfile.label}
+            </Link>
+          ) : null}
           {signOut}
         </div>
       </div>

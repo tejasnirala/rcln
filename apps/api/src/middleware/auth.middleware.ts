@@ -259,6 +259,43 @@ export function callerFrom(req: Request): CallerIdentity {
   return { isPlatformAdmin: auth.isPlatformAdmin, branchId: auth.branchId };
 }
 
+/**
+ * Does the caller hold `permission`, as a question rather than as a gate?
+ *
+ * `authorize()` answers the same question by ending the request. Some endpoints
+ * need the answer to NARROW what they return instead of refusing it: the day
+ * board is readable by a doctor and by the front desk, and the difference
+ * between them is whose bookings come back, not whether any do. Returning 403 to
+ * the doctor would be wrong, and returning the whole branch's diary would be a
+ * disclosure.
+ *
+ * ⚠️ NEVER THE ONLY CHECK ON A ROUTE. This is a second, refining question asked
+ *   after `authorize()` has already established the caller may be here at all.
+ *   A handler whose sole protection is an `if` around this helper is one early
+ *   `return` away from being unprotected, which is the whole reason permission
+ *   gates are middleware.
+ *
+ * Platform admins answer true, consistent with `authorize()` — with no log line,
+ * because this runs on ordinary reads and would drown the bypass records that
+ * matter.
+ */
+export async function callerHasPermission(
+  req: Request,
+  permission: PermissionCode
+): Promise<boolean> {
+  const auth = req.auth;
+  if (!auth) throw new AuthenticationError('Authentication required');
+  if (auth.isPlatformAdmin) return true;
+  if (!auth.organizationId) return false;
+
+  // Redis-cached with a short TTL, and `authorize()` has already warmed it for
+  // this user and org on the way in, so this is a cache hit rather than a query.
+  const access = await loadUserAccess(auth.userId, auth.organizationId);
+  if (!access) return false;
+
+  return hasPermission(access, auth.userId, auth.branchId, auth.isPlatformAdmin, permission);
+}
+
 export function tenantContextFrom(req: Request): TenantContext {
   const auth = req.auth;
   if (!auth?.organizationId) {

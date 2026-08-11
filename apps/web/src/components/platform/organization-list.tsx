@@ -7,6 +7,7 @@ import {
   type ImpersonateState,
 } from '@/app/(platform)/platform/organizations/actions';
 import { cn } from '@/lib/cn';
+import { formatDate } from '@/lib/format';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/field';
@@ -98,13 +99,16 @@ function OrganizationRow({
             {' · '}
             {organization.orgType.toLowerCase().replace(/_/g, ' ')}
             {' · joined '}
-            <time dateTime={organization.createdAt}>
-              {new Date(organization.createdAt).toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </time>
+            {/*
+              ⚠️ UTC, LIKE EVERY OTHER DATE IN THE PLATFORM CONSOLE. The locale
+                was already pinned; the ZONE was not, so this rendered in the
+                container's zone on the server and the operator's in the browser
+                — a hydration mismatch, and a clinic that signed up at 23:40 IST
+                on the 9th read as having joined on the 8th. `formatDate` is the
+                rule (see lib/format.ts): a console read by staff in several
+                countries needs one answer, not each reader's own.
+            */}
+            <time dateTime={organization.createdAt}>{formatDate(organization.createdAt)}</time>
           </p>
         </div>
 

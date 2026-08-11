@@ -1,0 +1,71 @@
+// ---------------------------------------------------------------------------
+// Document numbering
+// ---------------------------------------------------------------------------
+
+enum NumberSequenceType {
+  UHID
+  MRN
+  APPOINTMENT
+  QUEUE_TOKEN
+  /// Staff employee codes, issued when an invitation is accepted.
+  EMPLOYEE
+  /// Patient invoice serials. One counter per (branch, source, period) — the
+  /// source and the period share `period_key` (`'2026-27:APP'` in India,
+  /// `'2026:APP'` where the year is the calendar one). See §0.6 of the
+  /// invoice-engine log for why the series is per branch, and
+  /// `invoice-number.service.ts` for the only code that builds the key.
+  INVOICE
+}
+
+/// One counter per (organization, branch, type, period). The issuer for every
+/// human-facing document number: UHID, branch-local MRN, appointment number and
+/// the daily queue token.
+///
+/// `periodKey` generalises the "financial year" of the original design so one
+/// mechanism serves all four reset cadences:
+///   ''                        never resets (UHID, MRN)
+///   '2026-27'                 financial year (appointment numbers)
+///   '<date>:<doctorProfileId>' per doctor per day (queue tokens)
+///
+/// WHY NOT A POSTGRES SEQUENCE
+///   `nextval` is deliberately non-transactional, so a booking that rolls back
+///   would burn an appointment number permanently. It would also need one
+///   sequence OBJECT per (org, branch, type, period) — runtime DDL, which
+///   `rcln_app` cannot execute and should never be able to.
+///
+/// Numbers are issued by `issueNumber()` with a single `ON CONFLICT DO UPDATE`
+/// statement whose row lock makes concurrent issues gapless. See that service.
+///
+/// ⚠️ ORG-SCOPED RLS ONLY — DELIBERATELY NO `branch_isolation` POLICY.
+///   `ON CONFLICT DO UPDATE` against a row RLS hides does not update it; it
+///   raises a duplicate-key error instead. A branch-scoped policy here would
+///   turn "this branch is outside your scope" into a mystifying 23505 at the
+///   moment of booking. Isolation is the tenant policy plus the explicit
+///   `organizationId` every call passes.
+model NumberSequence {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  /// Null for an org-wide counter (UHID). Set for everything branch-local.
+  branchId       String?            @map("branch_id") @db.Uuid
+  sequenceType   NumberSequenceType @map("sequence_type")
+  periodKey      String             @default("") @map("period_key") @db.VarChar(64)
+  /// ⚠️ 64, NOT 16, BECAUSE AN INVOICE PREFIX CARRIES THE BRANCH CODE.
+  ///   `INV-2026-APP-MAIN-` is already 18 characters and `branches.code` may be
+  ///   32 on its own. The old width was sized for `P` and `MRN-` and failed at
+  ///   the moment of billing with a raw Postgres 22001 — found by the first
+  ///   invoice this repository ever numbered, not by any type.
+  prefix         String             @default("") @db.VarChar(64)
+  padding        Int                @default(6) @db.SmallInt
+  lastNumber     BigInt             @default(0) @map("last_number")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// ⚠️ Rewritten as NULLS NOT DISTINCT in the migration — `branchId` is null on
+  /// every org-wide counter, and a plain unique index does not constrain nullable
+  /// columns, so two UHID counters could otherwise coexist. It is also the
+  /// ON CONFLICT arbiter, which requires the index to actually match.
+  @@unique([organizationId, branchId, sequenceType, periodKey])
+  @@map("number_sequences")
+}

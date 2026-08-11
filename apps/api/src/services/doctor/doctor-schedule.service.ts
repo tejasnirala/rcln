@@ -17,7 +17,7 @@
  *   "Away from Friday 18:00 until Monday 09:00" is one absolute interval that
  *   does not repeat, so there is nothing for a wall-clock reading to anchor to.
  */
-import { withTenant, type Prisma, type TenantContext } from '@rcln/db';
+import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcln/db';
 import type {
   DecideScheduleExceptionRequest,
   DoctorScheduleDetail,
@@ -25,7 +25,7 @@ import type {
   DoctorScheduleExceptionRequest,
   DoctorScheduleRequest,
 } from '@rcln/contracts';
-import { ConflictError, NotFoundError } from '../../utils/errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { effectiveSlotMinutes, type DoctorActionOptions } from './doctor.service.js';
 
@@ -128,10 +128,146 @@ function snapshotSchedule(row: ScheduleRow): Record<string, unknown> {
  * it surfaces as a raw database error whose message carries the SQLSTATE
  * (23P01) and the constraint name.
  */
-function isScheduleOverlap(err: unknown): boolean {
+export function isScheduleOverlap(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false;
   const message = String((err as { message?: unknown }).message ?? '');
   return message.includes('doctor_schedules_no_overlap') || message.includes('23P01');
+}
+
+/**
+ * Two blocks the exclusion constraint would refuse each other.
+ *
+ * ⚠️ THIS IS A PRE-CHECK, NOT THE RULE. `doctor_schedules_no_overlap` is the
+ *   authority and stays so — a race between two admins is caught there and
+ *   nowhere else. This exists because a set of blocks submitted TOGETHER (a whole
+ *   week, at registration) can clash with each other, and discovering that from
+ *   the database means an aborted transaction with no way to say WHICH two rows
+ *   were the problem. Catching it here names the pair.
+ *
+ * Mirrors the constraint's own predicate: same branch, same weekday, overlapping
+ * clock ranges AND overlapping validity windows. A block that ends where the next
+ * begins does not overlap — the ranges are half-open.
+ */
+function blocksClash(a: DoctorScheduleRequest, b: DoctorScheduleRequest): boolean {
+  if (a.branchId !== b.branchId || a.dayOfWeek !== b.dayOfWeek) return false;
+  if (a.startTime >= b.endTime || b.startTime >= a.endTime) return false;
+
+  const aTo = a.validTo ?? '9999-12-31';
+  const bTo = b.validTo ?? '9999-12-31';
+  return a.validFrom <= bTo && b.validFrom <= aTo;
+}
+
+/**
+ * Check a set of blocks against each other before any of them is written.
+ *
+ * Exported for `createDoctor`, which inserts a whole week inside one transaction
+ * and must fail with a message rather than a 25P02.
+ */
+export function assertNoInternalOverlap(blocks: DoctorScheduleRequest[]): void {
+  for (let i = 0; i < blocks.length; i += 1) {
+    for (let j = i + 1; j < blocks.length; j += 1) {
+      const a = blocks[i];
+      const b = blocks[j];
+      if (a === undefined || b === undefined) continue;
+      if (blocksClash(a, b)) {
+        throw new ValidationError(
+          `Two blocks of working hours overlap: ${a.startTime}–${a.endTime} and ${b.startTime}–${b.endTime} on the same day at the same branch.`
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Insert one block inside a caller's transaction, audit row included.
+ *
+ * ⚠️ NO try/catch HERE, AND THAT IS THE CALLER'S JOB. An exclusion violation
+ *   aborts the whole transaction, so it can only be translated OUTSIDE the
+ *   `withTenant` that contained it — see `addSchedule` below, which is the
+ *   comment's original home and still the reason this split exists.
+ */
+export async function createScheduleRow(
+  tx: TxClient,
+  ctx: TenantContext,
+  doctorId: string,
+  input: DoctorScheduleRequest,
+  options: DoctorActionOptions = {}
+): Promise<void> {
+  const created = await tx.doctorSchedule.create({
+    data: {
+      organizationId: ctx.organizationId,
+      doctorProfileId: doctorId,
+      branchId: input.branchId,
+      dayOfWeek: input.dayOfWeek,
+      startTime: toTime(input.startTime),
+      endTime: toTime(input.endTime),
+      ...(input.slotMinutes !== undefined ? { slotMinutes: input.slotMinutes } : {}),
+      ...(input.maxPatients !== undefined ? { maxPatients: input.maxPatients } : {}),
+      validFrom: toDate(input.validFrom),
+      ...(input.validTo !== undefined ? { validTo: toDate(input.validTo) } : {}),
+      isActive: input.isActive,
+    },
+    select: SCHEDULE_SELECT,
+  });
+
+  await recordAudit(tx, ctx, {
+    action: 'CREATE',
+    entityType: 'doctor_schedule',
+    entityId: created.id,
+    after: snapshotSchedule(created),
+    branchId: input.branchId,
+    ...options,
+  });
+}
+
+/**
+ * Turn schedule rows into contract detail, resolving each block's effective slot
+ * length through the ONE authoritative chain (ADR-0015).
+ *
+ * ⚠️ THE RESOLUTION IS MEMOISED PER (branch, doctor, override). The ladder is a
+ *   read per call and a roster of forty doctors with a six-block week each is two
+ *   hundred and forty of them to render one list — while the answer only ever
+ *   varies by those three inputs. Memoising is what makes the batched list below
+ *   cheaper than the per-doctor calls it replaced, rather than merely tidier.
+ */
+async function toScheduleDetails(
+  tx: TxClient,
+  ctx: TenantContext,
+  rows: ScheduleRow[]
+): Promise<DoctorScheduleDetail[]> {
+  const resolved = new Map<string, number>();
+  const details: DoctorScheduleDetail[] = [];
+
+  for (const row of rows) {
+    const key = `${row.branchId}|${row.doctorProfileId}|${String(row.slotMinutes)}`;
+    let minutes = resolved.get(key);
+    if (minutes === undefined) {
+      minutes = await effectiveSlotMinutes(
+        tx,
+        ctx,
+        { branchId: row.branchId, doctorProfileId: row.doctorProfileId },
+        row.slotMinutes
+      );
+      resolved.set(key, minutes);
+    }
+
+    details.push({
+      id: row.id,
+      branchId: row.branchId,
+      branchName: row.branch.name,
+      dayOfWeek: row.dayOfWeek,
+      startTime: fromTime(row.startTime),
+      endTime: fromTime(row.endTime),
+      slotMinutes: row.slotMinutes,
+      effectiveSlotMinutes: minutes,
+      maxPatients: row.maxPatients,
+      validFrom: fromDate(row.validFrom) as string,
+      validTo: fromDate(row.validTo),
+      isActive: row.isActive,
+    });
+  }
+
+  return details;
 }
 
 export async function listSchedules(
@@ -144,37 +280,44 @@ export async function listSchedules(
       select: SCHEDULE_SELECT,
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
     });
-
-    /*
-     * Resolve each block's effective slot length through the ONE authoritative
-     * chain (ADR-0015) rather than re-deriving it in the UI. Sequential on
-     * purpose: the resolver batches keys, not calls, and a week is at most a
-     * handful of rows.
-     */
-    const details: DoctorScheduleDetail[] = [];
-    for (const row of rows) {
-      details.push({
-        id: row.id,
-        branchId: row.branchId,
-        branchName: row.branch.name,
-        dayOfWeek: row.dayOfWeek,
-        startTime: fromTime(row.startTime),
-        endTime: fromTime(row.endTime),
-        slotMinutes: row.slotMinutes,
-        effectiveSlotMinutes: await effectiveSlotMinutes(
-          tx,
-          ctx,
-          { branchId: row.branchId, doctorProfileId: row.doctorProfileId },
-          row.slotMinutes
-        ),
-        maxPatients: row.maxPatients,
-        validFrom: fromDate(row.validFrom) as string,
-        validTo: fromDate(row.validTo),
-        isActive: row.isActive,
-      });
-    }
-    return details;
+    return toScheduleDetails(tx, ctx, rows);
   });
+}
+
+/**
+ * Every listed doctor's week, in ONE query.
+ *
+ * ⚠️ THIS REPLACED AN N+1 THE WEB APP WAS MAKING OVER HTTP. The roster page used
+ *   to call `GET /doctors/:id/schedules` once per doctor after listing them —
+ *   thirty doctors, thirty extra round trips, each opening its own transaction.
+ *   Runs inside the caller's `withTenant` so the schedules and the profiles they
+ *   belong to are read in the same snapshot.
+ */
+export async function listSchedulesForDoctors(
+  tx: TxClient,
+  ctx: TenantContext,
+  doctorIds: string[]
+): Promise<Map<string, DoctorScheduleDetail[]>> {
+  const byDoctor = new Map<string, DoctorScheduleDetail[]>();
+  if (doctorIds.length === 0) return byDoctor;
+
+  const rows = await tx.doctorSchedule.findMany({
+    where: { doctorProfileId: { in: doctorIds } },
+    select: SCHEDULE_SELECT,
+    orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+  });
+
+  const details = await toScheduleDetails(tx, ctx, rows);
+  for (const [index, detail] of details.entries()) {
+    // `toScheduleDetails` preserves order, so the row at the same index is the
+    // one this detail came from — and it carries the doctor the detail does not.
+    const doctorId = rows[index]?.doctorProfileId;
+    if (doctorId === undefined) continue;
+    const bucket = byDoctor.get(doctorId) ?? [];
+    bucket.push(detail);
+    byDoctor.set(doctorId, bucket);
+  }
+  return byDoctor;
 }
 
 export async function addSchedule(
@@ -193,31 +336,7 @@ export async function addSchedule(
       });
       if (!doctor) throw new NotFoundError('Doctor');
 
-      const created = await tx.doctorSchedule.create({
-        data: {
-          organizationId: ctx.organizationId,
-          doctorProfileId: doctorId,
-          branchId: input.branchId,
-          dayOfWeek: input.dayOfWeek,
-          startTime: toTime(input.startTime),
-          endTime: toTime(input.endTime),
-          ...(input.slotMinutes !== undefined ? { slotMinutes: input.slotMinutes } : {}),
-          ...(input.maxPatients !== undefined ? { maxPatients: input.maxPatients } : {}),
-          validFrom: toDate(input.validFrom),
-          ...(input.validTo !== undefined ? { validTo: toDate(input.validTo) } : {}),
-          isActive: input.isActive,
-        },
-        select: SCHEDULE_SELECT,
-      });
-
-      await recordAudit(tx, ctx, {
-        action: 'CREATE',
-        entityType: 'doctor_schedule',
-        entityId: created.id,
-        after: snapshotSchedule(created),
-        branchId: input.branchId,
-        ...options,
-      });
+      await createScheduleRow(tx, ctx, doctorId, input, options);
     });
   } catch (err) {
     /*

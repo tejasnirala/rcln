@@ -29,7 +29,11 @@ design the <feature-name> feature
 
 Present the design before writing code. If it touches an invariant, it needs an ADR in `docs/decisions/`, not a comment.
 
-## 3. Schema — `packages/db/prisma/schema.prisma`
+## 3. Schema — `packages/db/prisma/schema/<domain>.prisma`
+
+The schema is a folder of domain files that Prisma concatenates. Add the model
+to the file for its domain (or a new `<domain>.prisma`), with its enums beside
+it; `schema.prisma` holds only `generator` and `datasource`.
 
 ```prisma
 model Example {

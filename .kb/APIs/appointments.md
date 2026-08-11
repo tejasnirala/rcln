@@ -8,26 +8,37 @@ Source: `apps/api/src/routes/v1/appointments.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/appointments.routes.ts:70` |
-| GET | `/availability` | `authorize(PERMISSIONS.APPOINTMENT_AVAILABILITY_READ)` → `validate(availabilityQuery)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:86` |
-| GET | `/` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(appointmentListQuery)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:101` |
-| POST | `/` | `authorize(PERMISSIONS.APPOINTMENT_CREATE)` → `validate(createAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:114` |
-| GET | `/:appointmentId` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(appointmentParams)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:130` |
-| PATCH | `/:appointmentId` | `authorize(PERMISSIONS.APPOINTMENT_UPDATE)` → `validate(appointmentParams)` → `validate(updateAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:145` |
-| POST | `/:appointmentId/reschedule` | `authorize(PERMISSIONS.APPOINTMENT_UPDATE)` → `validate(appointmentParams)` → `validate(rescheduleAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:163` |
-| POST | `/:appointmentId/status` | `authorize(PERMISSIONS.APPOINTMENT_CHECKIN)` → `validate(appointmentParams)` → `validate(appointmentTransitionRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:186` |
-| POST | `/:appointmentId/cancel` | `authorize(PERMISSIONS.APPOINTMENT_CANCEL)` → `validate(appointmentParams)` → `validate(cancelAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:203` |
-| POST | `/:appointmentId/no-show` | `authorize(PERMISSIONS.APPOINTMENT_CANCEL)` → `validate(appointmentParams)` → `validate(noShowAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:227` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/appointments.routes.ts:97` |
+| GET | `/availability` | `authorize(PERMISSIONS.APPOINTMENT_AVAILABILITY_READ)` → `validate(availabilityQuery)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:113` |
+| GET | `/availability/days` | `authorize(PERMISSIONS.APPOINTMENT_AVAILABILITY_READ)` → `validate(workingDaysQuery)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:139` |
+| GET | `/` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(appointmentListQuery)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:171` |
+| POST | `/` | `authorize(PERMISSIONS.APPOINTMENT_CREATE)` → `validate(createAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:195` |
+| GET | `/:appointmentId` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(appointmentParams)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:211` |
+| GET | `/:appointmentId/billing` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(appointmentParams)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:242` |
+| POST | `/:appointmentId/invoice` | `authorize(PERMISSIONS.INVOICE_CREATE)` → `validate(appointmentParams)` → `validate(createAppointmentInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:265` |
+| PATCH | `/:appointmentId` | `authorize(PERMISSIONS.APPOINTMENT_UPDATE)` → `validate(appointmentParams)` → `validate(updateAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:291` |
+| POST | `/:appointmentId/reschedule` | `authorize(PERMISSIONS.APPOINTMENT_UPDATE)` → `validate(appointmentParams)` → `validate(rescheduleAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:309` |
+| POST | `/:appointmentId/status` | `authorize(PERMISSIONS.APPOINTMENT_CHECKIN)` → `validate(appointmentParams)` → `validate(appointmentTransitionRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:332` |
+| POST | `/:appointmentId/cancel` | `authorize(PERMISSIONS.APPOINTMENT_CANCEL)` → `validate(appointmentParams)` → `validate(cancelAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:349` |
+| POST | `/:appointmentId/no-show` | `authorize(PERMISSIONS.APPOINTMENT_CANCEL)` → `validate(appointmentParams)` → `validate(noShowAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:373` |
+| DELETE | `/:appointmentId` | `authorize(PERMISSIONS.APPOINTMENT_DELETE)` → `validate(appointmentParams)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:406` |
+| POST | `/:appointmentId/follow-up` | `authorize(PERMISSIONS.APPOINTMENT_CREATE)` → `validate(appointmentParams)` → `validate(followUpAppointmentRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:424` |
+| POST | `/:appointmentId/consultation` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(appointmentParams)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:461` |
+| GET | `/:appointmentId/vitals` | `authorize(PERMISSIONS.VITALS_READ)` → `validate(appointmentParams)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:494` |
+| POST | `/:appointmentId/vitals` | `authorize(PERMISSIONS.VITALS_RECORD)` → `validate(appointmentParams)` → `validate(recordVitalsRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:518` |
+| GET | `/:appointmentId/vitals/:vitalsId/revisions` | `authorize(PERMISSIONS.VITALS_READ)` → `validate(…)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:547` |
+| PUT | `/:appointmentId/vitals/:vitalsId` | `authorize(PERMISSIONS.VITALS_RECORD)` → `validate(…)` → `validate(updateVitalsRequest)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:589` |
+| DELETE | `/:appointmentId/vitals/:vitalsId` | `authorize(PERMISSIONS.VITALS_RECORD)` → `validate(…)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:611` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `appointmentParams` | `apps/api/src/routes/v1/appointments.routes.ts:72` |
+| `appointmentParams` | `apps/api/src/routes/v1/appointments.routes.ts:99` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`AppointmentListQuery` · `AppointmentTransitionRequest` · `AvailabilityQuery` · `CancelAppointmentRequest` · `CreateAppointmentRequest` · `NoShowAppointmentRequest` · `RescheduleAppointmentRequest` · `UpdateAppointmentRequest` · `appointmentListQuery` · `appointmentTransitionRequest` · `availabilityQuery` · `cancelAppointmentRequest` · `createAppointmentRequest` · `noShowAppointmentRequest` · `rescheduleAppointmentRequest` · `updateAppointmentRequest`
+`AppointmentListQuery` · `AppointmentTransitionRequest` · `AvailabilityQuery` · `CancelAppointmentRequest` · `CreateAppointmentInvoiceRequest` · `CreateAppointmentRequest` · `FollowUpAppointmentRequest` · `NoShowAppointmentRequest` · `RecordVitalsRequest` · `RescheduleAppointmentRequest` · `UpdateAppointmentRequest` · `UpdateVitalsRequest` · `WorkingDaysQuery` · `appointmentListQuery` · `appointmentTransitionRequest` · `availabilityQuery` · `cancelAppointmentRequest` · `createAppointmentInvoiceRequest` · `createAppointmentRequest` · `followUpAppointmentRequest` · `noShowAppointmentRequest` · `recordVitalsRequest` · `rescheduleAppointmentRequest` · `updateAppointmentRequest` · `updateVitalsRequest` · `workingDaysQuery`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

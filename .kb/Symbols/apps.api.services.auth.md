@@ -12,7 +12,7 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | --- | --- | --- | --- |
 | `accessTokenLifetimeSeconds` | `(): number` | `apps/api/src/services/auth/token.service.ts:109` | Seconds until an access token expires, for the `expiresIn` field of authSession. |
 | `buildAuthSession` | `(input: BuildSessionInput): Promise<AuthSession>` | `apps/api/src/services/auth/login.service.ts:248` |  |
-| `cacheKey` <sub>local</sub> | `(userId: string, organizationId: string): string` | `apps/api/src/services/auth/access.service.ts:51` |  |
+| `cacheKey` <sub>local</sub> | `(userId: string, organizationId: string): string` | `apps/api/src/services/auth/access.service.ts:53` |  |
 | `confirmVerification` | `(input: ConfirmVerificationInput): Promise<VerificationResult>` | `apps/api/src/services/auth/verification.service.ts:154` |  |
 | `consumeChallenge` | `(input: { purpose: AuthTokenPurpose; identifier: string; cod…): Promise<string>` | `apps/api/src/services/auth/challenge.service.ts:98` |  |
 | `contactState` <sub>local</sub> | `(userId: string, channel: VerificationChannel): Promise<ContactState>` | `apps/api/src/services/auth/verification.service.ts:76` |  |
@@ -32,29 +32,29 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | `hashOtpCode` | `(code: string): string` | `apps/api/src/services/auth/token.service.ts:173` | OTP codes are short and guessable, so they are hashed like a password. |
 | `hashPassword` | `(plain: string): Promise<string>` | `apps/api/src/services/auth/password.service.ts:25` |  |
 | `hashRefreshToken` | `(token: string): string` | `apps/api/src/services/auth/token.service.ts:132` |  |
-| `hasPermission` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean, permission: PermissionCode): boolean` | `apps/api/src/services/auth/access.service.ts:268` |  |
+| `hasPermission` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean, permission: PermissionCode): boolean` | `apps/api/src/services/auth/access.service.ts:270` |  |
 | `impersonationDeadline` | `(startedAt: Date): Date` | `apps/api/src/services/auth/session.service.ts:70` | When an impersonation session that started at `startedAt` must end. |
-| `invalidateOrganizationAccess` | `(organizationId: string): Promise<void>` | `apps/api/src/services/auth/access.service.ts:201` |  |
-| `invalidateUserAccess` | `(userId: string, organizationId: string): Promise<void>` | `apps/api/src/services/auth/access.service.ts:181` | Call after any write to membership_roles or membership_permission_overrides. |
+| `invalidateOrganizationAccess` | `(organizationId: string): Promise<void>` | `apps/api/src/services/auth/access.service.ts:203` |  |
+| `invalidateUserAccess` | `(userId: string, organizationId: string): Promise<void>` | `apps/api/src/services/auth/access.service.ts:183` | Call after any write to membership_roles or membership_permission_overrides. |
 | `isLockedOut` | `(lockedUntil: Date \| null): boolean` | `apps/api/src/services/auth/password.service.ts:67` |  |
 | `isMasterVerificationCode` | `(code: string): boolean` | `apps/api/src/services/auth/challenge.service.ts:49` |  |
 | `issueChallenge` | `(input: { userId: string; purpose: AuthTokenPurpose; /** The…): Promise<IssuedChallenge>` | `apps/api/src/services/auth/challenge.service.ts:68` |  |
-| `listMemberships` | `(userId: string): Promise<MembershipSummaryRow[]>` | `apps/api/src/services/auth/access.service.ts:300` |  |
-| `load` <sub>local</sub> | `(userId: string, organizationId: string): Promise<UserAccess \| null>` | `apps/api/src/services/auth/access.service.ts:73` |  |
+| `listMemberships` | `(userId: string): Promise<MembershipSummaryRow[]>` | `apps/api/src/services/auth/access.service.ts:314` |  |
+| `load` <sub>local</sub> | `(userId: string, organizationId: string): Promise<UserAccess \| null>` | `apps/api/src/services/auth/access.service.ts:75` |  |
 | `loadAuthenticatedUser` | `(userId: string): Promise<AuthenticatedUser>` | `apps/api/src/services/auth/login.service.ts:141` |  |
-| `loadUserAccess` | `(userId: string, organizationId: string): Promise<UserAccess \| null>` | `apps/api/src/services/auth/access.service.ts:160` |  |
+| `loadUserAccess` | `(userId: string, organizationId: string): Promise<UserAccess \| null>` | `apps/api/src/services/auth/access.service.ts:162` |  |
 | `lockoutUntil` | `(failedAttempts: number): Date \| null` | `apps/api/src/services/auth/password.service.ts:75` | The next value for `users.locked_until` after a failed attempt, given the failure count that includes this one. Null means "not locked yet". |
-| `organizationBranchIds` | `(organizationId: string, userId: string): Promise<string[]>` | `apps/api/src/services/auth/access.service.ts:228` |  |
-| `permissionsFor` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean): string[]` | `apps/api/src/services/auth/access.service.ts:259` |  |
+| `organizationBranchIds` | `(organizationId: string, userId: string): Promise<string[]>` | `apps/api/src/services/auth/access.service.ts:230` |  |
+| `permissionsFor` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean): string[]` | `apps/api/src/services/auth/access.service.ts:261` |  |
 | `requestOtp` | `(phone: string): Promise<OtpRequestOutcome>` | `apps/api/src/services/auth/otp.service.ts:29` |  |
 | `requestVerification` | `(userId: string, channel: VerificationChannel): Promise<VerificationRequest>` | `apps/api/src/services/auth/verification.service.ts:98` |  |
-| `revive` <sub>local</sub> | `(cached: CachedAccess): UserAccess` | `apps/api/src/services/auth/access.service.ts:62` |  |
+| `revive` <sub>local</sub> | `(cached: CachedAccess): UserAccess` | `apps/api/src/services/auth/access.service.ts:64` |  |
 | `revokeFamily` | `(userId: string): Promise<void>` | `apps/api/src/services/auth/session.service.ts:273` | Every live session for one user. The response to a suspected token theft. |
 | `revokeSession` | `(sessionId: string): Promise<void>` | `apps/api/src/services/auth/session.service.ts:264` |  |
 | `rotateRefreshToken` | `(presentedToken: string): Promise<IssuedSession>` | `apps/api/src/services/auth/session.service.ts:172` | Exchange a refresh token for a new one. Throws `AuthenticationError` on anything suspicious, having first revoked the family when the token was a rotated one. |
 | `setActiveScope` | `(sessionId: string, organizationId: string \| null, branchId: string \| null): Promise<void>` | `apps/api/src/services/auth/session.service.ts:289` |  |
 | `signAccessToken` | `(claims: AccessTokenClaims, lifetimeSeconds?: number): string` | `apps/api/src/services/auth/token.service.ts:58` |  |
-| `toAccessContext` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean): AccessContext` | `apps/api/src/services/auth/access.service.ts:243` |  |
+| `toAccessContext` | `(access: UserAccess, userId: string, branchId: string \| null, isPlatformAdmin: boolean): AccessContext` | `apps/api/src/services/auth/access.service.ts:245` |  |
 | `verifyAccessToken` | `(token: string): AccessTokenClaims` | `apps/api/src/services/auth/token.service.ts:91` |  |
 | `verifyCredentials` | `(identifier: string, password: string): Promise<string>` | `apps/api/src/services/auth/login.service.ts:91` | Verify a password, applying and maintaining the lockout counter. Returns the user id. Throws `AuthenticationError` for every failure mode, always with the same… |
 | `verifyOtp` | `(phone: string, code: string): Promise<string>` | `apps/api/src/services/auth/otp.service.ts:68` |  |
@@ -65,7 +65,7 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ARGON2` <sub>local</sub> | `{ memoryCost: 19_456, timeCost: 2, parallelism: 1, } as const` | `apps/api/src/services/auth/password.service.ts:12` |  |
-| `CACHE_TTL_SECONDS` <sub>local</sub> | `60` | `apps/api/src/services/auth/access.service.ts:50` |  |
+| `CACHE_TTL_SECONDS` <sub>local</sub> | `60` | `apps/api/src/services/auth/access.service.ts:52` |  |
 | `CHANNELS` <sub>local</sub> | `{ email: { purpose: 'VERIFY_EMAIL', field: 'emailVerifiedAt', /** The user-facing name of…` | `apps/api/src/services/auth/verification.service.ts:56` | Everything that differs between the two channels, in one place. |
 | `IMPERSONATION_ABSOLUTE_TTL_SECONDS` | `8 * 60 * 60` | `apps/api/src/services/auth/session.service.ts:55` |  |
 | `IMPERSONATION_IDLE_TTL_SECONDS` | `30 * 60` | `apps/api/src/services/auth/session.service.ts:67` |  |
@@ -89,7 +89,7 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | `AccessTokenClaims` | `{ userId, sessionId, isPlatformAdmin, membershipId, organizationId, branchId, impersonatedByUserId }` | `apps/api/src/services/auth/token.service.ts:29` |  |
 | `AuthenticatedUser` | `{ id, fullName, email, phone, isPlatformAdmin, mfaEnabled, emailVerified, phoneVerified, lastPlatformOrganizationId }` | `apps/api/src/services/auth/login.service.ts:27` |  |
 | `BuildSessionInput` | `{ user, organizationId, ipAddress, userAgent }` | `apps/api/src/services/auth/login.service.ts:233` |  |
-| `CachedAccess` <sub>local</sub> | `{ roleAssignments }` | `apps/api/src/services/auth/access.service.ts:55` | Dates do not survive JSON, so validity windows are revived on read. |
+| `CachedAccess` <sub>local</sub> | `{ roleAssignments }` | `apps/api/src/services/auth/access.service.ts:57` | Dates do not survive JSON, so validity windows are revived on read. |
 | `ConfirmVerificationInput` | `{ userId, channel, code, tenant, ipAddress, userAgent }` | `apps/api/src/services/auth/verification.service.ts:135` |  |
 | `ContactState` <sub>local</sub> | `{ destination, verifiedAt }` | `apps/api/src/services/auth/verification.service.ts:70` |  |
 | `CreateSessionInput` | `{ userId, activeOrganizationId, activeBranchId, impersonatedByUserId, ipAddress, userAgent, expiresAt }` | `apps/api/src/services/auth/session.service.ts:102` |  |
@@ -97,10 +97,10 @@ Files: `apps/api/src/services/auth/access.service.ts` · `apps/api/src/services/
 | `IssuedChallenge` | `{ code, expiresAt }` | `apps/api/src/services/auth/challenge.service.ts:54` |  |
 | `IssuedSession` | `{ refreshToken }` | `apps/api/src/services/auth/session.service.ts:93` |  |
 | `JwtPayload` <sub>local</sub> | `{ sub, sid, pa, mid, oid, bid, imp }` | `apps/api/src/services/auth/token.service.ts:40` | Short keys: this rides on every request, and headers have size limits. |
-| `MembershipSummaryRow` | `{ organizationId, organizationName, organizationSlug, roles, branches }` | `apps/api/src/services/auth/access.service.ts:292` |  |
+| `MembershipSummaryRow` | `{ organizationId, organizationName, organizationSlug, countryCode, roles, branches }` | `apps/api/src/services/auth/access.service.ts:294` |  |
 | `OtpRequestOutcome` | `{ accepted }` | `apps/api/src/services/auth/otp.service.ts:24` | Requesting a code must never reveal whether the number has an account. |
 | `SessionRecord` | `{ id, userId, activeOrganizationId, activeBranchId, impersonatedByUserId, expiresAt, createdAt }` | `apps/api/src/services/auth/session.service.ts:74` |  |
-| `UserAccess` | `{ membershipId, organizationId, branchIds, roleAssignments, overrides }` | `apps/api/src/services/auth/access.service.ts:41` |  |
+| `UserAccess` | `{ membershipId, organizationId, branchIds, roleAssignments, overrides }` | `apps/api/src/services/auth/access.service.ts:43` |  |
 | `VerificationRequest` | `{ sent, alreadyVerified, expiresInSeconds }` | `apps/api/src/services/auth/verification.service.ts:42` |  |
 | `VerificationResult` | `{ verified, alreadyVerified }` | `apps/api/src/services/auth/verification.service.ts:49` |  |
 

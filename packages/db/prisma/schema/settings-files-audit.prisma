@@ -1,0 +1,304 @@
+// =============================================================================
+// SETTINGS / FILES / AUDIT
+// =============================================================================
+
+enum SettingScopeType {
+  PLATFORM
+  ORGANIZATION
+  BRANCH
+  USER
+  PATIENT
+  DOCTOR
+}
+
+enum SettingDataType {
+  STRING
+  INT
+  BOOL
+  DECIMAL
+  JSON
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  SWITCH_BRANCH
+  IMPERSONATE
+  PERMISSION_CHANGE
+}
+
+/// Adding a new setting is an INSERT here — no migration, no new column.
+///
+/// This is a PLATFORM CATALOGUE, not tenant data: no organization_id, no RLS
+/// policy, EXEMPT in check-rls.ts. Every clinic reads the same twelve rows.
+model SettingDefinition {
+  key              String          @id @db.VarChar(128)
+  module           String          @db.VarChar(64)
+  dataType         SettingDataType @map("data_type")
+  defaultValue     Json            @map("default_value")
+  allowedScopes    Json            @map("allowed_scopes")
+  isTenantEditable Boolean         @default(true) @map("is_tenant_editable")
+  /// The short human name. What the settings screen puts on the row.
+  description      String?         @db.VarChar(512)
+  /// What the setting is for, and what changing it does. Prose, one or two
+  /// sentences, written for whoever runs the clinic rather than for us.
+  helpText         String?         @map("help_text") @db.VarChar(1024)
+  /// A closed set of choices: `[{ "value": …, "label": … }]`.
+  ///
+  /// Null means "any value of `data_type`". Present means the API refuses
+  /// anything else and the screen renders a select instead of a text box — one
+  /// source, so the two cannot disagree. JSONB as a DOCUMENT, never as foreign
+  /// keys (ADR-0006): these are literal setting values, not row ids.
+  allowedValues    Json?           @map("allowed_values")
+
+  values SettingValue[]
+
+  @@index([module])
+  @@map("setting_definitions")
+}
+
+/// Resolution, most specific wins:
+/// USER/PATIENT -> BRANCH -> ORGANIZATION -> PLATFORM -> definition default.
+model SettingValue {
+  id         String           @id @default(uuid()) @db.Uuid
+  settingKey String           @map("setting_key") @db.VarChar(128)
+  scopeType  SettingScopeType @map("scope_type")
+  /// null only when scopeType = PLATFORM
+  scopeId    String?          @map("scope_id") @db.Uuid
+  value      Json
+  updatedBy  String?          @map("updated_by") @db.Uuid
+  updatedAt  DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  definition SettingDefinition @relation(fields: [settingKey], references: [key], onDelete: Cascade)
+
+  @@unique([settingKey, scopeType, scopeId])
+  @@index([scopeType, scopeId])
+  @@map("setting_values")
+}
+
+/// What a stored document IS, independent of what generated it.
+///
+/// Deliberately a document taxonomy rather than a module list — `INVOICE_PDF`,
+/// not `BILLING`. The invoice engine is the first thing to write here and will
+/// not be the last (§31: lab reports, prescriptions, consent forms, patient
+/// attachments, referral letters), and a `DocumentService` keyed by which
+/// module called it is a `DocumentService` that every new module has to edit.
+enum DocumentType {
+  /// The frozen PDF of an issued invoice. See `DocumentStatus` for why it has
+  /// a lifecycle at all.
+  INVOICE_PDF
+  /// A credit note against an invoice.
+  CREDIT_NOTE_PDF
+  /// Anything a user uploaded rather than the system generating. The historical
+  /// meaning of every row in this table before the invoice engine existed, and
+  /// therefore the default.
+  UPLOAD
+}
+
+/// Whether the bytes are actually there yet.
+///
+/// ⚠️ THIS EXISTS SO THAT "THE INVOICE IS ISSUED" AND "THE PDF EXISTS" CAN BE
+///   TWO DIFFERENT FACTS, WHICH THEY GENUINELY ARE (§40, §42).
+///   Rendering a PDF can fail — a missing logo, an out-of-memory renderer, a
+///   full disk. If the only record of a document were its row, a failed render
+///   would leave an issued invoice pointing at a file that 404s, and the
+///   failure would be discovered by a patient at the front desk. With a status,
+///   the invoice is issued (which is a financial fact, and correct), the
+///   document is FAILED, and the screen can say so and offer a retry.
+///
+///   It is also what lets PDF generation move to a queue later (§41) without a
+///   schema change: a worker picks up PENDING, sets GENERATING, and the API
+///   never changes.
+enum DocumentStatus {
+  /// Recorded, not yet rendered. The state a queued generation starts in.
+  PENDING
+  /// A renderer has claimed it. Distinct from PENDING so a crashed worker's
+  /// rows are findable rather than looking like fresh work forever.
+  GENERATING
+  /// Bytes are in storage and the checksum is recorded. The only state a
+  /// download may be served from.
+  READY
+  /// Rendering failed. `failure_reason` says why, for an operator — never for
+  /// a client.
+  FAILED
+}
+
+/// Every document the platform stores, generated or uploaded: the one table
+/// `DocumentService` writes to (§31).
+///
+/// ⚠️ THE BYTES ARE NOT IN HERE, AND MUST NOT BE (§27).
+///   This row is metadata plus a `storage_key`. Which provider holds the bytes
+///   is `storage_provider`, and moving a tenant from local disk to S3 is a copy
+///   of the objects and an UPDATE of that one column — every row already
+///   written keeps its key and nothing above `@rcln/storage` moves.
+///
+/// ⚠️ THERE IS NO URL COLUMN, DELIBERATELY.
+///   A stored URL is either public (which invoice PDFs must never be) or
+///   expired (which a persisted signed URL always is, within the hour). The
+///   download route mints one per request after checking authorization, or
+///   streams the bytes itself when the provider has no URL space.
+model StoredFile {
+  id              String         @id @default(uuid()) @db.Uuid
+  organizationId  String?        @map("organization_id") @db.Uuid
+  branchId        String?        @map("branch_id") @db.Uuid
+  documentType    DocumentType   @default(UPLOAD) @map("document_type")
+  status          DocumentStatus @default(READY)
+  /// Which `StorageProvider` implementation holds the bytes — `local` or `s3`.
+  /// A string rather than an enum: it names an implementation in a package, not
+  /// a domain concept, and adding one should not be a migration.
+  storageProvider String         @default("local") @map("storage_provider") @db.VarChar(16)
+  storageKey      String         @unique @map("storage_key") @db.VarChar(512)
+  originalName    String         @map("original_name") @db.VarChar(255)
+  mimeType        String         @map("mime_type") @db.VarChar(128)
+  /// Zero until the bytes land. Nullable would be more honest and would also
+  /// mean every reader handles a null it can do nothing with.
+  sizeBytes       BigInt         @default(0) @map("size_bytes")
+  /// Lowercase hex SHA-256, computed by the provider over what it actually
+  /// wrote — never supplied by the caller. Null until READY.
+  checksum        String?        @db.VarChar(128)
+  /// Bumped when a FAILED document is regenerated. An issued invoice's PDF is
+  /// immutable (§23), so this only ever moves for a document that never
+  /// successfully existed — a corrected invoice is a credit note plus a new
+  /// invoice, not a version 2 of this file.
+  version         Int            @default(1) @db.SmallInt
+  /// Why rendering failed, for an operator reading logs. ⚠️ Never returned to
+  /// a client and never allowed to carry PHI — see `document.service.ts`.
+  failureReason   String?        @map("failure_reason") @db.VarChar(500)
+  uploadedBy      String?        @map("uploaded_by") @db.Uuid
+  uploadedAt      DateTime       @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+  deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(6)
+
+  organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader         User?             @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+  invoiceDocuments InvoiceDocument[]
+
+  /// The composite-FK target (ADR-0004) so a document can be referenced from a
+  /// tenant table without the reference being able to cross tenants.
+  ///
+  /// Unlike every other nullable-column unique in this schema, this one needs
+  /// NO `NULLS NOT DISTINCT` rewrite: `id` is the primary key, so the pair is
+  /// unique whatever `organization_id` does, and the index is only ever an FK
+  /// target rather than a constraint in its own right. Stated because the
+  /// convention says otherwise and the next reader will check.
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId])
+  /// Finding a tenant's documents of one kind — the invoice list's join, and
+  /// the sweep that retries FAILED renders.
+  @@index([organizationId, documentType, status])
+  @@map("files")
+}
+
+/// Written on every mutation by Prisma middleware. Partition by month once this
+/// grows — retrofitting partitioning onto a large table is painful.
+model AuditLog {
+  id                   String      @id @default(uuid()) @db.Uuid
+  organizationId       String?     @map("organization_id") @db.Uuid
+  branchId             String?     @map("branch_id") @db.Uuid
+  actorUserId          String?     @map("actor_user_id") @db.Uuid
+  impersonatedByUserId String?     @map("impersonated_by_user_id") @db.Uuid
+  action               AuditAction
+  entityType           String      @map("entity_type") @db.VarChar(64)
+  entityId             String?     @map("entity_id") @db.Uuid
+  beforeData           Json?       @map("before_data")
+  afterData            Json?       @map("after_data")
+  ipAddress            String?     @map("ip_address") @db.Inet
+  userAgent            String?     @map("user_agent") @db.VarChar(512)
+  occurredAt           DateTime    @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?         @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, entityType, entityId, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@map("audit_logs")
+}
+
+/// What a PHI read was: a view, a search, a print, an export, a share.
+enum DataAccessType {
+  VIEW
+  SEARCH
+  PRINT
+  EXPORT
+  SHARE
+}
+
+/// What kind of record was read. Not the table name — the clinical noun, so the
+/// enum survives a table being split or renamed.
+enum DataAccessResource {
+  PATIENT
+  PATIENT_LIST
+  MEDICAL_HISTORY
+  APPOINTMENT
+  /// Observations taken at a visit. Kept apart from MEDICAL_HISTORY because the
+  /// two answer different questions in a disclosure review: history is what the
+  /// patient brought with them, vitals are what this clinic measured.
+  VITALS
+  PRESCRIPTION
+  LAB_REPORT
+  INVOICE
+  DOCUMENT
+}
+
+/// Who looked at whose record. The read-side counterpart to `audit_logs`.
+///
+/// WHY THIS IS A SEPARATE TABLE AND NOT AN `AuditAction.READ`
+///   `audit_logs` answers "what changed", and the per-record history screen
+///   already reads it by `(entity_type, entity_id)`. Folding millions of read
+///   rows into it would drown that screen, and would let every caller of
+///   `recordAudit` write into the immutable mutation trail. Two questions, two
+///   tables, two helpers.
+///
+/// ⚠️ THE SCHEMA CONTRACT: IDS, ENUMS, COUNTS AND A HASH. NOTHING ELSE.
+///   No names, no phone numbers, no free text, ever. This table is built to be
+///   readable by compliance and security people who have no business reading
+///   patient records, so a name landing here is a disclosure, not a log line.
+///   `query_hash` is a SHA-256 of the normalised search term — enough to prove
+///   two searches were the same, never enough to recover a surname. `route` is
+///   the matched route pattern (`GET /v1/patients/:id`), NOT the URL, because a
+///   URL carries the search string with it.
+///
+/// ONE ROW PER REQUEST, NEVER PER RESULT ROW. A search writes a single row with
+/// `resultCount` set and `patientId` null; a detail view writes one naming the
+/// patient. See `recordDataAccess` for the dedupe window that keeps a doctor
+/// tabbing between panels of one chart from writing thirty rows.
+///
+/// Append-only, enforced by Postgres in two independent layers exactly as
+/// `audit_logs` is — see the `data_access_log_immutability` migration.
+///
+/// TODO: partition by RANGE (occurred_at) once this grows. Prisma cannot declare
+/// a partitioned table, so it is deliberately not partitioned today; the same
+/// note stands on AuditLog.
+model DataAccessLog {
+  id                   String             @id @default(uuid()) @db.Uuid
+  organizationId       String             @map("organization_id") @db.Uuid
+  branchId             String?            @map("branch_id") @db.Uuid
+  actorUserId          String?            @map("actor_user_id") @db.Uuid
+  impersonatedByUserId String?            @map("impersonated_by_user_id") @db.Uuid
+  /// Null when the read resolved no single patient — a search, or a list.
+  patientId            String?            @map("patient_id") @db.Uuid
+  accessType           DataAccessType     @map("access_type")
+  resource             DataAccessResource
+  resourceId           String?            @map("resource_id") @db.Uuid
+  /// How many records came back. 1 for a detail view.
+  resultCount          Int                @default(1) @map("result_count")
+  /// SHA-256 of the normalised search term. NEVER the term.
+  queryHash            String?            @map("query_hash") @db.Char(64)
+  /// The matched route pattern, never the URL. See the warning above.
+  route                String?            @db.VarChar(128)
+  ipAddress            String?            @map("ip_address") @db.Inet
+  userAgent            String?            @map("user_agent") @db.VarChar(512)
+  occurredAt           DateTime           @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  /// "Who has looked at this patient?" — the subject-access question.
+  @@index([organizationId, patientId, occurredAt])
+  /// "What has this member of staff been reading?" — the misuse question.
+  @@index([organizationId, actorUserId, occurredAt])
+  @@map("data_access_logs")
+}

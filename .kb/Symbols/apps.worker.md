@@ -4,53 +4,33 @@
 
 > Payments configuration, read once.
 
-Files: `apps/worker/src/index.ts` · `apps/worker/src/queues.ts`
+Files: `apps/worker/src/index.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `createQueues` | `(connection: Redis): Record<QueueName, Queue>` | `apps/worker/src/queues.ts:43` |  |
-| `createRedisConnection` | `(url: string): Redis` | `apps/worker/src/queues.ts:35` |  |
-| `optional` <sub>local</sub> | `(value: string \| undefined): string \| undefined` | `apps/worker/src/index.ts:23` | An optional variable, where blank means unset. Mirrors the API's config. |
-| `scheduleRecurring` <sub>local</sub> | `(): Promise<void>` | `apps/worker/src/index.ts:169` | Schedule the billing sweep. Repeatable jobs are keyed by name and pattern, so re-registering on every boot is safe and idempotent — a redeploy does not accumul… |
-| `shutdown` <sub>local</sub> | `(signal: string): Promise<void>` | `apps/worker/src/index.ts:189` |  |
+| `optional` <sub>local</sub> | `(value: string \| undefined): string \| undefined` | `apps/worker/src/index.ts:29` | An optional variable, where blank means unset. Mirrors the API's config. |
+| `scheduleRecurring` <sub>local</sub> | `(): Promise<void>` | `apps/worker/src/index.ts:231` | Schedule the billing sweep. Repeatable jobs are keyed by name and pattern, so re-registering on every boot is safe and idempotent — a redeploy does not accumul… |
+| `shutdown` <sub>local</sub> | `(signal: string): Promise<void>` | `apps/worker/src/index.ts:251` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BILLING_SWEEP_CRON` | `'0 * * * *'` | `apps/worker/src/queues.ts:105` |  |
-| `BILLING_SWEEP_JOB` | `'SWEEP'` | `apps/worker/src/queues.ts:94` |  |
-| `DEFAULT_JOB_OPTIONS` | `: JobsOptions` | `apps/worker/src/queues.ts:27` |  |
-| `PROCESSORS` <sub>local</sub> | `: Partial<Record<QueueName, (jobName: string, data: unknown) => Promise<void>>>` | `apps/worker/src/index.ts:107` | Processors land here as each phase is built. Registering the queues means jobs enqueued by the API are durably held rather than dropped — BullMQ keeps them unt… |
-| `QUEUE` | `{ NOTIFICATIONS: 'notifications', DOCUMENTS: 'documents', REPORTS: 'reports', BILLING: 'b…` | `apps/worker/src/queues.ts:15` |  |
+| `PROCESSORS` <sub>local</sub> | `: Partial<Record<QueueName, (jobName: string, data: unknown) => Promise<void>>>` | `apps/worker/src/index.ts:147` | Processors land here as each phase is built. Registering the queues means jobs enqueued by the API are durably held rather than dropped — BullMQ keeps them unt… |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `billingDeps` <sub>local</sub> | `{ runtimeFor: runtimeFactory(paymentsConfig), queues, logger, }` | `apps/worker/src/index.ts:96` |  |
-| `connection` <sub>local</sub> | `createRedisConnection(…)` | `apps/worker/src/index.ts:92` |  |
-| `databaseUrl` <sub>local</sub> | `process.env['DATABASE_URL']` | `apps/worker/src/index.ts:36` |  |
-| `jobId` | `{ appointmentReminder: (appointmentId: string, hoursBefore: number): string => `reminder-…` | `apps/worker/src/queues.ts:122` |  |
-| `logger` <sub>local</sub> | `pino(…)` | `apps/worker/src/index.ts:28` |  |
-| `paymentsConfig` <sub>local</sub> | `: WorkerPaymentsConfig` | `apps/worker/src/index.ts:53` |  |
-| `queues` <sub>local</sub> | `createQueues(…)` | `apps/worker/src/index.ts:93` |  |
-| `redisUrl` <sub>local</sub> | `process.env['REDIS_URL'] ?? 'redis://localhost:6379'` | `apps/worker/src/index.ts:35` |  |
-| `workers` <sub>local</sub> | `: Worker[]` | `apps/worker/src/index.ts:94` |  |
-
-## interface
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `BillingJob` | `{ organizationId, subscriptionId, action, attempt }` | `apps/worker/src/queues.ts:80` |  |
-| `DocumentJob` | `{ organizationId, branchId, documentType, entityId }` | `apps/worker/src/queues.ts:65` |  |
-| `InventoryJob` | `{ organizationId, branchId, action }` | `apps/worker/src/queues.ts:107` |  |
-| `NotificationJob` | `{ organizationId, branchId, eventCode, recipientType, recipientId, channel, payload }` | `apps/worker/src/queues.ts:55` |  |
-
-## type
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `QueueName` | `(typeof QUEUE)[keyof typeof QUEUE]` | `apps/worker/src/queues.ts:25` |  |
+| `billingDeps` <sub>local</sub> | `{ runtimeFor: runtimeFactory(paymentsConfig), queues, logger, }` | `apps/worker/src/index.ts:136` |  |
+| `connection` <sub>local</sub> | `createRedisConnection(…)` | `apps/worker/src/index.ts:132` |  |
+| `databaseUrl` <sub>local</sub> | `process.env['DATABASE_URL']` | `apps/worker/src/index.ts:42` |  |
+| `logger` <sub>local</sub> | `pino(…)` | `apps/worker/src/index.ts:34` |  |
+| `paymentsConfig` <sub>local</sub> | `: WorkerPaymentsConfig` | `apps/worker/src/index.ts:59` |  |
+| `queues` <sub>local</sub> | `createQueues(…)` | `apps/worker/src/index.ts:133` |  |
+| `redisUrl` <sub>local</sub> | `process.env['REDIS_URL'] ?? 'redis://localhost:6379'` | `apps/worker/src/index.ts:41` |  |
+| `storageLocalPath` <sub>local</sub> | `process.env['STORAGE_LOCAL_PATH'] ?? './storage/documents'` | `apps/worker/src/index.ts:115` |  |
+| `workerRepoRoot` <sub>local</sub> | `new URL('../../../', import.meta.url).pathname` | `apps/worker/src/index.ts:114` |  |
+| `workers` <sub>local</sub> | `: Worker[]` | `apps/worker/src/index.ts:134` |  |
