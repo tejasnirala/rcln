@@ -120,6 +120,15 @@ jobs:
       # Naming them individually silently rotted as packages were added.
       - run: pnpm --filter "./packages/*" run build
       - run: pnpm --filter @rcln/db exec prisma migrate deploy
+
+      # Grants, default privileges, then the REVOKEs — the same order db:reset
+      # uses. CI recreates the schema from empty, which is exactly the case
+      # PITFALLS.md says must be followed by db:grants: the REVOKE on
+      # appointment_status_history lives only in rls/grant-app.sql, not in a
+      # migration, so without this rcln_app keeps UPDATE and DELETE on the
+      # status trail and the append-only guarantee drops to one layer.
+      - run: pnpm db:grants
+
       - run: pnpm db:seed
 
       # Fails if any table with organization_id lacks a policy, or if the
