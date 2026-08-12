@@ -34,7 +34,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `BucketBar` | `({ buckets, unit, label, }: { buckets: Bucket[]; unit: strin…)` | `apps/web/src/components/tenant/stock-status.tsx:134` | One lot's holding, drawn. `unit` is the product's base unit symbol — every quantity in the programme is denominated in it, and showing a number without it is s… |
 | `BUCKETS` <sub>local</sub> | `: Record<string, { from?: string; to?: string; explains: string }>` | `apps/web/src/components/tenant/adjustment-form.tsx:67` |  |
 | `CancelForm` <sub>local</sub> | `({ slug, appointmentId, onDone, onCancel, }: { slug: string;…)` | `apps/web/src/components/tenant/appointment-board.tsx:1172` |  |
-| `CancelPanel` <sub>local</sub> | `({ slug, transfer }: { slug: string; transfer: StockTransfer…)` | `apps/web/src/components/tenant/transfer-detail.tsx:350` |  |
+| `CancelPanel` <sub>local</sub> | `({ slug, transfer }: { slug: string; transfer: StockTransfer…)` | `apps/web/src/components/tenant/transfer-detail.tsx:347` |  |
 | `Card` <sub>local</sub> | `({ children, className }: { children: React.ReactNode; class…)` | `apps/web/src/components/tenant/patient-chart.tsx:230` |  |
 | `CategoryRow` <sub>local</sub> | `({ category }: { category: TaxCategoryCard })` | `apps/web/src/components/tenant/tax-rate-card.tsx:570` | One category, and where its rates came from. |
 | `Change` <sub>local</sub> | `({ change, temperatureUnit, }: { change: VitalsChange; tempe…)` | `apps/web/src/components/tenant/vitals-history.tsx:211` |  |
@@ -183,7 +183,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `ReadOnlyIdentity` <sub>local</sub> | `({ doctor }: { doctor: DoctorDetail })` | `apps/web/src/components/tenant/doctor-profile.tsx:327` |  |
 | `ReadOnlyQualifications` <sub>local</sub> | `({ doctor }: { doctor: DoctorDetail })` | `apps/web/src/components/tenant/doctor-profile.tsx:401` |  |
 | `ReadOnlySpecialties` <sub>local</sub> | `({ doctor }: { doctor: DoctorDetail })` | `apps/web/src/components/tenant/doctor-profile.tsx:367` |  |
-| `ReceivePanel` <sub>local</sub> | `({ slug, transfer, locations, }: { slug: string; transfer: S…)` | `apps/web/src/components/tenant/transfer-detail.tsx:275` |  |
+| `ReceivePanel` <sub>local</sub> | `({ slug, transfer, locations, }: { slug: string; transfer: S…)` | `apps/web/src/components/tenant/transfer-detail.tsx:272` |  |
 | `RecordableVitals` <sub>local</sub> | `({ slug, appointmentId, vitals, timezone, timeFormat, temper…)` | `apps/web/src/components/tenant/vitals-panel.tsx:189` | The front desk's and the nurse's view: the same readings, plus the form. |
 | `RecordHistory` | `({ slug, entityType, entityId, /** What this record is calle…)` | `apps/web/src/components/tenant/record-history.tsx:42` |  |
 | `RegisterForm` <sub>local</sub> | `({ slug, branches, countryCode, onDone, }: { slug: string; b…)` | `apps/web/src/components/tenant/patient-search.tsx:458` |  |
@@ -191,7 +191,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `RegistrationRow` <sub>local</sub> | `({ slug, registration, branches, canManage, canReadHistory, …)` | `apps/web/src/components/tenant/tax-rate-card.tsx:276` |  |
 | `RegistrationsPanel` <sub>local</sub> | `({ patient }: { patient: PatientDetail })` | `apps/web/src/components/tenant/patient-chart.tsx:365` |  |
 | `RELATIONS` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/patient-search.tsx:116` |  |
-| `ReleaseButton` <sub>local</sub> | `({ slug, reservationId }: { slug: string; reservationId: str…)` | `apps/web/src/components/tenant/reservation-list.tsx:244` |  |
+| `ReleaseButton` <sub>local</sub> | `({ slug, reservationId }: { slug: string; reservationId: str…)` | `apps/web/src/components/tenant/reservation-list.tsx:243` |  |
 | `RemoveButton` <sub>local</sub> | `({ slug, branch }: { slug: string; branch: BranchDetail })` | `apps/web/src/components/tenant/branch-list.tsx:555` |  |
 | `RemoveButton` <sub>local</sub> | `({ slug, role }: { slug: string; role: RoleDetail })` | `apps/web/src/components/tenant/role-list.tsx:375` |  |
 | `RemoveRoleButton` <sub>local</sub> | `({ slug, member, assignmentId, }: { slug: string; member: Me…)` | `apps/web/src/components/tenant/member-list.tsx:665` |  |
@@ -207,13 +207,13 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `RoleList` | `({ slug, roles, permissions, grantableCodes, canReadHistory,…)` | `apps/web/src/components/tenant/role-list.tsx:174` |  |
 | `RoleTitles` | `({ slug, roles }: { slug: string; roles: RolePairings[] })` | `apps/web/src/components/tenant/role-titles.tsx:21` |  |
 | `ROUTES` <sub>local</sub> | `[ '', 'ORAL', 'SUBLINGUAL', 'BUCCAL', 'INTRAVENOUS', 'INTRAMUSCULAR', 'SUBCUTANEOUS', 'IN…` | `apps/web/src/components/tenant/product-panel.tsx:99` |  |
-| `Row` <sub>local</sub> | `({ label, children }: { label: string; children: React.React…)` | `apps/web/src/components/tenant/transfer-detail.tsx:213` |  |
+| `Row` <sub>local</sub> | `({ label, children }: { label: string; children: React.React…)` | `apps/web/src/components/tenant/transfer-detail.tsx:210` |  |
 | `RuleForm` <sub>local</sub> | `({ countryCode, scheme, pending, fieldErrors, onCancel, onSu…)` | `apps/web/src/components/tenant/tax-rate-card.tsx:877` |  |
 | `SandboxCheckout` | `()` | `apps/web/src/components/tenant/sandbox-checkout.tsx:55` |  |
 | `SCHEMES` <sub>local</sub> | `[ { value: 'GST', label: 'GST' }, { value: 'VAT', label: 'VAT' }, { value: 'SALES_TAX', l…` | `apps/web/src/components/tenant/tax-rate-card.tsx:741` |  |
 | `SearchForm` <sub>local</sub> | `({ action, pending, state, multiBranch, }: { action: (formDa…)` | `apps/web/src/components/tenant/patient-search.tsx:239` |  |
 | `Section` <sub>local</sub> | `({ title, note, children, }: { title: string; note?: string;…)` | `apps/web/src/components/tenant/doctor-create-form.tsx:575` |  |
-| `SendPanel` <sub>local</sub> | `({ slug, transferId, transfer, }: { slug: string; transferId…)` | `apps/web/src/components/tenant/transfer-detail.tsx:229` |  |
+| `SendPanel` <sub>local</sub> | `({ slug, transferId, transfer, }: { slug: string; transferId…)` | `apps/web/src/components/tenant/transfer-detail.tsx:226` |  |
 | `SerialForm` | `({ slug, branches, products, batches, locations, moreLots }:…)` | `apps/web/src/components/tenant/serial-form.tsx:47` |  |
 | `SerialList` | `({ serials, meta, canManage, }: { serials: SerialListRespons…)` | `apps/web/src/components/tenant/serial-list.tsx:35` |  |
 | `SettingRow` <sub>local</sub> | `({ slug, setting, canEdit, }: { slug: string; setting: Setti…)` | `apps/web/src/components/tenant/clinic-settings.tsx:117` |  |

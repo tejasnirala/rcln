@@ -10,7 +10,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `NewAdjustmentPage` | `({ params, }: { params: Promise<{ slug: string }>; })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:37` |  |
+| `NewAdjustmentPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:37` |  |
 
 ## const
 

@@ -16,17 +16,17 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `cancelTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:578` |  |
+| `cancelTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:581` |  |
 | `createLocationAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:115` |  |
 | `createLotAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:223` |  |
 | `createSerialAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:281` |  |
 | `createTransferAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:427` |  |
 | `dispatchTransferAction` | `(slug: string, transferId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:473` |  |
 | `IDLE_FORM` | `: StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:61` |  |
-| `receiveTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:503` |  |
+| `receiveTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:504` |  |
 | `recordAdjustmentAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:337` |  |
-| `releaseReservationAction` | `(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:675` |  |
-| `reserveStockAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:615` |  |
+| `releaseReservationAction` | `(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:678` |  |
+| `reserveStockAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:618` |  |
 | `updateLocationAction` | `(slug: string, locationId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:159` |  |
 
 ## fn

@@ -458,7 +458,7 @@ cancelInvoice	fn/async	export	apps/api/src/services/invoicing/invoice.service.ts
 cancelInvoice	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:214	apps/web/app/(tenant)/t/[slug]/(app)/invoices	(slug: string, invoiceId: string, reason: string): Promise<InvoiceFormState>	
 cancelInvoiceRequest	zod	export	packages/contracts/src/invoices.ts:222	packages/contracts	z.object(…)	
 CancelInvoiceRequest	type	export	packages/contracts/src/invoices.ts:225	packages/contracts	z.infer<typeof cancelInvoiceRequest>	
-CancelPanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:350	apps/web/components/tenant	({ slug, transfer }: { slug: string; transfer: StockTransfer…)	
+CancelPanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:347	apps/web/components/tenant	({ slug, transfer }: { slug: string; transfer: StockTransfer…)	
 cancelStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1068	packages/contracts	z.object(…)	
 CancelStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1316	packages/contracts	z.infer<typeof cancelStockTransferRequest>	
 cancelSubscription	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/actions.ts:153	apps/web/app/(tenant)/t/[slug]/(app)/billing	(slug: string, _previous: BillingFormState, formData: FormData): Promise<BillingFormState>	
@@ -467,7 +467,7 @@ cancelSubscriptionRequest	zod	export	packages/contracts/src/billing.ts:64	packag
 CancelSubscriptionRequest	type	export	packages/contracts/src/billing.ts:69	packages/contracts	z.infer<typeof cancelSubscriptionRequest>	
 CancelSubscriptionResponse	interface	export	packages/contracts/src/billing.ts:367	packages/contracts	{ status, endsAt }	
 cancelTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.ts:1317	apps/api/services/inventory	(ctx: TenantContext, id: string, input: CancelStockTransferRequest, options: CatalogueActionOptions): Promise<StockTransferDetail>	
-cancelTransferAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:578	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
+cancelTransferAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:581	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
 candidates	fn/async	local	apps/api/src/services/fees/fee-schedule.service.ts:119	apps/api/services/fees	(tx: TxClient, feeTypes: string[]): Promise<EntryRow[]>	
 canSeePractitioner	fn	export	apps/api/src/services/invoicing/invoice-visibility.ts:188	apps/api/services/invoicing	(visibility: InvoiceVisibility, practitionerProfileId: string | null): boolean	
 canSeeSource	fn	export	apps/api/src/services/invoicing/invoice-visibility.ts:211	apps/api/services/invoicing	(visibility: InvoiceVisibility, source: InvoiceSourceType): boolean	
@@ -2001,7 +2001,7 @@ negate	fn	local	packages/inventory/src/movement.ts:395	packages/inventory	(quant
 negateMoney	fn	export	packages/payments/src/money.ts:69	packages/payments	(a: Money): Money	
 negative	fn	local	packages/billing/src/engine/lifecycle.ts:689	packages/billing/engine	(amount: Money): Money	A credit, as a negative invoice line.
 netOf	fn	export	packages/tax/src/arithmetic.ts:27	packages/tax	(gross: Money, rateBps: number): Money	
-NewAdjustmentPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:37	apps/web/app/(tenant)/t/[slug]/(app)/stock/adjustments/new	({ params, }: { params: Promise<{ slug: string }>; })	
+NewAdjustmentPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:37	apps/web/app/(tenant)/t/[slug]/(app)/stock/adjustments/new	({ params }: { params: Promise<{ slug: string }> })	
 NewLocationPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/new/page.tsx:22	apps/web/app/(tenant)/t/[slug]/(app)/stock/locations/new	({ params }: { params: Promise<{ slug: string }> })	
 NewLotPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/new/page.tsx:34	apps/web/app/(tenant)/t/[slug]/(app)/stock/lots/new	({ params }: { params: Promise<{ slug: string }> })	
 NewProductPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/new/page.tsx:26	apps/web/app/(tenant)/t/[slug]/(app)/products/new	({ params }: { params: Promise<{ slug: string }> })	
@@ -2443,11 +2443,11 @@ REASON_CODE_MANAGE	const	local	apps/api/src/routes/v1/inventory.routes.ts:170	ap
 REASON_WORDS	const	local	apps/web/src/components/tenant/working-day-picker.tsx:49	apps/web/components/tenant	: Record<WorkingDayReason, string>	
 reasonCode	var	export	packages/contracts/src/inventory.ts:176	packages/contracts	z .string() .trim() .min(2) .max(64) .regex(…)	
 reasonCodeParams	zod	local	apps/api/src/routes/v1/inventory.routes.ts:521	apps/api/routes/v1	z.object(…)	
-ReceivePanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:275	apps/web/components/tenant	({ slug, transfer, locations, }: { slug: string; transfer: S…)	
+ReceivePanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:272	apps/web/components/tenant	({ slug, transfer, locations, }: { slug: string; transfer: S…)	
 receiveStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1030	packages/contracts	z.object(…)	
 ReceiveStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1315	packages/contracts	z.infer<typeof receiveStockTransferRequest>	
 receiveTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.ts:1094	apps/api/services/inventory	(ctx: TenantContext, id: string, input: ReceiveStockTransferRequest, options: CatalogueActionOptions): Promise<StockTransferDetail>	
-receiveTransferAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:503	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
+receiveTransferAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:504	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
 reconcileClassifications	fn/async	local	apps/api/src/services/doctor/doctor.service.ts:492	apps/api/services/doctor	(tx: TxClient, organizationId: string, doctorProfileId: string, entries: DoctorClassificationInput[], primaryId: string | undefined): Promise<void>	
 reconcileIntent	fn/async	export	apps/api/src/services/billing/billing.service.ts:437	apps/api/services/billing	(ctx: TenantContext, slug: string, intentId: string): Promise<PaymentStatusResponse>	
 reconcileMandate	fn/async	export	apps/api/src/services/billing/billing.service.ts:395	apps/api/services/billing	(ctx: TenantContext, slug: string, mandateId: string): Promise<MandateStatusResponse>	
@@ -2522,10 +2522,10 @@ RegistrationRow	type	local	apps/api/src/services/tax/clinic-tax.service.ts:96	ap
 RegistrationRow	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:276	apps/web/components/tenant	({ slug, registration, branches, canManage, canReadHistory, …)	
 RegistrationsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:365	apps/web/components/tenant	({ patient }: { patient: PatientDetail })	
 RELATIONS	component	local	apps/web/src/components/tenant/patient-search.tsx:116	apps/web/components/tenant	: SelectOption[]	
-ReleaseButton	component	local	apps/web/src/components/tenant/reservation-list.tsx:244	apps/web/components/tenant	({ slug, reservationId }: { slug: string; reservationId: str…)	
+ReleaseButton	component	local	apps/web/src/components/tenant/reservation-list.tsx:243	apps/web/components/tenant	({ slug, reservationId }: { slug: string; reservationId: str…)	
 releaseDueReservation	fn/async	export	packages/inventory/src/reservation-sweep.ts:114	packages/inventory	(tx: TxClient, ctx: TenantContext, deps: MovementDeps, reservation: DueReservation): Promise<boolean>	
 releaseReservation	fn/async	export	apps/api/src/services/inventory/reservation.service.ts:359	apps/api/services/inventory	(ctx: TenantContext, id: string, input: ReleaseStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>	
-releaseReservationAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:675	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>	
+releaseReservationAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:678	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>	
 releaseReservationIn	fn/async	export	apps/api/src/services/inventory/reservation.service.ts:302	apps/api/services/inventory	(tx: TxClient, ctx: TenantContext, reservation: { id: string; branchId: string; productId: str…, options: CatalogueActionOptions & { notes?: string | null |…): Promise<boolean>	
 releaseStockReservationRequest	var	export	packages/contracts/src/inventory.ts:1181	packages/contracts	z .object({ notes: z.string().trim().max(2000).nullish() })…	
 ReleaseStockReservationRequest	type	export	packages/contracts/src/inventory.ts:1324	packages/contracts	z.infer<typeof releaseStockReservationRequest>	
@@ -2605,7 +2605,7 @@ RESERVE	const	local	apps/api/src/routes/v1/inventory.routes.ts:169	apps/api/rout
 RESERVED	const	local	apps/web/src/proxy.ts:42	apps/web	new Set(…)	Subdomains the platform keeps. A tenant claiming `api` or `admin` would break routing for everyone, so registration rej…
 RESERVED_SLUGS	const	export	packages/contracts/src/common.ts:17	packages/contracts	new Set(…)	Subdomains the platform keeps for itself. A tenant claiming `api` or `admin` would break routing for everyone, so this …
 reserveStock	fn/async	export	apps/api/src/services/inventory/reservation.service.ts:159	apps/api/services/inventory	(ctx: TenantContext, input: CreateStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>	
-reserveStockAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:615	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
+reserveStockAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:618	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
 reset	fn/async	local	apps/api/tests/integration/fee-schedule.test.ts:167	apps/api/tests/integration	(): Promise<void>	
 ResetButton	component	local	apps/web/src/components/tenant/clinic-settings.tsx:262	apps/web/components/tenant	({ slug, settingKey }: { slug: string; settingKey: string })	
 resetDocumentStoreForTesting	fn	export	packages/documents/src/store/runtime.ts:99	packages/documents/store	(): void	Test seam. Never called by application code.
@@ -2743,7 +2743,7 @@ Row	type	local	apps/api/src/services/inventory/reservation.service.ts:64	apps/ap
 Row	interface	local	apps/api/src/services/platform/tax-registration.service.ts:42	apps/api/services/platform	{ id, countryCode, regionCode, scheme, registrationNumber, standardRateBps, effectiveFrom, effectiveTo }	
 Row	interface	local	apps/api/src/services/platform/tax-rule-default.service.ts:48	apps/api/services/platform	{ id, countryCode, regionCode, scheme, taxCategory, description, rateBps, treatment, lineName, regionalLineName, split, stacks, sourceNote, effectiveFrom, effectiveTo }	
 Row	type	local	apps/web/src/components/marketing/journey-rail.tsx:17	apps/web/components/marketing	{ label: string; value: string; mono?: boolean; note?: string }	
-Row	component	local	apps/web/src/components/tenant/transfer-detail.tsx:213	apps/web/components/tenant	({ label, children }: { label: string; children: React.React…)	
+Row	component	local	apps/web/src/components/tenant/transfer-detail.tsx:210	apps/web/components/tenant	({ label, children }: { label: string; children: React.React…)	
 rowSeq	var	local	apps/web/src/components/tenant/doctor-create-form.tsx:111	apps/web/components/tenant	0	
 rowsFrom	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:128	apps/web/app/(tenant)/t/[slug]/(app)/doctors	(formData: FormData, key: string): unknown[]	
 rule	fn	local	packages/invoicing/tests/pricing.test.ts:60	packages/invoicing/tests	(overrides: Partial<TaxRule> & Pick<TaxRule, 'taxCategory'>): TaxRule	
@@ -2839,7 +2839,7 @@ sender	var	export	apps/api/src/services/notification/sender.ts:86	apps/api/servi
 sendError	fn	export	apps/api/src/utils/response.ts:63	apps/api/utils	(res: Response, message: string, statusCode: number, errors?: Record<string, string[]>): Response	Send error response
 sendNoContent	fn	export	apps/api/src/utils/response.ts:56	apps/api/utils	(res: Response): Response	Send no content response (204)
 sendPaginated	fn	export	apps/api/src/utils/response.ts:84	apps/api/utils	(res: Response, data: T[], total: number, page: number, limit: number, message: string): Response	Send paginated response
-SendPanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:229	apps/web/components/tenant	({ slug, transferId, transfer, }: { slug: string; transferId…)	
+SendPanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:226	apps/web/components/tenant	({ slug, transferId, transfer, }: { slug: string; transferId…)	
 sendSuccess	fn	export	apps/api/src/utils/response.ts:22	apps/api/utils	(res: Response, data: T, message: string, statusCode: number, meta?: ApiResponse<T>['meta']): Response	Send success response
 sendVerificationCode	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:40	apps/web/app/(tenant)/t/[slug]/(app)/verify	(channel: VerifyChannel, slug: string, _previous: VerifyFormState): Promise<VerifyFormState>	
 SequenceRow	interface	local	apps/api/src/services/numbering/number-sequence.service.ts:77	apps/api/services/numbering	{ last_number, prefix, padding }	

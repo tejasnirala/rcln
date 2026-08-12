@@ -155,7 +155,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `cancelStockTransferRequest` | zod | `packages/contracts/src/inventory.ts:1068` |
 | `CancelStockTransferRequest` | type | `packages/contracts/src/inventory.ts:1316` |
 | `cancelTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:1317` |
-| `cancelTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:578` |
+| `cancelTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:581` |
 | `compareQuantities` | fn | `packages/inventory/src/units.ts:207` |
 | `conflict` | fn | `packages/inventory/src/errors.ts:38` |
 | `conversionFactor` | fn | `packages/inventory/src/units.ts:296` |
@@ -274,7 +274,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `receiveStockTransferRequest` | zod | `packages/contracts/src/inventory.ts:1030` |
 | `ReceiveStockTransferRequest` | type | `packages/contracts/src/inventory.ts:1315` |
 | `receiveTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:1094` |
-| `receiveTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:503` |
+| `receiveTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:504` |
 | `recordAdjustmentAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:337` |
 | `recordMovement` | fn | `apps/api/src/services/inventory/movement.service.ts:77` |
 | `recordMovementIn` | fn | `apps/api/src/services/inventory/movement.service.ts:52` |
@@ -285,7 +285,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `RecordMovementResponse` | type | `packages/contracts/src/inventory.ts:870` |
 | `releaseDueReservation` | fn | `packages/inventory/src/reservation-sweep.ts:114` |
 | `releaseReservation` | fn | `apps/api/src/services/inventory/reservation.service.ts:359` |
-| `releaseReservationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:675` |
+| `releaseReservationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:678` |
 | `releaseReservationIn` | fn | `apps/api/src/services/inventory/reservation.service.ts:302` |
 | `releaseStockReservationRequest` | var | `packages/contracts/src/inventory.ts:1181` |
 | `ReleaseStockReservationRequest` | type | `packages/contracts/src/inventory.ts:1324` |
@@ -295,7 +295,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `ReservationsPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/reservations/page.tsx:34` |
 | `ReservationSweepResult` | interface | `packages/inventory/src/reservation-sweep.ts:52` |
 | `reserveStock` | fn | `apps/api/src/services/inventory/reservation.service.ts:159` |
-| `reserveStockAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:615` |
+| `reserveStockAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:618` |
 | `resolveStrategy` | fn | `packages/inventory/src/allocate.ts:228` |
 | `RunInTenant` | type | `packages/inventory/src/expiry.ts:192` |
 | `serialDetail` | var | `packages/contracts/src/inventory.ts:556` |
