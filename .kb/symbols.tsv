@@ -116,6 +116,7 @@ ApiRequest	interface	export	apps/web/src/lib/api.ts:92	apps/web/lib	{ method, bo
 ApiResponse	interface	export	apps/api/src/types/index.ts:9	apps/api/types	{ success, message, data, errors, meta }	
 ApiResponse	interface	local	apps/api/src/utils/response.ts:6	apps/api/utils	{ success, message, data, errors, meta }	Standardized API response format
 ApiResult	interface	export	apps/web/src/lib/api.ts:60	apps/web/lib	{ ok, status, data, meta, message, fieldErrors }	
+app	var	export	apps/api/tests/integration/tenant-isolation/harness.ts:66	apps/api/tests/integration/tenant-isolation	lazyClient(…)	Connects as `rcln_app`: the application's role, RLS enforced. The subject.
 Appearance	type	export	apps/web/src/lib/theme.ts:38	apps/web/lib	(typeof APPEARANCES)[number]	
 APPEARANCE_COOKIE	const	export	apps/web/src/lib/theme.ts:113	apps/web/lib	'rcln_appearance'	
 APPEARANCE_OPTIONS	const	export	apps/web/src/lib/theme.ts:52	apps/web/lib	: ReadonlyArray<{ id: Appearance; label: string; description: string; }>	
@@ -246,7 +247,7 @@ assignSerial	fn/async	export	apps/api/src/services/inventory/serial.service.ts:3
 assignSerialRequest	zod	export	packages/contracts/src/inventory.ts:510	packages/contracts	z.object(…)	
 AssignSerialRequest	type	export	packages/contracts/src/inventory.ts:863	packages/contracts	z.infer<typeof assignSerialRequest>	
 asTenant	fn/async	local	apps/api/tests/integration/registration.test.ts:45	apps/api/tests/integration	(organizationId: string, branchIds: string[], fn: () => Promise<T>): Promise<T>	Run a query with the tenant session variables set, exactly as withTenant does. `branchIds` matters: membership_roles ca…
-asTenant	fn/async	local	apps/api/tests/integration/tenant-isolation.test.ts:29	apps/api/tests/integration	(organizationId: string, fn: () => Promise<T>): Promise<T>	Run a unit of work with the tenant session variables set, as the app does.
+asTenant	fn/async	export	apps/api/tests/integration/tenant-isolation/harness.ts:69	apps/api/tests/integration/tenant-isolation	(organizationId: string, fn: () => Promise<T>): Promise<T>	Run a unit of work with the tenant session variables set, as the app does.
 asUser	fn	local	apps/api/tests/integration/appointment-billing.test.ts:115	apps/api/tests/integration	(token: () => string)	
 asUser	fn	local	apps/api/tests/integration/clinic-tax.test.ts:101	apps/api/tests/integration	(slug: string, token: () => string)	
 asUser	fn	local	apps/api/tests/integration/iam.test.ts:92	apps/api/tests/integration	(slug: string, token: () => string)	Every call in this suite carries a Host and a bearer token; nothing else.
@@ -376,6 +377,9 @@ BookingState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/a
 BOOL_CHOICES	const	local	apps/web/src/components/tenant/clinic-settings.tsx:38	apps/web/components/tenant	: SelectOption[]	A BOOL setting, in the words the row already uses to display it.
 bounded	fn	local	packages/contracts/src/appointments.ts:361	packages/contracts	(key: VitalKey): z.ZodNumber	A bounded number, with a message somebody can act on, from one entry.
 boxFor	fn	local	apps/web/src/components/tenant/vitals-panel.tsx:563	apps/web/components/tenant	(range: VitalRange): { type: 'number'; min: number; max: number; step: number; i…	
+BRANCH_A	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:29	apps/api/tests/integration/tenant-isolation	'aaaaaaaa-0000-0000-0000-0000000000a1'	
+BRANCH_B1	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:30	apps/api/tests/integration/tenant-isolation	'bbbbbbbb-0000-0000-0000-0000000000b1'	
+BRANCH_B2	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:31	apps/api/tests/integration/tenant-isolation	'bbbbbbbb-0000-0000-0000-0000000000b2'	
 BRANCH_SELECT	const	local	apps/api/src/services/branch/branch.service.ts:115	apps/api/services/branch	{ id: true, name: true, code: true, branchType: true, status: true, isPrimary: true, time…	The shape Prisma is asked for, so list and detail cannot drift apart.
 BRANCH_STATUSES	const	local	apps/web/src/components/tenant/branch-list.tsx:30	apps/web/components/tenant	: SelectOption[]	"Open/Paused/Closed", not ACTIVE/INACTIVE/CLOSED — nobody pauses a branch by setting it inactive.
 BRANCH_TYPES	const	local	apps/web/src/components/tenant/branch-list.tsx:21	apps/web/components/tenant	: SelectOption[]	What kind of place this is. The API enum, named the way a clinic says it.
@@ -1647,6 +1651,7 @@ LATIN_EXT	const	local	packages/documents/src/fonts.ts:32	packages/documents	'U+0
 LAUNCH_ARGS	const	local	apps/worker/src/documents/browser.ts:61	apps/worker/documents	[ '--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', // Nothing here plays audio…	
 launching	var	local	apps/worker/src/documents/browser.ts:74	apps/worker/documents	: Promise<Browser> | null	
 layout	fn	local	apps/api/src/services/notification/templates.ts:43	apps/api/services/notification	(heading: string, bodyHtml: string): string	
+lazyClient	fn	local	apps/api/tests/integration/tenant-isolation/harness.ts:46	apps/api/tests/integration/tenant-isolation	(pick: () => Client | undefined, label: string): Client	
 ledgerInclude	var	local	apps/api/src/services/inventory/balance.service.ts:44	apps/api/services/inventory	Prisma.validator<Prisma.StockLedgerEntryInclude>()(…)	
 LegalDoc	component	export	apps/web/src/components/marketing/legal.tsx:30	apps/web/components/marketing	({ title, updated, summary, children, }: { title: string; /*…)	
 legsFor	fn/async	local	apps/api/tests/integration/stock-movements.test.ts:139	apps/api/tests/integration	(transferId: string): Promise<number>	How many ledger rows this transfer produced. The atomicity assertion.
@@ -2051,6 +2056,8 @@ Optional	type	export	apps/api/src/types/index.ts:6	apps/api/types	T | undefined
 ORDER	component	local	apps/web/src/components/tenant/stock-status.tsx:56	apps/web/components/tenant	: StockStatus[]	Drawing order. Available leads; the rest follow in decreasing usefulness.
 ORDER_STATUS	const	local	packages/payments/src/providers/razorpay.ts:202	packages/payments/providers	: Readonly<Record<string, ChargeStatus>>	
 orderCandidates	fn	export	packages/inventory/src/allocate.ts:101	packages/inventory	(candidates: AllocationCandidate[], strategy: AllocationStrategy): AllocationCandidate[]	
+ORG_A	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:27	apps/api/tests/integration/tenant-isolation	'11111111-1111-1111-1111-11111111aaaa'	
+ORG_B	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:28	apps/api/tests/integration/tenant-isolation	'22222222-2222-2222-2222-22222222bbbb'	
 ORG_TYPES	const	local	apps/web/src/components/marketing/signup-form.tsx:73	apps/web/components/marketing	: SelectOption[]	What kind of practice this is, in the words a practice uses for itself.
 ORGANIZATION_SELECT	const	local	apps/api/src/services/organization/organization.service.ts:45	apps/api/services/organization	{ id: true, slug: true, legalName: true, displayName: true, orgType: true, status: true, …	What Prisma is asked for, so the read and the write paths cannot drift.
 OrganizationActionOptions	interface	export	apps/api/src/services/organization/organization.service.ts:39	apps/api/services/organization	{ ipAddress, userAgent }	Request metadata carried onto the audit row. Same shape as the branch service.
@@ -2080,6 +2087,7 @@ overlayDescription	fn	local	apps/web/src/components/tenant/checkout/razorpay-che
 OverrideEffect	type	export	packages/permissions/src/resolver.ts:18	packages/permissions	'GRANT' | 'DENY'	
 overrideParams	var	local	apps/api/src/routes/v1/members.routes.ts:61	apps/api/routes/v1	memberParams.extend(…)	
 OverrideRow	interface	export	packages/billing/src/entitlements.ts:35	packages/billing	{ featureKey, intValue, boolValue }	
+owner	var	export	apps/api/tests/integration/tenant-isolation/harness.ts:63	apps/api/tests/integration/tenant-isolation	lazyClient(…)	Connects as `rcln_owner`: migrations' role, bypasses RLS. Seeds the fixtures.
 OwnProfilePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/profile/page.tsx:31	apps/web/app/(tenant)/t/[slug]/(app)/profile	({ params }: { params: Promise<{ slug: string }> })	
 OwnRuleRow	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:647	apps/web/components/tenant	({ slug, rule, canManage, canReadHistory, pending, onEnd, }:…)	
 P	const	local	packages/permissions/src/roles.ts:35	packages/permissions	PERMISSIONS	
@@ -3524,6 +3532,7 @@ upgradeRequest	var	export	packages/contracts/src/billing.ts:50	packages/contract
 UpgradeRequest	type	export	packages/contracts/src/billing.ts:51	packages/contracts	UpgradePreviewRequest	
 upsertMedicineDetail	fn/async	export	apps/api/src/services/product/medicine.service.ts:85	apps/api/services/product	(ctx: TenantContext, productId: string, input: MedicineDetailRequest, options: CatalogueActionOptions): Promise<MedicineDetail>	
 US_REGIONS	const	local	packages/contracts/src/locale.ts:256	packages/contracts	: readonly Region[]	US states that levy a sales tax, plus DC. The five that do not are omitted.
+useIsolationHarness	hook	export	apps/api/tests/integration/tenant-isolation/harness.ts:90	apps/api/tests/integration/tenant-isolation	(): void	
 useOutcomeFocus	hook	local	apps/web/src/components/tenant/login-form.tsx:72	apps/web/components/tenant	(state: LoginFormState, ref: React.RefObject<HTMLFormElement | null>): void	Focus the outcome: the first field at fault, or the message.
 useOutcomeFocus	hook	export	apps/web/src/components/ui/alert.tsx:96	apps/web/components/ui	(status: string, ref: React.RefObject<HTMLElement | null>): void	
 UserAccess	interface	export	apps/api/src/services/auth/access.service.ts:43	apps/api/services/auth	{ membershipId, organizationId, branchIds, roleAssignments, overrides }	

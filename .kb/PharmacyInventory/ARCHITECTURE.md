@@ -359,7 +359,7 @@ profiles and dosing rules differ, and both are already per-jurisdiction data.
 
 - Import the raw Prisma client, or anything under `generated/prisma`
 - Add a tenant table without an RLS policy, the SQL appended to the migration,
-  and a `tenant-isolation.test.ts` case
+  and a case in the tenant-isolation suite
 - Write a bare `@@unique([code])` on a tenant table
 - Compute a tax rate, split a tax line, or format a tax label
 - Insert an `invoice_item` directly

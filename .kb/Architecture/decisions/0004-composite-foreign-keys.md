@@ -32,7 +32,7 @@ REFERENCES "branches" ("organization_id", "id")
 
 - A cross-tenant reference is rejected by the database, for **every** role —
   foreign keys bind the owner and superusers too, unlike RLS. Verified in
-  `tenant-isolation.test.ts`.
+  the tenant-isolation suite.
 - Child tables must denormalise `organization_id` even when it is derivable.
   `membership_roles` carries it for exactly this reason; it also lets RLS filter
   without a join.

@@ -179,7 +179,7 @@ flowchart TD
     C --> D["4. Append that SQL to the generated<br/>migration.sql BEFORE committing"]
     D --> E["5. pnpm db:rls:check"]
     E -->|fails| C
-    E -->|passes| F["6. Add a case to<br/>tests/integration/tenant-isolation.test.ts"]
+    E -->|passes| F["6. Add a case to<br/>tests/integration/tenant-isolation/"]
     F --> G["7. pnpm validate"]
     G --> H["8. pnpm kb — regenerate Database/"]
 ```

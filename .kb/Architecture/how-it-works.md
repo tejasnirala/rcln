@@ -378,7 +378,7 @@ docker compose exec postgres psql -U rcln_app -d rcln \
 | Branch CRUD + opening hours       | `apps/api/src/services/branch/branch.service.ts`                        |
 | Tenant-scoped database access     | `packages/db/src/tenant.ts`                                             |
 | RLS policies                      | `packages/db/prisma/rls/enable-rls.sql`                                 |
-| The isolation proof               | `apps/api/tests/integration/tenant-isolation.test.ts`                   |
+| The isolation proof               | `apps/api/tests/integration/tenant-isolation/`                          |
 | Session cookies, the BFF          | `apps/web/src/lib/session.ts`, `apps/web/src/lib/api.ts`                |
 
 Before changing anything structural, read the relevant

@@ -257,7 +257,7 @@ tenancy, auth, permissions, patient data, billing, or raw SQL. Manually confirm:
 
 - [ ] Any new tenant table has `organizationId`, `@@unique([organizationId, id])`,
       an RLS policy in `enable-rls.sql`, that SQL appended to the migration, and
-      a `tenant-isolation.test.ts` case
+      a case in the tenant-isolation suite
 - [ ] `pnpm db:rls:check` passes
 - [ ] No raw Prisma import; everything goes through `withTenant`
 - [ ] Any new permission code is seeded and gated at the route

@@ -22,7 +22,7 @@ Read `.kb/STATUS.md` for what already exists, `.kb/Architecture/CONVENTIONS.md` 
 When asked to design a feature, produce a complete slice:
 
 1. **Domain model** — tables/models, ownership (org-scoped vs branch-scoped), `deletedAt`, audit columns, money as `Decimal(14,2)` + currency, quantities `Decimal(14,3)`, `Timestamptz(6)`. State every `@@unique` as tenant-qualified. Name the composite-FK targets.
-2. **RLS plan** — which new tables are tenant tables, their entry in `packages/db/prisma/rls/enable-rls.sql`, and the `tenant-isolation.test.ts` cases they need. Say explicitly if a table is _not_ tenant-scoped and why (platform/global lookup).
+2. **RLS plan** — which new tables are tenant tables, their entry in `packages/db/prisma/rls/enable-rls.sql`, and the tenant-isolation cases they need. Say explicitly if a table is _not_ tenant-scoped and why (platform/global lookup).
 3. **Migration shape** — what Prisma Migrate generates vs what must be hand-appended SQL (policies, triggers, `NULLS NOT DISTINCT`, partial indexes, exclusion constraints). Prisma manages none of the latter.
 4. **Contracts** — Zod schemas to add to `@rcln/contracts` (request, response, params), so api and web infer the same types. Contracts come before handlers.
 5. **API surface** — method + path + which middleware applies, in the fixed order: `resolveTenant → authenticate → authorize → withTenant → handler`. Unknown tenant is **404, never 403**. Note every mutation and every PHI read that must be audited.
@@ -61,7 +61,7 @@ When asked to design a feature, produce a complete slice:
 
 ### RLS & Isolation
 - New tenant tables: ... → add to enable-rls.sql `org_scoped`
-- tenant-isolation.test.ts cases: ...
+- tenant-isolation cases: ...
 - Not tenant-scoped (and why): ...
 
 ### Migration

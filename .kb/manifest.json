@@ -120,7 +120,7 @@
   "Database/User.md": "ce0d84696215",
   "Database/UserIdentity.md": "18551ca30617",
   "Database/_index.md": "5e5d965acbd8",
-  "INDEX.md": "e2a4191de503",
+  "INDEX.md": "f577a446727c",
   "Modules/Appointments.md": "93dc32226045",
   "Modules/Audit.md": "e0ef46f6e91a",
   "Modules/Authentication.md": "a219d5df85dd",
@@ -166,7 +166,8 @@
   "Symbols/apps.api.services.product.md": "3df709cf1426",
   "Symbols/apps.api.services.settings.md": "f6777b496b4a",
   "Symbols/apps.api.services.tax.md": "360714f92228",
-  "Symbols/apps.api.tests.integration.md": "4d46fc61c526",
+  "Symbols/apps.api.tests.integration.md": "d69b39523a9c",
+  "Symbols/apps.api.tests.integration.tenant-isolation.md": "c6e03ac5add4",
   "Symbols/apps.api.tests.md": "894a2e635ab0",
   "Symbols/apps.api.tests.unit.md": "28078257c0bf",
   "Symbols/apps.api.types.md": "b4eb17c7c6b9",
@@ -268,5 +269,5 @@
   "Symbols/packages.storage.tests.md": "c31a93895ee4",
   "Symbols/packages.tax.md": "090ccc7b2757",
   "Symbols/packages.tax.tests.md": "660ddf75a449",
-  "symbols.tsv": "636f1529ff9d"
+  "symbols.tsv": "291eb6dd2791"
 }
