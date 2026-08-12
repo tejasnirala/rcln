@@ -23,3 +23,5 @@ export * from './errors.js';
 export * from './units.js';
 export * from './movement.js';
 export * from './expiry.js';
+export * from './allocate.js';
+export * from './reservation-sweep.js';

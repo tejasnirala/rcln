@@ -198,6 +198,32 @@ export const INVENTORY_SWEEP_JOB = 'EXPIRY_SWEEP';
 export const INVENTORY_SWEEP_CRON = '10 * * * *';
 
 /**
+ * The reservation clock (PI-3.4). A second repeatable job on the same queue.
+ *
+ * ⚠️ A SEPARATE JOB AND NOT A SECOND STEP INSIDE THE EXPIRY SWEEP, THOUGH THEY
+ *   RUN ON THE SAME QUEUE AND LOOK ALIKE. The two answer different questions of
+ *   different tables — one asks which lots have passed a calendar day in the
+ *   branch's zone, the other which reservations have passed an instant — and
+ *   folding them together would mean one failing takes the other's work with it.
+ *   They are also legitimately tunable apart: a clinic wanting reservations
+ *   released promptly is not thereby asking for expiry to run more often.
+ */
+export const RESERVATION_SWEEP_JOB = 'RESERVATION_SWEEP';
+
+/**
+ * ⚠️ OFFSET FROM THE EXPIRY SWEEP ON PURPOSE. Both sweeps take advisory bucket
+ *   locks, and at :10 on the hour they would contend for the same buckets at
+ *   every clinic simultaneously — neither would be wrong, and both would be
+ *   slower for no reason. Twenty minutes apart costs nothing: an expired
+ *   reservation is released within the hour either way.
+ *
+ *   Hourly rather than by-the-minute because `expires_at` is chosen in hours or
+ *   days by a person holding stock for somebody, never in minutes. A hold that
+ *   needed minute precision would be a dispense.
+ */
+export const RESERVATION_SWEEP_CRON = '30 * * * *';
+
+/**
  * Deterministic ids. `reminder-<appointmentId>-24h` can only ever fire once.
  *
  * ⚠️ NO COLONS. BullMQ rejects a custom job id containing `:` — it namespaces

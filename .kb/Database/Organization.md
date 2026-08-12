@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 67 |
+| relations | 71 |
 
 ## Columns
 
@@ -104,6 +104,10 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `serials` | [`Serial`](Serial.md) | `serials Serial[]` |
 | `stockLedgerEntries` | [`StockLedgerEntry`](StockLedgerEntry.md) | `stockLedgerEntries StockLedgerEntry[]` |
 | `stockBalances` | [`StockBalance`](StockBalance.md) | `stockBalances StockBalance[]` |
+| `stockReasonCodes` | [`StockReasonCode`](StockReasonCode.md) | `stockReasonCodes StockReasonCode[]` |
+| `stockTransfers` | [`StockTransfer`](StockTransfer.md) | `stockTransfers StockTransfer[]` |
+| `stockTransferLines` | [`StockTransferLine`](StockTransferLine.md) | `stockTransferLines StockTransferLine[]` |
+| `stockReservations` | [`StockReservation`](StockReservation.md) | `stockReservations StockReservation[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -182,4 +186,8 @@ erDiagram
     Organization }o--o{ Serial : relates
     Organization }o--o{ StockLedgerEntry : relates
     Organization }o--o{ StockBalance : relates
+    Organization }o--o{ StockReasonCode : relates
+    Organization }o--o{ StockTransfer : relates
+    Organization }o--o{ StockTransferLine : relates
+    Organization }o--o{ StockReservation : relates
 ```

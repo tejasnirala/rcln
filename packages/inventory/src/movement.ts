@@ -333,8 +333,16 @@ async function bucketQuantity(tx: TxClient, key: BucketKey): Promise<string> {
  *   `assertExactConversion` was written for, and it is the only one that matters:
  *   rounding a display estimate is fine, rounding a MOVEMENT means the ledger and
  *   the shelf disagree by design.
+ *
+ * ⚠️ EXPORTED SINCE PI-3, FOR TRANSFER LINES, AND THAT IS THE ONLY REASON. A
+ *   transfer line records what the sender typed and what it came to in base
+ *   units, and it MUST resolve those two the same way the ledger leg it will
+ *   later write does — a line that converted differently from its own movement
+ *   would put the document and the shelves out of step at the moment somebody
+ *   reconciles them. It converts; it does not move anything. Anything that moves
+ *   quantity still goes through `recordMovementIn` (PI-ADR-004).
  */
-async function toBaseUnits(
+export async function toBaseUnits(
   tx: TxClient,
   deps: MovementDeps,
   product: { id: string; baseUnitId: string; baseUnitCode: string },

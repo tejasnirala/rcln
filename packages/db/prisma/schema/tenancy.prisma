@@ -159,6 +159,14 @@ model Organization {
   serials                  Serial[]
   stockLedgerEntries       StockLedgerEntry[]
   stockBalances            StockBalance[]
+  // Movements (PI-3). ⚠️ `stockReasonCodes` is the ONE platform-extensible table
+  // in the inventory domain, so it is the one whose `organization_id` is
+  // nullable — a reason code is a word, not a fact about a clinic. See its model
+  // comment. The other three are strictly tenant rows like everything above.
+  stockReasonCodes         StockReasonCode[]
+  stockTransfers           StockTransfer[]
+  stockTransferLines       StockTransferLine[]
+  stockReservations        StockReservation[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
@@ -269,6 +277,14 @@ model Branch {
   serials                 Serial[]
   stockLedgerEntries      StockLedgerEntry[]
   stockBalances           StockBalance[]
+  // Movements (PI-3). ⚠️ A transfer has TWO branches and therefore appears here
+  // twice, under two relation names. It is the only table in the programme with
+  // that shape and it is why `stock_transfers` is not in the `branch_scoped` RLS
+  // array — the generic policy names a `branch_id` column it does not have. See
+  // its model comment and the bespoke policy in enable-rls.sql.
+  transfersOut            StockTransfer[]     @relation("TransferFromBranch")
+  transfersIn             StockTransfer[]     @relation("TransferToBranch")
+  stockReservations       StockReservation[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

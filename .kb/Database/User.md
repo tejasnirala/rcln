@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 26 |
+| relations | 32 |
 
 ## Columns
 
@@ -67,6 +67,12 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `invoicesCancelled` | [`Invoice`](Invoice.md) | `invoicesCancelled Invoice[] @relation("InvoiceCancelledBy")` |
 | `invoiceDocumentsGenerated` | [`InvoiceDocument`](InvoiceDocument.md) | `invoiceDocumentsGenerated InvoiceDocument[] @relation("InvoiceDocumentGeneratedBy")` |
 | `stockMovements` | [`StockLedgerEntry`](StockLedgerEntry.md) | `stockMovements StockLedgerEntry[]` |
+| `transfersCreated` | [`StockTransfer`](StockTransfer.md) | `transfersCreated StockTransfer[] @relation("TransferCreatedBy")` |
+| `transfersDispatched` | [`StockTransfer`](StockTransfer.md) | `transfersDispatched StockTransfer[] @relation("TransferDispatchedBy")` |
+| `transfersReceived` | [`StockTransfer`](StockTransfer.md) | `transfersReceived StockTransfer[] @relation("TransferReceivedBy")` |
+| `transfersCancelled` | [`StockTransfer`](StockTransfer.md) | `transfersCancelled StockTransfer[] @relation("TransferCancelledBy")` |
+| `reservationsCreated` | [`StockReservation`](StockReservation.md) | `reservationsCreated StockReservation[] @relation("ReservationCreatedBy")` |
+| `reservationsReleased` | [`StockReservation`](StockReservation.md) | `reservationsReleased StockReservation[] @relation("ReservationReleasedBy")` |
 
 ## Indexes and constraints
 
@@ -98,4 +104,6 @@ erDiagram
     User }o--o{ Invoice : relates
     User }o--o{ InvoiceDocument : relates
     User }o--o{ StockLedgerEntry : relates
+    User }o--o{ StockTransfer : relates
+    User }o--o{ StockReservation : relates
 ```

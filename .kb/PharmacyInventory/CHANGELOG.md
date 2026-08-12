@@ -5,6 +5,157 @@ discussed.
 
 ---
 
+## 2026-08-12 — PI-3 reviews, and the three bugs they found
+
+**Phase:** PI-3 · **Result:** all findings fixed · **Tests:** +4 regression cases
+
+Both reviewer passes run on the PI-3 diff. **The tenancy layer came back clean** —
+the security reviewer tried to break the two-ended transfer policy and could not,
+and confirmed the in-transit claim holds: dispatch writes only at
+`from_branch_id`, receipt only at `to_branch_id`, cancel only at
+`from_branch_id`, and no tenant context is widened anywhere. Every finding was in
+the transfer and reservation SERVICES.
+
+⚠️ **Both reviewers independently found the same top bug**, which is the strongest
+signal either produced.
+
+### 1. A duplicate `lineId` on receipt minted stock · CRITICAL
+
+`receiveTransfer` built its line map ONCE and read `receivedQuantityBase` off
+that object every iteration, and the row write was an absolute assignment rather
+than an increment. Two entries naming one line both measured against the same
+untouched value, both passed the over-receipt check, both wrote a `TRANSFER_IN`
+leg, and the row recorded only the last. **Ten units sent became twenty
+received**, the document read fully received with nothing outstanding, and
+`stock_transfer_lines_quantities_sane` was satisfied throughout because the ROW
+never held more than was sent.
+
+⚠️ **Nothing else would have caught it.** `verifyBalances()` agrees with the
+inflated figure — both legs are genuine ledger rows. The web form cannot produce
+it, because `receive.<lineId>` FormData keys collapse; the API is the boundary.
+
+Fixed in both layers: a uniqueness `.refine()` on the contract, and per-line
+accumulation in the service so the loop no longer depends on a well-formed
+request to be correct.
+
+### 2. Every transfer state transition was a read-then-write race · CRITICAL
+
+`withTenant` opens a plain READ COMMITTED transaction and the service read the
+status with a plain `findUnique`. Two concurrent dispatches both see `DRAFT` and
+both write a full set of legs. The nastiest pair is **cancel against receive**,
+because they write at DIFFERENT branches — the compensating leg at the sender and
+the real one at the receiver touch different buckets, so the engine's advisory
+bucket locks never bring them into contact. Ten dispatched, twenty landed.
+
+Fixed with `lockTransferOrThrow` — `SELECT … FOR UPDATE` on the header before any
+leg is written. ⚠️ `FOR UPDATE` is legitimate here and refused on
+`stock_balances`, and the difference is the grant: Postgres needs the UPDATE
+privilege to take a row lock, `rcln_app` has it on `stock_transfers` and not on
+the balance cache.
+
+### 3. The manual release raced the sweep into a double release · CRITICAL
+
+`releaseReservationIn` wrote the movement first and updated unconditionally —
+while `reservation-sweep.ts`, one package over, claims with `updateMany({ where:
+{ id, status: 'ACTIVE' } })` and **documents in a comment exactly why the other
+order is wrong**. The docstring claiming the two were shared was false: the sweep
+has its own copy, correct, and this was the copy that was not.
+
+A pharmacist pressing Release as the hourly sweep reached the same reservation
+got two `RELEASE` movements for one hold, draining the `RESERVED` bucket on
+behalf of some other active reservation. Fixed by claiming first; the dead
+`EXPIRED` parameter is gone with it.
+
+### Also fixed
+
+- **A serial fitted to a patient between draft and dispatch was still
+  transferable.** `assignSerial` writes no ledger movement and
+  `recordMovementIn`'s serial read selects neither the patient link nor the
+  status, so a PHI-bearing row could be moved into the receiving branch's RLS
+  scope. Re-checked at dispatch and at receipt now; the refusal names the device
+  and never the patient.
+- **`toLineDetail` read the batch JOIN rather than the line's own snapshot** —
+  the same bug the header already had, one level down, so the receiver saw "no
+  lot number, no expiry" on the delivery note they were checking against a pack.
+- `updateTransfer` set `toLocationId` with no branch check, deferring the
+  refusal to dispatch as an unreadable FK error.
+- Receipt now sorts lines into a canonical lock order; the client's order could
+  deadlock two overlapping receipts.
+- `assertReasonCode`'s `findFirst` had no ordering, so a tenant code shadowing a
+  later platform code resolved nondeterministically.
+- Two `as string` assertions and one float comparison on a counted quantity.
+
+### What the reviewers confirmed clean
+
+RLS coverage on all four tables including the third-branch case for header and
+lines; the platform-extensible policy and its immutability trigger; all four
+`*_visible` policies; the new SECURITY DEFINER function's grant (it does **not**
+repeat PI-2's `REVOKE … FROM PUBLIC` CRITICAL); no PHI in any log, error or job
+payload; no raw Prisma, no `$queryRaw` interpolation, no 403-instead-of-404, no
+mass assignment; exact decimal arithmetic throughout the allocation path; no
+fetch waterfalls in the new screens.
+
+---
+
+## 2026-08-12 — PI-3: Movements
+
+**Phase:** PI-3 COMPLETE · **Result:** shipped on `feat/pi-3-movements` ·
+**Tests:** 1155 API across 41 suites passing, 0 failing
+
+### Changed
+
+| Area        | What                                                                                                                                   |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | `stock_reason_codes`, `stock_transfers`, `stock_transfer_lines`, `stock_reservations`; `products.allocation_strategy`                  |
+| Migrations  | 4: movements · reservation sweep function · location snapshot · lot snapshot                                                           |
+| RLS         | 76 tables green. One platform-extensible table, one bespoke two-ended policy, one hand-restated child predicate                        |
+| Package     | `@rcln/inventory` + `allocate.ts`, `reservation-sweep.ts`; `toBaseUnits` exported for transfer lines                                   |
+| Permissions | `inventory.stock.reserve`, `inventory.reason_code.manage`                                                                              |
+| Worker      | Reservation sweep at `:30`; `movementDeps` extracted so two processors share one binding                                               |
+| Web         | `/stock/transfers`, `/stock/reservations`, `/stock/adjustments/new`; `TransferProgress` extends the bucket bar rather than rivaling it |
+
+### Decisions
+
+**In-transit stock is held by the DOCUMENT.** A refinement of
+INVENTORY_ARCHITECTURE.md's sender-owned `IN_TRANSIT` bucket, forced by
+`branch_isolation`: an in-transit bucket at the sender makes the RECEIVER write
+against a branch they cannot see, which needs either a widened tenant context or
+a second ledger writer. Both legs are single-branch writes instead. The cost —
+in-transit quantity is not in `stock_balances` — is recorded for PI-22 and
+pinned by a test.
+
+**Reason codes are platform-extensible**, the only table in the inventory domain
+that is. A reason code is a WORD, not a fact about a clinic; thirteen ship in the
+migration so a clinic can record its first adjustment without inventing a
+vocabulary. The ledger still stores the code as a STRING — a row must outlive
+what explained it.
+
+**The master governs the manual surface only.** The sweep writes `EXPIRED` and
+`setBatchHold` writes `QUARANTINE`; neither goes through `recordMovement`, and
+neither belongs in the picker.
+
+### Issues found
+
+Two, both found by tests and both invisible from reading — the query is correct,
+the policy is correct, and they are correct about different things:
+
+1. The receiving branch could not read its own delivery note (`inventory_locations`
+   is branch-scoped, so the join returned NULL rather than an error). Fixed by
+   snapshotting the shelf names onto the transfer.
+2. The receiving branch could not create its own lot row, so receipt raised
+   `Batch not found` at the moment somebody signed for a delivery. Fixed by
+   snapshotting the lot's identity onto the line.
+
+Neither was fixed by weakening a policy. A third, smaller: `planAllocation`
+emitted two decimal scales in one plan — invisible on screen because
+`readableQuantity` trims both — found by a unit test asserting on one.
+
+### Next
+
+**PI-4 — Procurement.** See [NEXT_SESSION.md](NEXT_SESSION.md).
+
+---
+
 ## 2026-08-12 — PI-2 reviews, and the two CRITICALs they found
 
 **Phase:** PI-2 · **Result:** both reviews run and acted on · **Branch:**

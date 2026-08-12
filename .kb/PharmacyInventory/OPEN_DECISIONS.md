@@ -4,7 +4,7 @@ Things that are genuinely undecided, each with a recommendation. Decided items
 live in [ARCHITECTURE.md](ARCHITECTURE.md); move an entry there when it is
 settled, and note the move in [CHANGELOG.md](CHANGELOG.md).
 
-**Last updated:** 2026-08-11 (PI-1: OD-1, OD-2 and OD-4 resolved)
+**Last updated:** 2026-08-12 (PI-3: OD-9 raised and resolved in the same session)
 
 ---
 
@@ -164,6 +164,36 @@ consider inappropriate.
 **Recommendation:** hidden by default, exposed by an org-level setting through
 the existing resolver. It is a clinic's decision, not ours — the same posture
 invariant 7 takes on clinical authoring.
+
+---
+
+### OD-9 — Where does inter-branch stock live between dispatch and receipt? · 2026-08-12
+
+**Raised by PI-2, blocked PI-3.3, resolved by the user in PI-3.**
+
+**Option A, as recommended: the transfer DOCUMENT holds it.** Dispatch writes
+`TRANSFER_OUT` at the sender and nothing else; receipt writes `TRANSFER_IN` at
+the receiver and nothing else. Both legs cite one transfer id. Outstanding
+quantity is `sent − received` over the lines of `DISPATCHED` transfers.
+
+**Why not the architecture doc's sender-owned `IN_TRANSIT` bucket.**
+`branch_isolation` is RESTRICTIVE on `stock_ledger`, so every row must carry a
+`branch_id` inside the writer's scope. A bucket at the sender makes the RECEIVER
+write a removal against a branch they cannot see — allowable only by widening
+their tenant context, which is the first hole in the branch boundary, or by
+writing the row twice, which is the second ledger writer PI-ADR-004 forbids.
+
+**Two consequences, both recorded rather than discovered later:**
+
+- In-transit stock is not in `stock_balances`. PI-22's valuation must add the
+  outstanding lines of `DISPATCHED` transfers. An integration test pins it.
+- Anything the RECEIVER needs to know about the SENDER's branch-scoped rows must
+  travel on the document. Two migrations exist for this: the shelf names on the
+  transfer, the lot's identity on the line. Both were written after a test
+  failed, not after anybody read the code.
+
+Written up in [INVENTORY_ARCHITECTURE.md](INVENTORY_ARCHITECTURE.md) § Transfers
+and on the `StockTransfer` model.
 
 ---
 

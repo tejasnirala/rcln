@@ -237,7 +237,30 @@ DECLARE
     --   It is a cache maintained by a SECURITY DEFINER trigger on stock_ledger
     --   and by nothing else (PI-ADR-004 rule 2). The policy here governs reads,
     --   which is the only thing the application does to it.
-    'stock_balances'
+    'stock_balances',
+    -- ---------------------------------------------------------------------
+    -- Movements (PI-3). Three of the four new tables; `stock_reason_codes` is
+    -- in the platform_extensible array instead, because a reason code is a
+    -- WORD rather than a fact about a clinic. See its model comment.
+    --
+    -- ⚠️ `stock_transfers` IS HERE AND IS **NOT** IN THE branch_scoped ARRAY
+    --   BELOW, WHICH IS THE ONLY TABLE IN THE PROGRAMME WITH THAT SHAPE. It
+    --   has `from_branch_id` and `to_branch_id` and no `branch_id` at all, so
+    --   the generic loop's predicate names a column that does not exist and
+    --   the CREATE POLICY would raise at migration time. Its two-ended policy
+    --   is written out by hand after the loop.
+    --
+    -- ⚠️ `stock_transfer_lines` IS ALSO NOT IN THE branch_scoped ARRAY, AND
+    --   FOR A DIFFERENT REASON: it has no branch column because its parent has
+    --   no single branch either. It gets the same hand-written two-ended
+    --   predicate, restated rather than inherited — see the warning above the
+    --   parent_scoped loop for why a child of a branch-scoped parent may not
+    --   lean on the parent's policy.
+    'stock_transfers',
+    'stock_transfer_lines',
+    -- Reservations DO carry a single NOT NULL branch_id — stock is reserved AT
+    -- a place — so this one is an ordinary member of both loops.
+    'stock_reservations'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -326,7 +349,23 @@ DECLARE
     'product_packagings',
     'product_identifiers',
     'product_tax_classifications',
-    'medicine_details'
+    'medicine_details',
+    -- ---------------------------------------------------------------------
+    -- Movements (PI-3). ⚠️ THE ONE PLATFORM-EXTENSIBLE TABLE IN THE INVENTORY
+    --   DOMAIN, AND THEREFORE THE ONE THAT LOOKS LIKE IT IS IN THE WRONG
+    --   ARRAY. PI-ADR-003 says a location, a lot and a movement are facts
+    --   about one clinic and never platform data, and all seven PI-2 tables
+    --   are org_scoped accordingly. A reason code is not a fact about a
+    --   clinic: "damaged", "expired", "counted short" are WORDS, every clinic
+    --   needs the same dozen on the day it opens, and shipping them as
+    --   platform rows is what lets a clinic record its first adjustment
+    --   without inventing a vocabulary first.
+    --
+    --   Same read-permissive / write-strict policy as the catalogue above, and
+    --   the same `platform_rows_immutable` trigger — so a clinic can add
+    --   `BROKEN_BY_LOCUM` and cannot delete `DAMAGED` out from under every
+    --   other clinic on the platform.
+    'stock_reason_codes'
   ];
 BEGIN
   FOREACH t IN ARRAY platform_extensible LOOP
@@ -563,7 +602,18 @@ DECLARE
     ARRAY['serials',                 'product_id',         'products',                     'product_visible',         'f'],
     ARRAY['stock_ledger',            'product_id',         'products',                     'product_visible',         'f'],
     ARRAY['stock_ledger',            'unit_id',            'units_of_measure',             'unit_visible',            'f'],
-    ARRAY['stock_balances',          'product_id',         'products',                     'product_visible',         'f']
+    ARRAY['stock_balances',          'product_id',         'products',                     'product_visible',         'f'],
+    -- Movements (PI-3). Same reasoning again: a transfer line and a
+    -- reservation both cite a product, which may be a PLATFORM row, so the FK
+    -- cannot be composite and tenant_isolation says nothing about what the row
+    -- points AT. Without these a clinic puts another clinic's private product
+    -- on its own transfer and reads the name back out of the join.
+    ARRAY['stock_transfer_lines',    'product_id',         'products',                     'product_visible',         'f'],
+    ARRAY['stock_transfer_lines',    'unit_id',            'units_of_measure',             'unit_visible',            'f'],
+    -- The lot's manufacturer, snapshotted onto the line so the receiving branch
+    -- can create its own lot row. Nullable: an untracked line has no lot at all.
+    ARRAY['stock_transfer_lines',    'manufacturer_id',    'manufacturers',                'manufacturer_visible',    't'],
+    ARRAY['stock_reservations',      'product_id',         'products',                     'product_visible',         'f']
   ];
 BEGIN
   FOR i IN 1 .. array_length(visible, 1) LOOP
@@ -653,7 +703,15 @@ DECLARE
     'batches',
     'serials',
     'stock_ledger',
-    'stock_balances'
+    'stock_balances',
+    -- Movements (PI-3). ⚠️ ONLY ONE OF THE FOUR NEW TABLES IS HERE.
+    --   `stock_reason_codes` is org-wide vocabulary with no branch at all;
+    --   `stock_transfers` has TWO branch columns and no `branch_id`, so this
+    --   loop's predicate would name a column it does not have; and
+    --   `stock_transfer_lines` inherits that shape from its parent. All three
+    --   are handled after this block. A reservation is held at exactly one
+    --   place, so it is an ordinary member.
+    'stock_reservations'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP
@@ -768,6 +826,64 @@ CREATE POLICY parent_isolation ON appointment_status_history
                         AND p.organization_id = app_current_org()
                         AND (p.branch_id IS NULL
                              OR p.branch_id = ANY (app_branch_scope()))));
+
+-- ---------------------------------------------------------------------------
+-- Transfers: the one document in the programme that belongs to TWO branches
+-- (PI-3.3).
+--
+-- ⚠️ THIS IS NOT A WIDENING OF THE BRANCH BOUNDARY, IT IS THE BOUNDARY DRAWN
+--   ROUND A ROW THAT HAS TWO ENDS. A transfer from Central Store to the Anna
+--   Nagar pharmacy is the business of Central Store and of Anna Nagar, and of
+--   no third site — which is exactly what `from_branch_id = ANY(scope) OR
+--   to_branch_id = ANY(scope)` says. A storekeeper at a third branch sees
+--   nothing, as they would under the generic policy.
+--
+--   RESTRICTIVE, so it ANDs with `tenant_isolation` rather than ORing with it.
+--   ⚠️ A PERMISSIVE policy here would OR — every transfer in the organization
+--     visible to everyone in it — and would pass every single-tenant test.
+--
+-- ⚠️ THE WITH CHECK IS DELIBERATELY THE SAME PREDICATE, WHICH MEANS EITHER END
+--   MAY WRITE THE ROW. That is correct and is what the flow needs: the sender
+--   creates and dispatches it, and the RECEIVER updates it — setting
+--   `to_location_id`, the received quantities and the status — without ever
+--   being able to see the sending branch's stock. The row is the only thing
+--   they share. What stops a receiver moving the sender's quantity is not this
+--   policy but `stock_ledger.branch_isolation`, which is absolute: the
+--   `TRANSFER_OUT` leg carries the sender's branch_id and a receiver cannot
+--   write one. See the StockTransfer model comment for the whole argument.
+DROP POLICY IF EXISTS transfer_branch_isolation ON stock_transfers;
+CREATE POLICY transfer_branch_isolation ON stock_transfers AS RESTRICTIVE
+  USING      (from_branch_id = ANY (app_branch_scope())
+              OR to_branch_id = ANY (app_branch_scope()))
+  WITH CHECK (from_branch_id = ANY (app_branch_scope())
+              OR to_branch_id = ANY (app_branch_scope()));
+
+-- The lines, restating the parent's predicate by hand rather than inheriting
+-- it.
+--
+-- ⚠️ THE `parent_scoped` LOOP ABOVE WOULD ASK ONLY THE ORGANIZATION QUESTION,
+--   AND THAT IS THE `appointment_status_history` TRAP EXACTLY. A policy
+--   expression is evaluated with row security DISABLED on the tables it
+--   references, so an EXISTS against `stock_transfers` does NOT pick up the
+--   policy immediately above — the branch half has to be written out here or it
+--   is not asked at all, and every clinic's storekeeper reads every branch's
+--   transfer lines. Measured there, restated here.
+--
+-- ⚠️ IF `transfer_branch_isolation` CHANGES, CHANGE THIS TOO.
+ALTER TABLE stock_transfer_lines ENABLE   ROW LEVEL SECURITY;
+ALTER TABLE stock_transfer_lines NO FORCE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS transfer_branch_isolation ON stock_transfer_lines;
+CREATE POLICY transfer_branch_isolation ON stock_transfer_lines AS RESTRICTIVE
+  USING      (EXISTS (SELECT 1 FROM stock_transfers p
+                      WHERE p.id = stock_transfer_lines.transfer_id
+                        AND p.organization_id = app_current_org()
+                        AND (p.from_branch_id = ANY (app_branch_scope())
+                             OR p.to_branch_id = ANY (app_branch_scope()))))
+  WITH CHECK (EXISTS (SELECT 1 FROM stock_transfers p
+                      WHERE p.id = stock_transfer_lines.transfer_id
+                        AND p.organization_id = app_current_org()
+                        AND (p.from_branch_id = ANY (app_branch_scope())
+                             OR p.to_branch_id = ANY (app_branch_scope()))));
 
 DROP POLICY IF EXISTS branch_in_same_org ON invitation_branches;
 CREATE POLICY branch_in_same_org ON invitation_branches AS RESTRICTIVE

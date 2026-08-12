@@ -44,36 +44,60 @@
 import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
+  allocationPlanRequest,
   assignSerialRequest,
   batchHoldRequest,
   batchQuery,
+  cancelStockTransferRequest,
   createBatchRequest,
+  createStockReasonCodeRequest,
+  createStockReservationRequest,
+  createStockTransferRequest,
   createInventoryLocationRequest,
   createSerialRequest,
   expiryReportQuery,
   inventoryLocationQuery,
+  receiveStockTransferRequest,
   recordMovementRequest,
+  releaseStockReservationRequest,
   replaceStorageAreasRequest,
   serialQuery,
   stockBalanceQuery,
   stockLedgerQuery,
+  stockReasonCodeQuery,
+  stockReservationQuery,
+  stockTransferQuery,
   updateBatchRequest,
+  updateStockReasonCodeRequest,
+  updateStockTransferRequest,
   updateInventoryLocationRequest,
   updateSerialRequest,
+  type AllocationPlanRequest,
   type AssignSerialRequest,
   type BatchHoldRequest,
   type BatchQuery,
+  type CancelStockTransferRequest,
   type CreateBatchRequest,
+  type CreateStockReasonCodeRequest,
+  type CreateStockReservationRequest,
+  type CreateStockTransferRequest,
   type CreateInventoryLocationRequest,
   type CreateSerialRequest,
   type ExpiryReportQuery,
   type InventoryLocationQuery,
+  type ReceiveStockTransferRequest,
   type RecordMovementRequest,
+  type ReleaseStockReservationRequest,
   type ReplaceStorageAreasRequest,
   type SerialQuery,
   type StockBalanceQuery,
   type StockLedgerQuery,
+  type StockReasonCodeQuery,
+  type StockReservationQuery,
+  type StockTransferQuery,
   type UpdateBatchRequest,
+  type UpdateStockReasonCodeRequest,
+  type UpdateStockTransferRequest,
   type UpdateInventoryLocationRequest,
   type UpdateSerialRequest,
 } from '@rcln/contracts';
@@ -114,12 +138,36 @@ import {
 } from '../../services/inventory/balance.service.js';
 import { expiryReport } from '../../services/inventory/expiry.service.js';
 import { recordMovement } from '../../services/inventory/movement.service.js';
+import {
+  createReasonCode,
+  deleteReasonCode,
+  listReasonCodes,
+  updateReasonCode,
+} from '../../services/inventory/reason-code.service.js';
+import {
+  cancelTransfer,
+  createTransfer,
+  dispatchTransfer,
+  getTransfer,
+  listTransfers,
+  receiveTransfer,
+  updateTransfer,
+} from '../../services/inventory/transfer.service.js';
+import {
+  listReservations,
+  releaseReservation,
+  reserveStock,
+} from '../../services/inventory/reservation.service.js';
+import { planStockAllocation } from '../../services/inventory/allocation.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 const READ = PERMISSIONS.STOCK_READ;
 const LOCATION_MANAGE = PERMISSIONS.INVENTORY_LOCATION_MANAGE;
 const BATCH_MANAGE = PERMISSIONS.BATCH_MANAGE;
 const ADJUST = PERMISSIONS.STOCK_ADJUST;
+const TRANSFER = PERMISSIONS.STOCK_TRANSFER;
+const RESERVE = PERMISSIONS.STOCK_RESERVE;
+const REASON_CODE_MANAGE = PERMISSIONS.INVENTORY_REASON_CODE_MANAGE;
 
 const auditMeta = (req: Request): { ipAddress?: string; userAgent?: string } => ({
   ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
@@ -455,6 +503,253 @@ stockRoutes.post(
       await recordMovement(tenantContextFrom(req), body, auditMeta(req)),
       'Movement recorded',
       201
+    );
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Reason codes  ->  /v1/stock/reason-codes  (PI-3.1)
+//
+// ⚠️ READING IS BEHIND `inventory.stock.read` AND WRITING IS NOT BEHIND
+//   `inventory.stock.adjust`. The picker on the adjustment form is part of the
+//   surface the read code gates; DEFINING what reasons exist decides what every
+//   future adjustment can be filed under and what every shrinkage report can
+//   aggregate, which is a configuration decision and sits beside
+//   `inventory.location.manage`. See the code's own comment.
+// ---------------------------------------------------------------------------
+
+const reasonCodeParams = z.object({ reasonCodeId: z.uuid() });
+
+stockRoutes.get(
+  '/reason-codes',
+  authorize(READ),
+  validate(stockReasonCodeQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as StockReasonCodeQuery;
+    sendSuccess(res, await listReasonCodes(tenantContextFrom(req), query));
+  }
+);
+
+stockRoutes.post(
+  '/reason-codes',
+  authorize(REASON_CODE_MANAGE),
+  validate(createStockReasonCodeRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as CreateStockReasonCodeRequest;
+    const created = await createReasonCode(tenantContextFrom(req), body, auditMeta(req));
+    sendSuccess(res, created, 'Reason code added', 201);
+  }
+);
+
+stockRoutes.patch(
+  '/reason-codes/:reasonCodeId',
+  authorize(REASON_CODE_MANAGE),
+  validate(reasonCodeParams, 'params'),
+  validate(updateStockReasonCodeRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const { reasonCodeId } = req.params as z.infer<typeof reasonCodeParams>;
+    const body = req.body as UpdateStockReasonCodeRequest;
+    sendSuccess(
+      res,
+      await updateReasonCode(tenantContextFrom(req), reasonCodeId, body, auditMeta(req)),
+      'Reason code updated'
+    );
+  }
+);
+
+stockRoutes.delete(
+  '/reason-codes/:reasonCodeId',
+  authorize(REASON_CODE_MANAGE),
+  validate(reasonCodeParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { reasonCodeId } = req.params as z.infer<typeof reasonCodeParams>;
+    await deleteReasonCode(tenantContextFrom(req), reasonCodeId, auditMeta(req));
+    sendSuccess(res, null, 'Reason code removed');
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Reservations  ->  /v1/stock/reservations  (PI-3.4)
+//
+// ⚠️ THERE IS NO PATCH. A reservation is created and released, and nothing in
+//   between is editable: changing its quantity would mean moving stock between
+//   the AVAILABLE and RESERVED buckets, which is a MOVEMENT, and a PATCH that
+//   quietly wrote one would be a second write path into the ledger. Holding a
+//   different amount is a release and a new reservation, both of which leave a
+//   row somebody can read.
+// ---------------------------------------------------------------------------
+
+const reservationParams = z.object({ reservationId: z.uuid() });
+
+stockRoutes.get(
+  '/reservations',
+  authorize(READ),
+  validate(stockReservationQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as StockReservationQuery;
+    sendSuccess(res, await listReservations(tenantContextFrom(req), query));
+  }
+);
+
+stockRoutes.post(
+  '/reservations',
+  authorize(RESERVE),
+  validate(createStockReservationRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as CreateStockReservationRequest;
+    const created = await reserveStock(tenantContextFrom(req), body, auditMeta(req));
+    sendSuccess(res, created, 'Stock reserved', 201);
+  }
+);
+
+stockRoutes.post(
+  '/reservations/:reservationId/release',
+  authorize(RESERVE),
+  validate(reservationParams, 'params'),
+  validate(releaseStockReservationRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const { reservationId } = req.params as z.infer<typeof reservationParams>;
+    const body = req.body as ReleaseStockReservationRequest;
+    sendSuccess(
+      res,
+      await releaseReservation(tenantContextFrom(req), reservationId, body, auditMeta(req)),
+      'Reservation released'
+    );
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Allocation  ->  /v1/stock/allocations/plan  (PI-3.5)
+//
+// ⚠️ A POST THAT WRITES NOTHING, WHICH IS DELIBERATE AND IS NOT A REST MISTAKE.
+//   The request carries a quantity, a unit and an optional strategy — a body,
+//   not a filter — and putting it in a query string would mean encoding decimal
+//   quantities into URLs that end up in access logs and browser history. It is
+//   gated on the READ code because that is what it is: a question about what
+//   would happen, answered without holding anything.
+// ---------------------------------------------------------------------------
+
+stockRoutes.post(
+  '/allocations/plan',
+  authorize(READ),
+  validate(allocationPlanRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as AllocationPlanRequest;
+    sendSuccess(res, await planStockAllocation(tenantContextFrom(req), body));
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Transfers  ->  /v1/stock-transfers  (PI-3.2, PI-3.3)
+//
+// ⚠️ EVERY WRITE HERE IS BEHIND `inventory.stock.transfer` AND NOT
+//   `inventory.stock.adjust`, INCLUDING THE CANCELLATION THAT WRITES A
+//   COMPENSATING MOVEMENT. Moving stock between places does not change what the
+//   clinic holds; adjusting changes the count, which is where shrinkage hides
+//   and why that code carries a mandatory reason. Somebody who may move boxes
+//   between shelves is not thereby somebody who may declare a box missing.
+//
+// ⚠️ AND THE THREE STATE CHANGES ARE POSTS TO SUB-PATHS, NOT A `PATCH { status }`.
+//   Dispatching writes ledger rows and takes a document number; receiving writes
+//   ledger rows at the OTHER branch and may create lot rows; cancelling writes
+//   compensating rows. A status column a client can set would make all three
+//   look like one field assignment, and the first caller to set it directly
+//   would move stock in no direction at all.
+// ---------------------------------------------------------------------------
+
+export const stockTransferRoutes: IRouter = guarded();
+
+const transferParams = z.object({ transferId: z.uuid() });
+
+stockTransferRoutes.get(
+  '/',
+  authorize(READ),
+  validate(stockTransferQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as StockTransferQuery;
+    sendSuccess(res, await listTransfers(tenantContextFrom(req), query));
+  }
+);
+
+stockTransferRoutes.get(
+  '/:transferId',
+  authorize(READ),
+  validate(transferParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { transferId } = req.params as z.infer<typeof transferParams>;
+    sendSuccess(res, await getTransfer(tenantContextFrom(req), transferId));
+  }
+);
+
+stockTransferRoutes.post(
+  '/',
+  authorize(TRANSFER),
+  validate(createStockTransferRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as CreateStockTransferRequest;
+    const created = await createTransfer(tenantContextFrom(req), body, auditMeta(req));
+    sendSuccess(res, created, 'Transfer drafted', 201);
+  }
+);
+
+stockTransferRoutes.patch(
+  '/:transferId',
+  authorize(TRANSFER),
+  validate(transferParams, 'params'),
+  validate(updateStockTransferRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const { transferId } = req.params as z.infer<typeof transferParams>;
+    const body = req.body as UpdateStockTransferRequest;
+    sendSuccess(
+      res,
+      await updateTransfer(tenantContextFrom(req), transferId, body, auditMeta(req)),
+      'Transfer updated'
+    );
+  }
+);
+
+stockTransferRoutes.post(
+  '/:transferId/dispatch',
+  authorize(TRANSFER),
+  validate(transferParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { transferId } = req.params as z.infer<typeof transferParams>;
+    sendSuccess(
+      res,
+      await dispatchTransfer(tenantContextFrom(req), transferId, auditMeta(req)),
+      'Transfer sent'
+    );
+  }
+);
+
+stockTransferRoutes.post(
+  '/:transferId/receive',
+  authorize(TRANSFER),
+  validate(transferParams, 'params'),
+  validate(receiveStockTransferRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const { transferId } = req.params as z.infer<typeof transferParams>;
+    const body = req.body as ReceiveStockTransferRequest;
+    sendSuccess(
+      res,
+      await receiveTransfer(tenantContextFrom(req), transferId, body, auditMeta(req)),
+      'Transfer received'
+    );
+  }
+);
+
+stockTransferRoutes.post(
+  '/:transferId/cancel',
+  authorize(TRANSFER),
+  validate(transferParams, 'params'),
+  validate(cancelStockTransferRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const { transferId } = req.params as z.infer<typeof transferParams>;
+    const body = req.body as CancelStockTransferRequest;
+    sendSuccess(
+      res,
+      await cancelTransfer(tenantContextFrom(req), transferId, body, auditMeta(req)),
+      'Transfer cancelled'
     );
   }
 );

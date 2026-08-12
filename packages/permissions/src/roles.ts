@@ -166,6 +166,13 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.STOCK_READ,
       P.STOCK_ADJUST,
       P.STOCK_TRANSFER,
+      /*
+       * Holds stock back and gives it back (PI-3.4). Weaker than STOCK_ADJUST —
+       * it changes which bucket a quantity sits in, never how much there is —
+       * and granted here because both of these roles run a store where somebody
+       * says "keep that for Mrs Rao's procedure on Thursday".
+       */
+      P.STOCK_RESERVE,
       P.BATCH_MANAGE,
       /*
        * Defines the shelves as well as counting what is on them. Both roles
@@ -175,6 +182,12 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * as being in one undifferentiated place. See PI-ADR-012.
        */
       P.INVENTORY_LOCATION_MANAGE,
+      /*
+       * And the vocabulary the adjustments are filed under (PI-3.1). Same class
+       * of decision as defining the shelves: taken once, by whoever runs the
+       * store, and it decides what every future shrinkage report can aggregate.
+       */
+      P.INVENTORY_REASON_CODE_MANAGE,
       P.INVOICE_READ,
       /*
        * The whole ledger for the branches they run. A branch administrator
@@ -473,6 +486,13 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.STOCK_READ,
       P.STOCK_ADJUST,
       P.STOCK_TRANSFER,
+      /*
+       * Holds stock back and gives it back (PI-3.4). Weaker than STOCK_ADJUST —
+       * it changes which bucket a quantity sits in, never how much there is —
+       * and granted here because both of these roles run a store where somebody
+       * says "keep that for Mrs Rao's procedure on Thursday".
+       */
+      P.STOCK_RESERVE,
       P.BATCH_MANAGE,
       /*
        * Defines the shelves as well as counting what is on them. Both roles
@@ -482,6 +502,12 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * as being in one undifferentiated place. See PI-ADR-012.
        */
       P.INVENTORY_LOCATION_MANAGE,
+      /*
+       * And the vocabulary the adjustments are filed under (PI-3.1). Same class
+       * of decision as defining the shelves: taken once, by whoever runs the
+       * store, and it decides what every future shrinkage report can aggregate.
+       */
+      P.INVENTORY_REASON_CODE_MANAGE,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
       P.PAYMENT_COLLECT,

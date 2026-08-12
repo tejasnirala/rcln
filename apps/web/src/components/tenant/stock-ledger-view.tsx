@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useTransition } from 'react';
 import type { StockLedgerListResponse } from '@rcln/contracts';
@@ -54,9 +55,11 @@ interface Props {
   meta: StockLedgerListResponse['meta'];
   timezone: string;
   timeFormat: '12H' | '24H';
+  /** PI-3. Whether to offer the one action that writes a row into this list. */
+  canAdjust: boolean;
 }
 
-export function StockLedgerView({ movements, meta, timezone, timeFormat }: Props) {
+export function StockLedgerView({ movements, meta, timezone, timeFormat, canAdjust }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -90,13 +93,31 @@ export function StockLedgerView({ movements, meta, timezone, timeFormat }: Props
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">
-          Movements
-        </h1>
-        <p className="text-muted mt-1 text-[0.875rem]">
-          Every change to every quantity, in the order it happened. Nothing here can be edited.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">
+            Movements
+          </h1>
+          <p className="text-muted mt-1 text-[0.875rem]">
+            Every change to every quantity, in the order it happened. Nothing here can be edited.
+          </p>
+        </div>
+        {/*
+          ⚠️ RECORDING AN ADJUSTMENT LIVES HERE RATHER THAN ON A TAB OF ITS OWN
+             (PI-3.6). An adjustments list would be THIS list filtered to one
+             movement type — the same rows and the same query — and two screens
+             showing overlapping sets of the same rows is how a person loses
+             track of which one is complete. The filter above already isolates
+             them; what was missing was the way to write one.
+        */}
+        {canAdjust ? (
+          <Link
+            href="/stock/adjustments/new"
+            className="bg-drape text-paper hover:bg-drape-deep inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-medium transition-colors duration-150"
+          >
+            Record an adjustment
+          </Link>
+        ) : null}
       </header>
 
       <StockNav />

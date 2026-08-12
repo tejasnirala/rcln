@@ -315,6 +315,37 @@ export const PERMISSIONS = {
    *   access` and PI-5's jurisdiction rules answer that. See PI-ADR-012.
    */
   INVENTORY_LOCATION_MANAGE: 'inventory.location.manage',
+  /*
+   * Holding stock back for a pending dispense, an order or a booked procedure,
+   * and giving it back again (PI-3.4).
+   *
+   * ⚠️ NOT COVERED BY `inventory.stock.adjust`, AND IT IS THE WEAKER OF THE TWO
+   *   RATHER THAN A SUBSET. An adjustment CHANGES WHAT THE CLINIC HOLDS: it is a
+   *   correction, it is where shrinkage hides, and it is why that code carries a
+   *   mandatory reason. A reservation changes nothing about what is held — the
+   *   quantity moves from AVAILABLE to RESERVED and back, and the branch's total
+   *   is identical either side. It is the daily act of whoever is about to
+   *   dispense, which is a wider group than whoever may correct a count.
+   *
+   *   In PI-7 dispensing will create these automatically, so a role that may
+   *   dispense will need this. Introducing it now, separately, means that
+   *   arrives as a grant rather than as a widening of `stock.adjust`.
+   */
+  STOCK_RESERVE: 'inventory.stock.reserve',
+  /*
+   * The controlled vocabulary an adjustment must cite (PI-3.1).
+   *
+   * ⚠️ A CONFIGURATION CODE, BESIDE `inventory.location.manage` AND FOR THE SAME
+   *   REASON. Citing a reason code is a daily operational act covered by
+   *   `stock.adjust`; DEFINING what reasons exist decides what every future
+   *   adjustment can be filed under and what every shrinkage report can
+   *   aggregate. Retiring `THEFT_OR_LOSS` is not an inventory correction, it is
+   *   a decision about what the clinic is willing to record.
+   *
+   *   Reading them needs only `inventory.stock.read` — the picker on the
+   *   adjustment form is on the surface that code gates.
+   */
+  INVENTORY_REASON_CODE_MANAGE: 'inventory.reason_code.manage',
 
   // -- billing ---------------------------------------------------------------
   INVOICE_READ: 'billing.invoice.read',

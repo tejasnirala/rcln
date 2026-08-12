@@ -84,6 +84,7 @@ export default async function StockLedgerPage({
       meta={movements.data?.meta ?? { page: 1, limit: 50, total: 0, totalPages: 1 }}
       timezone={timezone}
       timeFormat={timeFormat}
+      canAdjust={permissions.includes(PERMISSIONS.STOCK_ADJUST)}
     />
   );
 }

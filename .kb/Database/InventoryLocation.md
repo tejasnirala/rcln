@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:235`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `branch` policy |
 | columns | 13 |
-| relations | 8 |
+| relations | 11 |
 
 ## Columns
 
@@ -42,6 +42,9 @@ Declared at `packages/db/prisma/schema/inventory.prisma:235`.
 | `balances` | [`StockBalance`](StockBalance.md) | `balances StockBalance[]` |
 | `movementsFrom` | [`StockLedgerEntry`](StockLedgerEntry.md) | `movementsFrom StockLedgerEntry[] @relation("MovementFromLocation")` |
 | `movementsTo` | [`StockLedgerEntry`](StockLedgerEntry.md) | `movementsTo StockLedgerEntry[] @relation("MovementToLocation")` |
+| `transfersFrom` | [`StockTransfer`](StockTransfer.md) | `transfersFrom StockTransfer[] @relation("TransferFromLocation")` |
+| `transfersTo` | [`StockTransfer`](StockTransfer.md) | `transfersTo StockTransfer[] @relation("TransferToLocation")` |
+| `reservations` | [`StockReservation`](StockReservation.md) | `reservations StockReservation[]` |
 
 ## Indexes and constraints
 
@@ -62,4 +65,6 @@ erDiagram
     InventoryLocation }o--o{ Serial : relates
     InventoryLocation }o--o{ StockBalance : relates
     InventoryLocation }o--o{ StockLedgerEntry : relates
+    InventoryLocation }o--o{ StockTransfer : relates
+    InventoryLocation }o--o{ StockReservation : relates
 ```

@@ -35,7 +35,9 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 - `apps/worker/src/documents/invoice-pdf.job.ts`
 - `apps/worker/src/documents/pdf.renderer.ts`
 - `apps/worker/src/index.ts`
+- `apps/worker/src/inventory/deps.ts`
 - `apps/worker/src/inventory/expiry.processor.ts`
+- `apps/worker/src/inventory/reservation.processor.ts`
 - `packages/queue/src/index.ts`
 - `packages/queue/src/producer.ts`
 
@@ -74,15 +76,19 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 | `INVENTORY_SWEEP_JOB` | const | `packages/queue/src/index.ts:183` |
 | `InventoryJob` | interface | `packages/queue/src/index.ts:166` |
 | `InvoicePdfJob` | interface | `packages/queue/src/index.ts:109` |
-| `jobId` | var | `packages/queue/src/index.ts:209` |
+| `jobId` | var | `packages/queue/src/index.ts:235` |
 | `JobProducer` | interface | `packages/queue/src/producer.ts:33` |
+| `movementDeps` | var | `apps/worker/src/inventory/deps.ts:26` |
 | `NotificationJob` | interface | `packages/queue/src/index.ts:75` |
 | `processBillingJob` | fn | `apps/worker/src/billing/processor.ts:137` |
 | `QUEUE` | const | `packages/queue/src/index.ts:35` |
 | `QueueName` | type | `packages/queue/src/index.ts:45` |
 | `renderInvoicePdf` | fn | `apps/worker/src/documents/invoice-pdf.job.ts:54` |
 | `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:33` |
+| `RESERVATION_SWEEP_CRON` | const | `packages/queue/src/index.ts:224` |
+| `RESERVATION_SWEEP_JOB` | const | `packages/queue/src/index.ts:211` |
 | `runtimeFactory` | fn | `apps/worker/src/billing/runtime.ts:111` |
+| `sweepDueReservations` | fn | `apps/worker/src/inventory/reservation.processor.ts:68` |
 | `sweepDueSubscriptions` | fn | `apps/worker/src/billing/processor.ts:71` |
-| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:138` |
+| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:79` |
 | `WorkerPaymentsConfig` | interface | `apps/worker/src/billing/runtime.ts:28` |

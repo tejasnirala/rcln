@@ -15,6 +15,12 @@ enum NumberSequenceType {
   /// invoice-engine log for why the series is per branch, and
   /// `invoice-number.service.ts` for the only code that builds the key.
   INVOICE
+  /// Stock transfer documents (PI-3). One counter per SENDING branch, issued at
+  /// dispatch and never at create — a draft that is abandoned must not burn a
+  /// number in a series a storekeeper reads as a sequence. Never resets: a
+  /// transfer number is a document identifier and a clinic reconciling a
+  /// six-month-old delivery note needs it to still mean one thing.
+  STOCK_TRANSFER
 }
 
 /// One counter per (organization, branch, type, period). The issuer for every

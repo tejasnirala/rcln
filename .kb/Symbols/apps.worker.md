@@ -10,27 +10,27 @@ Files: `apps/worker/src/index.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `optional` <sub>local</sub> | `(value: string \| undefined): string \| undefined` | `apps/worker/src/index.ts:32` | An optional variable, where blank means unset. Mirrors the API's config. |
-| `scheduleRecurring` <sub>local</sub> | `(): Promise<void>` | `apps/worker/src/index.ts:253` | Schedule the billing sweep. Repeatable jobs are keyed by name and pattern, so re-registering on every boot is safe and idempotent — a redeploy does not accumul… |
-| `shutdown` <sub>local</sub> | `(signal: string): Promise<void>` | `apps/worker/src/index.ts:290` |  |
+| `optional` <sub>local</sub> | `(value: string \| undefined): string \| undefined` | `apps/worker/src/index.ts:35` | An optional variable, where blank means unset. Mirrors the API's config. |
+| `scheduleRecurring` <sub>local</sub> | `(): Promise<void>` | `apps/worker/src/index.ts:266` | Schedule the billing sweep. Repeatable jobs are keyed by name and pattern, so re-registering on every boot is safe and idempotent — a redeploy does not accumul… |
+| `shutdown` <sub>local</sub> | `(signal: string): Promise<void>` | `apps/worker/src/index.ts:317` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PROCESSORS` <sub>local</sub> | `: Partial<Record<QueueName, (jobName: string, data: unknown) => Promise<void>>>` | `apps/worker/src/index.ts:150` | Processors land here as each phase is built. Registering the queues means jobs enqueued by the API are durably held rather than dropped — BullMQ keeps them unt… |
+| `PROCESSORS` <sub>local</sub> | `: Partial<Record<QueueName, (jobName: string, data: unknown) => Promise<void>>>` | `apps/worker/src/index.ts:153` | Processors land here as each phase is built. Registering the queues means jobs enqueued by the API are durably held rather than dropped — BullMQ keeps them unt… |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `billingDeps` <sub>local</sub> | `{ runtimeFor: runtimeFactory(paymentsConfig), queues, logger, }` | `apps/worker/src/index.ts:139` |  |
-| `connection` <sub>local</sub> | `createRedisConnection(…)` | `apps/worker/src/index.ts:135` |  |
-| `databaseUrl` <sub>local</sub> | `process.env['DATABASE_URL']` | `apps/worker/src/index.ts:45` |  |
-| `logger` <sub>local</sub> | `pino(…)` | `apps/worker/src/index.ts:37` |  |
-| `paymentsConfig` <sub>local</sub> | `: WorkerPaymentsConfig` | `apps/worker/src/index.ts:62` |  |
-| `queues` <sub>local</sub> | `createQueues(…)` | `apps/worker/src/index.ts:136` |  |
-| `redisUrl` <sub>local</sub> | `process.env['REDIS_URL'] ?? 'redis://localhost:6379'` | `apps/worker/src/index.ts:44` |  |
-| `storageLocalPath` <sub>local</sub> | `process.env['STORAGE_LOCAL_PATH'] ?? './storage/documents'` | `apps/worker/src/index.ts:118` |  |
-| `workerRepoRoot` <sub>local</sub> | `new URL('../../../', import.meta.url).pathname` | `apps/worker/src/index.ts:117` |  |
-| `workers` <sub>local</sub> | `: Worker[]` | `apps/worker/src/index.ts:137` |  |
+| `billingDeps` <sub>local</sub> | `{ runtimeFor: runtimeFactory(paymentsConfig), queues, logger, }` | `apps/worker/src/index.ts:142` |  |
+| `connection` <sub>local</sub> | `createRedisConnection(…)` | `apps/worker/src/index.ts:138` |  |
+| `databaseUrl` <sub>local</sub> | `process.env['DATABASE_URL']` | `apps/worker/src/index.ts:48` |  |
+| `logger` <sub>local</sub> | `pino(…)` | `apps/worker/src/index.ts:40` |  |
+| `paymentsConfig` <sub>local</sub> | `: WorkerPaymentsConfig` | `apps/worker/src/index.ts:65` |  |
+| `queues` <sub>local</sub> | `createQueues(…)` | `apps/worker/src/index.ts:139` |  |
+| `redisUrl` <sub>local</sub> | `process.env['REDIS_URL'] ?? 'redis://localhost:6379'` | `apps/worker/src/index.ts:47` |  |
+| `storageLocalPath` <sub>local</sub> | `process.env['STORAGE_LOCAL_PATH'] ?? './storage/documents'` | `apps/worker/src/index.ts:121` |  |
+| `workerRepoRoot` <sub>local</sub> | `new URL('../../../', import.meta.url).pathname` | `apps/worker/src/index.ts:120` |  |
+| `workers` <sub>local</sub> | `: Worker[]` | `apps/worker/src/index.ts:140` |  |

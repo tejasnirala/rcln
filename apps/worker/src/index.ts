@@ -8,6 +8,8 @@ import {
   INVENTORY_SWEEP_CRON,
   INVENTORY_SWEEP_JOB,
   QUEUE,
+  RESERVATION_SWEEP_CRON,
+  RESERVATION_SWEEP_JOB,
   createQueues,
   createRedisConnection,
   type BillingJob,
@@ -27,6 +29,7 @@ import {
 } from './billing/runtime.js';
 import { processBillingJob, sweepDueSubscriptions } from './billing/processor.js';
 import { sweepExpiredStock } from './inventory/expiry.processor.js';
+import { sweepDueReservations } from './inventory/reservation.processor.js';
 
 /** An optional variable, where blank means unset. Mirrors the API's config. */
 function optional(value: string | undefined): string | undefined {
@@ -198,6 +201,16 @@ const PROCESSORS: Partial<Record<QueueName, (jobName: string, data: unknown) => 
       await sweepExpiredStock(logger);
       return;
     }
+    /*
+     * The reservation clock (PI-3.4), on the same queue and running the
+     * opposite direction: expiry moves stock OUT of the dispensable pool, this
+     * moves it back IN. Two jobs rather than two steps of one, so a failure in
+     * either does not take the other's work with it — see RESERVATION_SWEEP_JOB.
+     */
+    if (jobName === RESERVATION_SWEEP_JOB) {
+      await sweepDueReservations(logger);
+      return;
+    }
     logger.warn({ jobName }, 'unknown inventory job — no processor for it');
   },
 };
@@ -281,6 +294,20 @@ async function scheduleRecurring(): Promise<void> {
     }
   );
   logger.info({ cron: INVENTORY_SWEEP_CRON }, 'expiry sweep scheduled');
+
+  await inventory.add(
+    RESERVATION_SWEEP_JOB,
+    {},
+    {
+      // Offset from the expiry sweep so the two do not contend for the same
+      // advisory bucket locks at every clinic on the hour. Idempotent and cheap
+      // for the same reasons, so the same shallow retry.
+      repeat: { pattern: RESERVATION_SWEEP_CRON },
+      attempts: 2,
+      removeOnComplete: { count: 24 },
+    }
+  );
+  logger.info({ cron: RESERVATION_SWEEP_CRON }, 'reservation sweep scheduled');
 }
 
 void scheduleRecurring().catch((err: unknown) => {

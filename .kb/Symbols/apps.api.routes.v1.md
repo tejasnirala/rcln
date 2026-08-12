@@ -17,7 +17,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:70` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/designations.routes.ts:43` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/doctors.routes.ts:101` |  |
-| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/inventory.routes.ts:124` |  |
+| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/inventory.routes.ts:172` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/invitations.routes.ts:49` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/members.routes.ts:63` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/organization.routes.ts:58` |  |
@@ -26,7 +26,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/roles.routes.ts:44` |  |
 | `authorizeHistory` <sub>local</sub> | `(): RequestHandler` | `apps/api/src/routes/v1/audit.routes.ts:96` |  |
 | `countryCodeFor` <sub>local</sub> | `(req: Request): Promise<string \| null>` | `apps/api/src/routes/v1/billing.routes.ts:341` |  |
-| `guarded` <sub>local</sub> | `(): IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:130` | Applied to each router below. Extracted so one cannot be missed. |
+| `guarded` <sub>local</sub> | `(): IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:178` | Applied to each router below. Extracted so one cannot be missed. |
 | `guarded` <sub>local</sub> | `(): IRouter` | `apps/api/src/routes/v1/product-catalogue.routes.ts:110` | Applied to each router below. Extracted so one cannot be missed. |
 | `handle` <sub>local</sub> | `(fn: (req: Request, res: Response) => Promise<void>): (req: Request, res: Response) => Promise<void>` | `apps/api/src/routes/v1/billing.routes.ts:126` | Every handler goes through this, so the mapping above cannot be forgotten. |
 | `invitedOrganizationId` <sub>local</sub> | `(req: Request, res: Response): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:258` |  |
@@ -52,7 +52,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `appointmentParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/appointments.routes.ts:99` |  |
-| `batchParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:217` |  |
+| `batchParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:265` |  |
 | `branchParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/branches.routes.ts:52` |  |
 | `cloneBody` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/products.routes.ts:101` |  |
 | `demoRequestQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:245` |  |
@@ -63,7 +63,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `invitationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/invitations.routes.ts:47` |  |
 | `invoiceParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/invoices.routes.ts:91` |  |
 | `listQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/product-catalogue.routes.ts:102` | Every one of these masters takes the same list query. |
-| `locationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:142` |  |
+| `locationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:190` |  |
 | `mandateParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/billing.routes.ts:182` |  |
 | `memberParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/members.routes.ts:59` |  |
 | `nodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:68` |  |
@@ -72,29 +72,35 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `patientParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/patients.routes.ts:87` |  |
 | `productParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/products.routes.ts:99` |  |
 | `providerParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/webhooks.routes.ts:47` |  |
+| `reasonCodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:521` |  |
+| `reservationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:582` |  |
 | `retireTaxRuleDefaultBody` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:380` |  |
 | `roleParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/roles.routes.ts:42` |  |
-| `serialParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:307` |  |
+| `serialParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:355` |  |
 | `settingParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/organization.routes.ts:56` | `setting_definitions.key` is a VarChar(128), not a uuid. |
 | `simulateRequest` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/webhooks.routes.ts:182` |  |
 | `stopMedicationRequest` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/patients.routes.ts:106` |  |
 | `taxRegistrationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:298` |  |
 | `taxRuleDefaultParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:371` |  |
 | `taxRuleDefaultQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:372` |  |
+| `transferParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:662` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ADJUST` <sub>local</sub> | `PERMISSIONS.STOCK_ADJUST` | `apps/api/src/routes/v1/inventory.routes.ts:122` |  |
-| `BATCH_MANAGE` <sub>local</sub> | `PERMISSIONS.BATCH_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:121` |  |
+| `ADJUST` <sub>local</sub> | `PERMISSIONS.STOCK_ADJUST` | `apps/api/src/routes/v1/inventory.routes.ts:167` |  |
+| `BATCH_MANAGE` <sub>local</sub> | `PERMISSIONS.BATCH_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:166` |  |
 | `DEDUPE_WINDOW_MS` <sub>local</sub> | `24 * 60 * 60 * 1000` | `apps/api/src/routes/v1/public.routes.ts:46` | One clinic re-submitting inside this window is the same lead, not a new one. |
 | `HISTORY_ALSO_READABLE_BY` <sub>local</sub> | `: Record<string, PermissionCode>` | `apps/api/src/routes/v1/audit.routes.ts:78` |  |
-| `LOCATION_MANAGE` <sub>local</sub> | `PERMISSIONS.INVENTORY_LOCATION_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:120` |  |
+| `LOCATION_MANAGE` <sub>local</sub> | `PERMISSIONS.INVENTORY_LOCATION_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:165` |  |
 | `MANAGE` <sub>local</sub> | `PERMISSIONS.PRODUCT_DEFINITION_MANAGE` | `apps/api/src/routes/v1/product-catalogue.routes.ts:94` |  |
 | `MIN_FILL_MS` <sub>local</sub> | `2_500` | `apps/api/src/routes/v1/public.routes.ts:43` | Scripts submit the instant the DOM exists; people take longer than this. |
-| `READ` <sub>local</sub> | `PERMISSIONS.STOCK_READ` | `apps/api/src/routes/v1/inventory.routes.ts:119` |  |
+| `READ` <sub>local</sub> | `PERMISSIONS.STOCK_READ` | `apps/api/src/routes/v1/inventory.routes.ts:164` |  |
 | `READ` <sub>local</sub> | `PERMISSIONS.PRODUCT_DEFINITION_READ` | `apps/api/src/routes/v1/product-catalogue.routes.ts:93` |  |
+| `REASON_CODE_MANAGE` <sub>local</sub> | `PERMISSIONS.INVENTORY_REASON_CODE_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:170` |  |
+| `RESERVE` <sub>local</sub> | `PERMISSIONS.STOCK_RESERVE` | `apps/api/src/routes/v1/inventory.routes.ts:169` |  |
+| `TRANSFER` <sub>local</sub> | `PERMISSIONS.STOCK_TRANSFER` | `apps/api/src/routes/v1/inventory.routes.ts:168` |  |
 
 ## var
 
@@ -104,13 +110,13 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `addressParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:88` |  |
 | `allergyParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:90` |  |
 | `assignmentParams` <sub>local</sub> | `memberParams.extend(…)` | `apps/api/src/routes/v1/members.routes.ts:60` |  |
-| `batchRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:215` |  |
+| `batchRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:263` |  |
 | `compositionRoutes` | `: IRouter` | `apps/api/src/routes/v1/product-catalogue.routes.ts:354` |  |
 | `conditionParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:91` |  |
 | `contactParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:89` |  |
 | `exceptionParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:98` |  |
 | `identifierParams` <sub>local</sub> | `productParams.extend(…)` | `apps/api/src/routes/v1/products.routes.ts:100` |  |
-| `inventoryLocationRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:140` |  |
+| `inventoryLocationRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:188` |  |
 | `manufacturerRoutes` | `: IRouter` | `apps/api/src/routes/v1/product-catalogue.routes.ts:256` |  |
 | `medicationParams` <sub>local</sub> | `patientParams.extend(…)` | `apps/api/src/routes/v1/patients.routes.ts:92` |  |
 | `overrideParams` <sub>local</sub> | `memberParams.extend(…)` | `apps/api/src/routes/v1/members.routes.ts:61` |  |
@@ -128,7 +134,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/doctors.routes.ts:92` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/fees.routes.ts:54` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/health.routes.ts:7` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:37` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:38` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/invitations.routes.ts:43` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/invoices.routes.ts:87` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/members.routes.ts:55` |  |
@@ -141,8 +147,9 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/tax.routes.ts:70` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/webhooks.routes.ts:37` |  |
 | `scheduleParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:97` |  |
-| `serialRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:305` |  |
-| `stockRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:381` |  |
+| `serialRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:353` |  |
+| `stockRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:429` |  |
+| `stockTransferRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:660` |  |
 | `storageProfileRoutes` | `: IRouter` | `apps/api/src/routes/v1/product-catalogue.routes.ts:411` |  |
 | `unitRoutes` | `: IRouter` | `apps/api/src/routes/v1/product-catalogue.routes.ts:120` |  |
 

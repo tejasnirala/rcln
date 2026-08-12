@@ -880,3 +880,452 @@ export type StockLedgerListResponse = z.infer<typeof stockLedgerListResponse>;
 export type VerifyBalancesResponse = z.infer<typeof verifyBalancesResponse>;
 export type ExpiryReportQuery = z.infer<typeof expiryReportQuery>;
 export type ExpiryReportResponse = z.infer<typeof expiryReportResponse>;
+
+// ===========================================================================
+// PI-3 — MOVEMENTS
+//
+// Three documents, and the allocation plan that reads across them. Everything
+// here describes PAPERWORK; the quantity it moves still goes through
+// `recordMovement` and lands in `stock_ledger`, which stays the only source of
+// quantity truth (PI-ADR-004).
+//
+// ⚠️ `manualMovementType` IS DELIBERATELY UNCHANGED BY THIS PHASE. `TRANSFER_IN`
+//   and `TRANSFER_OUT` are still absent from it, and still must be: they are
+//   written by the transfer service as one leg of a document, and a caller that
+//   could post one directly could leave stock that has left one branch and
+//   arrived at none. The endpoints below are the surface; the movement type is
+//   not.
+// ===========================================================================
+
+export const stockReasonDirection = z.enum(['INCREASE', 'DECREASE', 'BOTH']);
+
+export const stockTransferStatus = z.enum([
+  'DRAFT',
+  'DISPATCHED',
+  'PARTIALLY_RECEIVED',
+  'RECEIVED',
+  'CANCELLED',
+]);
+
+export const stockReservationStatus = z.enum(['ACTIVE', 'RELEASED', 'EXPIRED', 'CONSUMED']);
+
+export const allocationStrategy = z.enum(['FEFO', 'FIFO', 'LIFO']);
+
+// ---------------------------------------------------------------------------
+// Reason codes (PI-3.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ NO `code` ON THE UPDATE SCHEMA, AND THAT IS NOT AN OVERSIGHT. The ledger
+ *   stores the code as a STRING snapshot, so renaming `BREAKAGE` to `BREAKAGES`
+ *   would leave every historical adjustment citing a code that no longer
+ *   resolves — the rows would still render, which is the point of the snapshot,
+ *   but the picker and the history would silently stop agreeing. The `label` is
+ *   what a clinic wanted to change nine times in ten, and it is editable.
+ */
+export const createStockReasonCodeRequest = z.object({
+  code: reasonCode,
+  label: z.string().trim().min(2).max(200),
+  direction: stockReasonDirection.default('BOTH'),
+  requiresNote: z.boolean().default(false),
+  sortOrder: z.number().int().min(0).max(9999).default(100),
+});
+
+export const updateStockReasonCodeRequest = z
+  .object({
+    label: z.string().trim().min(2).max(200),
+    direction: stockReasonDirection,
+    requiresNote: z.boolean(),
+    /** Retire it. History keeps rendering; the picker stops offering it. */
+    isActive: z.boolean(),
+    sortOrder: z.number().int().min(0).max(9999),
+  })
+  .partial();
+
+export const stockReasonCodeQuery = z.object({
+  direction: stockReasonDirection.optional(),
+  includeInactive: z.stringbool().default(false),
+});
+
+export const stockReasonCodeSummary = z.object({
+  id: uuid,
+  /** NULL on a platform row — the clinic may read it and may not edit it. */
+  organizationId: uuid.nullable(),
+  code: z.string(),
+  label: z.string(),
+  direction: stockReasonDirection,
+  requiresNote: z.boolean(),
+  isActive: z.boolean(),
+  sortOrder: z.number().int(),
+});
+
+export const stockReasonCodeListResponse = z.object({
+  reasonCodes: z.array(stockReasonCodeSummary),
+});
+
+// ---------------------------------------------------------------------------
+// Transfers (PI-3.2, PI-3.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * One line on a transfer, as the SENDER states it.
+ *
+ * The quantity is entered exactly as a movement's is — a unit or a packaging
+ * level, never both, never a sign — and is converted to base units by the same
+ * `toBaseUnits` the ledger uses. A transfer that rounded would put two branches
+ * permanently out of step by an amount each individual rounding could justify.
+ */
+export const stockTransferLineRequest = z
+  .object({
+    productId: uuid,
+    /** The SENDING branch's lot. Required when the product is batch-tracked. */
+    batchId: uuid.nullish(),
+    serialId: uuid.nullish(),
+    quantity: positiveQuantity,
+    unitId: uuid.nullish(),
+    packagingLevel: z.number().int().min(0).max(10).nullish(),
+    notes: z.string().trim().max(2000).nullish(),
+  })
+  .refine(
+    (v) => v.unitId === null || v.unitId === undefined || v.packagingLevel == null,
+    'give either a unit or a packaging level, not both — a quantity that names both has two answers'
+  );
+
+/**
+ * ⚠️ `toLocationId` IS OPTIONAL HERE AND MANDATORY AT RECEIPT. The sender
+ *   proposes a shelf and the RECEIVER decides, because the sender does not know
+ *   which fridge has room today. A sender who does know may fill it in, and the
+ *   receiver may still change it.
+ */
+export const createStockTransferRequest = z.object({
+  fromBranchId: uuid,
+  toBranchId: uuid,
+  fromLocationId: uuid,
+  toLocationId: uuid.nullish(),
+  notes: z.string().trim().max(2000).nullish(),
+  /** At least one — a transfer of nothing is a document with no purpose. */
+  lines: z.array(stockTransferLineRequest).min(1).max(200),
+});
+
+/** A draft's lines are REPLACED wholesale, the way storage areas are. */
+export const updateStockTransferRequest = z
+  .object({
+    toLocationId: uuid.nullable(),
+    notes: z.string().trim().max(2000).nullable(),
+    lines: z.array(stockTransferLineRequest).min(1).max(200),
+  })
+  .partial();
+
+/**
+ * What the receiver signs for, line by line.
+ *
+ * ⚠️ A QUANTITY PER LINE AND NOT A "RECEIVE ALL" FLAG. Receiving a delivery is
+ *   the moment somebody counts, and a screen that offers one button for "yes,
+ *   all of it" is a screen where nobody counts. Sending the sent quantity back
+ *   is one click on the form and one deliberate act; a default is neither.
+ *
+ * Omitting a line receives NOTHING of it, which leaves the transfer
+ * `PARTIALLY_RECEIVED` and outstanding — visible, which is the point.
+ */
+export const receiveStockTransferRequest = z.object({
+  /** Where it lands. Required: a receipt with no shelf has nowhere to go. */
+  toLocationId: uuid,
+  lines: z
+    .array(
+      z.object({
+        lineId: uuid,
+        /** In the product's BASE UNIT, positive, never more than was sent. */
+        quantityBase: positiveQuantity,
+      })
+    )
+    .min(1)
+    /*
+     * ⚠️ ONE ENTRY PER LINE, AND WITHOUT THIS THE ENDPOINT MINTED STOCK. The
+     *   service reads each line's outstanding quantity from the transfer it
+     *   loaded ONCE, so two entries naming the same line both measured
+     *   themselves against the same untouched `received` value: each passed the
+     *   over-receipt check, each wrote a `TRANSFER_IN` leg, and the line row
+     *   ended up recording only the last one. Ten units sent became twenty units
+     *   received, the document read fully received with nothing outstanding, and
+     *   `stock_transfers_quantities_sane` was satisfied throughout because the
+     *   ROW never held more than was sent.
+     *
+     *   Nothing else would have caught it. The ledger and the balance cache
+     *   agreed — both legs are genuine ledger rows — so `verifyBalances()`
+     *   replays to the inflated number and calls it correct. The web form cannot
+     *   produce it, because `receive.<lineId>` FormData keys collapse; the API
+     *   is the boundary and the API is where it has to be refused.
+     *
+     *   The service also accumulates per line now. Both layers, as everywhere.
+     */
+    .refine(
+      (lines) => new Set(lines.map((l) => l.lineId)).size === lines.length,
+      'each line may appear once — send the total for a line, not one entry per box'
+    ),
+  notes: z.string().trim().max(2000).nullish(),
+});
+
+export const cancelStockTransferRequest = z.object({
+  /**
+   * Mandatory, and the same reasoning as an adjustment's reason code. Cancelling
+   * a DISPATCHED transfer writes a compensating `TRANSFER_IN` back to the
+   * sender, and two ledger rows with no explanation between them are two rows
+   * nobody can audit.
+   */
+  reason: z.string().trim().min(3).max(2000),
+});
+
+export const stockTransferQuery = z.object({
+  /** "What have I sent" / "what is coming to me". */
+  fromBranchId: uuid.optional(),
+  toBranchId: uuid.optional(),
+  status: stockTransferStatus.optional(),
+  /** Only those with something still outstanding — the receiving inbox. */
+  outstandingOnly: z.stringbool().default(false),
+  q: z.string().trim().min(1).max(100).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+export const stockTransferLineDetail = z.object({
+  id: uuid,
+  productId: uuid,
+  productCode: z.string(),
+  productName: z.string(),
+  baseUnitSymbol: z.string(),
+  batchId: uuid.nullable(),
+  lotNumber: z.string().nullable(),
+  expiresOn: z.string().nullable(),
+  serialId: uuid.nullable(),
+  serialNumber: z.string().nullable(),
+  sentQuantityBase: decimalString,
+  receivedQuantityBase: decimalString,
+  /** `sent − received`. Zero once the line is fully signed for. */
+  outstandingQuantityBase: decimalString,
+  quantityEntered: decimalString,
+  unitSymbol: z.string(),
+  destinationBatchId: uuid.nullable(),
+  notes: z.string().nullable(),
+});
+
+export const stockTransferSummary = z.object({
+  id: uuid,
+  transferNumber: z.string().nullable(),
+  fromBranchId: uuid,
+  fromBranchName: z.string(),
+  toBranchId: uuid,
+  toBranchName: z.string(),
+  fromLocationId: uuid,
+  fromLocationName: z.string(),
+  toLocationId: uuid.nullable(),
+  toLocationName: z.string().nullable(),
+  status: stockTransferStatus,
+  /** True when the two branches are one. No transit, one transaction. */
+  isIntraBranch: z.boolean(),
+  lineCount: z.number().int(),
+  /** Summed over the lines. What is still on the van. */
+  outstandingLineCount: z.number().int(),
+  createdAt: z.string(),
+  dispatchedAt: z.string().nullable(),
+  receivedAt: z.string().nullable(),
+  cancelledAt: z.string().nullable(),
+  createdByName: z.string().nullable(),
+  dispatchedByName: z.string().nullable(),
+  receivedByName: z.string().nullable(),
+});
+
+export const stockTransferDetail = stockTransferSummary.extend({
+  notes: z.string().nullable(),
+  cancellationReason: z.string().nullable(),
+  cancelledByName: z.string().nullable(),
+  lines: z.array(stockTransferLineDetail),
+});
+
+export const stockTransferListResponse = z.object({
+  transfers: z.array(stockTransferSummary),
+  meta: z.object({
+    page: z.number().int(),
+    limit: z.number().int(),
+    total: z.number().int(),
+    totalPages: z.number().int(),
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// Reservations (PI-3.4)
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ `expiresAt` IS REQUIRED AND HAS NO DEFAULT ON THE WIRE. A reservation that
+ *   never expires and that nobody releases holds stock out of `AVAILABLE` for
+ *   ever, and the clinic's only symptom is that it cannot dispense a medicine it
+ *   can see on the shelf. Defaulting it here would put the choice in a schema
+ *   nobody reads; requiring it puts the choice in front of whoever is holding
+ *   the stock. The server caps it — see `reserveStock`.
+ */
+export const createStockReservationRequest = z.object({
+  branchId: uuid,
+  productId: uuid,
+  batchId: uuid.nullish(),
+  serialId: uuid.nullish(),
+  locationId: uuid,
+  quantity: positiveQuantity,
+  unitId: uuid.nullish(),
+  packagingLevel: z.number().int().min(0).max(10).nullish(),
+  expiresAt: z.iso.datetime(),
+  referenceType: stockReferenceType.default('MANUAL'),
+  referenceId: uuid.nullish(),
+  notes: z.string().trim().max(2000).nullish(),
+});
+
+export const releaseStockReservationRequest = z
+  .object({ notes: z.string().trim().max(2000).nullish() })
+  .default({});
+
+export const stockReservationQuery = z.object({
+  branchId: uuid.optional(),
+  productId: uuid.optional(),
+  locationId: uuid.optional(),
+  status: stockReservationStatus.optional(),
+  referenceType: stockReferenceType.optional(),
+  referenceId: uuid.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+});
+
+export const stockReservationSummary = z.object({
+  id: uuid,
+  branchId: uuid,
+  productId: uuid,
+  productCode: z.string(),
+  productName: z.string(),
+  baseUnitSymbol: z.string(),
+  batchId: uuid.nullable(),
+  lotNumber: z.string().nullable(),
+  serialId: uuid.nullable(),
+  serialNumber: z.string().nullable(),
+  locationId: uuid,
+  locationName: z.string(),
+  quantityBase: decimalString,
+  status: stockReservationStatus,
+  referenceType: stockReferenceType,
+  referenceId: uuid.nullable(),
+  expiresAt: z.string(),
+  /** True once `expiresAt` has passed and the sweep has not yet run. */
+  isOverdue: z.boolean(),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  createdByName: z.string().nullable(),
+  releasedAt: z.string().nullable(),
+  /** NULL when the SWEEP released it, which is not the same as a person doing. */
+  releasedByName: z.string().nullable(),
+});
+
+export const stockReservationListResponse = z.object({
+  reservations: z.array(stockReservationSummary),
+  meta: z.object({
+    page: z.number().int(),
+    limit: z.number().int(),
+    total: z.number().int(),
+    totalPages: z.number().int(),
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// Allocation (PI-3.5)
+// ---------------------------------------------------------------------------
+
+/**
+ * Ask which lots would be used, WITHOUT using them.
+ *
+ * ⚠️ THE PLAN IS RETURNED BEFORE ANYTHING IS COMMITTED, ON PURPOSE. The
+ *   dispensing screen shows which batch it will pick and lets a pharmacist
+ *   override it with a reason. An allocation that commits silently is one nobody
+ *   can question, and "why did it give out the lot expiring next week instead of
+ *   the one expiring tomorrow" is a question that gets asked.
+ *
+ * ⚠️ AND THE PLAN IS ADVICE, NOT A HOLD. Nothing is reserved by asking. Two
+ *   callers planning at once get the same answer and the second one to COMMIT
+ *   loses on the bucket lock, exactly as two dispensers racing for the last
+ *   strip do today. A caller that needs the stock held asks for a RESERVATION.
+ */
+export const allocationPlanRequest = z.object({
+  branchId: uuid,
+  productId: uuid,
+  quantity: positiveQuantity,
+  unitId: uuid.nullish(),
+  packagingLevel: z.number().int().min(0).max(10).nullish(),
+  /** Narrow to one shelf. Omitted, every location at the branch is a candidate. */
+  locationId: uuid.nullish(),
+  /**
+   * Override the product's strategy for this one question. Logged by the caller
+   * that commits, never here — this endpoint writes nothing.
+   */
+  strategy: allocationStrategy.optional(),
+});
+
+export const allocationPlanLine = z.object({
+  locationId: uuid,
+  locationName: z.string(),
+  batchId: uuid.nullable(),
+  lotNumber: z.string().nullable(),
+  expiresOn: z.string().nullable(),
+  serialId: uuid.nullable(),
+  serialNumber: z.string().nullable(),
+  /** How much to take from this bucket, in base units. */
+  quantityBase: decimalString,
+  /** What the bucket holds as AVAILABLE, less anything reserved on it. */
+  availableQuantityBase: decimalString,
+});
+
+export const allocationPlanResponse = z.object({
+  productId: uuid,
+  productName: z.string(),
+  baseUnitSymbol: z.string(),
+  /** What was asked for, converted to base units. */
+  requestedQuantityBase: decimalString,
+  /** What the plan actually covers. Less than requested when stock is short. */
+  allocatedQuantityBase: decimalString,
+  /** `requested − allocated`. Non-zero means the clinic cannot fill this. */
+  shortfallQuantityBase: decimalString,
+  /** Which strategy produced this ordering, and where it came from. */
+  strategy: allocationStrategy,
+  strategySource: z.enum(['REQUEST', 'PRODUCT', 'DEFAULT']),
+  lines: z.array(allocationPlanLine),
+});
+
+// ---------------------------------------------------------------------------
+// PI-3 types
+// ---------------------------------------------------------------------------
+
+export type StockReasonDirection = z.infer<typeof stockReasonDirection>;
+export type StockTransferStatus = z.infer<typeof stockTransferStatus>;
+export type StockReservationStatus = z.infer<typeof stockReservationStatus>;
+export type AllocationStrategy = z.infer<typeof allocationStrategy>;
+
+export type CreateStockReasonCodeRequest = z.infer<typeof createStockReasonCodeRequest>;
+export type UpdateStockReasonCodeRequest = z.infer<typeof updateStockReasonCodeRequest>;
+export type StockReasonCodeQuery = z.infer<typeof stockReasonCodeQuery>;
+export type StockReasonCodeSummary = z.infer<typeof stockReasonCodeSummary>;
+export type StockReasonCodeListResponse = z.infer<typeof stockReasonCodeListResponse>;
+
+export type StockTransferLineRequest = z.infer<typeof stockTransferLineRequest>;
+export type CreateStockTransferRequest = z.infer<typeof createStockTransferRequest>;
+export type UpdateStockTransferRequest = z.infer<typeof updateStockTransferRequest>;
+export type ReceiveStockTransferRequest = z.infer<typeof receiveStockTransferRequest>;
+export type CancelStockTransferRequest = z.infer<typeof cancelStockTransferRequest>;
+export type StockTransferQuery = z.infer<typeof stockTransferQuery>;
+export type StockTransferLineDetail = z.infer<typeof stockTransferLineDetail>;
+export type StockTransferSummary = z.infer<typeof stockTransferSummary>;
+export type StockTransferDetail = z.infer<typeof stockTransferDetail>;
+export type StockTransferListResponse = z.infer<typeof stockTransferListResponse>;
+
+export type CreateStockReservationRequest = z.infer<typeof createStockReservationRequest>;
+export type ReleaseStockReservationRequest = z.infer<typeof releaseStockReservationRequest>;
+export type StockReservationQuery = z.infer<typeof stockReservationQuery>;
+export type StockReservationSummary = z.infer<typeof stockReservationSummary>;
+export type StockReservationListResponse = z.infer<typeof stockReservationListResponse>;
+
+export type AllocationPlanRequest = z.infer<typeof allocationPlanRequest>;
+export type AllocationPlanLine = z.infer<typeof allocationPlanLine>;
+export type AllocationPlanResponse = z.infer<typeof allocationPlanResponse>;

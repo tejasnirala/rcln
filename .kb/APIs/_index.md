@@ -34,6 +34,7 @@ Paths are as registered — prepend the mount prefixes below for the callable UR
 | `/batches` | `batchRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/serials` | `serialRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/stock` | `stockRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/stock-transfers` | `stockTransferRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts` |
@@ -190,36 +191,37 @@ Paths are as registered — prepend the mount prefixes below for the callable UR
 | PUT | `/` | `authorize(PERMISSIONS.FEE_SCHEDULE_MANAGE)` → `validate(setFeeScheduleRequest)` → `<inline>` | `apps/api/src/routes/v1/fees.routes.ts:116` |
 | GET | `/` | `<inline>` | `apps/api/src/routes/v1/health.routes.ts:10` |
 | GET | `/ready` | `<inline>` | `apps/api/src/routes/v1/health.routes.ts:19` |
-| USE | `/health` | `healthRoutes` | `apps/api/src/routes/v1/index.ts:39` |
-| USE | `/auth` | `authRoutes` | `apps/api/src/routes/v1/index.ts:43` |
-| USE | `/public` | `publicRoutes` | `apps/api/src/routes/v1/index.ts:47` |
-| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:53` |
-| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:57` |
-| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:61` |
-| USE | `/doctors` | `doctorRoutes` | `apps/api/src/routes/v1/index.ts:65` |
-| USE | `/clinical-taxonomy` | `clinicalTaxonomyRoutes` | `apps/api/src/routes/v1/index.ts:72` |
-| USE | `/designations` | `designationRoutes` | `apps/api/src/routes/v1/index.ts:76` |
-| USE | `/patients` | `patientRoutes` | `apps/api/src/routes/v1/index.ts:82` |
-| USE | `/appointments` | `appointmentRoutes` | `apps/api/src/routes/v1/index.ts:88` |
-| USE | `/products` | `productRoutes` | `apps/api/src/routes/v1/index.ts:98` |
-| USE | `/units` | `unitRoutes` | `apps/api/src/routes/v1/index.ts:107` |
-| USE | `/product-categories` | `productCategoryRoutes` | `apps/api/src/routes/v1/index.ts:108` |
-| USE | `/manufacturers` | `manufacturerRoutes` | `apps/api/src/routes/v1/index.ts:109` |
-| USE | `/active-ingredients` | `activeIngredientRoutes` | `apps/api/src/routes/v1/index.ts:110` |
-| USE | `/compositions` | `compositionRoutes` | `apps/api/src/routes/v1/index.ts:111` |
-| USE | `/storage-profiles` | `storageProfileRoutes` | `apps/api/src/routes/v1/index.ts:112` |
-| USE | `/inventory-locations` | `inventoryLocationRoutes` | `apps/api/src/routes/v1/index.ts:127` |
-| USE | `/batches` | `batchRoutes` | `apps/api/src/routes/v1/index.ts:128` |
-| USE | `/serials` | `serialRoutes` | `apps/api/src/routes/v1/index.ts:129` |
-| USE | `/stock` | `stockRoutes` | `apps/api/src/routes/v1/index.ts:130` |
-| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:135` |
-| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:136` |
-| USE | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts:142` |
-| USE | `/billing` | `billingRoutes` | `apps/api/src/routes/v1/index.ts:151` |
-| USE | `/invoices` | `invoiceRoutes` | `apps/api/src/routes/v1/index.ts:159` |
-| USE | `/tax` | `taxRoutes` | `apps/api/src/routes/v1/index.ts:166` |
-| USE | `/fee-schedule` | `feeRoutes` | `apps/api/src/routes/v1/index.ts:173` |
-| USE | `/audit` | `auditRoutes` | `apps/api/src/routes/v1/index.ts:178` |
+| USE | `/health` | `healthRoutes` | `apps/api/src/routes/v1/index.ts:40` |
+| USE | `/auth` | `authRoutes` | `apps/api/src/routes/v1/index.ts:44` |
+| USE | `/public` | `publicRoutes` | `apps/api/src/routes/v1/index.ts:48` |
+| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:54` |
+| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:58` |
+| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:62` |
+| USE | `/doctors` | `doctorRoutes` | `apps/api/src/routes/v1/index.ts:66` |
+| USE | `/clinical-taxonomy` | `clinicalTaxonomyRoutes` | `apps/api/src/routes/v1/index.ts:73` |
+| USE | `/designations` | `designationRoutes` | `apps/api/src/routes/v1/index.ts:77` |
+| USE | `/patients` | `patientRoutes` | `apps/api/src/routes/v1/index.ts:83` |
+| USE | `/appointments` | `appointmentRoutes` | `apps/api/src/routes/v1/index.ts:89` |
+| USE | `/products` | `productRoutes` | `apps/api/src/routes/v1/index.ts:99` |
+| USE | `/units` | `unitRoutes` | `apps/api/src/routes/v1/index.ts:108` |
+| USE | `/product-categories` | `productCategoryRoutes` | `apps/api/src/routes/v1/index.ts:109` |
+| USE | `/manufacturers` | `manufacturerRoutes` | `apps/api/src/routes/v1/index.ts:110` |
+| USE | `/active-ingredients` | `activeIngredientRoutes` | `apps/api/src/routes/v1/index.ts:111` |
+| USE | `/compositions` | `compositionRoutes` | `apps/api/src/routes/v1/index.ts:112` |
+| USE | `/storage-profiles` | `storageProfileRoutes` | `apps/api/src/routes/v1/index.ts:113` |
+| USE | `/inventory-locations` | `inventoryLocationRoutes` | `apps/api/src/routes/v1/index.ts:130` |
+| USE | `/batches` | `batchRoutes` | `apps/api/src/routes/v1/index.ts:131` |
+| USE | `/serials` | `serialRoutes` | `apps/api/src/routes/v1/index.ts:132` |
+| USE | `/stock` | `stockRoutes` | `apps/api/src/routes/v1/index.ts:133` |
+| USE | `/stock-transfers` | `stockTransferRoutes` | `apps/api/src/routes/v1/index.ts:138` |
+| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:143` |
+| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:144` |
+| USE | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts:150` |
+| USE | `/billing` | `billingRoutes` | `apps/api/src/routes/v1/index.ts:159` |
+| USE | `/invoices` | `invoiceRoutes` | `apps/api/src/routes/v1/index.ts:167` |
+| USE | `/tax` | `taxRoutes` | `apps/api/src/routes/v1/index.ts:174` |
+| USE | `/fee-schedule` | `feeRoutes` | `apps/api/src/routes/v1/index.ts:181` |
+| USE | `/audit` | `auditRoutes` | `apps/api/src/routes/v1/index.ts:186` |
 | USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/invitations.routes.ts:45` |
 | GET | `/` | `authorize(PERMISSIONS.IAM_USER_READ)` → `<inline>` | `apps/api/src/routes/v1/invitations.routes.ts:61` |
 | POST | `/` | `authorize(PERMISSIONS.IAM_USER_INVITE)` → `inviteLimiter` → `validate(inviteMemberRequest)` → `<inline>` | `apps/api/src/routes/v1/invitations.routes.ts:69` |

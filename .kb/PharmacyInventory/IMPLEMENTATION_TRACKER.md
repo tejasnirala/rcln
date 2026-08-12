@@ -39,7 +39,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                           |
 | PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                           |
 | PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                           |
-| PI-3      | Movements                                               | PLANNED — **next**        | —                                           |
+| PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                           |
 | PI-4      | Procurement                                             | PLANNED                   | PI-3                                        |
 | PI-5      | Global Regulatory Framework                             | PLANNED                   | PI-1                                        |
 | PI-6      | India Rule Pack                                         | PLANNED                   | PI-5                                        |
@@ -339,17 +339,98 @@ departure. See the `StockMovementType` enum comment.
 
 ---
 
-# PI-3 — Movements · PLANNED
+# PI-3 — Movements · COMPLETE (2026-08-12)
 
-| Task   | Description                                                              | Status      |
-| ------ | ------------------------------------------------------------------------ | ----------- |
-| PI-3.1 | Adjustments with mandatory reason codes                                  | NOT_STARTED |
-| PI-3.2 | Intra-branch transfers (location → location)                             | NOT_STARTED |
-| PI-3.3 | Inter-branch transfers, with in-transit state                            | NOT_STARTED |
-| PI-3.4 | Reservations — `RESERVED` made real, with expiry/release                 | NOT_STARTED |
-| PI-3.5 | FEFO allocation service, with product- and jurisdiction-level overrides  | NOT_STARTED |
-| PI-3.6 | Screens: transfers, adjustments, reservations                            | NOT_STARTED |
-| PI-3.7 | Tests: transfer atomicity, no negative balance, FEFO ordering incl. ties | NOT_STARTED |
+| Task   | Description                                                              | Status       |
+| ------ | ------------------------------------------------------------------------ | ------------ |
+| PI-3.1 | Adjustments with mandatory reason codes                                  | **COMPLETE** |
+| PI-3.2 | Intra-branch transfers (location → location)                             | **COMPLETE** |
+| PI-3.3 | Inter-branch transfers, with in-transit held by the DOCUMENT             | **COMPLETE** |
+| PI-3.4 | Reservations — `RESERVED` made real, with expiry/release                 | **COMPLETE** |
+| PI-3.5 | FEFO allocation service, with product-level override; PI-5 seam left     | **COMPLETE** |
+| PI-3.6 | Screens: transfers, adjustments, reservations                            | **COMPLETE** |
+| PI-3.7 | Tests: transfer atomicity, no negative balance, FEFO ordering incl. ties | **COMPLETE** |
+
+| Area        | What landed                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Schema      | 4 tables, 3 enums + `AllocationStrategy`, `products.allocation_strategy`, `NumberSequenceType.STOCK_TRANSFER`                        |
+| Migrations  | 4 (`..816090000` movements · `..091000` sweep fn · `..092000` location snapshot · `..093000` lot snapshot)                           |
+| RLS         | `db:rls:check` green at **76**. `stock_reason_codes` is platform-extensible; transfers carry a bespoke two-ended `from OR to` policy |
+| Package     | `@rcln/inventory` gains `allocate.ts` (pure FEFO/FIFO/LIFO) and `reservation-sweep.ts`                                               |
+| Permissions | `inventory.stock.reserve`, `inventory.reason_code.manage` → BRANCH_ADMIN + PHARMACIST                                                |
+| Routes      | `/v1/stock/{reason-codes,reservations,allocations/plan}` and `/v1/stock-transfers/*`                                                 |
+| Worker      | The reservation sweep, on the inventory queue at `:30`. `movementDeps` extracted to `inventory/deps.ts`                              |
+| Web         | `/stock/transfers` (list, new, detail+receive), `/stock/reservations`, `/stock/adjustments/new`; two new nav tabs                    |
+| Tests       | 13 unit + 35 integration + 25 isolation cases. **1159 API tests across 41 suites**; `pnpm typecheck`/`lint`/`test` all green         |
+| Reviews     | Both run. 3 CRITICAL + 7 smaller, **all fixed**. See [CHANGELOG.md](CHANGELOG.md)                                                    |
+
+### The decision PI-3 was required to make
+
+**In-transit stock is held by the DOCUMENT, not by a bucket.** Dispatch writes
+`TRANSFER_OUT` at the sender and nothing else; receipt writes `TRANSFER_IN` at
+the receiver and nothing else. Neither side ever writes a row at the other's
+branch, so no tenant context is ever widened.
+
+This refines INVENTORY_ARCHITECTURE.md, which describes an `IN_TRANSIT` bucket
+owned by the SENDING branch. That shape would make the RECEIVER write a removal
+against a branch `stock_ledger.branch_isolation` hides from them — fixable only
+by widening their context (the first hole in the branch boundary) or by writing
+the row twice (the second ledger writer PI-ADR-004 forbids).
+
+⚠️ **The cost, so PI-22 does not rediscover it:** in-transit stock is not in
+`stock_balances`. A valuation report that sums that table and stops is
+under-counting by whatever is on a van; it must add the outstanding lines of
+`DISPATCHED` transfers. `verifyBalances()` is unaffected — both legs are ledger
+rows. An integration test pins this.
+
+### What the reviews found · all three CRITICALs were one class of mistake
+
+1. **A duplicate `lineId` on receipt minted stock.** The loop measured every
+   entry against a snapshot loaded once, so two entries naming one line both
+   passed the over-receipt check and both wrote a leg. Ten sent became twenty
+   received, and `verifyBalances()` agreed — both legs are real ledger rows.
+2. **Every transfer state transition was a read-then-write race.** `withTenant`
+   is plain READ COMMITTED. Worst pair is cancel-against-receive, which writes at
+   two DIFFERENT branches so the engine's bucket locks never meet.
+3. **The manual reservation release raced the sweep**, whose own implementation
+   one package over documents in a comment exactly why that order is wrong.
+
+Plus: a serial fitted to a patient between draft and dispatch was still
+transferable (`assignSerial` writes no movement, so nothing downstream notices);
+`toLineDetail` read the batch join rather than the line's snapshot; and five
+smaller items. All fixed, with four regression tests.
+
+### Two bugs the tests found that reading would not have
+
+Both are the same shape and both are invisible from the code, because the query
+is correct and the RLS policy is correct and they are correct about different
+things:
+
+1. **The receiving branch could not read its own delivery note.**
+   `inventory_locations` is branch-scoped, so `fromLocation` came back NULL — not
+   forbidden — and `toSummary` threw. Fixed by snapshotting the shelf NAMES onto
+   the transfer (`..092000`), which is what a paper delivery note has always
+   carried and is the more honest record besides.
+2. **The receiving branch could not create its own lot row**, so receipt raised
+   `Batch not found` while somebody held the boxes. `batches` is branch-scoped
+   too. Fixed by snapshotting the lot's identity — number, dates, manufacturer,
+   cost — onto the LINE (`..093000`).
+
+Neither was fixed by weakening a policy. Both would have shipped.
+
+### Deliberately NOT in PI-3
+
+- **No `consumeReservation`.** Nothing consumes one: PI-7 and PI-9 move quantity
+  out of `RESERVED` directly and will set `CONSUMED` in the same transaction.
+  A state nothing can reach is a state nobody maintains; the enum member exists
+  so neither phase needs a migration.
+- **No adjustments TAB.** An adjustments list is the Movements list filtered to
+  one type — the same rows, the same query. Recording one is an action, so it is
+  a button on Movements.
+- **Serial-tracked stock crossing a branch needs a dual-scoped receiver**, and is
+  refused with a sentence otherwise. A serial IS the device, so receipt MOVES the
+  record rather than copying it, and that record belongs to the sending branch
+  until it does. The one cross-branch write in the flow.
 
 ---
 
