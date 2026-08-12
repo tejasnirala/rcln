@@ -138,6 +138,23 @@ function clinicNav(permissions: string[]): NavLink[] {
      */
     { href: '/products', label: 'Catalogue', permission: ['product.definition.read'] },
     /*
+     * ⚠️ "STOCK", NOT "INVENTORY", AND IT IS A SEPARATE TAB FROM CATALOGUE ON
+     *   PURPOSE. The catalogue says what a thing IS; this says where it is and
+     *   how much there is. They are different questions asked by the same person
+     *   at different moments — a storekeeper curates the catalogue occasionally
+     *   and counts the shelves every morning — and one tab holding both would
+     *   bury the daily screen inside the occasional one.
+     *
+     *   "Inventory" is what the domain is called in the schema; "Stock" is what
+     *   the clinic calls the thing it opens. Same choice as Catalogue over
+     *   Products.
+     *
+     * Sits immediately after Catalogue because every row on it names a product,
+     * and gated on `inventory.stock.read` — which a pharmacist and a branch
+     * administrator hold, and a receptionist does not.
+     */
+    { href: '/stock', label: 'Stock', permission: ['inventory.stock.read'] },
+    /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the
      * permission that guards it: a clock format is a preference and a tax rate

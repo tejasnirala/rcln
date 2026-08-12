@@ -5,6 +5,196 @@ discussed.
 
 ---
 
+## 2026-08-12 — PI-2 reviews, and the two CRITICALs they found
+
+**Phase:** PI-2 · **Result:** both reviews run and acted on · **Branch:**
+`feat/pi-2-inventory-foundation`
+
+`security-reviewer` and `code-reviewer` both ran over the finished diff. Two
+CRITICALs, one HIGH, eleven WARNINGs and a page of INFO. Everything except two
+accepted items is fixed. `pnpm validate` green at **1087 API tests across 39
+suites**; `db:rls:check` green at 72 tables.
+
+### CRITICAL 1 — the REVOKE that revoked nothing
+
+`REVOKE ALL ON FUNCTION stock_balances_apply_delta(...) FROM PUBLIC` **does not
+remove the grant `rcln_app` actually holds.** `infra/postgres/init/01-roles-and-
+extensions.sql` carries
+
+```sql
+ALTER DEFAULT PRIVILEGES FOR ROLE rcln_owner IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS TO rcln_app;
+```
+
+so every function a migration creates is granted to the application role at
+creation, as a role-specific grant. Revoking from PUBLIC removes a different one.
+Measured: `has_function_privilege('rcln_app', …) = true`, and calling it as
+`rcln_app` with no tenant context reached the INSERT and failed only on a foreign
+key.
+
+That function is SECURITY DEFINER, bypasses RLS on `stock_balances`, and takes
+the organization, branch, location, status and delta **as arguments**. So the
+request-path role held an arbitrary cross-tenant write into the balance cache —
+the one number the append-only ledger exists to make unforgeable — and the
+`REVOKE INSERT, UPDATE, DELETE ON stock_balances` was nullified by the very
+function it was written to make safe.
+
+Fixed in `20260815093000_inventory_security_review_fixes`, which names
+`rcln_app` explicitly for both balance functions. The isolation suite now asserts
+`has_function_privilege` is false for each — the table grants were tested and the
+function grants were not, which is exactly how this hid.
+
+### CRITICAL 2 — `readable('100')` returned `'1'`
+
+```ts
+quantity.replace(/\.?0+$/, ''); // the point is OPTIONAL
+```
+
+On an integer the `0+$` ate the trailing zeros of the number itself: `100` → `1`,
+`500` → `5`, `-30` → `-3`. Every quantity on every stock screen, an order of
+magnitude small, on a screen a pharmacist reconciles against a shelf. A bare
+integer is a legitimate wire value — Prisma's `Decimal.toString()` drops the
+fractional zeros before the string leaves the server — so it was not theoretical.
+
+It broke no test because `apps/web` **has no test suite**. So the function moved
+to `@rcln/contracts` as `readableQuantity`, beside the `decimalString` it is the
+display inverse of, where `apps/api`'s unit suite covers it. Six cases.
+
+### The structural fix: branch-composite foreign keys
+
+Every inventory child referenced its parent through `(organization_id,
+<parent>_id)`, which proves the lot or shelf belongs to this TENANT and says
+nothing about which BRANCH holds it — so a movement at branch A citing a shelf at
+branch B was a legal INSERT, refused only by a check in `recordMovementIn`.
+
+`20260815094000_inventory_branch_composite_keys` adds
+`@@unique([organizationId, branchId, id])` to locations, batches and serials and
+composes ten foreign keys on all three columns. It also makes `verifyBalances()`
+airtight: the replay groups without `branch_id`, which was only correct because a
+location implied one branch — true of the data, and now true of the schema.
+
+### The expiry sweep had two defects, both silent
+
+- **It never selected `serial_id`,** so a `SERIAL` product's expired stock hit
+  "must name a serial number" — and one expired serialised device meant **nothing
+  at that branch ever expired**, hourly, for ever, with only a log line.
+- **It moved every bucket in ONE transaction.** An advisory lock is held to
+  COMMIT, so locks accumulated in expiry order — which is not lock order — and
+  could deadlock against a concurrent status transition, rolling back the whole
+  branch.
+
+Both fixed by restructuring: `findExpiredBuckets` + `expireBucket`, with the
+caller opening **one transaction per bucket** and counting failures instead of
+aborting. Partial completion was always safe; splitting the transaction is what
+makes it useful.
+
+### The rest
+
+- `stock_ledger.actor_user_id` was the eighth plain FK and had no policy — a
+  tenant could name any user uuid and read `users.full_name` back through the
+  join `listLedger` performs. New RESTRICTIVE `actor_is_member` policy: a
+  MEMBERSHIP test, not an identity test, so a countersigned entry and the sweep's
+  owner-attributed movements still work.
+- `updateSerial` returned `assignedPatientId` and wrote no `data_access_logs`
+  row, and re-pointed `batchId`/`currentLocationId` with none of `createSerial`'s
+  checks. Both fixed; the checks are now one shared helper.
+- `listBalances` and `listLedger` sorted on non-unique keys, so pagination could
+  skip and repeat rows. `id` appended to both.
+- Deactivating a location was a read-then-write with nothing serialising it —
+  a concurrent movement could commit between the balance check and the update and
+  strand stock under an invisible location. `FOR UPDATE` on the location row.
+- `majorToMinor` returned null for a typo, so a mistyped cost saved as "no cost
+  recorded" with no field error. Returns `NaN` now, so Zod reports the field.
+- `recordMovementResponse.quantityBase` was `decimalString`, which refuses the
+  sign it always carries.
+- Duplication: `toDateColumn` had four copies and `emptyToNull` two. Canonical
+  ones in `product/values.ts` and `lib/api.ts`. The three older `toDateColumn`
+  copies are in Phase 3 code and are left for a follow-up.
+
+### Two accepted, with reasons
+
+- **`inventory_branches_with_expired_stock` is granted to `rcln_app`** (HIGH).
+  The worker connects as that role, so the grant is required; the function is
+  read-only and takes no argument that widens it. It is the second of this shape
+  — `billing_due_subscriptions` is the first — and the real fix is a worker-only
+  database role, which is infrastructure work for PI-24.
+- **`listLocations` is unpaginated** (WARNING). Locations are the physical places
+  a clinic keeps things, every consumer needs the whole set, and the screen groups
+  by branch. Recorded in the service with the threshold at which it stops being
+  true.
+
+---
+
+## 2026-08-12 — PI-2, Inventory Foundation
+
+**Phase:** PI-2 · **Result:** complete except both reviews · **Branch:**
+`feat/pi-2-inventory-foundation`
+
+Seven tables, the append-only ledger, the trigger-maintained balance cache, the
+expiry sweep, and four screens. `db:rls:check` green at 72 protected tables;
+`pnpm validate` green at 1078 API tests across 39 suites.
+
+### The ledger writer had to leave `apps/api`
+
+PI-ADR-004 says `recordMovement()` is the only thing that inserts into
+`stock_ledger`. The expiry sweep is a **worker** processor, and the worker cannot
+import from the API — so a sweep written there would have had to write its own
+INSERT, and "only one writer" would have stopped being true in the phase that
+declared it.
+
+`@rcln/inventory` now holds the engine and the conversion algebra, with
+`recordAudit` and `loadUnitGraph` injected. Same shape as `@rcln/billing`.
+`apps/api/src/services/product/units.ts` is a one-line re-export, so no existing
+import changed; it throws `InventoryError` now, mapped by the error middleware
+onto exactly the 400 / 404 / 409 the old classes produced.
+
+### Two things were measured rather than reasoned about
+
+**`ON CONFLICT DO UPDATE` cannot maintain a balance under a `>= 0` CHECK.**
+Postgres evaluates a table's CHECK constraints against the **proposed** row
+before the unique index is consulted for a conflict, so
+`INSERT ... VALUES (-30) ON CONFLICT DO UPDATE SET quantity = quantity + excluded`
+is rejected before the arbiter can redirect it into the row holding 100. Every
+decrement failed. Rewritten as UPDATE-then-INSERT with a unique-violation retry.
+
+**`SELECT ... FOR UPDATE` needs the UPDATE privilege, which the whole design
+revokes.** `rcln_app` holds no INSERT, UPDATE or DELETE on `stock_balances` —
+that is rule 2 made literal — and Postgres requires UPDATE to take a row lock,
+so the sufficiency check raised 42501 on every movement. Replaced with
+`pg_advisory_xact_lock`, which needs no privilege, releases on COMMIT, and is
+taken for both buckets in sorted key order in one statement so two opposite
+transitions cannot deadlock.
+
+### One deliberate deviation from the architecture doc
+
+`EXPIRY`, `DAMAGE` and `RECALL` are **MOVES between status buckets, not `−`
+removals**. Expired stock has not left the building: it is on the shelf,
+undispensable, waiting to be destroyed, and it has to be counted and valued until
+it is — which INVENTORY_ARCHITECTURE.md's own status model says two sections
+after its sign table. `DISPOSAL` is the `−` that records a physical departure.
+
+### The enforcement, in the database
+
+- `stock_ledger`: no UPDATE or DELETE for `rcln_app`, plus an owner-exempt
+  trigger — the same two layers `audit_logs` already has.
+- `stock_balances`: **SELECT only**. The cache is maintained by a SECURITY
+  DEFINER trigger and by nothing else.
+- `stock_ledger_direction` pairs every movement type with its sign AND with which
+  status buckets it may name. `_tracking_satisfied` is PI-ADR-014.
+  `stock_balances_non_negative` is the last line against a negative shelf.
+- Seven RESTRICTIVE `*_visible` policies. `batches.product_id` cannot be a
+  composite FK — a clinic legitimately stocks a PLATFORM product — so the policy
+  is the entire control on that side. Four isolation cases prove a clinic cannot
+  create a batch, serial, movement or balance naming another clinic's product.
+
+### Still open
+
+Neither `code-reviewer` nor `security-reviewer` has run, and the security pass is
+mandatory: the diff touches the schema, tenancy, RLS, PHI, permissions and raw
+SQL. The screens read and do not write. Nothing has been clicked in a browser.
+
+---
+
 ## 2026-08-11 — PI-1 code review, and the bugs it found
 
 **Phase:** PI-1 · **Result:** both reviews complete · **Branch:**

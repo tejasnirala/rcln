@@ -2,7 +2,7 @@
   "name": "@rcln/worker",
   "version": "0.1.0",
   "private": true,
-  "description": "BullMQ processors — notifications, documents, billing, inventory, reports",
+  "description": "BullMQ processors \u2014 notifications, documents, billing, inventory, reports",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -23,6 +23,7 @@
     "@rcln/contracts": "workspace:*",
     "@rcln/db": "workspace:*",
     "@rcln/documents": "workspace:*",
+    "@rcln/inventory": "workspace:*",
     "@rcln/invoicing": "workspace:*",
     "@rcln/payments": "workspace:*",
     "@rcln/permissions": "workspace:*",

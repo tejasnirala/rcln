@@ -270,6 +270,9 @@ export async function listProducts(
       ...(query.manufacturerId !== undefined ? { manufacturerId: query.manufacturerId } : {}),
       ...(query.compositionId !== undefined ? { compositionId: query.compositionId } : {}),
       ...(query.isStockItem !== undefined ? { isStockItem: query.isStockItem } : {}),
+      // PI-2's pickers: a lot only attaches to a batch-tracked product and a
+      // serial only to a serial-tracked one. See the contract.
+      ...(query.trackingMode !== undefined ? { trackingMode: query.trackingMode } : {}),
       ...(categoryIds ? { categoryId: { in: categoryIds } } : {}),
       /*
        * `source` is expressed as a predicate on organization_id, which RLS has

@@ -13,7 +13,7 @@ import {
   type ProductPackagingDetail,
   type ProductTaxClassificationDetail,
 } from '@rcln/contracts';
-import { api, fieldErrorsFrom } from '@/lib/api';
+import { api, emptyToNull, fieldErrorsFrom } from '@/lib/api';
 import { getAccessToken } from '@/lib/session';
 
 /*
@@ -346,11 +346,6 @@ export async function saveMedicineDetailAction(
  * report "invalid" on a field the user deliberately left blank. Null is what the
  * contract means by absent.
  */
-function emptyToNull(value: FormDataEntryValue | null): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed === '' ? null : trimmed;
-}
 
 function numberOrUndefined(value: FormDataEntryValue | null): number | undefined {
   const text = emptyToNull(value);

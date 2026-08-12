@@ -167,6 +167,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.STOCK_ADJUST,
       P.STOCK_TRANSFER,
       P.BATCH_MANAGE,
+      /*
+       * Defines the shelves as well as counting what is on them. Both roles
+       * that hold this run a physical store — a branch administrator for the
+       * site, a pharmacist for the dispensary — and a store whose fridge and
+       * controlled cabinet cannot be created is a store that records everything
+       * as being in one undifferentiated place. See PI-ADR-012.
+       */
+      P.INVENTORY_LOCATION_MANAGE,
       P.INVOICE_READ,
       /*
        * The whole ledger for the branches they run. A branch administrator
@@ -466,6 +474,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.STOCK_ADJUST,
       P.STOCK_TRANSFER,
       P.BATCH_MANAGE,
+      /*
+       * Defines the shelves as well as counting what is on them. Both roles
+       * that hold this run a physical store — a branch administrator for the
+       * site, a pharmacist for the dispensary — and a store whose fridge and
+       * controlled cabinet cannot be created is a store that records everything
+       * as being in one undifferentiated place. See PI-ADR-012.
+       */
+      P.INVENTORY_LOCATION_MANAGE,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
       P.PAYMENT_COLLECT,

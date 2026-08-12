@@ -264,6 +264,8 @@ model UnitOfMeasure {
   baseForProducts    Product[]               @relation("ProductBaseUnit")
   packagings         ProductPackaging[]
   ingredientStrength CompositionIngredient[] @relation("IngredientStrengthUnit")
+  /// The unit a movement was ENTERED in, kept beside the base-unit quantity.
+  stockLedgerEntries StockLedgerEntry[]
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -378,6 +380,9 @@ model Manufacturer {
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   products     Product[]
+  /// A batch's manufacturer may differ from its product's — contract
+  /// manufacture and repackaging. See inventory.prisma.
+  batches      Batch[]
 
   @@unique([organizationId, code])
   @@unique([organizationId, id])
@@ -520,6 +525,9 @@ model StorageRequirementProfile {
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   products     Product[]
+  /// What a fridge or a cabinet can physically keep, so stock can be matched
+  /// against the place it is being put. See inventory.prisma.
+  locations    InventoryLocation[]
 
   @@unique([organizationId, code])
   @@unique([organizationId, id])
@@ -611,6 +619,17 @@ model Product {
   identifiers        ProductIdentifier[]
   taxClassifications ProductTaxClassification[]
   medicineDetail     MedicineDetail?
+  /*
+   * Inventory (PI-2). ⚠️ Every one of these is a PLAIN FK from a NOT NULL
+   * organization_id, and it cannot be composite: a clinic legitimately stocks a
+   * PLATFORM product, whose organization_id is NULL. The RESTRICTIVE
+   * `product_visible` policy on each child is the entire control on that side.
+   * See inventory.prisma's header.
+   */
+  batches            Batch[]
+  serials            Serial[]
+  stockLedgerEntries StockLedgerEntry[]
+  stockBalances      StockBalance[]
 
   @@unique([organizationId, code])
   /// The composite-FK target every child in this file references.

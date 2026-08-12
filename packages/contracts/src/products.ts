@@ -583,6 +583,16 @@ export const productListQuery = z.object({
   /** `own` hides the platform catalogue; `platform` hides the clinic's own. */
   source: z.enum(['ALL', 'OWN', 'PLATFORM']).default('ALL'),
   isStockItem: z.stringbool().optional(),
+  /**
+   * Narrow to products tracked a particular way.
+   *
+   * ⚠️ ADDED BY PI-2, FOR THE PICKERS. A lot may only be recorded against a
+   *   batch-tracked product and a serial only against a serial-tracked one — the
+   *   services refuse anything else with a sentence. Offering the whole
+   *   catalogue in those two forms and explaining the refusal afterwards is a
+   *   worse screen than not offering the impossible choice.
+   */
+  trackingMode: trackingMode.optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   sortBy: z.enum(['name', 'code', 'createdAt']).default('name'),

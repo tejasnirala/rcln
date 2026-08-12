@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/products.prisma:245`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 10 |
-| relations | 6 |
+| relations | 7 |
 
 ## Columns
 
@@ -37,6 +37,7 @@ Declared at `packages/db/prisma/schema/products.prisma:245`.
 | `baseForProducts` | [`Product`](Product.md) | `baseForProducts Product[] @relation("ProductBaseUnit")` |
 | `packagings` | [`ProductPackaging`](ProductPackaging.md) | `packagings ProductPackaging[]` |
 | `ingredientStrength` | [`CompositionIngredient`](CompositionIngredient.md) | `ingredientStrength CompositionIngredient[] @relation("IngredientStrengthUnit")` |
+| `stockLedgerEntries` | [`StockLedgerEntry`](StockLedgerEntry.md) | `stockLedgerEntries StockLedgerEntry[]` |
 
 ## Indexes and constraints
 
@@ -53,4 +54,5 @@ erDiagram
     UnitOfMeasure }o--o{ Product : relates
     UnitOfMeasure }o--o{ ProductPackaging : relates
     UnitOfMeasure }o--o{ CompositionIngredient : relates
+    UnitOfMeasure }o--o{ StockLedgerEntry : relates
 ```

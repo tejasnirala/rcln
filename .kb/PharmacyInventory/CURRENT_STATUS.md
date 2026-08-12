@@ -3,16 +3,26 @@
 The honest ledger for the Product Platform programme. Nothing is marked built
 until it is built, migrated, tested and wired to a screen.
 
-**Last updated:** 2026-08-11 · **Phase:** PI-0 complete · **Code written:** none
+**Last updated:** 2026-08-12 · **Phase:** PI-0, PI-1 and PI-2 complete
+
+⚠️ **THE REST OF THIS FILE DESCRIBES THE PRE-CODE STATE AND IS KEPT FOR THE AUDIT
+IT RECORDS, NOT AS A STATUS.** Its table of reusable infrastructure is still
+accurate and still worth reading before starting a phase. Its summary is not.
+**[IMPLEMENTATION_TRACKER.md](IMPLEMENTATION_TRACKER.md) is the authority on task
+state**, and [NEXT_SESSION.md](NEXT_SESSION.md) is where to start.
 
 ---
 
 ## Summary
 
-Discovery and architecture are complete. **No production code has been written
-for this programme.** The repository contains zero product, inventory, pharmacy,
-procurement or regulatory tables. What exists is the infrastructure this
-programme will sit on top of, and it is in good shape.
+PI-1 shipped the catalogue — thirteen tables, no quantity anywhere in them — and
+is merged. PI-2 shipped everything with a quantity: seven tables, the append-only
+`stock_ledger`, a balance cache the application cannot write, the expiry sweep,
+and four `/stock` screens. `db:rls:check` is green at 72 protected tables.
+
+Neither reviewer pass has run over PI-2, and the security one is mandatory.
+
+Below is the PI-0 audit as it was written, before any of that existed.
 
 ---
 

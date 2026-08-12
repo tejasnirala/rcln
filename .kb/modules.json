@@ -409,14 +409,16 @@
       "The billing clock — an hourly repeatable sweep fanning out one job per subscription",
       "Invoice PDF rendering — Chromium in THIS container and never in the api, which is capped at 1g and already exits 137 running its own test suite",
       "Document rendering runs at concurrency 1, because each job holds a renderer process",
-      "`jobId.invoicePdf(id, attempt)` — BullMQ de-duplicates on job id even for a RECENTLY COMPLETED job, which is right for a double-clicked button and silently wrong for a deliberate regeneration"
+      "`jobId.invoicePdf(id, attempt)` — BullMQ de-duplicates on job id even for a RECENTLY COMPLETED job, which is right for a double-clicked button and silently wrong for a deliberate regeneration",
+      "The expiry sweep — an hourly repeatable job that moves expired stock out of AVAILABLE. HOURLY rather than nightly because \"midnight\" is a different instant in every clinic: each tick asks every branch whether the date has rolled over IN ITS OWN ZONE",
+      "It shares the ledger writer with the API through `@rcln/inventory` rather than writing its own INSERT — PI-ADR-004's \"only one writer\" is what forced the engine into a package"
     ],
     "userActions": [],
     "businessRules": [],
     "tables": ["StoredFile", "InvoiceDocument"],
     "permissions": [],
     "limitations": [
-      "Notifications, reports, inventory, integrations and outbox accept jobs that nothing consumes",
+      "Notifications, reports, integrations and outbox accept jobs that nothing consumes. The inventory queue now has a processor",
       "No dead-letter handling and no metrics rollup",
       "A render that fails all five attempts leaves the invoice with no current document and nothing asks again",
       "`InvoicePdfJob.requestedBy` is required, so a future non-human producer has to decide what actor to record rather than defaulting one"
@@ -599,6 +601,80 @@
       "Cash rounding and the invoice currency are parameters, not settings — `resolveSettings()` has no billing keys and Phase 7's settings screen is where they belong",
       "No routes, no contracts, no screen and no permission wiring — phases 6 to 9. `billing.invoice.*` still gates nothing",
       "The PDF is asynchronous: an invoice is ISSUED before its document exists. The screen renders from data so nothing waits to SEE the invoice — only Download waits"
+    ]
+  },
+  {
+    "name": "Inventory",
+    "layer": "package + database + api + worker + web",
+    "status": "in progress",
+    "purpose": "Where a thing IS and how much of it there is. The other half of the product catalogue, which has no quantity anywhere in it. One engine for medicines, consumables, devices, implants, reagents and dental materials — PI-2 of the pharmacy-inventory programme.",
+    "paths": [
+      "packages/inventory/src/",
+      "packages/db/prisma/schema/inventory.prisma",
+      "packages/contracts/src/inventory.ts",
+      "apps/api/src/services/inventory/",
+      "apps/api/src/routes/v1/inventory.routes.ts",
+      "apps/worker/src/inventory/",
+      "apps/web/src/app/(tenant)/t/[slug]/(app)/stock/"
+    ],
+    "features": [
+      "`stock_ledger` — append-only, and the ONLY source of quantity truth (PI-ADR-004). Enforced by two independent layers: `rcln_app` holds no UPDATE or DELETE on it, and a trigger refuses both anyway",
+      "`stock_balances` — a CACHE maintained by a SECURITY DEFINER trigger. `rcln_app` holds no INSERT, UPDATE or DELETE on it at all, so \"nothing writes the cache\" is a grant rather than an agreement",
+      "`recordMovement()` in `@rcln/inventory` — the single writer. In a PACKAGE because the expiry sweep runs in the worker, and an application-local writer would have forced the worker to write its own INSERT",
+      "The caller never chooses a sign: `movement_type` decides it, and `stock_ledger_direction` CHECKs the pairing plus which status buckets the row may name",
+      "Every movement converts to the product's BASE UNIT through `assertExactConversion`, which refuses an inexact conversion rather than rounding it",
+      "`inventory_locations` / `storage_areas` / `storage_bins` — branch → location → area → bin (PI-ADR-012). A branch has MANY locations; assuming one is unrecoverable without a migration under live stock",
+      "`batches` — lot, expiry, retest, cost per BASE unit in integer minor units, plus the recall and quarantine columns (the workflow is PI-10)",
+      "`serials` — one physically identifiable device. `assigned_patient_id` is PHI and every read of it writes a `data_access_logs` row under the new `INVENTORY_SERIAL` resource",
+      "`verifyBalances()` — replays the ledger in SQL and compares it with the cache. It REPORTS and never repairs: a cache that heals itself hides the trigger bug that broke it",
+      "The expiry sweep — moves AVAILABLE → EXPIRED on the day, in the BRANCH's timezone, resolved as `(now() AT TIME ZONE b.timezone)::date` in SQL. Idempotent by construction, not by a `last_swept_at` column",
+      "`inventory_branches_with_expired_stock()` — the sweep's one cross-tenant question, a SECURITY DEFINER function returning three ids for only the branches that are due. Twin of `billing_due_subscriptions`",
+      "Four screens under `/stock`: overview (what needs doing, then what is where), lots, locations and the movement ledger"
+    ],
+    "userActions": [
+      "See what is on each shelf, and what is expiring",
+      "Record a lot when stock of a batch-tracked product arrives",
+      "Adjust, return, damage, dispose, hold or release stock — each as a movement with a reason",
+      "Put a lot on hold or recall it, which moves its quantity and sets its status in one transaction",
+      "Read the movement ledger: what moved, when, from where to where, and who did it"
+    ],
+    "businessRules": [
+      "Nothing outside `recordMovement()` inserts into `stock_ledger`; nothing at all writes `stock_balances`",
+      "A correction is a COMPENSATING MOVEMENT with a reason, never an edit",
+      "`stock_balances` disagreeing with a ledger replay is a bug in the trigger, and the LEDGER WINS",
+      "Only `AVAILABLE` is allocatable. Everything else is visible, countable and valued but not dispensable — which is exactly why quarantine works",
+      "EXPIRY, DAMAGE and RECALL MOVE quantity between buckets rather than removing it: expired stock is on the shelf, undispensable, and has to be counted until it is destroyed. DISPOSAL is the one that records a physical departure",
+      "ADJUSTMENT is the only movement that requires a reason code — the only one whose meaning is not stated by its name, and where shrinkage hides",
+      "A batch's status and its quantity move in ONE transaction: a lot flagged QUARANTINED whose stock is still in the AVAILABLE bucket is dispensable, because allocation reads the balance and not the batch",
+      "Near-expiry produces an ALERT and never a status change. Only the sweep, on the day itself, moves anything",
+      "Alert windows are SETTINGS (`inventory.expiry_alert_days`), not constants (PI-ADR-015)",
+      "The tracking mode is enforced in the DATABASE: a SERIAL product moving without a serial is refused by a CHECK, not only by a service (PI-ADR-014)",
+      "Lot uniqueness is tenant- AND branch-qualified: a lot number is the manufacturer's, and one group receiving that lot at two sites holds it twice, at two costs"
+    ],
+    "tables": [
+      "InventoryLocation",
+      "StorageArea",
+      "StorageBin",
+      "Batch",
+      "Serial",
+      "StockLedgerEntry",
+      "StockBalance"
+    ],
+    "permissions": [
+      "inventory.stock.read",
+      "inventory.stock.adjust",
+      "inventory.stock.transfer",
+      "inventory.batch.manage",
+      "inventory.location.manage"
+    ],
+    "limitations": [
+      "`POST /v1/stock/movements` accepts only the MANUAL movement types. Dispensing (PI-7) must consult the regulatory engine first, consumption is PI-9, transfers are PI-3 and are only ever written as a PAIR in one transaction, and goods receipts are PI-4",
+      "`RESERVED` and `IN_TRANSIT` are real statuses with no workflow behind them yet — reservations are PI-3.4 and in-transit transfers are PI-3.3",
+      "No FEFO allocation service. The data supports it (batches are indexed by expiry, and `inventory.batch_selection_strategy` is already a setting) but nothing allocates — PI-3.5",
+      "No screens for CREATING a location, a lot or a movement: the four screens read. The write surface exists on the API and is exercised by tests",
+      "Recall and quarantine COLUMNS exist and the hold endpoint works; the recall WORKFLOW — affected-stock queries, blocked dispensing, traceability reports — is PI-10",
+      "No costing beyond `batches.unit_cost_base`: no moving average, no valuation, no aging. PI-4.8 and PI-22",
+      "The worker's `MovementDeps` binding is a second implementation of `recordAudit` and `loadUnitGraph`, written against `@rcln/db` directly because the worker cannot import the API's. Nothing catches the two drifting"
     ]
   }
 ]

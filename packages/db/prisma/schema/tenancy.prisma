@@ -148,6 +148,17 @@ model Organization {
   productIdentifiers       ProductIdentifier[]
   productTaxClassifications ProductTaxClassification[]
   medicineDetails          MedicineDetail[]
+  // Inventory (PI-2). Unlike the catalogue above, EVERY one of these is
+  // organization_id NOT NULL — a location, a batch and a movement are facts
+  // about one clinic at one site, never platform data (PI-ADR-003). They are in
+  // the `org_scoped` AND `branch_scoped` RLS arrays. See inventory.prisma.
+  inventoryLocations       InventoryLocation[]
+  storageAreas             StorageArea[]
+  storageBins              StorageBin[]
+  batches                  Batch[]
+  serials                  Serial[]
+  stockLedgerEntries       StockLedgerEntry[]
+  stockBalances            StockBalance[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
@@ -251,6 +262,13 @@ model Branch {
   invoiceTaxes           InvoiceTax[]
   invoiceDocuments       InvoiceDocument[]
   taxRegistrationCoverage IssuerTaxRegistrationBranch[]
+  inventoryLocations      InventoryLocation[]
+  storageAreas            StorageArea[]
+  storageBins             StorageBin[]
+  batches                 Batch[]
+  serials                 Serial[]
+  stockLedgerEntries      StockLedgerEntry[]
+  stockBalances           StockBalance[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

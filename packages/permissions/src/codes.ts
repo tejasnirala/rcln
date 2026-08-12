@@ -286,10 +286,35 @@ export const PERMISSIONS = {
   GOODS_RECEIPT_MANAGE: 'pharmacy.goods_receipt.manage',
 
   // -- inventory -------------------------------------------------------------
+  /*
+   * `inventory.stock.read` IS THE GATE ON THE WHOLE SURFACE. Locations, batches,
+   * serials, balances and the ledger are all read behind it, for the same reason
+   * `product.definition.read` gates the catalogue masters rather than the manage
+   * code: every stock screen needs the name of the shelf a thing is on, and
+   * gating that behind the permission to CREATE shelves means a storekeeper sees
+   * a page of uuids.
+   */
   STOCK_READ: 'inventory.stock.read',
   STOCK_ADJUST: 'inventory.stock.adjust',
   STOCK_TRANSFER: 'inventory.stock.transfer',
   BATCH_MANAGE: 'inventory.batch.manage',
+  /*
+   * Creating and renaming the PLACES stock is kept, and their areas and bins.
+   *
+   * ⚠️ SEPARATE FROM `inventory.stock.adjust`, AND IT IS NOT A NARROWER VERSION
+   *   OF IT. Adjusting stock is a daily operational act by whoever is holding
+   *   the boxes; defining that a branch HAS a controlled-drug cabinet and a
+   *   vaccine fridge is a configuration decision about how the site is
+   *   organised, taken once, by whoever runs it. They are different people at
+   *   most clinics, and the blast radius differs too: a bad adjustment is one
+   *   compensating movement away from correct, while renaming or deactivating a
+   *   location moves the meaning of every balance sitting under it.
+   *
+   * ⚠️ A LOCATION'S `kind` IS NEVER AN AUTHORIZATION. Holding this code does not
+   *   grant access to what is IN a `CONTROLLED_CABINET`; `requires_controlled_
+   *   access` and PI-5's jurisdiction rules answer that. See PI-ADR-012.
+   */
+  INVENTORY_LOCATION_MANAGE: 'inventory.location.manage',
 
   // -- billing ---------------------------------------------------------------
   INVOICE_READ: 'billing.invoice.read',

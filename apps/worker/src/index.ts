@@ -5,6 +5,8 @@ import { createDbClient, disconnectDb } from '@rcln/db';
 import {
   BILLING_SWEEP_CRON,
   BILLING_SWEEP_JOB,
+  INVENTORY_SWEEP_CRON,
+  INVENTORY_SWEEP_JOB,
   QUEUE,
   createQueues,
   createRedisConnection,
@@ -24,6 +26,7 @@ import {
   type WorkerPaymentsConfig,
 } from './billing/runtime.js';
 import { processBillingJob, sweepDueSubscriptions } from './billing/processor.js';
+import { sweepExpiredStock } from './inventory/expiry.processor.js';
 
 /** An optional variable, where blank means unset. Mirrors the API's config. */
 function optional(value: string | undefined): string | undefined {
@@ -178,6 +181,25 @@ const PROCESSORS: Partial<Record<QueueName, (jobName: string, data: unknown) => 
     }
     await processBillingJob(data as BillingJob, billingDeps);
   },
+
+  /**
+   * The expiry clock.
+   *
+   * ⚠️ THE FIRST PROCESSOR IN THIS WORKER THAT CHANGES CLINICAL STATE. Documents
+   *   render a PDF of a decision already made and billing charges a card; this
+   *   one moves stock out of the dispensable pool, which is the difference
+   *   between a pharmacist being offered an expired vial and not.
+   *
+   * Hourly rather than nightly, because "midnight" is a different instant in
+   * every clinic — see INVENTORY_SWEEP_CRON.
+   */
+  [QUEUE.INVENTORY]: async (jobName) => {
+    if (jobName === INVENTORY_SWEEP_JOB) {
+      await sweepExpiredStock(logger);
+      return;
+    }
+    logger.warn({ jobName }, 'unknown inventory job — no processor for it');
+  },
 };
 
 for (const name of Object.values(QUEUE)) {
@@ -242,10 +264,27 @@ async function scheduleRecurring(): Promise<void> {
     }
   );
   logger.info({ cron: BILLING_SWEEP_CRON }, 'billing sweep scheduled');
+
+  const inventory = queues[QUEUE.INVENTORY];
+  await inventory.add(
+    INVENTORY_SWEEP_JOB,
+    {},
+    {
+      repeat: { pattern: INVENTORY_SWEEP_CRON },
+      // Idempotent and cheap: a missed hour is picked up by the next one, and
+      // re-running finds only what is still sitting in the AVAILABLE bucket. So
+      // there is no value in retrying a failed sweep aggressively — and the
+      // processor already catches per branch, so a failure here means the
+      // discovery query itself failed.
+      attempts: 2,
+      removeOnComplete: { count: 24 },
+    }
+  );
+  logger.info({ cron: INVENTORY_SWEEP_CRON }, 'expiry sweep scheduled');
 }
 
 void scheduleRecurring().catch((err: unknown) => {
-  logger.error({ err }, 'failed to schedule the billing sweep');
+  logger.error({ err }, 'failed to schedule the recurring sweeps');
 });
 
 async function shutdown(signal: string): Promise<void> {

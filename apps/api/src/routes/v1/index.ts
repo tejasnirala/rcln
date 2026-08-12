@@ -17,6 +17,12 @@ import organizationRoutes from './organization.routes.js';
 import patientRoutes from './patients.routes.js';
 import productRoutes from './products.routes.js';
 import {
+  batchRoutes,
+  inventoryLocationRoutes,
+  serialRoutes,
+  stockRoutes,
+} from './inventory.routes.js';
+import {
   activeIngredientRoutes,
   compositionRoutes,
   manufacturerRoutes,
@@ -104,6 +110,24 @@ router.use('/manufacturers', manufacturerRoutes);
 router.use('/active-ingredients', activeIngredientRoutes);
 router.use('/compositions', compositionRoutes);
 router.use('/storage-profiles', storageProfileRoutes);
+
+// Inventory (PI-2): where stock IS and how much of it there is. The other half
+// of the catalogue above, and the opposite tenancy class — nothing here allows a
+// NULL organization_id, and every table is branch-scoped as well (PI-ADR-003).
+//
+// ⚠️ `/serials` IS A PHI SURFACE. `assigned_patient_id` answers "which patient
+//    has device 7742", so its reads write `data_access_logs` (PI-ADR-016). The
+//    other three do not touch a patient at all.
+//
+// ⚠️ `/stock/movements` IS THE ONLY HTTP WRITE INTO `stock_ledger`, and the only
+//    movement types it accepts are the manual ones. Dispensing (PI-7),
+//    consumption (PI-9), transfers (PI-3) and goods receipts (PI-4) each need
+//    something this endpoint cannot give them — a regulatory decision, an
+//    encounter, or a second leg in the same transaction.
+router.use('/inventory-locations', inventoryLocationRoutes);
+router.use('/batches', batchRoutes);
+router.use('/serials', serialRoutes);
+router.use('/stock', stockRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather

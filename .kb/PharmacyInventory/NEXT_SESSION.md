@@ -2,7 +2,7 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-11 · **By:** session PI-1 (Product Platform Core)
+**Written:** 2026-08-12 · **By:** session PI-2 (Inventory Foundation)
 
 ---
 
@@ -22,222 +22,209 @@ Full orientation: [README.md](README.md).
 **PI-0 — Discovery & Architecture.** Repository audit, seventeen decisions, the
 25-phase plan.
 
-**PI-1 — Product Platform Core.** ✅ Complete, on branch
-`feat/pi-1-product-platform-core`. Thirteen tables, the HTTP surface, the
-screens, and the tests.
+**PI-1 — Product Platform Core.** ✅ Merged to `main` (PR #30). Thirteen tables,
+the HTTP surface, the screens, and the tests.
+
+**PI-2 — Inventory Foundation.** ✅ This session, on branch
+`feat/pi-2-inventory-foundation`. Seven tables, the ledger, the balance cache,
+the expiry sweep, five screens and three forms.
 
 ---
 
 ## What was changed in this session
 
-**Branch:** `feat/pi-1-product-platform-core`, off `main`. Not pushed.
+**Branch:** `feat/pi-2-inventory-foundation`, off `main`. Not pushed.
 
-| Area        | What landed                                                                                                                                                                        |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema      | `packages/db/prisma/schema/products.prisma` — 13 models, 9 enums                                                                                                                   |
-| Migration   | `20260811143036_product_platform_core` — Prisma DDL plus 20 hand-written `NULLS NOT DISTINCT` indexes, 4 partial uniques, 9 CHECKs, 2 triggers, and the RLS block                  |
-| RLS         | 13 tables in `platform_extensible`; **10 RESTRICTIVE `*_visible` policies**                                                                                                        |
-| Permissions | New `product` module: `product.definition.read` / `.manage`, `product.identifier.manage`. Granted to PHARMACIST, BRANCH_ADMIN, LAB_MANAGER; read-only to DOCTOR, NURSE, ACCOUNTANT |
-| Engine      | `apps/api/src/services/product/units.ts` — exact rational conversion over `bigint`, pure, no Prisma                                                                                |
-| Contracts   | `packages/contracts/src/products.ts`                                                                                                                                               |
-| Services    | `services/product/` — unit, category, catalogue, product, packaging, identifier, tax-classification, medicine                                                                      |
-| Routes      | `/v1/products` + `/v1/{units,product-categories,manufacturers,active-ingredients,compositions,storage-profiles}`                                                                   |
-| Seed        | `seed/product-masters.ts` — 35 units, 10 conversions, 32 categories, 9 storage profiles. **Zero products** (OD-4)                                                                  |
-| Web         | `/products` list, `/products/new`, `/products/[id]` with six tabs; "Catalogue" nav entry                                                                                           |
-| Tests       | `tests/unit/product-units.test.ts` (conversion algebra); ~40 new cases in `tenant-isolation.test.ts`                                                                               |
+| Area        | What landed                                                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Schema      | `packages/db/prisma/schema/inventory.prisma` — 7 models, 6 enums                                                                     |
+| Migrations  | `20260815090000_inventory_foundation` + two small ones (see the tracker)                                                             |
+| RLS         | 7 tables in **both** the `org_scoped` and `branch_scoped` arrays; 7 RESTRICTIVE `*_visible` policies. `db:rls:check` green at **72** |
+| Grants      | `stock_ledger` loses UPDATE/DELETE; `stock_balances` is **SELECT-only** for `rcln_app`                                               |
+| Package     | **`@rcln/inventory`** — a NEW package holding the ledger writer and the conversion algebra                                           |
+| Permissions | `inventory.location.manage`; granted to BRANCH_ADMIN and PHARMACIST                                                                  |
+| Contracts   | `packages/contracts/src/inventory.ts`                                                                                                |
+| Services    | `services/inventory/` — movement, location, batch, serial, balance, expiry                                                           |
+| Routes      | `/v1/{inventory-locations,batches,serials,stock}`                                                                                    |
+| Worker      | The expiry sweep. **The first worker processor that changes clinical state.**                                                        |
+| Web         | `/stock` — overview, lots, serials, locations, ledger — plus forms for a location, a lot and a serial. "Stock" nav entry             |
+| Tests       | 10 unit + 25 integration + 27 isolation cases. `pnpm validate` green: **1078 API tests across 39 suites**                            |
 
-**Three fixes outside PI-1's scope, all forced by bugs this work surfaced:**
+---
 
-1. `invoices` now DECLARES `@@index([organizationId, practitionerProfileId])`.
-   The index existed in the database and in a migration but not in the schema, so
-   every `prisma migrate dev` silently emitted a `DROP INDEX` for it into whoever
-   generated the next migration. It got as far as being applied once.
-2. `20260814090000_align_fee_schedule_index_name` — the hand-named
-   `fee_schedule_entries_scope_key` differed from what the schema implies, which
-   is the other half of the same drift. Renamed to Prisma's name; the definition,
-   including `NULLS NOT DISTINCT`, is unchanged.
-3. `20260814093000_drop_category_parent_visible` — see "Known issues" below.
+## The three decisions worth knowing before you touch this
 
-**Three more from the security review, after the table above was written:**
+### 1. `@rcln/inventory` exists because the worker cannot import the API
 
-4. `20260814100000_platform_rows_immutable` — `tenant_isolation` protected
-   platform rows from INSERT and from content edits, but not from `DELETE` (no
-   WITH CHECK is evaluated when there is no new row) nor from
-   `UPDATE ... SET organization_id = '<mine>'`, which passes USING on the old
-   row and WITH CHECK on the new one and captures the row away from every other
-   tenant. A `BEFORE UPDATE OR DELETE` trigger closes both on all **seventeen**
-   platform-extensible tables, so the four clinical masters are fixed too.
-   ⚠️ A RESTRICTIVE policy would have been four lines and the wrong answer — an
-   excluded row is not refused, it is unseen, so Save on a platform product
-   would report success. The trigger raises. Read the migration header.
-5. `medicine_details`, `composition_ingredients` and `product_tax_classifications`
-   now have cross-tenant isolation cases. They had none — the latter two
-   appeared only in CHECK-constraint tests, which exercise the constraint and
-   not the policy.
-6. `invoices.test.ts` "finds a draft by date" computed today's date in **UTC**
-   while the service resolves `?from=/&to=` in the branch's zone. With an
-   Asia/Kolkata fixture it failed every night between 18:30 and 24:00 UTC and
-   passed the other 18½ hours. Invariant 6, in a test. Unrelated to PI-1.
+PI-ADR-004 says `recordMovement()` is the **only** thing that inserts into
+`stock_ledger`. PI-2.8's expiry sweep is a **worker** processor, and the worker
+cannot import from `apps/api` — they are two applications, and an app-to-app
+dependency would pull express and argon2 into a queue consumer.
+
+So a sweep living in the worker would have had to write its own INSERT, and
+"only one writer" would have stopped being true in the same phase that declared
+it. The engine moved into a package instead, with `recordAudit` and
+`loadUnitGraph` **injected** — the shape `@rcln/billing` already has.
+
+`apps/api/src/services/product/units.ts` is now a **one-line re-export**, so no
+existing import changed. It throws `InventoryError` rather than `ValidationError`
+now; the API's error middleware maps the three kinds onto exactly the same 400 /
+404 / 409, so nothing on the wire moved.
+
+### 2. `EXPIRY`, `DAMAGE` and `RECALL` are MOVES, not `−` removals
+
+This refines the sign table in
+[INVENTORY_ARCHITECTURE.md](INVENTORY_ARCHITECTURE.md). Expired stock has not
+left the building: it is on the shelf, undispensable, waiting to be destroyed,
+and it has to be counted and valued until it is — which the same document's
+status model says in the next section. Written as a `−` it would vanish from
+every count on the day it expired and leave the clinic unable to say what it is
+about to dispose of. **`DISPOSAL` is the `−`.**
+
+### 3. The bucket lock is an ADVISORY lock, and that is forced
+
+`rcln_app` holds no INSERT, UPDATE or DELETE on `stock_balances` — that is
+PI-ADR-004 rule 2 made literal. But **Postgres requires the UPDATE privilege to
+take a row lock**, so `SELECT ... FOR UPDATE` on that table raises 42501 for the
+very role the whole write path runs as. Measured, not reasoned about: the
+row-lock version failed _every_ movement.
+
+`pg_advisory_xact_lock` needs no privilege, releases on COMMIT, and serialises
+exactly the right writers. Both buckets are locked in **sorted key order in one
+statement**, which is what stops two opposite transitions deadlocking.
 
 ---
 
 ## Current phase / current task / next task
 
-|                   |                                                     |
-| ----------------- | --------------------------------------------------- |
-| **Current phase** | PI-1 — complete; both reviews done and acted on     |
-| **Current task**  | Click the screens in a browser — the last open item |
-| **Next phase**    | PI-2 — Inventory Foundation                         |
-| **Next task**     | **PI-2.1 — `inventory_locations`**                  |
+|                   |                                                                    |
+| ----------------- | ------------------------------------------------------------------ |
+| **Current phase** | PI-2 — COMPLETE. Both reviews run and acted on                     |
+| **Current task**  | Click the screens in a browser — the last open item                |
+| **Next phase**    | PI-3 — Movements                                                   |
+| **Next task**     | **PI-3.1 — adjustments with mandatory reason codes** (mostly done) |
 
-### Before starting PI-2
+### Before starting PI-3
 
-1. **`security-reviewer` has run. `code-reviewer` has NOT** — it died on a
-   session limit partway through and produced nothing. That is the one leg of
-   PI-1.10 still open. The security pass confirmed the asymmetric policy, the
-   thirteen-table list in both files, the ten `*_visible` policies, that the two
-   files have not drifted, that all raw SQL is parameterised, that nothing
-   queries outside `withTenant`, and that no PHI is logged. It raised five
-   findings; three are fixed (below) and two are accepted and recorded.
-2. Read `services/product/units.ts` before writing any ledger code. Every
-   quantity PI-2 stores goes through `convertToBase`, and **every ledger write
-   must call `assertExactConversion`** — the rounding flag exists for that call
-   site and for no other.
-3. `products.base_unit_id` is the denomination the ledger is written in and is
-   deliberately unchangeable. PI-2 is what makes that refusal load-bearing.
+1. **Both reviewer passes have run.** Two CRITICALs, one HIGH, eleven WARNINGs;
+   all fixed bar two accepted. Read the CHANGELOG entry — three of the fixes
+   changed the shape of things PI-3 will build on: the branch-composite foreign
+   keys, the `actor_is_member` policy, and the sweep's one-transaction-per-bucket
+   loop.
+
+   ⚠️ **The two CRITICALs are worth carrying forward as patterns.**
+   `REVOKE ... FROM PUBLIC` does not remove a role-specific grant — this
+   repository's init script GRANTs EXECUTE on every function to `rcln_app` by
+   default, so a SECURITY DEFINER function must name the role. And `apps/web` has
+   no test suite, so any pure function that lands there is untested by
+   construction: put it in a package instead.
+
+2. **Read `packages/inventory/src/movement.ts` before writing any new movement.**
+   PI-3's transfers, PI-4's receipts, PI-7's dispensing and PI-9's consumption
+   all go through `recordMovementIn`. Adding a movement type means adding it in
+   FOUR places that must agree: the Prisma enum, the `stock_ledger_direction`
+   CHECK, the `DIRECTION` table, and `DEFAULT_STATUS`. `inventory-movement.test.ts`
+   asserts the first and third agree; nothing catches the CHECK drifting.
+3. **PI-3's transfers are the first PAIR.** `TRANSFER_OUT` and `TRANSFER_IN` are
+   two ledger rows citing one transfer id, and they must commit together —
+   `recordMovementIn` takes a `tx` precisely so a caller can write both inside
+   one transaction. That is why `manualMovementType` excludes them from the HTTP
+   surface today.
 
 ---
 
 ## Files that must be inspected before continuing
 
-| File                                                  | Why                                                                                                                 |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `packages/db/prisma/rls/enable-rls.sql`               | The `platform_extensible` array and the `*_visible` loop. **Inventory is NOT platform-extensible** — see PI-ADR-003 |
-| `packages/db/prisma/schema/products.prisma`           | The composite-FK-to-a-nullable-parent pattern, and why the relation fields are optional                             |
-| `apps/api/src/services/product/units.ts`              | The conversion algebra. Do not write a second one                                                                   |
-| `apps/api/src/services/product/packaging.service.ts`  | `quantityInBaseUnits` — the crossing every movement makes                                                           |
-| `apps/api/src/services/numbering/`                    | `issueNumber()` for PO/GRN numbers in PI-4                                                                          |
-| `apps/api/tests/integration/tenant-isolation.test.ts` | The product block at the end is the template for PI-2's cases                                                       |
+| File                                                    | Why                                                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `packages/inventory/src/movement.ts`                    | The only ledger writer. Direction table, bucket locking, tracking-mode checks         |
+| `packages/db/prisma/migrations/…_inventory_foundation/` | Every CHECK, both triggers, both REVOKEs, and the RLS block. Read the comments        |
+| `packages/db/prisma/rls/enable-rls.sql`                 | The seven tables are in TWO arrays and the visible loop. ⚠️ Mirrored in the migration |
+| `apps/api/src/services/inventory/balance.service.ts`    | `verifyBalances()` — the replay. PI-3 must keep it green                              |
+| `apps/api/tests/integration/stock-ledger.test.ts`       | The concurrency proofs. PI-3's transfer atomicity test belongs beside them            |
+| `apps/worker/src/inventory/expiry.processor.ts`         | The `MovementDeps` binding a worker-side movement needs                               |
 
 ---
 
 ## Known issues
 
-**1. `product_categories` has no `parent_visible` policy, and cannot have one.**
-A tenant may parent its own category under another tenant's private category.
-Nothing leaks — the ancestor walk runs under RLS and drops the invisible row —
-but it confirms a guessed uuid exists. A policy was written and had to be
-removed: `parent_id` is a self-reference, and a policy on a table may not read
-that same table. It raised `infinite recursion detected in policy`, and because
-`products.category_visible` reads `product_categories` the recursion propagated
-to **every read of `products` for every tenant**. Caught by the isolation suite.
-`specialties` has the identical gap for the identical reason. See
-`20260814093000_drop_category_parent_visible`.
+**1. The worker's `MovementDeps` is a second implementation.** `recordAudit` and
+`loadUnitGraph` are written against `@rcln/db` directly in the worker, because it
+cannot import the API's. Nothing catches the two drifting; the interface is kept
+deliberately tiny — one INSERT and one pair of SELECTs — so that staying in step
+is a realistic ask.
 
-**2. ~~`code-reviewer` has not run~~ — DONE.** Two CRITICALs, six WARNINGs, and a
-third bug the regression tests found that the review missed. All fixed; see
-[CHANGELOG.md](CHANGELOG.md). ⚠️ **The lesson worth carrying into PI-2:** all
-three of the worst bugs were in the QUERY layer, and PI-1 shipped with no
-integration test for it — the isolation suite tests the database and the unit
-suite tests pure arithmetic, and nothing sat between them. Write
-`product-resolvers.test.ts`-shaped tests for PI-2's reads as you build them, and
-plant a decoy in every one: all three bugs returned a plausible row rather than
-failing, so an assertion that "a row came back" would have passed on every one.
+**2. Three write surfaces exist on the API with no screen, and each belongs to a
+later phase.** Recording a movement is **PI-3.6** (the endpoint and its
+permission gate are done); the recall workflow is **PI-10** (`POST
+/batches/:id/hold` works); assigning a serial to a patient is **PI-9** (`POST
+/serials/:id/assign` works). None is a PI-2 gap.
 
-**3. The web screens have not been exercised in a browser.** They typecheck and
-lint; nobody has clicked them.
+**2b. The product pickers on the lot and serial forms are capped at 100 rows per
+tracking mode** and say so when the cap is hit. A searchable picker over a large
+catalogue is PI-23's work, beside the barcode resolver.
 
-**4. ~~`@rcln/web#typecheck` is RED~~ — RESOLVED, and not by PI-1.** It was red
-because `apps/web/jest.config.ts` and `apps/web/tests/` needed a jest toolchain
-that `apps/web/package.json` declared but `pnpm-lock.yaml` never carried, so it
-was never installed. Those files and the three devDependencies have been removed
-and `package.json` is back to matching `main`. `apps/web` has no test suite
-again, which is the state `12_Testing_Strategy.md` and `15_Known_Issues` H6
-already describe. `pnpm validate` is green end to end.
+**3. Nothing has been clicked in a browser.** Same open item PI-1 left.
 
-**5. One accepted security finding, LOW.** Two service reads carry no app-level
-org predicate and lean on RLS alone. The second LOW — a tenant category parented
-under an invisible one disappearing from the tenant's own list — **is now
-fixed**: `listCategories` left-joins the depth CTE, so such a category surfaces
-at the root instead of vanishing. The id-existence oracle remains and is still
-the accepted part.
+**4. `RESERVED` and `IN_TRANSIT` are real statuses with no workflow.** Deliberate
+— the enum members exist so PI-3 needs no migration.
 
-<details><summary>Original wording of the second finding, for context</summary>
+**5. Five migrations, not three.** Two more landed from the reviews:
+`..093000_inventory_security_review_fixes` (the function REVOKEs, the
+`actor_is_member` policy) and `..094000_inventory_branch_composite_keys` (the
+three-column foreign keys).
 
-`product.service.ts:343` and `identifier.service.ts:214` carry no app-level org
-predicate and lean on RLS alone. And the residual `parent_visible` gap is
-slightly worse than issue 1 above states: a tenant category parented under an
-invisible category is dropped by the ancestor walk and so disappears from the
-tenant's OWN list — silent omission from the UI, not merely an id-existence
-oracle. Closing it needs the SECURITY DEFINER helper that migration
-`20260814093000` argues against, for both taxonomy trees at once.
-
-The last sentence turned out to be wrong, which is why this is kept. The SILENT
-OMISSION half needed no policy at all — it was an inner join in
-`listCategories`, fixed in SQL. Only the id-existence oracle needs the
-SECURITY DEFINER helper, and that part is still accepted.
-
-</details>
-
----
-
-## Important architectural decisions
-
-Unchanged from PI-0 — read [ARCHITECTURE.md](ARCHITECTURE.md). What PI-1 proved
-in practice:
-
-1. **PI-ADR-003 is the whole security story of this phase.** Read-permissive,
-   write-strict, plus a RESTRICTIVE policy on every plain FK into a
-   possibly-platform row.
-2. **The composite FK does the design work.** `(organization_id, product_id)`
-   into a nullable-org parent means a tenant physically cannot attach a child to
-   a platform product — so "clone, don't edit" is enforced rather than merely
-   documented.
-3. **PI-ADR-010, in code.** Conversions are integer ratios over `bigint`.
-   `convert()` returns `{ quantity, exact }`, and `exact` is the thing PI-2 must
-   not ignore.
-4. **PI-ADR-006 held.** This phase resolves a `tax_category` string and computes
-   no rate anywhere.
+**6. Two migration corrections were made in place, before the branch left this
+machine.** `_prisma_migrations.checksum` was updated by hand to match. Do not do
+this once a migration has been pushed; the rule against editing an applied
+migration exists for migrations that have shipped, and this one had not.
 
 ---
 
 ## Tests
 
-|                        |                                                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| **Currently passing**  | 983 API tests across 35 suites; `db:rls:check` green at **65** protected tables. `pnpm validate` green end to end. |
-| **Currently failing**  | None.                                                                                                              |
-| **Migrations pending** | None. Four applied this session; `prisma migrate dev` reports the schema in sync with an empty diff.               |
+|                        |                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------ |
+| **Currently passing**  | **1087 API tests across 39 suites**; `db:rls:check` green at **72** tables; `pnpm validate` green end to end |
+| **Currently failing**  | None.                                                                                                        |
+| **Migrations pending** | None. Five applied this session; `prisma migrate status` reports the schema in sync.                         |
 
-⚠️ **Two process traps, both hit this session.** Migrations replay in NAME
-order, and this repository's recent migrations are hand-dated ahead of the wall
-clock — so anything Prisma generates must be re-dated past the highest existing
-directory or the shadow replay fails. And an applied migration is checksummed
-**including its comments**: corrections go in a new migration, never as an edit.
+⚠️ **The process traps from PI-1 still apply.** Migrations replay in NAME order
+and this repository's are hand-dated ahead of the wall clock, so anything Prisma
+generates must be re-dated past the highest existing directory. And an applied
+migration is checksummed including its comments.
 
 ---
 
 ## Unresolved questions
 
-**Resolved in this session:** OD-1 (both — platform catalogue with tenant
-extension), OD-2 (org-scoped), OD-4 (structural seed only, no medicine data).
-Moved to [OPEN_DECISIONS.md](OPEN_DECISIONS.md) § Resolved.
+**Still open:** OD-3 (localisation), OD-5 (who may set `REGULATORY_REVIEWED` —
+**needs the user**, blocks PI-6), OD-6, OD-7, OD-8.
 
-**Still open:** OD-3 (localisation — nothing was put in JSONB, so nothing is
-foreclosed), OD-5 (who may set `REGULATORY_REVIEWED` — **needs the user**, blocks
-PI-6), OD-6, OD-7, OD-8.
+**New, and PI-3 has to answer it:** an inter-branch transfer holds stock in
+`IN_TRANSIT` **owned by the sending branch**. The receiving branch cannot see it
+under `branch_isolation`, which is correct and also means a receipt at branch B
+has to reach a row scoped to branch A. Either the receiving user's context spans
+both branches, or the in-transit row is written twice. Decide it before writing
+the transfer service, not during.
 
 ---
 
 ## Do not
 
-- Do not restart PI-0 or PI-1.
-- Do not add a `parent_visible` policy to `product_categories` or `specialties`
-  without reading known issue 1 first. It does not work.
-- Do not make inventory platform-extensible. `batches`, `serials`, `stock_ledger`
-  and `stock_balances` are strictly tenant rows with `NOT NULL organization_id`.
-- Do not write a second conversion engine, and do not round a ledger quantity
-  without `assertExactConversion`.
-- Do not populate `products`, `active_ingredients` or `compositions` from a
-  model's own knowledge. See the header of `seed/data/product-masters.ts`.
+- Do not restart PI-0, PI-1 or PI-2.
+- Do not add a second writer to `stock_ledger`. If a movement needs a different
+  shape, it needs a movement type and a CHECK, not a service that inserts.
+- Do not write `stock_balances` from application code. `rcln_app` cannot, and the
+  REVOKE is what makes rule 2 a fact rather than an agreement.
+- Do not use `SELECT ... FOR UPDATE` on `stock_balances`. It raises 42501 — see
+  decision 3 above.
+- Do not write `REVOKE ALL ON FUNCTION ... FROM PUBLIC` and believe the function
+  is private. Name `rcln_app`, and assert `has_function_privilege` in a test.
+- Do not put a pure function in `apps/web`. There is no test suite there, and the
+  one that went in shipped rendering `100` as `1`.
+- Do not compare an expiry date against `CURRENT_DATE` or a JavaScript `Date`.
+  The day is the BRANCH's day, resolved in SQL.
+- Do not make inventory platform-extensible, and do not add a `quantity` column
+  to `batches`.
 - Do not build tax logic. See PI-ADR-006.
