@@ -10,20 +10,22 @@ Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.t
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/apply-grants.ts:42` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/apply-grants.ts:77` |  |
 | `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:82` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `APPEND_ONLY` <sub>local</sub> | `['audit_logs', 'data_access_logs', 'appointment_status_history']` | `packages/db/scripts/apply-grants.ts:35` | Tables that must never be UPDATE-able or DELETE-able by the app role. |
+| `APPEND_ONLY` <sub>local</sub> | `[ 'audit_logs', 'data_access_logs', 'appointment_status_history', // The stock ledger (PI…` | `packages/db/scripts/apply-grants.ts:35` | Tables that must never be UPDATE-able or DELETE-able by the app role. |
 | `EXEMPT` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:29` | Tables intentionally not tenant-scoped. Keep in sync with prisma/rls/enable-rls.sql. |
+| `NO_EXECUTE` <sub>local</sub> | `[ 'stock_balances_apply_delta(uuid, uuid, uuid, uuid, uuid, uuid, "StockStatus", numeric)…` | `packages/db/scripts/apply-grants.ts:67` |  |
+| `NO_INSERT` <sub>local</sub> | `['stock_balances']` | `packages/db/scripts/apply-grants.ts:55` |  |
 | `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:65` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `GrantRow` <sub>local</sub> | `{ table_name, privilege_type }` | `packages/db/scripts/apply-grants.ts:37` |  |
+| `GrantRow` <sub>local</sub> | `{ table_name, privilege_type }` | `packages/db/scripts/apply-grants.ts:72` |  |
 | `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:75` |  |

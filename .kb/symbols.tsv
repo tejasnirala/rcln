@@ -108,7 +108,7 @@ APPEARANCE_COOKIE	const	export	apps/web/src/lib/theme.ts:113	apps/web/lib	'rcln_
 APPEARANCE_OPTIONS	const	export	apps/web/src/lib/theme.ts:52	apps/web/lib	: ReadonlyArray<{ id: Appearance; label: string; description: string; }>	
 AppearancePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appearance/page.tsx:23	apps/web/app/(tenant)/t/[slug]/(app)/appearance	()	
 APPEARANCES	const	export	apps/web/src/lib/theme.ts:37	apps/web/lib	['light', 'dark', 'system'] as const	
-APPEND_ONLY	const	local	packages/db/scripts/apply-grants.ts:35	packages/db/scripts	['audit_logs', 'data_access_logs', 'appointment_status_history']	Tables that must never be UPDATE-able or DELETE-able by the app role.
+APPEND_ONLY	const	local	packages/db/scripts/apply-grants.ts:35	packages/db/scripts	[ 'audit_logs', 'data_access_logs', 'appointment_status_history', // The stock ledger (PI…	Tables that must never be UPDATE-able or DELETE-able by the app role.
 AppError	class	export	apps/api/src/utils/errors.ts:5	apps/api/utils	{ statusCode, isOperational, code }	Base application error class All custom errors should extend this
 AppHeader	component	export	apps/web/src/components/shell/app-header.tsx:32	apps/web/components/shell	({ scopes, user, signOut, nav, }: { /** The scope chain. Seg…)	
 applyCashRounding	fn	local	packages/invoicing/src/pricing.ts:256	packages/invoicing	(total: Money, unitMinor: number): Money	
@@ -1246,7 +1246,7 @@ GRACE_PERIOD_DAYS	const	export	packages/billing/src/policy.ts:28	packages/billin
 graceEndFor	fn	export	packages/billing/src/policy.ts:120	packages/billing	(failedAt: Date): Date	
 grantableCodes	fn/async	export	apps/api/src/services/iam/guards.ts:68	apps/api/services/iam	(ctx: TenantContext, caller: Caller): Promise<PermissionCode[] | null>	
 grantForPurpose	fn/async	local	packages/billing/src/engine/checkout.ts:518	packages/billing/engine	(tx: TxClient, ctx: TenantContext, runtime: BillingRuntime, subscriptionId: string, purpose: string, invoiceId: string | null, now: Date): Promise<void>	
-GrantRow	interface	local	packages/db/scripts/apply-grants.ts:37	packages/db/scripts	{ table_name, privilege_type }	
+GrantRow	interface	local	packages/db/scripts/apply-grants.ts:72	packages/db/scripts	{ table_name, privilege_type }	
 GRID_CELLS	const	local	apps/web/src/components/tenant/working-day-picker.tsx:57	apps/web/components/tenant	42	A month grid is six weeks of seven days, always — a fixed height never jumps.
 gridKeys	fn	local	apps/api/src/services/fees/fee-schedule.service.ts:193	apps/api/services/fees	(rows: EntryRow[]): string[]	
 Group	component	local	apps/web/src/components/shell/theme-settings.tsx:160	apps/web/components/shell	({ legend, hint, children, }: { legend: string; hint: string…)	
@@ -1756,7 +1756,7 @@ LotForm	component	export	apps/web/src/components/tenant/lot-form.tsx:46	apps/web
 LotList	component	export	apps/web/src/components/tenant/lot-list.tsx:42	apps/web/components/tenant	({ batches, meta, canManage }: Props)	
 LotsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/page.tsx:21	apps/web/app/(tenant)/t/[slug]/(app)/stock/lots	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 main	fn/async	local	packages/db/prisma/seed.ts:39	packages/db/prisma	(): Promise<void>	
-main	fn/async	local	packages/db/scripts/apply-grants.ts:42	packages/db/scripts	(): Promise<void>	
+main	fn/async	local	packages/db/scripts/apply-grants.ts:77	packages/db/scripts	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/check-rls.ts:82	packages/db/scripts	(): Promise<void>	
 majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:93	apps/web/app/(tenant)/t/[slug]/(app)/stock	(value: FormDataEntryValue | null): number | null	
 MANAGE	const	local	apps/api/src/routes/v1/product-catalogue.routes.ts:94	apps/api/routes/v1	PERMISSIONS.PRODUCT_DEFINITION_MANAGE	
@@ -1947,6 +1947,8 @@ NEXT_STEP	const	local	apps/web/src/components/tenant/appointment-board.tsx:95	ap
 nextConfig	var	local	apps/web/next.config.ts:31	apps/web	: NextConfig	
 nextDunningAt	fn	export	packages/billing/src/policy.ts:131	packages/billing	(firstFailureAt: Date, attempt: number): Date | null	
 nextKey	fn	local	apps/web/src/components/tenant/doctor-create-form.tsx:112	apps/web/components/tenant	(): string	
+NO_EXECUTE	const	local	packages/db/scripts/apply-grants.ts:67	packages/db/scripts	[ 'stock_balances_apply_delta(uuid, uuid, uuid, uuid, uuid, uuid, "StockStatus", numeric)…	
+NO_INSERT	const	local	packages/db/scripts/apply-grants.ts:55	packages/db/scripts	['stock_balances']	
 nodeParams	zod	local	apps/api/src/routes/v1/clinical-taxonomy.routes.ts:68	apps/api/routes/v1	z.object(…)	
 NodeRow	interface	local	apps/api/src/services/doctor/clinical-taxonomy.service.ts:67	apps/api/services/doctor	{ id, code, name, parent_id, type, description, display_order, is_active, organization_id, depth, has_children }	
 noopLogger	var	local	packages/documents/src/store/runtime.ts:51	packages/documents/store	: DocumentStoreLogger	
