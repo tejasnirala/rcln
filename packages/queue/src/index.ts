@@ -170,6 +170,34 @@ export interface InventoryJob {
 }
 
 /**
+ * The name of the repeatable job that asks what has expired.
+ *
+ * A name and no payload, for the same reason `BILLING_SWEEP_JOB` is one: it
+ * carries no organization, because it is the one piece of inventory that
+ * deliberately spans every tenant. The per-branch work is discovered inside the
+ * processor through a SECURITY DEFINER function rather than fanned out onto
+ * `InventoryJob`s — a fan-out would put a branch id in a Redis payload for every
+ * clinic on the platform, and buy nothing: the sweep is a handful of indexed
+ * statements per branch, not a gateway call.
+ */
+export const INVENTORY_SWEEP_JOB = 'EXPIRY_SWEEP';
+
+/**
+ * How often the expiry clock ticks.
+ *
+ * ⚠️ HOURLY, NOT NIGHTLY, AND THE REASON IS TIMEZONES. "Midnight" is a different
+ *   instant in every clinic this platform serves, and a single nightly run would
+ *   be up to a day late for most of them — an Auckland clinic sweeping on UTC
+ *   midnight has already been open for thirteen hours. Each tick asks every
+ *   branch whether the date has rolled over IN ITS OWN ZONE, so every clinic is
+ *   swept within an hour of its own midnight whatever the container's clock says.
+ *
+ *   The cost of the extra frequency is one indexed query when there is nothing
+ *   to do, which is twenty-three hours out of twenty-four.
+ */
+export const INVENTORY_SWEEP_CRON = '10 * * * *';
+
+/**
  * Deterministic ids. `reminder-<appointmentId>-24h` can only ever fire once.
  *
  * ⚠️ NO COLONS. BullMQ rejects a custom job id containing `:` — it namespaces

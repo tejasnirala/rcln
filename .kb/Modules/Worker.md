@@ -17,6 +17,8 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 - Invoice PDF rendering — Chromium in THIS container and never in the api, which is capped at 1g and already exits 137 running its own test suite
 - Document rendering runs at concurrency 1, because each job holds a renderer process
 - `jobId.invoicePdf(id, attempt)` — BullMQ de-duplicates on job id even for a RECENTLY COMPLETED job, which is right for a double-clicked button and silently wrong for a deliberate regeneration
+- The expiry sweep — an hourly repeatable job that moves expired stock out of AVAILABLE. HOURLY rather than nightly because "midnight" is a different instant in every clinic: each tick asks every branch whether the date has rolled over IN ITS OWN ZONE
+- It shares the ledger writer with the API through `@rcln/inventory` rather than writing its own INSERT — PI-ADR-004's "only one writer" is what forced the engine into a package
 
 ## Database impact
 
@@ -33,16 +35,17 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 - `apps/worker/src/documents/invoice-pdf.job.ts`
 - `apps/worker/src/documents/pdf.renderer.ts`
 - `apps/worker/src/index.ts`
+- `apps/worker/src/inventory/expiry.processor.ts`
 - `packages/queue/src/index.ts`
 - `packages/queue/src/producer.ts`
 
 ## Workspace dependencies
 
-`@rcln/billing` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/documents` · `@rcln/documents/data` · `@rcln/documents/store` · `@rcln/payments` · `@rcln/queue`
+`@rcln/billing` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/documents` · `@rcln/documents/data` · `@rcln/documents/store` · `@rcln/inventory` · `@rcln/payments` · `@rcln/queue`
 
 ## Known limitations
 
-- Notifications, reports, inventory, integrations and outbox accept jobs that nothing consumes
+- Notifications, reports, integrations and outbox accept jobs that nothing consumes. The inventory queue now has a processor
 - No dead-letter handling and no metrics rollup
 - A render that fails all five attempts leaves the invoice with no current document and nothing asks again
 - `InvoicePdfJob.requestedBy` is required, so a future non-human producer has to decide what actor to record rather than defaulting one
@@ -67,9 +70,11 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 | `EnqueueOptions` | interface | `packages/queue/src/producer.ts:22` |
 | `getBrowser` | fn | `apps/worker/src/documents/browser.ts:86` |
 | `initialisePayments` | fn | `apps/worker/src/billing/runtime.ts:69` |
+| `INVENTORY_SWEEP_CRON` | const | `packages/queue/src/index.ts:198` |
+| `INVENTORY_SWEEP_JOB` | const | `packages/queue/src/index.ts:183` |
 | `InventoryJob` | interface | `packages/queue/src/index.ts:166` |
 | `InvoicePdfJob` | interface | `packages/queue/src/index.ts:109` |
-| `jobId` | var | `packages/queue/src/index.ts:181` |
+| `jobId` | var | `packages/queue/src/index.ts:209` |
 | `JobProducer` | interface | `packages/queue/src/producer.ts:33` |
 | `NotificationJob` | interface | `packages/queue/src/index.ts:75` |
 | `processBillingJob` | fn | `apps/worker/src/billing/processor.ts:137` |
@@ -79,4 +84,5 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 | `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:33` |
 | `runtimeFactory` | fn | `apps/worker/src/billing/runtime.ts:111` |
 | `sweepDueSubscriptions` | fn | `apps/worker/src/billing/processor.ts:71` |
+| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:138` |
 | `WorkerPaymentsConfig` | interface | `apps/worker/src/billing/runtime.ts:28` |

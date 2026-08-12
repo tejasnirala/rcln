@@ -199,7 +199,45 @@ DECLARE
     'invoices',
     'invoice_items',
     'invoice_taxes',
-    'invoice_documents'
+    'invoice_documents',
+    -- ---------------------------------------------------------------------
+    -- Inventory (PI-2). ALL SEVEN are also in the branch_scoped array below.
+    --
+    -- ⚠️ THE OPPOSITE TENANCY CLASS FROM THE PRODUCT CATALOGUE, AND
+    --   DELIBERATELY SO (PI-ADR-003). A product is platform-extensible and
+    --   allows a NULL organization_id; a LOCATION, a LOT, a SERIAL and a
+    --   MOVEMENT never do. Where a clinic keeps its stock, how much it holds,
+    --   what it paid and what it dispensed are facts about one clinic at one
+    --   site — there is no such thing as a platform batch, and a nullable
+    --   organization_id here would mean a row every tenant on the platform can
+    --   read.
+    --
+    --   `branch_id` is NOT NULL on all seven too, so the branch policy below is
+    --   ABSOLUTE rather than the NULL-tolerant kind `fee_schedule_entries`
+    --   needs. A storekeeper scoped to one site cannot read another site's
+    --   shelves, its costs, or what it dispensed to whom.
+    --
+    --   `storage_areas` and `storage_bins` are CHILDREN and carry both ids
+    --   themselves rather than inheriting through a parent predicate — the call
+    --   the invoice children made, not the one `appointment_status_history`
+    --   made. See the note against the invoice tables above: an org-only
+    --   inherited policy under a branch-scoped parent re-opens the branch
+    --   boundary.
+    'inventory_locations',
+    'storage_areas',
+    'storage_bins',
+    'batches',
+    'serials',
+    -- ⚠️ APPEND-ONLY BY TWO FURTHER LAYERS ON TOP OF THIS POLICY: `rcln_app`
+    --   holds no UPDATE or DELETE on it, and a trigger refuses both anyway. RLS
+    --   answers "whose rows"; neither of those answers that, and this does not
+    --   answer theirs. See the inventory_foundation migration.
+    'stock_ledger',
+    -- ⚠️ AND `rcln_app` HOLDS NO INSERT, UPDATE OR DELETE ON THIS ONE AT ALL.
+    --   It is a cache maintained by a SECURITY DEFINER trigger on stock_ledger
+    --   and by nothing else (PI-ADR-004 rule 2). The policy here governs reads,
+    --   which is the only thing the application does to it.
+    'stock_balances'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -502,7 +540,30 @@ DECLARE
     ARRAY['products',                'composition_id',     'compositions',                 'composition_visible',     't'],
     ARRAY['products',                'storage_profile_id', 'storage_requirement_profiles', 'storage_profile_visible', 't'],
     ARRAY['products',                'base_unit_id',       'units_of_measure',             'base_unit_visible',       'f'],
-    ARRAY['product_packagings',      'unit_id',            'units_of_measure',             'unit_visible',            'f']
+    ARRAY['product_packagings',      'unit_id',            'units_of_measure',             'unit_visible',            'f'],
+    -- ---------------------------------------------------------------------
+    -- Inventory (PI-2). Same shape, same reasoning, higher stakes.
+    --
+    -- ⚠️ `batches.product_id` CANNOT BE A COMPOSITE FK, AND THAT IS WHY THESE
+    --   EXIST. A clinic legitimately stocks a PLATFORM product, whose
+    --   organization_id is NULL and which the batch's NOT NULL column cannot
+    --   compose with. `tenant_isolation` on `batches` constrains the batch's own
+    --   organization and says nothing whatsoever about the product it names, so
+    --   without `product_visible` a clinic creates a batch of ANOTHER CLINIC'S
+    --   PRIVATE PRODUCT and reads its name, composition and manufacturer
+    --   straight back out through the join. It is a valid insert into a table
+    --   the caller is allowed to write; nothing else in the system notices.
+    --
+    -- `stock_balances` gets one too even though every row of it is written by a
+    -- trigger from an already-checked ledger row. The policy costs nothing on a
+    -- path that cannot violate it, and it is the read side it actually guards.
+    ARRAY['inventory_locations',     'storage_profile_id', 'storage_requirement_profiles', 'storage_profile_visible', 't'],
+    ARRAY['batches',                 'product_id',         'products',                     'product_visible',         'f'],
+    ARRAY['batches',                 'manufacturer_id',    'manufacturers',                'manufacturer_visible',    't'],
+    ARRAY['serials',                 'product_id',         'products',                     'product_visible',         'f'],
+    ARRAY['stock_ledger',            'product_id',         'products',                     'product_visible',         'f'],
+    ARRAY['stock_ledger',            'unit_id',            'units_of_measure',             'unit_visible',            'f'],
+    ARRAY['stock_balances',          'product_id',         'products',                     'product_visible',         'f']
   ];
 BEGIN
   FOR i IN 1 .. array_length(visible, 1) LOOP
@@ -580,7 +641,19 @@ DECLARE
     'invoices',
     'invoice_items',
     'invoice_taxes',
-    'invoice_documents'
+    'invoice_documents',
+    -- Inventory (PI-2). branch_id is NOT NULL on all seven, so the
+    -- `branch_id IS NULL OR` half of the predicate below is dead code for them
+    -- and the policy is absolute — the same situation as the four invoice
+    -- tables immediately above. Stock is kept at a place, and which place is
+    -- the whole question a storekeeper is answering.
+    'inventory_locations',
+    'storage_areas',
+    'storage_bins',
+    'batches',
+    'serials',
+    'stock_ledger',
+    'stock_balances'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP
@@ -913,3 +986,55 @@ $fn$;
 
 REVOKE ALL ON FUNCTION billing_due_subscriptions(timestamptz, int) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION billing_due_subscriptions(timestamptz, int) TO rcln_app;
+
+-- ---------------------------------------------------------------------------
+-- The expiry sweep's one cross-tenant question.
+--
+-- Same shape, same reasoning and the same three rejected alternatives as
+-- `billing_due_subscriptions` immediately above: a nightly job has by definition
+-- no tenant, every table it needs is RLS-enforced, and `rcln_app` has
+-- NOBYPASSRLS — so without this the sweep matches nothing and silently never
+-- runs. It returns three columns for only the branches that are actually due and
+-- takes no argument that widens it.
+--
+-- ⚠️ `AT TIME ZONE b.timezone`, NOT `CURRENT_DATE` — invariant 6. And strictly
+--   `<`: a lot dated the 31st is good THROUGH the 31st at the clinic.
+--
+-- ⚠️ `owner_user_id` IS THE POINT OF THE THIRD COLUMN. `stock_ledger.actor_user_id`
+--   is NOT NULL, so the sweep needs a real user to attribute its movements to; an
+--   organization with no owner is skipped rather than attributed to a fiction.
+--
+-- Full reasoning in the 20260815092000_inventory_expiry_sweep_function migration.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION inventory_branches_with_expired_stock(
+  row_limit int DEFAULT 200
+)
+RETURNS TABLE (branch_id uuid, organization_id uuid, actor_user_id uuid)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+  SELECT DISTINCT
+         sb."branch_id",
+         sb."organization_id",
+         o."owner_user_id" AS actor_user_id
+    FROM "stock_balances" sb
+    JOIN "batches"       bt ON bt."id" = sb."batch_id"
+    JOIN "branches"       b ON b."id"  = sb."branch_id"
+    JOIN "organizations"  o ON o."id"  = sb."organization_id"
+   WHERE sb."status"     = 'AVAILABLE'
+     AND sb."quantity"   > 0
+     AND bt."expires_on" IS NOT NULL
+     AND bt."expires_on" < (now() AT TIME ZONE b."timezone")::date
+     AND b."status"      = 'ACTIVE'
+     AND b."deleted_at"  IS NULL
+     AND o."status"      = 'ACTIVE'
+     AND o."deleted_at"  IS NULL
+     AND o."owner_user_id" IS NOT NULL
+   ORDER BY sb."branch_id"
+   LIMIT row_limit
+$fn$;
+
+REVOKE ALL   ON FUNCTION inventory_branches_with_expired_stock(int) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION inventory_branches_with_expired_stock(int) TO rcln_app;

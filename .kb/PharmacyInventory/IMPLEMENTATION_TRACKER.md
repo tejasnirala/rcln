@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-11 (PI-1 complete)
+**Last updated:** 2026-08-12 (PI-2 complete)
 
 ## Status vocabulary
 
@@ -38,8 +38,8 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | --------- | ------------------------------------------------------- | ------------------------- | ------------------------------------------- |
 | PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                           |
 | PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                           |
-| PI-2      | Inventory Foundation                                    | PLANNED — **next**        | —                                           |
-| PI-3      | Movements                                               | PLANNED                   | PI-2                                        |
+| PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                           |
+| PI-3      | Movements                                               | PLANNED — **next**        | —                                           |
 | PI-4      | Procurement                                             | PLANNED                   | PI-3                                        |
 | PI-5      | Global Regulatory Framework                             | PLANNED                   | PI-1                                        |
 | PI-6      | India Rule Pack                                         | PLANNED                   | PI-5                                        |
@@ -256,24 +256,86 @@ the whole diff (it touches the schema and tenancy, so it is mandatory); update
 
 ---
 
-# PI-2 — Inventory Foundation · PLANNED
+# PI-2 — Inventory Foundation · COMPLETE
 
-**Dependencies:** PI-1. **Priority:** P0.
+**Dependencies:** PI-1. **Priority:** P0. **Completed:** 2026-08-12 on
+`feat/pi-2-inventory-foundation`.
 
-| Task    | Description                                                                                               | Key risk                                                  | Status      |
-| ------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------- |
-| PI-2.1  | `inventory_locations` + storage areas + bins (PI-ADR-012)                                                 | branch-scoped RLS array membership                        | NOT_STARTED |
-| PI-2.2  | `batches` — lot, mfg/expiry/retest, cost per base unit, supplier, manufacturer, status                    | tenant-qualified lot uniqueness                           | NOT_STARTED |
-| PI-2.3  | `serials` — serial, product, batch, location, status, patient assignment                                  | patient assignment is PHI                                 | NOT_STARTED |
-| PI-2.4  | **`stock_ledger`** — append-only, both enforcement layers, movement-type enum, reference type + id        | ⚠️ the most important table in the programme              | NOT_STARTED |
-| PI-2.5  | `stock_balances` — trigger-maintained cache + a replay verifier                                           | trigger correctness under concurrency                     | NOT_STARTED |
-| PI-2.6  | Inventory status enum + transitions, kept distinct from product status                                    | PI-ADR-013                                                | NOT_STARTED |
-| PI-2.7  | Tracking-mode CHECK constraints (PI-ADR-014)                                                              | must be in the DB, not only the service                   | NOT_STARTED |
-| PI-2.8  | Expiry: near-expiry settings, a worker sweep, quarantine-on-expiry                                        | ⚠️ first real worker processor in the repo                | NOT_STARTED |
-| PI-2.9  | Recall/quarantine **columns** (workflow deferred to PI-10)                                                | capability now, workflow later                            | NOT_STARTED |
-| PI-2.10 | Screens: dashboard, stock by location, batch, serial, expiry, ledger                                      | ledger view must paginate                                 | NOT_STARTED |
-| PI-2.11 | Tests: ledger/balance agreement under 50 parallel writes; no negative balance; RLS across every new table | mirror the numbering concurrency test that already exists | NOT_STARTED |
-| PI-2.12 | PI-2 hardening                                                                                            |                                                           | NOT_STARTED |
+| Task    | Description                                                               | Status                                   |
+| ------- | ------------------------------------------------------------------------- | ---------------------------------------- |
+| PI-2.1  | `inventory_locations` + storage areas + bins (PI-ADR-012)                 | COMPLETE                                 |
+| PI-2.2  | `batches` — lot, dates, cost per base unit, manufacturer, status          | COMPLETE                                 |
+| PI-2.3  | `serials` — serial, product, batch, location, status, patient assignment  | COMPLETE                                 |
+| PI-2.4  | **`stock_ledger`** — append-only, both layers, movement + reference enums | COMPLETE                                 |
+| PI-2.5  | `stock_balances` — trigger-maintained cache + `verifyBalances()` replay   | COMPLETE                                 |
+| PI-2.6  | Inventory status enums, kept distinct from product status                 | COMPLETE                                 |
+| PI-2.7  | Tracking-mode CHECK constraints (PI-ADR-014)                              | COMPLETE                                 |
+| PI-2.8  | Expiry: settings-driven window, worker sweep, quarantine-on-expiry        | COMPLETE                                 |
+| PI-2.9  | Recall / quarantine columns, plus the hold endpoint                       | COMPLETE — workflow still PI-10          |
+| PI-2.10 | Screens: overview, lots, serials, locations, ledger, plus the three forms | COMPLETE                                 |
+| PI-2.11 | Tests: 50 parallel writes, no negative balance, RLS on every new table    | COMPLETE                                 |
+| PI-2.12 | PI-2 hardening                                                            | COMPLETE — both reviews run and acted on |
+
+### What landed
+
+| Area        | What                                                                                                                                                        |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | `packages/db/prisma/schema/inventory.prisma` — 7 models, 6 enums                                                                                            |
+| Migrations  | `20260815090000_inventory_foundation`, `..091000_data_access_resource_inventory_serial`, `..092000_inventory_expiry_sweep_function`                         |
+| RLS         | 7 tables in **both** `org_scoped` and `branch_scoped`; 7 RESTRICTIVE `*_visible` policies. `db:rls:check` green at **72** tables                            |
+| Enforcement | `stock_ledger_direction`, `_bucket_complete`, `_tracking_satisfied`, `_entered_agrees`, `_cost_has_currency`; `stock_balances_non_negative`; 4 on `batches` |
+| Grants      | `stock_ledger`: no UPDATE/DELETE. `stock_balances`: **SELECT only** — the cache is trigger-maintained and unwritable by the app                             |
+| Package     | **`@rcln/inventory`** — the ledger writer and the conversion algebra, extracted so the worker can share them                                                |
+| Permissions | `inventory.location.manage`, granted to BRANCH_ADMIN and PHARMACIST                                                                                         |
+| Contracts   | `packages/contracts/src/inventory.ts`                                                                                                                       |
+| Services    | `services/inventory/` — movement, location, batch, serial, balance, expiry                                                                                  |
+| Routes      | `/v1/{inventory-locations,batches,serials,stock}`                                                                                                           |
+| Worker      | `apps/worker/src/inventory/expiry.processor.ts` — hourly, branch-timezone-aware                                                                             |
+| Web         | `/stock` (overview, lots, serials, locations, ledger) plus forms for a location, a lot and a serial; "Stock" nav entry                                      |
+| Tests       | `tests/unit/inventory-movement.test.ts` (14), `tests/integration/stock-ledger.test.ts` (25), +32 isolation cases. **1087 API tests across 39 suites**       |
+| Reviews     | `security-reviewer` and `code-reviewer` both run. 2 CRITICAL, 1 HIGH, 11 WARNING — all fixed bar two accepted. See [CHANGELOG.md](CHANGELOG.md)             |
+
+### The one deliberate deviation, recorded
+
+`EXPIRY`, `DAMAGE` and `RECALL` are **MOVES between status buckets, not `−`
+removals**, which refines INVENTORY_ARCHITECTURE.md's sign table. Expired stock
+has not left the building: it is on the shelf, undispensable, waiting to be
+destroyed, and it has to be counted and valued until it is — which is what that
+same document's status model says. `DISPOSAL` is the `−` that records a physical
+departure. See the `StockMovementType` enum comment.
+
+### Deliberately NOT in PI-2, and where each belongs
+
+- **Recording a movement (an adjustment) has no screen.** `POST
+/v1/stock/movements` exists, is gated on `inventory.stock.adjust` and is
+  exercised by tests. The SCREEN is **PI-3.6** — "Screens: transfers,
+  adjustments, reservations" — sitting on PI-3.1's adjustment work.
+- **The recall / quarantine workflow has no screen.** `POST /batches/:id/hold`
+  works and moves quantity in the same transaction as the flag. PI-2.9 is
+  explicit that this phase delivers the CAPABILITY and **PI-10** delivers the
+  workflow.
+- **Assigning a serial to a patient has no screen.** `POST /serials/:id/assign`
+  exists. The moment a device is fitted is a clinical one and belongs beside the
+  procedure that fitted it — **PI-9**.
+
+### Follow-ups the reviews raised and PI-2 did not take
+
+- **`toDateColumn` still has three older copies** in `doctor.service.ts`,
+  `patient.service.ts` and `patient-history.service.ts`, in three subtly
+  different signatures. The canonical one is now `product/values.ts`; collapsing
+  the other three means touching Phase 3 services and their tests, which is not
+  this phase's change to make.
+- **A worker-only database role.** Two SECURITY DEFINER discovery functions —
+  `billing_due_subscriptions` and `inventory_branches_with_expired_stock` — are
+  granted to `rcln_app` because the worker connects as it. Both are read-only and
+  neither takes a widening argument, but the request path holding them is a
+  standing HIGH. Infrastructure work; belongs in **PI-24**.
+- **`listLocations` is the one unpaginated list.** Accepted, with the reasoning
+  and the threshold recorded in the service.
+
+### Still open
+
+- **Nothing has been clicked in a browser.**
 
 ---
 

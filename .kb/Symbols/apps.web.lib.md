@@ -28,8 +28,9 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:116` |  |
 | `countryOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:160` |  |
 | `eachDay` | `(from: string, to: string): string[]` | `apps/web/src/lib/calendar-range.ts:109` |  |
+| `emptyToNull` | `(value: FormDataEntryValue \| null): string \| null` | `apps/web/src/lib/api.ts:271` |  |
 | `endOfMonth` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:97` |  |
-| `fieldErrorsFrom` | `(issues: { path: PropertyKey[]; message: string }[]): Record<string, string[]>` | `apps/web/src/lib/api.ts:259` | Flatten Zod issues into the `fieldErrors` shape the forms render. |
+| `fieldErrorsFrom` | `(issues: { path: PropertyKey[]; message: string }[]): Record<string, string[]>` | `apps/web/src/lib/api.ts:277` |  |
 | `format` <sub>local</sub> | `(at: Date): string` | `apps/web/src/lib/calendar-range.ts:48` |  |
 | `formatClinicDate` | `(value: string \| Date, timeZone: string): string` | `apps/web/src/lib/format.ts:120` | `9 Aug 2026`. |
 | `formatClinicDateTime` | `(value: string \| Date, timeZone: string, timeFormat: TimeFormat): string` | `apps/web/src/lib/format.ts:128` | `9 Aug 2026, 4:40 pm`. The full stamp, for a heading or an audit row. |

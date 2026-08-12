@@ -1,0 +1,22 @@
+-- ---------------------------------------------------------------------------
+-- A serialised device or implant fitted to a named person is a PHI read
+-- (PI-ADR-016).
+--
+-- `serials.assigned_patient_id` answers "which patient has device 7742" and,
+-- read the other way, "which devices does this patient have" — both by primary
+-- key, and both a disclosure about an identifiable individual even though
+-- nothing on the row looks clinical. So every read that returns the column
+-- writes a `data_access_logs` row, and it needs a resource of its own to be
+-- distinguishable in a disclosure review.
+--
+-- ⚠️ IDS, ENUMS AND COUNTS ONLY, as that table's schema contract says. Never a
+--   product name beside a patient id: "Ms Iyer, insulin pump" is a diagnosis
+--   written into the very table built to be safe to keep for ever.
+--
+-- Its own migration rather than part of `inventory_foundation` because
+-- `ALTER TYPE ... ADD VALUE` could not run in the same transaction as the tables
+-- that use it under older Postgres, and keeping enum additions separable is the
+-- habit that stops that being discovered during a deploy.
+-- ---------------------------------------------------------------------------
+-- AlterEnum
+ALTER TYPE "DataAccessResource" ADD VALUE 'INVENTORY_SERIAL';

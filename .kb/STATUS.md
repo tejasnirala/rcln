@@ -2,7 +2,7 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-08-11 · **Current phase:** 0 complete; 1 complete except
+**Last updated:** 2026-08-12 · **Current phase:** 0 complete; 1 complete except
 the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
 management, email/phone verification, org settings, super-admin impersonation,
 one unified shell, remembered scope and per-record history); **2 complete except
@@ -16,10 +16,14 @@ Queue tokens and walk-in are stage 5; prescriptions come after. The consultation
 page exists as a route with a deliberate placeholder where the specialty-specific
 diagnosis form will go.
 
-**Phase 5 has started out of order, and deliberately: PI-1, the product
-catalogue, is complete** on `feat/pi-1-product-platform-core`. It depends on
-nothing Phase 3 owns, and everything else in the pharmacy programme waits on it —
-see § Phase 5 and `.kb/PharmacyInventory/NEXT_SESSION.md`.
+**Phase 5 has started out of order, and deliberately: PI-1 (the product
+catalogue) is merged and PI-2 (inventory foundation) is complete** on
+`feat/pi-2-inventory-foundation`. Neither depends on anything Phase 3 owns, and
+everything else in the pharmacy programme waits on them. PI-2 brings the
+append-only `stock_ledger`, a trigger-maintained balance cache the application
+cannot write, the first worker processor that changes clinical state, and four
+`/stock` screens. Both reviewer passes have run and been acted on — see § Phase 5
+and `.kb/PharmacyInventory/NEXT_SESSION.md`.
 
 ⚠️ PHI is live from stage 3 onwards — `patients`, `appointments` and
 `appointment_vitals` all carry it, and every read of one that discloses a single
@@ -1267,10 +1271,12 @@ Procurement + Regulatory platform serving clinical, dental, veterinary and lab
 workflows across ten jurisdictions, not a pharmacy module. Start at
 `PharmacyInventory/NEXT_SESSION.md`.
 
-**PI-0 (discovery & architecture) and PI-1 (Product Platform Core) are complete**
-(2026-08-11). PI-1 is on `feat/pi-1-product-platform-core` and has NOT been
-through `/code-review` or `security-reviewer` yet — required before merge,
-because it adds thirteen tenant tables and ten RESTRICTIVE visibility policies.
+**PI-0 (discovery & architecture), PI-1 (Product Platform Core) and PI-2
+(Inventory Foundation) are complete.** PI-1 is merged to `main`; PI-2 is on
+`feat/pi-2-inventory-foundation` and has NOT been through `/code-review` or
+`security-reviewer` yet — required before merge, because it adds seven tenant
+tables, seven RESTRICTIVE visibility policies, two REVOKEs, three triggers and a
+SECURITY DEFINER function.
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.
 
@@ -1302,8 +1308,8 @@ What PI-1 built: the catalogue, and nothing with a quantity in it.
 - [x] Screens at `/products` — server-paginated list, create form, detail with
       six tabs. Nav entry reads "Catalogue", not "Pharmacy"
 - [x] 983 API tests green; `db:rls:check` green at 65 protected tables
-- [ ] `/code-review` and `security-reviewer` on the diff — **the one remaining
-      leg of PI-1.10**
+- [x] `/code-review` and `security-reviewer` on the diff — both run, two
+      CRITICALs and five findings, all fixed. Merged as PR #30
 - [ ] The screens have not been opened in a browser
 
 ⚠️ One RLS bug was written and caught by the isolation suite in this phase: a
@@ -1317,13 +1323,56 @@ carried the identical gap since it shipped, for the identical reason.
 `prescriptions` and `encounters`/`procedures`, which Phase 3 owns. Its product,
 inventory, procurement and regulatory phases are not blocked and can start now.
 
+What PI-2 built: everything with a quantity in it.
+
+- [x] **`stock_ledger` — append-only, and the only source of quantity truth**
+      (PI-ADR-004). `rcln_app` holds no UPDATE or DELETE on it and a trigger
+      refuses both anyway — the same two independent layers `audit_logs` has
+- [x] **`stock_balances` — a cache the application cannot write.** `rcln_app`
+      holds SELECT and nothing else; a SECURITY DEFINER trigger maintains it.
+      That is rule 2 as a grant rather than as an agreement, and
+      `verifyBalances()` replays the ledger to prove the two agree
+- [x] `inventory_locations` → `storage_areas` → `storage_bins` (PI-ADR-012). A
+      branch has MANY locations: a pharmacy, a fridge, a controlled cabinet and a
+      trolley per procedure room are four different answers to "where is it"
+- [x] `batches` (lot, expiry, cost per BASE unit, recall and quarantine columns)
+      and `serials` — whose `assigned_patient_id` is **PHI**, and every read of
+      it writes a `data_access_logs` row under the new `INVENTORY_SERIAL`
+      resource (PI-ADR-016)
+- [x] **Seven tables in BOTH the `org_scoped` and `branch_scoped` arrays** — the
+      opposite tenancy class from the catalogue, and deliberately so: there is no
+      such thing as a platform batch. Plus seven RESTRICTIVE `*_visible`
+      policies, because `batches.product_id` cannot be a composite FK when a
+      clinic legitimately stocks a PLATFORM product
+- [x] The sign of a movement is a property of its TYPE and is CHECKed, never
+      chosen by a caller; the tracking mode is enforced in the database
+      (PI-ADR-014); a balance may never go negative
+- [x] **`@rcln/inventory`** — the ledger writer, extracted into a package because
+      the expiry sweep runs in the worker and "only one writer" had to survive it
+- [x] **The expiry sweep — the first worker processor that changes clinical
+      state.** Hourly, not nightly, because "midnight" is a different instant in
+      every clinic: each tick asks every branch whether the date has rolled over
+      IN ITS OWN ZONE (invariant 6)
+- [x] Screens at `/stock` — overview, lots, locations and the movement ledger.
+      Nav entry reads "Stock", beside "Catalogue"
+- [x] 1087 API tests green across 39 suites, including ledger/cache agreement
+      under 50 parallel writes; `db:rls:check` green at **72** protected tables
+- [x] `/code-review` and `security-reviewer` on the diff. Two CRITICALs — a
+      `REVOKE ... FROM PUBLIC` that left `rcln_app`'s role-specific EXECUTE grant
+      on a SECURITY DEFINER, RLS-bypassing write into the balance cache, and a
+      display helper that rendered every quantity an order of magnitude small —
+      plus a HIGH and eleven WARNINGs. All fixed bar two accepted; see
+      `.kb/PharmacyInventory/CHANGELOG.md`
+- [ ] The screens read and do not write: no form for a location, a lot or a
+      movement, and no `/stock/serials` screen. Nothing clicked in a browser
+
 Strictly in this order; dispensing depends on batches existing.
 
-- [ ] Catalogue: generics, medicines, manufacturers, HSN + versioned tax rates
-- [ ] Suppliers → purchase orders → goods receipts → returns
-- [ ] Batches, `stock_ledger` (append-only), `stock_balances` (trigger-maintained)
-- [ ] Stock transfers between branches, adjustments, reorder rules
-- [ ] Dispensing with FEFO batch selection
+- [x] Catalogue: generics, medicines, manufacturers, HSN + versioned tax rates
+- [x] Batches, `stock_ledger` (append-only), `stock_balances` (trigger-maintained)
+- [ ] Stock transfers between branches, adjustments, reorder rules — PI-3
+- [ ] Suppliers → purchase orders → goods receipts → returns — PI-4
+- [ ] Dispensing with FEFO batch selection — PI-7, blocked on `prescriptions`
 
 ### Phase 6 — Lab
 

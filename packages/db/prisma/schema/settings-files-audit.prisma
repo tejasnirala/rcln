@@ -241,6 +241,16 @@ enum DataAccessResource {
   LAB_REPORT
   INVOICE
   DOCUMENT
+  /// A serialised device or implant that is fitted to, or issued to, a named
+  /// person (PI-2, PI-ADR-016). "Serial 7742 is in Mrs Rao" is a clinical fact
+  /// about an identifiable patient and is answerable by primary key, so reading
+  /// it is a disclosure even though nothing about it looks clinical.
+  ///
+  /// ⚠️ SEPARATE FROM `MEDICAL_HISTORY`, deliberately. A recall asks "which
+  ///   patients have this batch of hip stems", and the answer to a disclosure
+  ///   review is more useful when that question is distinguishable from a
+  ///   clinician reading a chart. Same reasoning that keeps `VITALS` apart.
+  INVENTORY_SERIAL
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

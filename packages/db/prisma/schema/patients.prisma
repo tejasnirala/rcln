@@ -191,6 +191,9 @@ model Patient {
   appointments  Appointment[]
   vitals        AppointmentVital[]
   invoices      Invoice[]
+  /// Serialised devices and implants fitted to this person. ⚠️ PHI — see the
+  /// model comment on `Serial` in inventory.prisma.
+  serials       Serial[]
 
   @@unique([organizationId, uhid])
   /// Composite-FK target. Registrations, appointments, encounters, invoices and

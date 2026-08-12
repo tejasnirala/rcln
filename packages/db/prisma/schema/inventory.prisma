@@ -1,0 +1,670 @@
+// =============================================================================
+// INVENTORY — where a thing IS, how much of it there is, and everything that
+// ever moved it.
+//
+// `products.prisma` says what a thing IS and has no quantity anywhere in it.
+// This file is the other half: every quantity in the programme lives here, and
+// exactly one table is allowed to state one.
+//
+// ── PI-ADR-004: `stock_ledger` IS THE ONLY SOURCE OF QUANTITY TRUTH ──────────
+//
+//                  recordMovement()          <- the ONLY writer
+//                         |
+//                         v
+//                  stock_ledger              append-only, two enforcement layers
+//                         |  trigger
+//                         v
+//                  stock_balances            a CACHE. Never authoritative.
+//
+//   1. Nothing outside `recordMovement()` inserts into `stock_ledger`.
+//   2. Nothing at all writes `stock_balances`. The trigger does, and `rcln_app`
+//      holds no INSERT, UPDATE or DELETE on it to make that literal rather than
+//      aspirational.
+//   3. A correction is a COMPENSATING MOVEMENT with a reason, never an edit.
+//   4. `stock_balances` disagreeing with a ledger replay is a bug in the
+//      trigger, and the ledger wins. `verifyBalances()` replays and compares.
+//   5. Quantities are stored in the product's BASE UNIT. What the user actually
+//      typed is recorded beside it (`quantity_entered` + `unit_id`) so a receipt
+//      of "2 boxes" still reads as "2 boxes" a year later.
+//
+// ⚠️ THE CALLER NEVER CHOOSES A SIGN. `movement_type` determines it and a CHECK
+//   constraint enforces the pairing — see `stock_ledger_direction` in the
+//   migration. A caller that COULD pass `-5` on a goods receipt is a caller that
+//   eventually will, and the resulting row is indistinguishable from a genuine
+//   issue in every report that reads the ledger.
+//
+// ── TENANCY: STRICTLY TENANT ROWS, NEVER PLATFORM (PI-ADR-003) ───────────────
+// Nothing in this file allows a NULL `organization_id`, and nothing in it is
+// platform-extensible. A location, a batch, a serial and a movement are facts
+// about ONE clinic at ONE site. Every table here carries `organization_id` AND
+// `branch_id`, both NOT NULL, and joins BOTH the `org_scoped` and the
+// `branch_scoped` RLS arrays — the shape the invoice tables use, and for the
+// same reason: a child that inherits only the organization half of a
+// branch-scoped parent re-opens the branch boundary (see enable-rls.sql).
+//
+// ⚠️ EVERY FK POINTING AT A POSSIBLY-PLATFORM ROW NEEDS A RESTRICTIVE
+//   `*_visible` POLICY, and this file has SEVEN of them. `batches.product_id`
+//   CANNOT be a composite `(organization_id, product_id)` FK: a clinic
+//   legitimately stocks a PLATFORM product, whose `organization_id` is NULL and
+//   which a NOT NULL column cannot compose with. `tenant_isolation` therefore
+//   constrains the batch's OWN organization and says nothing whatsoever about
+//   the product it names. Without the policy a clinic creates a batch of another
+//   clinic's private product and reads its name straight back out of the join.
+//   This was the single most likely security regression in PI-1 and it is the
+//   single most likely one here.
+//
+// ── QUANTITIES AND MONEY (PI-ADR-010) ───────────────────────────────────────
+// `Decimal(18,6)` for quantity — base units include mL, mg and fractional
+// tablets, and three places is not enough for a base unit of mg in a pack sold
+// by the gram. Integer minor units for money, PER BASE UNIT, so a supplier
+// changing their pack size does not invalidate the cost of what is on the shelf.
+// Never a float, in either.
+// =============================================================================
+
+/// What a storage location IS, for grouping in the UI and for matching against a
+/// product's storage requirements.
+///
+/// ⚠️ METADATA, NEVER AUTHORIZATION. Do not gate a permission on it and do not
+///   infer a regulatory control from it: a `CONTROLLED_CABINET` is where a
+///   clinic chose to put a cabinet, not a statement that the law requires one.
+///   `requires_controlled_access` on the location and the jurisdiction rules in
+///   PI-5 answer that. Same trap `ProductType` and `TaxonomyNodeType` already
+///   carry a warning about.
+enum LocationKind {
+  MAIN_PHARMACY
+  SATELLITE_PHARMACY
+  REFRIGERATOR
+  FREEZER
+  CONTROLLED_CABINET
+  DEPARTMENT_STORE
+  PROCEDURE_ROOM
+  LAB_STORE
+  DENTAL_STORE
+  VETERINARY_STORE
+  CENTRAL_WAREHOUSE
+  /// Stock owned by a supplier and held on the clinic's premises.
+  CONSIGNMENT
+  /// The quarantine bin things go to before they are destroyed.
+  DISPOSAL
+}
+
+/// Where a BATCH is in its own lifecycle.
+///
+/// ⚠️ NOT A PRODUCT STATUS AND NOT A STOCK STATUS (PI-ADR-013). Three enums,
+///   three columns, no shared vocabulary, and nothing may read one to infer
+///   another. A `DISCONTINUED` product with an `ACTIVE` batch on the shelf is
+///   normal and must stay dispensable; an `ACTIVE` product with a `RECALLED`
+///   batch must not.
+///
+/// This is the batch's disposition as a whole. What is physically WHERE, and in
+/// what condition, is `StockStatus` on the balance rows — one batch can have
+/// some units quarantined at one location and some available at another, which
+/// a single status on the batch cannot express.
+enum BatchStatus {
+  ACTIVE
+  QUARANTINED
+  EXPIRED
+  RECALLED
+  DAMAGED
+  DISPOSED
+}
+
+/// The condition a QUANTITY is held in. The second axis of PI-ADR-013.
+///
+/// ⚠️ ONLY `AVAILABLE` IS ALLOCATABLE. Everything else is visible, countable and
+///   valued but not dispensable — which is exactly why quarantine works at all.
+///   A recall that made stock disappear would leave the clinic unable to say how
+///   much it is about to send back.
+enum StockStatus {
+  AVAILABLE
+  /// Spoken for by a pending dispense, an order or a scheduled procedure.
+  /// Becomes real in PI-3; the status exists here so the ledger never needs a
+  /// migration to record one.
+  RESERVED
+  QUARANTINED
+  /// Held by a regulator, a quality hold, or a manual review.
+  BLOCKED
+  EXPIRED
+  DAMAGED
+  RECALLED
+  DISPOSED
+  /// Sent from one branch and not yet received at the other. PI-3.
+  IN_TRANSIT
+}
+
+/// A serialised unit's own lifecycle. Devices and implants only.
+enum SerialStatus {
+  IN_STOCK
+  /// Fitted to, or issued to, a patient. `assigned_patient_id` is then set.
+  ISSUED
+  RETURNED
+  QUARANTINED
+  RECALLED
+  DAMAGED
+  DISPOSED
+}
+
+/// Why a quantity moved.
+///
+/// ⚠️ THE SIGN IS A PROPERTY OF THE MEMBER, NOT A CHOICE OF THE CALLER. The
+///   `stock_ledger_direction` CHECK in the migration pairs each member with the
+///   sign it is allowed to carry AND with which of `status_from` / `status_to`
+///   it must name. Three shapes:
+///
+///     ADDS      PURCHASE_RECEIPT, TRANSFER_IN, RETURN
+///               quantity > 0, status_to only.
+///     REMOVES   DISPENSING, CLINICAL_CONSUMPTION, TRANSFER_OUT, DISPOSAL
+///               quantity < 0, status_from only.
+///     MOVES     RESERVATION, RELEASE, EXPIRY, RECALL, QUARANTINE,
+///               QUARANTINE_RELEASE, DAMAGE
+///               quantity > 0, BOTH statuses, and they must differ. Net effect
+///               on the branch's total holding is zero — the quantity changes
+///               which bucket it sits in, not whether it exists.
+///     EITHER    ADJUSTMENT — and therefore the only member that REQUIRES a
+///               reason code, because it is the only one whose meaning is not
+///               already stated by its name.
+///
+/// ⚠️ `EXPIRY`, `DAMAGE` AND `RECALL` ARE MOVES, NOT REMOVALS, AND THAT IS A
+///   DELIBERATE REFINEMENT OF THE ARCHITECTURE DOC'S SIGN TABLE. Expired stock
+///   has not left the building; it is on the shelf, undispensable, waiting to be
+///   destroyed and needing to be counted and valued until it is. Writing it as a
+///   `−` would make it vanish from every count on the day it expired and leave
+///   the clinic unable to say what it is about to dispose of — while the status
+///   model in INVENTORY_ARCHITECTURE.md says in the same breath that EXPIRED
+///   stock is "visible, countable and valued". `DISPOSAL` is the `−` that
+///   actually removes it, and it is the one that reports a physical departure.
+enum StockMovementType {
+  PURCHASE_RECEIPT
+  TRANSFER_IN
+  TRANSFER_OUT
+  DISPENSING
+  CLINICAL_CONSUMPTION
+  ADJUSTMENT
+  DAMAGE
+  EXPIRY
+  RECALL
+  /// Coming back from a patient or a department. Not a purchase return, which is
+  /// a `TRANSFER_OUT` to the supplier in PI-4.
+  RETURN
+  DISPOSAL
+  RESERVATION
+  RELEASE
+  QUARANTINE
+  QUARANTINE_RELEASE
+}
+
+/// What a movement was FOR. Half of the traceability key.
+///
+/// `reference_id` is deliberately NOT a foreign key: the row it names lives in a
+/// different domain, several of those domains do not exist yet
+/// (`prescriptions`, `encounters`, goods receipts), and a ledger row must
+/// outlive whatever caused it. A recall in 2031 asks "what did this batch touch"
+/// and must get an answer even if the encounter was purged under a retention
+/// policy. The pair is indexed so the question is one index scan.
+enum StockReferenceType {
+  /// No external cause: an opening balance, a stock take, a manual correction.
+  MANUAL
+  GOODS_RECEIPT
+  PURCHASE_RETURN
+  DISPENSE
+  CONSUMPTION
+  TRANSFER
+  STOCK_TAKE
+  RECALL
+  /// The expiry sweep. The only reference type written by a worker.
+  EXPIRY_SWEEP
+  ONLINE_ORDER
+}
+
+// ---------------------------------------------------------------------------
+// Places
+// ---------------------------------------------------------------------------
+
+/// A place stock is kept. `branch -> location -> area -> bin` (PI-ADR-012).
+///
+/// ⚠️ A BRANCH HAS MANY LOCATIONS, AND ASSUMING ONE IS UNRECOVERABLE WITHOUT A
+///   MIGRATION UNDER LIVE STOCK. A clinic has a main pharmacy, a vaccine fridge,
+///   a controlled-drug cabinet and a dressing trolley in every procedure room,
+///   and those are four different answers to "where is it" with four different
+///   storage requirements and four different people responsible. Folding them
+///   into "the branch's stock" makes cold-chain, controlled-substance
+///   reconciliation and departmental consumption all unexpressible at once.
+///
+/// Branch-scoped: `branch_id` is NOT NULL and the branch policy is therefore
+/// absolute. A storekeeper scoped to one site cannot read another site's shelves.
+model InventoryLocation {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  branchId       String       @map("branch_id") @db.Uuid
+  kind           LocationKind
+  /// The clinic's own code. Unique per branch, not per organization — two sites
+  /// both calling their fridge `FRIDGE-1` is the ordinary case.
+  code           String       @db.VarChar(64)
+  name           String       @db.VarChar(255)
+  /// Whether stock may be dispensed or consumed directly FROM here. A central
+  /// warehouse usually cannot; a main pharmacy always can. UI and PI-7 read it;
+  /// ⚠️ it is not a permission.
+  isDispensingPoint Boolean   @default(false) @map("is_dispensing_point")
+  /// A locked cabinet with a register. Descriptive here; PI-5 decides which
+  /// products a jurisdiction REQUIRES it for.
+  requiresControlledAccess Boolean @default(false) @map("requires_controlled_access")
+  /// What this place can physically keep — the fridge's own range. Matched
+  /// against a product's `storage_profile_id` when stock is received, so a
+  /// vaccine into an ambient shelf can be refused. A plain FK into a
+  /// possibly-platform row, so it carries a RESTRICTIVE visibility policy.
+  storageProfileId String?    @map("storage_profile_id") @db.Uuid
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch         Branch                     @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  storageProfile StorageRequirementProfile? @relation(fields: [storageProfileId], references: [id], onDelete: Restrict)
+
+  areas           StorageArea[]
+  serialsHere     Serial[]
+  balances        StockBalance[]
+  movementsFrom   StockLedgerEntry[] @relation("MovementFromLocation")
+  movementsTo     StockLedgerEntry[] @relation("MovementToLocation")
+
+  @@unique([organizationId, branchId, code])
+  /// The composite-FK target every child below references.
+  @@unique([organizationId, id])
+  /// ⚠️ THE BRANCH-QUALIFIED TARGET, AND IT IS WHAT MAKES A CROSS-BRANCH
+  ///   MOVEMENT UNREPRESENTABLE RATHER THAN MERELY REFUSED. With only
+  ///   `(organization_id, id)` to compose against, `stock_ledger.branch_id` and
+  ///   `from_location_id` are constrained independently — so a row at branch A
+  ///   citing a shelf at branch B is a legal INSERT, and the only thing standing
+  ///   there is a check in `recordMovementIn`. ADR-0004 argues the opposite
+  ///   everywhere else in this schema; this is that argument applied here.
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, branchId, isActive])
+  @@index([organizationId, branchId, kind])
+  @@map("inventory_locations")
+}
+
+/// A named part of a location — an aisle, a shelf, a fridge drawer.
+///
+/// Areas and bins are NOT separately branch-scoped (PI-ADR-012): they inherit
+/// through the composite FK, exactly as invoice children do. They carry
+/// `branch_id` anyway so they are ordinary members of both RLS loops rather than
+/// needing a hand-written parent predicate — see the note against
+/// `appointment_status_history` in enable-rls.sql for what happens otherwise.
+model StorageArea {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  locationId     String   @map("location_id") @db.Uuid
+  code           String   @db.VarChar(64)
+  name           String   @db.VarChar(255)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  location     InventoryLocation @relation(fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Cascade)
+  bins         StorageBin[]
+
+  @@unique([organizationId, locationId, code])
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId, locationId])
+  @@map("storage_areas")
+}
+
+/// The smallest addressable place. A shelf position, a tote, a drawer slot.
+///
+/// Bins are addresses, not quantities: `stock_balances` is keyed by LOCATION,
+/// not by bin, because a bin is where a person walks to and a location is what
+/// the clinic reconciles. Bin-level balances would multiply the balance table by
+/// the number of shelves for a number nobody counts.
+model StorageBin {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  areaId         String   @map("area_id") @db.Uuid
+  code           String   @db.VarChar(64)
+  label          String?  @db.VarChar(255)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  area         StorageArea  @relation(fields: [organizationId, areaId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, areaId, code])
+  /// ⚠️ PRESENT SO PI-3 CAN COMPOSITE-FK TO A BIN WITHOUT A MIGRATION UNDER LIVE
+  ///   STOCK. Every other table in this file that anything might point at has
+  ///   one; bins did not, purely because nothing points at them today. Bin-level
+  ///   movements are exactly the kind of thing a later phase adds.
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId, areaId])
+  @@map("storage_bins")
+}
+
+// ---------------------------------------------------------------------------
+// What is being counted
+// ---------------------------------------------------------------------------
+
+/// A lot of one product, received once, with one expiry and one cost.
+///
+/// ⚠️ LOT UNIQUENESS IS TENANT- AND BRANCH-QUALIFIED, NEVER GLOBAL. A lot number
+///   is the MANUFACTURER's identifier, so two clinics stocking the same medicine
+///   hold the same lot number, and one hospital group receiving that lot at two
+///   sites holds it twice — at two costs, with two remaining quantities. A bare
+///   `@@unique([lotNumber])` would make the second receipt fail with a duplicate
+///   key nobody could explain.
+///
+/// ⚠️ `product_id` IS A PLAIN FK AND CANNOT BE COMPOSITE. A clinic stocks
+///   PLATFORM products, whose `organization_id` is NULL and which this row's NOT
+///   NULL column cannot compose with. The RESTRICTIVE `product_visible` policy
+///   is the ENTIRE control on that side — see the file header.
+///
+/// The manufacturer here may legitimately differ from the product's: contract
+/// manufacture and repackaging are why the column exists rather than being read
+/// off the product.
+model Batch {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  branchId       String      @map("branch_id") @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  /// As printed on the pack. Case is preserved; comparison is exact, because a
+  /// lot number is an identifier and `AB12` is not `ab12` to a regulator.
+  lotNumber      String      @map("lot_number") @db.VarChar(128)
+  /// DATES, not instants. A batch is manufactured and expires on a DAY, in the
+  /// manufacturer's calendar, in nobody's particular timezone. The sweep that
+  /// acts on `expires_on` is what resolves it into the BRANCH's zone — see
+  /// invariant 6 and the expiry processor.
+  manufacturedOn DateTime?   @map("manufactured_on") @db.Date
+  expiresOn      DateTime?   @map("expires_on") @db.Date
+  /// Some products are re-tested and re-dated rather than expiring outright —
+  /// reagents and some APIs. Informational until PI-5 gives it a rule.
+  retestOn       DateTime?   @map("retest_on") @db.Date
+  manufacturerId String?     @map("manufacturer_id") @db.Uuid
+  /// Cost per BASE UNIT in integer minor units (PI-ADR-010). Per base unit, not
+  /// per pack: a supplier changing from strips of 10 to strips of 15 must not
+  /// silently restate the value of everything already on the shelf.
+  unitCostBase   BigInt?     @map("unit_cost_base") @db.BigInt
+  /// ISO 4217. Required whenever a cost is recorded — CHECKed in the migration,
+  /// because a number with no currency is a number that will be added to a
+  /// different one.
+  currency       String?     @db.Char(3)
+  status         BatchStatus @default(ACTIVE)
+
+  // -- recall and quarantine capability (PI-2.9) ------------------------------
+  // The COLUMNS land here; the workflow is PI-10. That ordering is deliberate:
+  // a recall the schema cannot represent is a migration under load, and recalls
+  // arrive without notice. From today, allocation excludes RECALLED and
+  // QUARANTINED stock, so a batch set to either by hand is immediately
+  // un-dispensable even though no workflow exists yet.
+  quarantinedAt     DateTime? @map("quarantined_at") @db.Timestamptz(6)
+  quarantineReason  String?   @map("quarantine_reason") @db.Text
+  recalledAt        DateTime? @map("recalled_at") @db.Timestamptz(6)
+  /// The regulator's or manufacturer's own notice number, so a batch can be tied
+  /// back to the announcement that caused it.
+  recallReference   String?   @map("recall_reference") @db.VarChar(128)
+
+  /// When this lot physically arrived. The FEFO tie-break: two batches expiring
+  /// the same day go out oldest-received first.
+  receivedAt     DateTime    @default(now()) @map("received_at") @db.Timestamptz(6)
+  notes          String?     @db.Text
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FKs into possibly-platform rows. See the file header — each carries a
+  /// RESTRICTIVE `*_visible` policy, which is the only control on that side.
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  manufacturer Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+
+  serials   Serial[]
+  balances  StockBalance[]
+  movements StockLedgerEntry[]
+
+  @@unique([organizationId, branchId, productId, lotNumber])
+  @@unique([organizationId, id])
+  /// Branch-qualified, for the same reason as `inventory_locations`. A movement
+  /// at branch A citing a lot held at branch B is now unrepresentable.
+  @@unique([organizationId, branchId, id])
+  /// FEFO allocation and the expiry sweep, which is the same query twice.
+  @@index([organizationId, branchId, productId, expiresOn])
+  @@index([organizationId, branchId, expiresOn])
+  @@index([organizationId, productId])
+  @@map("batches")
+}
+
+/// One physically identifiable unit. An implant, a device, an instrument set.
+///
+/// ⚠️ `assigned_patient_id` IS PHI. "Serial 7742 is in Mrs Rao" is a clinical
+///   fact about a named person, answerable by primary key, and it is why this
+///   table is branch-scoped rather than org-scoped: a device fitted at one site
+///   is not the other site's business. Every read that returns it goes through
+///   `recordDataAccess` (PI-ADR-016), and the id is never logged beside a name.
+///
+/// A serial may exist without a batch: a device with `tracking_mode = SERIAL`
+/// and no lot is ordinary. `LOT_AND_SERIAL` requires both, and the ledger's
+/// tracking CHECK is what enforces that at the point it matters.
+model Serial {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  branchId       String       @map("branch_id") @db.Uuid
+  productId      String       @map("product_id") @db.Uuid
+  batchId        String?      @map("batch_id") @db.Uuid
+  serialNumber   String       @map("serial_number") @db.VarChar(128)
+  status         SerialStatus @default(IN_STOCK)
+  /// Where it is right now. NULL once it has left the clinic.
+  currentLocationId String?   @map("current_location_id") @db.Uuid
+  /// ⚠️ PHI. See the model comment.
+  assignedPatientId String?   @map("assigned_patient_id") @db.Uuid
+  assignedAt        DateTime? @map("assigned_at") @db.Timestamptz(6)
+  /// A device's own expiry, where it has one distinct from its batch's.
+  expiresOn      DateTime?    @db.Date @map("expires_on")
+  notes          String?      @db.Text
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch          Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FK into a possibly-platform row — `product_visible` policy.
+  product         Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  /// Branch-qualified: a serial held at one site cannot cite a lot or a shelf at
+  /// another. `assertSerialReferences` says so in a sentence; this says so in
+  /// the schema.
+  batch           Batch?             @relation(fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  currentLocation InventoryLocation? @relation(fields: [organizationId, branchId, currentLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  assignedPatient Patient?           @relation(fields: [organizationId, assignedPatientId], references: [organizationId, id], onDelete: Restrict)
+
+  balances  StockBalance[]
+  movements StockLedgerEntry[]
+
+  /// Serial numbers repeat across manufacturers, so the key is product-qualified
+  /// as well as tenant-qualified.
+  @@unique([organizationId, productId, serialNumber])
+  @@unique([organizationId, id])
+  /// Branch-qualified, for the same reason as `inventory_locations`.
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, branchId, status])
+  @@index([organizationId, batchId])
+  /// "Which patient has device X" and "which devices does this patient have" —
+  /// the recall question, from both ends.
+  @@index([organizationId, assignedPatientId])
+  @@map("serials")
+}
+
+// ---------------------------------------------------------------------------
+// The ledger
+// ---------------------------------------------------------------------------
+
+/// EVERY movement of every quantity, for ever. The most important table in the
+/// programme (PI-ADR-004).
+///
+/// ── APPEND-ONLY, ENFORCED TWICE ──────────────────────────────────────────────
+/// Exactly as `audit_logs` and `data_access_logs` already are in this repository:
+///
+///   1. `rcln_app` holds no UPDATE or DELETE on the table (a REVOKE in the
+///      migration), and
+///   2. a trigger refuses both anyway, so re-running the init script's blanket
+///      `GRANT ... ON ALL TABLES` does not quietly re-open it.
+///
+/// Each layer is measured by a test that removes the other and proves this one
+/// still refuses. A correction is a compensating row with a reason; there is no
+/// edit, and that is what makes recall and traceability possible at all.
+///
+/// ── WHY `reference_id` IS NOT A FOREIGN KEY ──────────────────────────────────
+/// It points into whichever domain caused the movement, several of which do not
+/// exist yet, and a ledger row must outlive its cause. See `StockReferenceType`.
+///
+/// ── THE DENORMALISED COLUMNS ARE DELIBERATE ─────────────────────────────────
+/// `tracking_mode` is copied from the product so the PI-ADR-014 CHECK needs no
+/// join — a CHECK constraint cannot read another table, and a rule that lives
+/// only in a service is a rule until somebody writes a second service. It is a
+/// snapshot of what the product required AT THE TIME, which is also the honest
+/// thing for history to record: a product that becomes serialised next year did
+/// not require a serial for a movement made today.
+model StockLedgerEntry {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  productId String  @map("product_id") @db.Uuid
+  batchId   String? @map("batch_id") @db.Uuid
+  serialId  String? @map("serial_id") @db.Uuid
+  /// Snapshot of `products.tracking_mode`. See the model comment.
+  trackingMode TrackingMode @map("tracking_mode")
+
+  movementType StockMovementType @map("movement_type")
+  /// SIGNED, in the product's base unit. ⚠️ The sign is derived from
+  /// `movementType` and CHECKed; no caller ever chooses it. See the enum.
+  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  /// What the user actually typed, and in what. Kept so a receipt of "2 boxes"
+  /// still reads as "2 boxes" a year later, when the pack size has changed and
+  /// `quantity_base` alone can no longer be turned back into what was meant.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+
+  /// Which bucket the quantity left and which it entered. Both, one, or the
+  /// other, paired with `movementType` by the direction CHECK. The balance
+  /// trigger reads exactly these four columns and nothing else.
+  fromLocationId String?      @map("from_location_id") @db.Uuid
+  toLocationId   String?      @map("to_location_id") @db.Uuid
+  statusFrom     StockStatus? @map("status_from")
+  statusTo       StockStatus? @map("status_to")
+
+  /// Mandatory on `ADJUSTMENT` (CHECKed) and optional elsewhere. An adjustment
+  /// with no reason is a number nobody can audit, and adjustments are precisely
+  /// where shrinkage hides.
+  reasonCode String? @map("reason_code") @db.VarChar(64)
+  reasonNote String? @map("reason_note") @db.Text
+
+  referenceType StockReferenceType @map("reference_type")
+  /// The id in the referenced domain. Not a FK — see the model comment.
+  referenceId   String?            @map("reference_id") @db.Uuid
+
+  /// Cost carried on the movement itself, so a valuation report never has to
+  /// guess what the batch cost when this row was written.
+  unitCostBase BigInt? @map("unit_cost_base") @db.BigInt
+  currency     String? @db.Char(3)
+
+  /// Who did it. NOT NULL: a movement with no actor is a movement nobody can be
+  /// asked about, and the expiry sweep supplies a real user rather than a
+  /// fiction — see the processor.
+  actorUserId String @map("actor_user_id") @db.Uuid
+  /// When it HAPPENED, which is not always when it was recorded: a receipt
+  /// entered on Monday for goods that arrived on Friday is ordinary.
+  occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  /// When the row was written. Immutable, and the two together are what make a
+  /// backdated entry visible as one.
+  recordedAt  DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FK into a possibly-platform row — `product_visible` policy.
+  product      Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  /*
+   * ⚠️ ALL FOUR COMPOSE ON `(organization_id, branch_id, …)`, NOT JUST THE
+   *   ORGANIZATION. The two-column form proves only that the lot, serial or
+   *   shelf belongs to this TENANT; a movement recorded at branch A citing a
+   *   shelf at branch B would satisfy it. `recordMovementIn` checks that in
+   *   code, and a rule enforced in one code path is a rule until somebody writes
+   *   a second one — which PI-3's transfers, PI-4's receipts and PI-7's
+   *   dispensing all are. Three columns makes it unrepresentable.
+   */
+  batch        Batch?             @relation(fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial       Serial?            @relation(fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+  fromLocation InventoryLocation? @relation("MovementFromLocation", fields: [organizationId, branchId, fromLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  toLocation   InventoryLocation? @relation("MovementToLocation", fields: [organizationId, branchId, toLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  actor        User               @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  /// The ledger screen: one product's history at one branch, newest first.
+  @@index([organizationId, branchId, productId, occurredAt(sort: Desc)])
+  /// One batch's whole life. The recall query.
+  @@index([organizationId, batchId, occurredAt])
+  /// Traceability: "what did this goods receipt / this dispense do".
+  @@index([organizationId, referenceType, referenceId])
+  /// One device's history, end to end.
+  @@index([organizationId, serialId])
+  /// The replay `verifyBalances()` runs, and the branch-wide ledger view.
+  @@index([organizationId, branchId, occurredAt(sort: Desc)])
+  @@map("stock_ledger")
+}
+
+/// How much of what is where, in what condition. A CACHE (PI-ADR-004).
+///
+/// ⚠️ NEVER AUTHORITATIVE, AND NOTHING IN THE APPLICATION WRITES IT. `rcln_app`
+///   holds no INSERT, UPDATE or DELETE here; the row is maintained by a
+///   SECURITY DEFINER trigger on `stock_ledger` and by nothing else. That is the
+///   difference between "we agreed not to" and "it cannot".
+///
+///   A disagreement between this table and a ledger replay is a bug in the
+///   trigger, and the LEDGER WINS. `verifyBalances()` performs the replay and is
+///   run by the test suite and on demand; it never silently repairs, because a
+///   cache that heals itself hides the bug that broke it.
+///
+/// ⚠️ `quantity >= 0` IS A DATABASE CHECK, NOT A SERVICE RULE. It is the last
+///   line against a dispense that beat another dispense to the same last strip:
+///   the losing transaction fails on the constraint rather than committing a
+///   negative shelf. See the concurrency note in INVENTORY_ARCHITECTURE.md — the
+///   service takes `FOR UPDATE` on these rows first so the normal outcome is a
+///   409 rather than a constraint error, and this is what happens when it does
+///   not.
+model StockBalance {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  branchId       String      @map("branch_id") @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  batchId        String?     @map("batch_id") @db.Uuid
+  serialId       String?     @map("serial_id") @db.Uuid
+  locationId     String      @map("location_id") @db.Uuid
+  status         StockStatus
+  quantity       Decimal     @db.Decimal(18, 6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FK into a possibly-platform row — `product_visible` policy.
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  /// Branch-qualified, exactly as on the ledger — and here it also makes
+  /// `verifyBalances()` airtight: the replay groups without `branch_id`, which
+  /// is only correct because a location now implies exactly one branch.
+  batch        Batch?            @relation(fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial       Serial?           @relation(fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+  location     InventoryLocation @relation(fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  /// The bucket key. ⚠️ Rewritten NULLS NOT DISTINCT in the migration:
+  /// `batch_id` and `serial_id` are nullable, and under Postgres's default every
+  /// untracked product's balance row would be unique against every other — the
+  /// trigger's `ON CONFLICT` would never fire and each movement would insert a
+  /// new row instead of accumulating.
+  @@unique([organizationId, branchId, productId, batchId, serialId, locationId, status])
+  /// "What is on this shelf" — the stock-by-location screen.
+  @@index([organizationId, branchId, locationId, productId, status])
+  /// "Where is this product" — across every location the caller can see.
+  @@index([organizationId, productId, status])
+  @@index([organizationId, batchId])
+  @@map("stock_balances")
+}

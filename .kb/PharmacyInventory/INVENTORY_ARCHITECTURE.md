@@ -37,14 +37,30 @@ Rules with no exceptions:
 The caller never chooses a sign. `movement_type` determines it, and a CHECK
 constraint enforces the pairing:
 
-| Movement                                                                             | Sign                                                                |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `PURCHASE_RECEIPT`, `TRANSFER_IN`, `RETURN`                                          | `+`                                                                 |
-| `DISPENSING`, `CLINICAL_CONSUMPTION`, `TRANSFER_OUT`, `DAMAGE`, `EXPIRY`, `DISPOSAL` | `−`                                                                 |
-| `ADJUSTMENT`                                                                         | either — and therefore the only one that **requires** a reason code |
-| `RESERVATION` / `RELEASE`                                                            | zero net; they move quantity between statuses, not locations        |
+| Movement                                                                                   | Sign                                                                |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `PURCHASE_RECEIPT`, `TRANSFER_IN`, `RETURN`                                                | `+` — `status_to` only                                              |
+| `DISPENSING`, `CLINICAL_CONSUMPTION`, `TRANSFER_OUT`, `DISPOSAL`                           | `−` — `status_from` only                                            |
+| `RESERVATION`, `RELEASE`, `EXPIRY`, `RECALL`, `QUARANTINE`, `QUARANTINE_RELEASE`, `DAMAGE` | zero net; they move quantity between STATUSES, not locations        |
+| `ADJUSTMENT`                                                                               | either — and therefore the only one that **requires** a reason code |
 
 A caller that could pass `-5` on a receipt is a caller that will.
+
+⚠️ **`EXPIRY`, `DAMAGE` and `RECALL` MOVED TO THE THIRD ROW IN PI-2, AND THE
+CHANGE IS DELIBERATE.** They were originally listed as `−`, and that contradicts
+the status model in the very next section: expired stock is "visible, countable
+and valued", which it cannot be if the movement removed it. Expired stock has not
+left the building — it is on the shelf, undispensable, waiting to be destroyed,
+and the clinic has to be able to say what it is about to dispose of. Written as a
+`−` it would vanish from every count on the day it expired.
+
+`DISPOSAL` is the `−` that records a physical departure, and it is the one
+movement with no default `status_from`: what is being destroyed — expired,
+damaged, recalled — is the entire content of the record, and defaulting it to
+AVAILABLE would let a mis-click destroy sellable stock and log it as routine.
+
+The pairing is enforced by the `stock_ledger_direction` CHECK constraint, and
+mirrored in the `DIRECTION` table in `packages/inventory/src/movement.ts`.
 
 ---
 

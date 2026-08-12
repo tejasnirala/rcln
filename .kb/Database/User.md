@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 25 |
+| relations | 26 |
 
 ## Columns
 
@@ -66,6 +66,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `invoicesIssued` | [`Invoice`](Invoice.md) | `invoicesIssued Invoice[] @relation("InvoiceIssuedBy")` |
 | `invoicesCancelled` | [`Invoice`](Invoice.md) | `invoicesCancelled Invoice[] @relation("InvoiceCancelledBy")` |
 | `invoiceDocumentsGenerated` | [`InvoiceDocument`](InvoiceDocument.md) | `invoiceDocumentsGenerated InvoiceDocument[] @relation("InvoiceDocumentGeneratedBy")` |
+| `stockMovements` | [`StockLedgerEntry`](StockLedgerEntry.md) | `stockMovements StockLedgerEntry[]` |
 
 ## Indexes and constraints
 
@@ -96,4 +97,5 @@ erDiagram
     User }o--o{ AppointmentVital : relates
     User }o--o{ Invoice : relates
     User }o--o{ InvoiceDocument : relates
+    User }o--o{ StockLedgerEntry : relates
 ```

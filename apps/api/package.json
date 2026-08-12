@@ -2,7 +2,7 @@
   "name": "@rcln/api",
   "version": "0.1.0",
   "private": true,
-  "description": "rcln API — tenant resolution, auth, RBAC, clinical modules",
+  "description": "rcln API \u2014 tenant resolution, auth, RBAC, clinical modules",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -26,6 +26,7 @@
     "@rcln/contracts": "workspace:*",
     "@rcln/db": "workspace:*",
     "@rcln/documents": "workspace:*",
+    "@rcln/inventory": "workspace:*",
     "@rcln/invoicing": "workspace:*",
     "@rcln/payments": "workspace:*",
     "@rcln/permissions": "workspace:*",

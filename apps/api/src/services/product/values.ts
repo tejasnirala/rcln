@@ -75,6 +75,24 @@ export function isCurrentOn(effectiveTo: Date | null, on: Date = calendarToday()
 }
 
 /**
+ * `YYYY-MM-DD` from a contract into the UTC midnight a `@db.Date` column holds.
+ *
+ * The inverse of `toCalendarDate`, and it lives here for the reason this file's
+ * header gives: `toCalendarDate` had three identical copies and they all carried
+ * the same off-by-one. This one had four — `doctor.service.ts`,
+ * `patient.service.ts`, `patient-history.service.ts` and PI-2's
+ * `batch.service.ts` — in three subtly different signatures.
+ *
+ * ⚠️ THE THREE OLDER COPIES ARE STILL THERE. Collapsing them means touching
+ *   Phase 3's doctor and patient services and their tests, which is not PI-2's
+ *   change to make; this is the canonical one and the place the next person
+ *   should find. Recorded in the PI-2 tracker as a follow-up.
+ */
+export function toDateColumn(value: string | null | undefined): Date | null {
+  return value == null ? null : new Date(`${value}T00:00:00.000Z`);
+}
+
+/**
  * `Decimal` columns come back as a Prisma Decimal. `toString()` preserves every
  * digit; `Number()` would not, which is the whole reason quantities are strings
  * on the wire.

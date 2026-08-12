@@ -63,6 +63,29 @@ export const errorHandler = (
     return sendError(res, err.message, err.statusCode);
   }
 
+  /*
+   * `@rcln/inventory` throws its own error, because a package behind a queue
+   * consumer has no idea it is behind HTTP and must not import this app's error
+   * classes. The three kinds map onto EXACTLY the statuses `ValidationError`,
+   * `NotFoundError` and `ConflictError` produce, so nothing on the wire changed
+   * when the ledger writer moved out of `apps/api` in PI-2.
+   *
+   * ⚠️ `CONFLICT` IS 409 AND NOT 500, AND THE DISTINCTION REACHES A PHARMACIST.
+   *   Losing the race for the last strip is a normal outcome in a busy pharmacy;
+   *   the losing transaction is refused before it can commit a negative shelf.
+   *   Reported as an internal error it reads as "the system is broken" rather
+   *   than "somebody else took it".
+   *
+   * Narrowed by `name` rather than `instanceof` for the same reason the Prisma
+   * check below is: under pnpm's symlinked node_modules a package and an app can
+   * end up with separate class identities.
+   */
+  if (err.name === 'InventoryError') {
+    const kind = (err as Error & { kind?: string }).kind;
+    const status = kind === 'NOT_FOUND' ? 404 : kind === 'CONFLICT' ? 409 : 400;
+    return sendError(res, err.message, status);
+  }
+
   // Handle Prisma errors.
   // Narrowed via a code check rather than instanceof: the generated client and
   // the app can end up with separate class identities under pnpm's symlinked

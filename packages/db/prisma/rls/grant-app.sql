@@ -80,5 +80,63 @@ BEGIN
   IF to_regclass('public.appointment_status_history') IS NOT NULL THEN
     REVOKE UPDATE, DELETE ON appointment_status_history FROM rcln_app;
   END IF;
+
+  -- -------------------------------------------------------------------------
+  -- Inventory (PI-2). The ledger is append-only for the same reason as the two
+  -- trails above; the balance cache is stricter still.
+  --
+  -- ⚠️ `stock_balances` LOSES INSERT TOO, NOT ONLY UPDATE AND DELETE. It is a
+  --   CACHE maintained by a SECURITY DEFINER trigger on `stock_ledger`, and
+  --   PI-ADR-004 rule 2 — "nothing at all writes stock_balances" — is a GRANT
+  --   rather than an agreement only for as long as this stays here. With INSERT
+  --   left standing, any code path in the application could state a quantity
+  --   directly, which is the one number the append-only ledger exists to make
+  --   unforgeable.
+  --
+  -- ⚠️ THIS FILE'S OWN HEADER PREDICTED THIS AND PI-2 STILL SHIPPED WITHOUT IT.
+  --   The migrations revoked all four rights; `GRANT ... ON ALL TABLES` above
+  --   handed them straight back on every `db:reset`, and nothing failed locally
+  --   because a reset had not been run since. CI caught it on a schema built
+  --   from empty, which is precisely the case the header names. The lesson is
+  --   that a REVOKE in a migration is necessary and NOT sufficient — it has to
+  --   be repeated here, or it survives exactly until the next reset.
+  -- -------------------------------------------------------------------------
+  IF to_regclass('public.stock_ledger') IS NOT NULL THEN
+    REVOKE UPDATE, DELETE ON stock_ledger FROM rcln_app;
+  END IF;
+  IF to_regclass('public.stock_balances') IS NOT NULL THEN
+    REVOKE INSERT, UPDATE, DELETE ON stock_balances FROM rcln_app;
+  END IF;
+END
+$$;
+
+-- ---------------------------------------------------------------------------
+-- And the two SECURITY DEFINER functions that maintain the balance cache.
+--
+-- ⚠️ `ALTER DEFAULT PRIVILEGES ... GRANT EXECUTE ON FUNCTIONS` ABOVE HANDS EVERY
+--   FUNCTION TO `rcln_app` AT CREATION, so revoking these in their migration is
+--   undone by the same reset that undoes the table REVOKEs. And these are worse
+--   than a writable table: `stock_balances_apply_delta` is SECURITY DEFINER, so
+--   it runs as the owner and bypasses RLS, and it takes the organization,
+--   branch, location and delta AS ARGUMENTS. Callable by the request-path role,
+--   it is an arbitrary cross-tenant write into the balance cache.
+--
+-- ⚠️ AND `REVOKE ... FROM PUBLIC` IS NOT ENOUGH — `rcln_app` MUST BE NAMED. The
+--   grant that matters here is role-specific, not the PUBLIC one; revoking only
+--   PUBLIC leaves it standing. That was a CRITICAL in the PI-2 security review
+--   and it is the reason this stanza spells the role out.
+--
+-- The trigger keeps working: a trigger function is invoked by the executor on
+-- behalf of the statement, and EXECUTE is not checked for it.
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF to_regprocedure('public.stock_balances_apply_delta(uuid, uuid, uuid, uuid, uuid, uuid, "StockStatus", numeric)') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION stock_balances_apply_delta(uuid, uuid, uuid, uuid, uuid, uuid, "StockStatus", numeric)
+      FROM PUBLIC, rcln_app;
+  END IF;
+  IF to_regprocedure('public.stock_balances_apply()') IS NOT NULL THEN
+    REVOKE ALL ON FUNCTION stock_balances_apply() FROM PUBLIC, rcln_app;
+  END IF;
 END
 $$;

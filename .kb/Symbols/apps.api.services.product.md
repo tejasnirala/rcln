@@ -12,50 +12,39 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | --- | --- | --- | --- |
 | `addIdentifier` | `(ctx: TenantContext, productId: string, input: CreateProductIdentifierRequest, options: CatalogueActionOptions): Promise<ProductIdentifierDetail>` | `apps/api/src/services/product/identifier.service.ts:82` |  |
 | `assertDistinctIngredients` <sub>local</sub> | `(ingredients: { ingredientId: string }[]): void` | `apps/api/src/services/product/catalogue.service.ts:577` |  |
-| `assertExactConversion` | `(result: ConversionResult, context: { from: string; to: string }): string` | `apps/api/src/services/product/units.ts:348` |  |
-| `assertExpiryTrackable` <sub>local</sub> | `(input: { isExpiryControlled?: boolean \| undefined; tracking…): void` | `apps/api/src/services/product/product.service.ts:378` |  |
+| `assertExpiryTrackable` <sub>local</sub> | `(input: { isExpiryControlled?: boolean \| undefined; tracking…): void` | `apps/api/src/services/product/product.service.ts:381` |  |
 | `assertMutable` <sub>local</sub> | `(organizationId: string \| null, noun: string): void` | `apps/api/src/services/product/catalogue.service.ts:54` |  |
 | `assertMutable` <sub>local</sub> | `(row: CategoryRow): void` | `apps/api/src/services/product/category.service.ts:107` |  |
 | `assertMutable` <sub>local</sub> | `(organizationId: string \| null): void` | `apps/api/src/services/product/product.service.ts:104` |  |
 | `assertMutable` <sub>local</sub> | `(organizationId: string \| null, noun: string): void` | `apps/api/src/services/product/unit.service.ts:82` |  |
 | `assertNoOverlap` <sub>local</sub> | `(classifications: ReplaceProductTaxClassificationsRequest['c…): void` | `apps/api/src/services/product/tax-classification.service.ts:156` |  |
 | `assertSafeToDeactivate` <sub>local</sub> | `(tx: TxClient, id: string): Promise<void>` | `apps/api/src/services/product/category.service.ts:384` |  |
-| `assertValidPackaging` | `(levels: PackagingLevelRow[]): void` | `apps/api/src/services/product/units.ts:446` |  |
-| `buildUnitGraph` | `(units: UnitRow[], conversions: ConversionRow[]): UnitGraph` | `apps/api/src/services/product/units.ts:206` |  |
 | `calendarToday` | `(): Date` | `apps/api/src/services/product/values.ts:59` | Today as a calendar day, comparable with a `@db.Date` column. |
 | `categorySubtreeIds` | `(tx: TxClient, id: string): Promise<string[]>` | `apps/api/src/services/product/category.service.ts:234` |  |
-| `cloneProduct` | `(ctx: TenantContext, productId: string, overrides: { code?: string \| undefined }, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:570` |  |
-| `conversionFactor` | `(graph: UnitGraph, fromUnitId: string, toUnitId: string): Rational` | `apps/api/src/services/product/units.ts:266` |  |
-| `convert` | `(graph: UnitGraph, quantity: string, fromUnitId: string, toUnitId: string): ConversionResult` | `apps/api/src/services/product/units.ts:310` | Convert a quantity between two units. See `ConversionResult.exact`. |
-| `convertFromBase` | `(graph: UnitGraph, baseQuantity: string, baseUnitId: string, toUnitId: string): ConversionResult` | `apps/api/src/services/product/units.ts:331` | Express a base-unit quantity in something a human reads. Display only. |
-| `convertPackagingToBase` | `(levels: PackagingLevelRow[], quantity: string, level: number): ConversionResult` | `apps/api/src/services/product/units.ts:432` | A quantity entered at a packaging level, expressed in base units. |
-| `convertToBase` | `(graph: UnitGraph, quantity: string, fromUnitId: string, baseUnitId: string): ConversionResult` | `apps/api/src/services/product/units.ts:321` | Express a quantity in the product's base unit. The ledger's denomination. |
+| `cloneProduct` | `(ctx: TenantContext, productId: string, overrides: { code?: string \| undefined }, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:573` |  |
 | `createActiveIngredient` | `(ctx: TenantContext, input: CreateActiveIngredientRequest, options: CatalogueActionOptions): Promise<ActiveIngredientSummary>` | `apps/api/src/services/product/catalogue.service.ts:239` |  |
 | `createCategory` | `(ctx: TenantContext, input: CreateProductCategoryRequest, options: CatalogueActionOptions): Promise<ProductCategory>` | `apps/api/src/services/product/category.service.ts:243` |  |
 | `createComposition` | `(ctx: TenantContext, input: CreateCompositionRequest, options: CatalogueActionOptions): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:443` |  |
 | `createManufacturer` | `(ctx: TenantContext, input: CreateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>` | `apps/api/src/services/product/catalogue.service.ts:88` |  |
-| `createProduct` | `(ctx: TenantContext, input: CreateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:393` |  |
+| `createProduct` | `(ctx: TenantContext, input: CreateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:396` |  |
 | `createStorageProfile` | `(ctx: TenantContext, input: CreateStorageProfileRequest, options: CatalogueActionOptions): Promise<StorageProfileSummary>` | `apps/api/src/services/product/catalogue.service.ts:620` |  |
 | `createUnit` | `(ctx: TenantContext, input: CreateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:188` |  |
 | `createUnitConversion` | `(ctx: TenantContext, input: CreateUnitConversionRequest, options: CatalogueActionOptions): Promise<UnitConversionSummary>` | `apps/api/src/services/product/unit.service.ts:312` |  |
 | `deactivateCategory` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/category.service.ts:355` |  |
-| `decimalToString` | `(value: { toString(): string } \| null): string \| null` | `apps/api/src/services/product/values.ts:82` | `Decimal` columns come back as a Prisma Decimal. `toString()` preserves every digit; `Number()` would not, which is the whole reason quantities are strings on … |
+| `decimalToString` | `(value: { toString(): string } \| null): string \| null` | `apps/api/src/services/product/values.ts:100` | `Decimal` columns come back as a Prisma Decimal. `toString()` preserves every digit; `Number()` would not, which is the whole reason quantities are strings on … |
 | `deleteUnitConversion` | `(ctx: TenantContext, conversionId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/unit.service.ts:440` |  |
 | `descendantRows` <sub>local</sub> | `(tx: TxClient, id: string, includeInactive: boolean, includeSelf: boolean): Promise<CategoryRow[]>` | `apps/api/src/services/product/category.service.ts:116` | Every descendant of `id`, flat, carrying an ABSOLUTE depth. |
 | `expireIdentifier` | `(ctx: TenantContext, productId: string, identifierId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/identifier.service.ts:164` |  |
 | `findCompositionOrThrow` <sub>local</sub> | `(tx: TxClient, id: string)` | `apps/api/src/services/product/catalogue.service.ts:366` |  |
 | `findProductOrThrow` <sub>local</sub> | `(tx: TxClient, id: string)` | `apps/api/src/services/product/product.service.ts:92` |  |
-| `formatQuantity` | `(value: Rational, scale): ConversionResult` | `apps/api/src/services/product/units.ts:165` |  |
-| `gcd` <sub>local</sub> | `(a: bigint, b: bigint): bigint` | `apps/api/src/services/product/units.ts:80` |  |
 | `getComposition` | `(ctx: TenantContext, compositionId: string): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:434` |  |
 | `getMedicineDetail` | `(ctx: TenantContext, productId: string): Promise<MedicineDetail \| null>` | `apps/api/src/services/product/medicine.service.ts:59` |  |
-| `getProduct` | `(ctx: TenantContext, productId: string): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:324` |  |
-| `invert` | `(a: Rational): Rational` | `apps/api/src/services/product/units.ts:123` |  |
+| `getProduct` | `(ctx: TenantContext, productId: string): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:327` |  |
 | `isCurrentOn` | `(effectiveTo: Date \| null, on: Date): boolean` | `apps/api/src/services/product/values.ts:72` |  |
 | `listActiveIngredients` | `(ctx: TenantContext, query: { q?: string \| undefined; includeInactive: boolean; …): Promise<ActiveIngredientSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:203` |  |
 | `listCategories` | `(ctx: TenantContext, includeInactive: boolean): Promise<ProductCategory[]>` | `apps/api/src/services/product/category.service.ts:193` |  |
 | `listCompositions` | `(ctx: TenantContext, query: { q?: string \| undefined; includeInactive: boolean; …): Promise<CompositionSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:394` |  |
-| `listEquivalentProducts` | `(ctx: TenantContext, productId: string): Promise<EquivalentProductsResponse>` | `apps/api/src/services/product/product.service.ts:337` |  |
+| `listEquivalentProducts` | `(ctx: TenantContext, productId: string): Promise<EquivalentProductsResponse>` | `apps/api/src/services/product/product.service.ts:340` |  |
 | `listIdentifiers` | `(ctx: TenantContext, productId: string): Promise<ProductIdentifierDetail[]>` | `apps/api/src/services/product/identifier.service.ts:63` |  |
 | `listManufacturers` | `(ctx: TenantContext, includeInactive: boolean): Promise<ManufacturerSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:66` |  |
 | `listPackagings` | `(ctx: TenantContext, productId: string): Promise<ProductPackagingDetail[]>` | `apps/api/src/services/product/packaging.service.ts:78` |  |
@@ -65,11 +54,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `listUnits` | `(ctx: TenantContext, query: UnitQuery): Promise<UnitListResponse>` | `apps/api/src/services/product/unit.service.ts:134` |  |
 | `loadCategory` <sub>local</sub> | `(tx: TxClient, id: string): Promise<CategoryRow>` | `apps/api/src/services/product/category.service.ts:82` |  |
 | `loadUnitGraph` | `(tx: TxClient): Promise<UnitGraph>` | `apps/api/src/services/product/unit.service.ts:107` |  |
-| `multiply` | `(a: Rational, b: Rational): Rational` | `apps/api/src/services/product/units.ts:109` |  |
-| `packagingFactorToBase` | `(levels: PackagingLevelRow[], level: number): Rational` | `apps/api/src/services/product/units.ts:389` |  |
-| `parseQuantity` | `(value: string): Rational` | `apps/api/src/services/product/units.ts:142` |  |
 | `quantityInBaseUnits` | `(ctx: TenantContext, productId: string, quantity: string, level: number): Promise<string>` | `apps/api/src/services/product/packaging.service.ts:218` |  |
-| `rational` | `(n: bigint, d: bigint): Rational` | `apps/api/src/services/product/units.ts:96` |  |
 | `readPackagings` <sub>local</sub> | `(tx: TxClient, productId: string): Promise<ProductPackagingDetail[]>` | `apps/api/src/services/product/packaging.service.ts:49` |  |
 | `readSynonyms` <sub>local</sub> | `(value: unknown): string[]` | `apps/api/src/services/product/catalogue.service.ts:198` |  |
 | `readTaxClassifications` <sub>local</sub> | `(tx: TxClient, productId: string): Promise<ProductTaxClassificationDetail[]>` | `apps/api/src/services/product/tax-classification.service.ts:65` | The read, INSIDE a caller's transaction — see `readPackagings` in `packaging.service.ts` for why the write path must not open a second one. |
@@ -82,6 +67,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `toCalendarDate` | `(value: Date): string` | `apps/api/src/services/product/values.ts:36` |  |
 | `toCategory` <sub>local</sub> | `(row: CategoryRow): ProductCategory` | `apps/api/src/services/product/category.service.ts:59` |  |
 | `toComposition` <sub>local</sub> | `(row: CompositionWithIngredients): CompositionSummary` | `apps/api/src/services/product/catalogue.service.ts:372` |  |
+| `toDateColumn` | `(value: string \| null \| undefined): Date \| null` | `apps/api/src/services/product/values.ts:91` |  |
 | `toDetail` <sub>local</sub> | `(row: { id: string; type: ProductIdentifierDetail['type']; v…): ProductIdentifierDetail` | `apps/api/src/services/product/identifier.service.ts:42` |  |
 | `toDetail` <sub>local</sub> | `(row: { id: string; productId: string; dosageForm: MedicineD…): MedicineDetail` | `apps/api/src/services/product/medicine.service.ts:35` |  |
 | `toDetail` <sub>local</sub> | `(row: ProductWithSummary): ProductDetail` | `apps/api/src/services/product/product.service.ts:152` |  |
@@ -92,16 +78,10 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `updateCategory` | `(ctx: TenantContext, id: string, input: UpdateProductCategoryRequest, options: CatalogueActionOptions): Promise<ProductCategory>` | `apps/api/src/services/product/category.service.ts:286` |  |
 | `updateComposition` | `(ctx: TenantContext, compositionId: string, input: UpdateCompositionRequest, options: CatalogueActionOptions): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:500` |  |
 | `updateManufacturer` | `(ctx: TenantContext, manufacturerId: string, input: UpdateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>` | `apps/api/src/services/product/catalogue.service.ts:132` |  |
-| `updateProduct` | `(ctx: TenantContext, productId: string, input: UpdateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:479` |  |
+| `updateProduct` | `(ctx: TenantContext, productId: string, input: UpdateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:482` |  |
 | `updateUnit` | `(ctx: TenantContext, unitId: string, input: UpdateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:247` |  |
 | `upsertMedicineDetail` | `(ctx: TenantContext, productId: string, input: MedicineDetailRequest, options: CatalogueActionOptions): Promise<MedicineDetail>` | `apps/api/src/services/product/medicine.service.ts:85` |  |
-| `withdrawProduct` | `(ctx: TenantContext, productId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/product.service.ts:682` |  |
-
-## const
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `BASE_SCALE` | `6` | `apps/api/src/services/product/units.ts:45` | The ledger's precision. `Decimal(18,6)` in Postgres (PI-ADR-010). |
+| `withdrawProduct` | `(ctx: TenantContext, productId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/product.service.ts:685` |  |
 
 ## var
 
@@ -117,13 +97,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | --- | --- | --- | --- |
 | `CatalogueActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/product/unit.service.ts:46` |  |
 | `CategoryRow` <sub>local</sub> | `{ id, code, name, parent_id, description, display_order, is_active, organization_id, depth, has_children }` | `apps/api/src/services/product/category.service.ts:46` |  |
-| `ConversionResult` | `{ quantity, exact }` | `apps/api/src/services/product/units.ts:67` |  |
-| `ConversionRow` | `{ fromUnitId, toUnitId, numerator, denominator }` | `apps/api/src/services/product/units.ts:53` |  |
-| `PackagingLevelRow` | `{ level, unitId, quantityOfChild }` | `apps/api/src/services/product/units.ts:365` |  |
-| `Rational` | `{ n, d }` | `apps/api/src/services/product/units.ts:62` | An exact non-negative rational. Always reduced, denominator always positive. |
-| `UnitGraph` | `{ units, edges }` | `apps/api/src/services/product/units.ts:191` |  |
 | `UnitRow` <sub>local</sub> | `{ id, organization_id, code, name, symbol, unit_class, is_base, is_active }` | `apps/api/src/services/product/unit.service.ts:51` |  |
-| `UnitRow` | `{ id, code, unitClass }` | `apps/api/src/services/product/units.ts:47` |  |
 
 ## type
 
@@ -131,4 +105,3 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | --- | --- | --- | --- |
 | `CompositionWithIngredients` <sub>local</sub> | `Awaited<ReturnType<typeof findCompositionOrThrow>>` | `apps/api/src/services/product/catalogue.service.ts:356` |  |
 | `ProductWithSummary` <sub>local</sub> | `Awaited<ReturnType<typeof findProductOrThrow>>` | `apps/api/src/services/product/product.service.ts:83` |  |
-| `UnitClass` | `'COUNT' \| 'VOLUME' \| 'MASS' \| 'LENGTH' \| 'AREA'` | `apps/api/src/services/product/units.ts:42` | Mirrors the `UnitClass` enum. Duplicated rather than imported so this module stays free of the generated Prisma client — see the header. |

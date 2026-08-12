@@ -31,8 +31,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `emptyToNull` <sub>local</sub> | `(value: FormDataEntryValue \| null): string \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:349` |  |
-| `numberOrUndefined` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:355` |  |
+| `numberOrUndefined` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:350` |  |
 | `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:75` |  |
 
 ## var

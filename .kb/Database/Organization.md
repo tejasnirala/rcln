@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 60 |
+| relations | 67 |
 
 ## Columns
 
@@ -97,6 +97,13 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `productIdentifiers` | [`ProductIdentifier`](ProductIdentifier.md) | `productIdentifiers ProductIdentifier[]` |
 | `productTaxClassifications` | [`ProductTaxClassification`](ProductTaxClassification.md) | `productTaxClassifications ProductTaxClassification[]` |
 | `medicineDetails` | [`MedicineDetail`](MedicineDetail.md) | `medicineDetails MedicineDetail[]` |
+| `inventoryLocations` | [`InventoryLocation`](InventoryLocation.md) | `inventoryLocations InventoryLocation[]` |
+| `storageAreas` | [`StorageArea`](StorageArea.md) | `storageAreas StorageArea[]` |
+| `storageBins` | [`StorageBin`](StorageBin.md) | `storageBins StorageBin[]` |
+| `batches` | [`Batch`](Batch.md) | `batches Batch[]` |
+| `serials` | [`Serial`](Serial.md) | `serials Serial[]` |
+| `stockLedgerEntries` | [`StockLedgerEntry`](StockLedgerEntry.md) | `stockLedgerEntries StockLedgerEntry[]` |
+| `stockBalances` | [`StockBalance`](StockBalance.md) | `stockBalances StockBalance[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -168,4 +175,11 @@ erDiagram
     Organization }o--o{ ProductIdentifier : relates
     Organization }o--o{ ProductTaxClassification : relates
     Organization }o--o{ MedicineDetail : relates
+    Organization }o--o{ InventoryLocation : relates
+    Organization }o--o{ StorageArea : relates
+    Organization }o--o{ StorageBin : relates
+    Organization }o--o{ Batch : relates
+    Organization }o--o{ Serial : relates
+    Organization }o--o{ StockLedgerEntry : relates
+    Organization }o--o{ StockBalance : relates
 ```

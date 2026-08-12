@@ -256,6 +256,24 @@ export async function apiBinary(path: string, request: ApiRequest = {}): Promise
 }
 
 /** Flatten Zod issues into the `fieldErrors` shape the forms render. */
+/**
+ * A blank optional form field is ABSENT, not the empty string.
+ *
+ * Left as-is, an empty optional field fails a uuid or a decimal check and
+ * reports "invalid" on a field the user deliberately left blank. `null` is what
+ * the contracts mean by absent.
+ *
+ * ⚠️ HERE RATHER THAN IN EACH `actions.ts`, because it was already in two of
+ *   them and the third would have been the one that trimmed differently. It sits
+ *   beside `fieldErrorsFrom` because both are the same job: turning what a
+ *   browser posts into what a Zod schema expects.
+ */
+export function emptyToNull(value: FormDataEntryValue | null): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
 export function fieldErrorsFrom(
   issues: { path: PropertyKey[]; message: string }[]
 ): Record<string, string[]> {

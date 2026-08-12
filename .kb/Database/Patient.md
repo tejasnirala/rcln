@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 22 |
-| relations | 13 |
+| relations | 14 |
 
 ## Columns
 
@@ -56,6 +56,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | `appointments` | [`Appointment`](Appointment.md) | `appointments Appointment[]` |
 | `vitals` | [`AppointmentVital`](AppointmentVital.md) | `vitals AppointmentVital[]` |
 | `invoices` | [`Invoice`](Invoice.md) | `invoices Invoice[]` |
+| `serials` | [`Serial`](Serial.md) | `serials Serial[]` |
 
 ## Indexes and constraints
 
@@ -81,4 +82,5 @@ erDiagram
     Patient }o--o{ Appointment : relates
     Patient }o--o{ AppointmentVital : relates
     Patient }o--o{ Invoice : relates
+    Patient }o--o{ Serial : relates
 ```
