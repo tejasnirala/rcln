@@ -89,6 +89,15 @@ model User {
   /// Every stock movement they made. `onDelete: Restrict` on that side: a
   /// movement with no actor is a movement nobody can be asked about.
   stockMovements            StockLedgerEntry[]
+  /// The PI-3 documents. `onDelete: Restrict` throughout, for the same reason:
+  /// a transfer nobody dispatched and a reservation nobody made are documents
+  /// with no one to ask.
+  transfersCreated          StockTransfer[]            @relation("TransferCreatedBy")
+  transfersDispatched       StockTransfer[]            @relation("TransferDispatchedBy")
+  transfersReceived         StockTransfer[]            @relation("TransferReceivedBy")
+  transfersCancelled        StockTransfer[]            @relation("TransferCancelledBy")
+  reservationsCreated       StockReservation[]         @relation("ReservationCreatedBy")
+  reservationsReleased      StockReservation[]         @relation("ReservationReleasedBy")
 
   @@index([status])
   @@index([isPlatformAdmin])

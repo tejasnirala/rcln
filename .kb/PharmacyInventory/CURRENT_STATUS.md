@@ -3,7 +3,7 @@
 The honest ledger for the Product Platform programme. Nothing is marked built
 until it is built, migrated, tested and wired to a screen.
 
-**Last updated:** 2026-08-12 · **Phase:** PI-0, PI-1 and PI-2 complete
+**Last updated:** 2026-08-12 · **Phase:** PI-0, PI-1, PI-2 and PI-3 complete
 
 ⚠️ **THE REST OF THIS FILE DESCRIBES THE PRE-CODE STATE AND IS KEPT FOR THE AUDIT
 IT RECORDS, NOT AS A STATUS.** Its table of reusable infrastructure is still
@@ -18,9 +18,25 @@ state**, and [NEXT_SESSION.md](NEXT_SESSION.md) is where to start.
 PI-1 shipped the catalogue — thirteen tables, no quantity anywhere in them — and
 is merged. PI-2 shipped everything with a quantity: seven tables, the append-only
 `stock_ledger`, a balance cache the application cannot write, the expiry sweep,
-and four `/stock` screens. `db:rls:check` is green at 72 protected tables.
+and four `/stock` screens; both reviewer passes ran and were acted on.
 
-Neither reviewer pass has run over PI-2, and the security one is mandatory.
+PI-3 shipped the three documents a store actually needs — adjustments with a
+controlled vocabulary, transfers between shelves and between sites, and
+reservations — plus the FEFO allocation engine and a second worker sweep. Four
+tables, four migrations, three screens. `db:rls:check` is green at **76**
+protected tables and 1159 API tests pass across 41 suites.
+
+**Both reviewer passes have run and been acted on.** The tenancy layer came back
+clean — the two-ended transfer policy holds and the in-transit claim was verified
+in the code. Every finding was in the SERVICES: three CRITICALs, all of them
+read-then-write or validate-once-act-later mistakes, plus seven smaller ones. All
+fixed, with four regression tests. See [CHANGELOG.md](CHANGELOG.md).
+
+⚠️ **In-transit stock is deliberately not in `stock_balances`.** PI-3 decided the
+transfer DOCUMENT holds it, because a sender-owned `IN_TRANSIT` bucket would
+force the receiver to write against a branch RLS hides from them. PI-22's
+valuation must add the outstanding lines of `DISPATCHED` transfers. See
+[NEXT_SESSION.md](NEXT_SESSION.md) decision 1.
 
 Below is the PI-0 audit as it was written, before any of that existed.
 

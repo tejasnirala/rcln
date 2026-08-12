@@ -131,6 +131,31 @@ enum TrackingMode {
   LOT_AND_SERIAL
 }
 
+/// Which lot goes out first when several could (PI-3.5).
+///
+/// ⚠️ FEFO IS THE DEFAULT AND NOT THE LAW. It is right for anything that expires
+///   and wrong for a good deal that does not: a device with a five-year warranty
+///   starting at first use should go out oldest-RECEIVED first, and a clinic
+///   whose consignment stock must be consumed before its own owned stock is
+///   expressing a commercial rule rather than a clinical one. So the strategy is
+///   a per-product override on a FEFO default, and PI-5's rule packs may raise
+///   the bar further — a jurisdiction may forbid dispensing within N days of
+///   expiry, which narrows the candidate set before any of these orderings run.
+///
+/// ⚠️ NONE OF THESE IS A COSTING METHOD. `FIFO` here orders which PHYSICAL units
+///   leave; the moving average in PI-4 values them. Naming them alike is an
+///   accident of the industry's vocabulary and reading one as the other produces
+///   a valuation nobody can reconcile.
+enum AllocationStrategy {
+  /// First-Expiry-First-Out. Expiry ascending, then received ascending.
+  FEFO
+  /// Oldest received first, expiry ignored.
+  FIFO
+  /// Newest received first. Rare, and legitimate for stock whose value falls
+  /// with age only after it is opened.
+  LIFO
+}
+
 /// The namespace an identifier value belongs to.
 ///
 /// ⚠️ THE VALUE IS NOT UNIQUE ON ITS OWN. A GTIN is globally unique in principle
@@ -266,6 +291,8 @@ model UnitOfMeasure {
   ingredientStrength CompositionIngredient[] @relation("IngredientStrengthUnit")
   /// The unit a movement was ENTERED in, kept beside the base-unit quantity.
   stockLedgerEntries StockLedgerEntry[]
+  /// The same, on a transfer line (PI-3).
+  transferLines      StockTransferLine[]     @relation("TransferLineUnit")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -382,6 +409,7 @@ model Manufacturer {
   products     Product[]
   /// A batch's manufacturer may differ from its product's — contract
   /// manufacture and repackaging. See inventory.prisma.
+  transferLines StockTransferLine[] @relation("TransferLineManufacturer")
   batches      Batch[]
 
   @@unique([organizationId, code])
@@ -593,6 +621,17 @@ model Product {
   /// without inventing a second catalogue.
   isStockItem           Boolean      @default(true) @map("is_stock_item")
 
+  // -- allocation (PI-3.5) ----------------------------------------------------
+  /// How this product is picked when several lots could satisfy a demand.
+  ///
+  /// ⚠️ NULL MEANS FEFO, AND NULL IS NOT THE SAME AS `FEFO`. NULL is "this clinic
+  ///   has never thought about it", which is the honest state for almost every
+  ///   product and the one the jurisdiction rules in PI-5 are allowed to override.
+  ///   An explicit `FEFO` is a decision somebody made, which a rule pack must
+  ///   NOT quietly overturn. Collapsing the two would make "why did it pick that
+  ///   lot" unanswerable in exactly the cases where it is asked.
+  allocationStrategy    AllocationStrategy? @map("allocation_strategy")
+
   /// Free-form document: external system codes, display labels per locale,
   /// supplier hints. ⚠️ A DOCUMENT, NEVER FOREIGN KEYS (ADR-0006).
   metadata  Json?     @db.JsonB
@@ -630,6 +669,9 @@ model Product {
   serials            Serial[]
   stockLedgerEntries StockLedgerEntry[]
   stockBalances      StockBalance[]
+  // Movements (PI-3), same plain-FK reasoning as the four above.
+  transferLines      StockTransferLine[]
+  reservations       StockReservation[]
 
   @@unique([organizationId, code])
   /// The composite-FK target every child in this file references.

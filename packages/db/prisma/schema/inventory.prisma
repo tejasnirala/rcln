@@ -267,6 +267,10 @@ model InventoryLocation {
   balances        StockBalance[]
   movementsFrom   StockLedgerEntry[] @relation("MovementFromLocation")
   movementsTo     StockLedgerEntry[] @relation("MovementToLocation")
+  // PI-3. Both sides of a transfer and everything reserved on this shelf.
+  transfersFrom   StockTransfer[]    @relation("TransferFromLocation")
+  transfersTo     StockTransfer[]    @relation("TransferToLocation")
+  reservations    StockReservation[]
 
   @@unique([organizationId, branchId, code])
   /// The composite-FK target every child below references.
@@ -423,6 +427,12 @@ model Batch {
   serials   Serial[]
   balances  StockBalance[]
   movements StockLedgerEntry[]
+  /// PI-3. A lot appears on a transfer line as the SOURCE at the sending branch
+  /// and as the DESTINATION at the receiving one — two rows, two branches, one
+  /// manufacturer's lot number. See `StockTransferLine`.
+  transferLinesSent     StockTransferLine[] @relation("TransferLineSourceBatch")
+  transferLinesReceived StockTransferLine[] @relation("TransferLineDestinationBatch")
+  reservations          StockReservation[]
 
   @@unique([organizationId, branchId, productId, lotNumber])
   @@unique([organizationId, id])
@@ -479,6 +489,13 @@ model Serial {
 
   balances  StockBalance[]
   movements StockLedgerEntry[]
+  /// PI-3. ⚠️ A serial crossing a branch boundary MOVES — `branch_id` is updated
+  /// at receipt rather than a second row being created, because a serial IS the
+  /// physical device and two rows would be two devices. That update is the one
+  /// place in the transfer flow that needs a caller scoped to both branches; see
+  /// `receiveTransfer`.
+  transferLines StockTransferLine[] @relation("TransferLineSerial")
+  reservations  StockReservation[]
 
   /// Serial numbers repeat across manufacturers, so the key is product-qualified
   /// as well as tenant-qualified.
@@ -667,4 +684,478 @@ model StockBalance {
   @@index([organizationId, productId, status])
   @@index([organizationId, batchId])
   @@map("stock_balances")
+}
+
+// =============================================================================
+// PI-3 — MOVEMENTS. Everything below turns "a quantity moved" into "a quantity
+// moved FOR A REASON, ON A DOCUMENT, THAT SOMEBODY SIGNED FOR".
+//
+// PI-2 gave the ledger one manual write path: `POST /v1/stock/movements`, an
+// adjustment with a free-text reason string. That is enough to correct a count
+// and not enough to run a store. This phase adds the three shapes a store
+// actually needs, and every one of them writes through `recordMovementIn` and
+// nothing else — the tables here hold the DOCUMENT, never the quantity.
+//
+//   stock_reason_codes   the controlled vocabulary an adjustment must cite
+//   stock_transfers      stock leaving one place and arriving at another
+//   stock_reservations   stock spoken for, and not yet gone
+//
+// ⚠️ NOT ONE OF THESE TABLES IS A SECOND SOURCE OF QUANTITY TRUTH, AND THE ONE
+//   THAT LOOKS LIKE IT IS THE ONE TO WATCH. `stock_transfer_lines.quantity_base`
+//   is what the document SAYS was sent; `stock_balances` is what the shelves
+//   HOLD. They answer different questions and the second is the one that is
+//   authoritative about stock — the line quantity is authoritative only about
+//   the paperwork. Every screen that reads a line quantity is reading the
+//   paperwork, and PI-ADR-004 rule 4 still says the ledger wins.
+// =============================================================================
+
+/// Which direction of adjustment a reason code may be cited on.
+///
+/// "Found in the fridge" cannot explain stock going missing and "broken in
+/// transit" cannot explain it appearing, so a single flat list would let every
+/// report aggregate increases and decreases under one heading that means neither.
+enum StockReasonDirection {
+  INCREASE
+  DECREASE
+  /// Legitimately both — a stock take corrects in whichever direction the count
+  /// came out.
+  BOTH
+}
+
+/// Where a transfer has got to.
+///
+/// ⚠️ THERE IS NO `IN_TRANSIT` STOCK STATUS IN THIS FLOW, AND THAT IS THE PI-3
+///   DECISION. In-transit quantity is `sent_quantity_base − received_quantity_
+///   base` on the LINES of a transfer in `DISPATCHED`, not a bucket in
+///   `stock_balances`. See the model comment for why, at length.
+enum StockTransferStatus {
+  /// Being built. Nothing has moved and no ledger row exists.
+  DRAFT
+  /// Sent. The `TRANSFER_OUT` legs are written and the sending branch's shelves
+  /// are already lighter. Nothing has arrived.
+  DISPATCHED
+  /// Some lines received, some outstanding. Still reachable from the receiving
+  /// branch's "to receive" list, which is the whole point of the state.
+  PARTIALLY_RECEIVED
+  RECEIVED
+  /// Killed before dispatch (no ledger rows) or after (a compensating
+  /// `TRANSFER_IN` back to the sender). See `cancelTransfer`.
+  CANCELLED
+}
+
+/// What a reservation is doing now.
+enum StockReservationStatus {
+  /// Quantity is sitting in the `RESERVED` bucket, held for this reference.
+  ACTIVE
+  /// Given back to `AVAILABLE` by a person.
+  RELEASED
+  /// Given back to `AVAILABLE` by the sweep, because `expires_at` passed.
+  EXPIRED
+  /// Dispensed or consumed. PI-7 and PI-9 move it out of `RESERVED` directly.
+  CONSUMED
+}
+
+/// The controlled vocabulary an adjustment must cite (PI-3.1).
+///
+/// ⚠️ THE LEDGER STORES THE CODE AS A STRING AND NOT A FOREIGN KEY, DELIBERATELY.
+///   `stock_ledger.reason_code` is `VARCHAR(64)` and stays that way. A ledger row
+///   must outlive whatever explained it — exactly the reasoning already written
+///   against `reference_id` — and a clinic that retires `EXPIRED_ON_SHELF` in
+///   2029 must not thereby make every 2027 adjustment unreadable or, worse,
+///   undeletable. The master constrains what may be WRITTEN; the string is what
+///   is READ back, for ever.
+///
+/// ⚠️ PLATFORM-EXTENSIBLE (`organization_id` NULLABLE), WHICH IS A DIFFERENT CALL
+///   FROM EVERY OTHER TABLE IN THIS FILE. Locations, lots and movements are facts
+///   about one clinic (PI-ADR-003) and are strictly tenant rows. A reason code is
+///   not a fact about a clinic, it is a WORD — "damaged", "expired", "counted
+///   short" — and every clinic on earth needs the same dozen on the day it opens.
+///   Shipping them as platform rows means a clinic can record its first
+///   adjustment without first inventing a vocabulary, and a clinic that wants
+///   `BROKEN_BY_LOCUM` adds its own. Same shape as `manufacturers` and
+///   `product_categories` in PI-1, and it carries the same
+///   `platform_rows_immutable` trigger and a RESTRICTIVE `*_visible` policy.
+///
+/// This is NOT a taxonomy and must not become one. No parent, no hierarchy. A
+/// reason code is aggregated in a report; anything deeper belongs in the note.
+model StockReasonCode {
+  id             String  @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String? @map("organization_id") @db.Uuid
+
+  /// Uppercase, flat, and matched exactly against what a caller sends. Aggregated
+  /// in reports, so free text would produce "Damaged", "damaged" and "DAMAGED "
+  /// as three categories — the same reasoning as `reasonCode` in the contracts.
+  code  String @db.VarChar(64)
+  /// What a human picks from a list. Sentence case, and the only thing a screen
+  /// shows.
+  label String @db.VarChar(200)
+
+  direction StockReasonDirection @default(BOTH)
+
+  /// Whether citing this code forces a free-text note as well.
+  ///
+  /// `OTHER` is the code this exists for: a reason code that explains nothing
+  /// unless somebody writes what actually happened. Enforced in the service, on
+  /// the code that is cited, because a CHECK on `stock_ledger` cannot join to the
+  /// master — the same reason `tracking_mode` is denormalised onto the ledger.
+  requiresNote Boolean @default(false) @map("requires_note")
+
+  /// Retired rather than deleted. A code cited by ten thousand ledger rows is a
+  /// code that must keep rendering; `is_active = false` stops it being OFFERED.
+  isActive  Boolean @default(true) @map("is_active")
+  /// Presentation order in the picker. Ties break on `label`.
+  sortOrder Int     @default(100) @map("sort_order") @db.SmallInt
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// ⚠️ TENANT-QUALIFIED, NEVER A BARE `@@unique([code])`. A clinic naming its own
+  ///   code `DAMAGED` must not collide with the platform's, and two clinics must
+  ///   not collide with each other. The platform's own rows are unique among
+  ///   themselves because `organization_id` is NULL for all of them and the index
+  ///   is rewritten NULLS NOT DISTINCT in the migration — without that, every
+  ///   platform code could be inserted twice.
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive, sortOrder])
+  @@map("stock_reason_codes")
+}
+
+/// Stock moving from one place to another, as a DOCUMENT (PI-3.2, PI-3.3).
+///
+/// ── WHY THE DOCUMENT HOLDS THE IN-TRANSIT QUANTITY ──────────────────────────
+///
+///     branch A                                        branch B
+///       AVAILABLE ──TRANSFER_OUT──▶ (this document) ──TRANSFER_IN──▶ AVAILABLE
+///                  actor scoped to A                actor scoped to B
+///
+/// INVENTORY_ARCHITECTURE.md says in-transit stock is held in an `IN_TRANSIT`
+/// STATUS owned by the SENDING branch. ⚠️ THIS IS A DELIBERATE REFINEMENT OF
+/// THAT, decided in PI-3, and it is forced by the same isolation guarantee that
+/// makes the rest of this file safe.
+///
+/// `branch_isolation` is RESTRICTIVE on `stock_ledger` and `stock_balances`, so
+/// every row written must carry a `branch_id` inside the writer's scope. An
+/// in-transit bucket owned by branch A means the person RECEIVING at branch B
+/// has to write a removal against branch A's bucket — a branch they cannot see,
+/// and must not be able to see. The only ways to make that work are to widen the
+/// receiving user's tenant context or to write the row twice, and the first
+/// punches the first hole in the branch boundary while the second reintroduces
+/// the second writer PI-ADR-004 exists to forbid.
+///
+/// So: neither branch holds in-transit stock in a bucket. THE DOCUMENT HOLDS IT.
+/// Dispatch writes `TRANSFER_OUT` at the sender and nothing else; receipt writes
+/// `TRANSFER_IN` at the receiver and nothing else; both legs cite this row's id
+/// as `reference_id` with `reference_type = TRANSFER`. Each leg is written by
+/// somebody scoped to exactly the branch it touches, and no context is ever
+/// widened.
+///
+/// What is outstanding is `sent_quantity_base − received_quantity_base` summed
+/// over the lines of every `DISPATCHED` transfer, which is a better answer than
+/// a balance bucket was ever going to give: "3 boxes are missing" becomes
+/// "transfer TRF-000042, sent by Anand from Central Store on the 4th, 3 boxes
+/// outstanding". "It vanished between branches" is the single most common
+/// real-world inventory complaint and this is the shape that answers it.
+///
+/// ⚠️ THE ONE COST, WRITTEN DOWN SO PI-22 DOES NOT REDISCOVER IT: in-transit
+///   stock is NOT in `stock_balances`. A valuation report that sums that table
+///   and stops is under-counting by whatever is on a van. It must add the
+///   outstanding lines of `DISPATCHED` transfers. `verifyBalances()` is
+///   unaffected — it replays the ledger, and both legs are ledger rows.
+///
+/// ── INTRA-BRANCH IS THE SAME TABLE AND NOT THE SAME FLOW ────────────────────
+/// When `from_branch_id = to_branch_id` there is nothing to be in transit
+/// between: `dispatchTransfer` writes both legs in ONE transaction and the
+/// document goes straight to `RECEIVED`. It is still a document, because "who
+/// moved the vaccines out of the fridge" is a question with an answer.
+///
+/// ── TENANCY ─────────────────────────────────────────────────────────────────
+/// ⚠️ TWO BRANCH COLUMNS AND THEREFORE NO `branch_id`, SO THIS TABLE IS **NOT**
+///   IN THE `branch_scoped` RLS ARRAY. It gets a bespoke RESTRICTIVE policy —
+///   `from_branch_id = ANY(scope) OR to_branch_id = ANY(scope)` — because a
+///   transfer is legitimately the business of both ends and of neither third
+///   party. Putting it in the array would have silently matched nothing (the
+///   loop's predicate names a column this table does not have) and Postgres
+///   would have raised at migration time; the bespoke policy is in
+///   enable-rls.sql beside `appointment_status_history`, which is there for the
+///   same "the generic loop does not fit" reason.
+model StockTransfer {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  /// Human-facing, issued from `number_sequences` on dispatch — never on create,
+  /// because a draft that is abandoned must not burn a number in a series a
+  /// storekeeper reads as a sequence.
+  transferNumber String? @map("transfer_number") @db.VarChar(64)
+
+  fromBranchId   String @map("from_branch_id") @db.Uuid
+  toBranchId     String @map("to_branch_id") @db.Uuid
+  fromLocationId String @map("from_location_id") @db.Uuid
+  /// Where it lands. Nullable until receipt: the sender proposes a shelf and the
+  /// RECEIVER decides, because the sender does not know which fridge has room.
+  toLocationId   String? @map("to_location_id") @db.Uuid
+
+  /// ⚠️ THE SHELF NAMES ARE SNAPSHOTTED, AND WITHOUT THEM THE RECEIVING BRANCH
+  ///   CANNOT READ ITS OWN DELIVERY NOTE. `inventory_locations` is branch-scoped
+  ///   and its policy is absolute, so the sending branch's shelf is INVISIBLE to
+  ///   the receiver — the join comes back NULL, not forbidden. That is the
+  ///   isolation working correctly, and it leaves "where did this come from"
+  ///   unanswerable at exactly the end that needs to ask it.
+  ///
+  ///   Weakening the location policy to fix it would open every branch's shelves
+  ///   to every other branch to serve one screen. Copying the NAME onto the
+  ///   document instead shares precisely the fact the document is about, and it
+  ///   is also the more honest record: a shelf renamed or decommissioned next
+  ///   year must not rewrite a delivery note from this one. Same reasoning and
+  ///   the same shape as `invoices`' practitioner snapshot.
+  ///
+  ///   The ID stays as well, composite-FK'd, so the sending branch's own screens
+  ///   still resolve a live row.
+  fromLocationName String  @map("from_location_name") @db.VarChar(255)
+  toLocationName   String? @map("to_location_name") @db.VarChar(255)
+
+  status StockTransferStatus @default(DRAFT)
+
+  notes String? @db.Text
+
+  createdById  String    @map("created_by_id") @db.Uuid
+  dispatchedAt DateTime? @map("dispatched_at") @db.Timestamptz(6)
+  dispatchedById String? @map("dispatched_by_id") @db.Uuid
+  /// When the LAST line was received. A partially-received transfer has none.
+  receivedAt   DateTime? @map("received_at") @db.Timestamptz(6)
+  receivedById String?   @map("received_by_id") @db.Uuid
+  cancelledAt  DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?  @map("cancelled_by_id") @db.Uuid
+  /// Why it was killed. CHECKed present whenever `cancelled_at` is — a transfer
+  /// cancelled after dispatch has already moved stock twice and "why" is the
+  /// only thing that makes the two compensating rows readable.
+  cancellationReason String? @map("cancellation_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /*
+   * ⚠️ BOTH BRANCHES COMPOSE ON `(organization_id, id)`, AND THE LOCATIONS
+   *   COMPOSE ON THE BRANCH THEY BELONG TO — three columns, exactly as the
+   *   ledger's do. The two-column form would prove only that the shelf belongs
+   *   to this tenant, and a transfer FROM branch A citing a shelf at branch C is
+   *   precisely the row that makes stock leave a place it was never in.
+   */
+  fromBranch   Branch            @relation("TransferFromBranch", fields: [organizationId, fromBranchId], references: [organizationId, id], onDelete: Cascade)
+  toBranch     Branch            @relation("TransferToBranch", fields: [organizationId, toBranchId], references: [organizationId, id], onDelete: Cascade)
+  fromLocation InventoryLocation @relation("TransferFromLocation", fields: [organizationId, fromBranchId, fromLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  toLocation   InventoryLocation? @relation("TransferToLocation", fields: [organizationId, toBranchId, toLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  createdBy    User  @relation("TransferCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  dispatchedBy User? @relation("TransferDispatchedBy", fields: [dispatchedById], references: [id], onDelete: Restrict)
+  receivedBy   User? @relation("TransferReceivedBy", fields: [receivedById], references: [id], onDelete: Restrict)
+  cancelledBy  User? @relation("TransferCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  lines StockTransferLine[]
+
+  @@unique([organizationId, transferNumber])
+  /// The composite-FK target the lines reference.
+  @@unique([organizationId, id])
+  /// "What is on its way to me" — the receiving branch's inbox, which is the
+  /// screen this whole document exists to make possible.
+  @@index([organizationId, toBranchId, status])
+  /// "What have I sent" — the sending branch's outbox.
+  @@index([organizationId, fromBranchId, status, createdAt(sort: Desc)])
+  @@map("stock_transfers")
+}
+
+/// One product, one lot, one quantity, on one transfer.
+///
+/// ⚠️ `batch_id` AND `destination_batch_id` ARE TWO DIFFERENT LOTS OF THE SAME
+///   PHYSICAL STOCK, AND THAT IS NOT A MODELLING MISTAKE. `batches` is
+///   BRANCH-scoped — `(organization_id, branch_id, id)` is its composite key and
+///   the whole file leans on it — so the lot row at the sending branch cannot be
+///   cited by a movement at the receiving branch. Receipt therefore finds or
+///   creates the branch's own row for the same manufacturer's lot number, expiry
+///   and cost, and records it here so traceability crosses the gap: "which lot
+///   did branch B receive, and where did it come from" is one join.
+///
+/// The alternative — making `batches` org-scoped so one row serves both sites —
+/// was rejected in PI-2 and re-rejected here: a lot is received AT a site, at a
+/// cost, on a date, and two sites receiving the same manufacturer's lot are two
+/// receipts. See the `@@unique([organizationId, branchId, productId, lotNumber])`
+/// on `batches` and its comment.
+model StockTransferLine {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  transferId     String @map("transfer_id") @db.Uuid
+
+  productId String  @map("product_id") @db.Uuid
+  /// The SENDING branch's lot. Required when the product is batch-tracked, which
+  /// the ledger's tracking CHECK enforces on the leg rather than here.
+  batchId   String? @map("batch_id") @db.Uuid
+  serialId  String? @map("serial_id") @db.Uuid
+
+  /// What the document says was sent, in the product's BASE UNIT. ⚠️ Not a
+  /// quantity of stock — see the file header. Positive, CHECKed.
+  sentQuantityBase     Decimal @map("sent_quantity_base") @db.Decimal(18, 6)
+  /// What the receiver signed for. Starts at zero and only ever grows, and a
+  /// CHECK stops it exceeding what was sent — over-receipt is a data-entry error
+  /// on this document, not a discovery of stock, and it has its own adjustment.
+  receivedQuantityBase Decimal @default(0) @map("received_quantity_base") @db.Decimal(18, 6)
+
+  /// What the user actually typed, and in what — kept for the same reason the
+  /// ledger keeps it: "2 boxes" must still read as "2 boxes" a year later.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+
+  /// The receiving branch's own lot row, created at receipt. See the model
+  /// comment.
+  destinationBatchId String? @map("destination_batch_id") @db.Uuid
+
+  // -- the lot's identity, snapshotted -----------------------------------------
+  /// ⚠️ WITHOUT THESE THE RECEIVING BRANCH CANNOT CREATE ITS OWN LOT ROW, AND
+  ///   THE WHOLE INTER-BRANCH FLOW STOPS AT RECEIPT. `batches` is branch-scoped
+  ///   and the policy is absolute, so the SENDER'S lot is invisible to the
+  ///   receiver — `findOrCreateDestinationBatch` reading it came back empty, not
+  ///   forbidden. Receipt has to know the manufacturer's lot number and its
+  ///   expiry to make the destination row mean the same physical stock, and it
+  ///   can only learn them from the document.
+  ///
+  ///   Which is what a paper delivery note has always carried. Weakening the
+  ///   batch policy instead would open every branch's lots, costs and expiry
+  ///   dates to every other branch to serve one step of one flow.
+  ///
+  ///   ⚠️ THE COST TRAVELS TOO, AND THAT IS DELIBERATE RATHER THAN AN OVERSHARE.
+  ///     Stock moved between two sites of ONE organization keeps its value — a
+  ///     receiving branch valuing it at nothing would make every group-level
+  ///     valuation wrong by the amount in transit. It is the same tenant's money
+  ///     at both ends. `unit_cost_base` is in integer minor units per BASE unit,
+  ///     as everywhere (PI-ADR-010).
+  lotNumber      String?   @map("lot_number") @db.VarChar(128)
+  manufacturedOn DateTime? @map("manufactured_on") @db.Date
+  expiresOn      DateTime? @db.Date @map("expires_on")
+  manufacturerId String?   @map("manufacturer_id") @db.Uuid
+  unitCostBase   BigInt?   @map("unit_cost_base") @db.BigInt
+  currency       String?   @db.Char(3)
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transfer     StockTransfer @relation(fields: [organizationId, transferId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FK into a possibly-platform row — `product_visible` policy, as on
+  /// every other product reference in this file.
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure @relation("TransferLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  /// Plain FK into a possibly-platform row, like every other manufacturer
+  /// reference in the programme — a `manufacturer_visible` policy is the control.
+  manufacturer Manufacturer? @relation("TransferLineManufacturer", fields: [manufacturerId], references: [id], onDelete: Restrict)
+  /*
+   * ⚠️ THE TWO LOT REFERENCES ARE PLAIN `(organization_id, id)` COMPOSITES AND
+   *   NOT BRANCH-QUALIFIED ONES, WHICH IS THE OPPOSITE CALL FROM THE LEDGER'S —
+   *   because they deliberately point at DIFFERENT branches. `batch_id` is at
+   *   `transfer.from_branch_id` and `destination_batch_id` is at
+   *   `transfer.to_branch_id`, and this table has neither column to compose on.
+   *   The service checks both, and the ledger legs are where the branch-qualified
+   *   form actually bites: a lot cited on the wrong branch's leg is unrepresentable
+   *   there, which is the place it would do harm.
+   */
+  batch            Batch?  @relation("TransferLineSourceBatch", fields: [organizationId, batchId], references: [organizationId, id], onDelete: Restrict)
+  destinationBatch Batch?  @relation("TransferLineDestinationBatch", fields: [organizationId, destinationBatchId], references: [organizationId, id], onDelete: Restrict)
+  serial           Serial? @relation("TransferLineSerial", fields: [organizationId, serialId], references: [organizationId, id], onDelete: Restrict)
+
+  /// One line per (product, lot, serial) on a transfer. Sending the same lot
+  /// twice on one document is a mistake with two plausible readings — did they
+  /// mean the sum, or did they type it twice — and neither should be guessed.
+  @@unique([organizationId, transferId, productId, batchId, serialId])
+  @@index([organizationId, transferId])
+  @@index([organizationId, productId])
+  @@index([organizationId, batchId])
+  @@map("stock_transfer_lines")
+}
+
+/// Stock spoken for and not yet gone (PI-3.4).
+///
+/// `RESERVED` becomes real here. It was a `StockStatus` member with no workflow
+/// in PI-2, on purpose, so that this phase needed no enum migration.
+///
+/// ⚠️ THE ROW IS THE PAPERWORK; THE `RESERVATION` MOVEMENT IS THE FACT. Creating
+///   one writes a `RESERVATION` movement (AVAILABLE → RESERVED) in the SAME
+///   transaction, and releasing one writes a `RELEASE` (RESERVED → AVAILABLE).
+///   A reservation row that committed without its movement would hold nothing
+///   while claiming to, and two pharmacists would dispense the same last strip —
+///   which is the entire failure this table exists to prevent.
+///
+/// ⚠️ `expires_at` IS NOT OPTIONAL PARANOIA. A reservation with no expiry that
+///   nobody releases holds stock out of `AVAILABLE` for ever, and the clinic's
+///   only visible symptom is that it cannot dispense a medicine it can see on
+///   the shelf. The sweep in `apps/worker` releases them, one transaction per
+///   reservation, for the same locking reason the expiry sweep does.
+///
+/// Branch-scoped: `branch_id` is NOT NULL and the policy is absolute, exactly as
+/// for the ledger. Stock is reserved AT a place.
+///
+/// NO PHI. A reservation names a `reference_id` — which for PI-7 will be a
+/// prescription and for PI-9 a procedure — and never a patient.
+model StockReservation {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  productId  String  @map("product_id") @db.Uuid
+  batchId    String? @map("batch_id") @db.Uuid
+  serialId   String? @map("serial_id") @db.Uuid
+  locationId String  @map("location_id") @db.Uuid
+
+  /// In the product's BASE UNIT, positive, CHECKed. This is how much sits in the
+  /// `RESERVED` bucket because of this row — and the bucket, not this column, is
+  /// what allocation reads.
+  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  status StockReservationStatus @default(ACTIVE)
+
+  /// What it is being held FOR. The same non-FK pair as the ledger's, for the
+  /// same reason: the domains that will fill it in do not exist yet.
+  referenceType StockReferenceType @default(MANUAL) @map("reference_type")
+  referenceId   String?            @map("reference_id") @db.Uuid
+
+  /// When the sweep gives it back. See the model comment.
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  notes     String?  @db.Text
+
+  createdById String    @map("created_by_id") @db.Uuid
+  /// Set together with a terminal `status` — CHECKed, because a released
+  /// reservation with no release time is one nobody can put on a timeline.
+  releasedAt  DateTime? @map("released_at") @db.Timestamptz(6)
+  /// NULL when the SWEEP released it. That is how a screen tells "the pharmacist
+  /// gave it back" from "it timed out", and the two mean different things.
+  releasedById String?  @map("released_by_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FK into a possibly-platform row — `product_visible` policy.
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  /// Branch-qualified, exactly as on the ledger: a reservation at branch A
+  /// citing a lot or a shelf at branch B is unrepresentable.
+  batch    Batch?            @relation(fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial   Serial?           @relation(fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+  location InventoryLocation @relation(fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  createdBy  User  @relation("ReservationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  releasedBy User? @relation("ReservationReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)
+
+  /// The sweep's query: every ACTIVE reservation past its time. ⚠️ Deliberately
+  /// NOT branch-qualified — the sweep asks the question across the whole tenant
+  /// and then acts one branch at a time, exactly as the expiry sweep does.
+  @@index([organizationId, status, expiresAt])
+  /// "What is held at this shelf" — what allocation subtracts.
+  @@index([organizationId, branchId, productId, status])
+  /// "What is held for this prescription" — the release path, from PI-7.
+  @@index([organizationId, referenceType, referenceId])
+  @@map("stock_reservations")
 }

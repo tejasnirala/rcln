@@ -43,7 +43,14 @@ export type SequenceType =
   | 'QUEUE_TOKEN'
   | 'EMPLOYEE'
   /** Patient invoice serials. Built by `invoice-number.service.ts`, never here. */
-  | 'INVOICE';
+  | 'INVOICE'
+  /**
+   * Stock transfer documents (PI-3). One counter per SENDING branch, taken at
+   * DISPATCH and never at create — the same call `INVOICE` makes, and for the
+   * same reason: a draft that is abandoned must not burn a serial in a series
+   * somebody may have to explain to an auditor. Never resets.
+   */
+  | 'STOCK_TRANSFER';
 
 export interface IssueNumberSpec {
   type: SequenceType;

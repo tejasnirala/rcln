@@ -17,13 +17,23 @@ page exists as a route with a deliberate placeholder where the specialty-specifi
 diagnosis form will go.
 
 **Phase 5 has started out of order, and deliberately: PI-1 (the product
-catalogue) is merged and PI-2 (inventory foundation) is complete** on
-`feat/pi-2-inventory-foundation`. Neither depends on anything Phase 3 owns, and
-everything else in the pharmacy programme waits on them. PI-2 brings the
-append-only `stock_ledger`, a trigger-maintained balance cache the application
-cannot write, the first worker processor that changes clinical state, and four
-`/stock` screens. Both reviewer passes have run and been acted on — see § Phase 5
-and `.kb/PharmacyInventory/NEXT_SESSION.md`.
+catalogue) and PI-2 (inventory foundation) are merged, and PI-3 (movements) is
+complete** on `feat/pi-3-movements`. None of the three depends on anything
+Phase 3 owns, and everything else in the pharmacy programme waits on them.
+
+PI-2 brought the append-only `stock_ledger`, a trigger-maintained balance cache
+the application cannot write, the first worker processor that changes clinical
+state, and four `/stock` screens. PI-3 brings the three documents a store
+actually needs — adjustments against a controlled vocabulary, transfers between
+shelves and between sites, and reservations — plus the FEFO allocation engine and
+a second worker sweep. `db:rls:check` is green at **76** protected tables and
+1159 API tests pass across 41 suites.
+
+**Both reviewer passes have run and been acted on.** The tenancy layer came back
+clean; every finding was in the services. Three CRITICALs — a duplicate line on
+receipt that minted stock, unlocked state transitions, and a reservation release
+that raced the sweep — plus seven smaller, all fixed with regression tests. See
+§ Phase 5 and `.kb/PharmacyInventory/NEXT_SESSION.md`.
 
 ⚠️ PHI is live from stage 3 onwards — `patients`, `appointments` and
 `appointment_vitals` all carry it, and every read of one that discloses a single
@@ -1271,12 +1281,12 @@ Procurement + Regulatory platform serving clinical, dental, veterinary and lab
 workflows across ten jurisdictions, not a pharmacy module. Start at
 `PharmacyInventory/NEXT_SESSION.md`.
 
-**PI-0 (discovery & architecture), PI-1 (Product Platform Core) and PI-2
-(Inventory Foundation) are complete.** PI-1 is merged to `main`; PI-2 is on
-`feat/pi-2-inventory-foundation` and has NOT been through `/code-review` or
-`security-reviewer` yet — required before merge, because it adds seven tenant
-tables, seven RESTRICTIVE visibility policies, two REVOKEs, three triggers and a
-SECURITY DEFINER function.
+**PI-0 (discovery & architecture), PI-1 (Product Platform Core), PI-2 (Inventory
+Foundation) and PI-3 (Movements) are complete.** PI-1 and PI-2 are merged to
+`main`. PI-3 is on `feat/pi-3-movements` and has NOT been through
+`/code-review` or `security-reviewer` yet — required before merge, because it
+adds four tenant tables, a platform-extensible one, a bespoke two-branch RLS
+policy and a second SECURITY DEFINER discovery function.
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.
 
@@ -1366,11 +1376,58 @@ What PI-2 built: everything with a quantity in it.
 - [ ] The screens read and do not write: no form for a location, a lot or a
       movement, and no `/stock/serials` screen. Nothing clicked in a browser
 
+What PI-3 built: the three documents a store actually needs.
+
+- [x] **`stock_reason_codes` — the controlled vocabulary an adjustment must
+      cite**, and the ONE platform-extensible table in the inventory domain. A
+      reason code is a word, not a fact about a clinic; thirteen ship in the
+      migration so a clinic can record its first adjustment without inventing a
+      vocabulary. The ledger still stores the code as a STRING, because a row
+      must outlive whatever explained it
+- [x] **`stock_transfers` + `stock_transfer_lines`** — intra-branch (one atomic
+      pair of legs, one transaction) and inter-branch (dispatch, receive in full
+      or in part, cancel with a compensating movement)
+- [x] **IN-TRANSIT STOCK IS HELD BY THE DOCUMENT, NOT BY A BUCKET**, which
+      refines `INVENTORY_ARCHITECTURE.md` and was forced by `branch_isolation`:
+      a sender-owned `IN_TRANSIT` bucket makes the RECEIVER write against a
+      branch RLS hides from them, fixable only by widening their tenant context
+      or by adding a second ledger writer. Each leg is a single-branch write and
+      no context is ever widened. ⚠️ The cost — in-transit quantity is not in
+      `stock_balances` — is recorded for PI-22 and pinned by a test
+- [x] **The lot's identity and the shelf names travel ON the document.** Two
+      migrations exist because `batches` and `inventory_locations` are
+      branch-scoped and a receiving storekeeper could read NEITHER: the detail
+      response threw on a NULL join, and receipt raised `Batch not found` while
+      somebody held the boxes. Both found by a test, neither visible from
+      reading, and neither fixed by weakening a policy
+- [x] **`stock_reservations` — `RESERVED` made real**, with a 90-day cap and an
+      hourly worker sweep that gives back what nobody came for. The row is the
+      paperwork; the `RESERVATION` movement is the fact, and they commit together
+- [x] **FEFO allocation as a PURE function in `@rcln/inventory`**, with a
+      per-product `FEFO`/`FIFO`/`LIFO` override where NULL means "nobody has
+      thought about it" and PI-5's rule packs NARROW the candidates rather than
+      reordering them. A lot with no expiry sorts LAST
+- [x] `inventory.stock.reserve` and `inventory.reason_code.manage`; routes on
+      `/v1/stock/*` and `/v1/stock-transfers/*`
+- [x] Screens: `/stock/transfers` (list, new, detail with the action that is
+      actually yours), `/stock/reservations`, `/stock/adjustments/new`
+- [x] 1159 API tests green across 41 suites — transfer atomicity, no negative
+      balance, FEFO ties, the two-ended RLS policy seen from a third branch;
+      `db:rls:check` green at **76** protected tables
+- [x] `/code-review` and `security-reviewer` on the diff. Three CRITICALs, all
+      one class of mistake — a receipt loop reading its bounds from a snapshot
+      loaded once (a duplicate line minted stock, and `verifyBalances()` agreed
+      with the inflated figure), unlocked state transitions under READ
+      COMMITTED, and a manual release racing the sweep. Plus a serial fitted to
+      a patient between draft and dispatch still being transferable. All fixed;
+      see `.kb/PharmacyInventory/CHANGELOG.md`
+- [ ] Nothing clicked in a browser
+
 Strictly in this order; dispensing depends on batches existing.
 
 - [x] Catalogue: generics, medicines, manufacturers, HSN + versioned tax rates
 - [x] Batches, `stock_ledger` (append-only), `stock_balances` (trigger-maintained)
-- [ ] Stock transfers between branches, adjustments, reorder rules — PI-3
+- [x] Stock transfers between branches, adjustments, reservations, FEFO — PI-3
 - [ ] Suppliers → purchase orders → goods receipts → returns — PI-4
 - [ ] Dispensing with FEFO batch selection — PI-7, blocked on `prescriptions`
 

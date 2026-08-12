@@ -16,18 +16,26 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `createLocationAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:105` |  |
-| `createLotAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:213` |  |
-| `createSerialAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:271` |  |
-| `IDLE_FORM` | `: StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:51` |  |
-| `updateLocationAction` | `(slug: string, locationId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:149` |  |
+| `cancelTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:578` |  |
+| `createLocationAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:115` |  |
+| `createLotAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:223` |  |
+| `createSerialAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:281` |  |
+| `createTransferAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:427` |  |
+| `dispatchTransferAction` | `(slug: string, transferId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:473` |  |
+| `IDLE_FORM` | `: StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:61` |  |
+| `receiveTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:503` |  |
+| `recordAdjustmentAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:337` |  |
+| `releaseReservationAction` | `(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:675` |  |
+| `reserveStockAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:615` |  |
+| `updateLocationAction` | `(slug: string, locationId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:159` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `majorToMinor` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:93` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:60` |  |
+| `majorToMinor` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:103` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:70` |  |
+| `transferLinesFrom` <sub>local</sub> | `(formData: FormData): StockTransferLineRequest[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:402` |  |
 
 ## var
 
@@ -39,4 +47,4 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `StockFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set on a successful create, so the form can navigate to wha…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:43` |  |
+| `StockFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set on a successful create, so the form can navigate to wha…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:53` |  |

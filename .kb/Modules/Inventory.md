@@ -65,13 +65,18 @@ Where a thing IS and how much of it there is. The other half of the product cata
 ## Source files
 
 - `apps/api/src/routes/v1/inventory.routes.ts`
+- `apps/api/src/services/inventory/allocation.service.ts`
 - `apps/api/src/services/inventory/balance.service.ts`
 - `apps/api/src/services/inventory/batch.service.ts`
 - `apps/api/src/services/inventory/expiry.service.ts`
 - `apps/api/src/services/inventory/location.service.ts`
 - `apps/api/src/services/inventory/movement.service.ts`
+- `apps/api/src/services/inventory/reason-code.service.ts`
+- `apps/api/src/services/inventory/reservation.service.ts`
 - `apps/api/src/services/inventory/serial.service.ts`
+- `apps/api/src/services/inventory/transfer.service.ts`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts`
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/ledger/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/[locationId]/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/new/page.tsx`
@@ -79,13 +84,21 @@ Where a thing IS and how much of it there is. The other half of the product cata
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/new/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/page.tsx`
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/reservations/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/new/page.tsx`
 - `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/page.tsx`
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/[transferId]/page.tsx`
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/new/page.tsx`
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/page.tsx`
+- `apps/worker/src/inventory/deps.ts`
 - `apps/worker/src/inventory/expiry.processor.ts`
+- `apps/worker/src/inventory/reservation.processor.ts`
 - `packages/contracts/src/inventory.ts`
+- `packages/inventory/src/allocate.ts`
 - `packages/inventory/src/errors.ts`
 - `packages/inventory/src/expiry.ts`
 - `packages/inventory/src/movement.ts`
+- `packages/inventory/src/reservation-sweep.ts`
 - `packages/inventory/src/units.ts`
 
 ## Workspace dependencies
@@ -106,7 +119,20 @@ Where a thing IS and how much of it there is. The other half of the product cata
 
 | name | kind | at |
 | --- | --- | --- |
+| `AllocationCandidate` | interface | `packages/inventory/src/allocate.ts:56` |
+| `AllocationLine` | interface | `packages/inventory/src/allocate.ts:68` |
+| `AllocationPlan` | interface | `packages/inventory/src/allocate.ts:74` |
+| `allocationPlanLine` | zod | `packages/contracts/src/inventory.ts:1267` |
+| `AllocationPlanLine` | type | `packages/contracts/src/inventory.ts:1330` |
+| `allocationPlanRequest` | zod | `packages/contracts/src/inventory.ts:1252` |
+| `AllocationPlanRequest` | type | `packages/contracts/src/inventory.ts:1329` |
+| `allocationPlanResponse` | zod | `packages/contracts/src/inventory.ts:1281` |
+| `AllocationPlanResponse` | type | `packages/contracts/src/inventory.ts:1331` |
+| `allocationStrategy` | zod | `packages/contracts/src/inventory.ts:912` |
+| `AllocationStrategy` | type | `packages/contracts/src/inventory.ts:1304` |
+| `AllocationStrategy` | type | `packages/inventory/src/allocate.ts:46` |
 | `assertExactConversion` | fn | `packages/inventory/src/units.ts:378` |
+| `assertReasonCode` | fn | `apps/api/src/services/inventory/reason-code.service.ts:151` |
 | `assertValidPackaging` | fn | `packages/inventory/src/units.ts:476` |
 | `assignSerial` | fn | `apps/api/src/services/inventory/serial.service.ts:374` |
 | `assignSerialRequest` | zod | `packages/contracts/src/inventory.ts:510` |
@@ -120,12 +146,16 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `BatchListResponse` | type | `packages/contracts/src/inventory.ts:858` |
 | `batchQuery` | zod | `packages/contracts/src/inventory.ts:380` |
 | `BatchQuery` | type | `packages/contracts/src/inventory.ts:855` |
-| `batchRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:215` |
+| `batchRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:263` |
 | `batchStatus` | zod | `packages/contracts/src/inventory.ts:55` |
 | `BatchStatus` | type | `packages/contracts/src/inventory.ts:836` |
 | `batchSummary` | zod | `packages/contracts/src/inventory.ts:402` |
 | `BatchSummary` | type | `packages/contracts/src/inventory.ts:856` |
 | `buildUnitGraph` | fn | `packages/inventory/src/units.ts:236` |
+| `cancelStockTransferRequest` | zod | `packages/contracts/src/inventory.ts:1068` |
+| `CancelStockTransferRequest` | type | `packages/contracts/src/inventory.ts:1316` |
+| `cancelTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:1317` |
+| `cancelTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:578` |
 | `compareQuantities` | fn | `packages/inventory/src/units.ts:207` |
 | `conflict` | fn | `packages/inventory/src/errors.ts:38` |
 | `conversionFactor` | fn | `packages/inventory/src/units.ts:296` |
@@ -141,13 +171,26 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `createInventoryLocationRequest` | zod | `packages/contracts/src/inventory.ts:218` |
 | `CreateInventoryLocationRequest` | type | `packages/contracts/src/inventory.ts:843` |
 | `createLocation` | fn | `apps/api/src/services/inventory/location.service.ts:158` |
-| `createLocationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:105` |
-| `createLotAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:213` |
+| `createLocationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:115` |
+| `createLotAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:223` |
+| `createReasonCode` | fn | `apps/api/src/services/inventory/reason-code.service.ts:218` |
 | `createSerial` | fn | `apps/api/src/services/inventory/serial.service.ts:221` |
-| `createSerialAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:271` |
+| `createSerialAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:281` |
 | `createSerialRequest` | zod | `packages/contracts/src/inventory.ts:481` |
 | `CreateSerialRequest` | type | `packages/contracts/src/inventory.ts:861` |
+| `createStockReasonCodeRequest` | zod | `packages/contracts/src/inventory.ts:926` |
+| `CreateStockReasonCodeRequest` | type | `packages/contracts/src/inventory.ts:1306` |
+| `createStockReservationRequest` | zod | `packages/contracts/src/inventory.ts:1166` |
+| `CreateStockReservationRequest` | type | `packages/contracts/src/inventory.ts:1323` |
+| `createStockTransferRequest` | zod | `packages/contracts/src/inventory.ts:1000` |
+| `CreateStockTransferRequest` | type | `packages/contracts/src/inventory.ts:1313` |
+| `createTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:542` |
+| `createTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:427` |
+| `deleteReasonCode` | fn | `apps/api/src/services/inventory/reason-code.service.ts:316` |
 | `DIRECTION` | const | `packages/inventory/src/movement.ts:121` |
+| `dispatchTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:820` |
+| `dispatchTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:473` |
+| `DueReservation` | interface | `packages/inventory/src/reservation-sweep.ts:42` |
 | `expireBucket` | fn | `packages/inventory/src/expiry.ts:160` |
 | `ExpiredBucket` | interface | `packages/inventory/src/expiry.ts:77` |
 | `expiryReport` | fn | `apps/api/src/services/inventory/expiry.service.ts:101` |
@@ -155,12 +198,14 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `ExpiryReportQuery` | type | `packages/contracts/src/inventory.ts:881` |
 | `expiryReportResponse` | zod | `packages/contracts/src/inventory.ts:811` |
 | `ExpiryReportResponse` | type | `packages/contracts/src/inventory.ts:882` |
+| `findDueReservations` | fn | `packages/inventory/src/reservation-sweep.ts:69` |
 | `findExpiredBuckets` | fn | `packages/inventory/src/expiry.ts:114` |
 | `formatQuantity` | fn | `packages/inventory/src/units.ts:171` |
 | `getBatch` | fn | `apps/api/src/services/inventory/batch.service.ts:212` |
 | `getLocation` | fn | `apps/api/src/services/inventory/location.service.ts:147` |
 | `getSerial` | fn | `apps/api/src/services/inventory/serial.service.ts:194` |
-| `IDLE_FORM` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:51` |
+| `getTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:534` |
+| `IDLE_FORM` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:61` |
 | `invalid` | fn | `packages/inventory/src/errors.ts:32` |
 | `InventoryError` | class | `packages/inventory/src/errors.ts:19` |
 | `InventoryErrorKind` | type | `packages/inventory/src/errors.ts:17` |
@@ -170,7 +215,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `InventoryLocationListResponse` | type | `packages/contracts/src/inventory.ts:848` |
 | `inventoryLocationQuery` | zod | `packages/contracts/src/inventory.ts:254` |
 | `InventoryLocationQuery` | type | `packages/contracts/src/inventory.ts:845` |
-| `inventoryLocationRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:140` |
+| `inventoryLocationRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:188` |
 | `inventoryLocationSummary` | zod | `packages/contracts/src/inventory.ts:275` |
 | `InventoryLocationSummary` | type | `packages/contracts/src/inventory.ts:846` |
 | `invert` | fn | `packages/inventory/src/units.ts:129` |
@@ -178,7 +223,10 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `listBatches` | fn | `apps/api/src/services/inventory/batch.service.ts:138` |
 | `listLedger` | fn | `apps/api/src/services/inventory/balance.service.ts:130` |
 | `listLocations` | fn | `apps/api/src/services/inventory/location.service.ts:125` |
+| `listReasonCodes` | fn | `apps/api/src/services/inventory/reason-code.service.ts:101` |
+| `listReservations` | fn | `apps/api/src/services/inventory/reservation.service.ts:109` |
 | `listSerials` | fn | `apps/api/src/services/inventory/serial.service.ts:132` |
+| `listTransfers` | fn | `apps/api/src/services/inventory/transfer.service.ts:471` |
 | `locationKind` | zod | `packages/contracts/src/inventory.ts:39` |
 | `LocationKind` | type | `packages/contracts/src/inventory.ts:835` |
 | `LocationPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/[locationId]/page.tsx:20` |
@@ -186,6 +234,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `LotsPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/page.tsx:21` |
 | `manualMovementType` | zod | `packages/contracts/src/inventory.ts:131` |
 | `ManualMovementType` | type | `packages/contracts/src/inventory.ts:841` |
+| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:14` |
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/ledger/page.tsx:9` |
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/[locationId]/page.tsx:9` |
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/new/page.tsx:9` |
@@ -193,35 +242,61 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/new/page.tsx:9` |
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/page.tsx:9` |
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/page.tsx:9` |
+| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/reservations/page.tsx:15` |
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/new/page.tsx:13` |
 | `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/page.tsx:9` |
+| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/[transferId]/page.tsx:16` |
+| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/new/page.tsx:13` |
+| `metadata` | var | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/page.tsx:9` |
 | `missing` | fn | `packages/inventory/src/errors.ts:35` |
-| `movementDeps` | var | `apps/api/src/services/inventory/movement.service.ts:45` |
+| `movementDeps` | var | `apps/api/src/services/inventory/movement.service.ts:46` |
+| `movementDeps` | var | `apps/worker/src/inventory/deps.ts:26` |
 | `MovementDeps` | interface | `packages/inventory/src/movement.ts:76` |
 | `MovementInput` | interface | `packages/inventory/src/movement.ts:183` |
 | `MovementOptions` | interface | `packages/inventory/src/movement.ts:96` |
 | `multiply` | fn | `packages/inventory/src/units.ts:115` |
+| `NewAdjustmentPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:37` |
 | `NewLocationPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/new/page.tsx:22` |
 | `NewLotPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/new/page.tsx:34` |
 | `NewSerialPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/new/page.tsx:32` |
+| `NewTransferPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/new/page.tsx:34` |
+| `orderCandidates` | fn | `packages/inventory/src/allocate.ts:101` |
 | `packagingFactorToBase` | fn | `packages/inventory/src/units.ts:419` |
 | `PackagingLevelRow` | interface | `packages/inventory/src/units.ts:395` |
 | `parseQuantity` | fn | `packages/inventory/src/units.ts:148` |
+| `planAllocation` | fn | `packages/inventory/src/allocate.ts:180` |
+| `planStockAllocation` | fn | `apps/api/src/services/inventory/allocation.service.ts:41` |
 | `positiveQuantity` | var | `packages/contracts/src/inventory.ts:153` |
 | `rational` | fn | `packages/inventory/src/units.ts:102` |
 | `Rational` | interface | `packages/inventory/src/units.ts:68` |
 | `readableQuantity` | fn | `packages/contracts/src/inventory.ts:204` |
 | `reasonCode` | var | `packages/contracts/src/inventory.ts:176` |
-| `recordMovement` | fn | `apps/api/src/services/inventory/movement.service.ts:61` |
-| `recordMovementIn` | fn | `apps/api/src/services/inventory/movement.service.ts:51` |
-| `recordMovementIn` | fn | `packages/inventory/src/movement.ts:400` |
+| `receiveStockTransferRequest` | zod | `packages/contracts/src/inventory.ts:1030` |
+| `ReceiveStockTransferRequest` | type | `packages/contracts/src/inventory.ts:1315` |
+| `receiveTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:1094` |
+| `receiveTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:503` |
+| `recordAdjustmentAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:337` |
+| `recordMovement` | fn | `apps/api/src/services/inventory/movement.service.ts:77` |
+| `recordMovementIn` | fn | `apps/api/src/services/inventory/movement.service.ts:52` |
+| `recordMovementIn` | fn | `packages/inventory/src/movement.ts:408` |
 | `recordMovementRequest` | var | `packages/contracts/src/inventory.ts:578` |
 | `RecordMovementRequest` | type | `packages/contracts/src/inventory.ts:869` |
 | `recordMovementResponse` | zod | `packages/contracts/src/inventory.ts:638` |
 | `RecordMovementResponse` | type | `packages/contracts/src/inventory.ts:870` |
+| `releaseDueReservation` | fn | `packages/inventory/src/reservation-sweep.ts:114` |
+| `releaseReservation` | fn | `apps/api/src/services/inventory/reservation.service.ts:359` |
+| `releaseReservationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:675` |
+| `releaseReservationIn` | fn | `apps/api/src/services/inventory/reservation.service.ts:302` |
+| `releaseStockReservationRequest` | var | `packages/contracts/src/inventory.ts:1181` |
+| `ReleaseStockReservationRequest` | type | `packages/contracts/src/inventory.ts:1324` |
 | `replaceStorageAreas` | fn | `apps/api/src/services/inventory/location.service.ts:316` |
 | `replaceStorageAreasRequest` | zod | `packages/contracts/src/inventory.ts:323` |
 | `ReplaceStorageAreasRequest` | type | `packages/contracts/src/inventory.ts:851` |
+| `ReservationsPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/reservations/page.tsx:34` |
+| `ReservationSweepResult` | interface | `packages/inventory/src/reservation-sweep.ts:52` |
+| `reserveStock` | fn | `apps/api/src/services/inventory/reservation.service.ts:159` |
+| `reserveStockAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:615` |
+| `resolveStrategy` | fn | `packages/inventory/src/allocate.ts:228` |
 | `RunInTenant` | type | `packages/inventory/src/expiry.ts:192` |
 | `serialDetail` | var | `packages/contracts/src/inventory.ts:556` |
 | `SerialDetail` | type | `packages/contracts/src/inventory.ts:866` |
@@ -229,7 +304,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `SerialListResponse` | type | `packages/contracts/src/inventory.ts:867` |
 | `serialQuery` | zod | `packages/contracts/src/inventory.ts:516` |
 | `SerialQuery` | type | `packages/contracts/src/inventory.ts:864` |
-| `serialRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:305` |
+| `serialRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:353` |
 | `SerialsPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/page.tsx:21` |
 | `serialStatus` | zod | `packages/contracts/src/inventory.ts:76` |
 | `SerialStatus` | type | `packages/contracts/src/inventory.ts:838` |
@@ -243,7 +318,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `StockBalanceQuery` | type | `packages/contracts/src/inventory.ts:872` |
 | `stockBalanceRow` | zod | `packages/contracts/src/inventory.ts:673` |
 | `StockBalanceRow` | type | `packages/contracts/src/inventory.ts:873` |
-| `StockFormState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:43` |
+| `StockFormState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:53` |
 | `stockLedgerListResponse` | zod | `packages/contracts/src/inventory.ts:754` |
 | `StockLedgerListResponse` | type | `packages/contracts/src/inventory.ts:878` |
 | `StockLedgerPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/ledger/page.tsx:25` |
@@ -254,20 +329,56 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `stockMovementType` | zod | `packages/contracts/src/inventory.ts:86` |
 | `StockMovementType` | type | `packages/contracts/src/inventory.ts:839` |
 | `StockPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/page.tsx:27` |
+| `stockReasonCodeListResponse` | zod | `packages/contracts/src/inventory.ts:962` |
+| `StockReasonCodeListResponse` | type | `packages/contracts/src/inventory.ts:1310` |
+| `stockReasonCodeQuery` | zod | `packages/contracts/src/inventory.ts:945` |
+| `StockReasonCodeQuery` | type | `packages/contracts/src/inventory.ts:1308` |
+| `stockReasonCodeSummary` | zod | `packages/contracts/src/inventory.ts:950` |
+| `StockReasonCodeSummary` | type | `packages/contracts/src/inventory.ts:1309` |
+| `stockReasonDirection` | zod | `packages/contracts/src/inventory.ts:900` |
+| `StockReasonDirection` | type | `packages/contracts/src/inventory.ts:1301` |
 | `stockReferenceType` | zod | `packages/contracts/src/inventory.ts:104` |
 | `StockReferenceType` | type | `packages/contracts/src/inventory.ts:840` |
-| `stockRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:381` |
+| `stockReservationListResponse` | zod | `packages/contracts/src/inventory.ts:1224` |
+| `StockReservationListResponse` | type | `packages/contracts/src/inventory.ts:1327` |
+| `stockReservationQuery` | zod | `packages/contracts/src/inventory.ts:1185` |
+| `StockReservationQuery` | type | `packages/contracts/src/inventory.ts:1325` |
+| `stockReservationStatus` | zod | `packages/contracts/src/inventory.ts:910` |
+| `StockReservationStatus` | type | `packages/contracts/src/inventory.ts:1303` |
+| `stockReservationSummary` | zod | `packages/contracts/src/inventory.ts:1196` |
+| `StockReservationSummary` | type | `packages/contracts/src/inventory.ts:1326` |
+| `stockRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:429` |
 | `stockStatus` | zod | `packages/contracts/src/inventory.ts:64` |
 | `StockStatus` | type | `packages/contracts/src/inventory.ts:837` |
+| `stockTransferDetail` | var | `packages/contracts/src/inventory.ts:1137` |
+| `StockTransferDetail` | type | `packages/contracts/src/inventory.ts:1320` |
+| `stockTransferLineDetail` | zod | `packages/contracts/src/inventory.ts:1090` |
+| `StockTransferLineDetail` | type | `packages/contracts/src/inventory.ts:1318` |
+| `stockTransferLineRequest` | var | `packages/contracts/src/inventory.ts:978` |
+| `StockTransferLineRequest` | type | `packages/contracts/src/inventory.ts:1312` |
+| `stockTransferListResponse` | zod | `packages/contracts/src/inventory.ts:1144` |
+| `StockTransferListResponse` | type | `packages/contracts/src/inventory.ts:1321` |
+| `stockTransferQuery` | zod | `packages/contracts/src/inventory.ts:1078` |
+| `StockTransferQuery` | type | `packages/contracts/src/inventory.ts:1317` |
+| `stockTransferRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:660` |
+| `stockTransferStatus` | zod | `packages/contracts/src/inventory.ts:902` |
+| `StockTransferStatus` | type | `packages/contracts/src/inventory.ts:1302` |
+| `stockTransferSummary` | zod | `packages/contracts/src/inventory.ts:1111` |
+| `StockTransferSummary` | type | `packages/contracts/src/inventory.ts:1319` |
 | `storageAreaDetail` | zod | `packages/contracts/src/inventory.ts:267` |
 | `StorageAreaDetail` | type | `packages/contracts/src/inventory.ts:849` |
 | `storageAreaRequest` | zod | `packages/contracts/src/inventory.ts:307` |
 | `storageBinDetail` | zod | `packages/contracts/src/inventory.ts:260` |
 | `StorageBinDetail` | type | `packages/contracts/src/inventory.ts:850` |
+| `sweepDueReservations` | fn | `apps/worker/src/inventory/reservation.processor.ts:68` |
+| `sweepExpiredReservations` | fn | `packages/inventory/src/reservation-sweep.ts:159` |
 | `sweepExpiredStock` | fn | `apps/api/src/services/inventory/expiry.service.ts:189` |
-| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:138` |
+| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:79` |
 | `sweepExpiredStock` | fn | `packages/inventory/src/expiry.ts:204` |
 | `SweepResult` | interface | `packages/inventory/src/expiry.ts:63` |
+| `toBaseUnits` | fn | `packages/inventory/src/movement.ts:345` |
+| `TransferPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/[transferId]/page.tsx:36` |
+| `TransfersPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/page.tsx:28` |
 | `UnitClass` | type | `packages/inventory/src/units.ts:48` |
 | `UnitGraph` | interface | `packages/inventory/src/units.ts:221` |
 | `UnitRow` | interface | `packages/inventory/src/units.ts:53` |
@@ -277,10 +388,16 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `updateInventoryLocationRequest` | var | `packages/contracts/src/inventory.ts:234` |
 | `UpdateInventoryLocationRequest` | type | `packages/contracts/src/inventory.ts:844` |
 | `updateLocation` | fn | `apps/api/src/services/inventory/location.service.ts:211` |
-| `updateLocationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:149` |
+| `updateLocationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:159` |
+| `updateReasonCode` | fn | `apps/api/src/services/inventory/reason-code.service.ts:267` |
 | `updateSerial` | fn | `apps/api/src/services/inventory/serial.service.ts:295` |
 | `updateSerialRequest` | var | `packages/contracts/src/inventory.ts:491` |
 | `UpdateSerialRequest` | type | `packages/contracts/src/inventory.ts:862` |
+| `updateStockReasonCodeRequest` | var | `packages/contracts/src/inventory.ts:934` |
+| `UpdateStockReasonCodeRequest` | type | `packages/contracts/src/inventory.ts:1307` |
+| `updateStockTransferRequest` | var | `packages/contracts/src/inventory.ts:1011` |
+| `UpdateStockTransferRequest` | type | `packages/contracts/src/inventory.ts:1314` |
+| `updateTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:693` |
 | `verifyBalances` | fn | `apps/api/src/services/inventory/balance.service.ts:282` |
 | `verifyBalancesResponse` | zod | `packages/contracts/src/inventory.ts:771` |
 | `VerifyBalancesResponse` | type | `packages/contracts/src/inventory.ts:880` |

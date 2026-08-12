@@ -25,13 +25,15 @@ Files: `packages/queue/jest.config.ts` · `packages/queue/src/index.ts` · `pack
 | `INVENTORY_SWEEP_CRON` | `'10 * * * *'` | `packages/queue/src/index.ts:198` |  |
 | `INVENTORY_SWEEP_JOB` | `'EXPIRY_SWEEP'` | `packages/queue/src/index.ts:183` |  |
 | `QUEUE` | `{ NOTIFICATIONS: 'notifications', DOCUMENTS: 'documents', REPORTS: 'reports', BILLING: 'b…` | `packages/queue/src/index.ts:35` |  |
+| `RESERVATION_SWEEP_CRON` | `'30 * * * *'` | `packages/queue/src/index.ts:224` |  |
+| `RESERVATION_SWEEP_JOB` | `'RESERVATION_SWEEP'` | `packages/queue/src/index.ts:211` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `config` <sub>local</sub> | `: Config` | `packages/queue/jest.config.ts:3` |  |
-| `jobId` | `{ appointmentReminder: (appointmentId: string, hoursBefore: number): string => `reminder-…` | `packages/queue/src/index.ts:209` |  |
+| `jobId` | `{ appointmentReminder: (appointmentId: string, hoursBefore: number): string => `reminder-…` | `packages/queue/src/index.ts:235` |  |
 
 ## interface
 

@@ -202,3 +202,64 @@ export function expiryPhrase(daysRemaining: number): string {
   if (daysRemaining === 1) return 'Expires tomorrow';
   return `Expires in ${String(daysRemaining)} days`;
 }
+
+/**
+ * A transfer's progress, drawn with the SAME rule the bucket bar uses (PI-3).
+ *
+ * ⚠️ THE SECTION'S SIGNATURE ELEMENT IS EXTENDED, NOT JOINED BY A SECOND ONE.
+ *   The bucket bar already says "this quantity is not one number" in a 4px rule;
+ *   a transfer is the same sentence about time rather than condition — some of
+ *   it has arrived, some is still on the van. Inventing a second visual device
+ *   for the second idea would leave the section with two things competing to be
+ *   the memorable one, and the whole reason the bar works is that everything
+ *   around it is quiet.
+ *
+ * ⚠️ AND THE OUTSTANDING SEGMENT USES THE SAME `drape/45` AS `RESERVED` AND
+ *   `IN_TRANSIT` DO ABOVE. That is not a coincidence being reused: in every case
+ *   the half-tone means "this is real stock the clinic owns and cannot dispense
+ *   today", which is exactly what stock on a van is.
+ */
+export function TransferProgress({
+  sent,
+  received,
+  unit,
+  label,
+}: {
+  sent: string;
+  received: string;
+  unit: string;
+  label: string;
+}) {
+  const total = Number(sent);
+  const arrived = Number(received);
+  const percent = total <= 0 ? 0 : Math.min(100, (arrived / total) * 100);
+  const outstanding = readableQuantity(String(Math.max(0, total - arrived)));
+
+  return (
+    <div>
+      <div
+        className="bg-rule/40 flex h-1 w-full overflow-hidden rounded-full"
+        role="img"
+        aria-label={
+          percent >= 100
+            ? `${label}: all ${readableQuantity(sent)} ${unit} received`
+            : `${label}: ${readableQuantity(received)} of ${readableQuantity(sent)} ${unit} received, ${outstanding} ${unit} outstanding`
+        }
+      >
+        <div className="bg-drape" style={{ width: `${String(percent)}%` }} />
+        <div className="bg-drape/45" style={{ width: `${String(100 - percent)}%` }} />
+      </div>
+
+      <p aria-hidden className="text-muted mt-1.5 flex flex-wrap gap-x-3 text-[0.75rem]">
+        <span>
+          <span className="text-ink font-mono">{readableQuantity(received)}</span> received
+        </span>
+        {percent < 100 ? (
+          <span>
+            <span className="text-ink font-mono">{outstanding}</span> outstanding
+          </span>
+        ) : null}
+      </p>
+    </div>
+  );
+}

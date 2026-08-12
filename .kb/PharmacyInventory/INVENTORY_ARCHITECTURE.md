@@ -166,14 +166,47 @@ branch A / Central Store        branch B / Main Pharmacy
         └────────── IN_TRANSIT ───────────┘
 ```
 
-Inter-branch transfers hold stock in an `IN_TRANSIT` state owned by the sending
-branch until receipt. Both legs are ledger rows citing one transfer id. A
-transfer that is sent and never received is visible, which is the point —
-"it vanished between branches" is the single most common real-world inventory
-complaint.
+⚠️ **REFINED IN PI-3, AND THE DIAGRAM ABOVE IS NOW THE SHAPE RATHER THAN THE
+MECHANISM.** This document said in-transit stock is held in an `IN_TRANSIT`
+STATUS owned by the SENDING branch. It is held by the **transfer DOCUMENT**, and
+the change was forced rather than chosen.
+
+`branch_isolation` is RESTRICTIVE on `stock_ledger`, so every row written must
+carry a `branch_id` inside the writer's scope. A bucket owned by the sender means
+the person RECEIVING at branch B has to write a removal against branch A — a
+branch they cannot see and must not be able to. The only ways to allow it are to
+widen the receiving user's tenant context, which punches the first hole in the
+branch boundary, or to write the row twice, which reintroduces the second ledger
+writer PI-ADR-004 forbids.
+
+So:
+
+```
+dispatch   TRANSFER_OUT at the sender      · actor scoped to A · one leg
+receipt    TRANSFER_IN  at the receiver    · actor scoped to B · one leg
+```
+
+Both legs cite the transfer id as `reference_id`, so the pair is one join apart.
+Neither side ever writes a row at the other's branch and no context is ever
+widened. What is outstanding is `sent − received` over the lines of `DISPATCHED`
+transfers — a better answer than a bucket, because it names the document, the
+date, the sender and what is missing. "It vanished between branches" is the
+single most common real-world inventory complaint, and this is the shape that
+answers it.
+
+⚠️ **THE COST, FOR PI-22.** In-transit stock is NOT in `stock_balances`. A
+valuation report that sums that table and stops is under-counting by whatever is
+on a van; it must add the outstanding lines of `DISPATCHED` transfers.
+`verifyBalances()` is unaffected — both legs are ledger rows.
+
+The lot's identity and the shelf NAMES travel on the document, because `batches`
+and `inventory_locations` are branch-scoped too and the receiver can read
+neither. That is what a paper delivery note has always carried. See the
+`transfer_location_snapshot` and `transfer_line_lot_snapshot` migrations, both of
+which exist because a test found the failure and reading the code did not.
 
 Intra-branch (location → location) is one atomic pair of rows with no in-transit
-state.
+state, written in one transaction at dispatch.
 
 ---
 

@@ -21,6 +21,7 @@ import {
   inventoryLocationRoutes,
   serialRoutes,
   stockRoutes,
+  stockTransferRoutes,
 } from './inventory.routes.js';
 import {
   activeIngredientRoutes,
@@ -119,15 +120,22 @@ router.use('/storage-profiles', storageProfileRoutes);
 //    has device 7742", so its reads write `data_access_logs` (PI-ADR-016). The
 //    other three do not touch a patient at all.
 //
-// ⚠️ `/stock/movements` IS THE ONLY HTTP WRITE INTO `stock_ledger`, and the only
-//    movement types it accepts are the manual ones. Dispensing (PI-7),
-//    consumption (PI-9), transfers (PI-3) and goods receipts (PI-4) each need
-//    something this endpoint cannot give them — a regulatory decision, an
-//    encounter, or a second leg in the same transaction.
+// ⚠️ `/stock/movements` IS NOT THE ONLY HTTP WRITE INTO `stock_ledger` ANY MORE,
+//    AND IT IS STILL THE ONLY ONE THAT TAKES A MOVEMENT TYPE. It accepts the
+//    manual types only; `/stock-transfers/*` and `/stock/reservations` (PI-3)
+//    write movements too, and each writes a PAIR or a status transition whose
+//    type the caller never names. Dispensing (PI-7), consumption (PI-9) and
+//    goods receipts (PI-4) will do the same. Every one of them goes through
+//    `recordMovementIn`; PI-ADR-004 is about the WRITER, not the route.
 router.use('/inventory-locations', inventoryLocationRoutes);
 router.use('/batches', batchRoutes);
 router.use('/serials', serialRoutes);
 router.use('/stock', stockRoutes);
+// Movements (PI-3). A transfer is the one document in the programme belonging to
+// TWO branches, so it sits at the top level rather than under a branch-scoped
+// path — and its RLS policy is the bespoke `from OR to` one, not the generic
+// branch predicate. See the StockTransfer model.
+router.use('/stock-transfers', stockTransferRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather
