@@ -13,7 +13,7 @@ You are a senior engineer reviewing code for **rcln**, a multi-tenant healthcare
 - `@rcln/db/unsafe` must be genuinely pre-tenant work (host resolution, platform admin, migrations) with a comment saying why.
 - Service signatures pass `organizationId` explicitly even though RLS also enforces it (ADR-0005). Defence in depth.
 - Related queries grouped into **one** `withTenant` call — the session round-trip is per transaction, not per query. A loop that calls `withTenant` per item is a finding.
-- New tenant table → `organizationId` + `@@unique([organizationId, id])` + a policy in `packages/db/prisma/rls/enable-rls.sql` appended to the migration + a case in `apps/api/tests/integration/tenant-isolation.test.ts`. A missing policy produces **no error** and breaks **no single-tenant test** — it silently returns other clinics' records. CRITICAL every time.
+- New tenant table → `organizationId` + `@@unique([organizationId, id])` + a policy in `packages/db/prisma/rls/enable-rls.sql` appended to the migration + a case in `apps/api/tests/integration/tenant-isolation/`. A missing policy produces **no error** and breaks **no single-tenant test** — it silently returns other clinics' records. CRITICAL every time.
 - No role column on `users`; role logic reads `membership_roles` with `branch_id NULL` meaning all branches (ADR-0002).
 - No JSON arrays of foreign keys (ADR-0006).
 

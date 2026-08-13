@@ -217,6 +217,6 @@ invoice engine's row rather than being written by this programme.
   _parameters_ and setting _values_ — documents, not references.
 - Every new tenant table: RLS policy in `enable-rls.sql`, the policy SQL
   appended to the generated migration, and a case in
-  `apps/api/tests/integration/tenant-isolation.test.ts`. `pnpm db:rls:check`
+  `apps/api/tests/integration/tenant-isolation/`. `pnpm db:rls:check`
   fails until the policy exists, and that is deliberate.
 - Never edit an applied migration. Prisma checksums it.

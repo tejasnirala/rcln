@@ -25,3 +25,7 @@ export * from './movement.js';
 export * from './expiry.js';
 export * from './allocate.js';
 export * from './reservation-sweep.js';
+// PI-4. Landed-cost apportionment and the moving average — here rather than in
+// `apps/api` for the reason `allocate.ts` is: costing arithmetic is wrong in a
+// way no integration test notices. See the file header.
+export * from './costing.js';

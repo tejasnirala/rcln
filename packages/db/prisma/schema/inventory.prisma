@@ -153,7 +153,8 @@ enum SerialStatus {
 ///
 ///     ADDS      PURCHASE_RECEIPT, TRANSFER_IN, RETURN
 ///               quantity > 0, status_to only.
-///     REMOVES   DISPENSING, CLINICAL_CONSUMPTION, TRANSFER_OUT, DISPOSAL
+///     REMOVES   DISPENSING, CLINICAL_CONSUMPTION, TRANSFER_OUT, DISPOSAL,
+///               PURCHASE_RETURN
 ///               quantity < 0, status_from only.
 ///     MOVES     RESERVATION, RELEASE, EXPIRY, RECALL, QUARANTINE,
 ///               QUARANTINE_RELEASE, DAMAGE
@@ -183,9 +184,25 @@ enum StockMovementType {
   DAMAGE
   EXPIRY
   RECALL
-  /// Coming back from a patient or a department. Not a purchase return, which is
-  /// a `TRANSFER_OUT` to the supplier in PI-4.
+  /// Coming back from a patient or a department, INTO stock. Not a purchase
+  /// return, which is `PURCHASE_RETURN` immediately below.
   RETURN
+  /// Going back to the SUPPLIER (PI-4.7).
+  ///
+  /// ⚠️ ITS OWN MEMBER, AND A DELIBERATE REFINEMENT OF WHAT `RETURN`'S COMMENT
+  ///   SAID IN PI-2 — which was that a purchase return would be a `TRANSFER_OUT`
+  ///   to the supplier. It cannot be. `TRANSFER_OUT` means "went to another
+  ///   branch of ours" to every report that reads this column, and the
+  ///   outstanding-quantity arithmetic on `stock_transfers` reads exactly those
+  ///   rows: a purchase return written as one would show up as stock in transit
+  ///   between two of the clinic's own sites, on a van that does not exist.
+  ///   Distinguishable only by `reference_type`, which no aggregate groups by.
+  ///
+  /// ⚠️ AND IT HAS NO DEFAULT `status_from`, FOR THE REASON `DISPOSAL` HAS NONE.
+  ///   What is going back — sound stock ordered in error, stock rejected at
+  ///   inspection, stock damaged in the box — is the entire content of the
+  ///   record. See `DEFAULT_STATUS` in `packages/inventory/src/movement.ts`.
+  PURCHASE_RETURN
   DISPOSAL
   RESERVATION
   RELEASE
@@ -271,6 +288,11 @@ model InventoryLocation {
   transfersFrom   StockTransfer[]    @relation("TransferFromLocation")
   transfersTo     StockTransfer[]    @relation("TransferToLocation")
   reservations    StockReservation[]
+  // PI-4. Where a delivery lands, where a return leaves from, and where a
+  // purchase order asked for it to be put.
+  purchaseOrderDeliveries PurchaseOrder[]   @relation("PurchaseOrderDeliverTo")
+  goodsReceipts           GoodsReceipt[]    @relation("GoodsReceiptLocation")
+  purchaseReturns         PurchaseReturn[]  @relation("PurchaseReturnLocation")
 
   @@unique([organizationId, branchId, code])
   /// The composite-FK target every child below references.
@@ -433,6 +455,9 @@ model Batch {
   transferLinesSent     StockTransferLine[] @relation("TransferLineSourceBatch")
   transferLinesReceived StockTransferLine[] @relation("TransferLineDestinationBatch")
   reservations          StockReservation[]
+  /// PI-4. The delivery that created this lot, and any of it that went back.
+  goodsReceiptLines     GoodsReceiptLine[]   @relation("GoodsReceiptLineBatch")
+  purchaseReturnLines   PurchaseReturnLine[] @relation("PurchaseReturnLineBatch")
 
   @@unique([organizationId, branchId, productId, lotNumber])
   @@unique([organizationId, id])
@@ -496,6 +521,9 @@ model Serial {
   /// `receiveTransfer`.
   transferLines StockTransferLine[] @relation("TransferLineSerial")
   reservations  StockReservation[]
+  /// PI-4. The delivery that first recorded this device, and its return.
+  goodsReceiptLines   GoodsReceiptLine[]   @relation("GoodsReceiptLineSerial")
+  purchaseReturnLines PurchaseReturnLine[] @relation("PurchaseReturnLineSerial")
 
   /// Serial numbers repeat across manufacturers, so the key is product-qualified
   /// as well as tenant-qualified.

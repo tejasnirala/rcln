@@ -14,6 +14,7 @@
     "lint:fix": "eslint src --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:rls": "NODE_OPTIONS=--experimental-vm-modules jest tests/integration/tenant-isolation",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
     "clean": "rm -rf dist coverage *.tsbuildinfo"
   },

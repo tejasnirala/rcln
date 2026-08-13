@@ -27,7 +27,7 @@ phase here, because every one touches the schema, tenancy and patient data.
 | **Unit**               | pure logic, no DB                           | unit conversion algebra; FEFO ordering; regulatory `evaluate()` |
 | **Integration**        | service + Postgres in a transaction         | receipt writes a ledger row and updates the balance             |
 | **API**                | supertest through the real middleware chain | 403 without the code; 404 for an unknown tenant                 |
-| **Isolation**          | `tenant-isolation.test.ts`                  | tenant B cannot see tenant A's batch, by any route              |
+| **Isolation**          | the tenant-isolation suite                  | tenant B cannot see tenant A's batch, by any route              |
 | **Authorization**      | per endpoint, per code                      | every new route has one                                         |
 | **Frontend component** | forms and tables with tricky state          | packaging builder, consumption editor                           |
 | **E2E**                | the critical journeys below                 |                                                                 |

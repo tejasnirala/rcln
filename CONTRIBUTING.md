@@ -111,7 +111,7 @@ table carrying `organization_id`, it needs **all** of:
 
 1. An RLS policy in `packages/db/prisma/rls/enable-rls.sql`
 2. That policy SQL appended to the generated migration
-3. A case in `apps/api/tests/integration/tenant-isolation.test.ts`
+3. A case in `apps/api/tests/integration/tenant-isolation/`
 
 `pnpm db:rls:check` fails until the policy exists. That is deliberate: a missing
 policy produces no error and breaks no single-tenant test — it simply starts

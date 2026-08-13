@@ -31,7 +31,7 @@ Before delegating, check by hand:
 
 - New tenant table → `organizationId` + `@@unique([organizationId, id])`?
 - Policy added to `packages/db/prisma/rls/enable-rls.sql` **and appended to the generated `migration.sql`**?
-- A case added to `apps/api/tests/integration/tenant-isolation.test.ts`?
+- A case added to `apps/api/tests/integration/tenant-isolation/`?
 - Hand-written SQL present for anything Prisma does not manage (triggers, `NULLS NOT DISTINCT`, partial indexes)?
 - No already-applied migration edited in place?
 
@@ -91,7 +91,7 @@ For `apps/api`, the equivalent performance questions are: N+1 queries, `withTena
 3. **Authz bypass** — middleware order, missing `authorize`, DENY dropped from resolution.
 4. **Correctness bugs**, especially money arithmetic and anything read-then-write without a constraint or lock.
 5. **Invariant violations** (the five in `CLAUDE.md`) — block merge; each has an ADR.
-6. **Test gaps** — a new tenant table with no `tenant-isolation.test.ts` case.
+6. **Test gaps** — a new tenant table with no the tenant-isolation suite case.
 7. **Typecheck / lint failures.**
 
 Also flag when a change contradicts an ADR: the fix is either a different design or a new ADR superseding it, never a silent deviation.

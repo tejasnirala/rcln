@@ -98,6 +98,27 @@ model User {
   transfersCancelled        StockTransfer[]            @relation("TransferCancelledBy")
   reservationsCreated       StockReservation[]         @relation("ReservationCreatedBy")
   reservationsReleased      StockReservation[]         @relation("ReservationReleasedBy")
+  // Procurement (PI-4). Every state change on every document names who made it.
+  // ⚠️ `requisitionsCreated` and `requisitionsApproved` are the pair that MUST
+  //   stay distinguishable: a requisition whose approver is its creator is
+  //   refused by a CHECK constraint, which is the segregation-of-duty control the
+  //   two permission codes exist for. See PurchaseRequisition.
+  requisitionsCreated       PurchaseRequisition[]      @relation("RequisitionCreatedBy")
+  requisitionsSubmitted     PurchaseRequisition[]      @relation("RequisitionSubmittedBy")
+  requisitionsApproved      PurchaseRequisition[]      @relation("RequisitionApprovedBy")
+  requisitionsRejected      PurchaseRequisition[]      @relation("RequisitionRejectedBy")
+  requisitionsCancelled     PurchaseRequisition[]      @relation("RequisitionCancelledBy")
+  purchaseOrdersCreated     PurchaseOrder[]            @relation("PurchaseOrderCreatedBy")
+  purchaseOrdersIssued      PurchaseOrder[]            @relation("PurchaseOrderIssuedBy")
+  purchaseOrdersClosed      PurchaseOrder[]            @relation("PurchaseOrderClosedBy")
+  purchaseOrdersCancelled   PurchaseOrder[]            @relation("PurchaseOrderCancelledBy")
+  goodsReceiptsCreated      GoodsReceipt[]             @relation("GoodsReceiptCreatedBy")
+  goodsReceiptsPosted       GoodsReceipt[]             @relation("GoodsReceiptPostedBy")
+  goodsReceiptsCancelled    GoodsReceipt[]             @relation("GoodsReceiptCancelledBy")
+  qualityDecisions          GoodsReceiptLine[]         @relation("GoodsReceiptLineQualityDecidedBy")
+  purchaseReturnsCreated    PurchaseReturn[]           @relation("PurchaseReturnCreatedBy")
+  purchaseReturnsSent       PurchaseReturn[]           @relation("PurchaseReturnSentBy")
+  purchaseReturnsCancelled  PurchaseReturn[]           @relation("PurchaseReturnCancelledBy")
 
   @@index([status])
   @@index([isPlatformAdmin])

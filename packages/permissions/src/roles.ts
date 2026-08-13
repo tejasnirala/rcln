@@ -188,6 +188,19 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * store, and it decides what every future shrinkage report can aggregate.
        */
       P.INVENTORY_REASON_CODE_MANAGE,
+      /*
+       * Both halves of the requisition split (PI-4.3), and this is the ONE
+       * BRANCH-LEVEL ROLE THAT HOLDS BOTH.
+       *
+       * ⚠️ HOLDING BOTH IS NOT SELF-APPROVAL. The
+       *   `purchase_requisitions_approver_is_not_creator` CHECK compares the two
+       *   USER IDS on the row, not the two permissions on the role — so a branch
+       *   administrator approves what their storekeeper raised and cannot approve
+       *   their own. Which is the realistic shape of a small clinic: the person
+       *   who runs the site signs off what the dispensary asked for.
+       */
+      P.REQUISITION_CREATE,
+      P.REQUISITION_APPROVE,
       P.INVOICE_READ,
       /*
        * The whole ledger for the branches they run. A branch administrator
@@ -508,6 +521,23 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * store, and it decides what every future shrinkage report can aggregate.
        */
       P.INVENTORY_REASON_CODE_MANAGE,
+      /*
+       * Raises requisitions and deliberately does NOT approve them (PI-4.3).
+       *
+       * ⚠️ THE ASYMMETRY IS THE CONTROL. A pharmacist knows what the dispensary
+       *   is running out of, which is exactly why they should be the one asking —
+       *   and exactly why somebody else should be the one agreeing to spend the
+       *   money. `BRANCH_ADMIN` holds the approve half.
+       *
+       * ⚠️ THEY DO ALREADY HOLD `pharmacy.purchase_order.manage`, WHICH IS
+       *   STRICTLY STRONGER, AND THAT PREDATES THIS SPLIT. A pharmacist can
+       *   therefore commit the clinic's money by raising a PO directly, with no
+       *   requisition and nobody's approval. It is not widened here and it is not
+       *   silently narrowed either — revoking a code every existing clinic
+       *   already holds is the one thing a permission change must not do quietly.
+       *   Recorded in KNOWN_ISSUES for a clinic to narrow with a cloned role.
+       */
+      P.REQUISITION_CREATE,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
       P.PAYMENT_COLLECT,

@@ -77,7 +77,7 @@ app_current_org() IS NULL)`, migration `20260725170000`. Reached only through
 `withUserIdentity()` in `packages/db/src/tenant.ts`, which sets the user variable
 and no tenant. The `app_current_org() IS NULL` half is what keeps the blast
 radius at zero: permissive policies OR together, so without it this would widen
-every ordinary request. Boundaries are pinned in `tenant-isolation.test.ts`.
+every ordinary request. Boundaries are pinned in the tenant-isolation suite.
 
 ### A new branch is invisible to the person who just created it
 
@@ -247,7 +247,7 @@ Adding the table to the `org_scoped` array as well gave it a PERMISSIVE
 `tenant_isolation` beside the hand-written policy, and **permissive policies OR
 together** — so the org-only policy re-opened the hole. A second permissive
 policy never narrows anything. Both halves are pinned in
-`tests/integration/tenant-isolation.test.ts`.
+`tests/integration/tenant-isolation/`.
 
 ### Prisma Migrate offers to drop hand-written indexes it can see
 

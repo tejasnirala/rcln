@@ -9,18 +9,18 @@
 
 **Verified.** 200 tests total — 175 API, 25 permissions.
 
-| Suite                                                 | Cases                | Kind        | What it protects                                                                                                    |
-| ----------------------------------------------------- | -------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| `packages/permissions/tests/resolver.test.ts`         | 22 blocks / 25 cases | Unit        | The whole multi-branch permission matrix, DENY > GRANT > role, validity windows                                     |
-| `apps/api/tests/unit/audit-diff.test.ts`              | 8                    | Unit        | The before/after diff logic                                                                                         |
-| `apps/api/tests/integration/tenant-isolation.test.ts` | 22                   | Integration | **The most important file in the repo.** Cross-tenant access, including six pinning the `own_membership` boundaries |
-| `apps/api/tests/integration/iam.test.ts`              | 41                   | Integration | Roles, members, overrides, suspension, the escalation guards                                                        |
-| `apps/api/tests/integration/invitations.test.ts`      | 26                   | Integration | Issue, revoke, resend, accept                                                                                       |
-| `apps/api/tests/integration/branches.test.ts`         | 24                   | Integration | Branch CRUD and operating hours                                                                                     |
-| `apps/api/tests/integration/auth.test.ts`             | 22                   | Integration | Login, OTP, enumeration resistance, rate limits, cross-tenant token → 404                                           |
-| `apps/api/tests/integration/session-rotation.test.ts` | 12                   | Integration | Rotation, and reuse revoking the family                                                                             |
-| `apps/api/tests/integration/registration.test.ts`     | 11                   | Integration | The one-transaction registration, and that the four RLS-enforced tables land scoped                                 |
-| `apps/api/tests/integration/demo-requests.test.ts`    | 8                    | Integration | Honeypot, timing, dedupe, silent discard                                                                            |
+| Suite                                                     | Cases                | Kind        | What it protects                                                                                                                           |
+| --------------------------------------------------------- | -------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/permissions/tests/resolver.test.ts`             | 22 blocks / 25 cases | Unit        | The whole multi-branch permission matrix, DENY > GRANT > role, validity windows                                                            |
+| `apps/api/tests/unit/audit-diff.test.ts`                  | 8                    | Unit        | The before/after diff logic                                                                                                                |
+| `apps/api/tests/integration/tenant-isolation/` (13 files) | 247                  | Integration | **The most important suite in the repo.** Cross-tenant access on every tenant table, including six pinning the `own_membership` boundaries |
+| `apps/api/tests/integration/iam.test.ts`                  | 41                   | Integration | Roles, members, overrides, suspension, the escalation guards                                                                               |
+| `apps/api/tests/integration/invitations.test.ts`          | 26                   | Integration | Issue, revoke, resend, accept                                                                                                              |
+| `apps/api/tests/integration/branches.test.ts`             | 24                   | Integration | Branch CRUD and operating hours                                                                                                            |
+| `apps/api/tests/integration/auth.test.ts`                 | 22                   | Integration | Login, OTP, enumeration resistance, rate limits, cross-tenant token → 404                                                                  |
+| `apps/api/tests/integration/session-rotation.test.ts`     | 12                   | Integration | Rotation, and reuse revoking the family                                                                                                    |
+| `apps/api/tests/integration/registration.test.ts`         | 11                   | Integration | The one-transaction registration, and that the four RLS-enforced tables land scoped                                                        |
+| `apps/api/tests/integration/demo-requests.test.ts`        | 8                    | Integration | Honeypot, timing, dedupe, silent discard                                                                                                   |
 
 Run them:
 
@@ -63,7 +63,7 @@ gets nothing when reaching for org A's rows — and that the answer is **404, no
 | Check                      | Catches                               |
 | -------------------------- | ------------------------------------- |
 | `pnpm db:rls:check`        | A table that has **no policy at all** |
-| `tenant-isolation.test.ts` | A policy that exists and is **wrong** |
+| the tenant-isolation suite | A policy that exists and is **wrong** |
 
 ---
 
@@ -129,7 +129,7 @@ gets nothing when reaching for org A's rows — and that the answer is **404, no
 
 ## Adding tests
 
-**A new tenant table** — a case in `tenant-isolation.test.ts` is mandatory, not
+**A new tenant table** — a case in the tenant-isolation suite is mandatory, not
 optional. `db:rls:check` will pass with a policy that is subtly wrong; only the
 test catches that.
 

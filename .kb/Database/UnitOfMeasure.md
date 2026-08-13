@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/products.prisma:270`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 10 |
-| relations | 8 |
+| relations | 13 |
 
 ## Columns
 
@@ -39,6 +39,11 @@ Declared at `packages/db/prisma/schema/products.prisma:270`.
 | `ingredientStrength` | [`CompositionIngredient`](CompositionIngredient.md) | `ingredientStrength CompositionIngredient[] @relation("IngredientStrengthUnit")` |
 | `stockLedgerEntries` | [`StockLedgerEntry`](StockLedgerEntry.md) | `stockLedgerEntries StockLedgerEntry[]` |
 | `transferLines` | [`StockTransferLine`](StockTransferLine.md) | `transferLines StockTransferLine[] @relation("TransferLineUnit")` |
+| `supplierPackUnits` | [`SupplierProduct`](SupplierProduct.md) | `supplierPackUnits SupplierProduct[] @relation("SupplierProductPackUnit")` |
+| `requisitionLines` | [`PurchaseRequisitionLine`](PurchaseRequisitionLine.md) | `requisitionLines PurchaseRequisitionLine[] @relation("RequisitionLineUnit")` |
+| `purchaseOrderLines` | [`PurchaseOrderLine`](PurchaseOrderLine.md) | `purchaseOrderLines PurchaseOrderLine[] @relation("PurchaseOrderLineUnit")` |
+| `goodsReceiptLines` | [`GoodsReceiptLine`](GoodsReceiptLine.md) | `goodsReceiptLines GoodsReceiptLine[] @relation("GoodsReceiptLineUnit")` |
+| `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[] @relation("PurchaseReturnLineUnit")` |
 
 ## Indexes and constraints
 
@@ -57,4 +62,9 @@ erDiagram
     UnitOfMeasure }o--o{ CompositionIngredient : relates
     UnitOfMeasure }o--o{ StockLedgerEntry : relates
     UnitOfMeasure }o--o{ StockTransferLine : relates
+    UnitOfMeasure }o--o{ SupplierProduct : relates
+    UnitOfMeasure }o--o{ PurchaseRequisitionLine : relates
+    UnitOfMeasure }o--o{ PurchaseOrderLine : relates
+    UnitOfMeasure }o--o{ GoodsReceiptLine : relates
+    UnitOfMeasure }o--o{ PurchaseReturnLine : relates
 ```

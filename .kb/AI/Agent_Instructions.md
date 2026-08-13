@@ -157,7 +157,7 @@ optional:
 4. Append that SQL to the generated `migration.sql` **before committing** —
    Prisma Migrate does not manage policies.
 5. `pnpm db:rls:check` — it fails until the policy exists. That is deliberate.
-6. Add a case to `apps/api/tests/integration/tenant-isolation.test.ts`.
+6. Add a case to `apps/api/tests/integration/tenant-isolation/`.
 
 Also never: a bare `@@unique([code])` on a tenant table (always
 tenant-qualified); editing an already-applied migration in place (Prisma

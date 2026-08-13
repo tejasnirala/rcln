@@ -260,7 +260,53 @@ DECLARE
     'stock_transfer_lines',
     -- Reservations DO carry a single NOT NULL branch_id — stock is reserved AT
     -- a place — so this one is an ordinary member of both loops.
-    'stock_reservations'
+    'stock_reservations',
+    -- ---------------------------------------------------------------------
+    -- Procurement (PI-4). Twelve tables, TWO tenancy classes, and the seam is
+    -- BRANCH rather than platform.
+    --
+    -- ⚠️ NOTHING IN THIS PHASE IS PLATFORM-EXTENSIBLE, unlike PI-3's
+    --   `stock_reason_codes`. A supplier, a price agreed with them and every
+    --   purchase document are facts about ONE clinic (PI-ADR-003) — there is no
+    --   such thing as a platform supplier, and a nullable organization_id here
+    --   would mean a vendor row every tenant on the platform can read and edit.
+    --
+    -- ⚠️ THE FIRST THREE ARE ORG-WIDE AND ARE **NOT** IN THE branch_scoped ARRAY
+    --   BELOW. A supplier is the ORGANIZATION's vendor: a three-site group
+    --   negotiates one contract, one price book, one set of tax identifiers, and
+    --   branch-scoping them would mean three rows and no way to answer "what do
+    --   we spend with them". They have no branch_id column at all, so the branch
+    --   loop's predicate would name a column that does not exist and the CREATE
+    --   POLICY would raise at migration time — the same way PI-3 discovered
+    --   `stock_transfers` could not join it either.
+    --
+    --   ⚠️ THE COST: a branch-scoped storekeeper reads the whole organization's
+    --     supplier list and price book. Intended — they order from it — and it
+    --     is why nothing branch-confidential may be added to those three tables.
+    --     See the `Supplier` model.
+    --
+    -- The nine DOCUMENT tables are in both loops, and their children carry
+    -- organization_id AND branch_id themselves rather than inheriting through a
+    -- parent predicate — the invoice-children call, not the
+    -- `appointment_status_history` one. See the note against the invoice tables
+    -- above: an org-only inherited policy under a branch-scoped parent re-opens
+    -- the branch boundary, and a policy expression does not pick up the parent's
+    -- own policy to close it.
+    'suppliers',
+    'supplier_tax_identifiers',
+    'supplier_products',
+    'purchase_requisitions',
+    'purchase_requisition_lines',
+    'purchase_orders',
+    'purchase_order_lines',
+    'goods_receipts',
+    'goods_receipt_lines',
+    'purchase_returns',
+    'purchase_return_lines',
+    -- ⚠️ A COST AVERAGE IS BRANCH-SCOPED AND HOLDS A QUANTITY THAT IS NOT STOCK.
+    --   `valued_quantity_base` is the denominator of an average, not what the
+    --   branch holds; `stock_balances` is what the branch holds. See the model.
+    'product_cost_averages'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -613,7 +659,37 @@ DECLARE
     -- The lot's manufacturer, snapshotted onto the line so the receiving branch
     -- can create its own lot row. Nullable: an untracked line has no lot at all.
     ARRAY['stock_transfer_lines',    'manufacturer_id',    'manufacturers',                'manufacturer_visible',    't'],
-    ARRAY['stock_reservations',      'product_id',         'products',                     'product_visible',         'f']
+    ARRAY['stock_reservations',      'product_id',         'products',                     'product_visible',         'f'],
+    -- Procurement (PI-4). Twelve more, same reasoning a fourth time and with the
+    -- widest surface yet: a clinic BUYS, ORDERS, RECEIVES, RETURNS and VALUES
+    -- platform products, so not one of these foreign keys can be composite.
+    -- Without them a clinic puts another clinic's private product on its own
+    -- price book or purchase order and reads the name, composition and
+    -- manufacturer back out through the join.
+    ARRAY['supplier_products',          'product_id',      'products',         'product_visible',      'f'],
+    -- ⚠️ THE PACK UNIT IS THE ONE ENTRY HERE THAT IS PURE PRESENTATION — the WORD
+    --   a supplier uses for their pack, never arithmetic; the conversion is
+    --   `quantity_per_pack`. It still needs the policy, because a unit is still a
+    --   possibly-platform row whose name comes back through the join.
+    ARRAY['supplier_products',          'pack_unit_id',    'units_of_measure', 'unit_visible',         'f'],
+    ARRAY['purchase_requisition_lines', 'product_id',      'products',         'product_visible',      'f'],
+    ARRAY['purchase_requisition_lines', 'unit_id',         'units_of_measure', 'unit_visible',         'f'],
+    ARRAY['purchase_order_lines',       'product_id',      'products',         'product_visible',      'f'],
+    ARRAY['purchase_order_lines',       'unit_id',         'units_of_measure', 'unit_visible',         'f'],
+    ARRAY['goods_receipt_lines',        'product_id',      'products',         'product_visible',      'f'],
+    ARRAY['goods_receipt_lines',        'unit_id',         'units_of_measure', 'unit_visible',         'f'],
+    -- The lot's manufacturer as read off the pack, which may legitimately differ
+    -- from the product's default. Nullable: an untracked line records none.
+    ARRAY['goods_receipt_lines',        'manufacturer_id', 'manufacturers',    'manufacturer_visible', 't'],
+    ARRAY['purchase_return_lines',      'product_id',      'products',         'product_visible',      'f'],
+    ARRAY['purchase_return_lines',      'unit_id',         'units_of_measure', 'unit_visible',         'f'],
+    -- ⚠️ THE LEAST OBVIOUS OF THE TWELVE, AND IT IS STILL NEEDED. Nothing a
+    --   tenant sends creates a cost-average row directly — the receipt service
+    --   upserts it — but the row NAMES a product, and a forged one against
+    --   another clinic's private product would read that product's name out of
+    --   the valuation screen's join. The same argument `stock_balances`'
+    --   `product_visible` is there for, and that one is trigger-written too.
+    ARRAY['product_cost_averages',      'product_id',      'products',         'product_visible',      'f']
   ];
 BEGIN
   FOR i IN 1 .. array_length(visible, 1) LOOP
@@ -711,7 +787,26 @@ DECLARE
     --   `stock_transfer_lines` inherits that shape from its parent. All three
     --   are handled after this block. A reservation is held at exactly one
     --   place, so it is an ordinary member.
-    'stock_reservations'
+    'stock_reservations',
+    -- Procurement (PI-4). ⚠️ NINE OF THE TWELVE. `suppliers`,
+    --   `supplier_tax_identifiers` and `supplier_products` are org-wide and have
+    --   no branch_id column, so this predicate would name a column that does not
+    --   exist. See the long note in the org_scoped array above for why a supplier
+    --   is the organization's vendor and what that costs.
+    --
+    --   branch_id is NOT NULL on all nine, so the `IS NULL` half is dead code for
+    --   them and the policy is absolute: a requisition is raised at a site, a PO
+    --   commits for a site, a delivery arrives at one loading bay, and what one
+    --   site paid is not another site's business.
+    'purchase_requisitions',
+    'purchase_requisition_lines',
+    'purchase_orders',
+    'purchase_order_lines',
+    'goods_receipts',
+    'goods_receipt_lines',
+    'purchase_returns',
+    'purchase_return_lines',
+    'product_cost_averages'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP

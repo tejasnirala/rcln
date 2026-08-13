@@ -103,5 +103,5 @@ not an exempt table.
   `@rcln/db/unsafe`, not this.
 
 Boundaries are pinned by the `own_membership: the identity bootstrap` block in
-`apps/api/tests/integration/tenant-isolation.test.ts` — six cases covering both
+`apps/api/tests/integration/tenant-isolation/` — six cases covering both
 conditions and both write paths. If that block is deleted, this ADR is unenforced.

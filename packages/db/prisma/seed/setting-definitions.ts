@@ -246,6 +246,60 @@ export async function seedSettingDefinitions(): Promise<void> {
       helpText:
         'The letters in front of every staff member’s employee code — EMP becomes EMP0001. It is issued when someone accepts their invitation. People already on the team keep the code they have, so changing this splits your staff list into two shapes.',
     },
+    /*
+     * Procurement (PI-4). Both are PI-ADR-015 in practice: a threshold and a
+     * policy, resolved through the settings ladder rather than written as a
+     * constant in a service.
+     *
+     * ⚠️ BOTH ARE READ WITH AN EXPLICIT `(scopeType, scopeId)` PAIR, AND THAT IS
+     *   THE ONLY TENANT ISOLATION THEY HAVE. `setting_values` is RLS-EXEMPT — it
+     *   is keyed by scope and has no organization_id — so `db:rls:check` cannot
+     *   notice a missing predicate here, because there is no policy to be
+     *   missing. A read that pinned only the KEY would return every clinic's row
+     *   and run one clinic's receiving policy on another's deliveries. See the
+     *   header of `services/settings/resolver.service.ts`.
+     */
+    {
+      key: 'procurement.over_receipt_tolerance_percent',
+      module: 'procurement',
+      dataType: 'INT' as const,
+      /*
+       * ⚠️ ZERO IS THE DEFAULT, DELIBERATELY, AND IT IS THE STRICT ONE. A clinic
+       *   that has not thought about over-receipt gets the behaviour that refuses
+       *   it, because the alternative — a permissive default nobody chose —
+       *   silently accepts a delivery bigger than the order and files a discovery
+       *   of stock as a purchase.
+       */
+      defaultValue: 0,
+      allowedScopes: ['ORGANIZATION', 'BRANCH'],
+      description: 'Accept over-delivery up to',
+      helpText:
+        'How much more than you ordered a supplier may deliver and still be received against the order. At 0%, anything above the ordered quantity is refused and has to be recorded as an adjustment with a reason — which keeps a discovery of stock separate from a delivery. Set it to 5% if your suppliers routinely round up to a full case.',
+      allowedValues: [
+        { value: 0, label: 'Nothing over the order' },
+        { value: 2, label: '2%' },
+        { value: 5, label: '5%' },
+        { value: 10, label: '10%' },
+      ],
+    },
+    {
+      key: 'procurement.quality_hold_required',
+      module: 'procurement',
+      dataType: 'BOOL' as const,
+      /*
+       * ⚠️ FALSE BY DEFAULT, WHICH IS THE OPPOSITE CALL FROM THE TOLERANCE ABOVE
+       *   AND IS STILL THE SAFE ONE. Most clinics inspect vaccines and implants
+       *   and nothing else; defaulting this on would land every box of gloves in
+       *   QUARANTINED, where it is invisible to dispensing, and the clinic's only
+       *   symptom would be that it cannot dispense stock it can see on the shelf.
+       *   A hold nobody knows they enabled is worse than no hold.
+       */
+      defaultValue: false,
+      allowedScopes: ['ORGANIZATION', 'BRANCH'],
+      description: 'Inspect deliveries before use',
+      helpText:
+        'Whether stock is held back when it arrives, waiting for somebody to check it, instead of going straight onto the shelf. Held stock is counted and valued but cannot be dispensed until it is accepted. Most clinics turn this on for one branch — a vaccine store or a theatre — rather than everywhere.',
+    },
     {
       key: 'security.session_idle_timeout_minutes',
       module: 'security',

@@ -172,7 +172,7 @@ redact paths in the same change that introduces it.
 - **Integration** — real Postgres, real migrations, real RLS, over real HTTP via
   supertest. **Never mock Prisma** — a mocked client cannot fail an RLS policy,
   which is the only failure that matters.
-- **`apps/api/tests/integration/tenant-isolation.test.ts` is the most important
+- **`apps/api/tests/integration/tenant-isolation/` is the most important
   file in the repo.** Every new tenant table gets a case.
 
 Jest runs native ESM, which needs `NODE_OPTIONS=--experimental-vm-modules`

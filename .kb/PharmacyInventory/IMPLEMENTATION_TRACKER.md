@@ -40,7 +40,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                           |
 | PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                           |
 | PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                           |
-| PI-4      | Procurement                                             | PLANNED                   | PI-3                                        |
+| PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                           |
 | PI-5      | Global Regulatory Framework                             | PLANNED                   | PI-1                                        |
 | PI-6      | India Rule Pack                                         | PLANNED                   | PI-5                                        |
 | PI-7      | Pharmacy Dispensing                                     | **BLOCKED**               | `prescriptions` (Phase 3) + PI-3 + PI-5     |

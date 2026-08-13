@@ -2,7 +2,7 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-12 · **By:** session PI-3 (Movements)
+**Written:** 2026-08-13 · **By:** session PI-4 (Procurement)
 
 ---
 
@@ -20,234 +20,277 @@ Full orientation: [README.md](README.md).
 ## What has already been completed
 
 **PI-0** Discovery & architecture. **PI-1** Product platform core (merged, PR #30).
-**PI-2** Inventory foundation (merged, PR #31) — the ledger, the balance cache,
-the expiry sweep. **PI-3** Movements — this session, on
-`feat/pi-3-movements`. Not pushed.
+**PI-2** Inventory foundation (merged, PR #31) — the ledger, the balance cache, the
+expiry sweep. **PI-3** Movements (merged, PR #32) — adjustments, transfers,
+reservations, FEFO. **PI-4** Procurement — this session, on
+`feat/pi-4-procurement`. Not pushed. **Both reviewers have run and every finding is
+fixed** — three CRITICALs, one MEDIUM corrected in the docs, three LOWs.
 
 ---
 
 ## What was changed in this session
 
-| Area        | What landed                                                                                                                     |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Schema      | `stock_reason_codes`, `stock_transfers`, `stock_transfer_lines`, `stock_reservations`; `products.allocation_strategy`           |
-| Migrations  | 4 — movements · reservation sweep function · location snapshot · lot snapshot                                                   |
-| RLS         | `db:rls:check` green at **76**. One platform-extensible table, one bespoke two-ended policy, one hand-restated child predicate  |
-| Package     | `@rcln/inventory` gains `allocate.ts` and `reservation-sweep.ts`; `toBaseUnits` is now exported                                 |
-| Permissions | `inventory.stock.reserve`, `inventory.reason_code.manage` → BRANCH_ADMIN + PHARMACIST (and the two "everything except" roles)   |
-| Routes      | `/v1/stock/{reason-codes,reservations,allocations/plan}`, `/v1/stock-transfers/*`                                               |
-| Worker      | The reservation sweep, hourly at `:30`. `movementDeps` extracted to `inventory/deps.ts` so two processors share one binding     |
-| Web         | `/stock/transfers` (list, new, detail+receive), `/stock/reservations`, `/stock/adjustments/new`; two new nav tabs               |
-| Tests       | 13 unit + 35 integration + 25 isolation cases. **1159 API tests across 41 suites**; typecheck, lint and test all green          |
-| Reviews     | `code-reviewer` and `security-reviewer` both run. Three CRITICALs and seven smaller findings — **all fixed**. See the CHANGELOG |
+| Area        | What landed                                                                                                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | 12 tables: `suppliers`, `supplier_tax_identifiers`, `supplier_products`, `purchase_requisitions`/`_lines`, `purchase_orders`/`_lines`, `goods_receipts`/`_lines`, `purchase_returns`/`_lines`, `product_cost_averages` |
+| Enums       | `StockMovementType.PURCHASE_RETURN`; five `NumberSequenceType` members (`DISPENSE` unused, on purpose); six new procurement enums                                                                                      |
+| Migrations  | 3 — the phase, the ledger CHECK (**the split is not optional; see decision 2**), and `line_number` + the rejection CHECK from the review                                                                               |
+| RLS         | `db:rls:check` green at **88** (was 76). Two tenancy classes, seam is BRANCH not platform                                                                                                                              |
+| Package     | `@rcln/inventory` gains `costing.ts` — apportionment and the moving average, as pure functions                                                                                                                         |
+| Permissions | `procurement.requisition.create` / `.approve` → BRANCH_ADMIN (both), PHARMACIST (create only)                                                                                                                          |
+| Settings    | `procurement.over_receipt_tolerance_percent` (0), `procurement.quality_hold_required` (false)                                                                                                                          |
+| Routes      | `/v1/procurement/{suppliers,supplier-products,requisitions,purchase-orders,goods-receipts,returns,cost-averages}`                                                                                                      |
+| Web         | Seven tabs under `/procurement` — suppliers, price book, requisitions, orders, deliveries, returns, costs. New "Buying" top-level tab                                                                                  |
+| Tests       | 21 unit + 38 integration + 15 isolation. **Isolation suite at 294 across 14 files**; typecheck, lint and every suite green                                                                                             |
+| Reviews     | **BOTH RUN, all findings fixed.** Security: no CRITICAL, no HIGH. Quality: 3 CRITICALs — two were one missing lock, one was line ordering. See the CHANGELOG                                                           |
 
 ---
 
 ## The four decisions worth knowing before you touch this
 
-### 1. In-transit stock is held by the DOCUMENT, not by a bucket
+### 1. A supplier is the ORGANIZATION's vendor, and that width is TESTED
 
 ```
-branch A                                        branch B
-  AVAILABLE ──TRANSFER_OUT──▶ (the document) ──TRANSFER_IN──▶ AVAILABLE
-             actor scoped to A                actor scoped to B
+suppliers · supplier_tax_identifiers · supplier_products    ORG-WIDE, no branch_id
+every document table                                        BRANCH-SCOPED, absolute
 ```
 
-INVENTORY_ARCHITECTURE.md described an `IN_TRANSIT` bucket owned by the SENDING
-branch. That makes the RECEIVER write a removal against a branch
-`stock_ledger.branch_isolation` hides from them — fixable only by widening their
-tenant context, which is the first hole in the branch boundary, or by writing the
-row twice, which is the second ledger writer PI-ADR-004 forbids.
+A group negotiates one contract with one distributor. Branch-scoping the supplier
+tables would mean three rows, three price lists and no way to answer "what do we
+spend with them".
 
-So each leg is a single-branch write and no context is ever widened. Outstanding
-quantity is `sent − received` over `DISPATCHED` lines.
+⚠️ **THE COST IS THAT A SINGLE-BRANCH STOREKEEPER READS THE WHOLE PRICE BOOK, AND A
+TEST PINS IT ON PURPOSE.** `shows the whole organization's price book to a
+single-branch reader` in `tenant-isolation/procurement.test.ts` exists because that
+width looks exactly like a leak in review — and adding a branch predicate to those
+three tables would break ordering at every multi-branch clinic while looking like a
+security improvement. Nothing branch-confidential may ever be added to them; payment
+terms and a price per pack are the ceiling.
 
-⚠️ **THE COST, WRITTEN DOWN SO PI-22 DOES NOT REDISCOVER IT.** In-transit stock
-is NOT in `stock_balances`. A valuation report that sums that table and stops is
-under-counting by whatever is on a van. `verifyBalances()` is unaffected — both
-legs are ledger rows — and an integration test pins the property.
+### 2. A NEW ENUM VALUE AND A CHECK THAT NAMES IT CANNOT SHIP IN ONE MIGRATION
 
-### 2. The lot's identity and the shelf names TRAVEL ON THE DOCUMENT
+⚠️ Postgres refuses to USE a new enum value in the transaction that ADDED it, and
+Prisma runs each migration inside one. So `ALTER TYPE "StockMovementType" ADD VALUE
+'PURCHASE_RETURN'` is in `20260817090000_procurement` and the
+`stock_ledger_direction` CHECK that names it is in
+`20260817091000_purchase_return_movement_direction`.
 
-Two migrations exist purely because of this, and both were written after a test
-failed rather than after anybody read the code:
+**The failure is invisible until it is run against a database.** The SQL parses, the
+schema file is consistent, and `prisma validate` is happy. PI-5 adds enum members
+too; if any CHECK, trigger or default names one, it needs the same split.
 
-- `inventory_locations` is branch-scoped, so the receiver's join to the sending
-  shelf returned **NULL, not an error**, and the detail response threw.
-- `batches` is branch-scoped, so the receiver could not read the source lot and
-  receipt raised `Batch not found` while somebody held the boxes.
+⚠️ `PURCHASE_RETURN` IS NOT A `TRANSFER_OUT`, WHICH IS WHAT PI-2'S SCHEMA COMMENT
+SAID IT WOULD BE. `TRANSFER_OUT` means "went to another branch of ours" to every
+report, and the outstanding-transfer arithmetic reads exactly those rows. It is a
+REMOVE with **no default `statusFrom`** — the second member after `DISPOSAL` that
+refuses to guess, because what is leaving IS the content of the record.
 
-Both are fixed by SNAPSHOTS — the shelf names on the transfer, the lot's number,
-dates, manufacturer and cost on the line. Neither was fixed by weakening a
-policy, and neither is visible from reading: the query is correct, the policy is
-correct, and they are correct about different things.
+### 3. The approval split has three layers and only one cannot be forgotten
 
-⚠️ **THIS IS THE FAILURE MODE OF THIS WHOLE DOMAIN.** Anything a receiving branch
-needs to know about a sending branch's data must be on the document. PI-4's goods
-receipts and PI-7's dispensing will hit it again.
+```
+storekeeper                       branch administrator
+REQUISITION_CREATE  ──submit──▶   REQUISITION_APPROVE  ──▶ purchase order
+```
 
-### 3. Reason codes are the one platform-extensible table in the inventory domain
+Two permission codes; a service check against `created_by_id`; and
+`purchase_requisitions_approver_is_not_creator`. The first two are each one edit
+from absent.
 
-PI-ADR-003 says a location, a lot and a movement are facts about one clinic and
-never platform data. A reason code is a **word** — "damaged", "counted short" —
-and every clinic needs the same dozen on the day it opens. Thirteen ship in the
-migration. A clinic adds its own and cannot touch the platform's.
+⚠️ **A CLINIC MAY HOLD BOTH CODES AND STILL CANNOT SELF-APPROVE ONE DOCUMENT**,
+because the CHECK compares two USER IDS rather than two permissions. `ORG_OWNER`
+holds both — it is an "everything except" role — and that is fine for exactly this
+reason. A single-doctor clinic has nobody else, and refusing to let them buy anything
+would be a platform deciding how a business is staffed.
 
-⚠️ The ledger still stores the code as a **string**, not a foreign key, for the
-same reason `reference_id` is not one: a row must outlive what explained it.
+⚠️ Only an **APPROVED** requisition may become an order. Without that check the whole
+split is decoration: a buyer could cite a draft nobody looked at and the order would
+carry a link that makes it look authorised.
 
-⚠️ **The master governs the MANUAL surface only.** The sweep writes `EXPIRED` and
-`setBatchHold` writes `QUARANTINE`; neither goes through `recordMovement`, and
-neither belongs in the picker — "expired" is not an explanation a person chooses
-for an adjustment.
+### 4. Costing stores the TOTAL and derives the average
 
-### 4. FEFO ordering is a PURE function in the package, on purpose
+⚠️ `product_cost_averages.valued_quantity_base` IS THE DENOMINATOR OF AN AVERAGE AND
+IS **NOT** STOCK ON HAND. `stock_balances` is what the branch holds; the two diverge
+the moment anything is dispensed, expired or transferred. A report that sums that
+column as stock is wrong, and it is the most misreadable row in the programme.
 
-An ordering rule is wrong in a way no integration test notices: a tie broken the
-wrong way dispenses the second-oldest lot, which looks entirely normal until an
-audit asks why the oldest expired on the shelf. `packages/inventory/src/allocate.ts`
-is testable against every tie, every null and every shortfall — and the unit
-suite immediately found a scale inconsistency that was invisible on screen.
+Storing the average instead of the total would round at every receipt and compound —
+`does not drift over twenty awkwardly-priced receipts` pins it. The value rolled in
+is goods **plus landed cost** and never **tax**: input tax is a liability the clinic
+may reclaim, not a cost of the goods.
 
-⚠️ A lot with **no expiry sorts LAST** under FEFO. Postgres and the naive
-comparator both put NULL first, which empties the non-expiring stock while the
-expiring stock expires.
-
-⚠️ **PI-5's rule packs NARROW the candidate list, they never reorder it.** A
-jurisdiction forbidding dispensing within N days of expiry removes candidates
-before the ordering runs. Reordering would override a decision a clinic made on
-purpose, which is what the nullable `allocation_strategy` exists to keep visible.
+⚠️ **KEYED BY CURRENCY, so one product can have two averages at one branch.** That
+is the honest answer when a clinic bought in two; this programme applies no FX policy
+anywhere, and PI-22's valuation must sum per currency and say so.
 
 ---
 
 ## Current phase / current task / next task
 
-|                   |                                                     |
-| ----------------- | --------------------------------------------------- |
-| **Current phase** | PI-3 — COMPLETE. Both reviews run and acted on      |
-| **Current task**  | Click the screens in a browser — the last open item |
-| **Next phase**    | PI-4 — Procurement                                  |
-| **Next task**     | **PI-4.1 — `suppliers` + supplier tax identifiers** |
+|                   |                                                            |
+| ----------------- | ---------------------------------------------------------- |
+| **Current phase** | PI-4 — code complete, all suites green                     |
+| **Current task**  | **Run both reviewer passes.** Nothing else in PI-4 is open |
+| **Next phase**    | PI-5 — Global Regulatory Framework                         |
+| **Next task**     | **PI-5.1 — `jurisdictions`, `regulatory_authorities`**     |
 
-### Before starting PI-4
+### Before starting PI-5
 
-1. **Both reviewer passes have run.** Three CRITICALs and seven smaller
-   findings, all fixed — read the CHANGELOG entry, because **all three CRITICALs
-   were the same class of mistake and PI-4 can make every one of them again**:
+1. ⚠️ **THE LESSON OF THIS PHASE'S REVIEW, BECAUSE PI-5 WILL BE ABLE TO REPEAT IT.**
+   PI-4 claimed to have closed PI-3's read-then-write race and had closed only HALF of
+   it: every service locked its OWN header, and two goods receipts against one
+   purchase order are two DIFFERENT header rows. **Locking the document you are
+   editing is not the same as locking the document you are DECIDING against.**
+   Anything PI-5 writes that reads a shared row and then writes — a rule pack's
+   maturity, a decision snapshot's version — needs the same question asked.
 
-   ⚠️ **READ-THEN-WRITE WITHOUT A LOCK.** `withTenant` is plain READ COMMITTED.
-   Reading a status, deciding, then writing is a race in every one of these
-   services. Transfers now take `SELECT … FOR UPDATE` on the header first
-   (`lockTransferOrThrow`); reservations claim with a conditional `updateMany`.
-   A goods receipt has exactly the same shape.
+   ⚠️ And the test that was supposed to cover it did not: `counts what earlier
+deliveries already took` exercises only the SEQUENTIAL path and passes against the
+   broken version. `serialises two receipts racing against one order line` was
+   verified by removing the lock and watching it fail. **A concurrency test that has
+   not been seen to fail is not a concurrency test.**
 
-   ⚠️ **A LOOP THAT READS ITS BOUNDS FROM A SNAPSHOT LOADED ONCE.** The receipt
-   loop measured every entry against the same untouched `received` value, so a
-   duplicate line minted stock — and `verifyBalances()` agreed, because both
-   legs were genuine ledger rows. Accumulate within the request, and refuse the
-   duplicate at the contract too.
+2. ⚠️ **`created_at` CANNOT ORDER THE LINES OF A DOCUMENT, AND A `{ id: 'asc' }`
+   TIE-BREAK IS NOT A FIX.** `CURRENT_TIMESTAMP` is the TRANSACTION timestamp, so one
+   `createMany` gives every line a byte-identical value and a random uuid v4 is the
+   only discriminator left. The tie-break makes the order stable-per-read and still
+   arbitrary; measured, the landed-cost case failed two runs in six against it. The
+   fix is an explicit `line_number`, as `invoice_items` already had.
 
-   ⚠️ **A FACT VALIDATED AT DRAFT TIME AND NOT AGAIN AT COMMIT TIME.** A serial
-   fitted to a patient between drafting and dispatch was still transferable,
-   because `assignSerial` writes no ledger movement and nothing downstream
-   re-reads the patient link. Anything a document asserts about the world has to
-   be re-asserted when it acts.
+   ⚠️ `stock_transfer_lines` in PI-3 still has the original bug — KNOWN_ISSUES defect
+   1, and it needs a migration rather than the one-liner previously recorded.
 
-2. **Read `packages/inventory/src/movement.ts`, then `transfer.service.ts`.**
-   PI-4's goods receipts write `PURCHASE_RECEIPT` through the same engine, and
-   the transfer service is the worked example of writing a DOCUMENT whose legs go
-   through it. Adding a movement type still means four places that must agree:
-   the Prisma enum, the `stock_ledger_direction` CHECK, the `DIRECTION` table and
-   `DEFAULT_STATUS`.
+3. **`pnpm test` now OOMs the api container**, not just `pnpm validate`. The suite
+   was run in five slices by path. KNOWN_ISSUES defect 2 — worth fixing before PI-5
+   adds more, because a crash masks real failures.
 
-3. **A goods receipt will need the snapshot lesson.** A supplier's lot arrives at
-   one branch; anything another part of the system needs to know about it that
-   lives on a branch-scoped row has to be copied onto the document. See decision 2.
+4. **Read `packages/inventory/src/costing.ts` before writing any money arithmetic.**
+   `pnpm kb:find` found `apportion()` in `@rcln/invoicing` and it was deliberately
+   not reused; the reasoning is in that file's header and it is the pattern to follow
+   when the next near-duplicate turns up.
 
 ---
 
 ## Files that must be inspected before continuing
 
-| File                                                          | Why                                                                       |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `packages/inventory/src/movement.ts`                          | Still the only ledger writer. `toBaseUnits` is now exported for documents |
-| `apps/api/src/services/inventory/transfer.service.ts`         | The worked example of a document whose legs go through the engine         |
-| `packages/db/prisma/migrations/…_transfer_line_lot_snapshot/` | Why branch-scoped data has to travel on the document                      |
-| `packages/db/prisma/rls/enable-rls.sql`                       | The bespoke `from OR to` policy and the hand-restated child predicate     |
-| `apps/api/tests/integration/stock-movements.test.ts`          | PI-4's receipt tests belong beside these                                  |
-| `packages/inventory/src/allocate.ts`                          | PI-5 narrows the candidate list here, before the ordering                 |
+| File                                                              | Why                                                                     |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `packages/inventory/src/movement.ts`                              | Still the only ledger writer. `DIRECTION` now has 16 members            |
+| `apps/api/src/services/procurement/goods-receipt.service.ts`      | The worked example of a document that creates lots, serials and cost    |
+| `packages/inventory/src/costing.ts`                               | Every money calculation in the phase, and why it is not in `apps/api`   |
+| `apps/api/src/services/procurement/shared.ts`                     | `resolveReceivingPolicy` — the RLS-exempt settings read, with the pairs |
+| `packages/db/prisma/migrations/20260817091000_…_direction/`       | Why a new enum value needs its own migration                            |
+| `apps/api/tests/integration/tenant-isolation/procurement.test.ts` | The org-wide/branch seam, and the width that is pinned deliberately     |
 
 ---
 
 ## Known issues
 
-**1. Nothing has been clicked in a browser.** Same item PI-1 and PI-2 left, and
-now the only one.
+**1. Nothing has been clicked in a browser.** The same item PI-1, PI-2 and PI-3 each
+left, now across seven more screens.
 
-**2. In-transit stock is not in `stock_balances`.** Deliberate; PI-22's valuation
-must add the outstanding lines of `DISPATCHED` transfers. See decision 1.
+**2. `stock_transfer_lines` renders in a nondeterministic order.** KNOWN_ISSUES
+defect 1 — PI-3's copy of the bug PI-4 fixed. Needs a `line_number` migration, not a
+one-liner.
 
-**3. Serial-tracked stock crossing a branch needs a receiver scoped to BOTH
-branches**, and is refused with a sentence otherwise. A serial IS the device, so
-receipt MOVES the record rather than copying it, and that record belongs to the
-sending branch until it does. The one cross-branch write in the flow.
+**3. A purchase order needs no second signature.** The requisition split guards the
+internal ask; `pharmacy.purchase_order.manage` predates it. Found by the security
+review, documented rather than narrowed — revoking a held code is silent breakage.
 
-**4. `CONSUMED` is a reservation state nothing can reach yet.** Deliberate: PI-7
-and PI-9 move quantity out of `RESERVED` directly and will set it in the same
-transaction. The enum member exists so neither phase needs a migration.
+**4. `pnpm test` OOMs the api container.** KNOWN_ISSUES defect 2.
 
-**5. The product pickers are still capped at 100 rows.** PI-23's work, beside the
-barcode resolver. Unchanged from PI-2.
+**5. Three permission codes are under the `pharmacy.*` prefix and should not be.**
+`pharmacy.supplier.manage`, `pharmacy.purchase_order.read`/`.manage` predate
+PI-ADR-001's reasoning. Not renamed, because a rename silently revokes a grant from
+every clinic that holds it. The route path is neutral. KNOWN_ISSUES.
 
-**6. `pnpm validate` OOMs the api container at its 3 GB limit** when turbo runs
-tasks in parallel. `pnpm exec turbo run typecheck|lint|test --concurrency=1` all
-pass. Worth raising the limit or pinning the concurrency in `turbo.json`.
+**6. Reads on `/v1/procurement/suppliers` sit behind `supplier.manage`.** There is no
+`supplier.read` code, and inventing one now would empty every supplier picker until
+each clinic re-granted it. KNOWN_ISSUES.
 
-**7. The worker's `MovementDeps` is still a second implementation** of the API's.
-Now extracted to `apps/worker/src/inventory/deps.ts`, so it is one copy per
-application rather than one per processor — but nothing catches the two drifting.
+**7. A pharmacist can commit money with no requisition**, via
+`pharmacy.purchase_order.manage`. Not widened by PI-4 and not silently narrowed.
+
+**8. In-transit stock is still not in `stock_balances`** (PI-3 decision 1), and now
+neither is anything on a purchase order. PI-22's valuation must add both.
+
+**9. The product pickers are still capped at 100 rows.** PI-23's work, unchanged
+since PI-2 — now on seven more forms, each of which says so on screen.
+
+**10. `CONSUMED` is still a reservation state nothing can reach.** Unchanged; PI-7
+and PI-9.
+
+**11. The worker's `MovementDeps` is still a second implementation** of the API's.
 Unchanged in kind from PI-2.
 
 ---
 
 ## Tests
 
-|                        |                                                                                                      |
-| ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| **Currently passing**  | **1155 API tests across 41 suites**; `db:rls:check` green at **76** tables; typecheck and lint green |
-| **Currently failing**  | None.                                                                                                |
-| **Migrations pending** | None. Four applied this session; `prisma migrate status` reports the schema in sync.                 |
+|                        |                                                                                                                                                                                              |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Currently passing**  | 176 unit · 38 procurement integration · **294 isolation across 14 files** · every other integration slice green. Typecheck and lint green across 25 packages; `db:rls:check` green at **88** |
+| **Currently failing**  | None.                                                                                                                                                                                        |
+| **Migrations pending** | None. Two applied this session; `prisma migrate status` reports the schema in sync                                                                                                           |
 
-⚠️ **The process traps from PI-1 and PI-2 still apply.** Migrations replay in
-NAME order and this repository's are hand-dated ahead of the wall clock, so
-anything Prisma generates must be re-dated past the highest existing directory.
-An applied migration is checksummed including its comments.
+⚠️ **THE SUITE CANNOT BE RUN IN ONE GO ANY MORE.** `pnpm test` OOMs the api
+container. Run it by path, in slices — unit, tenant-isolation, then the integration
+files in groups of roughly nine.
+
+⚠️ **The process traps from PI-1, PI-2 and PI-3 all still apply, and PI-4 hit two of
+them.** Migrations replay in NAME order and this repository's are hand-dated ahead of
+the wall clock, so anything Prisma generates must be re-dated past the highest
+existing directory — it generated `20260812170334` against a tree ending at
+`20260816093000`. An applied migration is checksummed including its comments.
 
 ⚠️ **`prisma migrate diff` changed its flags.** `--from-schema-datasource` was
 removed; use `--from-config-datasource --to-schema ./prisma/schema --script`.
+
+⚠️ **A CHECKSUM MISMATCH ON AN APPLIED MIGRATION DOES NOT NEED A RESET.** This
+session found one on `20260815092000_inventory_expiry_sweep_function`, unrelated to
+PI-4, and `migrate dev` wanted to drop the whole database. It was repaired by
+re-running that migration — `CREATE OR REPLACE` throughout, so idempotent — and
+correcting the recorded checksum in `_prisma_migrations`. Check whether the file is
+idempotent before doing that; a reset destroys the developer's data.
 
 ---
 
 ## Unresolved questions
 
-**Resolved this session:** the in-transit question PI-2 raised. See decision 1.
+**Resolved this session:** none that were open. PI-4 raised and answered its own
+tenancy question (decision 1) and its own movement-type question (decision 2).
 
 **Still open:** OD-3 (localisation), OD-5 (who may set `REGULATORY_REVIEWED` —
 **needs the user**, blocks PI-6), OD-6, OD-7, OD-8.
+
+⚠️ **OD-5 BLOCKS PI-6 AND PI-5 IS NEXT.** It is worth asking now rather than
+discovering it mid-phase.
 
 ---
 
 ## Do not
 
-- Do not restart PI-0, PI-1, PI-2 or PI-3.
-- Do not add a second writer to `stock_ledger`. A document's legs go through
-  `recordMovementIn`; the document table holds paperwork, never quantity.
+- Do not restart PI-0 through PI-4.
+- Do not add a second writer to `stock_ledger`. A goods receipt, a return, a
+  transfer and the sweep all go through `recordMovementIn`; the document tables hold
+  paperwork, never quantity.
 - Do not write `stock_balances` from application code.
 - Do not use `SELECT ... FOR UPDATE` on `stock_balances`. It raises 42501.
-- Do not solve a cross-branch read by weakening an RLS policy. Snapshot the fact
-  onto the document — see decision 2, which is two migrations' worth of evidence.
+- Do not add a branch predicate to `suppliers`, `supplier_tax_identifiers` or
+  `supplier_products`. See decision 1 — a test pins the width and the reason.
+- Do not read `product_cost_averages.valued_quantity_base` as stock on hand.
+- Do not put a new enum value and a CHECK that names it in one migration.
+- Do not order a document's lines by `created_at`, with or without an `id` tie-break.
+  Use `line_number`.
+- Do not assume locking the row you are EDITING serialises a decision read off a
+  DIFFERENT row. See "Before starting PI-5".
+- Do not hand-name an index in a migration. Use the name Prisma would generate, or
+  `migrate diff` reports permanent drift.
+- Do not rename `pharmacy.supplier.*` or `pharmacy.purchase_order.*` without a
+  permission-migration mechanism. It silently revokes access.
+- Do not solve a cross-branch read by weakening an RLS policy. Snapshot the fact onto
+  the document.
 - Do not put a pure function in `apps/web`. There is no test suite there.
-- Do not compare an expiry date against `CURRENT_DATE` or a JavaScript `Date`.
-- Do not add a reason code the SYSTEM writes to the reason-code master; it would
-  appear in the adjustment picker.
-- Do not build tax logic. See PI-ADR-006.
+- Do not compare an expiry date against `CURRENT_DATE` or a JavaScript `Date`. The
+  receipt path compares in the BRANCH's zone, in SQL.
+- Do not compute tax on a purchase. It is recorded (PI-ADR-006).
+- Do not add a reason code the SYSTEM writes to the reason-code master.

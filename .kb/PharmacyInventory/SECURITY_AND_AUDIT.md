@@ -210,6 +210,6 @@ docker compose exec api pnpm db:rls:check   # every new tenant table protected
 /code-review                                # both reviewer subagents
 ```
 
-Plus a case in `apps/api/tests/integration/tenant-isolation.test.ts` for every
+Plus a case in `apps/api/tests/integration/tenant-isolation/` for every
 new tenant table, and a RESTRICTIVE-policy case for every new join table into a
 platform-extensible parent.

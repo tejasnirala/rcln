@@ -80,7 +80,7 @@ Severity:
 
 ```bash
 docker compose exec api pnpm db:rls:check
-docker compose exec api pnpm test    # tenant-isolation.test.ts is the file that matters
+docker compose exec api pnpm test:rls  # the tenant-isolation suite, on its own
 ```
 
-`apps/api/tests/integration/tenant-isolation.test.ts` is the most important file in the repo. If a change adds a tenant table without adding a case there, say so.
+`apps/api/tests/integration/tenant-isolation/` is the most important suite in the repo. If a change adds a tenant table without adding a case there, say so.

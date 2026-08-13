@@ -36,7 +36,7 @@ Closes #
 
 - [ ] RLS policy added to `packages/db/prisma/rls/enable-rls.sql`
 - [ ] Policy SQL appended to the generated migration
-- [ ] Case added to `apps/api/tests/integration/tenant-isolation.test.ts`
+- [ ] Case added to `apps/api/tests/integration/tenant-isolation/`
 - [ ] `pnpm db:rls:check` passes
 - [ ] No already-applied migration was edited in place
 

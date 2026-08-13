@@ -50,7 +50,21 @@ export type SequenceType =
    * same reason: a draft that is abandoned must not burn a serial in a series
    * somebody may have to explain to an auditor. Never resets.
    */
-  | 'STOCK_TRANSFER';
+  | 'STOCK_TRANSFER'
+  /**
+   * Procurement documents (PI-4). All four are per BRANCH and never reset, because
+   * every one of them is quoted back by somebody outside the clinic — a supplier on
+   * their invoice, an auditor on a purchase trail.
+   *
+   * ⚠️ EACH IS ISSUED AT THE MOMENT THE DOCUMENT LEAVES DRAFT, NOT AT CREATE. An
+   *   abandoned requisition, a PO that is never sent and a delivery keyed in by
+   *   mistake must all burn no number: a gap in any of these series is a gap somebody
+   *   outside the clinic will ask about.
+   */
+  | 'PURCHASE_REQUISITION'
+  | 'PURCHASE_ORDER'
+  | 'GOODS_RECEIPT'
+  | 'PURCHASE_RETURN';
 
 export interface IssueNumberSpec {
   type: SequenceType;

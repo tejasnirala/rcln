@@ -63,7 +63,7 @@ docker compose exec api pnpm db:rls:check
 
 It fails until every tenant table has a policy. That is deliberate: a missing policy breaks no single-tenant test, it just starts returning other clinics' patient records.
 
-Then add a case to **`apps/api/tests/integration/tenant-isolation.test.ts`** — the most important file in the repo. Real Postgres, real migrations, real RLS. Never mock Prisma.
+Then add a case to **`apps/api/tests/integration/tenant-isolation/`** — the most important file in the repo. Real Postgres, real migrations, real RLS. Never mock Prisma.
 
 ```bash
 docker compose exec api pnpm test
@@ -94,6 +94,6 @@ Confirm the container actually stayed up (`assertRlsActive()` refuses to boot on
 - [ ] `deletedAt`, `createdAt`, `updatedAt` present
 - [ ] Money/quantity/time types correct
 - [ ] `db:rls:check` passes
-- [ ] A `tenant-isolation.test.ts` case exists for each new table
+- [ ] A the tenant-isolation suite case exists for each new table
 - [ ] Seed and `docs/schema/schema-design.md` updated
 - [ ] No applied migration edited in place

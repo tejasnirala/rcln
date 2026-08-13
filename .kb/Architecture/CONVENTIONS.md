@@ -28,7 +28,7 @@ How to write code that matches what is already here.
 3. Add the table to the `org_scoped` array in `packages/db/prisma/rls/enable-rls.sql`.
 4. Append that file's contents to the generated `migration.sql` **before committing**.
 5. `pnpm db:rls:check` — fails until the policy exists.
-6. Add a case to `apps/api/tests/integration/tenant-isolation.test.ts`.
+6. Add a case to `apps/api/tests/integration/tenant-isolation/`.
 
 Prisma Migrate does not manage policies, triggers, partitions or exclusion
 constraints. They live in hand-edited SQL blocks inside the migration.
@@ -195,7 +195,7 @@ package built. The dev entrypoint does this on boot.
 - **Unit** — services, permission resolution, billing maths, FEFO selection.
   Billing deserves property-based tests; rounding compounds.
 - **Integration** — real Postgres, real migrations, real RLS. Never mock Prisma.
-- **`tenant-isolation.test.ts` is the most important file in the repo.** Every
+- **The tenant-isolation suite is the most important suite in the repo.** Every
   new tenant table gets a case.
 
 Jest runs native ESM, which needs `NODE_OPTIONS=--experimental-vm-modules`

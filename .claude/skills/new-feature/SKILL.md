@@ -126,7 +126,7 @@ Anything slow, external, or retryable goes on a BullMQ queue with an idempotency
 
 ## 11. Tests
 
-- **`apps/api/tests/integration/tenant-isolation.test.ts` — add a case for every new tenant table.** Non-negotiable. Real Postgres, real migrations, real RLS; never mock Prisma.
+- **`apps/api/tests/integration/tenant-isolation/` — add a case for every new tenant table.** Non-negotiable. Real Postgres, real migrations, real RLS; never mock Prisma.
 - Unit tests for service logic, permission resolution, and any arithmetic. Billing maths deserves property-based tests — rounding compounds.
 
 ## 12. Verify

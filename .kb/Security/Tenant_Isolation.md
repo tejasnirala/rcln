@@ -2,7 +2,7 @@
 
 **Verified** from `packages/db/prisma/rls/enable-rls.sql`,
 `packages/db/src/tenant.ts`, `packages/db/scripts/check-rls.ts` and
-`apps/api/tests/integration/tenant-isolation.test.ts`.
+`apps/api/tests/integration/tenant-isolation/`.
 
 This is the single most important security property in the system. Read
 [ADR-0003](../Architecture/decisions/0003-rls-enable-not-force.md),
@@ -152,7 +152,7 @@ Non-negotiable, in this order:
 2. The table added to the `org_scoped` array in `enable-rls.sql`
 3. That SQL appended to the generated `migration.sql` before committing
 4. `pnpm db:rls:check` green
-5. A case in `apps/api/tests/integration/tenant-isolation.test.ts`
+5. A case in `apps/api/tests/integration/tenant-isolation/`
 
 The check failing at step 4 is the design working. A missing policy produces no
 error, breaks no single-tenant test, and starts returning other clinics' patient

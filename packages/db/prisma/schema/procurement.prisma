@@ -1,0 +1,1257 @@
+// =============================================================================
+// PROCUREMENT — how stock ENTERS the system, and where cost comes from.
+//
+// `products.prisma` says what a thing IS. `inventory.prisma` says where it is
+// and how much there is. This file says WHO WE BOUGHT IT FROM, WHAT WE ASKED
+// FOR, WHAT ARRIVED AND WHAT IT COST.
+//
+//   supplier ──< supplier_products              their SKU, their pack, their price
+//       │
+//       ├──< purchase_requisition ──approve──▶ purchase_order ──< po_lines
+//       │      (a branch asks)                  (the org commits)
+//       │
+//       └──────────────────────────────────▶ goods_receipt ──< grn_lines
+//                                                 │              │
+//                                                 │              ├── lot capture
+//                                                 │              ├── expiry capture
+//                                                 │              └── serial capture
+//                                                 ▼
+//                                        stock_ledger  PURCHASE_RECEIPT
+//                                                 │
+//                                                 ▼
+//                                        batches (cost per base unit)
+//
+// ── NOT ONE TABLE IN THIS FILE IS A SOURCE OF QUANTITY TRUTH (PI-ADR-004) ────
+//
+// Every quantity column here is PAPERWORK. `purchase_order_lines.ordered_
+// quantity_base` is what the clinic ASKED FOR; `goods_receipt_lines.received_
+// quantity_base` is what somebody SIGNED FOR; `stock_balances` is what the
+// shelves HOLD. The third is the only one that is authoritative about stock, and
+// the first two are authoritative only about the documents they sit on.
+//
+// ⚠️ THE ONE THAT LOOKS LIKE AN EXCEPTION IS `goods_receipt_lines`, AND IT IS
+//   NOT ONE. Posting a receipt writes `PURCHASE_RECEIPT` through
+//   `recordMovementIn` and nothing else; the line row records what the document
+//   says, the ledger records what moved, and a disagreement between them is a
+//   bug in the service rather than a second opinion about stock. Exactly the
+//   relationship `stock_transfer_lines` has to its two legs.
+//
+// ── TENANCY: TWO CLASSES IN ONE FILE, AND THE SEAM IS DELIBERATE ─────────────
+//
+//   ORG_SCOPED, no branch at all:
+//     suppliers, supplier_tax_identifiers, supplier_products
+//
+//   BRANCH_SCOPED, `branch_id` NOT NULL, absolute policy:
+//     purchase_requisitions/_lines, purchase_orders/_lines,
+//     goods_receipts/_lines, purchase_returns/_lines, product_cost_averages
+//
+// ⚠️ A SUPPLIER IS THE **ORGANIZATION'S** VENDOR AND NOT A BRANCH'S, AND THAT IS
+//   THE ONE TENANCY CALL IN THIS FILE WORTH ARGUING WITH. A three-site hospital
+//   group negotiates one contract with one distributor; making the supplier
+//   branch-scoped would mean three rows, three sets of tax identifiers, three
+//   price lists and no way to answer "what do we spend with them" at all. What
+//   IS branch-scoped is every document: a requisition is raised at a site, a PO
+//   is committed for a site, and a delivery arrives at one loading bay.
+//
+//   ⚠️ THE COST OF THAT CALL, WRITTEN DOWN: a branch-scoped storekeeper can read
+//     the whole organization's supplier list and price book. That is intended —
+//     they have to order from it — and it is why nothing PHI-adjacent and nothing
+//     branch-confidential may ever be added to `suppliers`. Payment terms and a
+//     price per pack are the ceiling. What one site PAID lives on its own
+//     documents, which are branch-scoped.
+//
+// ── MONEY (PI-ADR-010) ──────────────────────────────────────────────────────
+// Integer minor units everywhere, never a float. Two different shapes, and
+// mixing them up is the mistake this paragraph exists to prevent:
+//
+//   `unit_cost_base`   minor units per ONE BASE UNIT. What `batches` stores and
+//                      what valuation reads. Survives a supplier changing their
+//                      pack size, which is the entire point.
+//   `*_minor`          a minor-unit AMOUNT of money on a document line or
+//                      header — a total, a tax figure, an apportioned freight
+//                      share. Not per anything.
+//
+// ── TAX IS RECORDED, NEVER CALCULATED (PI-ADR-006) ──────────────────────────
+// Tax on a PURCHASE is input tax and is a different question from tax on a sale.
+// Every tax column below records what the SUPPLIER CHARGED, as a number they put
+// on a piece of paper. Nothing in this file computes one, nothing calls
+// `@rcln/tax` — which prices sales — and input-tax credit is out of scope.
+// =============================================================================
+
+/// Whether we still buy from this supplier.
+///
+/// ⚠️ NOT A SOFT DELETE, AND `deleted_at` IS NOT A STATUS. A supplier cited by
+///   four years of purchase orders can never be removed, so `deleted_at` only
+///   ever means "hide from the picker"; the three states below are business
+///   facts a buyer needs to see the difference between. `ON_HOLD` is a payment
+///   dispute or a stock-out; `BLACKLISTED` is a quality or regulatory failure
+///   and is the one that must never quietly become orderable again.
+enum SupplierStatus {
+  ACTIVE
+  /// Temporarily not ordering from. Existing orders continue.
+  ON_HOLD
+  /// Never order from again. A new PO is refused with a sentence.
+  BLACKLISTED
+}
+
+/// Where a branch's request to buy something has got to.
+///
+/// ⚠️ `APPROVED` AND `ORDERED` ARE TWO STATES BECAUSE APPROVAL AND COMMITMENT
+///   ARE TWO DECISIONS. An approved requisition that nobody has turned into a PO
+///   is the single most useful thing on a buyer's screen; folding it into
+///   `ORDERED` makes it invisible.
+enum PurchaseRequisitionStatus {
+  DRAFT
+  /// Sent for approval. The requester can no longer edit it.
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+  /// A purchase order has been raised from it. See `purchase_orders.requisition_id`.
+  ORDERED
+}
+
+/// Where a purchase order has got to.
+///
+/// ⚠️ `CLOSED` IS NOT `RECEIVED`. `RECEIVED` means every line arrived in full;
+///   `CLOSED` means the buyer decided nothing more is coming — the supplier
+///   short-shipped and will not complete, and the outstanding quantity must stop
+///   appearing on the "what are we waiting for" screen without pretending it
+///   arrived. Without it, a buyer's only options are to leave a permanent phantom
+///   expectation or to falsify a receipt.
+enum PurchaseOrderStatus {
+  DRAFT
+  /// Committed and sent to the supplier. The number is issued here, never at
+  /// create — the same call `stock_transfers` makes.
+  ISSUED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  /// Short-shipped and abandoned. See the enum comment.
+  CLOSED
+  CANCELLED
+}
+
+/// Where a goods receipt has got to.
+///
+/// ⚠️ ONLY `POSTED` HAS WRITTEN LEDGER ROWS, AND THERE IS DELIBERATELY NO
+///   `REVERSED`. A receipt posted in error is corrected by a PURCHASE RETURN or
+///   an adjustment with a reason — a compensating movement, never an edit
+///   (PI-ADR-004 rule 3). `CANCELLED` is reachable only from `DRAFT`, and the
+///   `goods_receipts_posted_states_complete` CHECK is what makes that literal.
+enum GoodsReceiptStatus {
+  /// Being keyed in. Nothing has moved and no lot row exists.
+  DRAFT
+  /// Committed. The `PURCHASE_RECEIPT` legs are written, the lots exist and the
+  /// shelves are heavier.
+  POSTED
+  /// Abandoned before posting. Never reachable from POSTED.
+  CANCELLED
+}
+
+/// Whether a received line has passed inspection.
+///
+/// The optional hold between receipt and availability. When the branch or the
+/// product category requires it, the receipt lands in `QUARANTINED` and an
+/// acceptance step moves it to `AVAILABLE` — or to `DAMAGED`, or onto a return.
+///
+/// ⚠️ `NOT_REQUIRED` IS A RECORD OF WHAT THE POLICY WAS AT RECEIPT, NOT A NULL.
+///   Whether the hold applies is a SETTING (PI-ADR-015), and a clinic that turns
+///   inspection on next month must not thereby make every past receipt look like
+///   it skipped a step it was never asked to take.
+enum GoodsReceiptQualityStatus {
+  /// No hold applied. The line went straight to `AVAILABLE`.
+  NOT_REQUIRED
+  /// Held in `QUARANTINED`, waiting for somebody to look at it.
+  PENDING
+  /// Inspected and released to `AVAILABLE`.
+  ACCEPTED
+  /// Inspected and refused. The quantity stays out of `AVAILABLE` and is
+  /// returned or disposed of.
+  REJECTED
+}
+
+/// Where a return to the supplier has got to.
+enum PurchaseReturnStatus {
+  DRAFT
+  /// Gone back. The `PURCHASE_RETURN` legs are written and the shelves are
+  /// lighter.
+  SENT
+  CANCELLED
+}
+
+// ---------------------------------------------------------------------------
+// Who we buy from
+// ---------------------------------------------------------------------------
+
+/// A vendor. ORG-SCOPED: one contract, one price book, every branch.
+///
+/// See the file header for why there is no `branch_id` here and what that costs.
+///
+/// ⚠️ NOTHING CONFIDENTIAL TO ONE BRANCH MAY BE ADDED TO THIS TABLE. Every
+///   storekeeper in the organization can read every column of it, by design,
+///   because they all order from the same list. What one SITE paid is on that
+///   site's purchase orders and receipts, which are branch-scoped.
+model Supplier {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+
+  /// The clinic's own code for them. Uppercase, matched exactly, and
+  /// tenant-qualified — never a bare `@@unique([code])`.
+  code   String @db.VarChar(64)
+  /// The name over the door, and what every screen shows.
+  name   String @db.VarChar(255)
+  /// The name on the contract, when it differs. A purchase order and a tax
+  /// return want this one; a picker wants `name`.
+  legalName String? @map("legal_name") @db.VarChar(255)
+
+  status SupplierStatus @default(ACTIVE)
+
+  // -- how to reach them ----------------------------------------------------
+  contactPerson String? @map("contact_person") @db.VarChar(255)
+  email         String? @db.VarChar(320)
+  phone         String? @db.VarChar(32)
+  website       String? @db.VarChar(255)
+
+  // -- where they are -------------------------------------------------------
+  addressLine1 String? @map("address_line1") @db.VarChar(255)
+  addressLine2 String? @map("address_line2") @db.VarChar(255)
+  city         String? @db.VarChar(128)
+  /// ISO 3166-2 subdivision without the country prefix, the same vocabulary
+  /// `issuer_tax_registrations` uses. It decides intra- versus inter-state on an
+  /// Indian purchase, which is why it is a column rather than part of the address
+  /// blob.
+  regionCode   String? @map("region_code") @db.VarChar(10)
+  postalCode   String? @map("postal_code") @db.VarChar(20)
+  /// ISO 3166-1 alpha-2. Where they invoice from.
+  countryCode  String? @map("country_code") @db.Char(2)
+
+  /// ISO 4217. What they quote in, and what a new purchase order defaults to.
+  ///
+  /// ⚠️ A DEFAULT, NOT A CONSTRAINT. The currency that matters is the one on the
+  ///   PURCHASE ORDER and the one on the RECEIPT, because those are the numbers
+  ///   the money moved in. See KNOWN_ISSUES on multi-currency procurement: this
+  ///   programme records two currencies faithfully and applies no FX policy.
+  defaultCurrency String? @map("default_currency") @db.Char(3)
+
+  /// Days from invoice to payment, as agreed. Recorded for the buyer; no payment
+  /// workflow reads it, because paying suppliers is not in this programme.
+  paymentTermsDays Int? @map("payment_terms_days") @db.SmallInt
+  /// Typical days from order to delivery, across everything they sell. A
+  /// per-product figure on `supplier_products` overrides it.
+  leadTimeDays     Int? @map("lead_time_days") @db.SmallInt
+
+  notes String? @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  taxIdentifiers SupplierTaxIdentifier[]
+  products       SupplierProduct[]
+  requisitionLines PurchaseRequisitionLine[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
+  returns        PurchaseReturn[]
+
+  @@unique([organizationId, code])
+  /// The composite-FK target every child references.
+  @@unique([organizationId, id])
+  @@index([organizationId, status, name])
+  @@map("suppliers")
+}
+
+/// The supplier's GSTIN / VAT number / TIN, per jurisdiction.
+///
+/// ⚠️ THIS DOES **NOT** FEED `@rcln/tax`, AND THE DISTINCTION IS THE WHOLE
+///   REASON IT IS A SEPARATE TABLE FROM `issuer_tax_registrations`. That table
+///   answers "may THIS CLINIC charge its patient?" and prices SALES. This one
+///   records a number the supplier printed on their invoice, so the purchase
+///   document is complete and so a supplier report can be filed. Nothing reads
+///   it to compute anything.
+///
+/// Same `(country_code, region_code, scheme)` vocabulary as the tax domain, on
+/// purpose: an Indian supplier holds a GSTIN per state, and a clinic buying from
+/// two of their depots needs both rows.
+///
+/// CHILD of supplier, and it carries its own `organization_id` so it is an
+/// ordinary member of the org-scoped RLS loop rather than needing a hand-written
+/// parent predicate. The composite FK stops the two disagreeing.
+model SupplierTaxIdentifier {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  supplierId     String @map("supplier_id") @db.Uuid
+
+  /// ISO 3166-1 alpha-2.
+  countryCode String  @map("country_code") @db.Char(2)
+  /// ISO 3166-2 subdivision without the country prefix. NULL = country-wide.
+  regionCode  String? @map("region_code") @db.VarChar(10)
+  scheme      TaxScheme
+  /// Their number, exactly as printed. Case preserved, compared exactly — it is
+  /// an identifier, and `29ABCDE1234F1Z5` is not `29abcde1234f1z5` to a registry.
+  registrationNumber String @map("registration_number") @db.VarChar(64)
+  /// The name the registration is held in, which is not always the trading name.
+  legalName String? @map("legal_name") @db.VarChar(255)
+
+  /// When it took effect, and when it lapsed. Kept rather than deleted so a
+  /// three-year-old purchase order stays explicable.
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Cascade)
+
+  /// You cannot record the same registration twice. Everything else — how many a
+  /// supplier holds, in which states — is a business fact and not a constraint,
+  /// exactly as `issuer_tax_registrations` argues at length.
+  @@unique([organizationId, supplierId, countryCode, scheme, registrationNumber])
+  @@unique([organizationId, id])
+  @@index([organizationId, supplierId])
+  @@map("supplier_tax_identifiers")
+}
+
+/// What one supplier sells one product AS. The translation layer (PI-4.2).
+///
+/// ⚠️ WITHOUT THIS TABLE EVERY PURCHASE ORDER LINE RE-ENTERS A UNIT CONVERSION
+///   BY HAND, AND EVERY ONE OF THEM IS A CHANCE TO ORDER TEN TIMES TOO MANY. A
+///   supplier sells `AMOX-500-BOX10x10` in cases of 5 boxes at ₹412 per box; the
+///   clinic stocks "Amoxicillin 500 mg capsule" in CAPSULES. Those are the same
+///   physical thing described in two vocabularies, and the mapping is a fact
+///   about the commercial relationship rather than about either side.
+///
+/// ⚠️ `quantity_per_pack` IS IN THE PRODUCT'S **BASE UNIT**, NOT IN
+///   `pack_unit_id`, AND THAT IS THE COLUMN MOST LIKELY TO BE MISREAD. It answers
+///   "how many base units come in one of the supplier's packs" — 100 capsules in
+///   a box of 10 strips of 10. `pack_unit_id` is only the WORD the supplier uses,
+///   kept so the PO prints "5 BOX" instead of "500 capsule".
+///
+///   It is a column rather than a lookup through `product_packagings` because the
+///   supplier's pack need not appear in the product's own ladder at all. A
+///   distributor's 500-capsule catch-weight case is not a level of the clinic's
+///   packaging; it is how that distributor ships.
+///
+/// ORG-SCOPED, like its supplier. `product_id` is a PLAIN FK — a clinic
+/// legitimately buys a PLATFORM product, whose `organization_id` is NULL and
+/// which a NOT NULL column cannot compose with — so `product_visible` is the
+/// entire control on that side. Same for `pack_unit_id`.
+model SupplierProduct {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  supplierId     String @map("supplier_id") @db.Uuid
+  productId      String @map("product_id") @db.Uuid
+
+  /// Their catalogue number. What goes on the purchase order and what their
+  /// invoice will quote back.
+  supplierSku String  @map("supplier_sku") @db.VarChar(128)
+  /// What THEY call it, when that differs from what the clinic calls it. Kept for
+  /// matching an invoice line by eye, which is how it is actually done.
+  supplierProductName String? @map("supplier_product_name") @db.VarChar(255)
+
+  /// The word for one of their packs — BOX, CASE, VIAL. See the model comment:
+  /// presentation only, never arithmetic.
+  packUnitId String @map("pack_unit_id") @db.Uuid
+  /// Base units in one pack. THE conversion. Positive, CHECKed.
+  quantityPerPack Decimal @map("quantity_per_pack") @db.Decimal(18, 6)
+
+  /// What one pack costs, in integer minor units. Per PACK, because that is what
+  /// the supplier quotes; the per-base-unit figure the ledger and `batches` want
+  /// is derived from it and the pack quantity at the moment of ordering.
+  pricePerPackMinor BigInt @map("price_per_pack_minor") @db.BigInt
+  /// ISO 4217. Required beside any price — a number with no currency is a number
+  /// that will be added to a different one.
+  currency          String @db.Char(3)
+
+  /// When this price applies from, and until. A supplier's new price list does
+  /// not rewrite what last quarter's orders cost.
+  priceEffectiveFrom DateTime  @map("price_effective_from") @db.Date
+  priceEffectiveTo   DateTime? @map("price_effective_to") @db.Date
+
+  /// Days from order to delivery for THIS item. Overrides the supplier's
+  /// blanket figure.
+  leadTimeDays Int? @map("lead_time_days") @db.SmallInt
+  /// The smallest order they will accept, in PACKS. Warned about, not enforced —
+  /// a supplier's minimum is their commercial policy and a clinic ordering less
+  /// is having a conversation, not making an error.
+  minimumOrderPacks Decimal? @map("minimum_order_packs") @db.Decimal(18, 6)
+
+  /// The one to offer first when several suppliers sell the same product. At most
+  /// one per (product) is enforced in the service, not in a partial index, because
+  /// "preferred" is advice to a buyer and a clinic mid-switch legitimately has
+  /// none.
+  isPreferred Boolean @default(false) @map("is_preferred")
+  isActive    Boolean @default(true) @map("is_active")
+
+  notes String? @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier     Supplier      @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FKs into possibly-platform rows. `product_visible` and `unit_visible`
+  /// are the only controls on those sides — see the file header of
+  /// inventory.prisma, which makes the same point at length.
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  packUnit     UnitOfMeasure @relation("SupplierProductPackUnit", fields: [packUnitId], references: [id], onDelete: Restrict)
+
+  purchaseOrderLines PurchaseOrderLine[]
+
+  /// One row per (supplier, product, their SKU). A supplier legitimately sells
+  /// the same product under two SKUs — a 10-pack and a 100-pack — and those are
+  /// two rows with two prices, which is the whole point.
+  @@unique([organizationId, supplierId, productId, supplierSku])
+  @@unique([organizationId, id])
+  /// "Who sells this, and for how much" — the buyer's question, from the product.
+  @@index([organizationId, productId, isActive])
+  @@index([organizationId, supplierId, isActive])
+  @@map("supplier_products")
+}
+
+// ---------------------------------------------------------------------------
+// Asking: requisitions
+// ---------------------------------------------------------------------------
+
+/// A branch asking the organization to buy something (PI-4.3).
+///
+/// ⚠️ THE APPROVAL SPLIT IS THE ENTIRE POINT OF THIS TABLE, AND IT IS ENFORCED
+///   IN THREE PLACES BECAUSE IT IS A SEGREGATION-OF-DUTY CONTROL RATHER THAN A
+///   VALIDATION. `procurement.requisition.create` and
+///   `procurement.requisition.approve` are separate permission codes; the service
+///   refuses an approval by the row's own `created_by_id`; and the
+///   `purchase_requisitions_approver_is_not_creator` CHECK refuses the row
+///   outright. Mirrors the existing `doctor.schedule.request` / `.approve` split.
+///
+///   ⚠️ THE CHECK IS THE LAYER THAT MATTERS, because the other two are one
+///     forgotten `if` away from absent. A clinic that genuinely wants one person
+///     to do both grants both codes to one membership — that is a clinic's
+///     decision, taken visibly — and it still cannot self-approve a single
+///     document, which is what the control is actually for.
+///
+/// BRANCH-SCOPED: a requisition is raised AT a site, by somebody who works there,
+/// for stock that will land there. `branch_id` is NOT NULL and the policy is
+/// absolute.
+model PurchaseRequisition {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  /// Issued from `number_sequences` on SUBMIT, never on create — a draft that is
+  /// abandoned must not burn a number in a series somebody reads as a sequence.
+  /// The same call every other document in this repository makes.
+  requisitionNumber String? @map("requisition_number") @db.VarChar(64)
+
+  status PurchaseRequisitionStatus @default(DRAFT)
+
+  /// When the branch needs it by. A DATE, not an instant: "we need it by the
+  /// 14th" is a fact about a day in the clinic's calendar.
+  requiredBy DateTime? @map("required_by") @db.Date
+  notes      String?   @db.Text
+
+  createdById String @map("created_by_id") @db.Uuid
+
+  submittedAt   DateTime? @map("submitted_at") @db.Timestamptz(6)
+  submittedById String?   @map("submitted_by_id") @db.Uuid
+  approvedAt    DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedById  String?   @map("approved_by_id") @db.Uuid
+  rejectedAt    DateTime? @map("rejected_at") @db.Timestamptz(6)
+  rejectedById  String?   @map("rejected_by_id") @db.Uuid
+  /// CHECKed present whenever `rejected_at` is. A refusal with no reason is a
+  /// refusal the requester cannot act on, and they will simply raise it again.
+  rejectionReason String? @map("rejection_reason") @db.Text
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+
+  createdBy   User  @relation("RequisitionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  submittedBy User? @relation("RequisitionSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  approvedBy  User? @relation("RequisitionApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  rejectedBy  User? @relation("RequisitionRejectedBy", fields: [rejectedById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("RequisitionCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  lines          PurchaseRequisitionLine[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([organizationId, requisitionNumber])
+  /// The composite-FK targets the lines and the purchase orders reference.
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  /// "What is waiting for me to approve" — the whole reason the state exists.
+  @@index([organizationId, status, createdAt(sort: Desc)])
+  @@index([organizationId, branchId, status])
+  @@map("purchase_requisitions")
+}
+
+/// One product on a requisition.
+///
+/// Carries `organization_id` AND `branch_id` itself rather than inheriting
+/// through a parent predicate — the call the invoice children made, not the one
+/// `appointment_status_history` made. An org-only inherited policy under a
+/// branch-scoped parent re-opens the branch boundary; see enable-rls.sql.
+model PurchaseRequisitionLine {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  requisitionId  String @map("requisition_id") @db.Uuid
+
+  /// Where this line sits on the document, 1-based.
+  ///
+  /// ⚠️ WITHOUT IT A DOCUMENT'S LINES RENDER IN AN ARBITRARY ORDER, AND `created_at`
+  ///   CANNOT SUBSTITUTE. Lines are written by ONE `createMany`, and
+  ///   `CURRENT_TIMESTAMP` in Postgres is the TRANSACTION timestamp — so every line
+  ///   of a document gets a byte-identical `created_at` and the only tie-break left
+  ///   is a random uuid v4. A purchase order printed for a supplier, or a draft
+  ///   delivery reopened for editing, would show its lines in a different order each
+  ///   time it was read.
+  ///
+  ///   ⚠️ AND IT IS WHY `{ createdAt: 'asc' }, { id: 'asc' }` IS NOT ENOUGH. That
+  ///     makes the order STABLE within a read and still ARBITRARY relative to what
+  ///     somebody typed. Measured: the landed-cost apportionment test failed two
+  ///     runs in six before this column existed.
+  ///
+  /// Same shape and the same reason as `invoice_items.line_number`, which is the
+  /// pattern this follows.
+  lineNumber Int @map("line_number") @db.SmallInt
+
+  productId String @map("product_id") @db.Uuid
+
+  /// What is being asked for, in the product's BASE UNIT, positive and CHECKed.
+  /// Resolved by the same `toBaseUnits` the ledger uses, so the requisition, the
+  /// order it becomes and the receipt that closes it all agree to the last
+  /// decimal place.
+  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+  /// What the requester actually typed, and in what. Kept for the same reason
+  /// the ledger keeps it: "2 boxes" must still read as "2 boxes" a year later.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+
+  /// Who the requester thinks we should buy it from. ADVICE — the buyer decides,
+  /// and the PO records what actually happened.
+  suggestedSupplierId String? @map("suggested_supplier_id") @db.Uuid
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  requisition  PurchaseRequisition @relation(fields: [organizationId, requisitionId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FKs into possibly-platform rows — `product_visible`, `unit_visible`.
+  product      Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure       @relation("RequisitionLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  /// The supplier IS org-scoped, so this one CAN be a composite FK, and is.
+  suggestedSupplier Supplier? @relation(fields: [organizationId, suggestedSupplierId], references: [organizationId, id], onDelete: Restrict)
+
+  /// One line per product. Asking for the same thing twice on one document has
+  /// two plausible readings — the sum, or a duplicate — and neither should be
+  /// guessed. The same call `stock_transfer_lines` makes.
+  @@unique([organizationId, requisitionId, productId])
+  @@unique([organizationId, requisitionId, lineNumber])
+  @@unique([organizationId, id])
+  @@index([organizationId, requisitionId])
+  @@index([organizationId, productId])
+  @@map("purchase_requisition_lines")
+}
+
+// ---------------------------------------------------------------------------
+// Committing: purchase orders
+// ---------------------------------------------------------------------------
+
+/// The organization committing to buy (PI-4.4).
+///
+/// ⚠️ THE SUPPLIER'S NAME AND TAX NUMBER ARE SNAPSHOTTED, AND THE REASON IS
+///   **NOT** THE ONE PI-3 LEARNED THE HARD WAY. `suppliers` is org-scoped, so a
+///   branch CAN read it — nothing here is invisible the way a sending branch's
+///   shelf was invisible to its receiver. The reason is the other one the
+///   invoice practitioner snapshot exists for: a purchase order is a document
+///   that was sent to somebody, on a day, naming them. A supplier who changes
+///   their trading name or re-registers for GST next year must not silently
+///   rewrite what last year's orders said.
+///
+/// BRANCH-SCOPED. The stock is going to one site, the budget is that site's, and
+/// the delivery address is its loading bay.
+model PurchaseOrder {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  /// Issued from `number_sequences` at ISSUE, never at create. A supplier quotes
+  /// this number back on their invoice, so a gap in the series is a gap somebody
+  /// will ask about.
+  orderNumber String? @map("order_number") @db.VarChar(64)
+
+  supplierId String  @map("supplier_id") @db.Uuid
+  /// The requisition this came from, when it came from one. Buying without a
+  /// requisition is ordinary — a standing monthly order does not need one — so
+  /// this is nullable rather than the flow being forced through paperwork nobody
+  /// asked for.
+  requisitionId String? @map("requisition_id") @db.Uuid
+
+  status PurchaseOrderStatus @default(DRAFT)
+
+  // -- the supplier, as this document names them. See the model comment. -----
+  supplierName      String  @map("supplier_name") @db.VarChar(255)
+  supplierTaxNumber String? @map("supplier_tax_number") @db.VarChar(64)
+
+  /// ISO 4217. THE currency of this commitment — every `*_minor` column below is
+  /// in it, and a receipt against this order in a different currency is recorded
+  /// faithfully and never converted. See KNOWN_ISSUES.
+  currency String @db.Char(3)
+
+  /// When the supplier said it would arrive. A DATE.
+  expectedDate DateTime? @map("expected_date") @db.Date
+
+  /// Where it should be delivered. Branch-qualified, so an order at branch A
+  /// naming a shelf at branch B is unrepresentable rather than merely refused —
+  /// the same three-column composite the ledger uses and for the same reason.
+  /// Nullable: the buyer need not decide the shelf, and the RECEIPT does.
+  deliverToLocationId String? @map("deliver_to_location_id") @db.Uuid
+
+  // -- what it comes to, AS RECORDED (PI-ADR-006) ---------------------------
+  /// The sum of the lines. Stored rather than re-derived, exactly as invoice
+  /// totals are: a document states a total, and a total that is recomputed on
+  /// every read is a total that changes when a rounding rule does.
+  subtotalMinor BigInt @default(0) @map("subtotal_minor") @db.BigInt
+  /// What the supplier charged in tax. ⚠️ RECORDED, NEVER CALCULATED. Nothing in
+  /// this programme computes input tax and nothing calls `@rcln/tax`, which
+  /// prices sales.
+  taxAmountMinor BigInt @default(0) @map("tax_amount_minor") @db.BigInt
+  totalMinor     BigInt @default(0) @map("total_minor") @db.BigInt
+
+  /// The buyer's terms, free text, printed on the order.
+  terms String? @db.Text
+  notes String? @db.Text
+
+  createdById String @map("created_by_id") @db.Uuid
+
+  issuedAt   DateTime? @map("issued_at") @db.Timestamptz(6)
+  issuedById String?   @map("issued_by_id") @db.Uuid
+  /// When the buyer decided nothing more is coming. See `PurchaseOrderStatus`.
+  closedAt   DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedById String?   @map("closed_by_id") @db.Uuid
+  closureReason String? @map("closure_reason") @db.Text
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  cancellationReason String? @map("cancellation_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  requisition  PurchaseRequisition? @relation(fields: [organizationId, requisitionId], references: [organizationId, id], onDelete: Restrict)
+  deliverToLocation InventoryLocation? @relation("PurchaseOrderDeliverTo", fields: [organizationId, branchId, deliverToLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  createdBy   User  @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  issuedBy    User? @relation("PurchaseOrderIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
+  closedBy    User? @relation("PurchaseOrderClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("PurchaseOrderCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  lines         PurchaseOrderLine[]
+  goodsReceipts GoodsReceipt[]
+
+  @@unique([organizationId, orderNumber])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  /// "What are we waiting for" — the buyer's screen.
+  @@index([organizationId, branchId, status, createdAt(sort: Desc)])
+  /// "What have we ordered from them" — the supplier's screen.
+  @@index([organizationId, supplierId, status])
+  @@map("purchase_orders")
+}
+
+/// One product on a purchase order.
+///
+/// ⚠️ `received_quantity_base` HAS NO `<= ordered` CHECK, AND THAT IS THE ONE
+///   PLACE THIS FILE DIVERGES FROM `stock_transfer_lines` ON PURPOSE. A transfer
+///   can refuse over-receipt absolutely, because more arriving than was sent is a
+///   data-entry error by definition — the sender counted. A DELIVERY is
+///   different: suppliers legitimately over-ship, and how much slack is
+///   acceptable is a SETTING (PI-ADR-015,
+///   `procurement.over_receipt_tolerance_percent`), which a CHECK constraint
+///   cannot read. So the constraint here is only `>= 0`, and the tolerance is
+///   enforced in `goods-receipt.service.ts` — the one rule in this file that
+///   genuinely lives in one place, which is why it has its own test.
+model PurchaseOrderLine {
+  id              String @id @default(uuid()) @db.Uuid
+  organizationId  String @map("organization_id") @db.Uuid
+  branchId        String @map("branch_id") @db.Uuid
+  purchaseOrderId String @map("purchase_order_id") @db.Uuid
+
+  /// Where this line sits on the document, 1-based.
+  ///
+  /// ⚠️ WITHOUT IT A DOCUMENT'S LINES RENDER IN AN ARBITRARY ORDER, AND `created_at`
+  ///   CANNOT SUBSTITUTE. Lines are written by ONE `createMany`, and
+  ///   `CURRENT_TIMESTAMP` in Postgres is the TRANSACTION timestamp — so every line
+  ///   of a document gets a byte-identical `created_at` and the only tie-break left
+  ///   is a random uuid v4. A purchase order printed for a supplier, or a draft
+  ///   delivery reopened for editing, would show its lines in a different order each
+  ///   time it was read.
+  ///
+  ///   ⚠️ AND IT IS WHY `{ createdAt: 'asc' }, { id: 'asc' }` IS NOT ENOUGH. That
+  ///     makes the order STABLE within a read and still ARBITRARY relative to what
+  ///     somebody typed. Measured: the landed-cost apportionment test failed two
+  ///     runs in six before this column existed.
+  ///
+  /// Same shape and the same reason as `invoice_items.line_number`, which is the
+  /// pattern this follows.
+  lineNumber Int @map("line_number") @db.SmallInt
+
+  productId String  @map("product_id") @db.Uuid
+  /// The supplier's catalogue row this was priced from, when it was. Nullable: a
+  /// buyer ordering something the price book has never carried is ordinary, and
+  /// refusing it would make the price book a gate rather than a convenience.
+  supplierProductId String? @map("supplier_product_id") @db.Uuid
+
+  /// What was ordered, in the product's BASE UNIT. Positive, CHECKed.
+  orderedQuantityBase Decimal @map("ordered_quantity_base") @db.Decimal(18, 6)
+  /// What the buyer typed, and in what — "5 BOX". See the ledger's identical pair.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+
+  /// What has been signed for against this line, in base units, accumulated
+  /// across every receipt. Starts at zero and only ever grows. ⚠️ See the model
+  /// comment for why there is no upper CHECK.
+  receivedQuantityBase Decimal @default(0) @map("received_quantity_base") @db.Decimal(18, 6)
+
+  /// Cost per BASE UNIT, in integer minor units (PI-ADR-010). THE canonical cost
+  /// figure, and what `batches.unit_cost_base` is set from at receipt.
+  unitCostBase BigInt @map("unit_cost_base") @db.BigInt
+  /// What the supplier quoted, as quoted: a price per pack and how many base
+  /// units that pack holds. The money equivalent of `quantity_entered` — kept so
+  /// "₹412 per box of 100" still reads that way when the pack size changes.
+  pricePerPackMinor BigInt?  @map("price_per_pack_minor") @db.BigInt
+  packQuantityBase  Decimal? @map("pack_quantity_base") @db.Decimal(18, 6)
+
+  /// As recorded on the supplier's paperwork. Nothing computes these.
+  lineSubtotalMinor BigInt @default(0) @map("line_subtotal_minor") @db.BigInt
+  /// Basis points, for the record only — 18% is 1800. ⚠️ It is not applied to
+  /// anything; `tax_amount_minor` is what the supplier charged.
+  taxRateBps        Int?   @map("tax_rate_bps")
+  taxAmountMinor    BigInt @default(0) @map("tax_amount_minor") @db.BigInt
+  lineTotalMinor    BigInt @default(0) @map("line_total_minor") @db.BigInt
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch        Branch        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FKs into possibly-platform rows — `product_visible`, `unit_visible`.
+  product Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit    UnitOfMeasure @relation("PurchaseOrderLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  supplierProduct SupplierProduct? @relation(fields: [organizationId, supplierProductId], references: [organizationId, id], onDelete: Restrict)
+
+  goodsReceiptLines  GoodsReceiptLine[]
+
+  /// One line per product, for the reason the requisition gives.
+  @@unique([organizationId, purchaseOrderId, productId])
+  @@unique([organizationId, purchaseOrderId, lineNumber])
+  @@unique([organizationId, id])
+  @@index([organizationId, purchaseOrderId])
+  @@index([organizationId, productId])
+  @@map("purchase_order_lines")
+}
+
+// ---------------------------------------------------------------------------
+// Arriving: goods receipts
+// ---------------------------------------------------------------------------
+
+/// What actually turned up (PI-4.5). THE most consequential document here.
+///
+/// ── THIS IS WHERE THE TRUTH ENTERS, AND WHERE IT IS HARDEST TO CORRECT ──────
+/// Everything downstream is downstream of this row. The lot number a recall will
+/// search for, the expiry date the sweep will act on, the serial a device
+/// history hangs off, and the cost every valuation report will sum — all of them
+/// are first written here, by somebody standing at a loading bay with a box.
+///
+/// Enforced at POST, and each of these has a test:
+///
+///   · the product's tracking mode (PI-ADR-014) — a `SERIAL` product cannot be
+///     received without a serial, and that is a CHECK on the ledger leg rather
+///     than only a validation here;
+///   · an expiry-controlled product cannot be received without an expiry date;
+///   · an already-expired lot is refused outright — receiving stock that is
+///     dead on arrival puts it on the shelf for the sweep to find, which reads
+///     as a clinic that let it expire;
+///   · over-receipt beyond the configured tolerance is refused, and the
+///     tolerance is a SETTING (PI-ADR-015), not a constant.
+///
+/// ⚠️ THE HEADER SNAPSHOTS `quality_hold_required` FROM THE SETTING AT POST TIME,
+///   AND MUST. Whether inspection applies is a setting a clinic changes; a
+///   receipt from March must keep saying what the policy was in March, or the
+///   `NOT_REQUIRED` lines on it start looking like somebody skipped a step.
+///
+/// BRANCH-SCOPED, absolutely. A delivery arrives at one loading bay.
+model GoodsReceipt {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  /// Issued from `number_sequences` at POST, never at create.
+  receiptNumber String? @map("receipt_number") @db.VarChar(64)
+
+  supplierId String  @map("supplier_id") @db.Uuid
+  /// The order this delivers against, when there is one. A donation, an opening
+  /// stock load and a sample all arrive without a PO.
+  purchaseOrderId String? @map("purchase_order_id") @db.Uuid
+
+  status GoodsReceiptStatus @default(DRAFT)
+
+  /// Snapshotted for the reason the purchase order's is. See that model.
+  supplierName String @map("supplier_name") @db.VarChar(255)
+  /// Their invoice, as the number and date printed on the paper that came with
+  /// the boxes. This is what an accountant reconciles against.
+  supplierInvoiceNumber String?   @map("supplier_invoice_number") @db.VarChar(64)
+  supplierInvoiceDate   DateTime? @map("supplier_invoice_date") @db.Date
+
+  /// Where it lands. Branch-qualified, so a receipt at branch A cannot name a
+  /// shelf at branch B. Required — a delivery with no shelf has nowhere to go.
+  locationId String @map("location_id") @db.Uuid
+
+  /// When the goods PHYSICALLY ARRIVED, which is not when this was keyed in: a
+  /// receipt entered on Monday for a Friday delivery is ordinary, and the ledger
+  /// legs carry this as their `occurred_at`.
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  /// ISO 4217. What this delivery was invoiced in.
+  currency String @db.Char(3)
+
+  // -- landed cost, as recorded ---------------------------------------------
+  /// Freight, duty and handling, in integer minor units. Apportioned across the
+  /// lines PRO-RATA BY VALUE and the apportionment is STORED on each line, never
+  /// re-derived — exactly as invoice discount apportionment already is, and for
+  /// the same reason: the rounding must be decided once.
+  freightMinor  BigInt @default(0) @map("freight_minor") @db.BigInt
+  dutyMinor     BigInt @default(0) @map("duty_minor") @db.BigInt
+  handlingMinor BigInt @default(0) @map("handling_minor") @db.BigInt
+
+  /// The sum of the lines' goods value, then tax as the supplier charged it,
+  /// then the whole document. All recorded (PI-ADR-006).
+  goodsValueMinor BigInt @default(0) @map("goods_value_minor") @db.BigInt
+  taxAmountMinor  BigInt @default(0) @map("tax_amount_minor") @db.BigInt
+  totalMinor      BigInt @default(0) @map("total_minor") @db.BigInt
+
+  /// What the inspection policy WAS when this was posted. See the model comment
+  /// — a snapshot, not a live read.
+  qualityHoldRequired Boolean @default(false) @map("quality_hold_required")
+
+  notes String? @db.Text
+
+  createdById String @map("created_by_id") @db.Uuid
+
+  postedAt   DateTime? @map("posted_at") @db.Timestamptz(6)
+  postedById String?   @map("posted_by_id") @db.Uuid
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  cancellationReason String? @map("cancellation_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder? @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Restrict)
+  location     InventoryLocation @relation("GoodsReceiptLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  createdBy   User  @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  postedBy    User? @relation("GoodsReceiptPostedBy", fields: [postedById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("GoodsReceiptCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  lines   GoodsReceiptLine[]
+  returns PurchaseReturn[]
+
+  @@unique([organizationId, receiptNumber])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, branchId, status, receivedAt(sort: Desc)])
+  @@index([organizationId, supplierId, receivedAt(sort: Desc)])
+  @@index([organizationId, purchaseOrderId])
+  @@map("goods_receipts")
+}
+
+/// One product, one lot, one serial, on one delivery.
+///
+/// ⚠️ A SERIAL-TRACKED PRODUCT GETS **ONE LINE PER SERIAL**, QUANTITY ONE, AND
+///   THAT IS WHY THERE IS NO `goods_receipt_line_serials` TABLE. A serial IS one
+///   physical device; `recordMovementIn` takes exactly one `serialId`; so five
+///   implants are five legs, and five legs want five lines rather than one line
+///   and a child table nothing else in the programme has. The
+///   `goods_receipt_lines_serial_quantity` CHECK is what makes it literal.
+///
+///   `stock_transfer_lines` already keys on `(product, batch, serial)` for the
+///   same reason. This is that shape, one phase later.
+///
+/// ⚠️ `batch_id` IS FILLED IN AT POST, NOT AT DRAFT. The lot row does not exist
+///   until the receipt commits — creating it at draft would leave orphan lots on
+///   every abandoned delivery, and `batches` is where FEFO and the expiry sweep
+///   look. What the draft carries is the lot's IDENTITY as the person reading the
+///   pack typed it, and post turns that into a row.
+model GoodsReceiptLine {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  goodsReceiptId String @map("goods_receipt_id") @db.Uuid
+
+  /// Where this line sits on the document, 1-based.
+  ///
+  /// ⚠️ WITHOUT IT A DOCUMENT'S LINES RENDER IN AN ARBITRARY ORDER, AND `created_at`
+  ///   CANNOT SUBSTITUTE. Lines are written by ONE `createMany`, and
+  ///   `CURRENT_TIMESTAMP` in Postgres is the TRANSACTION timestamp — so every line
+  ///   of a document gets a byte-identical `created_at` and the only tie-break left
+  ///   is a random uuid v4. A purchase order printed for a supplier, or a draft
+  ///   delivery reopened for editing, would show its lines in a different order each
+  ///   time it was read.
+  ///
+  ///   ⚠️ AND IT IS WHY `{ createdAt: 'asc' }, { id: 'asc' }` IS NOT ENOUGH. That
+  ///     makes the order STABLE within a read and still ARBITRARY relative to what
+  ///     somebody typed. Measured: the landed-cost apportionment test failed two
+  ///     runs in six before this column existed.
+  ///
+  /// Same shape and the same reason as `invoice_items.line_number`, which is the
+  /// pattern this follows.
+  lineNumber Int @map("line_number") @db.SmallInt
+
+  /// The order line this satisfies, when the receipt has an order. Nullable for
+  /// the same reason the header's `purchase_order_id` is.
+  purchaseOrderLineId String? @map("purchase_order_line_id") @db.Uuid
+
+  productId String  @map("product_id") @db.Uuid
+  /// The lot row, created at POST. See the model comment.
+  batchId   String? @map("batch_id") @db.Uuid
+  /// The serial row, created at POST.
+  serialId  String? @map("serial_id") @db.Uuid
+
+  /// What was counted in, in the product's BASE UNIT. Positive, CHECKed.
+  receivedQuantityBase Decimal @map("received_quantity_base") @db.Decimal(18, 6)
+  /// What the receiver typed, and in what.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+
+  /// How much of the received quantity was refused at inspection. ⚠️ NOT
+  ///   SUBTRACTED FROM `received_quantity_base`: it arrived, it is on the
+  ///   premises, and it has to be counted and valued until it goes back or is
+  ///   destroyed. Exactly the reasoning that makes `EXPIRY` a MOVE and not a
+  ///   removal in the ledger.
+  rejectedQuantityBase Decimal @default(0) @map("rejected_quantity_base") @db.Decimal(18, 6)
+
+  // -- the lot, as read off the pack ----------------------------------------
+  /// Required when the product is batch-tracked, which the ledger's tracking
+  /// CHECK enforces on the leg. Case preserved, compared exactly.
+  lotNumber      String?   @map("lot_number") @db.VarChar(128)
+  manufacturedOn DateTime? @map("manufactured_on") @db.Date
+  /// Required when the product is expiry-controlled — refused in the service with
+  /// a sentence, because a pack with no expiry recorded is a pack the sweep can
+  /// never act on.
+  expiresOn      DateTime? @map("expires_on") @db.Date
+  retestOn       DateTime? @map("retest_on") @db.Date
+  /// May legitimately differ from the product's default: contract manufacture
+  /// and repackaging are why `batches` has this column and not a join.
+  manufacturerId String?   @map("manufacturer_id") @db.Uuid
+  /// As printed, for a serial-tracked line. Turned into a `serials` row at post.
+  serialNumber   String?   @map("serial_number") @db.VarChar(128)
+
+  // -- what it cost ---------------------------------------------------------
+  /// Cost per BASE UNIT in integer minor units. What `batches.unit_cost_base` is
+  /// set from, and what the moving average is rolled into.
+  unitCostBase BigInt @map("unit_cost_base") @db.BigInt
+  currency     String @db.Char(3)
+
+  /// This line's share of the header's freight, duty and handling, apportioned
+  /// pro-rata by value. ⚠️ STORED, NOT RE-DERIVED. The rounding of an
+  /// apportionment must be decided once, or two readers of the same document
+  /// disagree by a paisa and neither is wrong.
+  landedCostMinor BigInt @default(0) @map("landed_cost_minor") @db.BigInt
+
+  lineSubtotalMinor BigInt @default(0) @map("line_subtotal_minor") @db.BigInt
+  taxRateBps        Int?   @map("tax_rate_bps")
+  taxAmountMinor    BigInt @default(0) @map("tax_amount_minor") @db.BigInt
+  lineTotalMinor    BigInt @default(0) @map("line_total_minor") @db.BigInt
+
+  // -- inspection (PI-4.6) --------------------------------------------------
+  qualityStatus     GoodsReceiptQualityStatus @default(NOT_REQUIRED) @map("quality_status")
+  qualityDecidedAt  DateTime?                 @map("quality_decided_at") @db.Timestamptz(6)
+  qualityDecidedById String?                  @map("quality_decided_by_id") @db.Uuid
+  /// CHECKed present whenever the status is `REJECTED`. "We refused it" without
+  /// "because" is not a record anybody can act on.
+  qualityNotes      String?                   @map("quality_notes") @db.Text
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  goodsReceipt GoodsReceipt @relation(fields: [organizationId, goodsReceiptId], references: [organizationId, id], onDelete: Cascade)
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [organizationId, purchaseOrderLineId], references: [organizationId, id], onDelete: Restrict)
+  /// Plain FKs into possibly-platform rows — `product_visible`, `unit_visible`,
+  /// `manufacturer_visible`.
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure @relation("GoodsReceiptLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  manufacturer Manufacturer? @relation("GoodsReceiptLineManufacturer", fields: [manufacturerId], references: [id], onDelete: Restrict)
+  /// Branch-qualified, exactly as the ledger's are: a receipt line at branch A
+  /// citing a lot or a device at branch B is unrepresentable.
+  batch  Batch?  @relation("GoodsReceiptLineBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial Serial? @relation("GoodsReceiptLineSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  qualityDecidedBy User? @relation("GoodsReceiptLineQualityDecidedBy", fields: [qualityDecidedById], references: [id], onDelete: Restrict)
+
+  returnLines PurchaseReturnLine[]
+
+  /// One line per (product, lot, serial). ⚠️ Rewritten NULLS NOT DISTINCT in the
+  /// migration — `lot_number` and `serial_number` are null for an untracked
+  /// product, and under Postgres's default every such line would be unique
+  /// against every other, so the duplicate this index exists to catch would slip
+  /// straight through. The same fix `stock_balances`' bucket key needed.
+  @@unique([organizationId, goodsReceiptId, productId, lotNumber, serialNumber])
+  @@unique([organizationId, goodsReceiptId, lineNumber])
+  @@unique([organizationId, id])
+  @@index([organizationId, goodsReceiptId])
+  @@index([organizationId, productId])
+  @@index([organizationId, purchaseOrderLineId])
+  /// "What is waiting for inspection" — the quality screen.
+  @@index([organizationId, branchId, qualityStatus])
+  @@map("goods_receipt_lines")
+}
+
+// ---------------------------------------------------------------------------
+// Going back: purchase returns
+// ---------------------------------------------------------------------------
+
+/// Stock going back to the supplier (PI-4.7).
+///
+/// ⚠️ A RETURN IS A `PURCHASE_RETURN`-SIGNED MOVEMENT CITING THE RECEIPT, NEVER A
+///   DELETION OF IT. The goods arrived; the ledger recorded that they arrived;
+///   and a correction is a compensating movement with a reason (PI-ADR-004 rule
+///   3). Deleting the receipt would leave a lot row nobody received, a cost
+///   nobody paid and a recall query that cannot answer where the stock went.
+///
+/// ⚠️ EVERY LINE STATES WHICH BUCKET THE STOCK LEAVES, AND THERE IS NO DEFAULT.
+///   `PURCHASE_RETURN` is the second movement type in the programme with no
+///   default `statusFrom`, for exactly the reason `DISPOSAL` has none: what is
+///   going back — sound stock ordered in error, stock rejected at inspection,
+///   stock found damaged in the box — IS the content of the record. Defaulting it
+///   to `AVAILABLE` would let a mis-click send sellable stock back and file it as
+///   routine.
+model PurchaseReturn {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  /// Issued from `number_sequences` when it is SENT, never at create.
+  returnNumber String? @map("return_number") @db.VarChar(64)
+
+  supplierId String @map("supplier_id") @db.Uuid
+  /// The delivery this is going back against. Nullable — a clinic returning
+  /// stock it can no longer tie to a specific delivery is ordinary after a few
+  /// years — but a line MAY cite a receipt line, and that is the join a supplier
+  /// credit note is reconciled through.
+  goodsReceiptId String? @map("goods_receipt_id") @db.Uuid
+
+  status PurchaseReturnStatus @default(DRAFT)
+
+  supplierName String @map("supplier_name") @db.VarChar(255)
+
+  /// Why it is going back. NOT NULL: a return with no reason is a return the
+  /// supplier will refuse and nobody can explain a year later.
+  reason String @db.Text
+
+  /// Where it leaves from. Branch-qualified.
+  locationId String @map("location_id") @db.Uuid
+
+  currency   String @db.Char(3)
+  totalMinor BigInt @default(0) @map("total_minor") @db.BigInt
+
+  /// Their credit note, once they issue one. Recorded, not reconciled.
+  supplierCreditNoteNumber String? @map("supplier_credit_note_number") @db.VarChar(64)
+
+  notes String? @db.Text
+
+  createdById String @map("created_by_id") @db.Uuid
+
+  sentAt   DateTime? @map("sent_at") @db.Timestamptz(6)
+  sentById String?   @map("sent_by_id") @db.Uuid
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  cancellationReason String? @map("cancellation_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  goodsReceipt GoodsReceipt? @relation(fields: [organizationId, goodsReceiptId], references: [organizationId, id], onDelete: Restrict)
+  location     InventoryLocation @relation("PurchaseReturnLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  createdBy   User  @relation("PurchaseReturnCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  sentBy      User? @relation("PurchaseReturnSentBy", fields: [sentById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("PurchaseReturnCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  lines PurchaseReturnLine[]
+
+  @@unique([organizationId, returnNumber])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, branchId, status, createdAt(sort: Desc)])
+  @@index([organizationId, supplierId])
+  @@map("purchase_returns")
+}
+
+/// One lot going back.
+model PurchaseReturnLine {
+  id               String @id @default(uuid()) @db.Uuid
+  organizationId   String @map("organization_id") @db.Uuid
+  branchId         String @map("branch_id") @db.Uuid
+  purchaseReturnId String @map("purchase_return_id") @db.Uuid
+
+  /// Where this line sits on the document, 1-based.
+  ///
+  /// ⚠️ WITHOUT IT A DOCUMENT'S LINES RENDER IN AN ARBITRARY ORDER, AND `created_at`
+  ///   CANNOT SUBSTITUTE. Lines are written by ONE `createMany`, and
+  ///   `CURRENT_TIMESTAMP` in Postgres is the TRANSACTION timestamp — so every line
+  ///   of a document gets a byte-identical `created_at` and the only tie-break left
+  ///   is a random uuid v4. A purchase order printed for a supplier, or a draft
+  ///   delivery reopened for editing, would show its lines in a different order each
+  ///   time it was read.
+  ///
+  ///   ⚠️ AND IT IS WHY `{ createdAt: 'asc' }, { id: 'asc' }` IS NOT ENOUGH. That
+  ///     makes the order STABLE within a read and still ARBITRARY relative to what
+  ///     somebody typed. Measured: the landed-cost apportionment test failed two
+  ///     runs in six before this column existed.
+  ///
+  /// Same shape and the same reason as `invoice_items.line_number`, which is the
+  /// pattern this follows.
+  lineNumber Int @map("line_number") @db.SmallInt
+
+  /// The receipt line this is going back against, when it is known. This is the
+  /// traceability join: "which delivery did the stock we returned come from".
+  goodsReceiptLineId String? @map("goods_receipt_line_id") @db.Uuid
+
+  productId String  @map("product_id") @db.Uuid
+  batchId   String? @map("batch_id") @db.Uuid
+  serialId  String? @map("serial_id") @db.Uuid
+
+  /// In the product's BASE UNIT, positive, CHECKed.
+  quantityBase    Decimal @map("quantity_base") @db.Decimal(18, 6)
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+
+  /// Which bucket the stock leaves. ⚠️ REQUIRED, NO DEFAULT — see the header's
+  /// model comment. `AVAILABLE`, `QUARANTINED` and `DAMAGED` are all real and
+  /// they mean different things about what happened.
+  statusFrom StockStatus @map("status_from")
+
+  /// What it was valued at, for the credit the clinic expects.
+  unitCostBase   BigInt? @map("unit_cost_base") @db.BigInt
+  currency       String? @db.Char(3)
+  lineTotalMinor BigInt  @default(0) @map("line_total_minor") @db.BigInt
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch         Branch         @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  purchaseReturn PurchaseReturn @relation(fields: [organizationId, purchaseReturnId], references: [organizationId, id], onDelete: Cascade)
+  goodsReceiptLine GoodsReceiptLine? @relation(fields: [organizationId, goodsReceiptLineId], references: [organizationId, id], onDelete: Restrict)
+  /// Plain FKs into possibly-platform rows.
+  product Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit    UnitOfMeasure @relation("PurchaseReturnLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  /// Branch-qualified, as everywhere a lot or a device is cited.
+  batch  Batch?  @relation("PurchaseReturnLineBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial Serial? @relation("PurchaseReturnLineSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  /// One line per (product, lot, serial). NULLS NOT DISTINCT in the migration.
+  @@unique([organizationId, purchaseReturnId, productId, batchId, serialId])
+  @@unique([organizationId, purchaseReturnId, lineNumber])
+  @@unique([organizationId, id])
+  @@index([organizationId, purchaseReturnId])
+  @@index([organizationId, productId])
+  @@index([organizationId, goodsReceiptLineId])
+  @@map("purchase_return_lines")
+}
+
+// ---------------------------------------------------------------------------
+// Costing
+// ---------------------------------------------------------------------------
+
+/// The moving average cost of one product at one branch, in one currency (PI-4.8).
+///
+/// ⚠️ THIS TABLE HOLDS A QUANTITY AND IS **NOT** A SOURCE OF QUANTITY TRUTH. It
+///   is the single most misreadable row in the programme, so: `valued_quantity_
+///   base` is the DENOMINATOR OF AN AVERAGE — the quantity the running value was
+///   accumulated over — and it is not what the branch holds. `stock_balances` is
+///   what the branch holds (PI-ADR-004), and the two legitimately differ the
+///   moment anything is dispensed, expired, transferred or adjusted.
+///
+///   A report that sums this column as stock is wrong. A report that divides
+///   `valued_cost_minor` by it to get a unit cost is right, and that is the only
+///   thing it is for.
+///
+/// ⚠️ THE RUNNING **TOTAL** IS STORED, NOT THE AVERAGE, AND THAT IS DELIBERATE.
+///   `average = valued_cost_minor / valued_quantity_base`, computed at read.
+///   Storing the average instead would round at every receipt and compound: after
+///   twenty deliveries the figure drifts from the arithmetic by an amount each
+///   individual rounding could justify — the same argument
+///   `assertExactConversion` makes about quantities.
+///
+/// ⚠️ KEYED BY CURRENCY, WHICH MEANS A PRODUCT CAN HAVE TWO AVERAGES AT ONE
+///   BRANCH. That is the honest answer when a clinic bought the same item in INR
+///   and in USD: this programme applies NO FX policy (see KNOWN_ISSUES), so
+///   averaging across currencies would invent an exchange rate nobody chose. A
+///   valuation report sums per currency and says so.
+///
+/// A CACHE, in the sense `stock_balances` is one — but written by APPLICATION
+/// CODE inside the receipt's transaction rather than by a trigger, because the
+/// input is a document's cost and not a ledger row's quantity. It is rebuildable
+/// from `goods_receipt_lines` and nothing depends on it being present.
+model ProductCostAverage {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  productId      String @map("product_id") @db.Uuid
+  /// ISO 4217. Part of the key — see the model comment.
+  currency       String @db.Char(3)
+
+  /// The denominator. ⚠️ NOT A STOCK QUANTITY. Non-negative, CHECKed.
+  valuedQuantityBase Decimal @map("valued_quantity_base") @db.Decimal(18, 6)
+  /// The numerator: total value received, in integer minor units, landed cost
+  /// included. Non-negative, CHECKed.
+  valuedCostMinor    BigInt  @map("valued_cost_minor") @db.BigInt
+
+  /// How many receipts have rolled into it. Diagnostic — it is what tells a
+  /// support engineer whether an average is one delivery or two hundred.
+  receiptCount  Int       @default(0) @map("receipt_count")
+  lastReceiptAt DateTime? @map("last_receipt_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FK into a possibly-platform row — `product_visible`.
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  /// The upsert arbiter. `currency` is NOT NULL, so no NULLS NOT DISTINCT rewrite
+  /// is needed here.
+  @@unique([organizationId, branchId, productId, currency])
+  @@index([organizationId, branchId, productId])
+  @@map("product_cost_averages")
+}

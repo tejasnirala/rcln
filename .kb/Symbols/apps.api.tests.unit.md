@@ -4,7 +4,7 @@
 
 > The audit diff.
 
-Files: `apps/api/tests/unit/audit-diff.test.ts` · `apps/api/tests/unit/inventory-allocation.test.ts` · `apps/api/tests/unit/inventory-movement.test.ts` · `apps/api/tests/unit/product-units.test.ts` · `apps/api/tests/unit/product-values.test.ts` · `apps/api/tests/unit/storage-path.test.ts` · `apps/api/tests/unit/temperature.test.ts` · `apps/api/tests/unit/vital-ranges.test.ts`
+Files: `apps/api/tests/unit/audit-diff.test.ts` · `apps/api/tests/unit/inventory-allocation.test.ts` · `apps/api/tests/unit/inventory-movement.test.ts` · `apps/api/tests/unit/procurement-costing.test.ts` · `apps/api/tests/unit/product-units.test.ts` · `apps/api/tests/unit/product-values.test.ts` · `apps/api/tests/unit/storage-path.test.ts` · `apps/api/tests/unit/temperature.test.ts` · `apps/api/tests/unit/vital-ranges.test.ts`
 
 ## fn
 

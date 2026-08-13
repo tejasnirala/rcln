@@ -141,6 +141,33 @@ docker compose up          # everything, hot-reloaded. Needs only Docker.
 Workspace commands inside the container:
 `docker compose exec api pnpm <script>`. See README for the native paths.
 
+## Order of work: write everything, then verify — tests last
+
+This ordering is not a suggestion. Follow it on every task that spans more than
+one file, and do not interleave verification with implementation.
+
+1. **Write all the code first.** Every station, every layer of the slice —
+   schema, contracts, permissions, service, route, web, worker, tests. Nothing
+   is verified until the whole thing is written.
+2. **Then lint and format**, both:
+   `docker compose exec api pnpm lint` and `pnpm format`.
+3. **Then typecheck only** — `docker compose exec api pnpm typecheck`.
+   **No production build.** Never run `pnpm build` as a verification step; the
+   Docker dev servers and the typecheck already cover what it would tell us.
+4. **Then, last, run the tests** — the full split, once, and fix what falls out.
+   `docker compose exec api pnpm test`, plus `db:rls:check` if the schema moved.
+
+**Do not run the test suite before step 4** — not between stations, not to
+"check one thing", not because a file looked risky. Getting a slice green takes
+several rounds regardless; running them early just pays for those rounds twice
+in wall-clock and tokens.
+
+Commands that are _implementation_ rather than verification are exempt and
+should be run when needed: `prisma generate`, `migrate dev`/`deploy`, `pnpm kb`.
+
+When reporting, say plainly that validation ran once at the end, and never call
+a station verified when it was only written.
+
 ## Before you finish any task
 
 ```bash
@@ -156,7 +183,7 @@ relative to that folder, so it is `../../generated/prisma`.
 
 If you added a tenant table, it needs an RLS policy in
 `packages/db/prisma/rls/enable-rls.sql`, appended to the generated migration,
-plus a case in `apps/api/tests/integration/tenant-isolation.test.ts`.
+plus a case in `apps/api/tests/integration/tenant-isolation/`.
 `db:rls:check` fails until the policy exists — that is deliberate, because a
 missing policy produces no error and breaks no single-tenant test. It just
 starts returning other clinics' patient records.
@@ -204,7 +231,7 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
   `withTenant(ctx, …)` from `@rcln/db`. `@rcln/db/unsafe` only for genuinely
   pre-tenant work, and expect review.
 - Never add a tenant table without an RLS policy, the policy SQL appended to the
-  migration, and a `tenant-isolation.test.ts` case.
+  migration, and a case in the tenant-isolation suite.
 - Never write a bare `@@unique([code])` on a tenant table — always
   tenant-qualified.
 - Never edit an already-applied migration in place — Prisma checksums it.
