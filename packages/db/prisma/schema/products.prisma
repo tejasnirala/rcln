@@ -384,6 +384,11 @@ model ProductCategory {
   parent       ProductCategory?  @relation("ProductCategoryParent", fields: [parentId], references: [id], onDelete: Restrict)
   children     ProductCategory[] @relation("ProductCategoryParent")
   products     Product[]
+  /// Rules that speak about a whole category (PI-5). ⚠️ ONLY PLATFORM
+  /// CATEGORIES MAY BE NAMED — `regulatory_rules` is read by every tenant and
+  /// has no RLS policy, so a rule pointing at one clinic's private category
+  /// would leak its name to all of them. A trigger in the migration refuses it.
+  regulatoryRules RegulatoryRule[] @relation("RegulatoryRuleCategory")
 
   @@unique([organizationId, code])
   @@unique([organizationId, id])
@@ -695,6 +700,13 @@ model Product {
   goodsReceiptLines   GoodsReceiptLine[]
   purchaseReturnLines PurchaseReturnLine[]
   costAverages        ProductCostAverage[]
+  /*
+   * Regulatory (PI-5). Composite, unlike everything above it — a profile is a
+   * platform-extensible CHILD of the product in the same shape as
+   * `product_tax_classifications`, so it carries its own nullable
+   * organization_id and hangs off `(organization_id, id)`. See regulatory.prisma.
+   */
+  regulatoryProfiles  ProductRegulatoryProfile[]
 
   @@unique([organizationId, code])
   /// The composite-FK target every child in this file references.

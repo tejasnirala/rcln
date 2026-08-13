@@ -183,6 +183,14 @@ model Organization {
   purchaseReturns          PurchaseReturn[]
   purchaseReturnLines      PurchaseReturnLine[]
   productCostAverages      ProductCostAverage[]
+  // Regulatory (PI-5). ⚠️ THE ONLY ONE OF THE SIX REGULATORY TABLES THAT
+  // APPEARS HERE AT ALL, and that is the seam of the whole domain: a
+  // jurisdiction, an authority, a source, a pack and a rule are the LAW, which
+  // is identical for every clinic in a country and therefore has no
+  // organization_id to relate to. What a clinic asserts about its own product —
+  // this one — is tenant data, platform-extensible like the rest of the
+  // catalogue. See regulatory.prisma's header.
+  productRegulatoryProfiles ProductRegulatoryProfile[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])

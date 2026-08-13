@@ -20,6 +20,7 @@ export const MODULES = [
   'product',
   'pharmacy',
   'inventory',
+  'regulatory',
   'billing',
   'report',
   'settings',
@@ -387,6 +388,84 @@ export const PERMISSIONS = {
    */
   REQUISITION_CREATE: 'procurement.requisition.create',
   REQUISITION_APPROVE: 'procurement.requisition.approve',
+
+  // -- regulatory ------------------------------------------------------------
+  /*
+   * What a jurisdiction says may be done with a product (PI-5).
+   *
+   * ⚠️ A NEW MODULE RATHER THAN `pharmacy.*`, FOR PI-ADR-001's REASON AGAIN.
+   *   Regulation is not a pharmacy concern: a device implanted by a surgeon, a
+   *   reagent a lab imports and a veterinary medicine are each regulated, and
+   *   none of them belongs to whoever may dispense a controlled drug.
+   *
+   * ── THE THREE CLASSES OF THING IN THIS MODULE ─────────────────────────────
+   *   READ the law            everybody who works with stock, effectively
+   *   ASSERT a product's      whoever curates the catalogue for a clinic
+   *     nature per country
+   *   APPROVE a rule pack     one named human, and nobody by default
+   */
+  /**
+   * Read the jurisdictions, authorities, packs, rules and sources.
+   *
+   * ⚠️ THE GATE ON THE WHOLE REGULATORY SURFACE, in the same shape as
+   *   `inventory.stock.read`. Everything here is published law rather than
+   *   anybody's private data, and a pharmacist who cannot read the rule that
+   *   refused a dispense is a pharmacist who cannot explain it to the patient
+   *   standing there. There is deliberately no tenant-side write to match it:
+   *   a clinic never writes a rule pack.
+   */
+  REGULATORY_READ: 'regulatory.rule.read',
+  /**
+   * Maintain the packs, rules, jurisdictions, authorities and sources.
+   *
+   * ⚠️ A PLATFORM CODE THAT LIVES IN THE `regulatory` MODULE RATHER THAN THE
+   *   `platform` ONE, and the exception is deliberate: it sits beside the read
+   *   it is the write half of, and every screen it gates is a regulatory screen.
+   *   It is granted to no system role — like `platform.*`, it is held by rcln's
+   *   own staff, and the platform router's admin guard is what actually enforces
+   *   the boundary. `platform.tax.manage` is its closest analogue and made the
+   *   opposite naming choice; that one predates the module.
+   *
+   * ⚠️ IT DOES NOT REACH THE LAST TWO MATURITIES. See `REGULATORY_PACK_APPROVE`.
+   */
+  REGULATORY_MANAGE: 'regulatory.rule.manage',
+  /**
+   * Advance a rule pack to `REGULATORY_REVIEWED` or `PRODUCTION_ENABLED`.
+   *
+   * ⚠️ THE ONLY PERMISSION IN THIS CODEBASE THAT NO SYSTEM ROLE HOLDS, INCLUDING
+   *   `ORG_OWNER` — which is defined as "everything except" and therefore has to
+   *   be told, by name, to leave this alone. That is the whole point of
+   *   PI-ADR-009: a country configuration existing is not compliance, and the
+   *   step from "we tested it" to "we act on it in production" belongs to a
+   *   qualified human with the authority to make it — in-house counsel, a
+   *   retained regulatory consultant, a pharmacist with the relevant
+   *   registration. Whoever that is at a given company is granted this code on
+   *   their membership, deliberately, once, out of band.
+   *
+   * ⚠️ NO MIGRATION, SEED, SCRIPT OR AGENT MAY SET THOSE TWO STATES, and holding
+   *   this code is not the same as being able to skip the ladder: the service
+   *   refuses a pack that has not reached `REGULATORY_REVIEW_PENDING`, and the
+   *   `regulatory_rule_packs_review_recorded` CHECK refuses either state without
+   *   a reviewer's name and the instant it was recorded. Three layers, because
+   *   the failure this guards against is somebody's medicine.
+   */
+  REGULATORY_PACK_APPROVE: 'regulatory.pack.approve',
+  /**
+   * Record what a product IS in a jurisdiction: its registration, its
+   * classification, its schedule, whether it may be sold remotely.
+   *
+   * ⚠️ NOT `product.definition.manage`, AND THE SPLIT IS THE SAME ONE PI-ADR-011
+   *   ALREADY DREW. Naming a product and describing it is catalogue curation;
+   *   asserting that it is a Schedule H medicine in India is a claim the clinic
+   *   is answerable for at an inspection. A lab manager names reagents and has
+   *   no business asserting either.
+   *
+   * ⚠️ AND AN ASSERTION IS NOT AN AUTHORISATION. Nothing gates a dispense on a
+   *   profile; the RULES decide, and a jurisdiction with no rule refuses however
+   *   confidently the profile is filled in.
+   */
+  PRODUCT_REGULATORY_READ: 'product.regulatory.read',
+  PRODUCT_REGULATORY_MANAGE: 'product.regulatory.manage',
 
   // -- billing ---------------------------------------------------------------
   INVOICE_READ: 'billing.invoice.read',

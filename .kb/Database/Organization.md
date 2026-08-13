@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 83 |
+| relations | 84 |
 
 ## Columns
 
@@ -120,6 +120,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `purchaseReturns` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturns PurchaseReturn[]` |
 | `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[]` |
 | `productCostAverages` | [`ProductCostAverage`](ProductCostAverage.md) | `productCostAverages ProductCostAverage[]` |
+| `productRegulatoryProfiles` | [`ProductRegulatoryProfile`](ProductRegulatoryProfile.md) | `productRegulatoryProfiles ProductRegulatoryProfile[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -214,4 +215,5 @@ erDiagram
     Organization }o--o{ PurchaseReturn : relates
     Organization }o--o{ PurchaseReturnLine : relates
     Organization }o--o{ ProductCostAverage : relates
+    Organization }o--o{ ProductRegulatoryProfile : relates
 ```

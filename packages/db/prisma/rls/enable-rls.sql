@@ -411,7 +411,22 @@ DECLARE
     --   the same `platform_rows_immutable` trigger — so a clinic can add
     --   `BROKEN_BY_LOCUM` and cannot delete `DAMAGED` out from under every
     --   other clinic on the platform.
-    'stock_reason_codes'
+    'stock_reason_codes',
+    -- ---------------------------------------------------------------------
+    -- Regulatory (PI-5). ⚠️ THE ONLY ONE OF THE SIX REGULATORY TABLES THAT IS
+    --   TENANT DATA AT ALL. A jurisdiction, an authority, a source, a pack and
+    --   a rule are the LAW — identical for every clinic in a country, with no
+    --   organization_id to scope by, exactly like `tax_rule_defaults`. They are
+    --   EXEMPT, with that reasoning written out at the bottom of this file and
+    --   repeated in check-rls.ts.
+    --
+    --   What a CLINIC asserts about its own product in a jurisdiction — the
+    --   registration number it holds, what it believes the classification is —
+    --   is its own, and is platform-extensible in the same shape as the twelve
+    --   catalogue tables above: a platform profile is a starting point every
+    --   clinic reads, and a clinic's own row overrides nothing and belongs to
+    --   it. The composite FK to `products` does the rest.
+    'product_regulatory_profiles'
   ];
 BEGIN
   FOREACH t IN ARRAY platform_extensible LOOP
@@ -1119,10 +1134,127 @@ CREATE POLICY own_membership ON memberships FOR SELECT
 --                      tables precisely so this one can be exempt without
 --                      widening that one.
 --
+--   the five           jurisdictions · regulatory_authorities ·
+--   regulatory         regulatory_sources · regulatory_rule_packs ·
+--   platform tables    regulatory_rules (PI-5). The LAW of a jurisdiction,
+--                      published by rcln, identical for every clinic in it —
+--                      the same argument as `tax_rule_defaults` immediately
+--                      above, and with the same fail-closed consequence if it
+--                      were scoped: every tenant reads these INSIDE its own
+--                      transaction to evaluate its OWN dispensing, so a policy
+--                      requiring a matching organization_id (a column none of
+--                      them has) returns zero rows for everyone, no rule ever
+--                      matches, and every decision comes back `UNDETERMINED` —
+--                      which REFUSES. Nobody could dispense anything anywhere.
+--
+--                      ⚠️ Unlike `tax_rule_defaults`, these do NOT rely on the
+--                      absence of a service that writes them from a tenant
+--                      path. `platform_law_not_tenant_writable` below refuses
+--                      any INSERT, UPDATE or DELETE from a transaction that
+--                      claims a tenant at all. See the regulatory framework
+--                      migration.
+--
+--                      A clinic's OWN regulatory assertions live in
+--                      `product_regulatory_profiles`, which IS scoped and is in
+--                      the platform_extensible array above. The two are
+--                      separate tables precisely so these can be exempt
+--                      without widening that one.
+--
 -- Access to these is gated in the application layer. `check-rls.ts` holds the
 -- same list, so adding a table without a policy fails CI until it is either
 -- given one or consciously added to the exemption list.
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- No clinic writes the law (PI-5).
+--
+-- The five regulatory platform tables have no `organization_id`, so they have no
+-- policy and nothing about a tenant's session narrows them. What distinguishes a
+-- tenant request from the platform console is not the ROLE — both connect as
+-- `rcln_app`, `@rcln/db/unsafe` included — but whether the transaction claims a
+-- tenant: `withTenant` sets `app.current_org`, the platform router and the seeds
+-- set nothing. The same test `refuse_platform_row_mutation` makes, for the same
+-- reason.
+--
+-- Second layer, not the first. The platform router's admin guard produces the
+-- 403 a human reads; this one catches the service added in a later phase that
+-- reaches these tables from a tenant path — the failure that would otherwise be
+-- silent, platform-wide, and about the rules a pharmacist is trusting.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION refuse_tenant_write_to_platform_law() RETURNS trigger
+  LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, public AS
+$$
+BEGIN
+  IF app_current_org() IS NOT NULL THEN
+    RAISE EXCEPTION
+      '% is platform regulatory data and is not writable from a tenant request', TG_TABLE_NAME
+      USING ERRCODE = 'insufficient_privilege',
+            HINT    = 'Rule packs are maintained in the platform console. A clinic configures product regulatory profiles instead.';
+  END IF;
+  RETURN CASE TG_OP WHEN 'DELETE' THEN OLD ELSE NEW END;
+END
+$$;
+
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY[
+    'jurisdictions',
+    'regulatory_authorities',
+    'regulatory_sources',
+    'regulatory_rule_packs',
+    'regulatory_rules'
+  ] LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS platform_law_not_tenant_writable ON %I', t);
+    EXECUTE format($f$
+      CREATE TRIGGER platform_law_not_tenant_writable
+        BEFORE INSERT OR UPDATE OR DELETE ON %I
+        FOR EACH ROW EXECUTE FUNCTION refuse_tenant_write_to_platform_law()
+    $f$, t);
+  END LOOP;
+END
+$$;
+
+-- ---------------------------------------------------------------------------
+-- A platform rule may only name a platform category (PI-5).
+--
+-- `regulatory_rules` is exempt, so it has no `*_visible` policy and cannot have
+-- one — a policy on it is exactly what breaks the domain. But
+-- `applies_to_category_id` is a plain FK into `product_categories`, which IS
+-- platform-extensible, so without this a rule could name one clinic's private
+-- category and every other clinic would read its NAME out of the rule screen's
+-- join. The fix is upstream and absolute rather than filtered at read time.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION refuse_tenant_category_on_regulatory_rule() RETURNS trigger
+  LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, public AS
+$$
+DECLARE
+  owner_org uuid;
+BEGIN
+  IF NEW.applies_to_category_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT c.organization_id INTO owner_org
+    FROM public.product_categories c
+   WHERE c.id = NEW.applies_to_category_id;
+
+  IF owner_org IS NOT NULL THEN
+    RAISE EXCEPTION
+      'regulatory rule % may not apply to a tenant-owned product category', NEW.code
+      USING ERRCODE = 'insufficient_privilege',
+            HINT    = 'A rule pack is platform law. Narrow it with a platform category, a product type or a classification string.';
+  END IF;
+
+  RETURN NEW;
+END
+$$;
+
+DROP TRIGGER IF EXISTS regulatory_rule_category_is_platform ON regulatory_rules;
+CREATE TRIGGER regulatory_rule_category_is_platform
+  BEFORE INSERT OR UPDATE ON regulatory_rules
+  FOR EACH ROW EXECUTE FUNCTION refuse_tenant_category_on_regulatory_rule();
 
 -- ---------------------------------------------------------------------------
 -- Webhook reference lookup: the one payment intent a verified webhook names.

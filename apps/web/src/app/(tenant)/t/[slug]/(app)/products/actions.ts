@@ -5,12 +5,14 @@ import {
   createProductRequest,
   medicineDetailRequest,
   replaceProductPackagingRequest,
+  replaceProductRegulatoryProfilesRequest,
   replaceProductTaxClassificationsRequest,
   type CreateProductIdentifierRequest,
   type MedicineDetail,
   type ProductDetail,
   type ProductIdentifierDetail,
   type ProductPackagingDetail,
+  type ProductRegulatoryProfileDetail,
   type ProductTaxClassificationDetail,
 } from '@rcln/contracts';
 import { api, emptyToNull, fieldErrorsFrom } from '@/lib/api';
@@ -301,6 +303,41 @@ export async function replaceTaxClassificationsAction(
 
   const result = await api<{ classifications: ProductTaxClassificationDetail[] }>(
     `/api/v1/products/${productId}/tax-classifications`,
+    { method: 'PUT', body: parsed.data, slug, accessToken }
+  );
+
+  if (result.ok) revalidatePath(`/t/${slug}/products/${productId}`);
+  return toFormState(result);
+}
+
+/**
+ * What this product IS in a jurisdiction — its registration, classification and
+ * schedule.
+ *
+ * ⚠️ AN ASSERTION, NOT AN AUTHORISATION. Nothing dispenses on the strength of
+ *   these rows: they are an INPUT to the rules engine, and a place with no rule
+ *   refuses however confidently they are filled in. Gated by
+ *   `product.regulatory.manage`, which is not the catalogue code — asserting
+ *   that something is a controlled medicine is a claim the clinic answers for.
+ */
+export async function replaceRegulatoryProfilesAction(
+  slug: string,
+  productId: string,
+  profiles: unknown
+): Promise<ProductFormState> {
+  const accessToken = await getAccessToken();
+
+  const parsed = replaceProductRegulatoryProfilesRequest.safeParse({ profiles });
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Check the regulatory profiles.',
+      fieldErrors: fieldErrorsFrom(parsed.error.issues),
+    };
+  }
+
+  const result = await api<{ profiles: ProductRegulatoryProfileDetail[] }>(
+    `/api/v1/products/${productId}/regulatory-profiles`,
     { method: 'PUT', body: parsed.data, slug, accessToken }
   );
 

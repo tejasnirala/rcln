@@ -17,19 +17,22 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 | `canAny` | `(ctx: AccessContext, permissions: PermissionCode[], now): boolean` | `packages/permissions/src/resolver.ts:88` |  |
 | `effectivePermissions` | `(ctx: AccessContext, now): PermissionCode[]` | `packages/permissions/src/resolver.ts:101` |  |
 | `isActive` <sub>local</sub> | `(a: RoleAssignment, now: Date): boolean` | `packages/permissions/src/resolver.ts:55` |  |
-| `moduleOf` | `(code: PermissionCode): string` | `packages/permissions/src/codes.ts:497` | Split `pharmacy.dispense.create` into its module for grouping in the UI. |
+| `maintainsPlatformLaw` <sub>local</sub> | `(p: PermissionCode): boolean` | `packages/permissions/src/roles.ts:109` |  |
+| `moduleOf` | `(code: PermissionCode): string` | `packages/permissions/src/codes.ts:576` | Split `pharmacy.dispense.create` into its module for grouping in the UI. |
 | `scopeApplies` <sub>local</sub> | `(assignmentBranchId: string \| null, targetBranchId: string \| null): boolean` | `packages/permissions/src/resolver.ts:47` |  |
+| `signsOffRulePacks` <sub>local</sub> | `(p: PermissionCode): boolean` | `packages/permissions/src/roles.ts:89` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ALL_PERMISSIONS` | `Object.values(PERMISSIONS) as PermissionCode[]` | `packages/permissions/src/codes.ts:494` |  |
+| `ALL_PERMISSIONS` | `Object.values(PERMISSIONS) as PermissionCode[]` | `packages/permissions/src/codes.ts:573` |  |
 | `CLINICAL_AUTHORING` <sub>local</sub> | `: PermissionCode[]` | `packages/permissions/src/roles.ts:57` |  |
 | `MODULES` | `[ 'platform', 'organization', 'branch', 'iam', 'doctor', 'patient', 'appointment', 'clini…` | `packages/permissions/src/codes.ts:10` |  |
 | `P` <sub>local</sub> | `PERMISSIONS` | `packages/permissions/src/roles.ts:35` |  |
-| `PERMISSIONS` | `{ // -- platform (super admin only) ------------------------------------------- PLATFORM_…` | `packages/permissions/src/codes.ts:31` |  |
-| `SYSTEM_ROLE_DEFINITIONS` | `: SystemRoleDefinition[]` | `packages/permissions/src/roles.ts:66` |  |
+| `PERMISSIONS` | `{ // -- platform (super admin only) ------------------------------------------- PLATFORM_…` | `packages/permissions/src/codes.ts:32` |  |
+| `REGULATORY_SIGN_OFF` <sub>local</sub> | `: PermissionCode[]` | `packages/permissions/src/roles.ts:87` |  |
+| `SYSTEM_ROLE_DEFINITIONS` | `: SystemRoleDefinition[]` | `packages/permissions/src/roles.ts:111` |  |
 | `SYSTEM_ROLES` | `{ SUPER_ADMIN: 'SUPER_ADMIN', ORG_OWNER: 'ORG_OWNER', ORG_ADMIN: 'ORG_ADMIN', BRANCH_ADMI…` | `packages/permissions/src/roles.ts:8` | System role definitions, seeded once with `organizationId = null`. Tenants never mutate these — they clone one into a custom org-scoped role. |
 
 ## var
@@ -51,8 +54,8 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `Module` | `(typeof MODULES)[number]` | `packages/permissions/src/codes.ts:29` |  |
+| `Module` | `(typeof MODULES)[number]` | `packages/permissions/src/codes.ts:30` |  |
 | `OverrideEffect` | `'GRANT' \| 'DENY'` | `packages/permissions/src/resolver.ts:18` |  |
-| `PermissionCode` | `(typeof PERMISSIONS)[keyof typeof PERMISSIONS]` | `packages/permissions/src/codes.ts:492` |  |
+| `PermissionCode` | `(typeof PERMISSIONS)[keyof typeof PERMISSIONS]` | `packages/permissions/src/codes.ts:571` |  |
 | `RoleScopeLevel` | `'PLATFORM' \| 'ORGANIZATION' \| 'BRANCH'` | `packages/permissions/src/roles.ts:25` |  |
 | `SystemRoleCode` | `(typeof SYSTEM_ROLES)[keyof typeof SYSTEM_ROLES]` | `packages/permissions/src/roles.ts:23` |  |

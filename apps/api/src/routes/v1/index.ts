@@ -40,6 +40,7 @@ import {
   storageProfileRoutes,
   unitRoutes,
 } from './product-catalogue.routes.js';
+import regulatoryRoutes from './regulatory.routes.js';
 import platformRoutes from './platform.routes.js';
 import publicRoutes from './public.routes.js';
 import roleRoutes from './roles.routes.js';
@@ -173,6 +174,26 @@ router.use('/procurement/purchase-orders', purchaseOrderRoutes);
 router.use('/procurement/goods-receipts', goodsReceiptRoutes);
 router.use('/procurement/returns', purchaseReturnRoutes);
 router.use('/procurement/cost-averages', costAverageRoutes);
+
+// WHAT THE LAW ALLOWS — jurisdictions, regulators, rule packs and the engine that
+// reads them (PI-5). Read-only from a clinic: every table behind it is PLATFORM
+// data with no organization_id, the maintenance console lives on the admin host,
+// and the database refuses a write from any transaction claiming a tenant.
+//
+// ⚠️ `POST /regulatory/evaluate` ANSWERS A QUESTION AND AUTHORISES NOTHING. It is
+//    gated on the READ code deliberately; whoever ACTS on a decision (PI-7's
+//    dispensing) is gated on the code for that act and re-evaluates server-side
+//    rather than trusting a decision a client hands back.
+//
+// ⚠️ NOT WIRED INTO GOODS RECEIPT OR TRANSFER YET, on purpose. With no rule pack
+//    configured anywhere every decision is UNDETERMINED — which REFUSES — so
+//    enforcing it today would stop every clinic receiving stock. PI-6 configures
+//    the first jurisdiction and wires the call sites as it reaches
+//    `RULES_IMPLEMENTED`.
+//
+// Not PHI: the evaluation request carries an age and a subject type, never a
+// patient id.
+router.use('/regulatory', regulatoryRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather

@@ -2,7 +2,7 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-13 · **By:** session PI-4 (Procurement)
+**Written:** 2026-08-13 · **By:** session PI-5 (Global Regulatory Framework)
 
 ---
 
@@ -19,278 +19,299 @@ Full orientation: [README.md](README.md).
 
 ## What has already been completed
 
-**PI-0** Discovery & architecture. **PI-1** Product platform core (merged, PR #30).
-**PI-2** Inventory foundation (merged, PR #31) — the ledger, the balance cache, the
-expiry sweep. **PI-3** Movements (merged, PR #32) — adjustments, transfers,
-reservations, FEFO. **PI-4** Procurement — this session, on
-`feat/pi-4-procurement`. Not pushed. **Both reviewers have run and every finding is
-fixed** — three CRITICALs, one MEDIUM corrected in the docs, three LOWs.
+**PI-0** Discovery. **PI-1** Product platform core (PR #30). **PI-2** Inventory
+foundation (PR #31). **PI-3** Movements (PR #32). **PI-4** Procurement (PR #33).
+**PI-5** Global regulatory framework — this session, on
+`feat/pi-5-regulatory-framework`. Not pushed. **Both reviewers have run and every
+finding is fixed** — four CRITICALs, one MEDIUM, and nine smaller. See the
+CHANGELOG; the two worth carrying forward are decisions 5 and 6 below.
 
 ---
 
 ## What was changed in this session
 
-| Area        | What landed                                                                                                                                                                                                            |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema      | 12 tables: `suppliers`, `supplier_tax_identifiers`, `supplier_products`, `purchase_requisitions`/`_lines`, `purchase_orders`/`_lines`, `goods_receipts`/`_lines`, `purchase_returns`/`_lines`, `product_cost_averages` |
-| Enums       | `StockMovementType.PURCHASE_RETURN`; five `NumberSequenceType` members (`DISPENSE` unused, on purpose); six new procurement enums                                                                                      |
-| Migrations  | 3 — the phase, the ledger CHECK (**the split is not optional; see decision 2**), and `line_number` + the rejection CHECK from the review                                                                               |
-| RLS         | `db:rls:check` green at **88** (was 76). Two tenancy classes, seam is BRANCH not platform                                                                                                                              |
-| Package     | `@rcln/inventory` gains `costing.ts` — apportionment and the moving average, as pure functions                                                                                                                         |
-| Permissions | `procurement.requisition.create` / `.approve` → BRANCH_ADMIN (both), PHARMACIST (create only)                                                                                                                          |
-| Settings    | `procurement.over_receipt_tolerance_percent` (0), `procurement.quality_hold_required` (false)                                                                                                                          |
-| Routes      | `/v1/procurement/{suppliers,supplier-products,requisitions,purchase-orders,goods-receipts,returns,cost-averages}`                                                                                                      |
-| Web         | Seven tabs under `/procurement` — suppliers, price book, requisitions, orders, deliveries, returns, costs. New "Buying" top-level tab                                                                                  |
-| Tests       | 21 unit + 38 integration + 15 isolation. **Isolation suite at 294 across 14 files**; typecheck, lint and every suite green                                                                                             |
-| Reviews     | **BOTH RUN, all findings fixed.** Security: no CRITICAL, no HIGH. Quality: 3 CRITICALs — two were one missing lock, one was line ordering. See the CHANGELOG                                                           |
+| Area        | What landed                                                                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | 6 tables, 8 enums. **Five are PLATFORM (no `organization_id`)**; only `product_regulatory_profiles` is tenant data                           |
+| Migration   | 1 — `20260818090000_regulatory_framework`. NULLS NOT DISTINCT ×2, 5 CHECKs, 2 trigger functions, grants                                      |
+| RLS         | `db:rls:check` green at **89** (was 88). The five platform tables are EXEMPT, with the `tax_rule_defaults` reasoning, and trigger-guarded    |
+| Package     | **`@rcln/regulatory`** — `evaluate()`. No Prisma, no clock, no country. 43 unit tests                                                        |
+| Permissions | `regulatory.rule.read` / `.manage`, `regulatory.pack.approve`, `product.regulatory.read` / `.manage`                                         |
+| Routes      | `/v1/regulatory/*` (read + evaluate) · `/v1/platform/regulatory/*` (the console) · `/v1/products/:id/regulatory-profiles`                    |
+| Web         | `/regulatory` — Places, Regulators, Rule packs (+ detail), Sources — the maturity rail, a Regulatory tab on the product, a "Rules" nav entry |
+| Tests       | 43 package · 16 integration · 13 isolation. **Isolation suite at 307 across 15 files**; unit 176; every integration slice green              |
 
 ---
 
-## The four decisions worth knowing before you touch this
+## The six decisions worth knowing before you touch this
 
-### 1. A supplier is the ORGANIZATION's vendor, and that width is TESTED
-
-```
-suppliers · supplier_tax_identifiers · supplier_products    ORG-WIDE, no branch_id
-every document table                                        BRANCH-SCOPED, absolute
-```
-
-A group negotiates one contract with one distributor. Branch-scoping the supplier
-tables would mean three rows, three price lists and no way to answer "what do we
-spend with them".
-
-⚠️ **THE COST IS THAT A SINGLE-BRANCH STOREKEEPER READS THE WHOLE PRICE BOOK, AND A
-TEST PINS IT ON PURPOSE.** `shows the whole organization's price book to a
-single-branch reader` in `tenant-isolation/procurement.test.ts` exists because that
-width looks exactly like a leak in review — and adding a branch predicate to those
-three tables would break ordering at every multi-branch clinic while looking like a
-security improvement. Nothing branch-confidential may ever be added to them; payment
-terms and a price per pack are the ceiling.
-
-### 2. A NEW ENUM VALUE AND A CHECK THAT NAMES IT CANNOT SHIP IN ONE MIGRATION
-
-⚠️ Postgres refuses to USE a new enum value in the transaction that ADDED it, and
-Prisma runs each migration inside one. So `ALTER TYPE "StockMovementType" ADD VALUE
-'PURCHASE_RETURN'` is in `20260817090000_procurement` and the
-`stock_ledger_direction` CHECK that names it is in
-`20260817091000_purchase_return_movement_direction`.
-
-**The failure is invisible until it is run against a database.** The SQL parses, the
-schema file is consistent, and `prisma validate` is happy. PI-5 adds enum members
-too; if any CHECK, trigger or default names one, it needs the same split.
-
-⚠️ `PURCHASE_RETURN` IS NOT A `TRANSFER_OUT`, WHICH IS WHAT PI-2'S SCHEMA COMMENT
-SAID IT WOULD BE. `TRANSFER_OUT` means "went to another branch of ours" to every
-report, and the outstanding-transfer arithmetic reads exactly those rows. It is a
-REMOVE with **no default `statusFrom`** — the second member after `DISPOSAL` that
-refuses to guess, because what is leaving IS the content of the record.
-
-### 3. The approval split has three layers and only one cannot be forgotten
+### 1. THE LAW HAS NO RLS POLICY, AND A TRIGGER IS WHAT PROTECTS IT
 
 ```
-storekeeper                       branch administrator
-REQUISITION_CREATE  ──submit──▶   REQUISITION_APPROVE  ──▶ purchase order
+jurisdictions · regulatory_authorities · regulatory_sources ·
+regulatory_rule_packs · regulatory_rules          PLATFORM, no organization_id
+product_regulatory_profiles                       TENANT, platform-extensible
 ```
 
-Two permission codes; a service check against `created_by_id`; and
-`purchase_requisitions_approver_is_not_creator`. The first two are each one edit
-from absent.
+A policy on the first five would return zero rows for **everyone**: every tenant
+reads them inside its own transaction, so no rule would ever match and every
+decision would come back `UNDETERMINED` — which refuses. Nobody could dispense
+anything anywhere. Same argument as `tax_rule_defaults`.
 
-⚠️ **A CLINIC MAY HOLD BOTH CODES AND STILL CANNOT SELF-APPROVE ONE DOCUMENT**,
-because the CHECK compares two USER IDS rather than two permissions. `ORG_OWNER`
-holds both — it is an "everything except" role — and that is fine for exactly this
-reason. A single-doctor clinic has nobody else, and refusing to let them buy anything
-would be a platform deciding how a business is staffed.
+⚠️ **`@rcln/db/unsafe` IS NOT AN OWNER CONNECTION.** It is the same `rcln_app`
+role with no session variables, so a SELECT-only grant would lock the platform
+console out of its own tables. What distinguishes a clinic from the console is
+that the clinic's transaction CLAIMS A TENANT, so
+`platform_law_not_tenant_writable` refuses a write whenever `app_current_org()`
+is not null. Four isolation cases pin it, including the DELETE — which no policy
+would have caught anyway, because Postgres applies no WITH CHECK to DELETE.
 
-⚠️ Only an **APPROVED** requisition may become an order. Without that check the whole
-split is decoration: a buyer could cite a draft nobody looked at and the order would
-carry a link that makes it look authorised.
+### 2. `UNDETERMINED` REFUSES, AND THAT IS WHY NOTHING IS WIRED UP YET
 
-### 4. Costing stores the TOTAL and derives the average
+No applicable rule, an unreadable parameters document, or a fact the rule needed
+that nobody supplied — all `UNDETERMINED`, and every caller treats it as _refuse
+and say so_.
 
-⚠️ `product_cost_averages.valued_quantity_base` IS THE DENOMINATOR OF AN AVERAGE AND
-IS **NOT** STOCK ON HAND. `stock_balances` is what the branch holds; the two diverge
-the moment anything is dispensed, expired or transferred. A report that sums that
-column as stock is wrong, and it is the most misreadable row in the programme.
+⚠️ **SO PI-5 ENFORCES NOTHING.** With no pack configured anywhere, EVERY
+evaluation is `UNDETERMINED` today; calling `evaluateFor` from the goods-receipt
+or transfer path would stop every clinic on the platform from receiving stock.
+PI-6 wires the call sites as it reaches `RULES_IMPLEMENTED`, jurisdiction by
+jurisdiction. Until then the engine is reachable at
+`POST /v1/regulatory/evaluate`, where a clinic can SEE the answer without
+anything depending on it.
 
-Storing the average instead of the total would round at every receipt and compound —
-`does not drift over twenty awkwardly-priced receipts` pins it. The value rolled in
-is goods **plus landed cost** and never **tax**: input tax is a liability the clinic
-may reclaim, not a cost of the goods.
+⚠️ **A MALFORMED RULE MUST NOT PERMIT.** `{"required": "yes"}` casts fine and
+compares as `NaN`, and `NaN > limit` is `false` — so a careless engine lets a
+broken rule through. Every parameter is validated before it is acted on; see
+`parameters.ts`, and do not add a handler that reads `rule.parameters` directly.
 
-⚠️ **KEYED BY CURRENCY, so one product can have two averages at one branch.** That
-is the honest answer when a clinic bought in two; this programme applies no FX policy
-anywhere, and PI-22's valuation must sum per currency and say so.
+### 3. THE SIGN-OFF LADDER HAS THREE LAYERS AND ONLY ONE CANNOT BE FORGOTTEN
+
+```
+…SOURCE_VERIFIED → REGULATORY_REVIEW_PENDING │ REGULATORY_REVIEWED → PRODUCTION_ENABLED
+        code may set these                   │        a named human only
+```
+
+`regulatory.pack.approve` on the route · the ladder and demotion checks in
+`approveRulePack` · and `regulatory_rule_packs_review_recorded`, which refuses
+either state ARRIVING without a reviewer's name and the instant it was recorded.
+The CHECK is the one a later migration or a psql session cannot route around.
+
+⚠️ **NO SYSTEM ROLE HOLDS THE CODE, AND `ORG_OWNER` IS EXCLUDED BY NAME.** It is
+an "everything except" role and would otherwise acquire it silently — the same
+trap `CLINICAL_AUTHORING` already guards. OD-5 is resolved: the mechanism exists,
+and _which person_ holds it is a grant somebody makes out of band.
+
+⚠️ **A RULE CANNOT BE ADDED TO A SIGNED-OFF PACK.** A sign-off is a statement
+about the rules that existed when it was made; a seventeenth rule arriving
+afterwards puts the reviewer's name on something they never saw.
+
+### 4. `REGULATORY_REVIEWED` IS AN EIGHTH MATURITY THAT PI-ADR-009 DOES NOT DRAW
+
+That ADR's chain has seven states and its own prohibition names a state the chain
+omits. Reviewing the content and deciding the platform may act on it are two
+decisions; one button for both is the button pressed twice by accident. Recorded
+as a deliberate refinement, like PI-2's `EXPIRY`-is-a-MOVE and PI-3's
+document-held in-transit.
+
+### 5. ⚠️ A RULE THAT SAYS NOTHING CHECKABLE IS BROKEN, NOT PERMISSIVE
+
+The review's worst finding, and the reason `parameters.ts` now refuses a document
+that omits its rule type's essential key:
+
+```
+parameters: { require: true }   ONE TYPO   ->  PERMITTED  (before)
+                                           ->  UNDETERMINED, which refuses (now)
+```
+
+`readBoolean` cannot tell ABSENT from MISSPELLED — nothing can — and the handler
+read an absent `required` as "no prescription is required here". Worse, a
+REGIONAL rule supersedes the national rule of its type, so one typo in one state
+switched off the country's rule as well.
+
+⚠️ **THE GAP THAT LET IT SHIP: every "nothing is configured" test tested an
+absent RULE, and none tested a rule that EXISTS with an empty document.** If you
+add a rule type, add both.
+
+### 6. ⚠️ A CONCURRENCY TEST TOOK THREE ATTEMPTS AND THE FIRST TWO WERE GREEN
+
+`createRule` read the pack it decides against and wrote to a different table, with
+no lock — PI-4's lesson verbatim. All three writers now take `SELECT … FOR UPDATE`
+on the pack. What is worth carrying forward is how nearly the test lied:
+
+1. Two real calls racing under `Promise.allSettled` — **passed with the lock
+   removed.** The interleaving needs the read before the commit and the write
+   after, and transactions started microseconds apart mostly decline.
+2. Holding the row and asserting `approveRulePack` blocks — **passed with the lock
+   removed too**, because that function's own `UPDATE` takes a row lock anyway. It
+   was measuring Postgres, not the code.
+3. Only `createRule` discriminates, because its WRITE targets a different table.
+
+⚠️ **Whatever you write in PI-6, remove the lock and watch it go red before you
+keep it.** Twice here, a test that could not fail looked exactly like one that
+could.
 
 ---
 
 ## Current phase / current task / next task
 
-|                   |                                                            |
-| ----------------- | ---------------------------------------------------------- |
-| **Current phase** | PI-4 — code complete, all suites green                     |
-| **Current task**  | **Run both reviewer passes.** Nothing else in PI-4 is open |
-| **Next phase**    | PI-5 — Global Regulatory Framework                         |
-| **Next task**     | **PI-5.1 — `jurisdictions`, `regulatory_authorities`**     |
+|                   |                                                         |
+| ----------------- | ------------------------------------------------------- |
+| **Current phase** | PI-5 — complete. Both reviews run and acted on          |
+| **Current task**  | **Nothing.** PI-5 is done bar a browser                 |
+| **Next phase**    | PI-6 — India rule pack                                  |
+| **Next task**     | **PI-6.1 — research and populate `regulatory_sources`** |
 
-### Before starting PI-5
+### Before starting PI-6
 
-1. ⚠️ **THE LESSON OF THIS PHASE'S REVIEW, BECAUSE PI-5 WILL BE ABLE TO REPEAT IT.**
-   PI-4 claimed to have closed PI-3's read-then-write race and had closed only HALF of
-   it: every service locked its OWN header, and two goods receipts against one
-   purchase order are two DIFFERENT header rows. **Locking the document you are
-   editing is not the same as locking the document you are DECIDING against.**
-   Anything PI-5 writes that reads a shared row and then writes — a rule pack's
-   maturity, a decision snapshot's version — needs the same question asked.
+1. ⚠️ **DO NOT INVENT LEGAL RULES. THIS IS THE ONE THAT MATTERS MORE THAN ANY
+   ARCHITECTURE NOTE IN THIS FILE.** `regulatory_rules.source_id` is NOT NULL and
+   a source is the **regulator's own publication** — not a summary, not a vendor
+   blog, not a law-firm note, and never a model's recollection. A rule whose
+   source cannot be found is NOT WRITTEN, and the country's cell in
+   [COUNTRY_SUPPORT_MATRIX.md](COUNTRY_SUPPORT_MATRIX.md) stays
+   `RESEARCH_REQUIRED`, which is a correct and useful outcome. A hallucinated
+   schedule in a dispensing system is a patient-safety defect that will look
+   completely plausible.
 
-   ⚠️ And the test that was supposed to cover it did not: `counts what earlier
-deliveries already took` exercises only the SEQUENTIAL path and passes against the
-   broken version. `serialises two receipts racing against one order line` was
-   verified by removing the lock and watching it fail. **A concurrency test that has
-   not been seen to fail is not a concurrency test.**
+2. **The platform console has endpoints and no screens.** All the CRUD is at
+   `/v1/platform/regulatory/*` and is tested; PI-6 builds the admin UI alongside
+   the first pack somebody actually has to type in.
 
-2. ⚠️ **`created_at` CANNOT ORDER THE LINES OF A DOCUMENT, AND A `{ id: 'asc' }`
-   TIE-BREAK IS NOT A FIX.** `CURRENT_TIMESTAMP` is the TRANSACTION timestamp, so one
-   `createMany` gives every line a byte-identical value and a random uuid v4 is the
-   only discriminator left. The tie-break makes the order stable-per-read and still
-   arbitrary; measured, the landed-cost case failed two runs in six against it. The
-   fix is an explicit `line_number`, as `invoice_items` already had.
+3. **Wiring a call site is PI-6's job, and it is a behaviour change at every
+   clinic in that jurisdiction.** `RULES_IMPLEMENTED` means dispensing, counter
+   sale, receipt and disposal consult `evaluateFor`. Do it per jurisdiction and
+   remember what decision 2 says about what happens to clinics whose place is not
+   configured.
 
-   ⚠️ `stock_transfer_lines` in PI-3 still has the original bug — KNOWN_ISSUES defect
-   1, and it needs a migration rather than the one-liner previously recorded.
+4. **Test the DECISION, never the country.** `expect(country).toBe('IN')` is
+   forbidden; `packages/regulatory/tests/engine.test.ts` shows the shape, using a
+   fictional `TL` so that nothing in it can be read as a legal position.
 
-3. **`pnpm test` now OOMs the api container**, not just `pnpm validate`. The suite
-   was run in five slices by path. KNOWN_ISSUES defect 2 — worth fixing before PI-5
-   adds more, because a crash masks real failures.
-
-4. **Read `packages/inventory/src/costing.ts` before writing any money arithmetic.**
-   `pnpm kb:find` found `apportion()` in `@rcln/invoicing` and it was deliberately
-   not reused; the reasoning is in that file's header and it is the pattern to follow
-   when the next near-duplicate turns up.
+5. ⚠️ **`pnpm typecheck` NOW OOMs THE API CONTAINER TOO**, not just `pnpm test`.
+   Both must be run per package or by path. KNOWN_ISSUES defect 2, and it got
+   worse this session rather than better.
 
 ---
 
 ## Files that must be inspected before continuing
 
-| File                                                              | Why                                                                     |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `packages/inventory/src/movement.ts`                              | Still the only ledger writer. `DIRECTION` now has 16 members            |
-| `apps/api/src/services/procurement/goods-receipt.service.ts`      | The worked example of a document that creates lots, serials and cost    |
-| `packages/inventory/src/costing.ts`                               | Every money calculation in the phase, and why it is not in `apps/api`   |
-| `apps/api/src/services/procurement/shared.ts`                     | `resolveReceivingPolicy` — the RLS-exempt settings read, with the pairs |
-| `packages/db/prisma/migrations/20260817091000_…_direction/`       | Why a new enum value needs its own migration                            |
-| `apps/api/tests/integration/tenant-isolation/procurement.test.ts` | The org-wide/branch seam, and the width that is pinned deliberately     |
+| File                                                             | Why                                                                    |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `packages/regulatory/src/engine.ts`                              | The precedence rules, and why silence never permits                    |
+| `packages/regulatory/src/selection.ts`                           | Effective dating and specificity — the "region beats country" ordering |
+| `packages/regulatory/src/parameters.ts`                          | Why a malformed rule is `UNDETERMINED` and not a cast                  |
+| `apps/api/src/services/regulatory/evaluation.service.ts`         | The seam. The only place that loads a rule row                         |
+| `apps/api/src/services/platform/regulatory.service.ts`           | The console, the ladder, and the three refusals around sign-off        |
+| `packages/db/prisma/migrations/20260818090000_…framework/`       | The two triggers, and why a grant could not do their job               |
+| `apps/api/tests/integration/tenant-isolation/regulatory.test.ts` | The width that is deliberate, and the writes that are not              |
 
 ---
 
 ## Known issues
 
-**1. Nothing has been clicked in a browser.** The same item PI-1, PI-2 and PI-3 each
-left, now across seven more screens.
+**1. Nothing has been clicked in a browser.** The same item PI-1 through PI-4 each
+left, now across five more screens.
 
-**2. `stock_transfer_lines` renders in a nondeterministic order.** KNOWN_ISSUES
-defect 1 — PI-3's copy of the bug PI-4 fixed. Needs a `line_number` migration, not a
-one-liner.
+**2. `pnpm typecheck` and `pnpm test` both OOM the api container.** Run by
+package or by path. Worse than PI-4 recorded it.
 
-**3. A purchase order needs no second signature.** The requisition split guards the
-internal ask; `pharmacy.purchase_order.manage` predates it. Found by the security
-review, documented rather than narrowed — revoking a held code is silent breakage.
+⚠️ **AND AN INTERRUPTED RUN OF A SUITE WITH PLATFORM FIXTURES POISONS THE NEXT
+ONE.** `jurisdictions` is keyed on `(country_code, region_code)`, so the fixtures
+cannot be made unique per run the way a tenant-scoped suite's can. The regulatory
+suite now cleans up BEFORE it seeds as well as after; any later suite that writes
+platform rows needs the same, or a killed run presents as a page of unrelated
+failures in `beforeAll`.
 
-**4. `pnpm test` OOMs the api container.** KNOWN_ISSUES defect 2.
+**3. `regulatory.pack.approve` is held by nobody**, which is correct (OD-5) and
+means PI-6 cannot reach `PRODUCTION_ENABLED` for India until a named person is
+granted it.
 
-**5. Three permission codes are under the `pharmacy.*` prefix and should not be.**
-`pharmacy.supplier.manage`, `pharmacy.purchase_order.read`/`.manage` predate
-PI-ADR-001's reasoning. Not renamed, because a rename silently revokes a grant from
-every clinic that holds it. The route path is neutral. KNOWN_ISSUES.
+**4. `regulatory_decisions` does not exist.** PI-ADR-008's snapshot lands with its
+first writer — PI-7 or PI-9 — rather than as a polymorphic guess about a
+transaction that does not exist yet. The decision object already carries
+everything it needs.
 
-**6. Reads on `/v1/procurement/suppliers` sit behind `supplier.manage`.** There is no
-`supplier.read` code, and inventing one now would empty every supplier picker until
-each clinic re-granted it. KNOWN_ISSUES.
+**5. The platform regulatory console has no screens.** Endpoints only.
 
-**7. A pharmacist can commit money with no requisition**, via
-`pharmacy.purchase_order.manage`. Not widened by PI-4 and not silently narrowed.
+**6. `stock_transfer_lines` still renders in a nondeterministic order.**
+KNOWN_ISSUES defect 1, unchanged since PI-3.
 
-**8. In-transit stock is still not in `stock_balances`** (PI-3 decision 1), and now
-neither is anything on a purchase order. PI-22's valuation must add both.
+**7. Three permission codes are still under `pharmacy.*` and should not be.**
+Unchanged since PI-4; renaming one silently revokes it.
 
-**9. The product pickers are still capped at 100 rows.** PI-23's work, unchanged
-since PI-2 — now on seven more forms, each of which says so on screen.
+**8. In-transit stock and stock on order are still not in `stock_balances`.**
+Unchanged; PI-22's valuation must add both.
 
-**10. `CONSUMED` is still a reservation state nothing can reach.** Unchanged; PI-7
-and PI-9.
+**9. The product pickers are still capped at 100 rows.** PI-23. The jurisdiction
+picker on the regulatory profile form is capped the same way and for now that is
+generous — there are ten target countries.
 
-**11. The worker's `MovementDeps` is still a second implementation** of the API's.
-Unchanged in kind from PI-2.
+**10. `CONSUMED` is still a reservation state nothing can reach.** PI-7, PI-9.
 
 ---
 
 ## Tests
 
-|                        |                                                                                                                                                                                              |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Currently passing**  | 176 unit · 38 procurement integration · **294 isolation across 14 files** · every other integration slice green. Typecheck and lint green across 25 packages; `db:rls:check` green at **88** |
-| **Currently failing**  | None.                                                                                                                                                                                        |
-| **Migrations pending** | None. Two applied this session; `prisma migrate status` reports the schema in sync                                                                                                           |
+|                        |                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Currently passing**  | 176 unit · 43 `@rcln/regulatory` · **307 isolation across 15 files** · 779 integration across 34 files. Lint and typecheck green; RLS at 89 |
+| **Currently failing**  | None.                                                                                                                                       |
+| **Migrations pending** | None. One applied this session                                                                                                              |
 
-⚠️ **THE SUITE CANNOT BE RUN IN ONE GO ANY MORE.** `pnpm test` OOMs the api
-container. Run it by path, in slices — unit, tenant-isolation, then the integration
-files in groups of roughly nine.
+⚠️ **THE SUITE CANNOT BE RUN IN ONE GO.** Run unit, then tenant-isolation, then
+the integration files in groups of roughly nine.
 
-⚠️ **The process traps from PI-1, PI-2 and PI-3 all still apply, and PI-4 hit two of
-them.** Migrations replay in NAME order and this repository's are hand-dated ahead of
-the wall clock, so anything Prisma generates must be re-dated past the highest
-existing directory — it generated `20260812170334` against a tree ending at
-`20260816093000`. An applied migration is checksummed including its comments.
+⚠️ **The process traps from PI-1 through PI-4 all still apply.** Migrations replay
+in NAME order and this repository's are hand-dated ahead of the wall clock, so
+anything Prisma generates must be re-dated past the highest existing directory. An
+applied migration is checksummed including its comments. `prisma migrate diff`
+wants `--from-config-datasource --to-schema ./prisma/schema --script`, and prints
+a dotenv banner to STDOUT that has to be stripped from the generated file.
 
-⚠️ **`prisma migrate diff` changed its flags.** `--from-schema-datasource` was
-removed; use `--from-config-datasource --to-schema ./prisma/schema --script`.
-
-⚠️ **A CHECKSUM MISMATCH ON AN APPLIED MIGRATION DOES NOT NEED A RESET.** This
-session found one on `20260815092000_inventory_expiry_sweep_function`, unrelated to
-PI-4, and `migrate dev` wanted to drop the whole database. It was repaired by
-re-running that migration — `CREATE OR REPLACE` throughout, so idempotent — and
-correcting the recorded checksum in `_prisma_migrations`. Check whether the file is
-idempotent before doing that; a reset destroys the developer's data.
+⚠️ **A NEW ENUM VALUE AND A CHECK THAT NAMES IT STILL CANNOT SHIP IN ONE
+MIGRATION** — but PI-5 did not hit it, and the distinction is worth recording:
+the rule is about `ALTER TYPE … ADD VALUE`. A type CREATED in the same
+transaction may be used in a CHECK immediately, which is why
+`regulatory_rule_packs_review_recorded` names two members of a type created six
+statements above it.
 
 ---
 
 ## Unresolved questions
 
-**Resolved this session:** none that were open. PI-4 raised and answered its own
-tenancy question (decision 1) and its own movement-type question (decision 2).
+**Resolved this session:** **OD-5** — a platform admin holding
+`regulatory.pack.approve`, a code no system role carries. See
+[OPEN_DECISIONS.md](OPEN_DECISIONS.md).
 
-**Still open:** OD-3 (localisation), OD-5 (who may set `REGULATORY_REVIEWED` —
-**needs the user**, blocks PI-6), OD-6, OD-7, OD-8.
-
-⚠️ **OD-5 BLOCKS PI-6 AND PI-5 IS NEXT.** It is worth asking now rather than
-discovering it mid-phase.
+**Still open:** OD-3 (localisation — needed before PI-19+), OD-4 (whether the
+platform ships a seeded catalogue — **needs the user**), OD-6, OD-7, OD-8.
 
 ---
 
 ## Do not
 
-- Do not restart PI-0 through PI-4.
-- Do not add a second writer to `stock_ledger`. A goods receipt, a return, a
-  transfer and the sweep all go through `recordMovementIn`; the document tables hold
-  paperwork, never quantity.
-- Do not write `stock_balances` from application code.
-- Do not use `SELECT ... FOR UPDATE` on `stock_balances`. It raises 42501.
-- Do not add a branch predicate to `suppliers`, `supplier_tax_identifiers` or
-  `supplier_products`. See decision 1 — a test pins the width and the reason.
-- Do not read `product_cost_averages.valued_quantity_base` as stock on hand.
-- Do not put a new enum value and a CHECK that names it in one migration.
-- Do not order a document's lines by `created_at`, with or without an `id` tie-break.
-  Use `line_number`.
-- Do not assume locking the row you are EDITING serialises a decision read off a
-  DIFFERENT row. See "Before starting PI-5".
-- Do not hand-name an index in a migration. Use the name Prisma would generate, or
-  `migrate diff` reports permanent drift.
-- Do not rename `pharmacy.supplier.*` or `pharmacy.purchase_order.*` without a
-  permission-migration mechanism. It silently revokes access.
-- Do not solve a cross-branch read by weakening an RLS policy. Snapshot the fact onto
-  the document.
-- Do not put a pure function in `apps/web`. There is no test suite there.
-- Do not compare an expiry date against `CURRENT_DATE` or a JavaScript `Date`. The
-  receipt path compares in the BRANCH's zone, in SQL.
-- Do not compute tax on a purchase. It is recorded (PI-ADR-006).
-- Do not add a reason code the SYSTEM writes to the reason-code master.
+- Do not restart PI-0 through PI-5.
+- **Do not invent a legal rule.** No source, no rule. See point 1 above.
+- Do not let anything default to permitted. `UNDETERMINED` refuses, everywhere.
+- Do not read `rule.parameters` without parsing it. A `NaN` comparison permits.
+- Do not add a rule type whose essential key is optional in its parser. See
+  decision 5 — a document that says nothing checkable must be `UNDETERMINED`.
+- Do not keep a concurrency test you have not watched fail. See decision 6.
+- Do not edit a signed-off pack, in any field. `assertPackIsOpen` is called from
+  all three writers now, and it is called for the DATES as much as the maturity.
+- Do not add a second reader of `regulatory_rules`. `evaluateFor` is the seam, and
+  a second opinion about the law diverges in the permissive direction.
+- Do not put a country code in a service, a controller, a component or a test
+  helper. A behaviour that cannot be expressed as a rule row is a gap in the
+  framework, to be fixed there.
+- Do not set `REGULATORY_REVIEWED` or `PRODUCTION_ENABLED` from a migration, a
+  seed, a script or an agent. Not once, not for a demo.
+- Do not add a rule to a pack that has been signed off. Publish a new version.
+- Do not put a tenant category, or any tenant id, on a rule.
+- Do not give the five platform tables an RLS policy. Read decision 1 first.
+- Do not compare a `@db.Date` column against an instant. Use `startOfCalendarDay`.
+- Do not add a second writer to `stock_ledger`, or write `stock_balances` from
+  application code.
+- Do not hand-name an index in a migration.
+- Do not rename `pharmacy.supplier.*` or `pharmacy.purchase_order.*`.

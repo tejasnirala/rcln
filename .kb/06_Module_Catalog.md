@@ -14,7 +14,7 @@ Narrative from `.kb/modules.json`; symbol, route and table counts resolved from 
 | [Patients](Modules/Patients.md) | api + web | The people being treated. The first PHI in the product: identity is org-wide so a duplicate can be found before it is created, attendance is branch-local, and every read is recorded in `data_access_logs`. | 20 | 7 |
 | [Appointments](Modules/Appointments.md) | api + web | Booking, and the availability engine behind it. PHI: a patient, a doctor and a reason disclose more together than any one of them. Unlike `patients`, `appointments` IS branch-scoped — identity follows the person, attendance belongs to the clinic it happened at. | 20 | 2 |
 | [Audit](Modules/Audit.md) | api | An append-only record of who changed what. Ids and permission codes only — never a name, never PHI. | 0 | 1 |
-| [PlatformConsole](Modules/PlatformConsole.md) | api + web | What the platform operator sees. Demo-request pipeline, provisioning, and eventually impersonation. | 13 | 2 |
+| [PlatformConsole](Modules/PlatformConsole.md) | api + web | What the platform operator sees. Demo-request pipeline, provisioning, and eventually impersonation. | 29 | 2 |
 | [Marketing](Modules/Marketing.md) | web | The apex domain. Landing page, signup, legal pages and the demo form — everything that happens before a tenant exists. | 0 | 1 |
 | [Notifications](Modules/Notifications.md) | api + worker | The seam every outbound message goes through. Real logic, no delivery. | 0 | 0 |
 | [Worker](Modules/Worker.md) | worker | Background jobs on BullMQ. Every queue is registered; the billing clock and invoice PDF rendering are implemented, the rest are stubs. | 0 | 2 |

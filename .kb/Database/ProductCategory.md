@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/products.prisma:369`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 11 |
-| relations | 4 |
+| relations | 5 |
 
 ## Columns
 
@@ -36,6 +36,7 @@ Declared at `packages/db/prisma/schema/products.prisma:369`.
 | `parent` | [`ProductCategory`](ProductCategory.md) | `parent ProductCategory? @relation("ProductCategoryParent", fields: [parentId], references: [id], onDelete: Restrict)` |
 | `children` | [`ProductCategory`](ProductCategory.md) | `children ProductCategory[] @relation("ProductCategoryParent")` |
 | `products` | [`Product`](Product.md) | `products Product[]` |
+| `regulatoryRules` | [`RegulatoryRule`](RegulatoryRule.md) | `regulatoryRules RegulatoryRule[] @relation("RegulatoryRuleCategory")` |
 
 ## Indexes and constraints
 
@@ -51,4 +52,5 @@ erDiagram
     ProductCategory }o--o{ Organization : relates
     ProductCategory }o--o{ ProductCategory : relates
     ProductCategory }o--o{ Product : relates
+    ProductCategory }o--o{ RegulatoryRule : relates
 ```

@@ -8,35 +8,53 @@ Source: `apps/api/src/routes/v1/platform.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `authenticate` → `requirePlatformAdmin` | `apps/api/src/routes/v1/platform.routes.ts:55` |
-| POST | `/organizations` | `validate(provisionRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:68` |
-| GET | `/organizations` | `authorize(PERMISSIONS.PLATFORM_ORG_READ)` → `validate(organizationQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:119` |
-| POST | `/organizations/:organizationId/impersonate` | `authorize(PERMISSIONS.PLATFORM_IMPERSONATE)` → `validate(…)` → `validate(impersonateRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:181` |
-| GET | `/organizations/:organizationId/subscription` | `authorize(PERMISSIONS.PLATFORM_SUBSCRIPTION_MANAGE)` → `validate(…)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:219` |
-| GET | `/demo-requests` | `validate(demoRequestQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:251` |
-| GET | `/tax-registrations` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:300` |
-| POST | `/tax-registrations` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(createTaxRegistrationRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:308` |
-| PATCH | `/tax-registrations/:id` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRegistrationParams)` → `validate(updateTaxRegistrationRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:320` |
-| DELETE | `/tax-registrations/:id` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRegistrationParams)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:335` |
-| GET | `/tax-rule-defaults` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRuleDefaultQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:384` |
-| POST | `/tax-rule-defaults` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(createTaxRuleDefaultRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:394` |
-| PATCH | `/tax-rule-defaults/:id` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRuleDefaultParams)` → `validate(updateTaxRuleDefaultRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:406` |
-| PATCH | `/tax-rule-defaults/:id/retire` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRuleDefaultParams)` → `validate(retireTaxRuleDefaultBody)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:421` |
+| USE | `*` | `authenticate` → `requirePlatformAdmin` | `apps/api/src/routes/v1/platform.routes.ts:90` |
+| POST | `/organizations` | `validate(provisionRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:103` |
+| GET | `/organizations` | `authorize(PERMISSIONS.PLATFORM_ORG_READ)` → `validate(organizationQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:154` |
+| POST | `/organizations/:organizationId/impersonate` | `authorize(PERMISSIONS.PLATFORM_IMPERSONATE)` → `validate(…)` → `validate(impersonateRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:216` |
+| GET | `/organizations/:organizationId/subscription` | `authorize(PERMISSIONS.PLATFORM_SUBSCRIPTION_MANAGE)` → `validate(…)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:254` |
+| GET | `/demo-requests` | `validate(demoRequestQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:286` |
+| GET | `/tax-registrations` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:335` |
+| POST | `/tax-registrations` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(createTaxRegistrationRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:343` |
+| PATCH | `/tax-registrations/:id` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRegistrationParams)` → `validate(updateTaxRegistrationRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:355` |
+| DELETE | `/tax-registrations/:id` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRegistrationParams)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:370` |
+| GET | `/tax-rule-defaults` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRuleDefaultQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:419` |
+| POST | `/tax-rule-defaults` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(createTaxRuleDefaultRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:429` |
+| PATCH | `/tax-rule-defaults/:id` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRuleDefaultParams)` → `validate(updateTaxRuleDefaultRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:441` |
+| PATCH | `/tax-rule-defaults/:id/retire` | `authorize(PERMISSIONS.PLATFORM_TAX_MANAGE)` → `validate(taxRuleDefaultParams)` → `validate(retireTaxRuleDefaultBody)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:456` |
+| GET | `/regulatory/jurisdictions` | `authorize(REGULATORY_MANAGE)` → `validate(jurisdictionQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:493` |
+| POST | `/regulatory/jurisdictions` | `authorize(REGULATORY_MANAGE)` → `validate(createJurisdictionRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:505` |
+| PATCH | `/regulatory/jurisdictions/:id` | `authorize(REGULATORY_MANAGE)` → `validate(regulatoryIdParams)` → `validate(updateJurisdictionRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:516` |
+| GET | `/regulatory/authorities` | `authorize(REGULATORY_MANAGE)` → `validate(regulatoryAuthorityQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:531` |
+| POST | `/regulatory/authorities` | `authorize(REGULATORY_MANAGE)` → `validate(createRegulatoryAuthorityRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:545` |
+| PATCH | `/regulatory/authorities/:id` | `authorize(REGULATORY_MANAGE)` → `validate(regulatoryIdParams)` → `validate(updateRegulatoryAuthorityRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:558` |
+| GET | `/regulatory/sources` | `authorize(REGULATORY_MANAGE)` → `validate(regulatorySourceQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:573` |
+| POST | `/regulatory/sources` | `authorize(REGULATORY_MANAGE)` → `validate(createRegulatorySourceRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:585` |
+| PATCH | `/regulatory/sources/:id` | `authorize(REGULATORY_MANAGE)` → `validate(regulatoryIdParams)` → `validate(updateRegulatorySourceRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:596` |
+| GET | `/regulatory/rule-packs` | `authorize(REGULATORY_MANAGE)` → `validate(rulePackQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:611` |
+| POST | `/regulatory/rule-packs` | `authorize(REGULATORY_MANAGE)` → `validate(createRulePackRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:623` |
+| PATCH | `/regulatory/rule-packs/:id` | `authorize(REGULATORY_MANAGE)` → `validate(regulatoryIdParams)` → `validate(updateRulePackRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:634` |
+| PATCH | `/regulatory/rule-packs/:id/approve` | `authorize(PERMISSIONS.REGULATORY_PACK_APPROVE)` → `validate(regulatoryIdParams)` → `validate(approveRulePackRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:657` |
+| GET | `/regulatory/rules` | `authorize(REGULATORY_MANAGE)` → `validate(regulatoryRuleQuery)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:675` |
+| POST | `/regulatory/rule-packs/:packId/rules` | `authorize(REGULATORY_MANAGE)` → `validate(rulePackIdParams)` → `validate(createRegulatoryRuleRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:687` |
+| PATCH | `/regulatory/rules/:id` | `authorize(REGULATORY_MANAGE)` → `validate(regulatoryIdParams)` → `validate(updateRegulatoryRuleRequest)` → `<inline>` | `apps/api/src/routes/v1/platform.routes.ts:703` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `organizationQuery` | `apps/api/src/routes/v1/platform.routes.ts:113` |
-| `demoRequestQuery` | `apps/api/src/routes/v1/platform.routes.ts:245` |
-| `taxRegistrationParams` | `apps/api/src/routes/v1/platform.routes.ts:298` |
-| `taxRuleDefaultParams` | `apps/api/src/routes/v1/platform.routes.ts:371` |
-| `taxRuleDefaultQuery` | `apps/api/src/routes/v1/platform.routes.ts:372` |
-| `retireTaxRuleDefaultBody` | `apps/api/src/routes/v1/platform.routes.ts:380` |
+| `organizationQuery` | `apps/api/src/routes/v1/platform.routes.ts:148` |
+| `demoRequestQuery` | `apps/api/src/routes/v1/platform.routes.ts:280` |
+| `taxRegistrationParams` | `apps/api/src/routes/v1/platform.routes.ts:333` |
+| `taxRuleDefaultParams` | `apps/api/src/routes/v1/platform.routes.ts:406` |
+| `taxRuleDefaultQuery` | `apps/api/src/routes/v1/platform.routes.ts:407` |
+| `retireTaxRuleDefaultBody` | `apps/api/src/routes/v1/platform.routes.ts:415` |
+| `regulatoryIdParams` | `apps/api/src/routes/v1/platform.routes.ts:488` |
+| `rulePackIdParams` | `apps/api/src/routes/v1/platform.routes.ts:489` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`ImpersonateRequest` · `PlatformOrganizationListResponse` · `PlatformSubscriptionView` · `RegisterOrganizationResponse` · `createTaxRegistrationRequest` · `createTaxRuleDefaultRequest` · `impersonateRequest` · `registerOrganizationRequest` · `updateTaxRegistrationRequest` · `updateTaxRuleDefaultRequest`
+`ImpersonateRequest` · `PlatformOrganizationListResponse` · `PlatformSubscriptionView` · `RegisterOrganizationResponse` · `approveRulePackRequest` · `createJurisdictionRequest` · `createRegulatoryAuthorityRequest` · `createRegulatoryRuleRequest` · `createRegulatorySourceRequest` · `createRulePackRequest` · `createTaxRegistrationRequest` · `createTaxRuleDefaultRequest` · `impersonateRequest` · `jurisdictionQuery` · `registerOrganizationRequest` · `regulatoryAuthorityQuery` · `regulatoryRuleQuery` · `regulatorySourceQuery` · `rulePackQuery` · `updateJurisdictionRequest` · `updateRegulatoryAuthorityRequest` · `updateRegulatoryRuleRequest` · `updateRegulatorySourceRequest` · `updateRulePackRequest` · `updateTaxRegistrationRequest` · `updateTaxRuleDefaultRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)
