@@ -4,11 +4,13 @@
 
 > The arithmetic, on its own, because a quantity limit that is wrong once in a thousand comparisons is worse than one that is wrong always: nobody finds it, and when they do it is at a controlled-substance reconciliation.
 
-Files: `packages/regulatory/tests/decimal.test.ts` · `packages/regulatory/tests/engine.test.ts`
+Files: `packages/regulatory/tests/decimal.test.ts` · `packages/regulatory/tests/engine.test.ts` · `packages/regulatory/tests/profile-gap.test.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `request` <sub>local</sub> | `(over: Partial<RegulatoryRequest>): RegulatoryRequest` | `packages/regulatory/tests/engine.test.ts:43` |  |
+| `request` <sub>local</sub> | `(over: Partial<RegulatoryRequest>): RegulatoryRequest` | `packages/regulatory/tests/profile-gap.test.ts:46` |  |
 | `rule` <sub>local</sub> | `(over: Partial<RegulatoryRule>): RegulatoryRule` | `packages/regulatory/tests/engine.test.ts:22` |  |
+| `rule` <sub>local</sub> | `(over: Partial<RegulatoryRule>): RegulatoryRule` | `packages/regulatory/tests/profile-gap.test.ts:25` |  |

@@ -10,19 +10,20 @@ Files: `packages/documents/src/invoice/document.tsx` · `packages/documents/src/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AppointmentItems` <sub>local</sub> | `({ data, fmt }: ItemTableProps): JSX.Element` | `packages/documents/src/invoice/items.tsx:156` |  |
-| `Closing` <sub>local</sub> | `({ data }: { data: InvoiceDocumentData }): JSX.Element` | `packages/documents/src/invoice/document.tsx:380` |  |
-| `DefaultItems` <sub>local</sub> | `({ data, fmt }: ItemTableProps): JSX.Element` | `packages/documents/src/invoice/items.tsx:199` |  |
-| `DescriptionCell` <sub>local</sub> | `({ line, fmt, className, }: { line: InvoiceDocumentLine; fmt…): JSX.Element` | `packages/documents/src/invoice/items.tsx:59` |  |
-| `InvoiceDocument` | `({ data }: { data: InvoiceDocumentData }): JSX.Element` | `packages/documents/src/invoice/document.tsx:63` |  |
-| `ItemsTable` <sub>local</sub> | `({ head, rows }: { head: JSX.Element; rows: JSX.Element[] }): JSX.Element` | `packages/documents/src/invoice/items.tsx:128` |  |
-| `Masthead` <sub>local</sub> | `({ data, fmt, }: { data: InvoiceDocumentData; fmt: InvoiceFo…): JSX.Element` | `packages/documents/src/invoice/document.tsx:98` |  |
-| `MoneyCells` <sub>local</sub> | `({ line, fmt, }: { line: InvoiceDocumentLine; fmt: InvoiceFo…): JSX.Element` | `packages/documents/src/invoice/items.tsx:89` |  |
-| `MoneyHeaders` <sub>local</sub> | `(): JSX.Element` | `packages/documents/src/invoice/items.tsx:111` | The four money headers, in the order `MoneyCells` prints them. |
-| `Parties` <sub>local</sub> | `({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element` | `packages/documents/src/invoice/document.tsx:170` |  |
-| `TaxSummary` <sub>local</sub> | `({ data, fmt, }: { data: InvoiceDocumentData; fmt: InvoiceFo…): JSX.Element` | `packages/documents/src/invoice/document.tsx:242` |  |
-| `TotalRow` <sub>local</sub> | `({ label, value }: { label: string; value: string }): JSX.Element` | `packages/documents/src/invoice/document.tsx:367` |  |
-| `Totals` <sub>local</sub> | `({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element` | `packages/documents/src/invoice/document.tsx:312` |  |
+| `AppointmentItems` <sub>local</sub> | `({ data, fmt }: ItemTableProps): JSX.Element` | `packages/documents/src/invoice/items.tsx:315` |  |
+| `Closing` <sub>local</sub> | `({ data }: { data: InvoiceDocumentData }): JSX.Element` | `packages/documents/src/invoice/document.tsx:421` |  |
+| `ColGroup` <sub>local</sub> | `({ fixed, taxColumns, }: { /** Every column except the descr…): JSX.Element` | `packages/documents/src/invoice/items.tsx:208` |  |
+| `DefaultItems` <sub>local</sub> | `({ data, fmt }: ItemTableProps): JSX.Element` | `packages/documents/src/invoice/items.tsx:361` |  |
+| `DescriptionCell` <sub>local</sub> | `({ line, className, }: { line: InvoiceDocumentLine; classNam…): JSX.Element` | `packages/documents/src/invoice/items.tsx:64` |  |
+| `InvoiceDocument` | `({ data, fontFaces, }: { data: InvoiceDocumentData; /** * Th…): JSX.Element` | `packages/documents/src/invoice/document.tsx:71` |  |
+| `ItemsTable` <sub>local</sub> | `({ head, rows, colgroup, }: { head: JSX.Element; rows: JSX.E…): JSX.Element` | `packages/documents/src/invoice/items.tsx:278` |  |
+| `MoneyCells` <sub>local</sub> | `({ line, fmt, taxColumns, }: { line: InvoiceDocumentLine; fm…): JSX.Element` | `packages/documents/src/invoice/items.tsx:158` |  |
+| `MoneyHeaders` <sub>local</sub> | `({ taxColumns }: { taxColumns: readonly string[] }): JSX.Element` | `packages/documents/src/invoice/items.tsx:180` | The money headers, in the order `MoneyCells` prints them. |
+| `Parties` <sub>local</sub> | `({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element` | `packages/documents/src/invoice/document.tsx:203` |  |
+| `TaxCells` <sub>local</sub> | `({ line, fmt, columns, }: { line: InvoiceDocumentLine; fmt: …): JSX.Element` | `packages/documents/src/invoice/items.tsx:112` |  |
+| `TaxSummary` <sub>local</sub> | `({ data, fmt, }: { data: InvoiceDocumentData; fmt: InvoiceFo…): JSX.Element` | `packages/documents/src/invoice/document.tsx:283` |  |
+| `TotalRow` <sub>local</sub> | `({ label, value }: { label: string; value: string }): JSX.Element` | `packages/documents/src/invoice/document.tsx:408` |  |
+| `Totals` <sub>local</sub> | `({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element` | `packages/documents/src/invoice/document.tsx:353` |  |
 
 ## fn
 
@@ -30,27 +31,34 @@ Files: `packages/documents/src/invoice/document.tsx` · `packages/documents/src/
 | --- | --- | --- | --- |
 | `createFormatter` | `(data: InvoiceDocumentData): InvoiceFormatter` | `packages/documents/src/invoice/format.ts:92` |  |
 | `currencySymbolFor` <sub>local</sub> | `(locale: string, currency: string): string` | `packages/documents/src/invoice/format.ts:134` |  |
-| `documentTitle` | `(countryCode: string, treatment: InvoiceTaxTreatment): string` | `packages/documents/src/invoice/document.tsx:45` |  |
-| `escapeHtml` <sub>local</sub> | `(value: string): string` | `packages/documents/src/invoice/render.tsx:104` |  |
+| `documentTitle` | `(countryCode: string, treatment: InvoiceTaxTreatment): string` | `packages/documents/src/invoice/document.tsx:53` |  |
+| `escapeHtml` <sub>local</sub> | `(value: string): string` | `packages/documents/src/invoice/render.tsx:114` |  |
 | `formatQuantity` | `(value: string): string` | `packages/documents/src/invoice/format.ts:151` |  |
 | `formatRate` | `(bps: number): string` | `packages/documents/src/invoice/format.ts:164` |  |
 | `groupingLocale` <sub>local</sub> | `(countryCode: string): string` | `packages/documents/src/invoice/format.ts:65` |  |
-| `invoiceStylesheet` | `(options: StylesheetOptions): string` | `packages/documents/src/invoice/styles.ts:63` |  |
-| `itemTableFor` | `(sourceType: InvoiceDocumentSourceType): ItemTable` | `packages/documents/src/invoice/items.tsx:248` |  |
-| `longInvoice` | `(lineCount): InvoiceDocumentData` | `packages/documents/src/invoice/samples.ts:308` | Long enough to break across pages — the repeated `<thead>` case. |
-| `noTaxExplanation` <sub>local</sub> | `(treatment: InvoiceTaxTreatment): string` | `packages/documents/src/invoice/document.tsx:293` |  |
-| `renderInvoiceHtml` | `(data: InvoiceDocumentData, options: RenderInvoiceOptions): string` | `packages/documents/src/invoice/render.tsx:66` |  |
+| `invoiceChrome` <sub>local</sub> | `(data: InvoiceDocumentData, fmt: InvoiceFormatter): DocumentChrome` | `packages/documents/src/invoice/document.tsx:149` |  |
+| `invoiceStylesheet` | `(options: StylesheetOptions): string` | `packages/documents/src/invoice/styles.ts:65` |  |
+| `itemTableFor` | `(sourceType: InvoiceDocumentSourceType): ItemTable` | `packages/documents/src/invoice/items.tsx:413` |  |
+| `longAddressInvoice` | `(lineCount): InvoiceDocumentData` | `packages/documents/src/invoice/samples.ts:567` |  |
+| `longInvoice` | `(lineCount): InvoiceDocumentData` | `packages/documents/src/invoice/samples.ts:591` | Long enough to break across pages — the repeated `<thead>` case. |
+| `noTaxExplanation` <sub>local</sub> | `(treatment: InvoiceTaxTreatment): string` | `packages/documents/src/invoice/document.tsx:334` |  |
+| `pharmacyInvoice` | `(lineCount): InvoiceDocumentData` | `packages/documents/src/invoice/samples.ts:495` | A pharmacy bill of `lineCount` lines, cycling the medicine list. |
+| `pharmacyLine` <sub>local</sub> | `(index: number, medicine: (typeof MEDICINES)[number], discountMinor): InvoiceDocumentLine` | `packages/documents/src/invoice/samples.ts:463` |  |
+| `renderInvoiceHtml` | `(data: InvoiceDocumentData, options: RenderInvoiceOptions): string` | `packages/documents/src/invoice/render.tsx:69` |  |
+| `taxColumnsFor` | `(data: InvoiceDocumentData): string[]` | `packages/documents/src/invoice/items.tsx:94` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `AMOUNT_WIDTH_MM` <sub>local</sub> | `24` | `packages/documents/src/invoice/items.tsx:260` |  |
 | `DATE_LOCALE` <sub>local</sub> | `'en-GB'` | `packages/documents/src/invoice/format.ts:35` |  |
 | `GROUPING_LOCALE` <sub>local</sub> | `: Readonly<Record<string, string>>` | `packages/documents/src/invoice/format.ts:53` |  |
 | `INVOICE_TEMPLATE_KEY` | `'invoice'` | `packages/documents/src/invoice/render.tsx:43` | Which template. A second document type gets its own key, not a version. |
-| `INVOICE_TEMPLATE_VERSION` | `2` | `packages/documents/src/invoice/render.tsx:52` |  |
-| `ITEM_TABLES` | `: Record<InvoiceDocumentSourceType, ItemTable>` | `packages/documents/src/invoice/items.tsx:238` |  |
-| `PAGE` <sub>local</sub> | `{ width: '210mm', margin: '14mm', /** Wider at the foot: the print footer sits in it. */ …` | `packages/documents/src/invoice/styles.ts:44` | A4 portrait, and the margins the content is laid out inside. |
+| `INVOICE_TEMPLATE_VERSION` | `3` | `packages/documents/src/invoice/render.tsx:55` |  |
+| `ITEM_TABLES` | `: Record<InvoiceDocumentSourceType, ItemTable>` | `packages/documents/src/invoice/items.tsx:403` |  |
+| `MEDICINES` <sub>local</sub> | `: readonly { name: string; pack: string; hsn: string; qty: string; unitMinor: num…` | `packages/documents/src/invoice/samples.ts:324` |  |
+| `TAX_WIDTH_MM` <sub>local</sub> | `17` | `packages/documents/src/invoice/items.tsx:270` |  |
 
 ## var
 
@@ -65,17 +73,17 @@ Files: `packages/documents/src/invoice/document.tsx` · `packages/documents/src/
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `InvoiceDocumentCustomer` | `{ name, phone, email, address, taxId, patientNumber }` | `packages/documents/src/invoice/types.ts:84` |  |
-| `InvoiceDocumentData` | `{ currency, timezone, countryCode, invoiceNumber, status, issuedAt, suppliedAt, dueDate, placeOfSupply, taxTreatment, notes, sourceType, issuer, customer, practitioner, lines, taxSummary, totals }` | `packages/documents/src/invoice/types.ts:175` |  |
+| `InvoiceDocumentData` | `{ currency, timezone, countryCode, invoiceNumber, status, issuedAt, suppliedAt, dueDate, placeOfSupply, taxTreatment, notes, sourceType, issuer, customer, practitioner, lines, taxSummary, totals }` | `packages/documents/src/invoice/types.ts:191` |  |
 | `InvoiceDocumentIssuer` | `{ legalName, tradeName, branchName, branchCode, addressLines, phone, email, taxId, taxIdLabel }` | `packages/documents/src/invoice/types.ts:61` |  |
-| `InvoiceDocumentLine` | `{ lineNumber, description, itemCode, quantity, unitPriceMinor, grossAmountMinor, discountAmountMinor, apportionedDiscountMinor, taxableAmountMinor, taxAmountMinor, lineTotalMinor, taxes }` | `packages/documents/src/invoice/types.ts:117` |  |
+| `InvoiceDocumentLine` | `{ lineNumber, description, packaging, itemCode, quantity, unitPriceMinor, grossAmountMinor, discountAmountMinor, apportionedDiscountMinor, taxableAmountMinor, taxAmountMinor, lineTotalMinor, taxes }` | `packages/documents/src/invoice/types.ts:117` |  |
 | `InvoiceDocumentPractitioner` | `{ name, registrationNumber }` | `packages/documents/src/invoice/types.ts:104` |  |
 | `InvoiceDocumentTaxLine` | `{ name, rateBps, taxAmountMinor }` | `packages/documents/src/invoice/types.ts:111` | One printed tax line under one item. 12% in Karnataka is two of these. |
-| `InvoiceDocumentTaxSummaryRow` | `{ name, jurisdiction, rateBps, taxableAmountMinor, taxAmountMinor }` | `packages/documents/src/invoice/types.ts:144` |  |
-| `InvoiceDocumentTotals` | `{ subtotalMinor, lineDiscountTotalMinor, invoiceDiscountTotalMinor, taxableAmountMinor, taxTotalMinor, roundingAdjustmentMinor, grandTotalMinor, amountPaidMinor, balanceDueMinor }` | `packages/documents/src/invoice/types.ts:162` |  |
+| `InvoiceDocumentTaxSummaryRow` | `{ name, jurisdiction, rateBps, taxableAmountMinor, taxAmountMinor }` | `packages/documents/src/invoice/types.ts:160` |  |
+| `InvoiceDocumentTotals` | `{ subtotalMinor, lineDiscountTotalMinor, invoiceDiscountTotalMinor, taxableAmountMinor, taxTotalMinor, roundingAdjustmentMinor, grandTotalMinor, amountPaidMinor, balanceDueMinor }` | `packages/documents/src/invoice/types.ts:178` |  |
 | `InvoiceFormatter` | `{ amount, deduction, currencySymbol, date, quantity, rate }` | `packages/documents/src/invoice/format.ts:77` |  |
-| `ItemTableProps` | `{ data, fmt }` | `packages/documents/src/invoice/items.tsx:42` |  |
-| `RenderInvoiceOptions` | `{ omitFonts }` | `packages/documents/src/invoice/render.tsx:54` |  |
-| `StylesheetOptions` | `{ fontFaces }` | `packages/documents/src/invoice/styles.ts:52` |  |
+| `ItemTableProps` | `{ data, fmt }` | `packages/documents/src/invoice/items.tsx:44` |  |
+| `RenderInvoiceOptions` | `{ omitFonts }` | `packages/documents/src/invoice/render.tsx:57` |  |
+| `StylesheetOptions` | `{ fontFaces }` | `packages/documents/src/invoice/styles.ts:54` |  |
 
 ## type
 
@@ -84,4 +92,4 @@ Files: `packages/documents/src/invoice/document.tsx` · `packages/documents/src/
 | `InvoiceDocumentSourceType` | `'APPOINTMENT' \| 'PROCEDURE' \| 'SERVICE' \| 'LAB' \| 'PHARMACY' \| 'INVENTORY' \| 'OTHER'` | `packages/documents/src/invoice/types.ts:38` | Mirrors `InvoiceSourceType` in schema.prisma. |
 | `InvoiceDocumentStatus` | `'DRAFT' \| 'FINALIZING' \| 'ISSUED' \| 'PARTIALLY_PAID' \| 'PAID' \| 'CANCELLED' \| 'VOID'` | `packages/documents/src/invoice/types.ts:34` | Mirrors `InvoiceStatus` in schema.prisma. |
 | `InvoiceTaxTreatment` | `\| 'STANDARD' \| 'ZERO_RATED' \| 'EXEMPT' \| 'REVERSE_CHARGE' \| 'NOT_REGISTERED' \| 'UNRATED' \| 'PROVIDER_REQUIRED'` | `packages/documents/src/invoice/types.ts:42` | Mirrors `TaxTreatment` in `@rcln/tax`. |
-| `ItemTable` | `(props: ItemTableProps) => JSX.Element` | `packages/documents/src/invoice/items.tsx:47` |  |
+| `ItemTable` | `(props: ItemTableProps) => JSX.Element` | `packages/documents/src/invoice/items.tsx:49` |  |

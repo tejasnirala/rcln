@@ -4,7 +4,7 @@
 
 > Billing a consultation, over real HTTP, through the real middleware chain.
 
-Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/procurement.test.ts` · `apps/api/tests/integration/product-resolvers.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/regulatory.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/stock-ledger.test.ts` · `apps/api/tests/integration/stock-movements.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/verification.test.ts`
+Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/india-rule-pack.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/procurement.test.ts` · `apps/api/tests/integration/product-resolvers.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/regulatory-enforcement.test.ts` · `apps/api/tests/integration/regulatory.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/stock-ledger.test.ts` · `apps/api/tests/integration/stock-movements.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/verification.test.ts`
 
 ## fn
 
@@ -43,6 +43,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `clearAccessDedupe` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/patients.test.ts:99` |  |
 | `clearBranchSetting` <sub>local</sub> | `(key: string): Promise<void>` | `apps/api/tests/integration/procurement.test.ts:152` |  |
 | `clearFictionalJurisdictions` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/regulatory.test.ts:94` |  |
+| `clearFixtures` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/regulatory-enforcement.test.ts:43` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/appointment-billing.test.ts:110` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/appointments.test.ts:94` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/audit-history.test.ts:73` |  |
@@ -64,6 +65,8 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/settings.test.ts:88` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/verification.test.ts:74` |  |
 | `clearValues` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/setting-resolver.test.ts:86` |  |
+| `codes` <sub>local</sub> | `(decision: { reasons: { ruleCode: string \| null }[] }): string[]` | `apps/api/tests/integration/india-rule-pack.test.ts:208` |  |
+| `consult` <sub>local</sub> | `()` | `apps/api/tests/integration/regulatory-enforcement.test.ts:88` |  |
 | `contextFor` <sub>local</sub> | `(ctx: TenantContext, branchId: string)` | `apps/api/tests/integration/invoicing-tax.test.ts:153` |  |
 | `countFor` <sub>local</sub> | `(email: string): Promise<number>` | `apps/api/tests/integration/demo-requests.test.ts:54` |  |
 | `coveredNames` <sub>local</sub> | `(registrationId: string): Promise<string[]>` | `apps/api/tests/integration/tax-registration-coverage.test.ts:220` |  |
@@ -74,6 +77,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `draft` <sub>local</sub> | `(client: typeof A, branchId: string, options: DraftOptions): Promise<Record<string, unknown>>` | `apps/api/tests/integration/invoices.test.ts:325` |  |
 | `emailFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/auth.test.ts:38` |  |
 | `enter` <sub>local</sub> | `(slug: string, organizationId: string, reason?: string): Promise<string>` | `apps/api/tests/integration/impersonation.test.ts:132` | Start to finish: ticket, claim, access token. |
+| `evaluateProduct` <sub>local</sub> | `(key: string, over: Record<string, unknown>)` | `apps/api/tests/integration/india-rule-pack.test.ts:196` |  |
 | `finalize` <sub>local</sub> | `(ctx: TenantContext, invoiceId: string, issuedAt)` | `apps/api/tests/integration/invoice-lifecycle.test.ts:201` |  |
 | `historyOf` <sub>local</sub> | `(slug: string, token: string, entityType: string, entityId: string)` | `apps/api/tests/integration/audit-history.test.ts:90` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/appointment-billing.test.ts:44` |  |
@@ -125,6 +129,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `login` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/invoice-audit.test.ts:114` |  |
 | `login` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/invoices.test.ts:129` |  |
 | `login` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/settings.test.ts:118` |  |
+| `makeProduct` <sub>local</sub> | `(key: string, type: string, classification: string \| null, unitId: string, jurisdictionId: string): Promise<void>` | `apps/api/tests/integration/india-rule-pack.test.ts:90` | A product of `type`, with a profile asserting `classification` where given. |
 | `membershipIdFor` <sub>local</sub> | `(email: string): Promise<string>` | `apps/api/tests/integration/iam.test.ts:179` |  |
 | `newSession` <sub>local</sub> | `()` | `apps/api/tests/integration/session-rotation.test.ts:64` |  |
 | `patchBranch` <sub>local</sub> | `(slug: string, token: string, branchId: string, body: object)` | `apps/api/tests/integration/audit-history.test.ts:97` |  |
@@ -140,6 +145,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/fee-schedule.test.ts:68` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/iam.test.ts:63` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/impersonation.test.ts:55` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/india-rule-pack.test.ts:66` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/invitations.test.ts:58` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/invoice-audit.test.ts:73` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/invoice-document.test.ts:56` |  |
@@ -178,6 +184,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `seedDoctor` <sub>local</sub> | `(client: ReturnType<typeof asOrg>, userId: string, branchId: string): Promise<string>` | `apps/api/tests/integration/appointments.test.ts:132` | A doctor working Mondays 09:00–13:00 at the org's main branch. |
 | `seedDoctor` <sub>local</sub> | `(client: ReturnType<typeof asOrg>, userId: string, branchId: string, registrationNumber: string): Promise<string>` | `apps/api/tests/integration/fee-schedule.test.ts:137` |  |
 | `setBranchSetting` <sub>local</sub> | `(key: string, value: unknown): Promise<void>` | `apps/api/tests/integration/procurement.test.ts:142` | Set a branch-scoped setting, the way the settings screen would. |
+| `setMaturity` <sub>local</sub> | `(maturity: string): Promise<void>` | `apps/api/tests/integration/regulatory-enforcement.test.ts:76` |  |
 | `settingsOf` <sub>local</sub> | `(who: typeof A): Promise<Map<string, Setting>>` | `apps/api/tests/integration/settings.test.ts:177` |  |
 | `setValue` <sub>local</sub> | `(key: string, scopeType: string, scopeId: string \| null, value: unknown): Promise<void>` | `apps/api/tests/integration/setting-resolver.test.ts:73` | Written as the owner: these are fixtures, not behaviour under test. |
 | `stockUp` <sub>local</sub> | `(context: TenantContext, branchId: string, locationId: string, productId: string, batchId: string \| null, quantity: string): Promise<void>` | `apps/api/tests/integration/stock-movements.test.ts:106` | Put a known quantity into a bucket, through the one writer. |

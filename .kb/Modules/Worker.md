@@ -84,7 +84,7 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 | `QUEUE` | const | `packages/queue/src/index.ts:35` |
 | `QueueName` | type | `packages/queue/src/index.ts:45` |
 | `renderInvoicePdf` | fn | `apps/worker/src/documents/invoice-pdf.job.ts:54` |
-| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:33` |
+| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:35` |
 | `RESERVATION_SWEEP_CRON` | const | `packages/queue/src/index.ts:224` |
 | `RESERVATION_SWEEP_JOB` | const | `packages/queue/src/index.ts:211` |
 | `runtimeFactory` | fn | `apps/worker/src/billing/runtime.ts:111` |
