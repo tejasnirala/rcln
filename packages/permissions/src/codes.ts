@@ -347,6 +347,47 @@ export const PERMISSIONS = {
    */
   INVENTORY_REASON_CODE_MANAGE: 'inventory.reason_code.manage',
 
+  // -- procurement -----------------------------------------------------------
+  /*
+   * A branch asking for stock, and somebody else agreeing to buy it (PI-4.3).
+   *
+   * ⚠️ TWO CODES BECAUSE IT IS A SEGREGATION-OF-DUTY CONTROL, NOT A GRANULARITY
+   *   PREFERENCE. One code would mean whoever raises a request approves it, which
+   *   is the shape every procurement fraud in a small organization takes: the
+   *   person who chooses the supplier, the quantity and the price is the person
+   *   who signs it off. Splitting it is what makes "somebody else looked at this"
+   *   a fact rather than a hope.
+   *
+   *   Mirrors the existing `doctor.schedule.request` / `.approve` split, and it is
+   *   enforced in three places: these codes, a service check against the row's own
+   *   `created_by_id`, and the `purchase_requisitions_approver_is_not_creator`
+   *   CHECK — which is the only one a later phase cannot forget.
+   *
+   * ⚠️ A CLINIC MAY GRANT BOTH TO ONE PERSON, AND THAT IS DELIBERATELY POSSIBLE.
+   *   A single-doctor clinic has nobody else, and refusing to let them buy
+   *   anything would be a platform deciding how a business is staffed. What it
+   *   still cannot do is self-approve one document, because the CHECK compares the
+   *   two user ids rather than the two permissions.
+   *
+   * ⚠️ NEITHER OF THESE IS `pharmacy.purchase_order.*`, WHICH ALREADY EXISTS.
+   *   Those two gate the COMMITMENT — raising and issuing the order that goes to
+   *   the supplier. These gate the internal ASK that may precede it. A storekeeper
+   *   who may request stock is not thereby somebody who may commit the clinic's
+   *   money, and the roles below grant them to different people for that reason.
+   *
+   * ⚠️ AND `procurement.*` IS A NEW MODULE PREFIX RATHER THAN `pharmacy.*`. Under
+   *   PI-ADR-001 procurement is not a pharmacy concern: a dental store manager
+   *   requisitions composite filling material and a lab manager requisitions
+   *   reagents, and neither should need a permission that also lets them dispense
+   *   a controlled drug. The existing `pharmacy.supplier.*` and
+   *   `pharmacy.purchase_order.*` codes predate that reasoning and are NOT
+   *   renamed — a rename revokes a grant from every clinic that already holds it,
+   *   which is the one thing a permission change must never do silently. Recorded
+   *   in KNOWN_ISSUES instead.
+   */
+  REQUISITION_CREATE: 'procurement.requisition.create',
+  REQUISITION_APPROVE: 'procurement.requisition.approve',
+
   // -- billing ---------------------------------------------------------------
   INVOICE_READ: 'billing.invoice.read',
   /*

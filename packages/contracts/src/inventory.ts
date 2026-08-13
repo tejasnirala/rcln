@@ -94,6 +94,17 @@ export const stockMovementType = z.enum([
   'EXPIRY',
   'RECALL',
   'RETURN',
+  /**
+   * Going back to the SUPPLIER (PI-4.7).
+   *
+   * ⚠️ ITS OWN MEMBER RATHER THAN A `TRANSFER_OUT`, WHICH IS WHAT PI-2'S SCHEMA
+   *   COMMENT SAID IT WOULD BE. `TRANSFER_OUT` means "went to another branch of
+   *   ours" to every report that reads the column, and the outstanding-quantity
+   *   arithmetic over `stock_transfers` reads exactly those rows — a purchase
+   *   return written as one shows up as stock in transit between two of the
+   *   clinic's own sites. See the enum comment in inventory.prisma.
+   */
+  'PURCHASE_RETURN',
   'DISPOSAL',
   'RESERVATION',
   'RELEASE',

@@ -21,6 +21,30 @@ enum NumberSequenceType {
   /// transfer number is a document identifier and a clinic reconciling a
   /// six-month-old delivery note needs it to still mean one thing.
   STOCK_TRANSFER
+  // -------------------------------------------------------------------------
+  // Procurement (PI-4). All four are per BRANCH and never reset, for the reason
+  // `STOCK_TRANSFER` does not: every one of them is quoted back by somebody
+  // outside the clinic — a supplier on their invoice, an auditor on a purchase
+  // trail — so it has to mean one thing for ever.
+  //
+  // ⚠️ EVERY ONE IS ISSUED AT THE MOMENT THE DOCUMENT LEAVES DRAFT, NOT AT
+  //   CREATE. A requisition that is abandoned, a PO that is never sent and a
+  //   delivery keyed in by mistake must all burn no number, because a gap in
+  //   any of these series is a gap a supplier or an auditor will ask about.
+  // -------------------------------------------------------------------------
+  /// Issued on SUBMIT.
+  PURCHASE_REQUISITION
+  /// Issued on ISSUE. The number the supplier quotes back on their invoice.
+  PURCHASE_ORDER
+  /// Issued on POST. The receipt the accountant reconciles the invoice against.
+  GOODS_RECEIPT
+  /// Issued on SEND.
+  PURCHASE_RETURN
+  /// ⚠️ PRESENT AND UNUSED, DELIBERATELY. Dispensing is PI-7, and adding a
+  ///   member to a Postgres enum is a migration — one this phase can pay for
+  ///   now and that phase would otherwise pay for under live stock. The same
+  ///   call PI-2 made for the `RESERVED` and `IN_TRANSIT` stock statuses.
+  DISPENSE
 }
 
 /// One counter per (organization, branch, type, period). The issuer for every

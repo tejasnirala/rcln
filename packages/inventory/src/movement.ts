@@ -127,6 +127,15 @@ export const DIRECTION: Record<StockMovementType, Direction> = {
   CLINICAL_CONSUMPTION: 'REMOVE',
   TRANSFER_OUT: 'REMOVE',
   DISPOSAL: 'REMOVE',
+  /*
+   * Going back to the supplier (PI-4.7). A REMOVE, because it has physically left
+   * the building — not a MOVE, which would leave the quantity in some bucket of a
+   * clinic that no longer has it.
+   *
+   * ⚠️ AND IT DELIBERATELY HAS NO `DEFAULT_STATUS` ENTRY BELOW, WHICH MAKES IT
+   *   THE SECOND MEMBER AFTER `DISPOSAL` THAT REFUSES TO GUESS. See that comment.
+   */
+  PURCHASE_RETURN: 'REMOVE',
 
   RESERVATION: 'MOVE',
   RELEASE: 'MOVE',
@@ -147,10 +156,11 @@ export const DIRECTION: Record<StockMovementType, Direction> = {
  * and the direction table above plus the CHECK constraint are what actually
  * constrain the result.
  *
- * ⚠️ `DISPOSAL` HAS NO DEFAULT `from`, ON PURPOSE. Disposal is the one movement
- *   that removes stock permanently, and what is being destroyed — expired,
- *   damaged, recalled — is the entire content of the record. Defaulting it to
- *   AVAILABLE would let a mis-click destroy sellable stock and record it as
+ * ⚠️ `DISPOSAL` AND `PURCHASE_RETURN` HAVE NO DEFAULT `from`, ON PURPOSE. They are
+ *   the two movements that remove stock from the clinic for good, and what is
+ *   leaving — expired, damaged, recalled, rejected at inspection, or sound stock
+ *   ordered in error — is the entire content of the record. Defaulting either to
+ *   AVAILABLE would let a mis-click send sellable stock away and file it as
  *   routine.
  */
 const DEFAULT_STATUS: Partial<Record<StockMovementType, { from?: StockStatus; to?: StockStatus }>> =

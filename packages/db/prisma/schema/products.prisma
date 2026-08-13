@@ -293,6 +293,16 @@ model UnitOfMeasure {
   stockLedgerEntries StockLedgerEntry[]
   /// The same, on a transfer line (PI-3).
   transferLines      StockTransferLine[]     @relation("TransferLineUnit")
+  /// Procurement (PI-4). ⚠️ `supplierPackUnits` is a DIFFERENT kind of reference
+  ///   from the four below it: those record the unit a quantity was ENTERED in,
+  ///   while that one is the WORD a supplier uses for their pack — presentation
+  ///   only, never arithmetic. The conversion lives in
+  ///   `supplier_products.quantity_per_pack`. See that model.
+  supplierPackUnits  SupplierProduct[]         @relation("SupplierProductPackUnit")
+  requisitionLines   PurchaseRequisitionLine[] @relation("RequisitionLineUnit")
+  purchaseOrderLines PurchaseOrderLine[]       @relation("PurchaseOrderLineUnit")
+  goodsReceiptLines  GoodsReceiptLine[]        @relation("GoodsReceiptLineUnit")
+  purchaseReturnLines PurchaseReturnLine[]     @relation("PurchaseReturnLineUnit")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -410,6 +420,10 @@ model Manufacturer {
   /// A batch's manufacturer may differ from its product's — contract
   /// manufacture and repackaging. See inventory.prisma.
   transferLines StockTransferLine[] @relation("TransferLineManufacturer")
+  /// And on a goods receipt line, where a lot's manufacturer is first recorded
+  /// (PI-4). Same reasoning: the pack says who made it, which is not always who
+  /// the catalogue says makes it.
+  goodsReceiptLines GoodsReceiptLine[] @relation("GoodsReceiptLineManufacturer")
   batches      Batch[]
 
   @@unique([organizationId, code])
@@ -672,6 +686,15 @@ model Product {
   // Movements (PI-3), same plain-FK reasoning as the four above.
   transferLines      StockTransferLine[]
   reservations       StockReservation[]
+  // Procurement (PI-4), same plain-FK reasoning again — a clinic buys, orders
+  // and values PLATFORM products, so none of these can be composite and
+  // `product_visible` is the control on every one of them.
+  supplierProducts    SupplierProduct[]
+  requisitionLines    PurchaseRequisitionLine[]
+  purchaseOrderLines  PurchaseOrderLine[]
+  goodsReceiptLines   GoodsReceiptLine[]
+  purchaseReturnLines PurchaseReturnLine[]
+  costAverages        ProductCostAverage[]
 
   @@unique([organizationId, code])
   /// The composite-FK target every child in this file references.

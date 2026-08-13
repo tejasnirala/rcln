@@ -167,6 +167,22 @@ model Organization {
   stockTransfers           StockTransfer[]
   stockTransferLines       StockTransferLine[]
   stockReservations        StockReservation[]
+  // Procurement (PI-4). Nothing here allows a NULL `organization_id`: a supplier,
+  // a price agreed with them and every purchase document are facts about one
+  // clinic (PI-ADR-003). The seam inside the domain is branch, not platform —
+  // the three supplier tables are org-wide and every document is branch-scoped.
+  suppliers                Supplier[]
+  supplierTaxIdentifiers   SupplierTaxIdentifier[]
+  supplierProducts         SupplierProduct[]
+  purchaseRequisitions     PurchaseRequisition[]
+  purchaseRequisitionLines PurchaseRequisitionLine[]
+  purchaseOrders           PurchaseOrder[]
+  purchaseOrderLines       PurchaseOrderLine[]
+  goodsReceipts            GoodsReceipt[]
+  goodsReceiptLines        GoodsReceiptLine[]
+  purchaseReturns          PurchaseReturn[]
+  purchaseReturnLines      PurchaseReturnLine[]
+  productCostAverages      ProductCostAverage[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
@@ -285,6 +301,19 @@ model Branch {
   transfersOut            StockTransfer[]     @relation("TransferFromBranch")
   transfersIn             StockTransfer[]     @relation("TransferToBranch")
   stockReservations       StockReservation[]
+  // Procurement (PI-4). Every document is branch-scoped — a requisition is
+  // raised at a site, a PO commits for a site, a delivery arrives at one loading
+  // bay. ⚠️ `suppliers` is deliberately NOT here: a supplier is the
+  // ORGANIZATION's vendor, one contract for every branch. See procurement.prisma.
+  purchaseRequisitions     PurchaseRequisition[]
+  purchaseRequisitionLines PurchaseRequisitionLine[]
+  purchaseOrders           PurchaseOrder[]
+  purchaseOrderLines       PurchaseOrderLine[]
+  goodsReceipts            GoodsReceipt[]
+  goodsReceiptLines        GoodsReceiptLine[]
+  purchaseReturns          PurchaseReturn[]
+  purchaseReturnLines      PurchaseReturnLine[]
+  productCostAverages      ProductCostAverage[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

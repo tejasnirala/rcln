@@ -5,6 +5,225 @@ discussed.
 
 ---
 
+## 2026-08-13 — PI-4 reviews, and the three bugs they found
+
+**Phase:** PI-4 · **Result:** all findings fixed · **Tests:** +1 concurrency case,
++1 migration
+
+Both reviewer passes run on the PI-4 diff. **The tenancy layer came back clean** —
+`security-reviewer` found no CRITICAL and no HIGH, enumerated every FK the migration
+adds and confirmed all twelve `*_visible` policies are present and RESTRICTIVE, and
+verified the `appointment_status_history` trap is genuinely avoided on all four child
+tables. It also made a point the phase had not articulated: the org-wide supplier
+seam is safe **because** `product_cost_averages` is branch-scoped, so the shared
+price book exposes what a supplier QUOTES and never what another branch PAID.
+
+`code-reviewer` found three CRITICALs, all real, and two of them were the same
+missing lock.
+
+⚠️ **THE PHASE CLAIMED TO HAVE CLOSED PI-3'S READ-THEN-WRITE RACE AND HAD CLOSED
+ONLY HALF OF IT.** `postGoodsReceipt` locks its own `goods_receipts` header — and two
+receipts against one purchase order are two DIFFERENT header rows, so nothing
+serialised them. The over-receipt tolerance read the PO line unlocked:
+
+    PO for 100, tolerance 0%. Two drafts of 100, posted concurrently.
+    Both read received = 0. Both pass assertWithinTolerance. Both increment.
+    200 units of real stock against a 100-unit order.
+
+And `purchase_order_lines_quantities_valid` deliberately has NO upper bound, because
+the tolerance is a SETTING a CHECK cannot read — so the database did not catch it
+either. The same missing lock let a fully-received order regress: receipt B, holding
+a stale read, overwrote `RECEIVED` with `PARTIALLY_RECEIVED`, leaving the order on
+the "what are we waiting for" screen for ever with nothing outstanding.
+
+Fixed with one `lockPurchaseOrder` before anything reads the order's lines. ⚠️ **The
+header and not the lines**, so the acquisition order cannot vary with the order the
+lines happen to be in; a receipt cites exactly one order and the sequence is always
+receipt-then-order, so no cycle is reachable.
+
+⚠️ **AND THE REGRESSION TEST WAS VERIFIED TO HAVE TEETH BY REMOVING THE LOCK AND
+WATCHING IT FAIL.** `serialises two receipts racing against one order line` reports
+two fulfilled posts and 200 received without it. The pre-existing
+`counts what earlier deliveries already took` passes perfectly well against the
+broken version — it only ever exercised the sequential path, which is exactly why the
+hole survived the first round of testing.
+
+### The line-order bug, and why the first fix was not one
+
+⚠️ **`created_at` CANNOT ORDER THE LINES OF A DOCUMENT, AND `{ id: 'asc' }` IS NOT A
+TIE-BREAK THAT HELPS.** Lines are written by one `createMany`, and
+`CURRENT_TIMESTAMP` in Postgres is the TRANSACTION timestamp — so every line gets a
+byte-identical `created_at` and the only remaining discriminator is a random uuid v4.
+
+The first attempt at this fix added `{ id: 'asc' }` and the suite went green, which
+was a coin flip landing: it makes the order STABLE within a read and still ARBITRARY
+relative to what somebody typed. Measured afterwards, the landed-cost apportionment
+case failed **two runs in six**. A purchase order printed for a supplier, and a draft
+delivery reopened for editing, both listed their lines in a different order each
+time.
+
+No money was ever misallocated — `apportionLanded` and `lineData` index consistently
+over one array — but the document was unstable. Properly fixed with an explicit
+`line_number SmallInt`, unique per document, in
+`20260817092000_document_line_numbers`, following `invoice_items.line_number`, which
+is the pattern that already existed and should have been matched from the start.
+
+⚠️ **A THIRD MIGRATION RATHER THAN AN EDIT TO THE FIRST**, because
+`20260817090000_procurement` had already been applied and Prisma checksums an applied
+migration including its comments. Additive is the only safe direction once a
+migration has run anywhere.
+
+⚠️ **AND ITS INDEX NAMES ARE PRISMA'S, NOT HAND-CHOSEN.** The first version used
+readable names and `migrate diff` reported four permanent `ALTER INDEX` renames as
+drift — the same trap `20260814090000_align_fee_schedule_index_name` exists for. The
+names were corrected at source and the local checksum repaired, since the migration
+had not left the machine.
+
+### Also fixed
+
+- **The rejection half had no CHECK.** `purchase_requisitions_approver_is_not_creator`
+  guarded approval; rejection was guarded only by the service, even though its own
+  comment argues that self-rejection would put "reviewed and refused" on a document
+  nobody reviewed. `purchase_requisitions_rejecter_is_not_creator` added, so the layer
+  a later phase cannot forget now covers both halves.
+- **`pnpm test:rls` did not work as documented.** The isolation suite's own README
+  gives `docker compose exec api pnpm test:rls`, and the script existed only in the
+  api workspace — so the documented command failed with
+  `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL`. Pre-existing since PI-3 split the suite. Now
+  proxied from the root. A gate nobody can invoke as documented is a gate that stops
+  being run.
+
+### Corrected, not fixed
+
+⚠️ **"THE APPROVAL SPLIT IS ENFORCED THREE TIMES" GUARDS THE INTERNAL ASK ONLY, AND
+THE PREVIOUS CHANGELOG ENTRY AND ROUTE HEADER BOTH OVER-STATED IT.**
+`pharmacy.purchase_order.manage` predates the split, so its holder — including
+`PHARMACIST` — can raise and issue a purchase order with no requisition and nobody's
+second signature, then receive against it, with no second user id anywhere on the
+trail. Not widened by PI-4 and deliberately not narrowed, because revoking a code
+every existing clinic holds is the one thing a permission change must not do
+silently. The wording is corrected in the route header and the gap is now its own
+KNOWN_ISSUES row rather than a parenthetical.
+
+### Rejected
+
+One finding was raised by the session and correctly overruled by the reviewer:
+`product_cost_averages` has no `@@unique([organizationId, id])`, which looked like a
+convention deviation. It matches `StockBalance`, which has none either — both are
+leaf tables nothing composite-FKs to, and adding one would have bought a migration
+for nothing.
+
+---
+
+## 2026-08-13 — PI-4: procurement, end to end
+
+**Phase:** PI-4 · **Result:** complete · **Tests:** +37 integration, +21 unit,
++15 isolation · **RLS:** 76 → **88** tables
+
+How stock ENTERS the system. Twelve tables, seven screens, two migrations, and the
+whole chain from a branch asking for something to the cost of it landing on a shelf:
+supplier → price book → requisition → approval → purchase order → delivery →
+inspection → return, with a moving average behind all of it.
+
+### The four calls worth knowing
+
+**A supplier is the ORGANIZATION's vendor, not a branch's.** The three supplier
+tables are org-wide; all nine document tables are branch-scoped absolutely. A group
+negotiates one contract, one price book, one set of tax numbers — branch-scoping
+them would mean three rows and no way to answer "what do we spend with them".
+
+⚠️ **The cost is that a branch-scoped storekeeper reads the whole price book, and a
+test pins it** — `shows the whole organization's price book to a single-branch
+reader`. That width is intended and it looks exactly like a leak in review, so a
+later phase "fixing" it would break ordering at every multi-branch clinic. Nothing
+branch-confidential may ever be added to those three tables.
+
+**`PURCHASE_RETURN` is a new movement type, and PI-2's schema said it would not be.**
+That comment said a purchase return would be a `TRANSFER_OUT` to the supplier. It
+cannot be: `TRANSFER_OUT` means "went to another branch of ours" to every report
+that reads the column, and the outstanding-quantity arithmetic over
+`stock_transfers` reads exactly those rows — a purchase return written as one shows
+up as stock in transit between two of the clinic's own sites, on a van that does not
+exist. Distinguishable only by `reference_type`, which no aggregate groups by.
+
+It is a REMOVE with **no default `statusFrom`**, the second member after `DISPOSAL`
+that refuses to guess. What is going back — sound stock ordered in error, stock
+refused at inspection, stock damaged in the box — IS the content of the record.
+
+⚠️ **AND IT COST A SECOND MIGRATION FOR A REASON NOTHING WARNS ABOUT.** Postgres
+refuses to USE a new enum value in the transaction that ADDED it, and Prisma runs
+each migration inside one — so `ALTER TYPE … ADD VALUE 'PURCHASE_RETURN'` and the
+`stock_ledger_direction` CHECK that names it cannot ship together. The SQL parses,
+the schema file is consistent, and `prisma validate` is perfectly happy; it only
+fails against a database. Split into
+`20260817091000_purchase_return_movement_direction`, which is fail-closed in
+between: a `PURCHASE_RETURN` row matches none of the old CHECK's shapes and is
+refused.
+
+**The approval split is enforced three times and only one layer cannot be forgotten.**
+Two permission codes, a service check against `created_by_id`, and
+`purchase_requisitions_approver_is_not_creator`. ⚠️ **It guards the internal ASK and
+not the money** — see the review entry above; `pharmacy.purchase_order.manage`
+predates it and needs no second signature. The first two are each one edit
+from absent. A clinic may grant both codes to one person — a single-doctor clinic
+has nobody else, and refusing would be a platform deciding how a business is
+staffed — and they still cannot self-approve ONE document, because the CHECK
+compares two user ids rather than two permissions.
+
+⚠️ Rejection is gated by the same check as approval, which looks like over-reach and
+is not: rejecting your own requisition is indistinguishable in effect from
+withdrawing it, and allowing it would put "reviewed and refused" on a document
+nobody reviewed — the audit trail lying in the direction that looks diligent.
+
+**Costing is a pure module in `@rcln/inventory`, for the reason FEFO ordering is.**
+A receipt that posts, writes its legs and lands stock on the right shelf at a unit
+cost one paisa out looks entirely correct from every angle a route test can see, and
+surfaces a year later as a valuation that does not reconcile.
+
+⚠️ **The running TOTAL is stored and the average is DERIVED.** Storing the average
+would round at every receipt and compound;
+`does not drift over twenty awkwardly-priced receipts` is the case that pins it.
+
+⚠️ `apportion()` in `@rcln/invoicing` was found by `pnpm kb:find` and deliberately
+NOT reused. It refuses `total > totalWeight` because a discount larger than the bill
+is a credit note — and freight larger than the goods is an ordinary receipt, a
+single vial couriered overnight. It also throws on the integer overflow that a
+wholesale-sized delivery reaches, where `apportionByValue` works in `bigint`.
+
+### What the tests caught
+
+**One real bug, and it was in the read path.** `createMany` gives every line the
+same `created_at`, so `orderBy: { createdAt: 'asc' }` returned a document's lines in
+a NONDETERMINISTIC order on each read — found by the landed-cost apportionment case,
+which asserted the shares in line order. All four document services now tie-break on
+`id`.
+
+⚠️ **`stock_transfer_lines` in PI-3 has the same `orderBy` and the same latent
+issue.** Not changed here, because it is outside this phase's diff and its own
+suites do not assert line order. Recorded in KNOWN_ISSUES.
+
+**And two process traps, both already documented and both hit anyway.** Prisma dated
+the generated migration BEHIND the highest existing directory (they are hand-dated
+ahead of the wall clock), and `pnpm test` now OOMs the api container outright rather
+than only `pnpm validate` — the suite was run in five slices instead. Known issue 6
+from PI-3, now worse.
+
+⚠️ **The dev database also had a checksum mismatch on an applied migration**
+(`20260815092000_inventory_expiry_sweep_function`), unrelated to this phase. Repaired
+by re-running that migration — it is `CREATE OR REPLACE` throughout — and correcting
+the recorded checksum, rather than `prisma migrate reset`, which would have dropped
+the developer's data.
+
+### Not done
+
+**Nothing has been clicked in a browser.** The same open item PI-1, PI-2 and PI-3
+each left. Both reviewer passes are also still to run on this diff — PI-3's three
+CRITICALs were all read-then-write races, and every service here takes the header's
+row lock first for exactly that reason, but that is a claim a reviewer should test
+rather than one to take on trust.
+
+---
+
 ## 2026-08-12 — PI-3 reviews, and the three bugs they found
 
 **Phase:** PI-3 · **Result:** all findings fixed · **Tests:** +4 regression cases

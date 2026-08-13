@@ -4,7 +4,7 @@
 
 > Billing a consultation, over real HTTP, through the real middleware chain.
 
-Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/product-resolvers.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/stock-ledger.test.ts` · `apps/api/tests/integration/stock-movements.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/verification.test.ts`
+Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/procurement.test.ts` · `apps/api/tests/integration/product-resolvers.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/stock-ledger.test.ts` · `apps/api/tests/integration/stock-movements.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/verification.test.ts`
 
 ## fn
 
@@ -30,6 +30,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `atHost` <sub>local</sub> | `(slug: string)` | `apps/api/tests/integration/invitations.test.ts:116` | The accept side is unauthenticated and lives on the auth router. |
 | `auditRows` <sub>local</sub> | `(userId: string): Promise< { organization_id: string \| null; before_data: Rec…` | `apps/api/tests/integration/verification.test.ts:128` |  |
 | `availability` <sub>local</sub> | `(client: ReturnType<typeof asOrg>, branchId: string, doctorId: string, date: string)` | `apps/api/tests/integration/appointments.test.ts:208` |  |
+| `balanceOf` <sub>local</sub> | `(productId: string, status: string): Promise<number>` | `apps/api/tests/integration/procurement.test.ts:122` |  |
 | `balanceOf` <sub>local</sub> | `(batchId: string, locationId: string, status: string): Promise<number>` | `apps/api/tests/integration/stock-ledger.test.ts:192` | How much of one bucket the cache says there is. Read straight, not derived. |
 | `balanceOf` <sub>local</sub> | `(locationId: string, status: string, productId: string): Promise<number>` | `apps/api/tests/integration/stock-movements.test.ts:125` |  |
 | `billing` <sub>local</sub> | `(appointmentId: string)` | `apps/api/tests/integration/appointment-billing.test.ts:187` |  |
@@ -40,6 +41,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `clearAccessDedupe` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/appointments.test.ts:99` |  |
 | `clearAccessDedupe` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/invoices.test.ts:107` | The read-dedupe key, so a repeated detail read really does write a row. |
 | `clearAccessDedupe` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/patients.test.ts:99` |  |
+| `clearBranchSetting` <sub>local</sub> | `(key: string): Promise<void>` | `apps/api/tests/integration/procurement.test.ts:152` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/appointment-billing.test.ts:110` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/appointments.test.ts:94` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/audit-history.test.ts:73` |  |
@@ -64,6 +66,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `countFor` <sub>local</sub> | `(email: string): Promise<number>` | `apps/api/tests/integration/demo-requests.test.ts:54` |  |
 | `coveredNames` <sub>local</sub> | `(registrationId: string): Promise<string[]>` | `apps/api/tests/integration/tax-registration-coverage.test.ts:220` |  |
 | `currentSerial` <sub>local</sub> | `(branchId: string): Promise<number>` | `apps/api/tests/integration/invoice-lifecycle.test.ts:673` | The branch's current `OTHER` counter, read past RLS. |
+| `dateIn` <sub>local</sub> | `(days: number): string` | `apps/api/tests/integration/procurement.test.ts:160` | The date a lot expires, as `YYYY-MM-DD`, offset from today. |
 | `draft` <sub>local</sub> | `(lines): Promise<string>` | `apps/api/tests/integration/invoice-audit.test.ts:261` |  |
 | `draft` <sub>local</sub> | `(ctx: TenantContext, org: Org, lines: Lines, extra: Record<string, unknown>)` | `apps/api/tests/integration/invoice-lifecycle.test.ts:187` |  |
 | `draft` <sub>local</sub> | `(client: typeof A, branchId: string, options: DraftOptions): Promise<Record<string, unknown>>` | `apps/api/tests/integration/invoices.test.ts:325` |  |
@@ -103,6 +106,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `joinAs` <sub>local</sub> | `(email: string, fullName: string, roleId: string): Promise<string>` | `apps/api/tests/integration/invoice-audit.test.ts:127` | Invite, accept, sign in — the way a real member comes into existence. |
 | `joinAs` <sub>local</sub> | `(email: string, fullName: string, roleId: string): Promise<string>` | `apps/api/tests/integration/invoices.test.ts:142` | Invite, accept, sign in — the way a real member comes into existence. |
 | `joinAs` <sub>local</sub> | `(email: string, fullName: string, roleId: string): Promise<string>` | `apps/api/tests/integration/settings.test.ts:142` | Invite, accept, sign in — the way a real member comes into existence. |
+| `legsFor` <sub>local</sub> | `(receiptId: string): Promise<number>` | `apps/api/tests/integration/procurement.test.ts:132` | How many ledger rows this receipt produced. The atomicity assertion. |
 | `legsFor` <sub>local</sub> | `(transferId: string): Promise<number>` | `apps/api/tests/integration/stock-movements.test.ts:139` | How many ledger rows this transfer produced. The atomicity assertion. |
 | `line` <sub>local</sub> | `(description: string, unitPriceMinor: number, quantity)` | `apps/api/tests/integration/invoice-audit.test.ts:248` |  |
 | `line` <sub>local</sub> | `(description: string, taxCategory: string, major: string, quantity)` | `apps/api/tests/integration/invoice-document.test.ts:152` |  |
@@ -143,6 +147,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/invoicing-tax.test.ts:47` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/numbering.test.ts:46` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/patients.test.ts:63` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/procurement.test.ts:99` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/product-resolvers.test.ts:55` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/registration.test.ts:66` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/setting-resolver.test.ts:49` |  |
@@ -168,6 +173,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `row` <sub>local</sub> | `(sql: string, params: unknown[]): Promise<T>` | `apps/api/tests/integration/invoice-lifecycle.test.ts:205` | Read a row back as the OWNER, so a test never mistakes an RLS miss for a value. |
 | `seedDoctor` <sub>local</sub> | `(client: ReturnType<typeof asOrg>, userId: string, branchId: string): Promise<string>` | `apps/api/tests/integration/appointments.test.ts:132` | A doctor working Mondays 09:00–13:00 at the org's main branch. |
 | `seedDoctor` <sub>local</sub> | `(client: ReturnType<typeof asOrg>, userId: string, branchId: string, registrationNumber: string): Promise<string>` | `apps/api/tests/integration/fee-schedule.test.ts:137` |  |
+| `setBranchSetting` <sub>local</sub> | `(key: string, value: unknown): Promise<void>` | `apps/api/tests/integration/procurement.test.ts:142` | Set a branch-scoped setting, the way the settings screen would. |
 | `settingsOf` <sub>local</sub> | `(who: typeof A): Promise<Map<string, Setting>>` | `apps/api/tests/integration/settings.test.ts:177` |  |
 | `setValue` <sub>local</sub> | `(key: string, scopeType: string, scopeId: string \| null, value: unknown): Promise<void>` | `apps/api/tests/integration/setting-resolver.test.ts:73` | Written as the owner: these are fixtures, not behaviour under test. |
 | `stockUp` <sub>local</sub> | `(context: TenantContext, branchId: string, locationId: string, productId: string, batchId: string \| null, quantity: string): Promise<void>` | `apps/api/tests/integration/stock-movements.test.ts:106` | Put a known quantity into a bucket, through the one writer. |

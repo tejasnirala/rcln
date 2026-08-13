@@ -24,6 +24,15 @@ import {
   stockTransferRoutes,
 } from './inventory.routes.js';
 import {
+  costAverageRoutes,
+  goodsReceiptRoutes,
+  purchaseOrderRoutes,
+  purchaseReturnRoutes,
+  requisitionRoutes,
+  supplierProductRoutes,
+  supplierRoutes,
+} from './procurement.routes.js';
+import {
   activeIngredientRoutes,
   compositionRoutes,
   manufacturerRoutes,
@@ -136,6 +145,34 @@ router.use('/stock', stockRoutes);
 // path — and its RLS policy is the bespoke `from OR to` one, not the generic
 // branch predicate. See the StockTransfer model.
 router.use('/stock-transfers', stockTransferRoutes);
+
+// Procurement (PI-4): how stock ENTERS the system, and where cost comes from. The
+// third side of the pair above — the catalogue says what a thing IS, inventory says
+// where it is, and this says who we bought it from and what we paid.
+//
+// ⚠️ NESTED UNDER `/procurement` RATHER THAN `/pharmacy`, AND THE PERMISSION CODES
+//    ARE THE INCONSISTENCY THIS DOES NOT FIX. Under PI-ADR-001 procurement is not a
+//    pharmacy concern — a dental store manager requisitions filling material and a
+//    lab manager requisitions reagents — so the PATH is neutral. Three of the codes
+//    are still `pharmacy.supplier.*` and `pharmacy.purchase_order.*` because they
+//    predate that reasoning, and renaming a code revokes it from every clinic that
+//    already holds it. Recorded in KNOWN_ISSUES rather than done silently.
+//
+// ⚠️ `/goods-receipts/:id/post` IS THE ONE ENDPOINT HERE THAT WRITES `stock_ledger`,
+//    and it writes every leg, every lot row, every serial and the cost roll-up in
+//    ONE transaction. Everything else under `/procurement` is paperwork —
+//    PI-ADR-004 is about the WRITER, not the route, and that endpoint goes through
+//    `recordMovementIn` like every other.
+//
+// Not PHI. A goods receipt CREATES serials and a return refuses one that has been
+// issued to a patient; neither ever returns `serials.assigned_patient_id`.
+router.use('/procurement/suppliers', supplierRoutes);
+router.use('/procurement/supplier-products', supplierProductRoutes);
+router.use('/procurement/requisitions', requisitionRoutes);
+router.use('/procurement/purchase-orders', purchaseOrderRoutes);
+router.use('/procurement/goods-receipts', goodsReceiptRoutes);
+router.use('/procurement/returns', purchaseReturnRoutes);
+router.use('/procurement/cost-averages', costAverageRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather

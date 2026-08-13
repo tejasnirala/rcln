@@ -12,5 +12,6 @@ export * from './invoices.js';
 export * from './fees.js';
 export * from './products.js';
 export * from './inventory.js';
+export * from './procurement.js';
 export * from './tax.js';
 export * from './locale.js';

@@ -155,6 +155,32 @@ function clinicNav(permissions: string[]): NavLink[] {
      */
     { href: '/stock', label: 'Stock', permission: ['inventory.stock.read'] },
     /*
+     * How stock GETS here, and what it cost (PI-4). The third tab of the same
+     * triple: Catalogue says what a thing is, Stock says where it is, this says
+     * who we bought it from.
+     *
+     * ⚠️ "BUYING", NOT "PROCUREMENT", FOR THE REASON "STOCK" IS NOT "INVENTORY".
+     *   Procurement is what the domain is called in the schema and in the ADRs;
+     *   buying is what the person opening it is doing. Same choice as Catalogue
+     *   over Products, twice over.
+     *
+     * ⚠️ FOUR CODES, ANY OF WHICH MAKES THE TAB WORTH OPENING, AND THE SCREEN
+     *   BEHIND IT RENDERS ONLY THE HALF THE CALLER HOLDS. A storekeeper who may
+     *   only raise requisitions and a buyer who may only issue orders both belong
+     *   here, and gating the tab on the widest code alone would hide it from one
+     *   of them entirely.
+     */
+    {
+      href: '/procurement/suppliers',
+      label: 'Buying',
+      permission: [
+        'pharmacy.supplier.manage',
+        'pharmacy.purchase_order.read',
+        'pharmacy.goods_receipt.manage',
+        'procurement.requisition.create',
+      ],
+    },
+    /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the
      * permission that guards it: a clock format is a preference and a tax rate

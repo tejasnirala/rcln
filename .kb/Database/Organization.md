@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 71 |
+| relations | 83 |
 
 ## Columns
 
@@ -108,6 +108,18 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `stockTransfers` | [`StockTransfer`](StockTransfer.md) | `stockTransfers StockTransfer[]` |
 | `stockTransferLines` | [`StockTransferLine`](StockTransferLine.md) | `stockTransferLines StockTransferLine[]` |
 | `stockReservations` | [`StockReservation`](StockReservation.md) | `stockReservations StockReservation[]` |
+| `suppliers` | [`Supplier`](Supplier.md) | `suppliers Supplier[]` |
+| `supplierTaxIdentifiers` | [`SupplierTaxIdentifier`](SupplierTaxIdentifier.md) | `supplierTaxIdentifiers SupplierTaxIdentifier[]` |
+| `supplierProducts` | [`SupplierProduct`](SupplierProduct.md) | `supplierProducts SupplierProduct[]` |
+| `purchaseRequisitions` | [`PurchaseRequisition`](PurchaseRequisition.md) | `purchaseRequisitions PurchaseRequisition[]` |
+| `purchaseRequisitionLines` | [`PurchaseRequisitionLine`](PurchaseRequisitionLine.md) | `purchaseRequisitionLines PurchaseRequisitionLine[]` |
+| `purchaseOrders` | [`PurchaseOrder`](PurchaseOrder.md) | `purchaseOrders PurchaseOrder[]` |
+| `purchaseOrderLines` | [`PurchaseOrderLine`](PurchaseOrderLine.md) | `purchaseOrderLines PurchaseOrderLine[]` |
+| `goodsReceipts` | [`GoodsReceipt`](GoodsReceipt.md) | `goodsReceipts GoodsReceipt[]` |
+| `goodsReceiptLines` | [`GoodsReceiptLine`](GoodsReceiptLine.md) | `goodsReceiptLines GoodsReceiptLine[]` |
+| `purchaseReturns` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturns PurchaseReturn[]` |
+| `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[]` |
+| `productCostAverages` | [`ProductCostAverage`](ProductCostAverage.md) | `productCostAverages ProductCostAverage[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -190,4 +202,16 @@ erDiagram
     Organization }o--o{ StockTransfer : relates
     Organization }o--o{ StockTransferLine : relates
     Organization }o--o{ StockReservation : relates
+    Organization }o--o{ Supplier : relates
+    Organization }o--o{ SupplierTaxIdentifier : relates
+    Organization }o--o{ SupplierProduct : relates
+    Organization }o--o{ PurchaseRequisition : relates
+    Organization }o--o{ PurchaseRequisitionLine : relates
+    Organization }o--o{ PurchaseOrder : relates
+    Organization }o--o{ PurchaseOrderLine : relates
+    Organization }o--o{ GoodsReceipt : relates
+    Organization }o--o{ GoodsReceiptLine : relates
+    Organization }o--o{ PurchaseReturn : relates
+    Organization }o--o{ PurchaseReturnLine : relates
+    Organization }o--o{ ProductCostAverage : relates
 ```

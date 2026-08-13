@@ -35,6 +35,13 @@ Paths are as registered — prepend the mount prefixes below for the callable UR
 | `/serials` | `serialRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/stock` | `stockRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/stock-transfers` | `stockTransferRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/procurement/suppliers` | `supplierRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/procurement/supplier-products` | `supplierProductRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/procurement/requisitions` | `requisitionRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/procurement/purchase-orders` | `purchaseOrderRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/procurement/goods-receipts` | `goodsReceiptRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/procurement/returns` | `purchaseReturnRoutes` | `apps/api/src/routes/v1/index.ts` |
+| `/procurement/cost-averages` | `costAverageRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts` |
 | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts` |
@@ -191,37 +198,44 @@ Paths are as registered — prepend the mount prefixes below for the callable UR
 | PUT | `/` | `authorize(PERMISSIONS.FEE_SCHEDULE_MANAGE)` → `validate(setFeeScheduleRequest)` → `<inline>` | `apps/api/src/routes/v1/fees.routes.ts:116` |
 | GET | `/` | `<inline>` | `apps/api/src/routes/v1/health.routes.ts:10` |
 | GET | `/ready` | `<inline>` | `apps/api/src/routes/v1/health.routes.ts:19` |
-| USE | `/health` | `healthRoutes` | `apps/api/src/routes/v1/index.ts:40` |
-| USE | `/auth` | `authRoutes` | `apps/api/src/routes/v1/index.ts:44` |
-| USE | `/public` | `publicRoutes` | `apps/api/src/routes/v1/index.ts:48` |
-| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:54` |
-| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:58` |
-| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:62` |
-| USE | `/doctors` | `doctorRoutes` | `apps/api/src/routes/v1/index.ts:66` |
-| USE | `/clinical-taxonomy` | `clinicalTaxonomyRoutes` | `apps/api/src/routes/v1/index.ts:73` |
-| USE | `/designations` | `designationRoutes` | `apps/api/src/routes/v1/index.ts:77` |
-| USE | `/patients` | `patientRoutes` | `apps/api/src/routes/v1/index.ts:83` |
-| USE | `/appointments` | `appointmentRoutes` | `apps/api/src/routes/v1/index.ts:89` |
-| USE | `/products` | `productRoutes` | `apps/api/src/routes/v1/index.ts:99` |
-| USE | `/units` | `unitRoutes` | `apps/api/src/routes/v1/index.ts:108` |
-| USE | `/product-categories` | `productCategoryRoutes` | `apps/api/src/routes/v1/index.ts:109` |
-| USE | `/manufacturers` | `manufacturerRoutes` | `apps/api/src/routes/v1/index.ts:110` |
-| USE | `/active-ingredients` | `activeIngredientRoutes` | `apps/api/src/routes/v1/index.ts:111` |
-| USE | `/compositions` | `compositionRoutes` | `apps/api/src/routes/v1/index.ts:112` |
-| USE | `/storage-profiles` | `storageProfileRoutes` | `apps/api/src/routes/v1/index.ts:113` |
-| USE | `/inventory-locations` | `inventoryLocationRoutes` | `apps/api/src/routes/v1/index.ts:130` |
-| USE | `/batches` | `batchRoutes` | `apps/api/src/routes/v1/index.ts:131` |
-| USE | `/serials` | `serialRoutes` | `apps/api/src/routes/v1/index.ts:132` |
-| USE | `/stock` | `stockRoutes` | `apps/api/src/routes/v1/index.ts:133` |
-| USE | `/stock-transfers` | `stockTransferRoutes` | `apps/api/src/routes/v1/index.ts:138` |
-| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:143` |
-| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:144` |
-| USE | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts:150` |
-| USE | `/billing` | `billingRoutes` | `apps/api/src/routes/v1/index.ts:159` |
-| USE | `/invoices` | `invoiceRoutes` | `apps/api/src/routes/v1/index.ts:167` |
-| USE | `/tax` | `taxRoutes` | `apps/api/src/routes/v1/index.ts:174` |
-| USE | `/fee-schedule` | `feeRoutes` | `apps/api/src/routes/v1/index.ts:181` |
-| USE | `/audit` | `auditRoutes` | `apps/api/src/routes/v1/index.ts:186` |
+| USE | `/health` | `healthRoutes` | `apps/api/src/routes/v1/index.ts:49` |
+| USE | `/auth` | `authRoutes` | `apps/api/src/routes/v1/index.ts:53` |
+| USE | `/public` | `publicRoutes` | `apps/api/src/routes/v1/index.ts:57` |
+| USE | `/platform` | `platformRoutes` | `apps/api/src/routes/v1/index.ts:63` |
+| USE | `/branches` | `branchRoutes` | `apps/api/src/routes/v1/index.ts:67` |
+| USE | `/invitations` | `invitationRoutes` | `apps/api/src/routes/v1/index.ts:71` |
+| USE | `/doctors` | `doctorRoutes` | `apps/api/src/routes/v1/index.ts:75` |
+| USE | `/clinical-taxonomy` | `clinicalTaxonomyRoutes` | `apps/api/src/routes/v1/index.ts:82` |
+| USE | `/designations` | `designationRoutes` | `apps/api/src/routes/v1/index.ts:86` |
+| USE | `/patients` | `patientRoutes` | `apps/api/src/routes/v1/index.ts:92` |
+| USE | `/appointments` | `appointmentRoutes` | `apps/api/src/routes/v1/index.ts:98` |
+| USE | `/products` | `productRoutes` | `apps/api/src/routes/v1/index.ts:108` |
+| USE | `/units` | `unitRoutes` | `apps/api/src/routes/v1/index.ts:117` |
+| USE | `/product-categories` | `productCategoryRoutes` | `apps/api/src/routes/v1/index.ts:118` |
+| USE | `/manufacturers` | `manufacturerRoutes` | `apps/api/src/routes/v1/index.ts:119` |
+| USE | `/active-ingredients` | `activeIngredientRoutes` | `apps/api/src/routes/v1/index.ts:120` |
+| USE | `/compositions` | `compositionRoutes` | `apps/api/src/routes/v1/index.ts:121` |
+| USE | `/storage-profiles` | `storageProfileRoutes` | `apps/api/src/routes/v1/index.ts:122` |
+| USE | `/inventory-locations` | `inventoryLocationRoutes` | `apps/api/src/routes/v1/index.ts:139` |
+| USE | `/batches` | `batchRoutes` | `apps/api/src/routes/v1/index.ts:140` |
+| USE | `/serials` | `serialRoutes` | `apps/api/src/routes/v1/index.ts:141` |
+| USE | `/stock` | `stockRoutes` | `apps/api/src/routes/v1/index.ts:142` |
+| USE | `/stock-transfers` | `stockTransferRoutes` | `apps/api/src/routes/v1/index.ts:147` |
+| USE | `/procurement/suppliers` | `supplierRoutes` | `apps/api/src/routes/v1/index.ts:169` |
+| USE | `/procurement/supplier-products` | `supplierProductRoutes` | `apps/api/src/routes/v1/index.ts:170` |
+| USE | `/procurement/requisitions` | `requisitionRoutes` | `apps/api/src/routes/v1/index.ts:171` |
+| USE | `/procurement/purchase-orders` | `purchaseOrderRoutes` | `apps/api/src/routes/v1/index.ts:172` |
+| USE | `/procurement/goods-receipts` | `goodsReceiptRoutes` | `apps/api/src/routes/v1/index.ts:173` |
+| USE | `/procurement/returns` | `purchaseReturnRoutes` | `apps/api/src/routes/v1/index.ts:174` |
+| USE | `/procurement/cost-averages` | `costAverageRoutes` | `apps/api/src/routes/v1/index.ts:175` |
+| USE | `/roles` | `roleRoutes` | `apps/api/src/routes/v1/index.ts:180` |
+| USE | `/members` | `memberRoutes` | `apps/api/src/routes/v1/index.ts:181` |
+| USE | `/organization` | `organizationRoutes` | `apps/api/src/routes/v1/index.ts:187` |
+| USE | `/billing` | `billingRoutes` | `apps/api/src/routes/v1/index.ts:196` |
+| USE | `/invoices` | `invoiceRoutes` | `apps/api/src/routes/v1/index.ts:204` |
+| USE | `/tax` | `taxRoutes` | `apps/api/src/routes/v1/index.ts:211` |
+| USE | `/fee-schedule` | `feeRoutes` | `apps/api/src/routes/v1/index.ts:218` |
+| USE | `/audit` | `auditRoutes` | `apps/api/src/routes/v1/index.ts:223` |
 | USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/invitations.routes.ts:45` |
 | GET | `/` | `authorize(PERMISSIONS.IAM_USER_READ)` → `<inline>` | `apps/api/src/routes/v1/invitations.routes.ts:61` |
 | POST | `/` | `authorize(PERMISSIONS.IAM_USER_INVITE)` → `inviteLimiter` → `validate(inviteMemberRequest)` → `<inline>` | `apps/api/src/routes/v1/invitations.routes.ts:69` |

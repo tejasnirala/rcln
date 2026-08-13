@@ -1428,7 +1428,7 @@ Strictly in this order; dispensing depends on batches existing.
 - [x] Catalogue: generics, medicines, manufacturers, HSN + versioned tax rates
 - [x] Batches, `stock_ledger` (append-only), `stock_balances` (trigger-maintained)
 - [x] Stock transfers between branches, adjustments, reservations, FEFO — PI-3
-- [ ] Suppliers → purchase orders → goods receipts → returns — PI-4
+- [x] Suppliers → purchase orders → goods receipts → returns, costing — PI-4
 - [ ] Dispensing with FEFO batch selection — PI-7, blocked on `prescriptions`
 
 ### Phase 6 — Lab

@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 32 |
+| relations | 48 |
 
 ## Columns
 
@@ -73,6 +73,22 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `transfersCancelled` | [`StockTransfer`](StockTransfer.md) | `transfersCancelled StockTransfer[] @relation("TransferCancelledBy")` |
 | `reservationsCreated` | [`StockReservation`](StockReservation.md) | `reservationsCreated StockReservation[] @relation("ReservationCreatedBy")` |
 | `reservationsReleased` | [`StockReservation`](StockReservation.md) | `reservationsReleased StockReservation[] @relation("ReservationReleasedBy")` |
+| `requisitionsCreated` | [`PurchaseRequisition`](PurchaseRequisition.md) | `requisitionsCreated PurchaseRequisition[] @relation("RequisitionCreatedBy")` |
+| `requisitionsSubmitted` | [`PurchaseRequisition`](PurchaseRequisition.md) | `requisitionsSubmitted PurchaseRequisition[] @relation("RequisitionSubmittedBy")` |
+| `requisitionsApproved` | [`PurchaseRequisition`](PurchaseRequisition.md) | `requisitionsApproved PurchaseRequisition[] @relation("RequisitionApprovedBy")` |
+| `requisitionsRejected` | [`PurchaseRequisition`](PurchaseRequisition.md) | `requisitionsRejected PurchaseRequisition[] @relation("RequisitionRejectedBy")` |
+| `requisitionsCancelled` | [`PurchaseRequisition`](PurchaseRequisition.md) | `requisitionsCancelled PurchaseRequisition[] @relation("RequisitionCancelledBy")` |
+| `purchaseOrdersCreated` | [`PurchaseOrder`](PurchaseOrder.md) | `purchaseOrdersCreated PurchaseOrder[] @relation("PurchaseOrderCreatedBy")` |
+| `purchaseOrdersIssued` | [`PurchaseOrder`](PurchaseOrder.md) | `purchaseOrdersIssued PurchaseOrder[] @relation("PurchaseOrderIssuedBy")` |
+| `purchaseOrdersClosed` | [`PurchaseOrder`](PurchaseOrder.md) | `purchaseOrdersClosed PurchaseOrder[] @relation("PurchaseOrderClosedBy")` |
+| `purchaseOrdersCancelled` | [`PurchaseOrder`](PurchaseOrder.md) | `purchaseOrdersCancelled PurchaseOrder[] @relation("PurchaseOrderCancelledBy")` |
+| `goodsReceiptsCreated` | [`GoodsReceipt`](GoodsReceipt.md) | `goodsReceiptsCreated GoodsReceipt[] @relation("GoodsReceiptCreatedBy")` |
+| `goodsReceiptsPosted` | [`GoodsReceipt`](GoodsReceipt.md) | `goodsReceiptsPosted GoodsReceipt[] @relation("GoodsReceiptPostedBy")` |
+| `goodsReceiptsCancelled` | [`GoodsReceipt`](GoodsReceipt.md) | `goodsReceiptsCancelled GoodsReceipt[] @relation("GoodsReceiptCancelledBy")` |
+| `qualityDecisions` | [`GoodsReceiptLine`](GoodsReceiptLine.md) | `qualityDecisions GoodsReceiptLine[] @relation("GoodsReceiptLineQualityDecidedBy")` |
+| `purchaseReturnsCreated` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsCreated PurchaseReturn[] @relation("PurchaseReturnCreatedBy")` |
+| `purchaseReturnsSent` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsSent PurchaseReturn[] @relation("PurchaseReturnSentBy")` |
+| `purchaseReturnsCancelled` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsCancelled PurchaseReturn[] @relation("PurchaseReturnCancelledBy")` |
 
 ## Indexes and constraints
 
@@ -106,4 +122,9 @@ erDiagram
     User }o--o{ StockLedgerEntry : relates
     User }o--o{ StockTransfer : relates
     User }o--o{ StockReservation : relates
+    User }o--o{ PurchaseRequisition : relates
+    User }o--o{ PurchaseOrder : relates
+    User }o--o{ GoodsReceipt : relates
+    User }o--o{ GoodsReceiptLine : relates
+    User }o--o{ PurchaseReturn : relates
 ```
