@@ -37,7 +37,36 @@ export type {
   InvoiceTaxTreatment,
 } from './invoice/types.js';
 
+/**
+ * The chrome every document type shares — a running header naming the clinic, a
+ * running footer, and "Page 1 of 5". A new template renders these two and
+ * includes the two stylesheet fragments; it does not restate the geometry.
+ */
+export {
+  PageHeader,
+  PageFooter,
+  ChromeTemplates,
+  /** The two ids `apps/worker`'s renderer looks for. Changing one changes both. */
+  HEADER_TEMPLATE_ID,
+  FOOTER_TEMPLATE_ID,
+  PAGE,
+  HEADER_BAND,
+  FOOTER_BAND,
+  pageRule,
+  chromeStylesheet,
+  type DocumentChrome,
+  type DocumentChromeIssuer,
+  type DocumentChromeMetaRow,
+} from './chrome/index.js';
+
 export { unsupportedCodepoints } from './fonts.js';
 
 /** Sample documents, for previews and design work. See `invoice/samples.ts`. */
-export { indianInvoice, unregisteredInvoice, yenInvoice, longInvoice } from './invoice/samples.js';
+export {
+  indianInvoice,
+  unregisteredInvoice,
+  yenInvoice,
+  longInvoice,
+  longAddressInvoice,
+  pharmacyInvoice,
+} from './invoice/samples.js';

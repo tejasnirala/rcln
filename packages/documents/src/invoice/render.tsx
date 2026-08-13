@@ -48,8 +48,11 @@ export const INVOICE_TEMPLATE_KEY = 'invoice';
  * 2 — the line table became per-source (`items.tsx`): a consultation drops the
  *     HSN/SAC and Qty columns and calls its money column "Fee", and every
  *     invoice now names the clinician who provided the care.
+ * 3 — the masthead became a RUNNING header and the colophon a RUNNING footer,
+ *     both repeated on every page, with "Page 1 of 5" in the bottom margin.
+ *     A second sheet used to carry no clinic name and no invoice number.
  */
-export const INVOICE_TEMPLATE_VERSION = 2;
+export const INVOICE_TEMPLATE_VERSION = 3;
 
 export interface RenderInvoiceOptions {
   /**
@@ -67,11 +70,18 @@ export function renderInvoiceHtml(
   data: InvoiceDocumentData,
   options: RenderInvoiceOptions = {}
 ): string {
-  const css = invoiceStylesheet({
-    fontFaces: options.omitFonts === true ? '' : fontFaceCss(),
-  });
+  const fontFaces = options.omitFonts === true ? '' : fontFaceCss();
+  const css = invoiceStylesheet({ fontFaces });
 
-  const body = renderToStaticMarkup(<InvoiceDocument data={data} />);
+  /*
+   * ⚠️ THE FONTS GO IN TWICE, AND ONCE IS NOT ENOUGH. The stylesheet above
+   *   dresses the document; `fontFaces` is handed to the component as well
+   *   because the PRINT header and footer are rendered into Chromium's own
+   *   templates, which are separate documents that inherit no CSS at all. A
+   *   template without them prints the clinic's name in the fallback face — no
+   *   error, and only on paper.
+   */
+  const body = renderToStaticMarkup(<InvoiceDocument data={data} fontFaces={fontFaces} />);
 
   /*
    * ⚠️ THE TITLE IS THE INVOICE NUMBER AND NEVER THE PATIENT'S NAME. It becomes
