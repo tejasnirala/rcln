@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 48 |
+| relations | 49 |
 
 ## Columns
 
@@ -89,6 +89,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `purchaseReturnsCreated` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsCreated PurchaseReturn[] @relation("PurchaseReturnCreatedBy")` |
 | `purchaseReturnsSent` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsSent PurchaseReturn[] @relation("PurchaseReturnSentBy")` |
 | `purchaseReturnsCancelled` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsCancelled PurchaseReturn[] @relation("PurchaseReturnCancelledBy")` |
+| `rulePacksReviewed` | [`RegulatoryRulePack`](RegulatoryRulePack.md) | `rulePacksReviewed RegulatoryRulePack[] @relation("RulePackReviewer")` |
 
 ## Indexes and constraints
 
@@ -127,4 +128,5 @@ erDiagram
     User }o--o{ GoodsReceipt : relates
     User }o--o{ GoodsReceiptLine : relates
     User }o--o{ PurchaseReturn : relates
+    User }o--o{ RegulatoryRulePack : relates
 ```

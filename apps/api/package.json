@@ -32,6 +32,7 @@
     "@rcln/payments": "workspace:*",
     "@rcln/permissions": "workspace:*",
     "@rcln/queue": "workspace:*",
+    "@rcln/regulatory": "workspace:*",
     "@rcln/storage": "workspace:*",
     "@rcln/tax": "workspace:*",
     "compression": "^1.8.1",

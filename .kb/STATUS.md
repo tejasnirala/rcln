@@ -1429,6 +1429,11 @@ Strictly in this order; dispensing depends on batches existing.
 - [x] Batches, `stock_ledger` (append-only), `stock_balances` (trigger-maintained)
 - [x] Stock transfers between branches, adjustments, reservations, FEFO — PI-3
 - [x] Suppliers → purchase orders → goods receipts → returns, costing — PI-4
+- [x] Regulatory FRAMEWORK — jurisdictions, rule packs, `@rcln/regulatory`, the
+      maturity ladder — PI-5. ⚠️ The framework only: it contains **no country's
+      rules**, is wired into no call site, and every evaluation therefore answers
+      `UNDETERMINED`, which refuses. PI-6 configures India and wires the callers
+- [ ] India rule pack, cited to real sources — PI-6
 - [ ] Dispensing with FEFO batch selection — PI-7, blocked on `prescriptions`
 
 ### Phase 6 — Lab

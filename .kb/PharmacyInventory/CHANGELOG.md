@@ -5,6 +5,218 @@ discussed.
 
 ---
 
+## 2026-08-13 — PI-5 reviews, and the four CRITICALs they found
+
+**Phase:** PI-5 · **Result:** every finding fixed · **Tests:** +16 unit, +2
+integration, one of them watched failing three times before it was kept
+
+Both reviewer passes run on the PI-5 diff. **The tenancy layer came back clean** —
+no CRITICAL, no HIGH from `security-reviewer`, and the exemption argument for the
+five policy-less platform tables survived a direct attack: it enumerated the
+`@rcln/db/unsafe` call sites and confirmed there is no live path today by which a
+tenant request reaches them. `code-reviewer` found four CRITICALs, and the first
+three are one mistake wearing four hats.
+
+### ⚠️ A MISSPELLED PARAMETER KEY MADE A PRESCRIPTION-ONLY MEDICINE GENERAL-SALE
+
+`readBoolean` cannot tell ABSENT from MISSPELLED — nothing can — and
+`evaluatePrescriptionRequired` read an absent `required` as "no prescription is
+required here". So:
+
+    parameters: { require: true, validityDays: 180 }   ->  PERMITTED
+    parameters: {}                                     ->  PERMITTED
+
+A prescription-only dispense, no prescription presented, outcome PERMITTED. The
+same shape was live in `CONTROLLED_SCHEDULE` (`{}` permitted with no register
+entry and no witness), `TRACEABILITY_REQUIREMENT` (a typo'd key permitted with no
+identifiers captured) and `IMPORT_RESTRICTION`.
+
+⚠️ **AND THE SUPERSESSION RULE AMPLIFIED IT INTO SOMETHING WORSE.** A regional
+rule beats the national rule of its type — so a REGIONAL rule with the typo did
+not merely permit itself, it filtered the national rule that would have REFUSED
+out of the candidate set on its way past. One typo, in one state, switching off
+the country's rule.
+
+Fixed by making every rule type's essential key REQUIRED at parse time: a
+document that says nothing checkable is `UNDETERMINED`, which refuses. Sixteen
+cases now cover it, and three of them were watched going red with the guard
+removed. **The gap that let it ship: every "nothing is configured" test in the
+phase tested an absent RULE, and none tested a rule that EXISTS with an empty
+document.**
+
+`parseImportRestriction` also read `permitted === false` where its sibling read
+`permitted !== true`, so one parameter meant two things across two handlers.
+
+### The other CRITICAL: PI-4's lesson, repeated verbatim
+
+`createRule` read the pack it decides against in one autocommit statement and
+inserted into a DIFFERENT table in another. A sign-off committing in between
+produced a rule inside a pack a named human had signed — exactly what that
+function's own comment claims is refused, and nothing downstream catches it: the
+CHECK constrains the PACK row, and `regulatory_rules` has no constraint that can
+see a pack's maturity. `updateRule` had the identical shape, and `updateRulePack`
+the mirror image — a sign-off landing between its read and its write let an
+ordinary PATCH strip `REGULATORY_REVIEWED` while leaving the reviewer's name in
+place. All three now take `SELECT … FOR UPDATE` on the pack inside a transaction.
+
+⚠️ **THE CONCURRENCY TEST TOOK THREE ATTEMPTS, AND THE FIRST TWO WOULD HAVE
+SHIPPED GREEN.** Two real calls racing under `Promise.allSettled` passed with the
+lock removed — the interleaving needs the read before the commit and the write
+after, and transactions started microseconds apart mostly decline. Holding the
+row and asserting `approveRulePack` blocks passed with the lock removed too,
+because that function's own UPDATE takes a row lock anyway; it was measuring
+Postgres, not the code. Only `createRule` discriminates, because its write
+targets a different table. It was watched failing before it was kept.
+
+### The security review's MEDIUM: a signed-off pack was not actually frozen
+
+`assertPackIsOpen` guarded the two rule writers and was never called from
+`updateRulePack`, whose maturity guards fire only when a request carries a
+`maturity` key. So `{ "effectiveTo": "2020-01-01" }` on a `PRODUCTION_ENABLED`
+pack sailed past both — and `loadRules` filters on exactly that window, so every
+rule in a reviewed pack left force platform-wide, immediately, with the
+reviewer's name still on screen. Moving `effectiveFrom` instead changes WHICH law
+applies under an unchanged sign-off. A reviewed pack now takes no edit at all.
+
+### Smaller, and each one a claim that was not true
+
+- **`isDecimal` accepted values `compareDecimals` could not compare.** Nineteen
+  decimal places validated, stored, and then failed at every evaluation with "the
+  quantities supplied are not decimal values" — blaming the caller for a fault in
+  the rule, while the rule sat inert and apparently configured. Capped at 18, with
+  negatives and the boundary now tested.
+- **Two comments described protections that did not exist.** `regulatory.prisma`
+  claimed the app role has SELECT only on the five platform tables (it has full
+  write; the TRIGGER is the protection), and `updateRulePack` claimed the contract
+  made the human-only maturities unsayable (it does not).
+- **`types.ts` documented `roleCodes` as role codes** while the caller feeds
+  permission codes — a pack written to the documentation would have matched nobody
+  forever. Documented properly, with the rename left as PI-6's call before any
+  pack exists.
+- **`REFILL_RULE` had no future-date guard**, so a prescription dated 2030
+  permitted a repeat. Its sibling has had that guard since the first draft.
+- **The jurisdiction came from `ctx.branchIds[0]`** — arbitrary for anyone working
+  at branches in two states. The request now names a branch, the route supplies
+  the acting one, and a caller with several and no branch named is refused rather
+  than guessed at.
+- **`quantityBase` defaulted to `'0'`**, which passes every quantity limit ever
+  written. Required now.
+- **Three web dates were rendered by slicing a UTC instant.** The one with teeth
+  seeded a new profile's `effectiveFrom`, so a clinic in IST creating one before
+  05:30 dated it yesterday. `todayIn` already existed. ⚠️ The tax tab beside it had
+  the same line and the same bug, one phase older, and is fixed too.
+
+### One test-infrastructure fix worth recording
+
+The regulatory suite's fixtures are PLATFORM rows keyed on `(country_code,
+region_code)`, so unlike a tenant-scoped fixture they cannot be made unique per
+run — and an interrupted run left `ZQ` behind and killed `beforeAll` on every
+subsequent run, presenting as eighteen unrelated failures. It now cleans up
+before it seeds as well as after.
+
+### Verification
+
+59 in `@rcln/regulatory` (was 43) · 18 integration (was 16) · 307 isolation · 176
+unit · 781 integration across 34 files. Lint green across 27 projects, typecheck
+green per package, `db:rls:check` green at 89.
+
+---
+
+## 2026-08-13 — PI-5 Global Regulatory Framework
+
+**Phase:** PI-5 · **Result:** complete, all suites green · **Branch:**
+`feat/pi-5-regulatory-framework`
+
+Six tables, a new pure package, five permission codes and five screens. The
+framework ships fully; **no country's rules are in it, deliberately** — that is
+PI-6 onwards, and each rule will cite a source somebody has read.
+
+**⚠️ Nothing in this repository claims legal compliance for any jurisdiction.**
+
+### What landed
+
+`regulatory.prisma` — `jurisdictions`, `regulatory_authorities`,
+`regulatory_sources`, `regulatory_rule_packs`, `regulatory_rules` (platform) and
+`product_regulatory_profiles` (tenant, platform-extensible). `@rcln/regulatory`
+holds `evaluate()`: no Prisma, no clock, 43 unit tests, modelled directly on
+`@rcln/tax`. `db:rls:check` green at 89.
+
+### The decision that took the most argument: how to protect a table with no policy
+
+The five platform tables cannot carry `tenant_isolation` — every tenant reads
+them inside its own transaction, so a policy returns zero rows for everyone and
+every decision comes back `UNDETERMINED`, which refuses. That is the same
+argument `tax_rule_defaults` carries, and today that table is protected by nothing
+but the absence of a service that writes it from a tenant path.
+
+⚠️ **The obvious fix — grant `rcln_app` SELECT only — does not work, because
+`@rcln/db/unsafe` is NOT an owner connection.** It is the same `rcln_app` role
+with no session variables set, so revoking write would lock the platform console
+out of its own console. What distinguishes a clinic's request from the console is
+that the clinic's transaction CLAIMS A TENANT, so
+`platform_law_not_tenant_writable` refuses any write when `app_current_org()` is
+not null — the same discriminator `refuse_platform_row_mutation` already uses,
+for the same reason. Four isolation cases pin it, including the DELETE, which no
+policy would have caught anyway: Postgres applies no WITH CHECK to DELETE.
+
+### `UNDETERMINED` refuses, and that is why nothing is wired up yet
+
+Every caller treats `UNDETERMINED` as _refuse and say so_ — no applicable rule, an
+unreadable parameters document, or a fact the rule needed that nobody supplied.
+With no pack configured anywhere, **every** evaluation is `UNDETERMINED` today, so
+calling the engine from the goods-receipt or transfer path would stop every clinic
+on the platform from receiving stock. PI-5 therefore ships the engine and
+`POST /v1/regulatory/evaluate` and enforces nothing; PI-6 wires the call sites as
+it reaches `RULES_IMPLEMENTED`.
+
+The direction of that failure is the whole design. A malformed rule —
+`{"required": "yes"}` — parses to `NaN` under any cast, and `NaN > limit` is
+`false`, so a permissive engine would let a broken rule PERMIT. Every parameter is
+validated before it is acted on and a document nobody can read is `UNDETERMINED`.
+
+### OD-5 resolved, by the user
+
+`REGULATORY_REVIEWED` and `PRODUCTION_ENABLED` are reachable only through
+`PATCH /v1/platform/regulatory/rule-packs/:id/approve`, gated on a new
+`regulatory.pack.approve` — **a code no system role holds**, excluded from
+`ORG_OWNER` and `ORG_ADMIN` BY NAME because those are "everything except" roles
+and would otherwise acquire it silently. The service refuses a pack that has not
+reached `REGULATORY_REVIEW_PENDING`, refuses to demote a reviewed one, and refuses
+to add a rule to a pack somebody has signed off — a sign-off is a statement about
+the rules that existed when it was made. `regulatory_rule_packs_review_recorded`
+refuses either state ARRIVING without a reviewer's name and the instant it was
+recorded, which is the layer a later migration or a psql session cannot forget.
+
+### Two refinements to the architecture documents, recorded rather than smuggled
+
+1. **`REGULATORY_REVIEWED` is an eighth maturity.** PI-ADR-009's chain does not
+   draw it and that ADR's own prohibition names it. Reviewing the content and
+   deciding the platform may act on it are two decisions, and one button for both
+   is the button somebody presses twice by accident.
+2. **A rule may only name a PLATFORM product category.** `regulatory_rules` has no
+   policy to AND a `*_visible` one with, so the hole is closed upstream by
+   `regulatory_rule_category_is_platform` rather than filtered at read time.
+
+### The one thing deferred with its reason written down
+
+`regulatory_decisions` — the per-transaction snapshot PI-ADR-008 requires — is NOT
+built. Nothing can write one: PI-7 and PI-9 are blocked on `prescriptions` and
+`encounters`. The decision object already carries `packVersionIds`, the reasons,
+the conditions and the lowest contributing maturity, so the table lands with its
+first writer rather than as a polymorphic guess about a subject that does not
+exist.
+
+### Tests
+
+43 in `@rcln/regulatory` · 16 integration · 13 isolation. Unit 176, isolation 307
+across 15 files, every integration slice green, lint and typecheck green across 27
+projects, `db:rls:check` 89.
+
+⚠️ **`pnpm typecheck` now OOMs the api container too**, not just `pnpm test`. Run
+both per package or by path.
+
+---
+
 ## 2026-08-13 — PI-4 reviews, and the three bugs they found
 
 **Phase:** PI-4 · **Result:** all findings fixed · **Tests:** +1 concurrency case,

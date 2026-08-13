@@ -16,23 +16,24 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addIdentifierAction` | `(slug: string, productId: string, body: CreateProductIdentifierRequest): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:243` |  |
-| `cloneProductAction` | `(slug: string, productId: string, code?: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:178` |  |
-| `createProductAction` | `(slug: string, _prev: ProductFormState, formData: FormData): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:92` |  |
-| `expireIdentifierAction` | `(slug: string, productId: string, identifierId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:263` | Expires the identifier rather than removing it — stock received under it must keep resolving. The button says "Expire" for the same reason. |
-| `IDLE_FORM` | `: ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:66` |  |
-| `replacePackagingAction` | `(slug: string, productId: string, levels: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:218` |  |
-| `replaceTaxClassificationsAction` | `(slug: string, productId: string, classifications: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:286` |  |
-| `saveMedicineDetailAction` | `(slug: string, productId: string, body: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:311` |  |
-| `updateProductAction` | `(slug: string, productId: string, patch: Record<string, unknown>): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:150` |  |
-| `withdrawProductAction` | `(slug: string, productId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:198` |  |
+| `addIdentifierAction` | `(slug: string, productId: string, body: CreateProductIdentifierRequest): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:245` |  |
+| `cloneProductAction` | `(slug: string, productId: string, code?: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:180` |  |
+| `createProductAction` | `(slug: string, _prev: ProductFormState, formData: FormData): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:94` |  |
+| `expireIdentifierAction` | `(slug: string, productId: string, identifierId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:265` | Expires the identifier rather than removing it — stock received under it must keep resolving. The button says "Expire" for the same reason. |
+| `IDLE_FORM` | `: ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:68` |  |
+| `replacePackagingAction` | `(slug: string, productId: string, levels: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:220` |  |
+| `replaceRegulatoryProfilesAction` | `(slug: string, productId: string, profiles: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:323` |  |
+| `replaceTaxClassificationsAction` | `(slug: string, productId: string, classifications: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:288` |  |
+| `saveMedicineDetailAction` | `(slug: string, productId: string, body: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:348` |  |
+| `updateProductAction` | `(slug: string, productId: string, patch: Record<string, unknown>): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:152` |  |
+| `withdrawProductAction` | `(slug: string, productId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:200` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `numberOrUndefined` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:350` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:75` |  |
+| `numberOrUndefined` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:387` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:77` |  |
 
 ## var
 
@@ -44,4 +45,4 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ProductFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set when a product was just created, so the form can offer …` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:58` |  |
+| `ProductFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set when a product was just created, so the form can offer …` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:60` |  |

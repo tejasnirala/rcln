@@ -45,6 +45,7 @@ import {
   medicineDetailRequest,
   productListQuery,
   replaceProductPackagingRequest,
+  replaceProductRegulatoryProfilesRequest,
   replaceProductTaxClassificationsRequest,
   resolveIdentifierQuery,
   updateProductRequest,
@@ -53,6 +54,7 @@ import {
   type MedicineDetailRequest,
   type ProductListQuery,
   type ReplaceProductPackagingRequest,
+  type ReplaceProductRegulatoryProfilesRequest,
   type ReplaceProductTaxClassificationsRequest,
   type ResolveIdentifierQuery,
   type UpdateProductRequest,
@@ -90,6 +92,10 @@ import {
   getMedicineDetail,
   upsertMedicineDetail,
 } from '../../services/product/medicine.service.js';
+import {
+  listRegulatoryProfiles,
+  replaceRegulatoryProfiles,
+} from '../../services/regulatory/profile.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 const router: IRouter = Router();
@@ -194,6 +200,32 @@ router.get(
     const { productId } = req.params as z.infer<typeof productParams>;
     sendSuccess(res, {
       classifications: await listTaxClassifications(tenantContextFrom(req), productId),
+    });
+  }
+);
+
+/*
+ * The regulatory facet: what this product IS in a jurisdiction — its
+ * registration, its classification, its schedule.
+ *
+ * ⚠️ ITS OWN PAIR OF CODES, NOT `product.definition.*` AND NOT THE TAX PAIR
+ *   (PI-ADR-011's split, applied again). Naming a product is catalogue
+ *   curation; asserting that it is a Schedule H medicine in India is a claim the
+ *   clinic answers for at an inspection, and a lab manager naming reagents has
+ *   no business making it for medicines.
+ *
+ * ⚠️ AND AN ASSERTION IS NOT AN AUTHORISATION. Nothing gates a dispense on these
+ *   rows — they are an INPUT to `evaluate()`, and a jurisdiction with no rule
+ *   refuses however confidently the profile is filled in.
+ */
+router.get(
+  '/:productId/regulatory-profiles',
+  authorize(PERMISSIONS.PRODUCT_REGULATORY_READ),
+  validate(productParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { productId } = req.params as z.infer<typeof productParams>;
+    sendSuccess(res, {
+      profiles: await listRegulatoryProfiles(tenantContextFrom(req), productId),
     });
   }
 );
@@ -340,6 +372,23 @@ router.put(
       auditMeta(req)
     );
     sendSuccess(res, { classifications }, 'Tax classification updated');
+  }
+);
+
+router.put(
+  '/:productId/regulatory-profiles',
+  authorize(PERMISSIONS.PRODUCT_REGULATORY_MANAGE),
+  validate(productParams, 'params'),
+  validate(replaceProductRegulatoryProfilesRequest, 'body'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { productId } = req.params as z.infer<typeof productParams>;
+    const profiles = await replaceRegulatoryProfiles(
+      tenantContextFrom(req),
+      productId,
+      req.body as ReplaceProductRegulatoryProfilesRequest,
+      auditMeta(req)
+    );
+    sendSuccess(res, { profiles }, 'Regulatory profile updated');
   }
 );
 

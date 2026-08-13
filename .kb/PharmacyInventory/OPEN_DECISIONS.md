@@ -101,17 +101,31 @@ that A or B can be loaded later. Categories, units and dosage forms _are_ seeded
 
 ## OD-5 — Who may set a rule pack to `REGULATORY_REVIEWED` / `PRODUCTION_ENABLED`?
 
-**Blocks:** PI-6 completion · **Needs the user** · **Confidence: n/a**
+**RESOLVED 2026-08-13 (PI-5), by the user.** A **platform admin holding a new
+permission code**, `regulatory.pack.approve`, which no system role carries.
 
-PI-ADR-009 says no code path and no agent may set these states. That leaves the
-question of who does.
+The door is one endpoint — `PATCH /v1/platform/regulatory/rule-packs/:id/approve`
+— and it is guarded three times over:
 
-It needs a named role — in-house counsel, a retained regulatory consultant, a
-pharmacist with the relevant registration, or per-country. Until it is answered,
-every pack stops at `AUTOMATED_TESTED` / `SOURCE_VERIFIED`, which is a safe
-resting state and does block production enablement.
+| Layer                                         | What it stops                                     |
+| --------------------------------------------- | ------------------------------------------------- |
+| `regulatory.pack.approve` on the route        | anybody who was not deliberately granted it       |
+| `approveRulePack` in the service              | skipping the ladder, and demoting a reviewed pack |
+| `regulatory_rule_packs_review_recorded` CHECK | either state ARRIVING with no reviewer named      |
 
-**Needs the user.**
+⚠️ **The code is excluded from `ORG_OWNER` and `ORG_ADMIN` by name in `roles.ts`**,
+because those are "everything except" roles and would otherwise acquire it
+silently. `SUPER_ADMIN` keeps it — it is `ALL_PERMISSIONS` by definition and is
+the break-glass account, which is the one place the ladder rests on operational
+discipline rather than on code.
+
+**What the resolution does NOT decide, and what still needs a human:** _which
+person_ holds the code at a given company. The mechanism is built; the name is a
+grant somebody makes out of band, once, and PI-6 cannot reach
+`PRODUCTION_ENABLED` for India until that person exists and has looked at the
+pack. The reviewer's NAME is recorded separately from the user account that
+pressed the button, because the qualified person is frequently not a user of this
+system at all.
 
 ---
 

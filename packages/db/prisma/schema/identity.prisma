@@ -119,6 +119,16 @@ model User {
   purchaseReturnsCreated    PurchaseReturn[]           @relation("PurchaseReturnCreatedBy")
   purchaseReturnsSent       PurchaseReturn[]           @relation("PurchaseReturnSentBy")
   purchaseReturnsCancelled  PurchaseReturn[]           @relation("PurchaseReturnCancelledBy")
+  /*
+   * Who pressed the button on a rule pack's sign-off (PI-5).
+   *
+   * ⚠️ NOT THE SAME QUESTION AS `regulatory_rule_packs.reviewed_by`, WHICH IS A
+   *   NAME. The qualified person who reviewed a jurisdiction's rules — counsel,
+   *   a retained consultant, a registered pharmacist — is often not a user of
+   *   this system, and the account that recorded their decision is not the
+   *   person who made it. An audit of a regulatory sign-off asks both.
+   */
+  rulePacksReviewed         RegulatoryRulePack[]       @relation("RulePackReviewer")
 
   @@index([status])
   @@index([isPlatformAdmin])

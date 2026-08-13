@@ -4,7 +4,13 @@ A living document. **Every regulatory cell is `RESEARCH_REQUIRED` and must stay
 that way until a real source is found, read and recorded** in
 `regulatory_sources`.
 
-**Last updated:** 2026-08-11 · **All rows at maturity:** `ARCHITECTURE_SUPPORTED`
+**Last updated:** 2026-08-13 · **All rows at maturity:** `ARCHITECTURE_SUPPORTED`
+
+⚠️ **SINCE PI-5, `ARCHITECTURE_SUPPORTED` IS LITERALLY TRUE AND NOTHING MORE.** The
+engine can express these rules and the tables exist; **no `regulatory_rule_packs`
+row exists for any country**, so every evaluation in every jurisdiction currently
+answers `UNDETERMINED` — which refuses. A cell moves to `RULES_CONFIGURED` when
+rows exist, and no further without a source somebody has read.
 
 ## Vocabulary
 

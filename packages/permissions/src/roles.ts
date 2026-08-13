@@ -63,6 +63,51 @@ const CLINICAL_AUTHORING: PermissionCode[] = [
 
 const authorsClinicalNotes = (p: PermissionCode): boolean => CLINICAL_AUTHORING.includes(p);
 
+/**
+ * Signing off a jurisdiction's rule pack. NOT held by anybody, by default.
+ *
+ * ⚠️ NAMED HERE FOR THE SAME REASON `CLINICAL_AUTHORING` IS: ORG_OWNER and
+ *   ORG_ADMIN are "everything except" roles, so a code added to this codebase
+ *   joins them silently unless it is excluded by name. `regulatory.pack.approve`
+ *   is the one code that must never arrive that way.
+ *
+ * PI-ADR-009: advancing a pack to `REGULATORY_REVIEWED` or `PRODUCTION_ENABLED`
+ * is a statement that a jurisdiction's rules have been checked by somebody
+ * qualified to check them. That is not a consequence of owning a clinic, and it
+ * is emphatically not a consequence of writing the software: no migration, seed,
+ * script or agent may set either state. The company grants this code to a named
+ * person — counsel, a retained consultant, a registered pharmacist — deliberately
+ * and out of band.
+ *
+ * ⚠️ SUPER_ADMIN KEEPS IT, because it is `ALL_PERMISSIONS` by definition and is
+ *   the platform's break-glass account rather than a role anybody is assigned.
+ *   That is the same carve-out `CLINICAL_AUTHORING` makes, and it is the one
+ *   place the ladder rests on operational discipline rather than on code.
+ */
+const REGULATORY_SIGN_OFF: PermissionCode[] = [PERMISSIONS.REGULATORY_PACK_APPROVE];
+
+const signsOffRulePacks = (p: PermissionCode): boolean => REGULATORY_SIGN_OFF.includes(p);
+
+/**
+ * Maintaining the LAW itself — jurisdictions, authorities, sources, packs, rules.
+ *
+ * ⚠️ EXCLUDED FROM THE TWO "EVERYTHING EXCEPT" ROLES BECAUSE IT IS A PLATFORM
+ *   CODE WEARING A MODULE PREFIX. It gates rcln's own console over
+ *   `regulatory_rule_packs`, whose rows are shared by every clinic on the
+ *   platform; the `platform_law_not_tenant_writable` trigger refuses a write
+ *   from any tenant transaction regardless, so granting it to a clinic owner
+ *   would hand out a code that can never do anything — which reads in a review
+ *   as a clinic being able to rewrite another clinic's rules.
+ *
+ *   It lives in the `regulatory` module rather than `platform` so that it sits
+ *   beside the read it is the write half of; this filter is what keeps that
+ *   naming choice from widening anybody's access.
+ *
+ * A clinic's own regulatory work is `product.regulatory.*`, which both roles do
+ * keep: asserting what a product IS here is exactly a clinic's job.
+ */
+const maintainsPlatformLaw = (p: PermissionCode): boolean => p === PERMISSIONS.REGULATORY_MANAGE;
+
 export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
   {
     code: SYSTEM_ROLES.SUPER_ADMIN,
@@ -76,9 +121,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     name: 'Organization Owner',
     description: 'Registered the clinic. Full control including subscription and billing.',
     scopeLevel: 'ORGANIZATION',
-    // Everything except platform-level permissions and authoring a consultation.
+    /*
+     * Everything except platform-level permissions, authoring a consultation,
+     * and signing off a regulatory rule pack.
+     */
     permissions: ALL_PERMISSIONS.filter(
-      (p) => !p.startsWith('platform.') && !authorsClinicalNotes(p)
+      (p) =>
+        !p.startsWith('platform.') &&
+        !authorsClinicalNotes(p) &&
+        !signsOffRulePacks(p) &&
+        !maintainsPlatformLaw(p)
     ),
   },
   {
@@ -90,6 +142,8 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       (p) =>
         !p.startsWith('platform.') &&
         !authorsClinicalNotes(p) &&
+        !signsOffRulePacks(p) &&
+        !maintainsPlatformLaw(p) &&
         p !== P.ORG_BILLING_MANAGE &&
         p !== P.BRANCH_DELETE &&
         p !== P.PATIENT_DELETE &&
@@ -158,6 +212,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_IDENTIFIER_MANAGE,
       P.MEDICINE_READ,
       P.MEDICINE_MANAGE,
+      /*
+       * Reads the jurisdiction's rules and records a product's regulatory
+       * position, like the pharmacist below (PI-5) — a branch administrator runs
+       * the store at sites that have no pharmacist at all.
+       */
+      P.REGULATORY_READ,
+      P.PRODUCT_REGULATORY_READ,
+      P.PRODUCT_REGULATORY_MANAGE,
       P.DISPENSE_READ,
       P.SUPPLIER_MANAGE,
       P.PURCHASE_ORDER_READ,
@@ -316,6 +378,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        */
       P.PRODUCT_DEFINITION_READ,
       P.MEDICINE_READ,
+      /*
+       * Reads what a jurisdiction says about what they are about to prescribe,
+       * and asserts nothing (PI-5). The same line invariant 7 draws for the
+       * catalogue: consulting the rule is prescribing, recording the product's
+       * regulatory position is storekeeping.
+       */
+      P.REGULATORY_READ,
+      P.PRODUCT_REGULATORY_READ,
       P.INVOICE_READ,
       /*
        * Sees what the clinic charges for their own consultations, and cannot
@@ -463,6 +533,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_DEFINITION_READ,
       P.PRODUCT_DEFINITION_MANAGE,
       P.PRODUCT_IDENTIFIER_MANAGE,
+      /*
+       * And its regulatory position (PI-5), for the same reason the catalogue
+       * codes are here rather than the pharmacy ones: a reagent is imported
+       * under a licence and a diagnostic kit is a registered device. Regulation
+       * is not a pharmacy concern (PI-ADR-001), so a lab manager records the
+       * lab's own without needing a code that also dispenses medicines.
+       */
+      P.REGULATORY_READ,
+      P.PRODUCT_REGULATORY_READ,
+      P.PRODUCT_REGULATORY_MANAGE,
       P.INVOICE_READ,
       P.REPORT_DASHBOARD,
       P.SETTINGS_USER_WRITE,
@@ -489,6 +569,24 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_IDENTIFIER_MANAGE,
       P.MEDICINE_READ,
       P.MEDICINE_MANAGE,
+      /*
+       * The regulatory side of the same product (PI-5): reads the jurisdiction's
+       * rules, and records what the product IS here — its registration, its
+       * classification, its schedule.
+       *
+       * ⚠️ THE ONE ROLE THAT HOLDS THE ASSERT WITHOUT A SECOND THOUGHT, because
+       *   it is the role that will be REFUSED by these rules. A pharmacist who
+       *   cannot read the rule that blocked a dispense cannot explain it to the
+       *   patient standing at the counter, and one who cannot record that a
+       *   product is Schedule H is a pharmacist waiting for an administrator to
+       *   do it for them.
+       *
+       * ⚠️ NEITHER OF THESE WRITES A RULE. `regulatory.rule.manage` is rcln's,
+       *   and the database refuses a tenant write to a rule pack regardless.
+       */
+      P.REGULATORY_READ,
+      P.PRODUCT_REGULATORY_READ,
+      P.PRODUCT_REGULATORY_MANAGE,
       P.DISPENSE_READ,
       P.DISPENSE_CREATE,
       P.DISPENSE_RETURN,

@@ -11,7 +11,7 @@ Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.t
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/apply-grants.ts:77` |  |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:82` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:108` |  |
 
 ## const
 
@@ -21,11 +21,11 @@ Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.t
 | `EXEMPT` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:29` | Tables intentionally not tenant-scoped. Keep in sync with prisma/rls/enable-rls.sql. |
 | `NO_EXECUTE` <sub>local</sub> | `[ 'stock_balances_apply_delta(uuid, uuid, uuid, uuid, uuid, uuid, "StockStatus", numeric)…` | `packages/db/scripts/apply-grants.ts:67` |  |
 | `NO_INSERT` <sub>local</sub> | `['stock_balances']` | `packages/db/scripts/apply-grants.ts:55` |  |
-| `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:65` |  |
+| `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:91` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `GrantRow` <sub>local</sub> | `{ table_name, privilege_type }` | `packages/db/scripts/apply-grants.ts:72` |  |
-| `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:75` |  |
+| `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:101` |  |

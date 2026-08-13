@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import type {
   CreateProductIdentifierRequest,
+  JurisdictionSummary,
   MedicineDetail,
   ProductDetail,
   ProductIdentifierType,
+  ProductRegulatoryProfileDetail,
   ProductSummary,
   UnitSummary,
 } from '@rcln/contracts';
@@ -20,6 +22,7 @@ import {
   cloneProductAction,
   expireIdentifierAction,
   replacePackagingAction,
+  replaceRegulatoryProfilesAction,
   replaceTaxClassificationsAction,
   saveMedicineDetailAction,
   updateProductAction,
@@ -50,7 +53,8 @@ import {
  *   the system has checked.
  */
 
-type Tab = 'details' | 'packaging' | 'identifiers' | 'tax' | 'medicine' | 'equivalents';
+type Tab =
+  'details' | 'packaging' | 'identifiers' | 'tax' | 'regulatory' | 'medicine' | 'equivalents';
 
 const IDENTIFIER_TYPES = [
   { value: 'GTIN', label: 'GTIN' },
@@ -139,6 +143,12 @@ interface Props {
   canManageTax: boolean;
   canReadMedicine: boolean;
   canManageMedicine: boolean;
+  regulatoryProfiles: ProductRegulatoryProfileDetail[];
+  jurisdictions: JurisdictionSummary[];
+  canReadRegulatory: boolean;
+  canManageRegulatory: boolean;
+  /** Today where the clinic is standing, resolved on the server. */
+  clinicToday: string;
 }
 
 export function ProductPanel({
@@ -152,6 +162,11 @@ export function ProductPanel({
   canManageTax,
   canReadMedicine,
   canManageMedicine,
+  regulatoryProfiles,
+  jurisdictions,
+  canReadRegulatory,
+  canManageRegulatory,
+  clinicToday,
 }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('details');
@@ -178,6 +193,7 @@ export function ProductPanel({
     { id: 'packaging', label: 'Packaging', show: true },
     { id: 'identifiers', label: 'Barcodes', show: true },
     { id: 'tax', label: 'Tax', show: true },
+    { id: 'regulatory', label: 'Regulatory', show: canReadRegulatory },
     { id: 'medicine', label: 'Medicine', show: canReadMedicine },
     { id: 'equivalents', label: 'Same composition', show: product.compositionId !== null },
   ];
@@ -313,12 +329,29 @@ export function ProductPanel({
       {tab === 'tax' ? (
         <TaxTab
           product={product}
+          clinicToday={clinicToday}
           editable={canManageTax && product.isOwn}
           pending={pending}
           onSave={(classifications) =>
             run(
               () => replaceTaxClassificationsAction(slug, product.id, classifications),
               'Tax classification updated'
+            )
+          }
+        />
+      ) : null}
+
+      {tab === 'regulatory' && canReadRegulatory ? (
+        <RegulatoryTab
+          profiles={regulatoryProfiles}
+          jurisdictions={jurisdictions}
+          clinicToday={clinicToday}
+          editable={canManageRegulatory && product.isOwn}
+          pending={pending}
+          onSave={(profiles) =>
+            run(
+              () => replaceRegulatoryProfilesAction(slug, product.id, profiles),
+              'Regulatory profile updated'
             )
           }
         />
@@ -670,11 +703,20 @@ function IdentifiersTab({
 
 function TaxTab({
   product,
+  clinicToday,
   editable,
   pending,
   onSave,
 }: {
   product: ProductDetail;
+  /**
+   * ⚠️ CARRIED HERE TOO, BECAUSE THIS TAB HAD THE SAME BUG. Its "add a
+   *   classification" button seeded `effectiveFrom` from
+   *   `new Date().toISOString()` — the UTC day — so a Kolkata clinic adding one
+   *   before 05:30 dated it yesterday. Same defect as the regulatory tab's, one
+   *   phase older, and fixed here because it is the same line.
+   */
+  clinicToday: string;
   editable: boolean;
   pending: boolean;
   onSave: (classifications: unknown) => void;
@@ -821,7 +863,7 @@ function TaxTab({
                     regionCode: null,
                     taxCategory: '',
                     itemCode: null,
-                    effectiveFrom: new Date().toISOString().slice(0, 10),
+                    effectiveFrom: clinicToday,
                     effectiveTo: null,
                   },
                 ])
@@ -974,6 +1016,269 @@ function EquivalentsTab({ products }: { products: ProductSummary[] }) {
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * What this product IS, per place. Not what may be done with it.
+ *
+ * ⚠️ THE SCREEN SAYS THE DIFFERENCE OUT LOUD, BECAUSE IT IS THE ONE THING PEOPLE
+ *   GET WRONG HERE. Recording "prescription required" does not make the software
+ *   require a prescription; the rules for the place decide, and a place with no
+ *   rules refuses whatever this says. Leaving that implicit would let a clinic
+ *   believe it had switched a control on.
+ *
+ * ⚠️ THE CLASSIFICATION IS MATCHED EXACTLY AGAINST THE RULES AND IS NOT
+ *   CASE-FOLDED. `SCHEDULE_H` and `Schedule H` are two different assertions, and
+ *   a rule written for one never matches the other — so the field says so rather
+ *   than tidying the input behind the user's back.
+ */
+function RegulatoryTab({
+  profiles,
+  jurisdictions,
+  clinicToday,
+  editable,
+  pending,
+  onSave,
+}: {
+  profiles: ProductRegulatoryProfileDetail[];
+  jurisdictions: JurisdictionSummary[];
+  /**
+   * ⚠️ TODAY IN THE CLINIC'S ZONE, FROM THE SERVER — never
+   *   `new Date().toISOString()`, which is the UTC day and dated a Kolkata
+   *   clinic's new profile to yesterday every morning before 05:30.
+   */
+  clinicToday: string;
+  editable: boolean;
+  pending: boolean;
+  onSave: (profiles: unknown) => void;
+}) {
+  const [rows, setRows] = useState(
+    profiles.map((p) => ({
+      jurisdictionId: p.jurisdictionId,
+      registrationNumber: p.registrationNumber,
+      registrationStatus: p.registrationStatus,
+      classification: p.classification,
+      controlledSchedule: p.controlledSchedule,
+      prescriptionRequirement: p.prescriptionRequirement,
+      onlineSalePosition: p.onlineSalePosition,
+      dispensingNotes: p.dispensingNotes,
+      effectiveFrom: p.effectiveFrom,
+      effectiveTo: p.effectiveTo,
+    }))
+  );
+
+  const patch = (index: number, values: Partial<(typeof rows)[number]>) =>
+    setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...values } : row)));
+
+  return (
+    <section className="max-w-3xl space-y-6">
+      <p className="text-muted max-w-prose text-[0.875rem]">
+        What this product is in each place: how it is registered, how it is classified, and whether
+        it is controlled. The same medicine is prescription-only in one country and general sale in
+        another, so this is recorded per place and per date.
+      </p>
+
+      <Alert tone="info">
+        This records what the product is — it does not decide what may be done with it. The rules
+        for the place decide that, and a place with no rules refuses.
+      </Alert>
+
+      {profiles.length === 0 ? (
+        <Alert tone="warning">
+          Nothing is recorded for this product yet, so every regulatory question about it comes back
+          undetermined — which means the answer is no.
+        </Alert>
+      ) : (
+        <table className="w-full text-left text-[0.875rem]">
+          <thead className="text-muted border-rule border-b text-[0.75rem]">
+            <tr>
+              <th scope="col" className="py-2 pr-4 font-normal">
+                Place
+              </th>
+              <th scope="col" className="py-2 pr-4 font-normal">
+                Classification
+              </th>
+              <th scope="col" className="py-2 pr-4 font-normal">
+                Prescription
+              </th>
+              <th scope="col" className="py-2 pr-4 font-normal">
+                Registration
+              </th>
+              <th scope="col" className="py-2 font-normal">
+                From
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-rule divide-y">
+            {profiles.map((p) => (
+              <tr key={p.id}>
+                <td className="py-2 pr-4">
+                  <span className="font-mono text-[0.8125rem]">{p.jurisdictionLabel}</span>{' '}
+                  {p.jurisdictionName}
+                </td>
+                <td className="py-2 pr-4 font-mono text-[0.8125rem]">{p.classification ?? '—'}</td>
+                <td className="py-2 pr-4">{humanise(p.prescriptionRequirement)}</td>
+                <td className="py-2 pr-4 font-mono text-[0.8125rem]">
+                  {p.registrationNumber ?? '—'}
+                </td>
+                <td className="py-2 font-mono text-[0.8125rem]">{p.effectiveFrom}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {editable ? (
+        <div className="border-rule space-y-6 border-t pt-6">
+          {rows.map((row, index) => (
+            <div key={index} className="grid gap-3 sm:grid-cols-3">
+              <Select
+                name={`jurisdiction-${index}`}
+                label="Place"
+                value={row.jurisdictionId}
+                options={[
+                  { value: '', label: 'Pick a place' },
+                  ...jurisdictions.map((j) => ({
+                    value: j.id,
+                    label: `${j.label} — ${j.name}`,
+                  })),
+                ]}
+                onChange={(e) => patch(index, { jurisdictionId: e.target.value })}
+              />
+              <Input
+                name={`classification-${index}`}
+                label="Classification"
+                hint="Matched exactly against the rules — SCHEDULE_H, not Schedule H."
+                className="font-mono"
+                value={row.classification ?? ''}
+                onChange={(e) =>
+                  patch(index, { classification: e.target.value === '' ? null : e.target.value })
+                }
+              />
+              <Select
+                name={`prescription-${index}`}
+                label="Prescription"
+                value={row.prescriptionRequirement}
+                options={asOptions([
+                  'UNKNOWN',
+                  'NOT_REQUIRED',
+                  'PHARMACIST_ONLY',
+                  'PRESCRIPTION_REQUIRED',
+                  'CONTROLLED',
+                ])}
+                onChange={(e) =>
+                  patch(index, {
+                    prescriptionRequirement: e.target
+                      .value as ProductRegulatoryProfileDetail['prescriptionRequirement'],
+                  })
+                }
+              />
+              <Input
+                name={`registration-${index}`}
+                label="Registration number"
+                value={row.registrationNumber ?? ''}
+                onChange={(e) =>
+                  patch(index, {
+                    registrationNumber: e.target.value === '' ? null : e.target.value,
+                  })
+                }
+              />
+              <Select
+                name={`registration-status-${index}`}
+                label="Registration status"
+                value={row.registrationStatus}
+                options={asOptions([
+                  'UNKNOWN',
+                  'NOT_REGISTERED',
+                  'PENDING',
+                  'REGISTERED',
+                  'SUSPENDED',
+                  'CANCELLED',
+                  'WITHDRAWN',
+                ])}
+                onChange={(e) =>
+                  patch(index, {
+                    registrationStatus: e.target
+                      .value as ProductRegulatoryProfileDetail['registrationStatus'],
+                  })
+                }
+              />
+              <Input
+                name={`schedule-${index}`}
+                label="Controlled schedule"
+                className="font-mono"
+                value={row.controlledSchedule ?? ''}
+                onChange={(e) =>
+                  patch(index, {
+                    controlledSchedule: e.target.value === '' ? null : e.target.value,
+                  })
+                }
+              />
+              <Select
+                name={`online-${index}`}
+                label="Sold remotely"
+                value={row.onlineSalePosition}
+                options={asOptions(['UNKNOWN', 'PERMITTED', 'RESTRICTED', 'PROHIBITED'])}
+                onChange={(e) =>
+                  patch(index, {
+                    onlineSalePosition: e.target
+                      .value as ProductRegulatoryProfileDetail['onlineSalePosition'],
+                  })
+                }
+              />
+              <Input
+                name={`from-${index}`}
+                label="From"
+                type="date"
+                value={row.effectiveFrom}
+                onChange={(e) => patch(index, { effectiveFrom: e.target.value })}
+              />
+              <Input
+                name={`to-${index}`}
+                label="Until"
+                type="date"
+                value={row.effectiveTo ?? ''}
+                onChange={(e) =>
+                  patch(index, { effectiveTo: e.target.value === '' ? null : e.target.value })
+                }
+              />
+            </div>
+          ))}
+
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                setRows((prev) => [
+                  ...prev,
+                  {
+                    jurisdictionId: jurisdictions[0]?.id ?? '',
+                    registrationNumber: null,
+                    registrationStatus: 'UNKNOWN' as const,
+                    classification: null,
+                    controlledSchedule: null,
+                    prescriptionRequirement: 'UNKNOWN' as const,
+                    onlineSalePosition: 'UNKNOWN' as const,
+                    dispensingNotes: null,
+                    effectiveFrom: clinicToday,
+                    effectiveTo: null,
+                  },
+                ])
+              }
+            >
+              Add a place
+            </Button>
+            <Button type="button" disabled={pending} onClick={() => onSave(rows)}>
+              Save regulatory profile
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

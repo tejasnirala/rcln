@@ -1,0 +1,527 @@
+// =============================================================================
+// REGULATORY — what a jurisdiction says may be done with a product.
+//
+// PI-5 ships the FRAMEWORK. It contains no country's rules, and it must not:
+// every rule is data, cited to a source, effective-dated, and loaded by the
+// caller into the pure `@rcln/regulatory` engine (PI-ADR-007). There is no
+// `if (country === 'IN')` in this domain, in any layer, ever.
+//
+// ⚠️ NOTHING IN THIS REPOSITORY CLAIMS LEGAL COMPLIANCE FOR ANY JURISDICTION.
+//   A configured pack is a configuration, not an assurance. See `RulePackMaturity`.
+//
+// ── TWO TENANCY CLASSES, AND THE SEAM IS "WHOSE FACT IS IT" ──────────────────
+//
+//   PLATFORM, no organization_id at all
+//     jurisdictions · regulatory_authorities · regulatory_sources ·
+//     regulatory_rule_packs · regulatory_rules
+//
+//   TENANT, platform-extensible, hanging off a product
+//     product_regulatory_profiles
+//
+// The law of a country is identical for every clinic in it, exactly like
+// `tax_rule_defaults` and `plans` — there is nothing tenant-specific in the row,
+// so there is no organization_id to scope BY. And exactly as with
+// `tax_rule_defaults`, a `tenant_isolation` policy on these would return zero
+// rows for everyone: every tenant reads them INSIDE its own transaction, so the
+// engine would see no rules at all, and no rules resolves to `UNDETERMINED`,
+// which refuses. Broken platform-wide, fail-closed. They are therefore on the
+// EXEMPT list in scripts/check-rls.ts, with that reasoning written down.
+//
+// ⚠️ THE APPLICATION ROLE HOLDS FULL WRITE ON ALL FIVE, AND A TRIGGER IS WHAT
+//   PROTECTS THEM — NOT THE GRANT. `@rcln/db/unsafe` is NOT an owner connection:
+//   it is the same `rcln_app` role with no session variables set, so a
+//   SELECT-only grant would have locked the platform console out of its own
+//   tables. What distinguishes a clinic's request from the console is that the
+//   clinic's transaction CLAIMS A TENANT, so `platform_law_not_tenant_writable`
+//   refuses any INSERT, UPDATE or DELETE while `app_current_org()` is set — the
+//   same discriminator `refuse_platform_row_mutation` uses. Four isolation cases
+//   pin it, including the DELETE, which no RLS policy would have caught anyway
+//   because Postgres applies no WITH CHECK to a DELETE.
+//
+//   Its limit, stated because a grant would not have had one: the trigger cannot
+//   tell the console apart from a genuinely PRE-TENANT path — login,
+//   registration, invitations, webhooks all run with no org set. Code added to
+//   one of those could write platform law unopposed. `tax_rule_defaults` relies
+//   on the absence of such a caller entirely; this narrows it to a list somebody
+//   can read.
+//
+// A clinic's own regulatory position on a product — its registration number,
+// what it believes the product is classified as here — IS tenant data, is
+// platform-extensible in the exact shape the rest of the catalogue uses, and
+// carries the same `tenant_isolation` + `platform_rows_immutable` pair.
+//
+// ── THE PROFILE IS NOT THE RULE, AND CONFLATING THEM IS THE WHOLE TRAP ───────
+// `product_regulatory_profiles` says WHAT A PRODUCT IS in a jurisdiction —
+// "prescription-only in India, registered under this number, from this date".
+// `regulatory_rules` says WHAT MAY BE DONE with something of that nature —
+// "a prescription-only medicine may not be sold without a prescription". One is
+// a fact about a product a clinic asserts; the other is a statement of law rcln
+// publishes. A design that merges them makes every clinic the author of its own
+// legal position, which is precisely what nobody wants to defend at an
+// inspection.
+//
+// ── DATES ────────────────────────────────────────────────────────────────────
+// `effective_from` / `effective_to` are `@db.Date` throughout, matching
+// `product_tax_classifications` and `tax_rule_defaults`: a law takes effect on a
+// DAY in the jurisdiction's own reckoning, not at an instant in UTC. The
+// `retrieved_at` and `last_reviewed_at` columns ARE instants — those are things
+// somebody did, and invariant 6 governs them.
+//
+// NO PHI. Nothing in this file references a patient, and nothing may.
+// =============================================================================
+
+/// How far a jurisdiction's rule pack has actually got (PI-ADR-009).
+///
+/// ⚠️ A STATE, NOT A BOOLEAN, AND THE LAST TWO ARE NOT REACHABLE FROM CODE.
+///   No migration, seed, script, service or agent may set `REGULATORY_REVIEWED`
+///   or `PRODUCTION_ENABLED`. They are set by a named human holding
+///   `regulatory.pack.approve`, which no system role carries — a clinic or the
+///   platform grants it to a person out of band, deliberately, once. The
+///   service refuses the transition from any other path and the database
+///   refuses it too, via `regulatory_rule_packs_review_recorded`.
+///
+/// ⚠️ EVERYTHING BELOW `PRODUCTION_ENABLED` SHOWS A BANNER ON EVERY REGULATORY
+///   SCREEN. Silence must never imply compliance.
+///
+/// ⚠️ `REGULATORY_REVIEWED` IS AN EIGHTH STATE THAT PI-ADR-009's CHAIN DOES NOT
+///   DRAW, and it is added deliberately rather than by accident: that ADR's own
+///   prohibition names it ("only a human may set `REGULATORY_REVIEWED` /
+///   `PRODUCTION_ENABLED`"), and the two are genuinely different events — a
+///   qualified person signing off the content, and somebody deciding the
+///   platform may act on it. Collapsing them would mean review and rollout are
+///   one button, which is the button nobody wants to press twice by accident.
+enum RulePackMaturity {
+  /// The engine can EXPRESS this kind of rule. No rows yet.
+  ARCHITECTURE_SUPPORTED
+  /// Rows exist for this jurisdiction.
+  RULES_CONFIGURED
+  /// The engine acts on them at the call sites.
+  RULES_IMPLEMENTED
+  /// Behaviour tests pass, versioned alongside the pack.
+  AUTOMATED_TESTED
+  /// Every rule cites a source somebody has re-checked.
+  SOURCE_VERIFIED
+  /// Handed to a qualified human. The last state code may set.
+  REGULATORY_REVIEW_PENDING
+  /// A named human signed off the content. Human-only.
+  REGULATORY_REVIEWED
+  /// Signed off and live. Human-only.
+  PRODUCTION_ENABLED
+}
+
+/// Where one rule is in its own life. Orthogonal to the pack's maturity: a pack
+/// can be `SOURCE_VERIFIED` and still carry a `DRAFT` rule somebody is drafting.
+///
+/// ⚠️ ONLY `ACTIVE` RULES ARE EVALUATED, and a `SUPERSEDED` one is never
+///   deleted — a transaction decided last year cites it and has to stay
+///   explicable for as long as the retention obligation runs.
+enum RegulatoryRuleStatus {
+  /// Being written. Never evaluated.
+  DRAFT
+  /// In force for its effective window.
+  ACTIVE
+  /// Replaced by a newer version of the same rule. Kept for history — a
+  /// transaction decided last year cites it and must stay explicable.
+  SUPERSEDED
+  /// Withdrawn by the authority without a replacement.
+  WITHDRAWN
+}
+
+/// What kind of statement a rule makes. Open by design: a new member is a
+/// migration plus handling in `@rcln/regulatory`, never a special case at a call
+/// site.
+///
+/// ⚠️ THE ENGINE MUST REFUSE A TYPE IT DOES NOT HANDLE, NOT IGNORE IT. A rule
+///   the evaluator skips is a rule that silently permits, and the whole point of
+///   this domain is that silence never permits. See `evaluate()`.
+enum RegulatoryRuleType {
+  PRESCRIPTION_REQUIRED
+  PRESCRIBER_AUTHORITY
+  PHARMACIST_AUTHORITY
+  CONTROLLED_SCHEDULE
+  QUANTITY_LIMIT
+  REFILL_RULE
+  AGE_RESTRICTION
+  SUBSTITUTION
+  ONLINE_DISPENSING
+  STORAGE_REQUIREMENT
+  RECORD_RETENTION
+  TRACEABILITY_REQUIREMENT
+  LABELLING_REQUIREMENT
+  REPORTING_REQUIREMENT
+  DISPOSAL_REQUIREMENT
+  IMPORT_RESTRICTION
+}
+
+/// What is being attempted. Mirrors `RegulatoryTransaction` in
+/// `@rcln/regulatory` — the caller says what it is about to do, and the engine
+/// selects only the rules that speak to it.
+enum RegulatoryTransactionType {
+  DISPENSE
+  COUNTER_SALE
+  ONLINE_DISPENSE
+  CONSUME
+  STOCK
+  TRANSFER
+  DISPOSE
+}
+
+/// How far a source has been checked.
+///
+/// ⚠️ `UNVERIFIED` IS THE HONEST DEFAULT AND IT IS NOT A FAILURE. It means one
+///   person wrote the citation down. `VERIFIED` means a second pass confirmed
+///   the document still says what the rule claims — which is the step that moves
+///   a pack to `SOURCE_VERIFIED`.
+enum RegulatorySourceStatus {
+  UNVERIFIED
+  VERIFIED
+  /// The URL no longer resolves, or the document moved.
+  UNAVAILABLE
+  /// The authority replaced it. The rules citing it need re-sourcing.
+  SUPERSEDED
+}
+
+/// Whether a product is registered with the authority of a jurisdiction.
+///
+/// ⚠️ `UNKNOWN` IS NOT `NOT_REGISTERED`. The first says the clinic has not
+///   recorded it; the second is a claim that the regulator has no record. They
+///   lead to different conversations and only one of them is a data-entry gap.
+enum ProductRegistrationStatus {
+  UNKNOWN
+  NOT_REGISTERED
+  PENDING
+  REGISTERED
+  SUSPENDED
+  CANCELLED
+  WITHDRAWN
+}
+
+/// What a clinic asserts about whether this product needs a prescription HERE.
+///
+/// ⚠️ AN ASSERTION, NOT AN AUTHORISATION. Nothing may gate a dispense on this
+///   column. It is an INPUT to `evaluate()` — the rules decide, and a
+///   jurisdiction with no `PRESCRIPTION_REQUIRED` rule returns `UNDETERMINED`
+///   however confidently this column is filled in. It supersedes
+///   `medicine_details.prescription_classification_hint`, which was PI-1's
+///   placeholder for exactly this and stays for the products that only ever had
+///   the hint.
+enum PrescriptionRequirement {
+  UNKNOWN
+  NOT_REQUIRED
+  /// Sold in a pharmacy under a pharmacist's supervision, no prescription.
+  PHARMACIST_ONLY
+  PRESCRIPTION_REQUIRED
+  /// Prescription plus a controlled-drug regime — a register, a witness, a
+  /// dedicated cabinet. WHICH obligations is `CONTROLLED_SCHEDULE` rules.
+  CONTROLLED
+}
+
+/// Whether this product may be sold to a patient remotely, here.
+enum OnlineSalePosition {
+  UNKNOWN
+  PERMITTED
+  /// Permitted with conditions the rules state — a tele-consult, an e-prescription.
+  RESTRICTED
+  PROHIBITED
+}
+
+// ---------------------------------------------------------------------------
+// The place, the regulator, and the paper trail
+// ---------------------------------------------------------------------------
+
+/// A country, or a sub-national division of one.
+///
+/// ⚠️ `(IN, NULL)` AND `(IN, KA)` ARE TWO ROWS, AND THE COUNTRY ROW IS NOT THE
+///   PARENT OF THE REGION ROW IN ANY FK SENSE. Resolution walks from the most
+///   specific to the least — a Karnataka branch consults the `IN-KA` pack and
+///   then the `IN` pack — and that walk is done by the SERVICE, from two
+///   columns, exactly the way `resolveTaxCategory` does it. A `parent_id` here
+///   would be a second way to say the same thing and would drift.
+///
+/// `regionCode` is ISO 3166-2 WITHOUT the country prefix — `KA`, not `IN-KA` —
+/// matching `@rcln/tax`'s `Jurisdiction` and every other region column in this
+/// schema. Getting it wrong makes every comparison in the programme miss.
+model Jurisdiction {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// ISO 3166-1 alpha-2.
+  countryCode String   @map("country_code") @db.Char(2)
+  /// ISO 3166-2 subdivision without the prefix. NULL = the whole country.
+  regionCode  String?  @map("region_code") @db.VarChar(16)
+  /// "India", "Karnataka". What a picker shows.
+  name        String   @db.VarChar(255)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  authorities        RegulatoryAuthority[]
+  sources            RegulatorySource[]
+  rulePacks          RegulatoryRulePack[]
+  productProfiles    ProductRegulatoryProfile[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — `region_code` is
+  /// nullable and the country-wide row is the common case, so without it the
+  /// table does not constrain its own primary shape and `IN` can be inserted
+  /// twice.
+  @@unique([countryCode, regionCode])
+  @@index([countryCode, isActive])
+  @@map("jurisdictions")
+}
+
+/// Who issues the rules. A national medicines regulator, a state drugs
+/// controller, a professional council.
+///
+/// One jurisdiction has several — India has CDSCO and each state's drugs
+/// control department, and a rule cites the one that published it.
+model RegulatoryAuthority {
+  id             String   @id @default(uuid()) @db.Uuid
+  jurisdictionId String   @map("jurisdiction_id") @db.Uuid
+  /// Stable machine key. `CDSCO`, `MHRA`, `FDA`. Uppercase, no path.
+  code           String   @db.VarChar(64)
+  name           String   @db.VarChar(255)
+  websiteUrl     String?  @map("website_url") @db.VarChar(500)
+  /// What this authority is responsible for, in a sentence. Shown beside the
+  /// name so an operator can tell two regulators of one country apart.
+  remit          String?  @db.Text
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  jurisdiction Jurisdiction         @relation(fields: [jurisdictionId], references: [id], onDelete: Restrict)
+  sources      RegulatorySource[]
+  rulePacks    RegulatoryRulePack[]
+
+  @@unique([code])
+  @@index([jurisdictionId, isActive])
+  @@map("regulatory_authorities")
+}
+
+/// One authoritative document. The registry a rule must cite to exist.
+///
+/// ⚠️ `regulatory_rules.source_id` IS NOT NULL. A rule with no source cannot be
+///   inserted, and that is the single most important constraint in this file.
+///   **Do not invent legal rules.** A rule whose source cannot be found is not
+///   written at all, and the country's cell in COUNTRY_SUPPORT_MATRIX.md stays
+///   `RESEARCH_REQUIRED` — which is a correct, useful, honest state.
+///
+/// ⚠️ A SECONDARY SOURCE IS NOT A SOURCE. A summary, a vendor blog, a law-firm
+///   note or a model's recollection may tell you where to look; the regulator's
+///   own publication is what goes in this row. `retrieved_at` is what makes that
+///   checkable later, because regulations move and a rule sourced three years
+///   ago is a rule nobody has read recently.
+model RegulatorySource {
+  id             String                 @id @default(uuid()) @db.Uuid
+  jurisdictionId String                 @map("jurisdiction_id") @db.Uuid
+  authorityId    String                 @map("authority_id") @db.Uuid
+  /// The document's own title, as published.
+  title          String                 @db.VarChar(500)
+  /// The citation a lawyer would use — an act, a rule number, a schedule.
+  documentReference String?             @map("document_reference") @db.VarChar(255)
+  /// Where it was read. ⚠️ The regulator's own domain, or a note in `notes`
+  /// saying why not.
+  sourceUrl      String?                @map("source_url") @db.VarChar(1000)
+  /// The version or amendment the citation refers to.
+  version        String?                @db.VarChar(64)
+  /// When the authority published it.
+  publishedOn    DateTime?              @map("published_on") @db.Date
+  /// When it took legal effect, where that differs from publication.
+  effectiveFrom  DateTime?              @map("effective_from") @db.Date
+  /// ⚠️ AN INSTANT, NOT A DATE — this is a thing somebody DID, and invariant 6
+  ///   governs it. It is what a staleness report reads.
+  retrievedAt    DateTime?              @map("retrieved_at") @db.Timestamptz(6)
+  reviewStatus   RegulatorySourceStatus @default(UNVERIFIED) @map("review_status")
+  notes          String?                @db.Text
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  jurisdiction Jurisdiction        @relation(fields: [jurisdictionId], references: [id], onDelete: Restrict)
+  authority    RegulatoryAuthority @relation(fields: [authorityId], references: [id], onDelete: Restrict)
+  rules        RegulatoryRule[]
+
+  @@index([jurisdictionId, reviewStatus])
+  @@index([authorityId])
+  @@map("regulatory_sources")
+}
+
+// ---------------------------------------------------------------------------
+// The pack and its rules
+// ---------------------------------------------------------------------------
+
+/// One jurisdiction, one version, a set of typed rules.
+///
+/// ⚠️ A PACK IS NEVER EDITED INTO A NEW VERSION. A change is a NEW pack row with
+///   a new `version` and a new `effective_from`, and the old one gets an
+///   `effective_to`. Every transaction that consulted the old one cites its id
+///   forever (PI-ADR-008), and re-running the engine over a historical
+///   transaction must never change what that transaction says.
+model RegulatoryRulePack {
+  id             String           @id @default(uuid()) @db.Uuid
+  jurisdictionId String           @map("jurisdiction_id") @db.Uuid
+  authorityId    String           @map("authority_id") @db.Uuid
+  /// Semantic, monotonic per jurisdiction. `1.0.0`.
+  version        String           @db.VarChar(32)
+  name           String           @db.VarChar(255)
+  description    String?          @db.Text
+  maturity       RulePackMaturity @default(ARCHITECTURE_SUPPORTED)
+  effectiveFrom  DateTime         @map("effective_from") @db.Date
+  effectiveTo    DateTime?        @map("effective_to") @db.Date
+  /// When the pack was last looked at by a person. Drives the staleness report;
+  /// an instant, not a date.
+  lastReviewedAt DateTime?        @map("last_reviewed_at") @db.Timestamptz(6)
+  /// ⚠️ THE NAME OF A HUMAN, WRITTEN BY THAT HUMAN'S OWN ACTION, and NOT a user
+  ///   id. Whoever signs a jurisdiction off is a qualified person — in-house
+  ///   counsel, a retained consultant, a registered pharmacist — and is not
+  ///   necessarily a user of this system at all. Recorded together with
+  ///   `reviewedByUserId`, which IS the account that pressed the button, because
+  ///   the two are different questions and an audit asks both.
+  reviewedBy     String?          @map("reviewed_by") @db.VarChar(255)
+  reviewedByUserId String?        @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt     DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  /// What the reviewer said. Kept because "approved" with no reasoning is not a
+  /// review anybody can stand behind later.
+  reviewNotes    String?          @map("review_notes") @db.Text
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  jurisdiction Jurisdiction        @relation(fields: [jurisdictionId], references: [id], onDelete: Restrict)
+  authority    RegulatoryAuthority @relation(fields: [authorityId], references: [id], onDelete: Restrict)
+  reviewedByUser User?             @relation("RulePackReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  rules        RegulatoryRule[]
+
+  @@unique([jurisdictionId, version])
+  @@index([jurisdictionId, maturity])
+  @@index([jurisdictionId, effectiveFrom])
+  @@map("regulatory_rule_packs")
+}
+
+/// One typed, effective-dated, source-cited statement of law.
+///
+/// ⚠️ WHICH PRODUCTS A RULE APPLIES TO IS EXPRESSED IN TYPED COLUMNS, NEVER AS
+///   AN ID INSIDE `parameters` (ADR-0006). The JSONB holds the rule's own
+///   PARAMETERS — a maximum quantity, a validity period, a list of prescriber
+///   classes — because their shape genuinely varies by jurisdiction, which is
+///   the one case that ADR permits. A foreign key in there is invisible to every
+///   constraint, every join and every cascade.
+///
+/// ⚠️ ALL THREE `applies_to_*` COLUMNS NULL MEANS "EVERY PRODUCT", AND THAT IS A
+///   REAL AND COMMON RULE — a record-retention obligation or a disposal
+///   requirement usually is. It is NOT a default and not an oversight; the
+///   engine treats it as the least specific match, so any rule naming a type, a
+///   category or a classification beats it.
+model RegulatoryRule {
+  id       String               @id @default(uuid()) @db.Uuid
+  packId   String               @map("pack_id") @db.Uuid
+  ruleType RegulatoryRuleType   @map("rule_type")
+  /// Stable machine key, unique within the pack. Cited in a decision's reasons
+  /// and in the test that pins this rule's behaviour.
+  code     String               @db.VarChar(64)
+  /// One sentence a human can read, printed verbatim in a refusal. ⚠️ It ends up
+  /// in front of a pharmacist at a counter, so it says what to DO, not what
+  /// failed.
+  statement String              @db.Text
+  status   RegulatoryRuleStatus @default(DRAFT)
+
+  // -- what it applies to (typed, never JSON) ---------------------------------
+  /// A whole class of product. NULL = not narrowed by type.
+  appliesToProductType ProductType? @map("applies_to_product_type")
+  /// ⚠️ A PLATFORM CATEGORY ONLY, ENFORCED BY A TRIGGER IN THE MIGRATION.
+  ///   `product_categories` is platform-EXTENSIBLE, so this plain FK could
+  ///   otherwise name one tenant's private category — and this table is read by
+  ///   every tenant, so the category's NAME would come back out of the join for
+  ///   all of them. That is a cross-tenant read through a table with no RLS
+  ///   policy to stop it, which is exactly the class of hole `*_visible` closes
+  ///   elsewhere. Here the fix is upstream: platform law may only speak about
+  ///   platform categories.
+  appliesToCategoryId  String?      @map("applies_to_category_id") @db.Uuid
+  /// The classification string a `product_regulatory_profiles` row asserts —
+  /// "SCHEDULE_H", "POM", "GSL". Compared EXACTLY, the way `tax_category` keys
+  /// `tax_rules`, and never parsed.
+  appliesToClassification String?   @map("applies_to_classification") @db.VarChar(64)
+  /// Which transactions this rule speaks to. ⚠️ EMPTY MEANS EVERY TRANSACTION.
+  ///   A scalar list rather than a join table because these are ENUM MEMBERS,
+  ///   not rows — there is nothing to reference and nothing to cascade, so
+  ///   ADR-0006 has nothing to say about it.
+  appliesToTransactions RegulatoryTransactionType[] @map("applies_to_transactions")
+
+  /// The rule's own parameters. A DOCUMENT, never foreign keys.
+  parameters Json      @db.JsonB
+  sourceId   String    @map("source_id") @db.Uuid
+  /// Monotonic per `(pack, code)`. A change is a new row, never an edit.
+  version    Int       @default(1)
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  pack             RegulatoryRulePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  source           RegulatorySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  appliesToCategory ProductCategory?  @relation("RegulatoryRuleCategory", fields: [appliesToCategoryId], references: [id], onDelete: Restrict)
+
+  @@unique([packId, code, version])
+  @@index([packId, ruleType, status])
+  @@index([packId, effectiveFrom])
+  @@map("regulatory_rules")
+}
+
+// ---------------------------------------------------------------------------
+// The tenant's side
+// ---------------------------------------------------------------------------
+
+/// What a product IS, in one jurisdiction, on a date. Tenant data,
+/// platform-extensible in the same shape as the rest of the catalogue.
+///
+/// ⚠️ A PRODUCT DOES NOT HAVE ONE REGULATORY NATURE. The same molecule is
+///   prescription-only in one country, pharmacy-only in another and general-sale
+///   in a third, and the classification changes over time in all of them. Any
+///   design where regulation is a column on `products` is wrong, which is why
+///   PI-1 left `prescription_classification_hint` explicitly labelled a hint.
+///
+/// ⚠️ NO ROW IS NOT A PERMISSION. A product with no profile for the jurisdiction
+///   being asked about resolves to `UNDETERMINED`, and `UNDETERMINED` refuses.
+///   A clinic-created product will often have none — that is the correct failure
+///   and the screens explain it rather than hiding it.
+model ProductRegulatoryProfile {
+  id             String  @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String? @map("organization_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  /// ⚠️ A ROW IN `jurisdictions`, NOT A COUNTRY STRING, and it is the one place
+  ///   this domain diverges from `product_tax_classifications`. A profile has to
+  ///   line up with the pack that will be evaluated against it, and a pack is
+  ///   keyed by a jurisdiction ROW; two independently typed spellings of "IN-KA"
+  ///   is how a profile silently never matches a rule.
+  jurisdictionId String  @map("jurisdiction_id") @db.Uuid
+
+  registrationNumber String?                   @map("registration_number") @db.VarChar(128)
+  registrationStatus ProductRegistrationStatus @default(UNKNOWN) @map("registration_status")
+  /// The authority's own words for what this is — `SCHEDULE_H`, `POM`, `GSL`.
+  /// Matched EXACTLY against `regulatory_rules.applies_to_classification`.
+  classification     String?                   @map("classification") @db.VarChar(64)
+  /// The controlled schedule, where the jurisdiction has one. What that schedule
+  /// OBLIGES is `CONTROLLED_SCHEDULE` rules, never this string.
+  controlledSchedule String?                   @map("controlled_schedule") @db.VarChar(64)
+  prescriptionRequirement PrescriptionRequirement @default(UNKNOWN) @map("prescription_requirement")
+  onlineSalePosition      OnlineSalePosition      @default(UNKNOWN) @map("online_sale_position")
+  /// Anything the clinic must know that is not one of the columns above —
+  /// cold chain on import, a witnessed disposal. Text, and never parsed.
+  dispensingNotes String?  @db.Text @map("dispensing_notes")
+  effectiveFrom   DateTime  @map("effective_from") @db.Date
+  effectiveTo     DateTime? @map("effective_to") @db.Date
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Optional ONLY because Prisma refuses a required relation whose scalar
+  /// fields include a nullable one. The row always has a product; the
+  /// nullability is a type-system artefact of the platform-extensible parent,
+  /// not a state the data reaches. The database constraint is unchanged.
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+  jurisdiction Jurisdiction  @relation(fields: [jurisdictionId], references: [id], onDelete: Restrict)
+
+  /// One profile per product, per jurisdiction, per start date. ⚠️ Rewritten
+  /// NULLS NOT DISTINCT in the migration — `organization_id` is nullable, so
+  /// without it two platform profiles for one product do not collide.
+  @@unique([organizationId, productId, jurisdictionId, effectiveFrom])
+  @@index([organizationId, productId])
+  @@index([organizationId, jurisdictionId])
+  @@map("product_regulatory_profiles")
+}

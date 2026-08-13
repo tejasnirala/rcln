@@ -4,15 +4,22 @@
 
 > Step one, on `admin.<root>`: check the clinic exists and issue the ticket.
 
-Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/src/services/platform/tax-registration.service.ts` · `apps/api/src/services/platform/tax-rule-default.service.ts`
+Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/src/services/platform/regulatory.service.ts` · `apps/api/src/services/platform/tax-registration.service.ts` · `apps/api/src/services/platform/tax-rule-default.service.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `approveRulePack` | `(id: string, input: ApproveRulePackRequest, actorUserId: string): Promise<RulePackSummary>` | `apps/api/src/services/platform/regulatory.service.ts:520` |  |
 | `assertCoherent` <sub>local</sub> | `(input: { treatment?: string \| undefined; rateBps?: number \|…): void` | `apps/api/src/services/platform/tax-rule-default.service.ts:101` |  |
+| `assertPackIsOpen` <sub>local</sub> | `(pack: { maturity: string; reviewedBy: string \| null }): void` | `apps/api/src/services/platform/regulatory.service.ts:761` |  |
 | `claimImpersonation` | `(input: ClaimImpersonationInput): Promise<AuthSession>` | `apps/api/src/services/platform/impersonation.service.ts:177` |  |
 | `conflict` <sub>local</sub> | `(input: { countryCode?: string; regionCode?: string \| null }): ConflictError` | `apps/api/src/services/platform/tax-registration.service.ts:85` |  |
+| `createAuthority` | `(input: CreateRegulatoryAuthorityRequest): Promise<RegulatoryAuthoritySummary>` | `apps/api/src/services/platform/regulatory.service.ts:224` |  |
+| `createJurisdiction` | `(input: CreateJurisdictionRequest): Promise<JurisdictionSummary>` | `apps/api/src/services/platform/regulatory.service.ts:149` |  |
+| `createRule` | `(packId: string, input: CreateRegulatoryRuleRequest): Promise<RegulatoryRuleDetail>` | `apps/api/src/services/platform/regulatory.service.ts:620` |  |
+| `createRulePack` | `(input: CreateRulePackRequest): Promise<RulePackSummary>` | `apps/api/src/services/platform/regulatory.service.ts:413` |  |
+| `createSource` | `(input: CreateRegulatorySourceRequest): Promise<RegulatorySourceSummary>` | `apps/api/src/services/platform/regulatory.service.ts:307` |  |
 | `createTaxRegistration` | `(input: CreateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>` | `apps/api/src/services/platform/tax-registration.service.ts:105` |  |
 | `createTaxRuleDefault` | `(input: CreateTaxRuleDefaultRequest): Promise<TaxRuleDefaultSummary>` | `apps/api/src/services/platform/tax-rule-default.service.ts:156` |  |
 | `deleteTaxRegistration` | `(id: string): Promise<void>` | `apps/api/src/services/platform/tax-registration.service.ts:185` |  |
@@ -21,15 +28,27 @@ Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/sr
 | `fromDateOnly` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/platform/tax-rule-default.service.ts:44` | `2026-08-10`. The inverse, for the wire. |
 | `handoffKey` <sub>local</sub> | `(token: string): string` | `apps/api/src/services/platform/impersonation.service.ts:84` |  |
 | `isUniqueViolation` <sub>local</sub> | `(error: unknown): boolean` | `apps/api/src/services/platform/tax-registration.service.ts:81` |  |
+| `listAuthoritiesForPlatform` | `(query: RegulatoryAuthorityQuery): Promise<RegulatoryAuthorityListResponse>` | `apps/api/src/services/platform/regulatory.service.ts:199` |  |
+| `listJurisdictionsForPlatform` | `(query: JurisdictionQuery): Promise<JurisdictionListResponse>` | `apps/api/src/services/platform/regulatory.service.ts:124` |  |
+| `listRulePacksForPlatform` | `(query: RulePackQuery): Promise<RulePackListResponse>` | `apps/api/src/services/platform/regulatory.service.ts:390` |  |
+| `listRulesForPlatform` | `(query: RegulatoryRuleQuery): Promise<RegulatoryRuleListResponse>` | `apps/api/src/services/platform/regulatory.service.ts:584` |  |
+| `listSourcesForPlatform` | `(query: RegulatorySourceQuery): Promise<RegulatorySourceListResponse>` | `apps/api/src/services/platform/regulatory.service.ts:277` |  |
 | `listTaxRegistrations` | `(at): Promise<TaxRegistrationListResponse>` | `apps/api/src/services/platform/tax-registration.service.ts:94` |  |
 | `listTaxRuleDefaults` | `(countryCode?: string): Promise<TaxRuleDefaultListResponse>` | `apps/api/src/services/platform/tax-rule-default.service.ts:136` |  |
+| `lockPack` <sub>local</sub> | `(tx: Prisma.TransactionClient, packId: string): Promise<{ id: string; maturity: string; reviewedBy: string …` | `apps/api/src/services/platform/regulatory.service.ts:105` |  |
 | `retireTaxRuleDefault` | `(id: string, effectiveTo: string): Promise<TaxRuleDefaultSummary>` | `apps/api/src/services/platform/tax-rule-default.service.ts:267` |  |
 | `startImpersonation` | `(input: StartImpersonationInput): Promise<ImpersonationGrant>` | `apps/api/src/services/platform/impersonation.service.ts:106` |  |
 | `stopImpersonation` | `(input: StopImpersonationInput): Promise<void>` | `apps/api/src/services/platform/impersonation.service.ts:382` |  |
+| `toDateOnly` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/platform/regulatory.service.ts:77` | A `Date` at UTC midnight from `YYYY-MM-DD`, matching the `date` columns. |
 | `toDateOnly` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/platform/tax-registration.service.ts:33` | A `Date` at UTC midnight from `YYYY-MM-DD`, matching the `date` column. |
 | `toDateOnly` <sub>local</sub> | `(value: string): Date` | `apps/api/src/services/platform/tax-rule-default.service.ts:39` | A `Date` at UTC midnight from `YYYY-MM-DD`, matching the `date` column. |
 | `toSummary` <sub>local</sub> | `(row: Row, at: Date): TaxRegistrationSummary` | `apps/api/src/services/platform/tax-registration.service.ts:53` |  |
 | `toSummary` <sub>local</sub> | `(row: Row, at: Date): TaxRuleDefaultSummary` | `apps/api/src/services/platform/tax-rule-default.service.ts:66` |  |
+| `updateAuthority` | `(id: string, input: UpdateRegulatoryAuthorityRequest): Promise<RegulatoryAuthoritySummary>` | `apps/api/src/services/platform/regulatory.service.ts:251` |  |
+| `updateJurisdiction` | `(id: string, input: UpdateJurisdictionRequest): Promise<JurisdictionSummary>` | `apps/api/src/services/platform/regulatory.service.ts:174` |  |
+| `updateRule` | `(id: string, input: UpdateRegulatoryRuleRequest): Promise<RegulatoryRuleDetail>` | `apps/api/src/services/platform/regulatory.service.ts:699` |  |
+| `updateRulePack` | `(id: string, input: UpdateRulePackRequest): Promise<RulePackSummary>` | `apps/api/src/services/platform/regulatory.service.ts:442` |  |
+| `updateSource` | `(id: string, input: UpdateRegulatorySourceRequest): Promise<RegulatorySourceSummary>` | `apps/api/src/services/platform/regulatory.service.ts:340` |  |
 | `updateTaxRegistration` | `(id: string, input: UpdateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>` | `apps/api/src/services/platform/tax-registration.service.ts:129` |  |
 | `updateTaxRuleDefault` | `(id: string, input: UpdateTaxRuleDefaultRequest): Promise<TaxRuleDefaultSummary>` | `apps/api/src/services/platform/tax-rule-default.service.ts:202` |  |
 
@@ -38,6 +57,14 @@ Files: `apps/api/src/services/platform/impersonation.service.ts` · `apps/api/sr
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `HANDOFF_TTL_SECONDS` <sub>local</sub> | `120` | `apps/api/src/services/platform/impersonation.service.ts:82` | The ticket's life. A browser form post, not a coffee break. |
+
+## var
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `jurisdictionSelect` <sub>local</sub> | `{ countryCode: true, regionCode: true } as const` | `apps/api/src/services/platform/regulatory.service.ts:81` |  |
+| `packInclude` <sub>local</sub> | `{ jurisdiction: { select: jurisdictionSelect }, authority: { select: { code: true } }, _c…` | `apps/api/src/services/platform/regulatory.service.ts:384` |  |
+| `ruleInclude` <sub>local</sub> | `{ pack: { select: { version: true, maturity: true, jurisdiction: { select: jurisdictionSe…` | `apps/api/src/services/platform/regulatory.service.ts:573` |  |
 
 ## interface
 

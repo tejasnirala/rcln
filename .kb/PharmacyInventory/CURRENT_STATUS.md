@@ -3,7 +3,7 @@
 The honest ledger for the Product Platform programme. Nothing is marked built
 until it is built, migrated, tested and wired to a screen.
 
-**Last updated:** 2026-08-12 · **Phase:** PI-0, PI-1, PI-2 and PI-3 complete
+**Last updated:** 2026-08-13 · **Phase:** PI-0 through PI-5 complete
 
 ⚠️ **THE REST OF THIS FILE DESCRIBES THE PRE-CODE STATE AND IS KEPT FOR THE AUDIT
 IT RECORDS, NOT AS A STATUS.** Its table of reusable infrastructure is still
@@ -37,6 +37,18 @@ transfer DOCUMENT holds it, because a sender-owned `IN_TRANSIT` bucket would
 force the receiver to write against a branch RLS hides from them. PI-22's
 valuation must add the outstanding lines of `DISPATCHED` transfers. See
 [NEXT_SESSION.md](NEXT_SESSION.md) decision 1.
+
+PI-4 shipped procurement — twelve tables, the supplier/document tenancy seam, and
+seven screens. PI-5 shipped the regulatory FRAMEWORK: six tables, the pure
+`@rcln/regulatory` engine, the sign-off ladder, and five screens. `db:rls:check`
+is green at **89** protected tables.
+
+⚠️ **PI-5 CONTAINS NO COUNTRY'S RULES AND IS WIRED INTO NO CALL SITE.** That is
+the design, not an omission: `UNDETERMINED` refuses, and with no pack configured
+anywhere, enforcing the engine today would stop every clinic on the platform from
+receiving stock. PI-6 configures the first jurisdiction and wires the callers as
+it reaches `RULES_IMPLEMENTED`. **Nothing in this repository claims legal
+compliance for any jurisdiction.**
 
 Below is the PI-0 audit as it was written, before any of that existed.
 

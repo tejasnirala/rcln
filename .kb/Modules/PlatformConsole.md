@@ -30,19 +30,35 @@ What the platform operator sees. Demo-request pipeline, provisioning, and eventu
 
 | method | path | at |
 | --- | --- | --- |
-| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:68` |
-| GET | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:119` |
-| POST | `/organizations/:organizationId/impersonate` | `apps/api/src/routes/v1/platform.routes.ts:181` |
-| GET | `/organizations/:organizationId/subscription` | `apps/api/src/routes/v1/platform.routes.ts:219` |
-| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:251` |
-| GET | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:300` |
-| POST | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:308` |
-| PATCH | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:320` |
-| DELETE | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:335` |
-| GET | `/tax-rule-defaults` | `apps/api/src/routes/v1/platform.routes.ts:384` |
-| POST | `/tax-rule-defaults` | `apps/api/src/routes/v1/platform.routes.ts:394` |
-| PATCH | `/tax-rule-defaults/:id` | `apps/api/src/routes/v1/platform.routes.ts:406` |
-| PATCH | `/tax-rule-defaults/:id/retire` | `apps/api/src/routes/v1/platform.routes.ts:421` |
+| POST | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:103` |
+| GET | `/organizations` | `apps/api/src/routes/v1/platform.routes.ts:154` |
+| POST | `/organizations/:organizationId/impersonate` | `apps/api/src/routes/v1/platform.routes.ts:216` |
+| GET | `/organizations/:organizationId/subscription` | `apps/api/src/routes/v1/platform.routes.ts:254` |
+| GET | `/demo-requests` | `apps/api/src/routes/v1/platform.routes.ts:286` |
+| GET | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:335` |
+| POST | `/tax-registrations` | `apps/api/src/routes/v1/platform.routes.ts:343` |
+| PATCH | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:355` |
+| DELETE | `/tax-registrations/:id` | `apps/api/src/routes/v1/platform.routes.ts:370` |
+| GET | `/tax-rule-defaults` | `apps/api/src/routes/v1/platform.routes.ts:419` |
+| POST | `/tax-rule-defaults` | `apps/api/src/routes/v1/platform.routes.ts:429` |
+| PATCH | `/tax-rule-defaults/:id` | `apps/api/src/routes/v1/platform.routes.ts:441` |
+| PATCH | `/tax-rule-defaults/:id/retire` | `apps/api/src/routes/v1/platform.routes.ts:456` |
+| GET | `/regulatory/jurisdictions` | `apps/api/src/routes/v1/platform.routes.ts:493` |
+| POST | `/regulatory/jurisdictions` | `apps/api/src/routes/v1/platform.routes.ts:505` |
+| PATCH | `/regulatory/jurisdictions/:id` | `apps/api/src/routes/v1/platform.routes.ts:516` |
+| GET | `/regulatory/authorities` | `apps/api/src/routes/v1/platform.routes.ts:531` |
+| POST | `/regulatory/authorities` | `apps/api/src/routes/v1/platform.routes.ts:545` |
+| PATCH | `/regulatory/authorities/:id` | `apps/api/src/routes/v1/platform.routes.ts:558` |
+| GET | `/regulatory/sources` | `apps/api/src/routes/v1/platform.routes.ts:573` |
+| POST | `/regulatory/sources` | `apps/api/src/routes/v1/platform.routes.ts:585` |
+| PATCH | `/regulatory/sources/:id` | `apps/api/src/routes/v1/platform.routes.ts:596` |
+| GET | `/regulatory/rule-packs` | `apps/api/src/routes/v1/platform.routes.ts:611` |
+| POST | `/regulatory/rule-packs` | `apps/api/src/routes/v1/platform.routes.ts:623` |
+| PATCH | `/regulatory/rule-packs/:id` | `apps/api/src/routes/v1/platform.routes.ts:634` |
+| PATCH | `/regulatory/rule-packs/:id/approve` | `apps/api/src/routes/v1/platform.routes.ts:657` |
+| GET | `/regulatory/rules` | `apps/api/src/routes/v1/platform.routes.ts:675` |
+| POST | `/regulatory/rule-packs/:packId/rules` | `apps/api/src/routes/v1/platform.routes.ts:687` |
+| PATCH | `/regulatory/rules/:id` | `apps/api/src/routes/v1/platform.routes.ts:703` |
 
 ## Database impact
 

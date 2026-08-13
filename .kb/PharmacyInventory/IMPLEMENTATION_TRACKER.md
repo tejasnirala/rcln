@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-12 (PI-2 complete)
+**Last updated:** 2026-08-13 (PI-5 complete)
 
 ## Status vocabulary
 
@@ -41,7 +41,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                           |
 | PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                           |
 | PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                           |
-| PI-5      | Global Regulatory Framework                             | PLANNED                   | PI-1                                        |
+| PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                           |
 | PI-6      | India Rule Pack                                         | PLANNED                   | PI-5                                        |
 | PI-7      | Pharmacy Dispensing                                     | **BLOCKED**               | `prescriptions` (Phase 3) + PI-3 + PI-5     |
 | PI-8      | Billing & Tax Integration                               | PLANNED                   | PI-3 (counter-sale path); PI-7 for the rest |
@@ -434,36 +434,136 @@ Neither was fixed by weakening a policy. Both would have shipped.
 
 ---
 
-# PI-4 — Procurement · PLANNED
+# PI-4 — Procurement · COMPLETE (2026-08-13)
 
-| Task    | Description                                                                           | Status      |
-| ------- | ------------------------------------------------------------------------------------- | ----------- |
-| PI-4.1  | `suppliers` + supplier tax identifiers                                                | NOT_STARTED |
-| PI-4.2  | `supplier_products` — supplier SKU, pack size, price, lead time                       | NOT_STARTED |
-| PI-4.3  | Purchase requisitions + approval                                                      | NOT_STARTED |
-| PI-4.4  | Purchase orders + lines; `NumberSequenceType.PURCHASE_ORDER`                          | NOT_STARTED |
-| PI-4.5  | Goods receipts + lines, with batch/serial capture; `NumberSequenceType.GOODS_RECEIPT` | NOT_STARTED |
-| PI-4.6  | Quality / acceptance step; rejected stock → `QUARANTINED`                             | NOT_STARTED |
-| PI-4.7  | Purchase returns                                                                      | NOT_STARTED |
-| PI-4.8  | Costing: purchase cost, moving average, cost per base unit                            | NOT_STARTED |
-| PI-4.9  | Screens: suppliers, PO workspace, GRN capture, returns                                | NOT_STARTED |
-| PI-4.10 | Tests: receipt writes ledger; over-receipt refused; cost roll-up                      | NOT_STARTED |
+⚠️ The rows below read `NOT_STARTED` until PI-5 corrected them; the phase shipped
+on `feat/pi-4-procurement` and the roll-up has said so since. See
+[CHANGELOG.md](CHANGELOG.md) and NEXT_SESSION.md for what landed.
+
+| Task    | Description                                                                           | Status       |
+| ------- | ------------------------------------------------------------------------------------- | ------------ |
+| PI-4.1  | `suppliers` + supplier tax identifiers                                                | **COMPLETE** |
+| PI-4.2  | `supplier_products` — supplier SKU, pack size, price, lead time                       | **COMPLETE** |
+| PI-4.3  | Purchase requisitions + approval                                                      | **COMPLETE** |
+| PI-4.4  | Purchase orders + lines; `NumberSequenceType.PURCHASE_ORDER`                          | **COMPLETE** |
+| PI-4.5  | Goods receipts + lines, with batch/serial capture; `NumberSequenceType.GOODS_RECEIPT` | **COMPLETE** |
+| PI-4.6  | Quality / acceptance step; rejected stock → `QUARANTINED`                             | **COMPLETE** |
+| PI-4.7  | Purchase returns                                                                      | **COMPLETE** |
+| PI-4.8  | Costing: purchase cost, moving average, cost per base unit                            | **COMPLETE** |
+| PI-4.9  | Screens: suppliers, PO workspace, GRN capture, returns                                | **COMPLETE** |
+| PI-4.10 | Tests: receipt writes ledger; over-receipt refused; cost roll-up                      | **COMPLETE** |
 
 ---
 
-# PI-5 — Global Regulatory Framework · PLANNED
+# PI-5 — Global Regulatory Framework · COMPLETE (2026-08-13)
 
-| Task   | Description                                                                                   | Status      |
-| ------ | --------------------------------------------------------------------------------------------- | ----------- |
-| PI-5.1 | `jurisdictions`, `regulatory_authorities`                                                     | NOT_STARTED |
-| PI-5.2 | `regulatory_rules` + `regulatory_rule_packs`, versioned and effective-dated (PI-ADR-008)      | NOT_STARTED |
-| PI-5.3 | `regulatory_sources` — the source registry                                                    | NOT_STARTED |
-| PI-5.4 | `product_regulatory_profiles` — one product, many jurisdictions                               | NOT_STARTED |
-| PI-5.5 | `@rcln/regulatory` — the pure evaluation package (PI-ADR-007)                                 | NOT_STARTED |
-| PI-5.6 | Rule-pack maturity states + the "not compliance" banner (PI-ADR-009)                          | NOT_STARTED |
-| PI-5.7 | New permission codes `regulatory.*`                                                           | NOT_STARTED |
-| PI-5.8 | Screens: jurisdictions, authorities, product regulatory profile, rule status/version, sources | NOT_STARTED |
-| PI-5.9 | Tests: rule resolution by date; region beats country; **no rule → refuse, never permit**      | NOT_STARTED |
+**Dependencies:** PI-1. **Priority:** P0 — PI-6 and every later rule pack sit on it.
+**Branch:** `feat/pi-5-regulatory-framework`.
+
+| Task   | Description                                                                                   | Status       |
+| ------ | --------------------------------------------------------------------------------------------- | ------------ |
+| PI-5.1 | `jurisdictions`, `regulatory_authorities`                                                     | **COMPLETE** |
+| PI-5.2 | `regulatory_rules` + `regulatory_rule_packs`, versioned and effective-dated (PI-ADR-008)      | **COMPLETE** |
+| PI-5.3 | `regulatory_sources` — the source registry                                                    | **COMPLETE** |
+| PI-5.4 | `product_regulatory_profiles` — one product, many jurisdictions                               | **COMPLETE** |
+| PI-5.5 | `@rcln/regulatory` — the pure evaluation package (PI-ADR-007)                                 | **COMPLETE** |
+| PI-5.6 | Rule-pack maturity states + the "not compliance" banner (PI-ADR-009)                          | **COMPLETE** |
+| PI-5.7 | New permission codes `regulatory.*`                                                           | **COMPLETE** |
+| PI-5.8 | Screens: jurisdictions, authorities, product regulatory profile, rule status/version, sources | **COMPLETE** |
+| PI-5.9 | Tests: rule resolution by date; region beats country; **no rule → refuse, never permit**      | **COMPLETE** |
+
+| Area        | What landed                                                                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | `regulatory.prisma` — 6 tables, 8 enums. Five are PLATFORM (no `organization_id`); `product_regulatory_profiles` is platform-extensible tenant data |
+| Migration   | `20260818090000_regulatory_framework` — NULLS NOT DISTINCT, 5 CHECKs, 2 trigger functions, grants                                                   |
+| RLS         | `db:rls:check` green at **89** (was 88). The five platform tables are EXEMPT with the `tax_rule_defaults` reasoning, and guarded by a trigger       |
+| Package     | **`@rcln/regulatory`** — `evaluate()`, pure, no Prisma, no clock. 43 unit tests                                                                     |
+| Permissions | `regulatory.rule.read` / `.manage`, `regulatory.pack.approve`, `product.regulatory.read` / `.manage`                                                |
+| Contracts   | `packages/contracts/src/regulatory.ts`                                                                                                              |
+| Services    | `services/regulatory/` (catalogue, profile, evaluation, shared) · `services/platform/regulatory.service.ts`                                         |
+| Routes      | `/v1/regulatory/{jurisdictions,authorities,sources,rule-packs,rules,evaluate}` · `/v1/platform/regulatory/*` · product regulatory profiles          |
+| Web         | `/regulatory` — Places, Regulators, Rule packs (+ detail), Sources; the maturity rail; a Regulatory tab on the product; "Rules" nav entry           |
+| Tests       | 43 package unit · 16 integration · 13 isolation. **Isolation suite at 307 across 15 files**; every API slice green                                  |
+
+### The four decisions PI-5 was required to make
+
+**1. The law is platform data with NO RLS policy, and a trigger is what protects it.**
+`jurisdictions`, `regulatory_authorities`, `regulatory_sources`,
+`regulatory_rule_packs` and `regulatory_rules` have no `organization_id` — the same
+argument `tax_rule_defaults` already carries, with the same fail-closed
+consequence if it were scoped: every tenant reads them inside its OWN transaction,
+so a policy returns zero rows for everybody, no rule matches, and every decision
+is `UNDETERMINED` — which refuses. Nobody could dispense anywhere.
+
+⚠️ **`@rcln/db/unsafe` IS NOT AN OWNER CONNECTION** — it is `rcln_app` with no
+session variables — so a SELECT-only grant would have locked the platform console
+out too. `platform_law_not_tenant_writable` refuses any INSERT/UPDATE/DELETE from
+a transaction that claims a tenant, which is the same discriminator
+`refuse_platform_row_mutation` uses.
+
+**2. `UNDETERMINED` refuses, and PI-5 wires it into NOTHING.** With no pack
+configured anywhere, every evaluation is `UNDETERMINED`; calling `evaluateFor`
+from the goods-receipt path today would stop every clinic on the platform from
+receiving stock. PI-5 ships the engine, the data and `POST /v1/regulatory/evaluate`
+— PI-6 wires the call sites as it reaches `RULES_IMPLEMENTED`.
+
+**3. `REGULATORY_REVIEWED` is an eighth maturity, which PI-ADR-009's chain does
+not draw.** That ADR's own prohibition names it, and reviewing content and
+deciding to act on it are two events. Collapsing them makes review and rollout one
+button. Recorded as a deliberate refinement, like PI-2's `EXPIRY`-is-a-MOVE and
+PI-3's document-held in-transit.
+
+**4. A rule may only name a PLATFORM product category.** `regulatory_rules` has no
+policy to AND a `*_visible` one with, so a rule pointing at a clinic's private
+category would leak that category's name to every other clinic through the rule
+screen's join. Refused upstream by `regulatory_rule_category_is_platform`.
+
+### Deliberately NOT in PI-5
+
+- **`regulatory_decisions` — the decision snapshot table — is not built.**
+  PI-ADR-008 requires every dispensing and consumption transaction to snapshot the
+  decision that produced it, and neither transaction exists yet (PI-7, PI-9 are
+  blocked on `prescriptions` and `encounters`). The DECISION already carries
+  everything the snapshot needs — `packVersionIds`, the reasons, the conditions,
+  the lowest maturity — so the table lands with its first writer rather than as a
+  polymorphic guess about a subject that does not exist.
+- **No country's rules.** PI-6 onwards, each cited to a source somebody checked.
+- **The platform console has no SCREENS.** The endpoints are complete and tested;
+  the admin UI for them is PI-6's, alongside the first pack somebody actually has
+  to enter.
+
+### The reviews
+
+Both run, every finding fixed. `security-reviewer`: **no CRITICAL, no HIGH** — the
+exemption argument for the five policy-less platform tables was attacked directly
+and held. One MEDIUM: a signed-off pack's DATES were editable, and `loadRules`
+filters on exactly that window, so a `{ "effectiveTo": … }` PATCH took every rule
+in a reviewed pack out of force platform-wide.
+
+`code-reviewer`: **four CRITICALs.** Three were one mistake — a parameters
+document that omitted its rule type's essential key read as PERMISSIVE, so
+`{ "require": true }` (one typo) made a prescription-only medicine general-sale,
+and because a regional rule supersedes the national one of its type, it took the
+rule that would have refused with it. The fourth was PI-4's lesson verbatim:
+`createRule` read the pack it decided against and wrote to a different table with
+no lock.
+
+⚠️ **The concurrency test took three attempts and the first two passed with the
+lock removed.** See [NEXT_SESSION.md](NEXT_SESSION.md) decision 6 — it is the
+part of this phase most likely to be repeated.
+
+Full detail in [CHANGELOG.md](CHANGELOG.md).
+
+### Still open
+
+- **Nothing has been clicked in a browser.** The same item PI-1 through PI-4 each
+  left, now across five more screens.
+- **`regulatory.pack.approve` is held by nobody.** That is correct and
+  deliberate (OD-5), and it means PI-6 cannot reach `PRODUCTION_ENABLED` for India
+  until a named person is granted it.
+- **`RegulatoryActor.roleCodes` carries PERMISSION codes.** Documented rather than
+  renamed, because `permittedRoleCodes` is the parameter key a pack is written
+  against — PI-6 should rename both before the first pack exists.
 
 ---
 

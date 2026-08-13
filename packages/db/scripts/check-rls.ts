@@ -48,6 +48,32 @@ const EXEMPT: Record<string, string> = {
     'arrives on a public endpoint before the tenant is known — the reference resolves to an organization only after the signature verifies, and deduplication must be global (see enable-rls.sql)',
   setting_definitions: 'static catalogue',
   setting_values: 'scoped by (scope_type, scope_id), not organization_id',
+  /*
+   * The regulatory framework's five platform tables (PI-5). The LAW of a
+   * jurisdiction: published by rcln, identical for every clinic in it, with
+   * nothing tenant-specific in a row — so there is no organization_id to scope
+   * by, exactly as for `tax_rule_defaults` above.
+   *
+   * ⚠️ And the same fail-closed consequence if they were scoped: every tenant
+   *   reads them INSIDE its own transaction to evaluate its own dispensing, so a
+   *   policy would return zero rows for everyone, no rule would ever match, and
+   *   every decision would come back UNDETERMINED — which refuses. Nobody could
+   *   dispense anything anywhere.
+   *
+   * ⚠️ Unlike `tax_rule_defaults`, these do not rely on the absence of a service
+   *   that writes them from a tenant path. The `platform_law_not_tenant_writable`
+   *   trigger refuses any write from a transaction that claims a tenant.
+   */
+  jurisdictions:
+    'a jurisdiction is a place, not a clinic — platform reference data every tenant reads inside its own transaction (see enable-rls.sql)',
+  regulatory_authorities:
+    'a regulator is a public body, not a clinic — platform reference data, guarded by the platform_law_not_tenant_writable trigger (see enable-rls.sql)',
+  regulatory_sources:
+    'the citation registry behind the rules — published documents, identical for every clinic, write-guarded by trigger (see enable-rls.sql)',
+  regulatory_rule_packs:
+    'the LAW of a jurisdiction, like tax_rule_defaults. Scoping it would return zero rows for every tenant, so every dispensing decision would be UNDETERMINED and refuse. Tenant assertions live in product_regulatory_profiles, which IS scoped (see enable-rls.sql)',
+  regulatory_rules:
+    'as regulatory_rule_packs — a rule is a statement of law, not a fact about a clinic (see enable-rls.sql)',
   demo_requests:
     'public marketing form — submitted before any organization exists, so there is no organization_id to scope by',
   _prisma_migrations: 'prisma internal',

@@ -8,35 +8,37 @@ Source: `apps/api/src/routes/v1/products.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/products.routes.ts:97` |
-| GET | `/resolve` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(resolveIdentifierQuery)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:116` |
-| GET | `/` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productListQuery)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:126` |
-| GET | `/:productId` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:136` |
-| GET | `/:productId/equivalents` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:154` |
-| GET | `/:productId/packagings` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:164` |
-| GET | `/:productId/identifiers` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:174` |
-| GET | `/:productId/tax-classifications` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:189` |
-| GET | `/:productId/medicine` | `authorize(PERMISSIONS.MEDICINE_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:207` |
-| POST | `/` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(createProductRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:219` |
-| PATCH | `/:productId` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `validate(updateProductRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:233` |
-| POST | `/:productId/clone` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `validate(cloneBody)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:258` |
-| PUT | `/:productId/packagings` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `validate(replaceProductPackagingRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:278` |
-| POST | `/:productId/identifiers` | `authorize(PERMISSIONS.PRODUCT_IDENTIFIER_MANAGE)` → `validate(productParams)` → `validate(createProductIdentifierRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:295` |
-| DELETE | `/:productId/identifiers/:identifierId` | `authorize(PERMISSIONS.PRODUCT_IDENTIFIER_MANAGE)` → `validate(identifierParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:317` |
-| PUT | `/:productId/tax-classifications` | `authorize(PERMISSIONS.BILLING_TAX_MANAGE)` → `validate(productParams)` → `validate(replaceProductTaxClassificationsRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:329` |
-| PUT | `/:productId/medicine` | `authorize(PERMISSIONS.MEDICINE_MANAGE)` → `validate(productParams)` → `validate(medicineDetailRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:346` |
-| DELETE | `/:productId` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:372` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/products.routes.ts:103` |
+| GET | `/resolve` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(resolveIdentifierQuery)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:122` |
+| GET | `/` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productListQuery)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:132` |
+| GET | `/:productId` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:142` |
+| GET | `/:productId/equivalents` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:160` |
+| GET | `/:productId/packagings` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:170` |
+| GET | `/:productId/identifiers` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:180` |
+| GET | `/:productId/tax-classifications` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:195` |
+| GET | `/:productId/regulatory-profiles` | `authorize(PERMISSIONS.PRODUCT_REGULATORY_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:221` |
+| GET | `/:productId/medicine` | `authorize(PERMISSIONS.MEDICINE_READ)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:239` |
+| POST | `/` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(createProductRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:251` |
+| PATCH | `/:productId` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `validate(updateProductRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:265` |
+| POST | `/:productId/clone` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `validate(cloneBody)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:290` |
+| PUT | `/:productId/packagings` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `validate(replaceProductPackagingRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:310` |
+| POST | `/:productId/identifiers` | `authorize(PERMISSIONS.PRODUCT_IDENTIFIER_MANAGE)` → `validate(productParams)` → `validate(createProductIdentifierRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:327` |
+| DELETE | `/:productId/identifiers/:identifierId` | `authorize(PERMISSIONS.PRODUCT_IDENTIFIER_MANAGE)` → `validate(identifierParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:349` |
+| PUT | `/:productId/tax-classifications` | `authorize(PERMISSIONS.BILLING_TAX_MANAGE)` → `validate(productParams)` → `validate(replaceProductTaxClassificationsRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:361` |
+| PUT | `/:productId/regulatory-profiles` | `authorize(PERMISSIONS.PRODUCT_REGULATORY_MANAGE)` → `validate(productParams)` → `validate(replaceProductRegulatoryProfilesRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:378` |
+| PUT | `/:productId/medicine` | `authorize(PERMISSIONS.MEDICINE_MANAGE)` → `validate(productParams)` → `validate(medicineDetailRequest)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:395` |
+| DELETE | `/:productId` | `authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)` → `validate(productParams)` → `<inline>` | `apps/api/src/routes/v1/products.routes.ts:421` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `productParams` | `apps/api/src/routes/v1/products.routes.ts:99` |
-| `cloneBody` | `apps/api/src/routes/v1/products.routes.ts:101` |
+| `productParams` | `apps/api/src/routes/v1/products.routes.ts:105` |
+| `cloneBody` | `apps/api/src/routes/v1/products.routes.ts:107` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`CreateProductIdentifierRequest` · `CreateProductRequest` · `MedicineDetailRequest` · `ProductListQuery` · `ReplaceProductPackagingRequest` · `ReplaceProductTaxClassificationsRequest` · `ResolveIdentifierQuery` · `UpdateProductRequest` · `createProductIdentifierRequest` · `createProductRequest` · `medicineDetailRequest` · `productListQuery` · `replaceProductPackagingRequest` · `replaceProductTaxClassificationsRequest` · `resolveIdentifierQuery` · `updateProductRequest`
+`CreateProductIdentifierRequest` · `CreateProductRequest` · `MedicineDetailRequest` · `ProductListQuery` · `ReplaceProductPackagingRequest` · `ReplaceProductRegulatoryProfilesRequest` · `ReplaceProductTaxClassificationsRequest` · `ResolveIdentifierQuery` · `UpdateProductRequest` · `createProductIdentifierRequest` · `createProductRequest` · `medicineDetailRequest` · `productListQuery` · `replaceProductPackagingRequest` · `replaceProductRegulatoryProfilesRequest` · `replaceProductTaxClassificationsRequest` · `resolveIdentifierQuery` · `updateProductRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

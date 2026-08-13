@@ -1,8 +1,24 @@
 import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
+  approveRulePackRequest,
+  createJurisdictionRequest,
+  createRegulatoryAuthorityRequest,
+  createRegulatoryRuleRequest,
+  createRegulatorySourceRequest,
+  createRulePackRequest,
   createTaxRegistrationRequest,
   createTaxRuleDefaultRequest,
+  jurisdictionQuery,
+  regulatoryAuthorityQuery,
+  regulatoryRuleQuery,
+  regulatorySourceQuery,
+  rulePackQuery,
+  updateJurisdictionRequest,
+  updateRegulatoryAuthorityRequest,
+  updateRegulatoryRuleRequest,
+  updateRegulatorySourceRequest,
+  updateRulePackRequest,
   impersonateRequest,
   registerOrganizationRequest,
   updateTaxRegistrationRequest,
@@ -27,12 +43,31 @@ import {
   updateTaxRegistration,
 } from '../../services/platform/tax-registration.service.js';
 import {
+  approveRulePack,
+  createAuthority,
+  createJurisdiction,
+  createRule,
+  createRulePack,
+  createSource,
+  listAuthoritiesForPlatform,
+  listJurisdictionsForPlatform,
+  listRulePacksForPlatform,
+  listRulesForPlatform,
+  listSourcesForPlatform,
+  updateAuthority,
+  updateJurisdiction,
+  updateRule,
+  updateRulePack,
+  updateSource,
+} from '../../services/platform/regulatory.service.js';
+import {
   createTaxRuleDefault,
   listTaxRuleDefaults,
   retireTaxRuleDefault,
   updateTaxRuleDefault,
 } from '../../services/platform/tax-rule-default.service.js';
 import { paymentProvider } from '../../services/billing/provider.js';
+import { AuthenticationError } from '../../utils/errors.js';
 import { sendSuccess } from '../../utils/response.js';
 
 /**
@@ -427,6 +462,256 @@ router.patch(
     const { id } = req.params as unknown as z.infer<typeof taxRuleDefaultParams>;
     const { effectiveTo } = req.body as z.infer<typeof retireTaxRuleDefaultBody>;
     sendSuccess(res, await retireTaxRuleDefault(id, effectiveTo), 'Default tax rule retired');
+  }
+);
+
+// ===========================================================================
+// The regulatory console (PI-5)
+//
+// ⚠️ A WRITE HERE CHANGES WHAT EVERY CLINIC IN A JURISDICTION IS EVALUATED
+//   AGAINST, IMMEDIATELY. No publish step, no cache: the engine loads these rows
+//   at decision time. Same posture as `/tax-rule-defaults` above, and one degree
+//   worse in consequence — a wrong rate is a wrong number on a document, a wrong
+//   rule is a medicine handed over that should not have been.
+//
+// ⚠️ **DO NOT INVENT LEGAL RULES.** `regulatory_rules.source_id` is NOT NULL and
+//   a source is the REGULATOR'S OWN PUBLICATION. If one cannot be found, the
+//   rule is not written and the matrix cell stays `RESEARCH_REQUIRED`.
+//
+// ⚠️ `PATCH /rule-packs/:id/approve` IS THE ONLY PATH TO `REGULATORY_REVIEWED`
+//   AND `PRODUCTION_ENABLED`, and it is gated on `regulatory.pack.approve` —
+//   a code NO system role holds, granted to a named human out of band (OD-5).
+//   Every other endpoint here accepts only `codeSettableMaturity`, in which
+//   those two states cannot be expressed (PI-ADR-009).
+// ===========================================================================
+
+const regulatoryIdParams = z.object({ id: z.uuid() });
+const rulePackIdParams = z.object({ packId: z.uuid() });
+
+const REGULATORY_MANAGE = PERMISSIONS.REGULATORY_MANAGE;
+
+router.get(
+  '/regulatory/jurisdictions',
+  authorize(REGULATORY_MANAGE),
+  validate(jurisdictionQuery, 'query'),
+  async (req: Request, res: Response) => {
+    sendSuccess(
+      res,
+      await listJurisdictionsForPlatform(req.query as unknown as z.infer<typeof jurisdictionQuery>)
+    );
+  }
+);
+
+router.post(
+  '/regulatory/jurisdictions',
+  authorize(REGULATORY_MANAGE),
+  validate(createJurisdictionRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const created = await createJurisdiction(req.body as z.infer<typeof createJurisdictionRequest>);
+    res.status(201);
+    sendSuccess(res, created, 'Jurisdiction created');
+  }
+);
+
+router.patch(
+  '/regulatory/jurisdictions/:id',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatoryIdParams, 'params'),
+  validate(updateJurisdictionRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof regulatoryIdParams>;
+    sendSuccess(
+      res,
+      await updateJurisdiction(id, req.body as z.infer<typeof updateJurisdictionRequest>),
+      'Jurisdiction updated'
+    );
+  }
+);
+
+router.get(
+  '/regulatory/authorities',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatoryAuthorityQuery, 'query'),
+  async (req: Request, res: Response) => {
+    sendSuccess(
+      res,
+      await listAuthoritiesForPlatform(
+        req.query as unknown as z.infer<typeof regulatoryAuthorityQuery>
+      )
+    );
+  }
+);
+
+router.post(
+  '/regulatory/authorities',
+  authorize(REGULATORY_MANAGE),
+  validate(createRegulatoryAuthorityRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const created = await createAuthority(
+      req.body as z.infer<typeof createRegulatoryAuthorityRequest>
+    );
+    res.status(201);
+    sendSuccess(res, created, 'Regulatory authority created');
+  }
+);
+
+router.patch(
+  '/regulatory/authorities/:id',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatoryIdParams, 'params'),
+  validate(updateRegulatoryAuthorityRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof regulatoryIdParams>;
+    sendSuccess(
+      res,
+      await updateAuthority(id, req.body as z.infer<typeof updateRegulatoryAuthorityRequest>),
+      'Regulatory authority updated'
+    );
+  }
+);
+
+router.get(
+  '/regulatory/sources',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatorySourceQuery, 'query'),
+  async (req: Request, res: Response) => {
+    sendSuccess(
+      res,
+      await listSourcesForPlatform(req.query as unknown as z.infer<typeof regulatorySourceQuery>)
+    );
+  }
+);
+
+router.post(
+  '/regulatory/sources',
+  authorize(REGULATORY_MANAGE),
+  validate(createRegulatorySourceRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const created = await createSource(req.body as z.infer<typeof createRegulatorySourceRequest>);
+    res.status(201);
+    sendSuccess(res, created, 'Source recorded');
+  }
+);
+
+router.patch(
+  '/regulatory/sources/:id',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatoryIdParams, 'params'),
+  validate(updateRegulatorySourceRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof regulatoryIdParams>;
+    sendSuccess(
+      res,
+      await updateSource(id, req.body as z.infer<typeof updateRegulatorySourceRequest>),
+      'Source updated'
+    );
+  }
+);
+
+router.get(
+  '/regulatory/rule-packs',
+  authorize(REGULATORY_MANAGE),
+  validate(rulePackQuery, 'query'),
+  async (req: Request, res: Response) => {
+    sendSuccess(
+      res,
+      await listRulePacksForPlatform(req.query as unknown as z.infer<typeof rulePackQuery>)
+    );
+  }
+);
+
+router.post(
+  '/regulatory/rule-packs',
+  authorize(REGULATORY_MANAGE),
+  validate(createRulePackRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const created = await createRulePack(req.body as z.infer<typeof createRulePackRequest>);
+    res.status(201);
+    sendSuccess(res, created, 'Rule pack created');
+  }
+);
+
+router.patch(
+  '/regulatory/rule-packs/:id',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatoryIdParams, 'params'),
+  validate(updateRulePackRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof regulatoryIdParams>;
+    sendSuccess(
+      res,
+      await updateRulePack(id, req.body as z.infer<typeof updateRulePackRequest>),
+      'Rule pack updated'
+    );
+  }
+);
+
+/**
+ * A named human signing a jurisdiction off (OD-5, PI-ADR-009).
+ *
+ * ⚠️ `REGULATORY_PACK_APPROVE`, NOT `REGULATORY_MANAGE`, AND THAT IS THE WHOLE
+ *   POINT OF THIS ENDPOINT EXISTING SEPARATELY. Whoever maintains the rules is
+ *   not thereby whoever may declare them reviewed; the code is held by counsel,
+ *   a retained consultant or a registered pharmacist, and by nobody by default.
+ */
+router.patch(
+  '/regulatory/rule-packs/:id/approve',
+  authorize(PERMISSIONS.REGULATORY_PACK_APPROVE),
+  validate(regulatoryIdParams, 'params'),
+  validate(approveRulePackRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof regulatoryIdParams>;
+    const actorUserId = req.auth?.userId;
+    if (!actorUserId) throw new AuthenticationError('Authentication required');
+
+    sendSuccess(
+      res,
+      await approveRulePack(id, req.body as z.infer<typeof approveRulePackRequest>, actorUserId),
+      'Rule pack sign-off recorded'
+    );
+  }
+);
+
+router.get(
+  '/regulatory/rules',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatoryRuleQuery, 'query'),
+  async (req: Request, res: Response) => {
+    sendSuccess(
+      res,
+      await listRulesForPlatform(req.query as unknown as z.infer<typeof regulatoryRuleQuery>)
+    );
+  }
+);
+
+router.post(
+  '/regulatory/rule-packs/:packId/rules',
+  authorize(REGULATORY_MANAGE),
+  validate(rulePackIdParams, 'params'),
+  validate(createRegulatoryRuleRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { packId } = req.params as unknown as z.infer<typeof rulePackIdParams>;
+    const created = await createRule(
+      packId,
+      req.body as z.infer<typeof createRegulatoryRuleRequest>
+    );
+    res.status(201);
+    sendSuccess(res, created, 'Rule added');
+  }
+);
+
+router.patch(
+  '/regulatory/rules/:id',
+  authorize(REGULATORY_MANAGE),
+  validate(regulatoryIdParams, 'params'),
+  validate(updateRegulatoryRuleRequest, 'body'),
+  async (req: Request, res: Response) => {
+    const { id } = req.params as unknown as z.infer<typeof regulatoryIdParams>;
+    sendSuccess(
+      res,
+      await updateRule(id, req.body as z.infer<typeof updateRegulatoryRuleRequest>),
+      'Rule updated'
+    );
   }
 );
 

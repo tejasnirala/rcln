@@ -181,6 +181,16 @@ function clinicNav(permissions: string[]): NavLink[] {
       ],
     },
     /*
+     * What the law allows to be done with the things in that catalogue (PI-5).
+     *
+     * ⚠️ "RULES", NOT "REGULATORY", the same choice as Stock over Inventory and
+     *   Buying over Procurement. And the section is READ-ONLY at every clinic:
+     *   the law of a country is maintained by rcln and is the same for everybody
+     *   in it. A clinic's own regulatory work is on its products, under
+     *   Catalogue, which is why there is no manage code in this list.
+     */
+    { href: '/regulatory/jurisdictions', label: 'Rules', permission: ['regulatory.rule.read'] },
+    /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the
      * permission that guards it: a clock format is a preference and a tax rate
