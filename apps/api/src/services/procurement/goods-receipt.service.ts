@@ -59,6 +59,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../utils/error
 import { recordAudit } from '../audit/audit.service.js';
 import { issueNumber } from '../numbering/number-sequence.service.js';
 import { recordMovementIn } from '../inventory/movement.service.js';
+import { consultForStockMovement } from '../regulatory/consult.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
 import { rollReceiptIntoAverage } from './costing.service.js';
 import {
@@ -1011,6 +1012,28 @@ export async function postGoodsReceipt(
         );
         takenPerOrderLine.set(orderLine.id, taken.add(line.receivedQuantityBase));
       }
+
+      /*
+       * ⚠️ BEFORE THE BATCH EXISTS AND BEFORE THE LEDGER MOVES, SO A REFUSAL
+       *   LEAVES NOTHING BEHIND. Asking after `recordMovementIn` would mean a
+       *   blocked line had already minted stock and created a lot, and the
+       *   rollback would depend on the transaction rather than on the order —
+       *   true today, and exactly the assumption that breaks the first time
+       *   somebody splits this loop.
+       *
+       * Nothing blocks yet: `consultForStockMovement` throws only for a pack a
+       * human has signed off. See `regulatory/enforcement.ts`.
+       */
+      await consultForStockMovement(tx, ctx, {
+        branchId: existing.branchId,
+        productId: line.productId,
+        locationId: location.id,
+        quantityBase: toQuantityString(line.receivedQuantityBase),
+        transaction: 'STOCK',
+        occurredAt: existing.receivedAt,
+        documentType: 'GOODS_RECEIPT',
+        documentId: existing.id,
+      });
 
       const batchId = await findOrCreateBatch(tx, ctx, existing.branchId, line);
       const serialId = await createSerialIfNeeded(

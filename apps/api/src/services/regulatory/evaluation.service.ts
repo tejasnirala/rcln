@@ -9,15 +9,18 @@
  *   second opinion about the law, and they diverge in the direction nobody
  *   notices — the permissive one.
  *
- * ── WHAT PI-5 DELIBERATELY DOES NOT DO ───────────────────────────────────────
- * ⚠️ NOTHING IS WIRED INTO GOODS RECEIPT OR TRANSFER YET, and that is a decision
- *   rather than an omission. With no rule pack configured anywhere, every
- *   evaluation returns `UNDETERMINED` — which REFUSES — so calling this from the
- *   receipt path today would stop every clinic on the platform from receiving
- *   stock. PI-6 configures the first jurisdiction and wires the call sites as
- *   part of reaching `RULES_IMPLEMENTED`; until then this is reachable through
- *   `POST /v1/regulatory/evaluate`, which is how a clinic can SEE what the
- *   engine would say without anything depending on it.
+ * ── WHO CONSULTS THIS, AND WHAT HAPPENS TO THE ANSWER (PI-6.7) ───────────────
+ * Goods receipt and transfer now ask, through `regulatory/consult.ts`, inside
+ * their own posting transaction — which is why `evaluateWithin` exists.
+ *
+ * ⚠️ THEY ASK, AND TODAY NOTHING STOPS THEM, AND THAT IS DELIBERATE RATHER THAN
+ *   UNFINISHED. One country has a rule pack, so nearly every evaluation on the
+ *   platform answers `UNDETERMINED` — which REFUSES — and a call site that threw
+ *   on a non-permission would stop every clinic elsewhere from receiving stock.
+ *   `regulatory/enforcement.ts` is the gate: a decision may only stop a document
+ *   once a named human has moved its pack to `PRODUCTION_ENABLED`, which no code
+ *   path may do. Until then the answer is logged where an operator can see it.
+ *   Read that file before changing any of this.
  *
  * ── THE THREE THINGS THE CALLER MUST GET RIGHT ───────────────────────────────
  *   the jurisdiction   the BRANCH's, not the patient's — a supply happens where
@@ -242,177 +245,224 @@ export interface RegulatoryActorInput {
   licenceTypes?: readonly string[];
 }
 
+/**
+ * The evaluation itself, inside a transaction the CALLER already opened.
+ *
+ * ⚠️ THIS EXISTS SO A DOCUMENT CAN CONSULT THE LAW AS PART OF POSTING ITSELF,
+ *   AND `evaluateFor` BELOW IS NOW ONLY A WRAPPER. Goods receipt and transfer
+ *   ask this question in the middle of their own `withTenant` — they have
+ *   already locked rows and are about to write the ledger — and calling
+ *   `evaluateFor` there would open a SECOND transaction. That second
+ *   transaction cannot see the uncommitted work of the first, would take its own
+ *   snapshot, and on a pooled connection can deadlock against the locks the
+ *   outer one is holding. A regulatory answer read outside the transaction that
+ *   acts on it is also an answer about a different moment than the write.
+ *
+ * ⚠️ IT STILL TAKES `ctx`, BECAUSE THE TENANT CONTEXT IS NOT THE TRANSACTION.
+ *   `ctx.branchIds` is the caller's branch scope and is what stops a named
+ *   branch outside it being evaluated; `tx` only carries the session variables.
+ */
+export async function evaluateWithin(
+  tx: TxClient,
+  ctx: TenantContext,
+  input: EvaluateRegulatoryRequest,
+  actor: RegulatoryActorInput
+): Promise<RegulatoryDecisionResponse> {
+  const product = await tx.product.findUnique({
+    where: { id: input.productId },
+    select: { id: true, type: true, categoryId: true, compositionId: true, deletedAt: true },
+  });
+  if (!product || product.deletedAt) throw new NotFoundError('Product');
+
+  /*
+   * ⚠️ THE BRANCH'S JURISDICTION, NOT THE PATIENT'S. A supply happens where the
+   *   counter is; taking it from a patient's address would let a clinic in one
+   *   state dispense under another state's rules because of where somebody
+   *   lives. The caller may override it — an online order asks about its
+   *   DESTINATION — which is why `destinationCountryCode` is a separate field
+   *   and not this one.
+   */
+  /*
+   * ⚠️ THE BRANCH THE REQUEST NAMES, NOT THE FIRST ONE IN SCOPE. This used to
+   *   be `ctx.branchIds[0]`, so a caller with membership at branches in two
+   *   states was evaluated against whichever id happened to sort first —
+   *   arbitrary, silent, and wrong half the time. A named branch must also be
+   *   one this caller may act in; `branchIds` is the scope RLS already
+   *   enforces, so an id outside it is NOT FOUND rather than FORBIDDEN, for
+   *   the reason every branch-scoped service in this codebase gives.
+   */
+  if (input.branchId && !ctx.branchIds.includes(input.branchId)) {
+    throw new NotFoundError('Branch');
+  }
+  const branchId = input.branchId ?? (ctx.branchIds.length === 1 ? ctx.branchIds[0] : undefined);
+  const branch = branchId
+    ? await tx.branch.findUnique({
+        where: { id: branchId },
+        select: { countryCode: true, regionCode: true },
+      })
+    : null;
+
+  const countryCode = input.countryCode ?? branch?.countryCode;
+  if (!countryCode) {
+    /*
+     * ⚠️ REFUSED RATHER THAN GUESSED, INCLUDING THE MULTI-BRANCH CASE. A
+     *   caller who works at several branches and names neither a branch nor a
+     *   country has asked a question with more than one answer, and picking
+     *   one is exactly the silent-arbitrary behaviour this domain cannot have.
+     */
+    throw new ValidationError(
+      ctx.branchIds.length > 1
+        ? 'This request could be about more than one branch. Name the branch, or the country, so the rules of one place are the ones applied.'
+        : 'No jurisdiction to evaluate against: this request names no country and the branch has none.'
+    );
+  }
+  const place: Jurisdiction = {
+    countryCode,
+    regionCode: input.regionCode ?? (input.countryCode ? null : (branch?.regionCode ?? null)),
+  };
+
+  const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date();
+  const day = startOfCalendarDay(occurredAt);
+
+  const location = input.locationId
+    ? await tx.inventoryLocation.findUnique({
+        where: { id: input.locationId },
+        /*
+         * ⚠️ BOTH FLAGS, BECAUSE A LOCATION CARRIES ITS OWN AND A PROFILE
+         *   CARRIES ONE TOO. Reading only the profile's — which is what this
+         *   did — makes `inventory_locations.requires_controlled_access` dead
+         *   for every regulatory decision: a cabinet a clinic has explicitly
+         *   marked controlled, but hung no storage profile on, reads as an
+         *   open shelf, and a `controlledAccessRequired` rule refuses a
+         *   receipt into the very place the clinic set up for it. Refusing is
+         *   the safe direction, which is exactly why nobody would have noticed
+         *   — it presents as the rule being too strict rather than as a field
+         *   being ignored.
+         */
+        select: {
+          kind: true,
+          requiresControlledAccess: true,
+          storageProfile: { select: { requiresControlledAccess: true } },
+        },
+      })
+    : null;
+
+  const [rules, profile, path] = await Promise.all([
+    loadRules(tx, place, day),
+    loadProfile(tx, input.productId, place, day),
+    categoryPath(tx, product.categoryId),
+  ]);
+
+  const request: RegulatoryRequest = {
+    jurisdiction: place,
+    transaction: input.transaction,
+    product: {
+      id: product.id,
+      type: product.type,
+      categoryPath: path,
+      compositionId: product.compositionId,
+    },
+    profile,
+    rules,
+    actor: {
+      roleCodes: actor.roleCodes,
+      ...(actor.licenceTypes ? { licenceTypes: actor.licenceTypes } : {}),
+    },
+    quantityBase: input.quantityBase,
+    occurredAt,
+    ...(input.priorQuantityInPeriodBase !== undefined
+      ? { priorQuantityInPeriodBase: input.priorQuantityInPeriodBase }
+      : {}),
+    ...(input.prescription
+      ? {
+          prescription: {
+            presented: input.prescription.presented,
+            signedByQualifiedPrescriber: input.prescription.signedByQualifiedPrescriber,
+            issuedOn: startOfCalendarDay(new Date(input.prescription.issuedOn)),
+            refillsUsed: input.prescription.refillsUsed,
+            ...(input.prescription.prescriberClasses
+              ? { prescriberClasses: input.prescription.prescriberClasses }
+              : {}),
+          },
+        }
+      : {}),
+    ...(input.patient
+      ? {
+          patient: {
+            subjectType: input.patient.subjectType,
+            /*
+             * ⚠️ ABSENT STAYS ABSENT. An age the caller did not supply must not
+             *   arrive as a key holding `undefined`: `AGE_RESTRICTION` reads
+             *   "we do not know" as `UNDETERMINED`, which refuses, and that is
+             *   the answer a missing date of birth deserves.
+             */
+            ...(input.patient.ageYears !== undefined ? { ageYears: input.patient.ageYears } : {}),
+          },
+        }
+      : {}),
+    ...(input.substitution
+      ? {
+          substitution: {
+            isSubstitution: input.substitution.isSubstitution,
+            ...(input.substitution.prescriberConsented !== undefined
+              ? { prescriberConsented: input.substitution.prescriberConsented }
+              : {}),
+            ...(input.substitution.patientConsented !== undefined
+              ? { patientConsented: input.substitution.patientConsented }
+              : {}),
+          },
+        }
+      : {}),
+    ...(location
+      ? {
+          location: {
+            kind: location.kind,
+            // Either establishes it. A clinic saying "this cabinet is locked"
+            // on the location itself is the same assertion as a storage
+            // profile saying it, and requiring both would mean a location is
+            // only ever controlled if it also happens to carry a profile.
+            hasControlledAccess:
+              location.requiresControlledAccess ||
+              (location.storageProfile?.requiresControlledAccess ?? false),
+          },
+        }
+      : {}),
+    ...(input.destinationCountryCode
+      ? { destination: { countryCode: input.destinationCountryCode, regionCode: null } }
+      : {}),
+    ...(input.traceability
+      ? {
+          traceability: {
+            gtin: input.traceability.gtin ?? null,
+            lotNumber: input.traceability.lotNumber ?? null,
+            expiresOn: input.traceability.expiresOn
+              ? startOfCalendarDay(new Date(input.traceability.expiresOn))
+              : null,
+            serial: input.traceability.serial ?? null,
+          },
+        }
+      : {}),
+  };
+
+  const decision = evaluate(request);
+
+  return {
+    outcome: decision.outcome,
+    conditions: decision.conditions,
+    reasons: decision.reasons,
+    packVersionIds: [...decision.packVersionIds],
+    lowestPackMaturity: decision.lowestPackMaturity,
+    jurisdiction: formatJurisdiction(place),
+    hasProfile: profile !== null,
+    evaluatedAt: occurredAt.toISOString(),
+  };
+}
+
+/** The same question, for a caller that is not already in a transaction. */
 export async function evaluateFor(
   ctx: TenantContext,
   input: EvaluateRegulatoryRequest,
   actor: RegulatoryActorInput
 ): Promise<RegulatoryDecisionResponse> {
-  return withTenant(ctx, async (tx) => {
-    const product = await tx.product.findUnique({
-      where: { id: input.productId },
-      select: { id: true, type: true, categoryId: true, compositionId: true, deletedAt: true },
-    });
-    if (!product || product.deletedAt) throw new NotFoundError('Product');
-
-    /*
-     * ⚠️ THE BRANCH'S JURISDICTION, NOT THE PATIENT'S. A supply happens where the
-     *   counter is; taking it from a patient's address would let a clinic in one
-     *   state dispense under another state's rules because of where somebody
-     *   lives. The caller may override it — an online order asks about its
-     *   DESTINATION — which is why `destinationCountryCode` is a separate field
-     *   and not this one.
-     */
-    /*
-     * ⚠️ THE BRANCH THE REQUEST NAMES, NOT THE FIRST ONE IN SCOPE. This used to
-     *   be `ctx.branchIds[0]`, so a caller with membership at branches in two
-     *   states was evaluated against whichever id happened to sort first —
-     *   arbitrary, silent, and wrong half the time. A named branch must also be
-     *   one this caller may act in; `branchIds` is the scope RLS already
-     *   enforces, so an id outside it is NOT FOUND rather than FORBIDDEN, for
-     *   the reason every branch-scoped service in this codebase gives.
-     */
-    if (input.branchId && !ctx.branchIds.includes(input.branchId)) {
-      throw new NotFoundError('Branch');
-    }
-    const branchId = input.branchId ?? (ctx.branchIds.length === 1 ? ctx.branchIds[0] : undefined);
-    const branch = branchId
-      ? await tx.branch.findUnique({
-          where: { id: branchId },
-          select: { countryCode: true, regionCode: true },
-        })
-      : null;
-
-    const countryCode = input.countryCode ?? branch?.countryCode;
-    if (!countryCode) {
-      /*
-       * ⚠️ REFUSED RATHER THAN GUESSED, INCLUDING THE MULTI-BRANCH CASE. A
-       *   caller who works at several branches and names neither a branch nor a
-       *   country has asked a question with more than one answer, and picking
-       *   one is exactly the silent-arbitrary behaviour this domain cannot have.
-       */
-      throw new ValidationError(
-        ctx.branchIds.length > 1
-          ? 'This request could be about more than one branch. Name the branch, or the country, so the rules of one place are the ones applied.'
-          : 'No jurisdiction to evaluate against: this request names no country and the branch has none.'
-      );
-    }
-    const place: Jurisdiction = {
-      countryCode,
-      regionCode: input.regionCode ?? (input.countryCode ? null : (branch?.regionCode ?? null)),
-    };
-
-    const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date();
-    const day = startOfCalendarDay(occurredAt);
-
-    const location = input.locationId
-      ? await tx.inventoryLocation.findUnique({
-          where: { id: input.locationId },
-          select: { kind: true, storageProfile: { select: { requiresControlledAccess: true } } },
-        })
-      : null;
-
-    const [rules, profile, path] = await Promise.all([
-      loadRules(tx, place, day),
-      loadProfile(tx, input.productId, place, day),
-      categoryPath(tx, product.categoryId),
-    ]);
-
-    const request: RegulatoryRequest = {
-      jurisdiction: place,
-      transaction: input.transaction,
-      product: {
-        id: product.id,
-        type: product.type,
-        categoryPath: path,
-        compositionId: product.compositionId,
-      },
-      profile,
-      rules,
-      actor: {
-        roleCodes: actor.roleCodes,
-        ...(actor.licenceTypes ? { licenceTypes: actor.licenceTypes } : {}),
-      },
-      quantityBase: input.quantityBase,
-      occurredAt,
-      ...(input.priorQuantityInPeriodBase !== undefined
-        ? { priorQuantityInPeriodBase: input.priorQuantityInPeriodBase }
-        : {}),
-      ...(input.prescription
-        ? {
-            prescription: {
-              presented: input.prescription.presented,
-              signedByQualifiedPrescriber: input.prescription.signedByQualifiedPrescriber,
-              issuedOn: startOfCalendarDay(new Date(input.prescription.issuedOn)),
-              refillsUsed: input.prescription.refillsUsed,
-              ...(input.prescription.prescriberClasses
-                ? { prescriberClasses: input.prescription.prescriberClasses }
-                : {}),
-            },
-          }
-        : {}),
-      ...(input.patient
-        ? {
-            patient: {
-              subjectType: input.patient.subjectType,
-              /*
-               * ⚠️ ABSENT STAYS ABSENT. An age the caller did not supply must not
-               *   arrive as a key holding `undefined`: `AGE_RESTRICTION` reads
-               *   "we do not know" as `UNDETERMINED`, which refuses, and that is
-               *   the answer a missing date of birth deserves.
-               */
-              ...(input.patient.ageYears !== undefined ? { ageYears: input.patient.ageYears } : {}),
-            },
-          }
-        : {}),
-      ...(input.substitution
-        ? {
-            substitution: {
-              isSubstitution: input.substitution.isSubstitution,
-              ...(input.substitution.prescriberConsented !== undefined
-                ? { prescriberConsented: input.substitution.prescriberConsented }
-                : {}),
-              ...(input.substitution.patientConsented !== undefined
-                ? { patientConsented: input.substitution.patientConsented }
-                : {}),
-            },
-          }
-        : {}),
-      ...(location
-        ? {
-            location: {
-              kind: location.kind,
-              hasControlledAccess: location.storageProfile?.requiresControlledAccess ?? false,
-            },
-          }
-        : {}),
-      ...(input.destinationCountryCode
-        ? { destination: { countryCode: input.destinationCountryCode, regionCode: null } }
-        : {}),
-      ...(input.traceability
-        ? {
-            traceability: {
-              gtin: input.traceability.gtin ?? null,
-              lotNumber: input.traceability.lotNumber ?? null,
-              expiresOn: input.traceability.expiresOn
-                ? startOfCalendarDay(new Date(input.traceability.expiresOn))
-                : null,
-              serial: input.traceability.serial ?? null,
-            },
-          }
-        : {}),
-    };
-
-    const decision = evaluate(request);
-
-    return {
-      outcome: decision.outcome,
-      conditions: decision.conditions,
-      reasons: decision.reasons,
-      packVersionIds: [...decision.packVersionIds],
-      lowestPackMaturity: decision.lowestPackMaturity,
-      jurisdiction: formatJurisdiction(place),
-      hasProfile: profile !== null,
-      evaluatedAt: occurredAt.toISOString(),
-    };
-  });
+  return withTenant(ctx, async (tx) => evaluateWithin(tx, ctx, input, actor));
 }

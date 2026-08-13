@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-13 (PI-5 complete)
+**Last updated:** 2026-08-13 (PI-6 complete)
 
 ## Status vocabulary
 
@@ -42,7 +42,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                           |
 | PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                           |
 | PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                           |
-| PI-6      | India Rule Pack                                         | PLANNED                   | PI-5                                        |
+| PI-6      | India Rule Pack                                         | **COMPLETE** (2026-08-13) | —                                           |
 | PI-7      | Pharmacy Dispensing                                     | **BLOCKED**               | `prescriptions` (Phase 3) + PI-3 + PI-5     |
 | PI-8      | Billing & Tax Integration                               | PLANNED                   | PI-3 (counter-sale path); PI-7 for the rest |
 | PI-9      | Clinical Consumption                                    | **BLOCKED**               | `encounters`/`procedures` (Phase 3) + PI-3  |
@@ -567,65 +567,63 @@ Full detail in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-# PI-6 — India Rule Pack · PLANNED
+# PI-6 — India Rule Pack · COMPLETE
 
-| Task                                                                          | Status      |
-| ----------------------------------------------------------------------------- | ----------- |
-| PI-6.1 Research + populate `regulatory_sources` with authoritative citations  | NOT_STARTED |
-| PI-6.2 Prescription classification and schedule handling                      | NOT_STARTED |
-| PI-6.3 Quantity, refill and record-retention rules                            | NOT_STARTED |
-| PI-6.4 Labelling fields; online dispensing position                           | NOT_STARTED |
-| PI-6.5 Per-rule tests (behaviour, never `country === 'IN'`)                   | NOT_STARTED |
-| PI-6.6 Update `COUNTRY_SUPPORT_MATRIX.md`; set maturity to `AUTOMATED_TESTED` | NOT_STARTED |
+**Dependencies:** PI-5. **Branch:** `feat/pi-6-india-rule-pack`. **Pack:**
+`IN 1.0.0` at `AUTOMATED_TESTED` — 2 authorities, 3 sources, 22 rules.
 
----
+| Task                                                                         | Status                                                              |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| PI-6.1 Research + populate `regulatory_sources` with authoritative citations | COMPLETE                                                            |
+| PI-6.2 Prescription classification and schedule handling                     | COMPLETE                                                            |
+| PI-6.3 Quantity, refill and record-retention rules                           | COMPLETE — retention + refills; no quantity limit exists to write   |
+| PI-6.4 Labelling fields; online dispensing position                          | COMPLETE — labelling written; online position is `UNKNOWN`, no rule |
+| PI-6.5 Per-rule tests (behaviour, never `country === 'IN'`)                  | COMPLETE — 20 integration + 12 unit                                 |
+| PI-6.6 Update `COUNTRY_SUPPORT_MATRIX.md`; set maturity                      | COMPLETE — set to `RULES_IMPLEMENTED`, not `AUTOMATED_TESTED`       |
+| **PI-6.7 Wire goods receipt and transfer to consult the pack**               | **NOT_STARTED — the one thing left**                                |
 
-# PI-7 — Pharmacy Dispensing · BLOCKED
+### What landed
 
-**Blocked by:** `prescriptions` does not exist (Phase 3, Core clinical), plus
-PI-3 and PI-5.
+| Area    | What                                                                                                                                                                            |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sources | CDSCO's consolidated Drugs Rules, 1945 (963 pp, read directly) · Pharmacy Act, 1948 on India Code · G.S.R. 588(E) recorded `UNAVAILABLE`                                        |
+| Rules   | 22 — prescription (H/H1/X), repeats, substitution, H1 + X registers, retention 3y/2y/2y, Schedule X storage, dispenser authority, dispensing + container + veterinary labelling |
+| Seed    | `seed/regulatory-packs.ts` (machinery, no country) + `seed/data/regulatory-in.ts` (the pack). A new jurisdiction is a data file plus one line                                   |
+| Engine  | **Closed a fail-open**: an unclassified medicine came back `PERMITTED_WITH_CONDITIONS` once a pack carried catch-all rules. Now `UNDETERMINED`                                  |
+| Service | **Fixed**: `evaluateFor` ignored `inventory_locations.requires_controlled_access`, reading controlled access from the storage profile alone                                     |
 
-Epics, to be expanded into tasks when unblocked: prescription queue ·
-pharmacist verification · regulatory validation · stock availability ·
-substitution · batch allocation (FEFO) · dispensing transaction · dispensing
-ledger · returns · OTC counter sales · pharmacy dashboard · pharmacy reports.
+### PI-6.7 — the call sites, and the gate that stops them breaking everything
 
----
+Goods receipt (`STOCK`, before the batch exists and before the ledger moves) and
+transfer receipt (`TRANSFER`, against the DESTINATION location) both consult the
+engine inside their own posting transaction, through
+`services/regulatory/consult.ts`. Neither contains a country, a rule code or a
+schedule.
 
-# PI-8 — Billing & Tax Integration · PLANNED
+⚠️ **THEY ASK, AND NOTHING STOPS THEM YET.** One country has a pack, so nearly
+every evaluation on the platform answers `UNDETERMINED` — which refuses — and a
+call site that threw on a non-permission would stop every clinic elsewhere from
+receiving stock the day it shipped. `services/regulatory/enforcement.ts` gates
+it: a decision may only stop a document once a named human has moved its pack to
+`PRODUCTION_ENABLED`, which no code path may set. Below that the answer is logged
+where an operator can see it, with rule codes and ids and no PHI.
 
-| Task                                                                                          | Status      | Note                       |
-| --------------------------------------------------------------------------------------------- | ----------- | -------------------------- |
-| PI-8.1 `charge_requests` table + service (PI-ADR-005)                                         | NOT_STARTED |                            |
-| PI-8.2 Charge policy resolution (product / procedure / facility / payer / country / contract) | NOT_STARTED |                            |
-| PI-8.3 Wire `InvoiceSourceType.PHARMACY` and `.INVENTORY`                                     | NOT_STARTED | enum members already exist |
-| PI-8.4 `resolveTaxCategory` → `invoice_items.tax_category`                                    | NOT_STARTED | no tax code written        |
-| PI-8.5 Charge review screen                                                                   | NOT_STARTED |                            |
-| PI-8.6 Tests: glove → no line; implant → a line; tax via the existing engine only             | NOT_STARTED |                            |
+The integration suite pins both halves — six maturities that must NOT block, and
+`PRODUCTION_ENABLED` that must — plus the unconfigured-jurisdiction case, which
+is the one that would have broken the platform.
 
----
+`evaluateWithin(tx, …)` was split out of `evaluateFor` for this: a second
+transaction could not see the caller's uncommitted work, would take its own
+snapshot, and can deadlock against locks the outer one holds.
 
-# PI-9 — Clinical Consumption · BLOCKED
+### What is still open on India
 
-**Blocked by:** `encounters` / `procedures` do not exist (Phase 3), plus PI-3.
-
-Epics: consumption templates per procedure · expected vs actual · clinician
-override with audit · inventory movement on actual · dental / veterinary / lab
-reuse · consumption history and inventory impact screens.
-
----
-
-# PI-10 .. PI-24
-
-Epic-level only until their dependencies land. See
-[MASTER_PLAN.md](MASTER_PLAN.md) for scope. Expand into tasks at phase start.
-
-| Phase     | Epics                                                                                              |
-| --------- | -------------------------------------------------------------------------------------------------- |
-| PI-10     | recall create/execute · affected stock · blocked dispensing · traceability queries · reports       |
-| PI-11     | patient subject type · `animal_profiles` · veterinary regulatory profiles · dosing                 |
-| PI-12     | online order · jurisdiction gating · allocation · packing · shipping · delivery                    |
-| PI-13..21 | one rule pack each: US, UK, AU, SG, AE, IE, NP, LK, BD                                             |
-| PI-22     | valuation · aging · movement · dead stock · consumption cost · contribution · supplier performance |
-| PI-23     | GS1/DataMatrix decode · identifier resolution → product + batch + serial · scanner UX              |
-| PI-24     | security review · performance/index audit · E2E · migration rehearsal · production gates           |
+- The pack is `AUTOMATED_TESTED` and enforces nothing. `SOURCE_VERIFIED` needs
+  every citation re-checked; the two rungs above it are a named human's.
+- KNOWN_ISSUES #3 and #4 — a prescriber-endorsed repeat and the Pharmacy Act
+  s. 42 proviso cannot be expressed. Both are framework gaps to close before
+  PI-7 wires dispensing, never by weakening a rule.
+- KNOWN_ISSUES #5 — a stock movement evaluates with an EMPTY actor, because
+  neither service is given the caller's permission codes.
+- Most of India's matrix cells are still `RESEARCH_REQUIRED`, each for a recorded
+  reason. NDPS is the big one.

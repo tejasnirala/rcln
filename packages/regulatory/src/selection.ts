@@ -198,6 +198,74 @@ export function selectApplicableRules(request: RegulatoryRequest): RegulatoryRul
   );
 }
 
+/**
+ * The product types whose supply is decided by a CLASSIFICATION, everywhere.
+ *
+ * ⚠️ THIS IS AN ARCHITECTURAL STATEMENT, NOT A JURISDICTIONAL ONE, AND THE
+ *   DIFFERENCE IS WHY IT IS ALLOWED TO LIVE IN A PACKAGE THAT MAY CONTAIN NO
+ *   COUNTRY'S RULES. Every jurisdiction that regulates supply at all regulates
+ *   the supply of MEDICINES by putting them in classes — schedules, POM/GSL,
+ *   legend drugs — and none of them classifies a bandage. The list says which
+ *   products a missing classification is a GAP for; it says nothing about what
+ *   any classification means or what follows from it, which stays entirely in
+ *   the rule rows.
+ *
+ * Widening it is cheap and safe (more things demand a profile); narrowing it is
+ * how a regulated product starts being supplied on the strength of an absence.
+ */
+const CLASSIFIED_PRODUCT_TYPES: readonly string[] = ['MEDICINE', 'VACCINE', 'VETERINARY_MEDICINE'];
+
+/**
+ * Has this jurisdiction made the classification decisive for a product nobody
+ * has classified?
+ *
+ * ⚠️ THIS CLOSES A FAIL-OPEN THAT ONLY APPEARS ONCE A JURISDICTION IS ACTUALLY
+ *   CONFIGURED, WHICH IS WHY IT SURVIVED PI-5 UNNOTICED. `coversProduct` drops a
+ *   classification-keyed rule when the product has no profile, and the schema
+ *   comment is right that dropping it "is not a permission" — but only while
+ *   NOTHING else applies, because then the decision is `UNDETERMINED`. The
+ *   moment a pack also carries rules that apply to EVERY product — a retention
+ *   obligation, a "who may dispense" rule, both of which every real pack has —
+ *   those rules apply, they permit, and an unclassified prescription-only
+ *   medicine comes back `PERMITTED_WITH_CONDITIONS` with no prescription rule
+ *   anywhere in its reasons. The gap is invisible precisely because the decision
+ *   looks fully reasoned.
+ *
+ * So: if the jurisdiction has a live rule keyed on a classification that would
+ * match this product but for the classification, and the product has none, the
+ * question is unanswerable rather than answered. `UNDETERMINED`, which refuses,
+ * and the remedy is the profile — which is what the reason says.
+ */
+export function needsClassificationButHasNone(request: RegulatoryRequest): boolean {
+  if (!CLASSIFIED_PRODUCT_TYPES.includes(request.product.type)) return false;
+
+  const classification = request.profile?.classification ?? null;
+  if (classification !== null) return false;
+
+  return request.rules.some((rule) => {
+    if (rule.appliesToClassification === null) return false;
+    if (!isInForce(rule, request.occurredAt)) return false;
+    if (!coversJurisdiction(rule.jurisdiction, request.jurisdiction)) return false;
+    if (!coversTransaction(rule, request)) return false;
+
+    /*
+     * Everything `coversProduct` checks EXCEPT the classification — that is the
+     * whole question. A Schedule X storage rule aimed at a product type this
+     * product is not must not make every other product undecidable.
+     */
+    if (rule.appliesToProductType !== null && rule.appliesToProductType !== request.product.type) {
+      return false;
+    }
+    if (
+      rule.appliesToCategoryId !== null &&
+      !request.product.categoryPath.includes(rule.appliesToCategoryId)
+    ) {
+      return false;
+    }
+    return true;
+  });
+}
+
 /** Is a profile the one that applies on this day? Same window rules as a rule. */
 export function isProfileInForce(
   profile: { effectiveFrom: Date; effectiveTo: Date | null },
