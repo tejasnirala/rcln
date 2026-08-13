@@ -15,6 +15,7 @@
  *   seed/clinical-masters.ts    specialties + qualifications (data in seed/data/)
  *   seed/product-masters.ts     units, conversions, categories, storage profiles
  *   seed/tax-rule-defaults.ts   starting-point tax rates per country
+ *   seed/regulatory-packs.ts    jurisdictions, authorities, sources, rule packs
  *   seed/plans.ts               subscription plans, prices, features
  *   seed/super-admin.ts         the one account never created through the UI
  */
@@ -24,6 +25,7 @@ import { seedDesignations } from './seed/designations.js';
 import { seedPermissions } from './seed/permissions.js';
 import { seedPlans } from './seed/plans.js';
 import { seedProductMasters } from './seed/product-masters.js';
+import { seedRegulatoryPacks } from './seed/regulatory-packs.js';
 import { seedRoleDesignations } from './seed/role-designations.js';
 import { seedSettingDefinitions } from './seed/setting-definitions.js';
 import { seedSuperAdmin } from './seed/super-admin.js';
@@ -50,6 +52,10 @@ async function main(): Promise<void> {
   // see seed/data/product-masters.ts for why, and why no agent may add any.
   await seedProductMasters();
   await seedTaxRuleDefaults();
+  // Platform law. Independent of everything above it — no rule in any pack
+  // currently names a product category, which is the only ordering this would
+  // ever have. See the file header before adding a jurisdiction.
+  await seedRegulatoryPacks();
   await seedPlans();
   await seedSuperAdmin();
 

@@ -2,7 +2,7 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-08-12 · **Current phase:** 0 complete; 1 complete except
+**Last updated:** 2026-08-14 · **Current phase:** 0 complete; 1 complete except
 the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
 management, email/phone verification, org settings, super-admin impersonation,
 one unified shell, remembered scope and per-record history); **2 complete except
@@ -16,23 +16,36 @@ Queue tokens and walk-in are stage 5; prescriptions come after. The consultation
 page exists as a route with a deliberate placeholder where the specialty-specific
 diagnosis form will go.
 
-**Phase 5 has started out of order, and deliberately: PI-1 (the product
-catalogue) and PI-2 (inventory foundation) are merged, and PI-3 (movements) is
-complete** on `feat/pi-3-movements`. None of the three depends on anything
-Phase 3 owns, and everything else in the pharmacy programme waits on them.
+**Phase 5 has started out of order, and deliberately: PI-1 through PI-6 are
+done** — the product catalogue, the inventory foundation, movements, procurement,
+the regulatory framework and now the India rule pack. None of them depends on
+anything Phase 3 owns, and everything else in the pharmacy programme waits on
+them.
 
 PI-2 brought the append-only `stock_ledger`, a trigger-maintained balance cache
 the application cannot write, the first worker processor that changes clinical
-state, and four `/stock` screens. PI-3 brings the three documents a store
-actually needs — adjustments against a controlled vocabulary, transfers between
-shelves and between sites, and reservations — plus the FEFO allocation engine and
-a second worker sweep. `db:rls:check` is green at **76** protected tables and
-1159 API tests pass across 41 suites.
+state, and four `/stock` screens. PI-3 brings adjustments, transfers and
+reservations plus the FEFO allocation engine. PI-4 brings suppliers, purchase
+orders, goods receipts, returns and costing. PI-5 brings the regulatory
+framework — jurisdictions, versioned rule packs, `@rcln/regulatory` and the
+maturity ladder — containing no country's rules at all.
 
-**Both reviewer passes have run and been acted on.** The tenancy layer came back
-clean; every finding was in the services. Three CRITICALs — a duplicate line on
-receipt that minted stock, unlocked state transitions, and a reservation release
-that raced the sweep — plus seven smaller, all fixed with regression tests. See
+**PI-6 configures the first jurisdiction.** Pack `IN 1.0.0` — 2 authorities, 3
+sources, 22 rules — read from CDSCO's own consolidated Drugs Rules, 1945 and the
+Pharmacy Act, 1948 on India Code, at maturity `AUTOMATED_TESTED`. Goods receipt
+and transfer now consult the engine while posting.
+
+⚠️ **NOTHING BLOCKS ON IT, AND THAT IS THE DESIGN.** One country has a pack, so
+every evaluation elsewhere answers `UNDETERMINED` — which refuses — and a call
+site that threw on a non-permission would stop every clinic outside India from
+receiving stock. Enforcement is gated on `PRODUCTION_ENABLED`, which only a named
+human may set. India's sources are `UNVERIFIED` and no qualified person has read
+the pack, so nothing here claims compliance with anything.
+
+`db:rls:check` is green at **89** protected tables and **1310 API tests pass
+across 61 suites**.
+
+**Both reviewer passes have run and been acted on** for PI-3 and PI-4. See
 § Phase 5 and `.kb/PharmacyInventory/NEXT_SESSION.md`.
 
 ⚠️ PHI is live from stage 3 onwards — `patients`, `appointments` and
@@ -1430,10 +1443,13 @@ Strictly in this order; dispensing depends on batches existing.
 - [x] Stock transfers between branches, adjustments, reservations, FEFO — PI-3
 - [x] Suppliers → purchase orders → goods receipts → returns, costing — PI-4
 - [x] Regulatory FRAMEWORK — jurisdictions, rule packs, `@rcln/regulatory`, the
-      maturity ladder — PI-5. ⚠️ The framework only: it contains **no country's
-      rules**, is wired into no call site, and every evaluation therefore answers
-      `UNDETERMINED`, which refuses. PI-6 configures India and wires the callers
-- [ ] India rule pack, cited to real sources — PI-6
+      maturity ladder — PI-5. The framework only: it contains no country's rules
+- [x] India rule pack, cited to real sources — PI-6. 22 rules from the Drugs
+      Rules, 1945 and the Pharmacy Act, 1948; goods receipt and transfer consult
+      the engine. ⚠️ Enforcement is gated on a human sign-off, so nothing blocks
+      yet, and most of India's matrix cells are still `RESEARCH_REQUIRED` — NDPS
+      above all. See `COUNTRY_SUPPORT_MATRIX.md` for what was deliberately not
+      written
 - [ ] Dispensing with FEFO batch selection — PI-7, blocked on `prescriptions`
 
 ### Phase 6 — Lab

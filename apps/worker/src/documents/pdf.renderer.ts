@@ -20,6 +20,8 @@
 
 import type { Buffer } from 'node:buffer';
 
+import { FOOTER_TEMPLATE_ID, HEADER_TEMPLATE_ID } from '@rcln/documents';
+
 import { createRenderContext } from './browser.js';
 
 /**
@@ -53,7 +55,57 @@ export async function renderPdf(html: string): Promise<Buffer> {
      */
     await page.evaluate('document.fonts.ready');
 
+    /*
+     * ⚠️ THE RUNNING HEADER AND FOOTER TRAVEL INSIDE THE DOCUMENT, IN TWO INERT
+     *   `<template>` ELEMENTS, AND THIS IS WHERE THEY ARE UNPACKED. Chromium
+     *   will only repeat chrome on every page — including the first and the
+     *   last — through `displayHeaderFooter`, and it will only substitute a
+     *   TOTAL page count into a footer template. Both are properties of
+     *   `page.pdf()` rather than of the page, so something has to carry them
+     *   across the seam.
+     *
+     *   Carrying them in the HTML rather than in this function's arguments is
+     *   what keeps the rule at the top of this file true: the renderer still
+     *   takes one self-contained string and still names no document type. It
+     *   looks for two ids and does not care what is inside them.
+     *
+     * ⚠️ IF A DOCUMENT CARRIES NEITHER, NOTHING IS TURNED ON. `displayHeaderFooter`
+     *   with empty templates does NOT print nothing — it prints Chromium's own
+     *   default header, which is the URL and the date. A document without chrome
+     *   must therefore not enable it at all.
+     */
+    /*
+     * ⚠️ A STRING, NOT A CLOSURE, AND FOR A TYPE REASON RATHER THAN A STYLE ONE.
+     *   The body runs in the BROWSER, but TypeScript checks it against this
+     *   project's libs — and the worker is Node, with no DOM. A closure
+     *   mentioning `document` does not compile, and the fix is not to add `dom`
+     *   to the worker's `lib`: that would make every Node file in the app accept
+     *   `window` and `localStorage` at compile time and fail at runtime. The
+     *   file already talks to the page this way for `document.fonts.ready`.
+     */
+    const chrome = (await page.evaluate(`(() => {
+      const read = (id) => {
+        const node = document.getElementById(id);
+        return node && node.tagName === 'TEMPLATE' ? node.innerHTML : '';
+      };
+      return { header: read('${HEADER_TEMPLATE_ID}'), footer: read('${FOOTER_TEMPLATE_ID}') };
+    })()`)) as { header: string; footer: string };
+
+    const hasChrome = chrome.header !== '' || chrome.footer !== '';
+
     return await page.pdf({
+      ...(hasChrome
+        ? {
+            displayHeaderFooter: true,
+            /*
+             * Empty string rather than the missing one: a template Chromium is
+             * given as `undefined` falls back to its built-in, so a document
+             * with only a footer would print Chromium's URL header above it.
+             */
+            headerTemplate: chrome.header,
+            footerTemplate: chrome.footer,
+          }
+        : {}),
       /*
        * ⚠️ THE PAGE SIZE COMES FROM THE CSS, NOT FROM A `format` OPTION HERE.
        *   The stylesheet already declares `@page { size: A4 }` because the

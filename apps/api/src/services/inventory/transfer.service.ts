@@ -72,6 +72,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../utils/error
 import { recordAudit } from '../audit/audit.service.js';
 import { issueNumber } from '../numbering/number-sequence.service.js';
 import { movementDeps, recordMovementIn } from './movement.service.js';
+import { consultForStockMovement } from '../regulatory/consult.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
 
 const detailInclude = Prisma.validator<Prisma.StockTransferInclude>()({
@@ -1177,6 +1178,28 @@ export async function receiveTransfer(
           `${line.product.name} has ${outstanding.toString()} ${line.product.baseUnit.symbol} still outstanding on this transfer and ${quantity.toString()} is being received. If more arrived than was sent, receive what was sent and record the difference as an adjustment with a reason.`
         );
       }
+
+      /*
+       * ⚠️ ON RECEIPT RATHER THAN ON DISPATCH, BECAUSE THE QUESTION IS ABOUT
+       *   WHERE THE STOCK IS GOING. A storage rule — "a Schedule X drug may be
+       *   kept only in a controlled cabinet" — is a statement about the
+       *   DESTINATION, and `toLocation` does not exist until here: dispatch
+       *   knows the receiving BRANCH but not the shelf. Asking at dispatch would
+       *   evaluate every transfer against no location at all, which the engine
+       *   correctly answers `UNDETERMINED` for.
+       *
+       * Nothing blocks yet — see `regulatory/enforcement.ts`.
+       */
+      await consultForStockMovement(tx, ctx, {
+        branchId: existing.toBranchId,
+        productId: line.productId,
+        locationId: toLocation.id,
+        quantityBase: quantity.toString(),
+        transaction: 'TRANSFER',
+        occurredAt: new Date(),
+        documentType: 'TRANSFER',
+        documentId: existing.id,
+      });
 
       const destinationBatchId = await findOrCreateDestinationBatch(
         tx,

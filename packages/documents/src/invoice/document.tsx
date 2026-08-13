@@ -25,6 +25,14 @@
 
 import type { JSX } from 'react';
 
+import {
+  ChromeTemplates,
+  PageFooter,
+  PageHeader,
+  type DocumentChrome,
+  type DocumentChromeMetaRow,
+} from '../chrome/index.js';
+
 import { createFormatter, type InvoiceFormatter } from './format.js';
 import { itemTableFor } from './items.js';
 import type { InvoiceDocumentData, InvoiceTaxTreatment } from './types.js';
@@ -60,7 +68,18 @@ export function documentTitle(countryCode: string, treatment: InvoiceTaxTreatmen
   return taxInvoiceCountries.has(country) ? 'Tax Invoice' : 'Invoice';
 }
 
-export function InvoiceDocument({ data }: { data: InvoiceDocumentData }): JSX.Element {
+export function InvoiceDocument({
+  data,
+  fontFaces,
+}: {
+  data: InvoiceDocumentData;
+  /**
+   * The `@font-face` blocks, passed down so the PRINT chrome can carry its own
+   * copy — Chromium's header and footer templates are a separate document and
+   * inherit nothing from this one, typefaces included. Empty in tests.
+   */
+  fontFaces: string;
+}): JSX.Element {
   const fmt = createFormatter(data);
   const voided = data.status === 'VOID';
 
@@ -73,11 +92,27 @@ export function InvoiceDocument({ data }: { data: InvoiceDocumentData }): JSX.El
    */
   const Items = itemTableFor(data.sourceType);
 
+  const chrome = invoiceChrome(data, fmt);
+
   return (
     <div className="sheet">
       {voided ? <div className="void-mark">VOID</div> : null}
 
-      <Masthead data={data} fmt={fmt} />
+      {/*
+       * The preview's header, and the printer's chrome as two inert
+       * `<template>` elements — one set of components, one value.
+       *
+       * ⚠️ THE PREVIEW'S FOOTER IS AT THE BOTTOM OF THIS SHEET, NOT HERE BESIDE
+       *   THE HEADER, AND THAT ORDER IS NOW LOAD-BEARING. While the chrome was
+       *   `position: fixed` the source position did not matter, so both sat
+       *   together; once print switched to Chromium's templates and these became
+       *   ordinary flow elements, a footer declared here rendered directly under
+       *   the header — above the invoice — in every on-screen preview. The PDF
+       *   was correct throughout, which is why it survived a round of review.
+       */}
+      <PageHeader chrome={chrome} />
+      <ChromeTemplates chrome={chrome} fontFaces={fontFaces} />
+
       <Parties data={data} fmt={fmt} />
       <Items data={data} fmt={fmt} />
 
@@ -87,80 +122,78 @@ export function InvoiceDocument({ data }: { data: InvoiceDocumentData }): JSX.El
       </div>
 
       <Closing data={data} />
+
+      {/* The preview's footer. Hidden in print — the printer uses the template. */}
+      <PageFooter chrome={chrome} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Masthead
+// The chrome
 // ---------------------------------------------------------------------------
 
-function Masthead({
-  data,
-  fmt,
-}: {
-  data: InvoiceDocumentData;
-  fmt: InvoiceFormatter;
-}): JSX.Element {
+/**
+ * `InvoiceDocumentData` → the repeating header and footer.
+ *
+ * ⚠️ THIS REPLACED A `Masthead` THAT PRINTED ONCE, AT THE TOP OF PAGE ONE. On a
+ *   two-page invoice the second sheet carried no clinic name, no registration
+ *   number and no invoice number — a page that, detached from the first, named
+ *   nobody. Everything below is the same content the masthead held; what changed
+ *   is that it now sits in a fixed band Chromium repeats on every page.
+ *
+ * ⚠️ THE DATES GO THROUGH `fmt`, NEVER THROUGH A CLOCK. `createFormatter` takes
+ *   its zone and locale from the document data, so the header prints the same
+ *   string in the preview, in the worker's UTC container, and in Kolkata.
+ */
+function invoiceChrome(data: InvoiceDocumentData, fmt: InvoiceFormatter): DocumentChrome {
   const { issuer } = data;
 
-  return (
-    <header className="masthead">
-      <div>
-        <div className="issuer-name">{issuer.legalName}</div>
-        {issuer.tradeName === null ? null : <div className="issuer-trade">{issuer.tradeName}</div>}
+  const meta: DocumentChromeMetaRow[] = [
+    {
+      label: 'Document No.',
+      /*
+       * A draft has no number, and saying so is better than an empty value: an
+       * invoice number is issued at the moment of issue and never before, so a
+       * blank here would read as a rendering fault rather than as a draft.
+       */
+      value: data.invoiceNumber ?? 'Not yet issued',
+      mono: data.invoiceNumber !== null,
+    },
+  ];
 
-        <div className="issuer-detail">
-          {[issuer.branchName, ...issuer.addressLines].join('\n')}
-        </div>
+  if (data.issuedAt !== null) meta.push({ label: 'Issued', value: fmt.date(data.issuedAt) });
+  meta.push({ label: 'Supplied', value: fmt.date(data.suppliedAt) });
+  if (data.dueDate !== null) meta.push({ label: 'Due', value: fmt.date(data.dueDate) });
 
-        <div className="issuer-detail">
-          {[issuer.phone, issuer.email].filter(Boolean).join('  ·  ')}
-        </div>
-
-        {/*
-         * The registration number is the single most consequential string on
-         * the page — it is what the tax the document charges is remitted
-         * against — so it is set in mono beside its own label rather than run
-         * into the address block. A clinic that holds none prints nothing here:
-         * an empty "GSTIN:" reads as a data-entry omission rather than as the
-         * legal position it actually is.
-         */}
-        {issuer.taxId === null ? null : (
-          <div className="issuer-tax">
-            <span className="label">{issuer.taxIdLabel}</span>{' '}
-            <span className="mono strong">{issuer.taxId}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="doc">
-        <div className="doc-title">{documentTitle(data.countryCode, data.taxTreatment)}</div>
-        {data.invoiceNumber === null ? (
-          <div className="doc-number muted">Not yet issued</div>
-        ) : (
-          <div className="doc-number mono">{data.invoiceNumber}</div>
-        )}
-
-        <dl className="doc-meta">
-          {data.issuedAt === null ? null : (
-            <>
-              <dt>Issued</dt>
-              <dd>{fmt.date(data.issuedAt)}</dd>
-            </>
-          )}
-          <dt>Supplied</dt>
-          <dd>{fmt.date(data.suppliedAt)}</dd>
-          {data.dueDate === null ? null : (
-            <>
-              <dt>Due</dt>
-              <dd>{fmt.date(data.dueDate)}</dd>
-            </>
-          )}
-        </dl>
-      </div>
-    </header>
-  );
+  return {
+    issuer: {
+      legalName: issuer.legalName,
+      tradeName: issuer.tradeName,
+      branchName: issuer.branchName,
+      branchCode: issuer.branchCode,
+      addressLines: issuer.addressLines,
+      phone: issuer.phone,
+      email: issuer.email,
+      taxId: issuer.taxId,
+      taxIdLabel: issuer.taxIdLabel,
+    },
+    title: documentTitle(data.countryCode, data.taxTreatment),
+    meta,
+    /*
+     * ⚠️ A CLAIM, NOT BOILERPLATE. Indian practice accepts an unsigned invoice
+     *   precisely when it says it is computer generated; one that does not say
+     *   so is one a recipient can reasonably reject. It appears on every page
+     *   rather than only on the last, which is what a reader of a detached sheet
+     *   needs.
+     *
+     * ⚠️ THE DOCUMENT NUMBER IS DELIBERATELY NOT REPEATED HERE. It is already in
+     *   the running header, on every page, in mono beside its own label —
+     *   printing it again at the foot of the same sheet is the same string twice
+     *   and reads as though the two might differ.
+     */
+    footerNote: 'This is a computer-generated document and does not require a signature.',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -208,15 +241,23 @@ function Parties({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFormatt
           {data.practitioner === null ? null : (
             <>
               <dt className="label">Attended by</dt>
-              <dd>
-                {data.practitioner.name}
-                {data.practitioner.registrationNumber === null ? null : (
-                  <>
-                    <br />
-                    <span className="mono">Reg. {data.practitioner.registrationNumber}</span>
-                  </>
-                )}
-              </dd>
+              <dd>{data.practitioner.name}</dd>
+
+              {/*
+               * ⚠️ ITS OWN LABELLED ROW, NOT A SECOND LINE UNDER THE NAME. The
+               *   registration number is what makes the attribution checkable —
+               *   an insurer verifies the clinician against a register by it —
+               *   so it reads as a field somebody can look up rather than as a
+               *   qualifier trailing the name. It also lines up with the other
+               *   identifiers in this block, all of which are labelled and set
+               *   in mono.
+               */}
+              {data.practitioner.registrationNumber === null ? null : (
+                <>
+                  <dt className="label">Registration No.</dt>
+                  <dd className="mono">{data.practitioner.registrationNumber}</dd>
+                </>
+              )}
             </>
           )}
           {data.placeOfSupply === null ? null : (
@@ -396,19 +437,14 @@ function Closing({ data }: { data: InvoiceDocumentData }): JSX.Element {
       </section>
 
       {/*
-       * ⚠️ "Computer-generated" IS A CLAIM ABOUT THIS DOCUMENT, NOT BOILERPLATE.
-       *   Indian practice accepts an unsigned invoice precisely when it says so;
-       *   an unsigned invoice that does NOT say so is one a recipient can
-       *   reasonably reject. It is stated once, at the foot, in the smallest
-       *   type on the page — which is where a reader looks for it and nowhere
-       *   else.
+       * ⚠️ THE COLOPHON THAT WAS HERE IS NOW THE RUNNING FOOTER, AND DELETING IT
+       *   RATHER THAN LEAVING BOTH WAS THE POINT. "Computer-generated" is a
+       *   claim about this document — Indian practice accepts an unsigned
+       *   invoice precisely when it says so — and it now appears on every page
+       *   instead of only the last, which is what a reader of a detached second
+       *   sheet needs. Keeping this block as well would print it twice on the
+       *   final page. See `invoiceChrome`.
        */}
-      <footer className="colophon">
-        <span>
-          {data.invoiceNumber ?? 'Draft'} · {data.issuer.branchCode}
-        </span>
-        <span>This is a computer-generated document and does not require a signature.</span>
-      </footer>
     </>
   );
 }

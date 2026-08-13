@@ -4,24 +4,41 @@
 
 > The STRUCTURAL product catalogue: units, the conversions between them, categories and storage profiles.
 
-Files: `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/specialties.ts`
+Files: `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/specialties.ts`
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `CATEGORIES` | `: SeedCategory[]` | `packages/db/prisma/seed/data/product-masters.ts:152` |  |
+| `IN_AUTHORITIES` | `[ { code: 'CDSCO', name: 'Central Drugs Standard Control Organisation', websiteUrl: 'http…` | `packages/db/prisma/seed/data/regulatory-in.ts:110` |  |
+| `IN_CLASSIFICATIONS` | `{ scheduleH: 'SCHEDULE_H', scheduleH1: 'SCHEDULE_H1', scheduleX: 'SCHEDULE_X', } as const` | `packages/db/prisma/seed/data/regulatory-in.ts:198` |  |
+| `IN_PACK_EFFECTIVE_FROM` | `'2026-08-13'` | `packages/db/prisma/seed/data/regulatory-in.ts:79` |  |
+| `IN_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:292` |  |
+| `IN_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:133` |  |
 | `QUALIFICATIONS` | `: { code: string; name: string }[]` | `packages/db/prisma/seed/data/qualifications.ts:34` |  |
 | `SPECIALTIES` | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed/data/specialties.ts:57` |  |
 | `STORAGE_PROFILES` | `: SeedStorageProfile[]` | `packages/db/prisma/seed/data/product-masters.ts:213` |  |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-in.ts:205` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `UNIT_CONVERSIONS` | `: SeedConversion[]` | `packages/db/prisma/seed/data/product-masters.ts:118` |  |
 | `UNITS` | `: SeedUnit[]` | `packages/db/prisma/seed/data/product-masters.ts:40` |  |
+
+## var
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `prescriptionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:226` |  |
+| `refillRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:256` |  |
+| `scheduled` <sub>local</sub> | `[ IN_CLASSIFICATIONS.scheduleH, IN_CLASSIFICATIONS.scheduleH1, IN_CLASSIFICATIONS.schedul…` | `packages/db/prisma/seed/data/regulatory-in.ts:207` |  |
+| `substitutionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:279` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `RuleSeed` | `{ code, ruleType, statement, sourceKey, appliesToProductType, appliesToClassification, appliesToTransactions, parameters, citation }` | `packages/db/prisma/seed/data/regulatory-in.ts:93` |  |
 | `SeedCategory` | `{ code, name, parent, description }` | `packages/db/prisma/seed/data/product-masters.ts:135` |  |
 | `SeedConversion` | `{ from, to, numerator, denominator }` | `packages/db/prisma/seed/data/product-masters.ts:101` |  |
 | `SeedStorageProfile` | `{ code, name, minTemperatureC, maxTemperatureC, minHumidityPct, maxHumidityPct, lightSensitivity, requiresControlledAccess, hazardClass, handlingNotes }` | `packages/db/prisma/seed/data/product-masters.ts:192` |  |
 | `SeedUnit` | `{ code, name, symbol, unitClass, isBase }` | `packages/db/prisma/seed/data/product-masters.ts:23` |  |
+| `SourceSeed` | `{ key, authorityCode, title, documentReference, sourceUrl, version, publishedOn, reviewStatus, notes }` | `packages/db/prisma/seed/data/regulatory-in.ts:81` |  |

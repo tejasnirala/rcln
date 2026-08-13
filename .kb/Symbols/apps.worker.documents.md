@@ -14,7 +14,7 @@ Files: `apps/worker/src/documents/browser.ts` · `apps/worker/src/documents/invo
 | `createRenderContext` | `(): Promise<BrowserContext>` | `apps/worker/src/documents/browser.ts:114` | A context for one job. Always closed by the caller, in a finally. |
 | `getBrowser` | `(): Promise<Browser>` | `apps/worker/src/documents/browser.ts:86` |  |
 | `renderInvoicePdf` | `(job: InvoicePdfJob, logger: JobLogger): Promise<void>` | `apps/worker/src/documents/invoice-pdf.job.ts:54` |  |
-| `renderPdf` | `(html: string): Promise<Buffer>` | `apps/worker/src/documents/pdf.renderer.ts:33` |  |
+| `renderPdf` | `(html: string): Promise<Buffer>` | `apps/worker/src/documents/pdf.renderer.ts:35` |  |
 | `scriptOf` <sub>local</sub> | `(character: string): string` | `apps/worker/src/documents/invoice-pdf.job.ts:245` |  |
 
 ## const

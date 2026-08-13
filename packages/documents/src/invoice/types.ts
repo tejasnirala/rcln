@@ -117,6 +117,22 @@ export interface InvoiceDocumentTaxLine {
 export interface InvoiceDocumentLine {
   lineNumber: number;
   description: string;
+  /**
+   * How the item is packaged — "strip of 15", "100ml bottle", "box of 100".
+   *
+   * ⚠️ A SEPARATE FIELD RATHER THAN THE TAIL OF `description`, AND IT IS NOT
+   *   PARSED OUT OF ONE. Splitting "Paracetamol 650mg tablets — strip of 15" on
+   *   the dash would be a heuristic over free text somebody typed, and it would
+   *   mangle every description that happens to contain a dash for another
+   *   reason. Printed as its own muted line under the name so the description
+   *   column can be narrower.
+   *
+   * ⚠️ NOTHING POPULATES THIS YET. `invoice_items` has no column for it, so the
+   *   API sends null and every real invoice renders exactly as before. Wiring it
+   *   is a schema change plus a snapshot at the point of sale — the pack size a
+   *   medicine was SOLD in, never the one the product carries today.
+   */
+  packaging?: string | null;
   /** The printed HSN/SAC. Presentation only — never the tax-category key. */
   itemCode: string | null;
   /** A decimal string, already at the column's three places. `'1.000'`. */

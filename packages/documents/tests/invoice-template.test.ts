@@ -17,6 +17,8 @@
 import { renderInvoiceHtml } from '../src/invoice/render.js';
 import { documentTitle } from '../src/invoice/document.js';
 import { fontFaceCss } from '../src/fonts.js';
+import { pharmacyInvoice } from '../src/invoice/samples.js';
+import { CONTENT_WIDTH_MM } from '../src/chrome/index.js';
 import {
   indianInvoice,
   unregisteredInvoice,
@@ -129,6 +131,54 @@ describe('tax presentation', () => {
    */
   it('explains why no tax was charged', () => {
     expect(render(unregisteredInvoice)).toContain('not registered for tax');
+  });
+});
+
+describe('the per-line tax columns', () => {
+  const html = renderInvoiceHtml(pharmacyInvoice(6), { omitFonts: true });
+
+  it('gives each tax component its own column instead of a line under the item', () => {
+    /*
+     * ⚠️ THE OLD SHAPE PRINTED "CGST 6% · SGST 6%" UNDER THE DESCRIPTION, WHICH
+     *   GAVE A READER THE RATES AND NEVER THE AMOUNTS. The only way to see what
+     *   the tax on a line actually was, component by component, was to do the
+     *   arithmetic.
+     */
+    expect(html).toContain('<th class="col-taxcomp num">CGST</th>');
+    expect(html).toContain('<th class="col-taxcomp num">SGST</th>');
+  });
+
+  it('carries the amount AND the rate in each cell', () => {
+    const cells = html.match(/<td class="col-taxcomp num">[^<]*<span class="item-tax-rate">/g);
+    expect(cells?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('derives the columns from the data rather than naming a tax regime', () => {
+    /*
+     * ⚠️ THE NAMES ARE NEVER HARD-CODED. An inter-state Indian supply is IGST
+     *   alone and a VAT country is one column called something else; a template
+     *   that knew "CGST" would print two empty columns everywhere else — and
+     *   would be the first country name in a package that has none.
+     */
+    const noTax = renderInvoiceHtml(unregisteredInvoice, { omitFonts: true });
+    expect(noTax).not.toContain('col-taxcomp');
+  });
+
+  it('drops the aggregate Tax column, so the same money is not printed twice', () => {
+    expect(html).not.toContain('<th class="col-tax num">Tax</th>');
+  });
+
+  it('widths still add up to the content width with the extra columns', () => {
+    /*
+     * ⚠️ `table-layout: fixed` WITH WIDTHS THAT DO NOT SUM IS HOW A TABLE STARTS
+     *   OVERFLOWING THE PAGE MARGIN. The colgroup is computed because the column
+     *   COUNT is data; this checks the arithmetic it does.
+     */
+    const colgroup = /<colgroup>([\s\S]*?)<\/colgroup>/.exec(html)?.[1] ?? '';
+    const widths = [...colgroup.matchAll(/width:\s*([\d.]+)mm/g)].map((m) => Number(m[1]));
+
+    expect(widths.length).toBeGreaterThan(0);
+    expect(widths.reduce((sum, mm) => sum + mm, 0)).toBeCloseTo(CONTENT_WIDTH_MM, 1);
   });
 });
 

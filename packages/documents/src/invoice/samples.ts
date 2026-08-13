@@ -17,7 +17,7 @@
  *   registration number in a public repository is somebody's.
  */
 
-import type { InvoiceDocumentData } from './types.js';
+import type { InvoiceDocumentData, InvoiceDocumentLine } from './types.js';
 
 /**
  * A Karnataka clinic billing a patient: one exempt consultation, one 12%
@@ -303,6 +303,289 @@ export const yenInvoice: InvoiceDocumentData = {
     balanceDueMinor: 0,
   },
 };
+
+/**
+ * A realistic pharmacy bill: real medicine names, real pack sizes, and prices
+ * that differ line to line.
+ *
+ * ⚠️ THE PRICES AND QUANTITIES VARY ON PURPOSE, AND A UNIFORM SAMPLE HID A BUG.
+ *   The older long sample charged 100.00 for every line, so every Taxable, every
+ *   CGST and every SGST cell held the same string — a column that was
+ *   mis-aligned, truncated or rendering the wrong field looked perfectly
+ *   plausible. Different figures of different WIDTHS are what make a money
+ *   column's alignment checkable by eye.
+ *
+ * ⚠️ THE MEDICINES ARE ORDINARY GENERICS AND THE RATES ARE THE TWO THIS DOCUMENT
+ *   NEEDS TO SHOW. Nothing here is a clinical or a tax recommendation — it is a
+ *   fixture for a layout. The 5% band is where most formulations sit and the 12%
+ *   band is where the rest do, which is what makes a two-rate tax summary worth
+ *   printing at all.
+ */
+const MEDICINES: readonly {
+  name: string;
+  pack: string;
+  hsn: string;
+  qty: string;
+  unitMinor: number;
+  rateBps: number;
+}[] = [
+  {
+    name: 'Paracetamol 650mg tablets',
+    pack: 'strip of 15',
+    hsn: '30049099',
+    qty: '2.000',
+    unitMinor: 3150,
+    rateBps: 1200,
+  },
+  {
+    name: 'Amoxicillin 500mg capsules',
+    pack: 'strip of 10',
+    hsn: '30041020',
+    qty: '1.000',
+    unitMinor: 11840,
+    rateBps: 1200,
+  },
+  {
+    name: 'Azithromycin 500mg tablets',
+    pack: 'strip of 3',
+    hsn: '30042039',
+    qty: '1.000',
+    unitMinor: 8975,
+    rateBps: 1200,
+  },
+  {
+    name: 'Pantoprazole 40mg tablets',
+    pack: 'strip of 15',
+    hsn: '30049069',
+    qty: '3.000',
+    unitMinor: 6420,
+    rateBps: 1200,
+  },
+  {
+    name: 'Metformin 500mg SR tablets',
+    pack: 'strip of 20',
+    hsn: '30049079',
+    qty: '2.000',
+    unitMinor: 4780,
+    rateBps: 1200,
+  },
+  {
+    name: 'Cetirizine 10mg tablets',
+    pack: 'strip of 10',
+    hsn: '30049099',
+    qty: '1.000',
+    unitMinor: 2145,
+    rateBps: 500,
+  },
+  {
+    name: 'Ascoril LS cough syrup 100ml',
+    pack: 'bottle of 100ml',
+    hsn: '30049011',
+    qty: '1.000',
+    unitMinor: 12650,
+    rateBps: 1200,
+  },
+  {
+    name: 'Insulin glargine 100IU/ml',
+    pack: '3ml cartridge',
+    hsn: '30043110',
+    qty: '1.000',
+    unitMinor: 89500,
+    rateBps: 500,
+  },
+  {
+    name: 'Salbutamol inhaler 100mcg',
+    pack: '200 doses',
+    hsn: '30049062',
+    qty: '1.000',
+    unitMinor: 21875,
+    rateBps: 500,
+  },
+  {
+    name: 'ORS sachets, orange',
+    pack: 'box of 10',
+    hsn: '30049099',
+    qty: '4.000',
+    unitMinor: 1950,
+    rateBps: 500,
+  },
+  {
+    name: 'Povidone-iodine 5% solution 100ml',
+    pack: 'bottle of 100ml',
+    hsn: '30049087',
+    qty: '1.000',
+    unitMinor: 8340,
+    rateBps: 1200,
+  },
+  {
+    name: 'Sterile gauze swabs 10x10cm',
+    pack: 'pack of 50',
+    hsn: '30059040',
+    qty: '2.000',
+    unitMinor: 15600,
+    rateBps: 1200,
+  },
+  {
+    name: 'Disposable syringes 5ml',
+    pack: 'box of 100',
+    hsn: '90183100',
+    qty: '1.000',
+    unitMinor: 42500,
+    rateBps: 1200,
+  },
+  {
+    name: 'Vitamin D3 60000IU sachets',
+    pack: 'pack of 4',
+    hsn: '30045020',
+    qty: '2.000',
+    unitMinor: 9960,
+    rateBps: 1200,
+  },
+  {
+    name: 'Digital thermometer, flexible tip',
+    pack: 'single unit',
+    hsn: '90251110',
+    qty: '1.000',
+    unitMinor: 24900,
+    rateBps: 1800,
+  },
+];
+
+/**
+ * One pharmacy line, with its CGST/SGST split worked out from the rate.
+ *
+ * ⚠️ THE HALVES ARE COMPUTED AND THEN THE SECOND IS TAKEN AS THE REMAINDER, NOT
+ *   HALVED AGAIN. An odd number of paise cannot be split evenly, and rounding
+ *   both halves independently makes them sum to one paisa more or less than the
+ *   line's tax — which is exactly the kind of discrepancy this document exists
+ *   to not have. `@rcln/tax` splits a real one the same way.
+ */
+function pharmacyLine(
+  index: number,
+  medicine: (typeof MEDICINES)[number],
+  discountMinor = 0
+): InvoiceDocumentLine {
+  const quantity = Number(medicine.qty);
+  const gross = Math.round(medicine.unitMinor * quantity);
+  const taxable = gross - discountMinor;
+  const tax = Math.round((taxable * medicine.rateBps) / 10_000);
+  const half = Math.floor(tax / 2);
+
+  return {
+    lineNumber: index + 1,
+    description: medicine.name,
+    packaging: medicine.pack,
+    itemCode: medicine.hsn,
+    quantity: medicine.qty,
+    unitPriceMinor: medicine.unitMinor,
+    grossAmountMinor: gross,
+    discountAmountMinor: discountMinor,
+    apportionedDiscountMinor: 0,
+    taxableAmountMinor: taxable,
+    taxAmountMinor: tax,
+    lineTotalMinor: taxable + tax,
+    taxes: [
+      { name: 'CGST', rateBps: medicine.rateBps / 2, taxAmountMinor: half },
+      { name: 'SGST', rateBps: medicine.rateBps / 2, taxAmountMinor: tax - half },
+    ],
+  };
+}
+
+/** A pharmacy bill of `lineCount` lines, cycling the medicine list. */
+export function pharmacyInvoice(lineCount = 12): InvoiceDocumentData {
+  const lines = Array.from({ length: lineCount }, (_, index) =>
+    pharmacyLine(
+      index,
+      MEDICINES[index % MEDICINES.length] as (typeof MEDICINES)[number],
+      // A discount on a couple of lines, so the column is not a row of dashes.
+      index % 7 === 3 ? 2500 : 0
+    )
+  );
+
+  const taxable = lines.reduce((sum, line) => sum + line.taxableAmountMinor, 0);
+  const gross = lines.reduce((sum, line) => sum + line.grossAmountMinor, 0);
+  const discount = lines.reduce((sum, line) => sum + line.discountAmountMinor, 0);
+
+  /** Grouped by rate, the way the summary block prints it. */
+  const byRate = new Map<number, number>();
+  for (const line of lines) {
+    for (const tax of line.taxes) {
+      byRate.set(tax.rateBps, (byRate.get(tax.rateBps) ?? 0) + tax.taxAmountMinor);
+    }
+  }
+
+  const taxableByRate = new Map<number, number>();
+  for (const line of lines) {
+    const rate = line.taxes[0]?.rateBps ?? 0;
+    taxableByRate.set(rate, (taxableByRate.get(rate) ?? 0) + line.taxableAmountMinor);
+  }
+
+  const taxTotal = lines.reduce((sum, line) => sum + line.taxAmountMinor, 0);
+  const summary = [...byRate.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .flatMap(([rateBps, amount]) =>
+      (['CGST', 'SGST'] as const).map((name) => ({
+        name,
+        jurisdiction: 'IN',
+        rateBps,
+        taxableAmountMinor: taxableByRate.get(rateBps) ?? 0,
+        taxAmountMinor: Math.round(amount / 2),
+      }))
+    );
+
+  return {
+    ...indianInvoice,
+    sourceType: 'PHARMACY',
+    invoiceNumber: `INV-2026-PHA-MAIN-${String(400 + lineCount).padStart(6, '0')}`,
+    notes: 'Medicines once sold are not returnable. Keep this bill for any warranty claim.',
+    lines,
+    taxSummary: summary,
+    totals: {
+      subtotalMinor: gross,
+      lineDiscountTotalMinor: discount,
+      invoiceDiscountTotalMinor: 0,
+      taxableAmountMinor: taxable,
+      taxTotalMinor: taxTotal,
+      roundingAdjustmentMinor: 0,
+      grandTotalMinor: taxable + taxTotal,
+      amountPaidMinor: 0,
+      balanceDueMinor: taxable + taxTotal,
+    },
+  };
+}
+
+/**
+ * A hospital whose address genuinely runs to five lines.
+ *
+ * ⚠️ THIS EXISTS BECAUSE A FIVE-LINE ADDRESS BROKE THE RUNNING HEADER. The block
+ *   was set one-line-per-entry, so it overflowed the fixed band and its tail
+ *   disappeared under the rule that closes the header — which reads as the rule
+ *   striking through the text. The address now WRAPS inside a column over 100mm
+ *   wide, so this fits in two or three lines. Keep this sample: it is the case
+ *   that fails, and a shorter one will not catch a regression.
+ */
+export function longAddressInvoice(lineCount = 55): InvoiceDocumentData {
+  const base = pharmacyInvoice(lineCount);
+
+  return {
+    ...base,
+    issuer: {
+      ...base.issuer,
+      legalName: 'Sanjeevani Multi-Speciality Hospitals Private Limited',
+      tradeName: 'Sanjeevani Hospital',
+      branchName: 'Malviya Nagar Branch',
+      addressLines: [
+        'Plot 42, Sector 11, Healthcare City',
+        'Opposite Central Metro Station, Malviya Nagar',
+        'Jaipur, Rajasthan 302017',
+        'India',
+        'Landmark: Beside the District Civil Court',
+      ],
+      phone: '+91 141 4001 2200',
+      email: 'billing@sanjeevani-hospital.example',
+    },
+  };
+}
 
 /** Long enough to break across pages — the repeated `<thead>` case. */
 export function longInvoice(lineCount = 45): InvoiceDocumentData {

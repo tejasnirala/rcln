@@ -1,16 +1,29 @@
 # Country Support Matrix
 
-A living document. **Every regulatory cell is `RESEARCH_REQUIRED` and must stay
-that way until a real source is found, read and recorded** in
-`regulatory_sources`.
+A living document. **A regulatory cell stays `RESEARCH_REQUIRED` until a real
+source is found, read and recorded** in `regulatory_sources`. India is the first
+country where some of them have moved; every other country's are untouched.
 
-**Last updated:** 2026-08-13 · **All rows at maturity:** `ARCHITECTURE_SUPPORTED`
+**Last updated:** 2026-08-13 · **India at `AUTOMATED_TESTED`; every other row at
+`ARCHITECTURE_SUPPORTED`**
 
-⚠️ **SINCE PI-5, `ARCHITECTURE_SUPPORTED` IS LITERALLY TRUE AND NOTHING MORE.** The
-engine can express these rules and the tables exist; **no `regulatory_rule_packs`
-row exists for any country**, so every evaluation in every jurisdiction currently
-answers `UNDETERMINED` — which refuses. A cell moves to `RULES_CONFIGURED` when
-rows exist, and no further without a source somebody has read.
+⚠️ **INDIA IS THE ONLY CONFIGURED JURISDICTION.** PI-6 seeded pack `IN 1.0.0` —
+3 sources, 22 rules — from CDSCO's own consolidated Drugs Rules, 1945 and the
+Pharmacy Act, 1948 on India Code. **Every other country still has no
+`regulatory_rule_packs` row at all**, so every evaluation outside India answers
+`UNDETERMINED`, which refuses.
+
+⚠️ **AND MOST OF INDIA'S OWN CELLS ARE STILL `RESEARCH_REQUIRED`, DELIBERATELY.**
+A configured pack is not a complete one. NDPS, quantity limits, age restrictions
+and the e-pharmacy position were all researched and NOT written, each for a
+reason recorded in `seed/data/regulatory-in.ts`. A cell below moves only when a
+rule exists that a source supports.
+
+⚠️ **`AUTOMATED_TESTED` IS NOT `PRODUCTION_ENABLED`, AND THE GAP IS THREE RUNGS
+WIDE.** India's sources are `UNVERIFIED` and no qualified person has read the
+pack. Goods receipt and transfer DO consult it while posting, but **nothing
+blocks**: enforcement is gated on `PRODUCTION_ENABLED`, which only a named human
+may set. Nothing here is a claim of compliance.
 
 ## Vocabulary
 
@@ -32,7 +45,7 @@ PLANNED             scheduled in a named phase
 
 | Country              | ISO | Rule pack phase | Maturity                 | Tax scheme (existing engine) | Sub-national tax                                          | Notes                                                                                                                                                       |
 | -------------------- | --- | --------------- | ------------------------ | ---------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| India                | IN  | PI-6            | `ARCHITECTURE_SUPPORTED` | GST                          | ✅ state — `INTRA_STATE_HALVES` split already implemented | Pilot pack. The tax side is the most exercised in the codebase.                                                                                             |
+| India                | IN  | PI-6            | `AUTOMATED_TESTED`       | GST                          | ✅ state — `INTRA_STATE_HALVES` split already implemented | **Configured.** Pack `IN 1.0.0`, 22 rules, 3 sources. No sub-national pack; no NDPS. See the dimension table below for what is still open.                  |
 | United States        | US  | PI-13           | `ARCHITECTURE_SUPPORTED` | SALES_TAX                    | ✅ state/county/city/district                             | Tax requires the `TaxProviderQuote` seam — a rate table cannot be honest here. Regulation is federal **plus** state, and the pack must be state-extensible. |
 | United Kingdom       | GB  | PI-14           | `ARCHITECTURE_SUPPORTED` | VAT                          | ✖                                                         |                                                                                                                                                             |
 | Australia            | AU  | PI-15           | `ARCHITECTURE_SUPPORTED` | GST                          | State/territory variation likely on the regulatory side   |                                                                                                                                                             |
@@ -53,39 +66,75 @@ for every country except what a clinic configures for itself.
 
 ## Regulatory dimensions
 
-Every cell below is `RESEARCH_REQUIRED` for every country. The table exists so
-that research has a shape, and so that a partially-researched country is
-visibly partial.
+The table exists so that research has a shape, and so that a partially-researched
+country is visibly partial. India is exactly that: some cells sourced, most not.
 
-| Dimension                             | IN  | US  | GB  | AU  | SG  | AE  | IE  | NP  | LK  | BD  |
-| ------------------------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Regulatory authority                  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Product registration requirement      | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| National product identifier scheme    | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Prescription classification scheme    | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Controlled-substance scheduling       | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Dispensing restrictions               | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Pharmacy licensing                    | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Pharmacist qualification requirements | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Generic substitution rules            | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Quantity / refill limits              | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Age restrictions                      | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Online pharmacy permitted             | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Traceability / serialisation mandate  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Batch/lot recording requirements      | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Expiry handling requirements          | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Storage / cold chain requirements     | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Labelling requirements                | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Recall procedure and obligations      | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Record retention period               | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Reporting obligations                 | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Veterinary-specific rules             | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Sub-national variation exists         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| External system integration required  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Source references recorded            | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   |
-| Last reviewed                         | —   | —   | —   | —   | —   | —   | —   | —   | —   | —   |
+| Dimension                             | IN         | US  | GB  | AU  | SG  | AE  | IE  | NP  | LK  | BD  |
+| ------------------------------------- | ---------- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Regulatory authority                  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Product registration requirement      | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| National product identifier scheme    | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Prescription classification scheme    | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Controlled-substance scheduling       | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Dispensing restrictions               | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Pharmacy licensing                    | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Pharmacist qualification requirements | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Generic substitution rules            | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Quantity / refill limits              | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Age restrictions                      | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Online pharmacy permitted             | UNK        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Traceability / serialisation mandate  | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Batch/lot recording requirements      | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Expiry handling requirements          | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Storage / cold chain requirements     | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Labelling requirements                | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Recall procedure and obligations      | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Record retention period               | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Reporting obligations                 | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Veterinary-specific rules             | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Sub-national variation exists         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| External system integration required  | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
+| Source references recorded            | ✅         | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   |
+| Last reviewed                         | 2026-08-13 | —   | —   | —   | —   | —   | —   | —   | —   | —   |
 
-`RR` = `RESEARCH_REQUIRED`.
+`RR` = `RESEARCH_REQUIRED` · `SUP` = `SUPPORTED` · `UNK` = `UNKNOWN`.
+
+### Why India's remaining cells did not move
+
+⚠️ **Each of these was researched and left alone on purpose.** A cell that stays
+`RR` after a research session is a result, not an omission.
+
+- **Controlled-substance scheduling — `RR`.** Schedule H1 and Schedule X are
+  configured (registers, retention, lock-and-key storage), but **NDPS is not**.
+  The Narcotic Drugs and Psychotropic Substances Act, 1985 and the "essential
+  narcotic drugs" regime run through STATE licensing of recognised institutions,
+  which is a sub-national specialist question. A half-read version is worse than
+  none, so the cell stays `RR` until somebody qualified does it.
+- **Quantity / refill limits — `RR`.** Refills ARE configured — rule 65(11)(a)
+  means a scheduled prescription is not repeated unless the prescriber endorsed
+  it. **No quantity limit exists** in the Drugs Rules for Schedule H, H1 or X;
+  where India limits quantity it is NDPS's doing, per the point above. The row
+  combines two dimensions and the weaker one governs it.
+- **Age restrictions — `RR`.** The Drugs Rules impose none. Inventing a
+  plausible age would be inventing law.
+- **Online pharmacy permitted — `UNK`,** the one cell in this whole file at
+  `UNKNOWN`, and it is the correct value. The draft e-pharmacy rules
+  (G.S.R. 817(E), 28 August 2018) were **never notified** and remain draft years
+  later, so no published rule says remote supply either is or is not permitted.
+  No `ONLINE_DISPENSING` rule is written; what IS written is that the
+  prescription, substitution and labelling rules apply to `ONLINE_DISPENSE` as
+  much as to a counter sale, because rule 65(9)(a) speaks about a "sale by
+  retail" and says nothing about the channel.
+- **Storage / cold chain — `RR`.** Only Schedule X's lock-and-key requirement
+  (rule 65(12)) is sourced. General cold-chain obligations were not researched.
+- **Sub-national variation — `RR`.** India's state drugs controllers license and
+  inspect; whether any varies these particular obligations is unresearched. The
+  framework is ready — a pack on `(IN, KA)` supersedes the national one per rule
+  type — and PI-6 wrote none.
+- **Product registration, identifier scheme, pharmacy licensing, traceability,
+  batch recording, expiry, recall, reporting, external integration — `RR`.** Out
+  of PI-6's scope. Several are PI-10's (recall and traceability) and PI-23's
+  (identifiers).
 
 ---
 

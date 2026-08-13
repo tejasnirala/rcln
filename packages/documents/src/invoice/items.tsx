@@ -32,6 +32,8 @@
 
 import type { JSX } from 'react';
 
+import { CONTENT_WIDTH_MM } from '../chrome/index.js';
+
 import type { InvoiceFormatter } from './format.js';
 import type {
   InvoiceDocumentData,
@@ -51,47 +53,116 @@ export type ItemTable = (props: ItemTableProps) => JSX.Element;
 // ---------------------------------------------------------------------------
 
 /**
- * The description, with this line's own tax breakdown beneath it.
+ * The description.
  *
- * In Karnataka a 12% line is CGST 6% + SGST 6% — two facts that do not fit one
- * cell and that a reader needs beside the item rather than only in the summary.
+ * ⚠️ THE PER-LINE TAX BREAKDOWN USED TO LIVE HERE, UNDER THE DESCRIPTION, AND IT
+ *   IS NOW A COLUMN PER TAX. "CGST 6% · SGST 6%" beneath the item name told a
+ *   reader the RATES but never the amounts, so the only way to see what the tax
+ *   on a line actually was, component by component, was to do the arithmetic.
+ *   `taxColumnsFor` builds one column per component instead, carrying both.
  */
 function DescriptionCell({
   line,
-  fmt,
   className,
 }: {
   line: InvoiceDocumentLine;
-  fmt: InvoiceFormatter;
   className: string;
 }): JSX.Element {
   return (
     <td className={className}>
       <div className="item-desc">{line.description}</div>
-      {line.taxes.length === 0 ? null : (
-        <div className="item-taxes">
-          {line.taxes.map((tax) => `${tax.name} ${fmt.rate(tax.rateBps)}`).join('  ·  ')}
-        </div>
+      {line.packaging === null || line.packaging === undefined ? null : (
+        <div className="item-pack">{line.packaging}</div>
       )}
     </td>
   );
 }
 
 /**
- * The audited tail: discount, taxable, tax, amount. Identical on every source.
+ * Which tax components this document charges, in the order they first appear.
+ *
+ * ⚠️ DERIVED FROM THE DATA, NEVER A LIST OF NAMES THIS FILE KNOWS. An intra-state
+ *   Indian supply is CGST + SGST, an inter-state one is IGST alone, and a VAT
+ *   country is one column called something else entirely — hard-coding "CGST"
+ *   and "SGST" here would print two empty columns on every invoice outside one
+ *   tax regime, and would be the first country name in a package that has none.
+ *
+ * ⚠️ ORDER OF FIRST APPEARANCE, NOT ALPHABETICAL. CGST before SGST is the order
+ *   the law names them in and the order every Indian invoice prints them in;
+ *   sorting would silently reverse it.
+ */
+export function taxColumnsFor(data: InvoiceDocumentData): string[] {
+  const names: string[] = [];
+  for (const line of data.lines) {
+    for (const tax of line.taxes) {
+      if (!names.includes(tax.name)) names.push(tax.name);
+    }
+  }
+  return names;
+}
+
+/**
+ * One cell per tax component: the amount, with the rate that produced it.
+ *
+ * ⚠️ A LINE THAT DOES NOT CARRY ONE OF THE DOCUMENT'S COMPONENTS PRINTS AN EM
+ *   DASH, NOT A ZERO. An exempt item on a bill that also has taxable ones is
+ *   charged NO CGST — which is a different statement from "CGST of 0.00", and on
+ *   a document somebody files a return from the difference matters.
+ */
+function TaxCells({
+  line,
+  fmt,
+  columns,
+}: {
+  line: InvoiceDocumentLine;
+  fmt: InvoiceFormatter;
+  columns: readonly string[];
+}): JSX.Element {
+  return (
+    <>
+      {columns.map((name) => {
+        const tax = line.taxes.find((entry) => entry.name === name);
+        return (
+          <td key={name} className="col-taxcomp num">
+            {tax === undefined ? (
+              '—'
+            ) : (
+              <>
+                {fmt.amount(tax.taxAmountMinor)}
+                <span className="item-tax-rate">{fmt.rate(tax.rateBps)}</span>
+              </>
+            )}
+          </td>
+        );
+      })}
+    </>
+  );
+}
+
+/**
+ * The audited tail: discount, taxable, the tax components, amount.
  *
  * ⚠️ THE LINE'S OWN DISCOUNT AND ITS SHARE OF THE WHOLE-BILL ONE ARE ONE PRINTED
  *   FIGURE. They are two columns in the database because they are two different
  *   instructions — the second is apportioned across lines before tax — but a
  *   patient reading the row wants to know what came off this line, and a second
  *   discount column would invite the question of whether they add up.
+ *
+ * ⚠️ THERE IS NO SINGLE "Tax" COLUMN ANY MORE, AND ITS REMOVAL IS DELIBERATE
+ *   RATHER THAN AN OVERSIGHT. It held the sum of the components now printed
+ *   beside it, so keeping both would put the same money on the page twice and
+ *   invite a reader to add the components and check them against it — an
+ *   arithmetic identity that is only ever interesting when it fails. `Taxable`
+ *   plus the components plus `Amount` is the whole story of the line.
  */
 function MoneyCells({
   line,
   fmt,
+  taxColumns,
 }: {
   line: InvoiceDocumentLine;
   fmt: InvoiceFormatter;
+  taxColumns: readonly string[];
 }): JSX.Element {
   const discount = line.discountAmountMinor + line.apportionedDiscountMinor;
 
@@ -99,25 +170,104 @@ function MoneyCells({
     <>
       <td className="col-disc num">{fmt.deduction(discount)}</td>
       <td className="col-taxable num">{fmt.amount(line.taxableAmountMinor)}</td>
-      <td className="col-tax num">
-        {line.taxAmountMinor === 0 ? '—' : fmt.amount(line.taxAmountMinor)}
-      </td>
+      <TaxCells line={line} fmt={fmt} columns={taxColumns} />
       <td className="col-amount num strong">{fmt.amount(line.lineTotalMinor)}</td>
     </>
   );
 }
 
-/** The four money headers, in the order `MoneyCells` prints them. */
-function MoneyHeaders(): JSX.Element {
+/** The money headers, in the order `MoneyCells` prints them. */
+function MoneyHeaders({ taxColumns }: { taxColumns: readonly string[] }): JSX.Element {
   return (
     <>
       <th className="col-disc num">Discount</th>
       <th className="col-taxable num">Taxable</th>
-      <th className="col-tax num">Tax</th>
+      {taxColumns.map((name) => (
+        <th key={name} className="col-taxcomp num">
+          {name}
+        </th>
+      ))}
       <th className="col-amount num">Amount</th>
     </>
   );
 }
+
+/**
+ * The column widths, in millimetres, as a `<colgroup>`.
+ *
+ * ⚠️ COMPUTED RATHER THAN DECLARED IN CSS, BECAUSE THE COLUMN COUNT IS NOW DATA.
+ *   A document may carry one tax component, two, or none, and the widths have to
+ *   still add up to the content width — `table-layout: fixed` with widths that
+ *   do not sum is how a table starts overflowing the page margin. The
+ *   description column absorbs the difference, which is what it is for.
+ *
+ * ⚠️ THE STYLESHEET CANNOT DO THIS. It has no way to know how many components a
+ *   given invoice charges, and a per-count rule set (`[data-taxcols="2"] …`)
+ *   would be three copies of the same arithmetic maintained by hand.
+ */
+function ColGroup({
+  fixed,
+  taxColumns,
+}: {
+  /** Every column except the description, which flexes. */
+  fixed: readonly number[];
+  taxColumns: readonly string[];
+}): JSX.Element {
+  const taxWidth = TAX_WIDTH_MM;
+  /*
+   * ⚠️ THE AMOUNT COLUMN COUNTS TOWARDS THE BUDGET, AND LEAVING IT OUT PUT THE
+   *   TABLE 24mm OVER THE CONTENT WIDTH — off the right margin. It is emitted
+   *   separately at the end rather than being part of `fixed`, which is exactly
+   *   what made it easy to forget here. A test sums the rendered colgroup.
+   */
+  const used =
+    fixed.reduce((sum, mm) => sum + mm, 0) + taxWidth * taxColumns.length + AMOUNT_WIDTH_MM;
+  /*
+   * A floor, so a pathological number of components narrows the description
+   * rather than making it negative and collapsing the table.
+   */
+  const description = Math.max(CONTENT_WIDTH_MM - used, 24);
+
+  return (
+    <colgroup>
+      <col style={{ width: `${String(fixed[0] ?? 6)}mm` }} />
+      <col style={{ width: `${String(description)}mm` }} />
+      {/*
+       * Keyed by position, which is correct here and almost nowhere else: these
+       * are column WIDTHS, not entities, and there is no reconciliation at all
+       * under `renderToStaticMarkup`.
+       */}
+      {fixed.slice(1).map((mm, index) => (
+        <col key={`fixed-${String(index)}-${String(mm)}`} style={{ width: `${String(mm)}mm` }} />
+      ))}
+      {taxColumns.map((name) => (
+        <col key={name} style={{ width: `${String(taxWidth)}mm` }} />
+      ))}
+      <col style={{ width: `${String(AMOUNT_WIDTH_MM)}mm` }} />
+    </colgroup>
+  );
+}
+
+/**
+ * The widths that are NOT the description, in millimetres.
+ *
+ * ⚠️ THESE ARE THE INK WIDTHS PLUS THE CELL PADDING, WHICH IS 2.6mm A SIDE. A
+ *   column sized to just fit its widest figure looks congested, because this
+ *   table has no vertical rules and no striping — the padding IS the separator.
+ *   Widening them is paid for by the description, which now carries the pack
+ *   size on its own second line and needs less.
+ */
+const AMOUNT_WIDTH_MM = 24;
+
+/*
+ * ⚠️ THE HSN/SAC COLUMN IS 19mm AND WAS 14mm, WHICH IS THE ONE WIDTH HERE THAT
+ *   WAS SIMPLY TOO SMALL FOR ITS CONTENT. An Indian HSN code is eight digits set
+ *   in MONO — wider per character than the body face — so it needs about 13.5mm
+ *   of ink plus 5.2mm of padding. In 14mm it filled the cell edge to edge and
+ *   read as though it were touching the Qty column beside it. The millimetres
+ *   come from the two tax columns, which had more room than their figures need.
+ */
+const TAX_WIDTH_MM = 17;
 
 /**
  * `<thead>` rather than a styled first row: Chromium repeats a real table header
@@ -125,9 +275,18 @@ function MoneyHeaders(): JSX.Element {
  * labelled on page one is unreadable, and this is one tag rather than a
  * pagination routine of our own.
  */
-function ItemsTable({ head, rows }: { head: JSX.Element; rows: JSX.Element[] }): JSX.Element {
+function ItemsTable({
+  head,
+  rows,
+  colgroup,
+}: {
+  head: JSX.Element;
+  rows: JSX.Element[];
+  colgroup: JSX.Element;
+}): JSX.Element {
   return (
     <table className="items">
+      {colgroup}
       <thead>
         <tr>{head}</tr>
       </thead>
@@ -154,23 +313,26 @@ function ItemsTable({ head, rows }: { head: JSX.Element; rows: JSX.Element[] }):
  * `Rate` belongs over a unit price.
  */
 function AppointmentItems({ data, fmt }: ItemTableProps): JSX.Element {
+  const taxColumns = taxColumnsFor(data);
+
   return (
     <ItemsTable
+      colgroup={<ColGroup fixed={[6, 20, 17, 21]} taxColumns={taxColumns} />}
       head={
         <>
           <th className="col-n">#</th>
           {/* Absorbs the width the two dropped columns would have taken. */}
           <th className="col-desc-wide">Description</th>
           <th className="col-rate num">Fee</th>
-          <MoneyHeaders />
+          <MoneyHeaders taxColumns={taxColumns} />
         </>
       }
       rows={data.lines.map((line) => (
         <tr key={line.lineNumber}>
           <td className="col-n muted">{line.lineNumber}</td>
-          <DescriptionCell line={line} fmt={fmt} className="col-desc-wide" />
+          <DescriptionCell line={line} className="col-desc-wide" />
           <td className="col-rate num">{fmt.amount(line.unitPriceMinor)}</td>
-          <MoneyCells line={line} fmt={fmt} />
+          <MoneyCells line={line} fmt={fmt} taxColumns={taxColumns} />
         </tr>
       ))}
     />
@@ -197,8 +359,11 @@ function AppointmentItems({ data, fmt }: ItemTableProps): JSX.Element {
  * not grow this table with columns only one source uses.
  */
 function DefaultItems({ data, fmt }: ItemTableProps): JSX.Element {
+  const taxColumns = taxColumnsFor(data);
+
   return (
     <ItemsTable
+      colgroup={<ColGroup fixed={[6, 19, 12, 17, 15, 19]} taxColumns={taxColumns} />}
       head={
         <>
           <th className="col-n">#</th>
@@ -206,17 +371,17 @@ function DefaultItems({ data, fmt }: ItemTableProps): JSX.Element {
           <th className="col-code">HSN/SAC</th>
           <th className="col-qty num">Qty</th>
           <th className="col-rate num">Rate</th>
-          <MoneyHeaders />
+          <MoneyHeaders taxColumns={taxColumns} />
         </>
       }
       rows={data.lines.map((line) => (
         <tr key={line.lineNumber}>
           <td className="col-n muted">{line.lineNumber}</td>
-          <DescriptionCell line={line} fmt={fmt} className="col-desc" />
+          <DescriptionCell line={line} className="col-desc" />
           <td className="col-code mono muted">{line.itemCode ?? '—'}</td>
           <td className="col-qty num">{fmt.quantity(line.quantity)}</td>
           <td className="col-rate num">{fmt.amount(line.unitPriceMinor)}</td>
-          <MoneyCells line={line} fmt={fmt} />
+          <MoneyCells line={line} fmt={fmt} taxColumns={taxColumns} />
         </tr>
       ))}
     />

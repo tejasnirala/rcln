@@ -41,7 +41,12 @@ import {
   type Parsed,
   type QuantityLimitParameters,
 } from './parameters.js';
-import { formatJurisdiction, selectApplicableRules, startOfCalendarDay } from './selection.js';
+import {
+  formatJurisdiction,
+  needsClassificationButHasNone,
+  selectApplicableRules,
+  startOfCalendarDay,
+} from './selection.js';
 import type {
   RegulatoryCondition,
   RegulatoryDecision,
@@ -758,6 +763,38 @@ export function evaluate(request: RegulatoryRequest): RegulatoryDecision {
             `${formatJurisdiction(request.jurisdiction)}. Nothing is permitted on the strength ` +
             "of an absence — configure the jurisdiction, or record this product's regulatory " +
             'profile, before dispensing it.',
+        },
+      ],
+      packVersionIds,
+      lowestPackMaturity,
+    };
+  }
+
+  /*
+   * ⚠️ THE PROFILE GAP, CHECKED BEFORE ANY RULE IS EVALUATED AND NOT AFTER.
+   *   Running the rules first and adding this to the result would work, but it
+   *   would put a permission and an unknown about the SAME product in one
+   *   decision, and the reasons list is what an inspection reads. A product
+   *   whose regulatory nature nobody has recorded has one honest answer, and it
+   *   is this one. See `needsClassificationButHasNone`.
+   */
+  if (needsClassificationButHasNone(request)) {
+    return {
+      outcome: 'UNDETERMINED',
+      conditions: [],
+      reasons: [
+        {
+          ruleId: null,
+          ruleCode: null,
+          ruleType: null,
+          packId: null,
+          packVersion: null,
+          outcome: 'UNDETERMINED',
+          message:
+            `${formatJurisdiction(request.jurisdiction)} decides what may be done with this ` +
+            'kind of product by its regulatory classification, and this product has none ' +
+            'recorded for this jurisdiction. Record its regulatory profile before supplying it — ' +
+            'nothing is permitted on the strength of an absence.',
         },
       ],
       packVersionIds,

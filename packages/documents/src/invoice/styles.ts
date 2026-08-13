@@ -40,14 +40,16 @@
  *   up to the content width rather than being left to the table algorithm.
  */
 
-/** A4 portrait, and the margins the content is laid out inside. */
-const PAGE = {
-  width: '210mm',
-  margin: '14mm',
-  /** Wider at the foot: the print footer sits in it. */
-  marginBottom: '16mm',
-  contentWidth: '182mm',
-} as const;
+/*
+ * ⚠️ THE GEOMETRY IS NOT DECLARED HERE ANY MORE. It is `PAGE` in
+ *   `chrome/styles.ts`, shared with every other document type, because the
+ *   header and footer bands and the body margins are the same measurement seen
+ *   from two sides: the top margin exists to reserve room for the header. Two
+ *   copies would drift the day one of them changed, and the symptom is body
+ *   text printed underneath the running header on page two only.
+ */
+
+import { PAGE, chromeStylesheet, pageRule } from '../chrome/index.js';
 
 export interface StylesheetOptions {
   /**
@@ -100,10 +102,8 @@ th, td { padding: 0; text-align: left; font-weight: inherit; vertical-align: top
  * the paper — one declaration rather than a size in the CSS and a \`format\`
  * option that could disagree with it.
  * ------------------------------------------------------------------------ */
-@page {
-  size: A4;
-  margin: ${PAGE.margin} ${PAGE.margin} ${PAGE.marginBottom};
-}
+${pageRule()}
+${chromeStylesheet()}
 
 body {
   font-family: var(--sans);
@@ -127,10 +127,27 @@ body {
  */
 .sheet {
   width: ${PAGE.width};
-  min-height: 297mm;
+  min-height: ${PAGE.height};
   margin: 0 auto;
-  padding: ${PAGE.margin} ${PAGE.margin} ${PAGE.marginBottom};
+  /*
+   * ⚠️ SCREEN ONLY, AND THE TOP INSET IS THE PAGE MARGIN — NOT THE HEADER BAND.
+   *   In print the header lives IN the top margin, so the body starts 34mm down;
+   *   on screen the header is an ordinary block at the top of the sheet, so
+   *   insetting by 34mm as well pushed it a whole band lower and left a wide
+   *   empty strip above it. The preview should look like the sheet: a normal
+   *   margin, then the header, then the body.
+   *
+   *   The @media print block below zeroes this entirely — there the @page margin
+   *   is what insets the body, and the two would otherwise add up.
+   */
+  padding: ${PAGE.side};
   background: #ffffff;
+  /*
+   * A column, so the footer's \`margin-top: auto\` can push it to the foot of a
+   * short invoice instead of leaving it under the last line.
+   */
+  display: flex;
+  flex-direction: column;
 }
 
 /*
@@ -197,71 +214,15 @@ body {
 .strong { font-weight: 600; color: var(--ink-soft); }
 
 /* ---------------------------------------------------------------------------
- * Masthead — who is billing, and which document this is
+ * The masthead moved.
+ *
+ * ⚠️ .masthead, .issuer-*, .doc-* ARE GONE, NOT RENAMED — they are now
+ *   .page-header and .chrome-* in chrome/styles.ts, shared by every
+ *   document type. Leaving the old selectors here as aliases would let a
+ *   template keep rendering a one-page masthead that still looked right in a
+ *   preview and printed nothing on page two, which is precisely the defect this
+ *   change exists to fix.
  * ------------------------------------------------------------------------ */
-.masthead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12mm;
-  padding-bottom: 4mm;
-  border-bottom: var(--heavyline);
-}
-
-.issuer-name {
-  font-size: 13pt;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--ink);
-}
-
-.issuer-trade {
-  font-size: 8pt;
-  color: var(--muted);
-  margin-top: 0.6mm;
-}
-
-.issuer-detail {
-  margin-top: 2.5mm;
-  font-size: 8pt;
-  line-height: 1.5;
-  color: var(--ink-soft);
-  white-space: pre-line;
-}
-
-.issuer-tax {
-  margin-top: 1.5mm;
-  font-size: 8pt;
-}
-
-.doc { text-align: right; flex: 0 0 62mm; }
-
-.doc-title {
-  font-size: 12pt;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--drape);
-  line-height: 1.1;
-}
-
-.doc-number {
-  margin-top: 1.5mm;
-  font-size: 10pt;
-  font-weight: 600;
-}
-
-.doc-meta {
-  margin-top: 3mm;
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 0.8mm 4mm;
-  justify-content: end;
-  font-size: 8pt;
-}
-
-.doc-meta dt { color: var(--muted); text-align: right; }
-.doc-meta dd { margin: 0; text-align: right; }
 
 /* ---------------------------------------------------------------------------
  * Parties
@@ -270,7 +231,14 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0 10mm;
-  padding: 4mm 0;
+  /*
+   * ⚠️ NO TOP PADDING. The air above the first block of the body is the @page
+   *   margin's job, and it is the ONLY air there is from page two onwards. When
+   *   this padded the top as well, page one sat 4mm lower than every page after
+   *   it — so the spacing looked right in every preview and wrong on every
+   *   multi-page document.
+   */
+  padding: 0 0 4mm;
   border-bottom: var(--hairline);
 }
 
@@ -314,7 +282,7 @@ body {
 
 .items thead th {
   background: var(--drape-tint);
-  padding: 1.6mm 2mm;
+  padding: 1.6mm 2.6mm;
   font-size: 6.5pt;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -326,7 +294,15 @@ body {
 .items thead th:last-child  { border-top-right-radius: var(--radius-xs); border-bottom-right-radius: var(--radius-xs); }
 
 .items tbody td {
-  padding: 1.8mm 2mm;
+  /*
+   * ⚠️ 2.6mm EACH SIDE, SO THE GUTTER BETWEEN TWO COLUMNS IS 5.2mm. At 2mm the
+   *   money columns read as congested: every figure is right-aligned and a wide
+   *   one nearly fills its column, so the only thing separating it from the
+   *   figure beside it is the padding. This table carries no vertical rules and
+   *   no zebra striping by design, which makes that gap the ONLY separator
+   *   there is.
+   */
+  padding: 1.8mm 2.6mm;
   font-size: 8pt;
   border-bottom: var(--hairline);
   vertical-align: top;
@@ -351,21 +327,47 @@ body {
 .col-rate    { width: 19mm; }
 .col-disc    { width: 17mm; }
 .col-taxable { width: 20mm; }
-.col-tax     { width: 18mm; }
+/*
+ * ⚠️ NO WIDTH ON THE TAX COMPONENT COLUMNS, AND NONE ON THE OTHERS THAT MOVED.
+ *   The item table's widths are a colgroup computed in items.tsx now, because
+ *   the column COUNT is data — one tax component, two, or none — and a fixed set
+ *   of CSS widths cannot add up to the content width in all three cases. A width
+ *   here would win over the colgroup and break the arithmetic.
+ *
+ *   (No backticks in this file's comments: the stylesheet is one template
+ *   literal, and the syntax error surfaces hundreds of lines away.)
+ */
 .col-amount  { width: 23mm; }
 
 .item-desc { color: var(--ink); }
 
 /*
- * The per-line tax breakdown, under the description rather than in a column of
- * its own. In Karnataka a 12% line is CGST 6% + SGST 6% — two facts that do not
- * fit one cell, and that a reader needs beside the item rather than only in the
- * summary.
+ * The per-line tax breakdown is a COLUMN PER COMPONENT now, not a line under the
+ * description. Each cell carries the amount with the rate that produced it set
+ * beneath it, so a reader can see both without doing the arithmetic.
+ *
+ * ⚠️ THE RATE IS A BLOCK, SO IT SITS UNDER THE AMOUNT RATHER THAN BESIDE IT. In
+ *   21mm there is no room for "60.00 (6%)" on one line at this size, and letting
+ *   it wrap mid-figure is worse than stacking it deliberately.
  */
-.item-taxes {
-  margin-top: 0.8mm;
-  font-size: 7pt;
+/*
+ * The pack size, under the medicine's name. Same weight and colour as the rate
+ * under a tax figure — both are the smaller, quieter half of the cell above
+ * them, and using one treatment for both is what makes them read as a pattern
+ * rather than as two unrelated bits of small print.
+ */
+.item-pack {
+  margin-top: 0.4mm;
+  font-size: 6.5pt;
   color: var(--muted);
+}
+
+.item-tax-rate {
+  display: block;
+  font-size: 6.5pt;
+  color: var(--muted);
+  /* Tabular figures keep the rates aligned down the column. */
+  font-variant-numeric: tabular-nums;
 }
 
 .item-reason {
@@ -433,6 +435,14 @@ body {
   grid-template-columns: 1fr 62mm;
   gap: 0 10mm;
   align-items: end;
+  /*
+   * ⚠️ ONE UNBREAKABLE UNIT, AND THE ALTERNATIVE WAS BUILT AND REJECTED. Letting
+   *   it fragment does fill the blank band above the footer on a bill whose
+   *   totals land near the foot of a page — Chromium will not split a GRID, so
+   *   it needs a block with the signature floated beside it — but the result is
+   *   the notes on one page and "For {clinic}" alone on the next, which reads
+   *   worse than the space it saves.
+   */
   break-inside: avoid;
   page-break-inside: avoid;
 }
@@ -456,16 +466,11 @@ body {
   color: var(--muted);
 }
 
-.colophon {
-  margin-top: 6mm;
-  padding-top: 2mm;
-  border-top: var(--hairline);
-  font-size: 7pt;
-  color: var(--muted);
-  display: flex;
-  justify-content: space-between;
-  gap: 6mm;
-}
+/*
+ * ⚠️ .colophon IS GONE. It printed once, after the last line of the last
+ *   page; it is now the running footer in chrome/styles.ts and prints on
+ *   every sheet. See invoiceChrome.
+ */
 
 /* ---------------------------------------------------------------------------
  * VOID

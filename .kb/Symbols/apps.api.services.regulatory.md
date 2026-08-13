@@ -4,16 +4,21 @@
 
 > Reading the law, from inside a clinic's request.
 
-Files: `apps/api/src/services/regulatory/catalogue.service.ts` · `apps/api/src/services/regulatory/evaluation.service.ts` · `apps/api/src/services/regulatory/profile.service.ts` · `apps/api/src/services/regulatory/shared.ts`
+Files: `apps/api/src/services/regulatory/catalogue.service.ts` · `apps/api/src/services/regulatory/consult.ts` · `apps/api/src/services/regulatory/enforcement.ts` · `apps/api/src/services/regulatory/evaluation.service.ts` · `apps/api/src/services/regulatory/profile.service.ts` · `apps/api/src/services/regulatory/shared.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `assertNoOverlap` <sub>local</sub> | `(profiles: ReplaceProductRegulatoryProfilesRequest['profiles…): void` | `apps/api/src/services/regulatory/profile.service.ts:216` |  |
-| `categoryPath` <sub>local</sub> | `(tx: TxClient, categoryId: string \| null): Promise<string[]>` | `apps/api/src/services/regulatory/evaluation.service.ts:59` |  |
-| `evaluateFor` | `(ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:245` |  |
+| `blocks` | `(decision: RegulatoryDecisionResponse): boolean` | `apps/api/src/services/regulatory/enforcement.ts:79` |  |
+| `categoryPath` <sub>local</sub> | `(tx: TxClient, categoryId: string \| null): Promise<string[]>` | `apps/api/src/services/regulatory/evaluation.service.ts:62` |  |
+| `consultForStockMovement` | `(tx: TxClient, ctx: TenantContext, input: StockConsultation): Promise<void>` | `apps/api/src/services/regulatory/consult.ts:66` |  |
+| `evaluateFor` | `(ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:462` | The same question, for a caller that is not already in a transaction. |
+| `evaluateWithin` | `(tx: TxClient, ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:265` |  |
 | `getRulePack` | `(ctx: TenantContext, packId: string): Promise<RulePackListResponse['packs'][number]>` | `apps/api/src/services/regulatory/catalogue.service.ts:171` |  |
+| `isBlockingOutcome` | `(outcome: RegulatoryDecisionResponse['outcome']): outcome is BlockingOutcome` | `apps/api/src/services/regulatory/enforcement.ts:56` |  |
+| `isEnforceable` | `(decision: RegulatoryDecisionResponse): boolean` | `apps/api/src/services/regulatory/enforcement.ts:75` |  |
 | `jurisdictionLabel` | `(jurisdiction: { countryCode: string; regionCode: string \| n…): string` | `apps/api/src/services/regulatory/shared.ts:23` | `IN-KA` or `IN`. Formatted once so no screen has to decide. |
 | `listAuthorities` | `(ctx: TenantContext, query: RegulatoryAuthorityQuery): Promise<RegulatoryAuthorityListResponse>` | `apps/api/src/services/regulatory/catalogue.service.ts:77` |  |
 | `listJurisdictions` | `(ctx: TenantContext, query: JurisdictionQuery): Promise<JurisdictionListResponse>` | `apps/api/src/services/regulatory/catalogue.service.ts:49` |  |
@@ -21,11 +26,12 @@ Files: `apps/api/src/services/regulatory/catalogue.service.ts` · `apps/api/src/
 | `listRulePacks` | `(ctx: TenantContext, query: RulePackQuery): Promise<RulePackListResponse>` | `apps/api/src/services/regulatory/catalogue.service.ts:138` |  |
 | `listRules` | `(ctx: TenantContext, query: RegulatoryRuleQuery): Promise<RegulatoryRuleListResponse>` | `apps/api/src/services/regulatory/catalogue.service.ts:189` |  |
 | `listSources` | `(ctx: TenantContext, query: RegulatorySourceQuery): Promise<RegulatorySourceListResponse>` | `apps/api/src/services/regulatory/catalogue.service.ts:105` |  |
-| `loadProfile` <sub>local</sub> | `(tx: TxClient, productId: string, place: Jurisdiction, on: Date): Promise<ProductRegulatoryProfile \| null>` | `apps/api/src/services/regulatory/evaluation.service.ts:161` |  |
-| `loadRules` <sub>local</sub> | `(tx: TxClient, place: Jurisdiction, on: Date): Promise<RegulatoryRule[]>` | `apps/api/src/services/regulatory/evaluation.service.ts:92` |  |
+| `loadProfile` <sub>local</sub> | `(tx: TxClient, productId: string, place: Jurisdiction, on: Date): Promise<ProductRegulatoryProfile \| null>` | `apps/api/src/services/regulatory/evaluation.service.ts:164` |  |
+| `loadRules` <sub>local</sub> | `(tx: TxClient, place: Jurisdiction, on: Date): Promise<RegulatoryRule[]>` | `apps/api/src/services/regulatory/evaluation.service.ts:95` |  |
 | `pageMeta` | `(total: number, page: number, limit: number): { page: number; limit: number; total: number; totalPages: n…` | `apps/api/src/services/regulatory/shared.ts:236` | The page envelope every list in this domain returns. |
 | `readProfiles` <sub>local</sub> | `(tx: TxClient, productId: string): Promise<ProductRegulatoryProfileDetail[]>` | `apps/api/src/services/regulatory/profile.service.ts:75` | The read, INSIDE a caller's transaction — see `readPackagings` for why. |
 | `replaceRegulatoryProfiles` | `(ctx: TenantContext, productId: string, input: ReplaceProductRegulatoryProfilesRequest, options: CatalogueActionOptions): Promise<ProductRegulatoryProfileDetail[]>` | `apps/api/src/services/regulatory/profile.service.ts:109` |  |
+| `summarise` | `(decision: RegulatoryDecisionResponse, productId: string): { productId: string; outcome: string; jurisdiction: string;…` | `apps/api/src/services/regulatory/enforcement.ts:91` |  |
 | `toAuthoritySummary` | `(row: AuthorityRow): RegulatoryAuthoritySummary` | `apps/api/src/services/regulatory/shared.ts:76` |  |
 | `toDetail` <sub>local</sub> | `(row: ProfileRow, on: Date): ProductRegulatoryProfileDetail` | `apps/api/src/services/regulatory/profile.service.ts:52` |  |
 | `toJurisdictionSummary` | `(row: JurisdictionRow): JurisdictionSummary` | `apps/api/src/services/regulatory/shared.ts:52` |  |
@@ -37,6 +43,7 @@ Files: `apps/api/src/services/regulatory/catalogue.service.ts` · `apps/api/src/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `ENFORCING_MATURITY` | `'PRODUCTION_ENABLED' as const` | `apps/api/src/services/regulatory/enforcement.ts:51` |  |
 | `HUMAN_ONLY` | `: readonly RulePackMaturity[]` | `apps/api/src/services/regulatory/shared.ts:38` | The two maturities a code path may never set (PI-ADR-009). ⚠️ IMPORTED FROM `@rcln/regulatory` RATHER THAN RETYPED, so a ninth maturity added to the schema can… |
 
 ## interface
@@ -44,10 +51,17 @@ Files: `apps/api/src/services/regulatory/catalogue.service.ts` · `apps/api/src/
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `AuthorityRow` | `{ id, jurisdictionId, code, name, websiteUrl, remit, isActive, jurisdiction }` | `apps/api/src/services/regulatory/shared.ts:65` |  |
-| `CategoryAncestorRow` <sub>local</sub> | `{ id }` | `apps/api/src/services/regulatory/evaluation.service.ts:46` |  |
+| `CategoryAncestorRow` <sub>local</sub> | `{ id }` | `apps/api/src/services/regulatory/evaluation.service.ts:49` |  |
 | `JurisdictionRow` | `{ id, countryCode, regionCode, name, isActive, _count }` | `apps/api/src/services/regulatory/shared.ts:43` |  |
 | `ProfileRow` <sub>local</sub> | `{ id, jurisdictionId, registrationNumber, registrationStatus, classification, controlledSchedule, prescriptionRequirement, onlineSalePosition, dispensingNotes, effectiveFrom, effectiveTo, jurisdictio…` | `apps/api/src/services/regulatory/profile.service.ts:37` |  |
-| `RegulatoryActorInput` | `{ roleCodes, licenceTypes }` | `apps/api/src/services/regulatory/evaluation.service.ts:229` |  |
+| `RegulatoryActorInput` | `{ roleCodes, licenceTypes }` | `apps/api/src/services/regulatory/evaluation.service.ts:232` |  |
 | `RulePackRow` | `{ id, jurisdictionId, authorityId, version, name, description, maturity, effectiveFrom, effectiveTo, lastReviewedAt, reviewedBy, reviewedAt, reviewNotes, jurisdiction, authority, _count }` | `apps/api/src/services/regulatory/shared.ts:128` |  |
 | `RuleRow` | `{ id, packId, ruleType, code, statement, status, appliesToProductType, appliesToCategoryId, appliesToClassification, appliesToTransactions, parameters, sourceId, version, effectiveFrom, effectiveTo, …` | `apps/api/src/services/regulatory/shared.ts:174` |  |
 | `SourceRow` | `{ id, jurisdictionId, authorityId, title, documentReference, sourceUrl, version, publishedOn, effectiveFrom, retrievedAt, reviewStatus, notes, jurisdiction, authority, _count }` | `apps/api/src/services/regulatory/shared.ts:89` |  |
+| `StockConsultation` | `{ branchId, productId, locationId, quantityBase, transaction, occurredAt, documentType, documentId }` | `apps/api/src/services/regulatory/consult.ts:40` |  |
+
+## type
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `BlockingOutcome` | `'REFUSED' \| 'UNDETERMINED'` | `apps/api/src/services/regulatory/enforcement.ts:54` | Outcomes that would stop a document, if the pack were enforceable. |
