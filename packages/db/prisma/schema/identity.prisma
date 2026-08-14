@@ -84,6 +84,9 @@ model User {
   episodesOpened            ClinicalEpisode[]          @relation("EpisodeOpenedBy")
   episodesClosed            ClinicalEpisode[]          @relation("EpisodeClosedBy")
   recommendationsCancelled  EncounterFollowUpRecommendation[] @relation("RecommendationCancelledBy")
+  /// Who put a configuration live (CE-2). SetNull — they may leave, the
+  /// configuration stays.
+  templateVersionsPublished ConsultationTemplateVersion[]     @relation("TemplateVersionPublishedBy")
   appointmentStatusChanges  AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
   vitalsRecorded            AppointmentVital[]         @relation("VitalRecordedBy")
   vitalsAmended             AppointmentVital[]         @relation("VitalSupersededBy")

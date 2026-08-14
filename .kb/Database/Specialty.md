@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/doctors.prisma:137`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `platform_extensible` policy |
 | columns | 13 |
-| relations | 7 |
+| relations | 9 |
 
 ## Columns
 
@@ -41,6 +41,8 @@ Declared at `packages/db/prisma/schema/doctors.prisma:137`.
 | `clinicalScopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `clinicalScopes ClinicalMasterScope[]` |
 | `productScopes` | [`ProductClinicalScope`](ProductClinicalScope.md) | `productScopes ProductClinicalScope[]` |
 | `clinicalEpisodes` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisodes ClinicalEpisode[]` |
+| `templateCareContexts` | [`ConsultationTemplate`](ConsultationTemplate.md) | `templateCareContexts ConsultationTemplate[] @relation("TemplateCareContext")` |
+| `templateSpecialties` | [`ConsultationTemplate`](ConsultationTemplate.md) | `templateSpecialties ConsultationTemplate[] @relation("TemplateSpecialty")` |
 
 ## Indexes and constraints
 
@@ -59,4 +61,5 @@ erDiagram
     Specialty }o--o{ ClinicalMasterScope : relates
     Specialty }o--o{ ProductClinicalScope : relates
     Specialty }o--o{ ClinicalEpisode : relates
+    Specialty }o--o{ ConsultationTemplate : relates
 ```

@@ -176,6 +176,12 @@ model Specialty {
   clinicalScopes   ClinicalMasterScope[]
   productScopes    ProductClinicalScope[]
   clinicalEpisodes ClinicalEpisode[]
+  /// Consultation templates (CE-2). Two relations because a template names the
+  /// CARE CONTEXT it belongs to and, optionally, the node it is attached to —
+  /// and the second is NULL for the care-context default, which is the one
+  /// template that must always resolve.
+  templateCareContexts ConsultationTemplate[] @relation("TemplateCareContext")
+  templateSpecialties  ConsultationTemplate[] @relation("TemplateSpecialty")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.

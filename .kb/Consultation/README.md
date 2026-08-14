@@ -5,14 +5,14 @@ the generic, configuration-driven clinical consultation platform. Everything
 about this programme lives in this directory. Start here.
 
 ```text
-CURRENT PHASE:        CE-1 — Clinical foundation
-CURRENT STATUS:       IN PROGRESS
-LAST COMPLETED PHASE: CE-0 — Repository analysis (complete, no code)
-CURRENT WORK:         schema + RLS for the clinical masters, episodes and
-                      follow-up recommendations
-NEXT PHASE:           CE-2 — Templates and the configuration resolver
-BLOCKERS:             none. Everything CE needs already exists in the repo.
-BRANCH:               feat/ce-1-clinical-foundation
+CURRENT PHASE:        CE-2 — Templates and the configuration resolver
+CURRENT STATUS:       COMPLETE
+LAST COMPLETED PHASE: CE-2 — Templates and the configuration resolver
+CURRENT WORK:         none — CE-2 shipped
+NEXT PHASE:           CE-3 — Encounter core and lifecycle
+BLOCKERS:             none. The resolver answers what a screen should be; CE-3
+                      builds the screen and the record behind it.
+BRANCH:               feat/ce-2-templates-resolver
 LAST UPDATED:         2026-08-14
 ```
 
@@ -68,7 +68,7 @@ invent a section the engine has no component for.
 
 ---
 
-## The three things that will bite you
+## The four things that will bite you
 
 **1. The repo already has most of the foundation, and re-inventing it is the
 main risk.** `specialties` is already an arbitrary-depth clinical taxonomy with
@@ -86,7 +86,16 @@ field on a clinical form. Every field descriptor is parsed and validated in
 `packages/clinical` before it is acted on. Nothing reads a raw `definition`
 document directly.
 
-**3. This is the densest PHI in the product.** A diagnosis is more sensitive
+**3. A composite Prisma relation returns NOTHING for a platform row.** Every
+platform-extensible child here is FK'd (organization_id, parent_id) ->
+(organization_id, id), and for a platform parent `organization_id` is NULL — so
+selecting the relation compiles to `organization_id = NULL`, which is NULL rather
+than true. The relation comes back EMPTY, nothing errors, and the symptom is a
+platform row that appears to have no children. Load children by the parent's id
+and let RLS scope them, as `master.service.ts` and
+`consultation-config.service.ts` both do.
+
+**4. This is the densest PHI in the product.** A diagnosis is more sensitive
 than a name. Every read that discloses one patient's clinical content writes a
 `data_access_logs` row; nothing clinical reaches `audit_logs` as free text; no
 diagnosis, complaint or prescription goes in a URL, a cookie, a log line or

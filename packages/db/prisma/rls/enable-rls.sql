@@ -464,7 +464,20 @@ DECLARE
     'clinical_master_items',
     'clinical_master_codings',
     'clinical_master_scopes',
-    'product_clinical_scopes'
+    'product_clinical_scopes',
+    -- ---------------------------------------------------------------------
+    -- Consultation templates (CE-2). The same class and the same argument: a
+    -- clinic must be able to conduct a consultation on the day it opens, so
+    -- the platform ships a GENERAL template per care context and a clinic
+    -- writes its own beside it. Invariant 5's "versioned form templates" —
+    -- JSONB as a document, never as a foreign key (CD-6).
+    --
+    -- ⚠️ `consultation_templates` POINTS AT `specialties` TWICE and neither
+    --   pointer can be composite-FK'd, so it needs `specialty_visible` below
+    --   over BOTH columns — and `specialty_id` is nullable, because NULL is
+    --   the care-context default.
+    'consultation_templates',
+    'consultation_template_versions'
   ];
 BEGIN
   FOREACH t IN ARRAY platform_extensible LOOP
@@ -612,6 +625,48 @@ CREATE POLICY specialty_visible ON clinical_episodes AS RESTRICTIVE
       SELECT 1 FROM specialties s
       WHERE s.id = clinical_episodes.primary_specialty_id
         AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+  );
+
+-- `consultation_templates` (CE-2) cites the taxonomy TWICE — the care context it
+-- belongs to, and the node it is attached to. Neither can be composite-FK'd, for
+-- the reason above, so both are checked here.
+--
+-- ⚠️ A NULL `specialty_id` MUST PASS. It is the care-context default — the one
+--   template that always resolves, and the reason a doctor with no
+--   classification at all still gets a consultation (Scenario 3). A policy that
+--   required a node here would make that row unwritable and unreadable, and the
+--   symptom would be "no template applies" for every unclassified doctor.
+DROP POLICY IF EXISTS specialty_visible ON consultation_templates;
+CREATE POLICY specialty_visible ON consultation_templates AS RESTRICTIVE
+  USING (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = consultation_templates.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      consultation_templates.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = consultation_templates.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = consultation_templates.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      consultation_templates.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = consultation_templates.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
     )
   );
 

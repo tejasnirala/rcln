@@ -35,6 +35,16 @@ sources, 22 rules — read from CDSCO's own consolidated Drugs Rules, 1945 and t
 Pharmacy Act, 1948 on India Code, at maturity `AUTOMATED_TESTED`. Goods receipt
 and transfer now consult the engine while posting.
 
+**The Consultation Engine programme has also started, and CE-0 through CE-2 are
+done** — the clinical vocabulary, the treatment journey, and now the
+configuration layer. `@rcln/clinical` is the tested core; a consultation
+template resolves from an appointment by walking the doctor's classification up
+to the patient's care context, most specific wins. Adding a specialty is meant
+to cost a configuration row and never a screen. The consultation ITSELF —
+`encounters`, the section components, autosave — is CE-3 and is not built.
+Everything about that programme lives in
+[`Consultation/`](Consultation/README.md).
+
 ⚠️ **NOTHING BLOCKS ON IT, AND THAT IS THE DESIGN.** One country has a pack, so
 every evaluation elsewhere answers `UNDETERMINED` — which refuses — and a call
 site that threw on a non-permission would stop every clinic outside India from
@@ -955,7 +965,31 @@ divided by a resolved slot duration, minus what is already booked.
       needed them and they are what checks a patient in)
 - [ ] Prescriptions + masters (symptoms, diagnoses, procedures). The follow-up
       chain is in place and nothing yet carries a prescription along it
-- [ ] `clinical_form_templates` — the extension point for per-specialty forms
+- [x] The extension point for per-specialty forms — shipped as CE-2's
+      `consultation_templates`, not as `clinical_form_templates`. See below.
+
+### Consultation engine (CE)
+
+Its own programme, with its own tracker. Full detail in
+[`Consultation/`](Consultation/README.md) — the phases in
+[MASTER_PLAN](Consultation/MASTER_PLAN.md), the reasoning in
+[DECISIONS](Consultation/DECISIONS.md), the per-phase report in
+[CHANGELOG](Consultation/CHANGELOG.md).
+
+- [x] **CE-1 — clinical foundation.** `clinical_master_items` (one table, a
+      `kind` discriminator) with codings and scopes that RANK and never FILTER;
+      `clinical_episodes` and `appointments.clinical_episode_id` with the
+      backfill; the follow-up recommendation table; `/clinical-data` and
+      `/clinical-episodes`; the `/clinical-terms` screen.
+- [x] **CE-2 — templates and the configuration resolver.**
+      `consultation_templates` + `_versions`, `@rcln/clinical` (74 unit tests),
+      `GET /appointments/:id/consultation-config`, `clinical.template.manage`,
+      the `/consultation-templates` admin surface, and a published GENERAL
+      template per care context so a clinic can consult on day one.
+- [ ] **CE-3…CE-8.** The encounter and its lifecycle, the clinical content
+      sections, visit history, the visual mapping engine, the reference
+      configurations, hardening. **PI-7 and PI-9 unblock at CE-4**, when
+      `encounter_prescriptions` and `encounter_procedures` exist.
 
 ### Consultation fees and doctor compensation
 

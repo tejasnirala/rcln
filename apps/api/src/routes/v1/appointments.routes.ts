@@ -54,6 +54,7 @@ import {
   updateAppointment,
   type AppointmentActionOptions,
 } from '../../services/appointment/appointment.service.js';
+import { getConsultationConfig } from '../../services/clinical/consultation-config.service.js';
 import {
   amendVitals,
   deleteVitals,
@@ -470,6 +471,37 @@ router.post(
       meta(req, '/:appointmentId/consultation')
     );
     sendSuccess(res, appointment);
+  }
+);
+
+/**
+ * What this consultation is made of — the resolved configuration (CE-2).
+ *
+ * ⚠️ A GET, AND IT MUTATES NOTHING. That is the whole difference between it and
+ *   `POST /:id/consultation` above, which moves a CHECKED_IN booking to
+ *   IN_PROGRESS. The screen reads its configuration before the doctor has
+ *   decided to start, so this must be safe for every cache and prefetch between
+ *   here and the browser.
+ *
+ * ⚠️ BEHIND `clinical.encounter.read`, NOT `clinical.template.manage`. The
+ *   doctor about to consult holds the first and not the second — configuring a
+ *   consultation is not conducting one. An administrator reading a consultation
+ *   for oversight resolves the same configuration, which is what makes the
+ *   record render for them at all.
+ *
+ * ⚠️ NO `data_access_logs` ROW, AND THAT IS A DECISION. This response discloses
+ *   section labels, field descriptors and which vocabulary to rank — no clinical
+ *   content whatever about the person in the chair. The reads that DO disclose
+ *   one patient are audited; burying them under a row per screen open is the
+ *   same mistake as auditing the day board. See the service header.
+ */
+router.get(
+  '/:appointmentId/consultation-config',
+  authorize(PERMISSIONS.ENCOUNTER_READ),
+  validate(appointmentParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { appointmentId } = req.params as z.infer<typeof appointmentParams>;
+    sendSuccess(res, await getConsultationConfig(tenantContextFrom(req), appointmentId));
   }
 );
 

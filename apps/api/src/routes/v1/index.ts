@@ -6,6 +6,7 @@ import appointmentRoutes from './appointments.routes.js';
 import branchRoutes from './branches.routes.js';
 import clinicalTaxonomyRoutes from './clinical-taxonomy.routes.js';
 import clinicalRoutes from './clinical.routes.js';
+import consultationTemplateRoutes from './consultation-templates.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
 import invoiceRoutes from './invoices.routes.js';
@@ -90,6 +91,18 @@ router.use('/clinical-taxonomy', clinicalTaxonomyRoutes);
  * paths as they are (§32).
  */
 router.use('/', clinicalRoutes);
+
+/*
+ * The consultation CONFIGURATION (CE-2) — which sections a consultation has, in
+ * what order, over which vocabulary.
+ *
+ * ⚠️ ITS OWN SURFACE, AND BEHIND ITS OWN CODE. `clinical.template.manage` gates
+ *   the whole surface in both directions, unlike the vocabulary above: nobody
+ *   needs the template list except the person configuring it. A doctor reads the
+ *   RESOLVED configuration from `GET /appointments/:id/consultation-config`,
+ *   behind `clinical.encounter.read`, which they already hold.
+ */
+router.use('/consultation-templates', consultationTemplateRoutes);
 
 // Job titles. Its own surface rather than a path under /members, which would be
 // swallowed by /members/:membershipId.
