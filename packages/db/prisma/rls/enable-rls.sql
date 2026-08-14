@@ -205,6 +205,22 @@ DECLARE
     --   invoice children made and the one `appointment_status_history` did
     --   not. See the note against the invoice tables above.
     'encounter_follow_up_recommendations',
+    -- ---------------------------------------------------------------------
+    -- The clinical record itself (CE-3). BOTH ARE IN BOTH LOOPS.
+    --
+    -- ⚠️ THE OPPOSITE CALL FROM `clinical_episodes` IMMEDIATELY ABOVE, AND
+    --   DELIBERATELY. The JOURNEY follows the person across a hospital group;
+    --   the VISIT belongs to the place it happened at. `branch_id` is NOT NULL
+    --   on both tables, so the branch policy is absolute — a doctor scoped to
+    --   one site cannot read what another site wrote about a patient, and every
+    --   text column on both is PHI.
+    --
+    --   `encounter_sections` carries its own organization_id AND branch_id
+    --   rather than inheriting through its encounter: a child of a branch-scoped
+    --   parent that inherits only the org half is exactly the hole
+    --   `appointment_status_history` had to restate by hand.
+    'encounters',
+    'encounter_sections',
     -- Patient invoicing. ALL FOUR are also in the branch_scoped array below,
     -- and the children are here rather than in the parent_scoped loop for a
     -- specific reason: that loop's predicate asks the ORGANIZATION question
@@ -670,6 +686,49 @@ CREATE POLICY specialty_visible ON consultation_templates AS RESTRICTIVE
     )
   );
 
+-- ---------------------------------------------------------------------------
+-- `encounters` CITES A TEMPLATE AND A VERSION THAT MAY BE PLATFORM ROWS (CE-3).
+--
+-- ⚠️ THIS POLICY IS WHAT STANDS IN FOR THE COMPOSITE FK, WHICH IS IMPOSSIBLE
+--   HERE. A composite (organization_id, template_id) reference would make a
+--   PLATFORM template uncitable: `encounters.organization_id` is NOT NULL, both
+--   columns are therefore non-null, and the FK would demand a template row
+--   belonging to the clinic — while the platform's GENERAL template is exactly
+--   what a doctor with no classification resolves to. The constraint would
+--   refuse the most ordinary consultation on the platform.
+--
+--   So the pointers are plain FKs, and this restriction is the tenancy check:
+--   without it a clinic could cite ANOTHER TENANT'S private template and read
+--   its name and its whole definition back out of the join. Same shape as
+--   `specialty_visible` above and `product_visible` on `batches`.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS template_visible ON encounters;
+CREATE POLICY template_visible ON encounters AS RESTRICTIVE
+  USING (
+    EXISTS (
+      SELECT 1 FROM consultation_templates t
+      WHERE t.id = encounters.template_id
+        AND (t.organization_id IS NULL OR t.organization_id = app_current_org())
+    )
+    AND EXISTS (
+      SELECT 1 FROM consultation_template_versions v
+      WHERE v.id = encounters.template_version_id
+        AND (v.organization_id IS NULL OR v.organization_id = app_current_org())
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM consultation_templates t
+      WHERE t.id = encounters.template_id
+        AND (t.organization_id IS NULL OR t.organization_id = app_current_org())
+    )
+    AND EXISTS (
+      SELECT 1 FROM consultation_template_versions v
+      WHERE v.id = encounters.template_version_id
+        AND (v.organization_id IS NULL OR v.organization_id = app_current_org())
+    )
+  );
+
 DROP POLICY IF EXISTS qualification_visible ON doctor_qualifications;
 CREATE POLICY qualification_visible ON doctor_qualifications AS RESTRICTIVE
   USING (EXISTS (
@@ -934,6 +993,11 @@ DECLARE
     -- `appointment_vitals` — and it has to be, because `reason` says why a named
     -- person is being recalled.
     'encounter_follow_up_recommendations',
+    -- The consultation and its descriptor answers (CE-3). branch_id is NOT NULL
+    -- on both and copied from the appointment (or from the acting membership,
+    -- for a walk-in), so this is absolute — see the org_scoped note above.
+    'encounters',
+    'encounter_sections',
     -- ⚠️ THE ONLY TABLE HERE WHOSE NULL BRANCH IS MEANINGFUL RATHER THAN
     -- TOLERATED. Everywhere else in this array branch_id is NOT NULL and the
     -- `branch_id IS NULL OR ...` predicate never fires; here NULL is how the

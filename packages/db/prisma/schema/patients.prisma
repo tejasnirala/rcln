@@ -213,6 +213,8 @@ model Patient {
   /// Present only when `subjectType = ANIMAL`.
   animalProfile           AnimalProfile?
   followUpRecommendations EncounterFollowUpRecommendation[]
+  /// This person's clinical record (CE-3). ⚠️ PHI.
+  encounters              Encounter[]
 
   @@unique([organizationId, uhid])
   /// Composite-FK target. Registrations, appointments, encounters, invoices and

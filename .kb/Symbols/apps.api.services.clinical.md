@@ -4,17 +4,23 @@
 
 > appointment → screen.
 
-Files: `apps/api/src/services/clinical/consultation-config.service.ts` · `apps/api/src/services/clinical/default-definition.ts` · `apps/api/src/services/clinical/definition.ts` · `apps/api/src/services/clinical/episode.service.ts` · `apps/api/src/services/clinical/master.service.ts` · `apps/api/src/services/clinical/template.service.ts`
+Files: `apps/api/src/services/clinical/consultation-config.service.ts` · `apps/api/src/services/clinical/default-definition.ts` · `apps/api/src/services/clinical/definition.ts` · `apps/api/src/services/clinical/encounter.service.ts` · `apps/api/src/services/clinical/episode.service.ts` · `apps/api/src/services/clinical/master.service.ts` · `apps/api/src/services/clinical/sections.ts` · `apps/api/src/services/clinical/template.service.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `amendEncounter` | `(ctx: TenantContext, encounterId: string, input: AmendEncounterRequest, options: EncounterRequestOptions): Promise<EncounterDetail>` | `apps/api/src/services/clinical/encounter.service.ts:722` |  |
+| `answersOf` <sub>local</sub> | `(row: DetailRow): SectionAnswers[]` | `apps/api/src/services/clinical/encounter.service.ts:143` | The section answers as `@rcln/clinical` wants them. |
+| `asRecord` <sub>local</sub> | `(value: Prisma.JsonValue): Record<string, unknown>` | `apps/api/src/services/clinical/encounter.service.ts:136` |  |
+| `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/clinical/encounter.service.ts:201` | ⚠️ 404, NOT 403, FOR A BRANCH OUTSIDE THE CALLER'S SCOPE — whether a branch exists is itself tenant information, and the two responses tell an outsider apart f… |
 | `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/clinical/episode.service.ts:68` |  |
+| `assertDraft` <sub>local</sub> | `(row: { status: string }): void` | `apps/api/src/services/clinical/encounter.service.ts:210` |  |
 | `assertMutable` <sub>local</sub> | `(row: { organization_id: string \| null }): void` | `apps/api/src/services/clinical/master.service.ts:45` |  |
 | `assertMutable` <sub>local</sub> | `(row: { organizationId: string \| null }): void` | `apps/api/src/services/clinical/template.service.ts:60` |  |
 | `assertVersionIsDraft` <sub>local</sub> | `(row: { status: string; version: number }): void` | `apps/api/src/services/clinical/template.service.ts:73` |  |
-| `careContextFor` <sub>local</sub> | `(tx: TxClient, subjectType: string): Promise<CareContextRow>` | `apps/api/src/services/clinical/consultation-config.service.ts:168` |  |
+| `cancelEncounter` | `(ctx: TenantContext, encounterId: string, input: CancelEncounterRequest, options: EncounterRequestOptions): Promise<void>` | `apps/api/src/services/clinical/encounter.service.ts:820` |  |
+| `careContextFor` <sub>local</sub> | `(tx: TxClient, subjectType: string): Promise<CareContextRow>` | `apps/api/src/services/clinical/consultation-config.service.ts:169` |  |
 | `codingsFor` <sub>local</sub> | `(tx: TxClient, itemIds: string[]): Promise<Map<string, ClinicalMasterItem['codings']>>` | `apps/api/src/services/clinical/master.service.ts:53` |  |
 | `createDraft` | `(ctx: TenantContext, templateId: string, options: TemplateActionOptions): Promise<ConsultationTemplateDetail>` | `apps/api/src/services/clinical/template.service.ts:440` |  |
 | `createEpisode` | `(ctx: TenantContext, input: CreateClinicalEpisodeRequest): Promise<{ id: string; code: string }>` | `apps/api/src/services/clinical/episode.service.ts:433` | Open a journey explicitly. Rare — booking normally does it. Exists for the front desk that knows, before any slot is picked, that a patient is starting a cours… |
@@ -22,35 +28,51 @@ Files: `apps/api/src/services/clinical/consultation-config.service.ts` · `apps/
 | `createTemplate` | `(ctx: TenantContext, input: CreateConsultationTemplateRequest, defaultDefinition: unknown, options: TemplateActionOptions): Promise<ConsultationTemplateDetail>` | `apps/api/src/services/clinical/template.service.ts:276` |  |
 | `deactivateMaster` | `(ctx: TenantContext, itemId: string, options: { ipAddress?: string \| undefined; userAgent?: stri…): Promise<void>` | `apps/api/src/services/clinical/master.service.ts:383` |  |
 | `discardDraft` | `(ctx: TenantContext, templateId: string, versionId: string, options: TemplateActionOptions): Promise<void>` | `apps/api/src/services/clinical/template.service.ts:615` |  |
-| `getConsultationConfig` | `(ctx: TenantContext, appointmentId: string): Promise<ConsultationConfigResponse>` | `apps/api/src/services/clinical/consultation-config.service.ts:197` |  |
+| `finalizeEncounter` | `(ctx: TenantContext, encounterId: string, options: EncounterRequestOptions): Promise<EncounterDetail>` | `apps/api/src/services/clinical/encounter.service.ts:649` |  |
+| `getConsultationConfig` | `(ctx: TenantContext, appointmentId: string): Promise<ConsultationConfigResponse>` | `apps/api/src/services/clinical/consultation-config.service.ts:392` |  |
+| `getEncounter` | `(ctx: TenantContext, encounterId: string, options: EncounterRequestOptions): Promise<EncounterDetail>` | `apps/api/src/services/clinical/encounter.service.ts:479` |  |
+| `getEncounterForAppointment` | `(ctx: TenantContext, appointmentId: string, options: EncounterRequestOptions): Promise<EncounterDetail \| null>` | `apps/api/src/services/clinical/encounter.service.ts:513` |  |
 | `getEpisode` | `(ctx: TenantContext, episodeId: string, options: EpisodeReadOptions): Promise<ClinicalEpisodeDetail>` | `apps/api/src/services/clinical/episode.service.ts:354` |  |
 | `getTemplate` | `(ctx: TenantContext, templateId: string, versionId?: string \| undefined): Promise<ConsultationTemplateDetail>` | `apps/api/src/services/clinical/template.service.ts:236` |  |
 | `listEpisodes` | `(ctx: TenantContext, query: ClinicalEpisodeQuery, options: EpisodeReadOptions): Promise<ClinicalEpisodeListResponse>` | `apps/api/src/services/clinical/episode.service.ts:282` |  |
 | `listTemplates` | `(ctx: TenantContext, query: ConsultationTemplateQuery): Promise<ConsultationTemplateListResponse>` | `apps/api/src/services/clinical/template.service.ts:180` |  |
+| `loadForWrite` <sub>local</sub> | `(tx: TxClient, encounterId: string): Promise<DetailRow>` | `apps/api/src/services/clinical/encounter.service.ts:220` |  |
 | `loadTemplate` <sub>local</sub> | `(tx: TxClient, templateId: string): Promise<TemplateRow>` | `apps/api/src/services/clinical/template.service.ts:153` |  |
+| `openEncounter` | `(ctx: TenantContext, input: OpenEncounterRequest, options: EncounterRequestOptions): Promise<EncounterDetail>` | `apps/api/src/services/clinical/encounter.service.ts:400` |  |
 | `openEpisode` | `(tx: TxClient, ctx: TenantContext, input: OpenEpisodeInput): Promise<{ id: string; code: string }>` | `apps/api/src/services/clinical/episode.service.ts:128` |  |
 | `parseStoredDefinition` | `(definition: unknown, where: string): TemplateDefinition` | `apps/api/src/services/clinical/definition.ts:20` |  |
 | `publishVersion` | `(ctx: TenantContext, templateId: string, versionId: string, options: TemplateActionOptions): Promise<ConsultationTemplateDetail>` | `apps/api/src/services/clinical/template.service.ts:556` |  |
+| `resolveConfiguration` | `(tx: TxClient, subject: ResolutionSubject): Promise<ResolvedConfiguration>` | `apps/api/src/services/clinical/consultation-config.service.ts:284` |  |
+| `resolveDoctorProfile` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, requested: string \| undefined): Promise<string>` | `apps/api/src/services/clinical/encounter.service.ts:357` |  |
 | `resolveEpisodeForBooking` | `(tx: TxClient, ctx: TenantContext, input: ResolveEpisodeInput): Promise<string>` | `apps/api/src/services/clinical/episode.service.ts:224` |  |
 | `saveDraft` | `(ctx: TenantContext, templateId: string, versionId: string, input: SaveTemplateVersionRequest, options: TemplateActionOptions): Promise<ConsultationTemplateDetail>` | `apps/api/src/services/clinical/template.service.ts:498` |  |
+| `saveEncounterDraft` | `(ctx: TenantContext, encounterId: string, input: SaveEncounterDraftRequest): Promise<EncounterSaveResponse>` | `apps/api/src/services/clinical/encounter.service.ts:561` |  |
 | `searchMasters` | `(ctx: TenantContext, query: ClinicalMasterQuery): Promise<ClinicalMasterListResponse>` | `apps/api/src/services/clinical/master.service.ts:88` |  |
+| `sectionConfigs` | `(tx: TxClient, definition: TemplateDefinition): Promise<ConsultationSectionConfig[]>` | `apps/api/src/services/clinical/consultation-config.service.ts:210` |  |
+| `snapshot` <sub>local</sub> | `(row: AuditRow): Record<string, unknown>` | `apps/api/src/services/clinical/encounter.service.ts:71` |  |
 | `snapshot` <sub>local</sub> | `(row: { id: string; code: string; status: string; patientId:…): Record<string, unknown>` | `apps/api/src/services/clinical/episode.service.ts:84` |  |
+| `subjectFromRequest` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, input: OpenEncounterRequest): Promise<EncounterSubject>` | `apps/api/src/services/clinical/encounter.service.ts:263` |  |
 | `summarize` <sub>local</sub> | `(row: VersionRow): ConsultationTemplateVersionSummary` | `apps/api/src/services/clinical/template.service.ts:81` |  |
-| `taxonomyPath` <sub>local</sub> | `(tx: TxClient, careContext: CareContextRow, doctorProfileId: string): Promise<string[]>` | `apps/api/src/services/clinical/consultation-config.service.ts:117` |  |
+| `taxonomyPath` <sub>local</sub> | `(tx: TxClient, careContext: CareContextRow, doctorProfileId: string): Promise<string[]>` | `apps/api/src/services/clinical/consultation-config.service.ts:118` |  |
 | `toCalendarDate` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/clinical/episode.service.ts:55` |  |
-| `toFieldConfig` <sub>local</sub> | `(field: FieldDescriptor): ConsultationFieldConfig` | `apps/api/src/services/clinical/consultation-config.service.ts:83` |  |
+| `toDetail` <sub>local</sub> | `(tx: TxClient, row: DetailRow): Promise<EncounterDetail>` | `apps/api/src/services/clinical/encounter.service.ts:159` |  |
+| `toFieldConfig` <sub>local</sub> | `(field: FieldDescriptor): ConsultationFieldConfig` | `apps/api/src/services/clinical/consultation-config.service.ts:84` |  |
 | `toTemplate` <sub>local</sub> | `(row: TemplateRow, versions: readonly VersionRow[]): ConsultationTemplate` | `apps/api/src/services/clinical/template.service.ts:134` |  |
 | `updateEpisode` | `(ctx: TenantContext, episodeId: string, input: UpdateClinicalEpisodeRequest, options: EpisodeReadOptions): Promise<void>` | `apps/api/src/services/clinical/episode.service.ts:468` |  |
 | `updateMaster` | `(ctx: TenantContext, itemId: string, input: UpdateClinicalMasterRequest, options: { ipAddress?: string \| undefined; userAgent?: stri…): Promise<ClinicalMasterItem>` | `apps/api/src/services/clinical/master.service.ts:273` |  |
 | `updateTemplate` | `(ctx: TenantContext, templateId: string, input: UpdateConsultationTemplateRequest, options: TemplateActionOptions): Promise<ConsultationTemplateDetail>` | `apps/api/src/services/clinical/template.service.ts:394` |  |
 | `versionsOf` <sub>local</sub> | `(tx: TxClient, templateId: string): Promise<VersionRow[]>` | `apps/api/src/services/clinical/template.service.ts:168` |  |
+| `walkInBranch` <sub>local</sub> | `(ctx: TenantContext, requested: string \| undefined): string` | `apps/api/src/services/clinical/encounter.service.ts:251` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `CARE_CONTEXT_CODE` <sub>local</sub> | `: Readonly<Record<string, string>>` | `apps/api/src/services/clinical/consultation-config.service.ts:69` |  |
+| `AUDIT_SELECT` <sub>local</sub> | `{ id: true, status: true, encounterNumber: true, patientId: true, appointmentId: true, cl…` | `apps/api/src/services/clinical/encounter.service.ts:88` |  |
+| `CARE_CONTEXT_CODE` <sub>local</sub> | `: Readonly<Record<string, string>>` | `apps/api/src/services/clinical/consultation-config.service.ts:70` |  |
 | `DEFAULT_CONSULTATION_DEFINITION` | `{ schemaVersion: 1, scopes: [], sections: [ { type: 'CHIEF_COMPLAINT', key: 'chief_compla…` | `apps/api/src/services/clinical/default-definition.ts:23` |  |
+| `DETAIL_SELECT` <sub>local</sub> | `{ ...AUDIT_SELECT, branchId: true, templateId: true, templateSnapshot: true, chiefComplai…` | `apps/api/src/services/clinical/encounter.service.ts:103` |  |
+| `ENCOUNTER_PREFIX` <sub>local</sub> | `'ENC'` | `apps/api/src/services/clinical/encounter.service.ts:50` |  |
 | `EPISODE_PREFIX` <sub>local</sub> | `'EP'` | `apps/api/src/services/clinical/episode.service.ts:37` |  |
 | `TEMPLATE_SELECT` <sub>local</sub> | `{ id: true, organizationId: true, code: true, name: true, description: true, careContextI…` | `apps/api/src/services/clinical/template.service.ts:108` |  |
 | `VERSION_SELECT` <sub>local</sub> | `{ id: true, version: true, status: true, publishedAt: true, retiredAt: true, definition: …` | `apps/api/src/services/clinical/template.service.ts:99` |  |
@@ -59,11 +81,25 @@ Files: `apps/api/src/services/clinical/consultation-config.service.ts` · `apps/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `CareContextRow` <sub>local</sub> | `{ id, code, name }` | `apps/api/src/services/clinical/consultation-config.service.ts:104` |  |
+| `CareContextRow` <sub>local</sub> | `{ id, code, name }` | `apps/api/src/services/clinical/consultation-config.service.ts:105` |  |
+| `EncounterRequestOptions` | `{ ipAddress, userAgent, route }` | `apps/api/src/services/clinical/encounter.service.ts:53` | Request metadata, carried onto both trails. |
+| `EncounterSubject` <sub>local</sub> | `{ branchId, patientId, appointmentId, clinicalEpisodeId, doctorProfileId, subjectType }` | `apps/api/src/services/clinical/encounter.service.ts:234` |  |
 | `EpisodeReadOptions` | `{ ipAddress, userAgent, route }` | `apps/api/src/services/clinical/episode.service.ts:40` | Request metadata, carried onto the read trail. |
 | `ItemRow` <sub>local</sub> | `{ id, organization_id, kind, code, name, description, parent_id, display_order, is_active }` | `apps/api/src/services/clinical/master.service.ts:33` |  |
 | `OpenEpisodeInput` <sub>local</sub> | `{ patientId, branchId, title, primarySpecialtyId }` | `apps/api/src/services/clinical/episode.service.ts:104` |  |
+| `ResolutionSubject` | `{ subjectType, doctorProfileId }` | `apps/api/src/services/clinical/consultation-config.service.ts:250` | Who is being seen, and by whom. Everything resolution needs and no more. |
+| `ResolvedConfiguration` | `{ careContext, template, definition, sections }` | `apps/api/src/services/clinical/consultation-config.service.ts:264` |  |
 | `ResolveEpisodeInput` <sub>local</sub> | `{ patientId, branchId, clinicalEpisodeId, inheritFromEpisodeId }` | `apps/api/src/services/clinical/episode.service.ts:188` |  |
 | `TemplateActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/clinical/template.service.ts:46` |  |
 | `TemplateRow` <sub>local</sub> | `{ id, organizationId, code, name, description, careContextId, specialtyId, isActive, careContext, specialty }` | `apps/api/src/services/clinical/template.service.ts:121` |  |
 | `VersionRow` <sub>local</sub> | `{ id, version, status, publishedAt, retiredAt, definition }` | `apps/api/src/services/clinical/template.service.ts:51` |  |
+
+## type
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `Assert` <sub>local</sub> | `T` | `apps/api/src/services/clinical/sections.ts:24` |  |
+| `AuditRow` <sub>local</sub> | `Prisma.EncounterGetPayload<{ select: typeof AUDIT_SELECT }>` | `apps/api/src/services/clinical/encounter.service.ts:122` |  |
+| `DetailRow` <sub>local</sub> | `Prisma.EncounterGetPayload<{ select: typeof DETAIL_SELECT }>` | `apps/api/src/services/clinical/encounter.service.ts:123` |  |
+| `Equal` <sub>local</sub> | `[A] extends [B] ? ([B] extends [A] ? true : false) : false` | `apps/api/src/services/clinical/sections.ts:25` |  |
+| `SectionTypesAgree` | `Assert<Equal<ConsultationSectionType, DbConsultationSectionType>>` | `apps/api/src/services/clinical/sections.ts:27` |  |

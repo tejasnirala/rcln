@@ -55,6 +55,7 @@ import {
   type AppointmentActionOptions,
 } from '../../services/appointment/appointment.service.js';
 import { getConsultationConfig } from '../../services/clinical/consultation-config.service.js';
+import { getEncounterForAppointment } from '../../services/clinical/encounter.service.js';
 import {
   amendVitals,
   deleteVitals,
@@ -502,6 +503,39 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const { appointmentId } = req.params as z.infer<typeof appointmentParams>;
     sendSuccess(res, await getConsultationConfig(tenantContextFrom(req), appointmentId));
+  }
+);
+
+/**
+ * The consultation recorded at this visit, if there is one (CE-3).
+ *
+ * ⚠️ A GET THAT CREATES NOTHING, AND THAT IS WHY IT EXISTS BESIDE
+ *   `POST /v1/encounters`. Opening a draft is an act of AUTHORSHIP: an
+ *   administrator arriving to read a booking must not thereby make "the doctor
+ *   started a consultation" true. So the reader's path is this route behind
+ *   `clinical.encounter.read`, and it answers `null` when nothing has been
+ *   written up.
+ *
+ * ⚠️ IT DOES WRITE A `data_access_logs` ROW, unlike `consultation-config` above.
+ *   The difference is the payload: a configuration names nobody, and this
+ *   carries what the doctor wrote about one named patient.
+ */
+router.get(
+  '/:appointmentId/encounter',
+  authorize(PERMISSIONS.ENCOUNTER_READ),
+  validate(appointmentParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { appointmentId } = req.params as z.infer<typeof appointmentParams>;
+    sendSuccess(
+      res,
+      await getEncounterForAppointment(tenantContextFrom(req), appointmentId, {
+        ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
+        ...(req.get('user-agent') !== undefined
+          ? { userAgent: req.get('user-agent') as string }
+          : {}),
+        route: 'GET /v1/appointments/:appointmentId/encounter',
+      })
+    );
   }
 );
 

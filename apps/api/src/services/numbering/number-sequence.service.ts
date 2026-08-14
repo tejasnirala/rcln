@@ -75,7 +75,17 @@ export type SequenceType =
   | 'PURCHASE_REQUISITION'
   | 'PURCHASE_ORDER'
   | 'GOODS_RECEIPT'
-  | 'PURCHASE_RETURN';
+  | 'PURCHASE_RETURN'
+  /**
+   * Consultations (CE-3). Per BRANCH — the opposite shape from
+   * `CLINICAL_EPISODE` above, and deliberately: a journey follows the patient
+   * across a hospital group, a consultation happened at ONE site, and the number
+   * is printed on the prescription that site hands over.
+   *
+   * ⚠️ ISSUED AT FINALIZATION, NOT AT OPEN, for the reason the four procurement
+   *   counters give. A draft the doctor abandons must burn no number.
+   */
+  | 'ENCOUNTER';
 
 export interface IssueNumberSpec {
   type: SequenceType;

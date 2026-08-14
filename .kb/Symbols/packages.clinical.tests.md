@@ -4,7 +4,7 @@
 
 > The whole definition document.
 
-Files: `packages/clinical/tests/definition.test.ts` · `packages/clinical/tests/descriptors.test.ts` · `packages/clinical/tests/registry.test.ts` · `packages/clinical/tests/resolve.test.ts`
+Files: `packages/clinical/tests/definition.test.ts` · `packages/clinical/tests/descriptors.test.ts` · `packages/clinical/tests/registry.test.ts` · `packages/clinical/tests/resolve.test.ts` · `packages/clinical/tests/validate.test.ts`
 
 ## fn
 
@@ -13,5 +13,6 @@ Files: `packages/clinical/tests/definition.test.ts` · `packages/clinical/tests/
 | `candidate` <sub>local</sub> | `(over: Partial<TemplateCandidate>): TemplateCandidate` | `packages/clinical/tests/resolve.test.ts:43` |  |
 | `complaint` <sub>local</sub> | `(over: Record<string, unknown>): Record<string, unknown>` | `packages/clinical/tests/definition.test.ts:18` |  |
 | `document` <sub>local</sub> | `(over: Record<string, unknown>): Record<string, unknown>` | `packages/clinical/tests/definition.test.ts:39` |  |
+| `examination` <sub>local</sub> | `(fields: readonly FieldDescriptor[], over: Partial<Section>): TemplateDefinition` | `packages/clinical/tests/validate.test.ts:15` |  |
 | `history` <sub>local</sub> | `(over: Record<string, unknown>): Record<string, unknown>` | `packages/clinical/tests/definition.test.ts:28` |  |
 | `text` <sub>local</sub> | `(over: Record<string, unknown>): Record<string, unknown>` | `packages/clinical/tests/descriptors.test.ts:17` |  |

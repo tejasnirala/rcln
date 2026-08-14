@@ -4,7 +4,7 @@
 
 > Parsing a whole `consultation_template_versions.definition`.
 
-Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.ts` · `packages/clinical/src/descriptors.ts` · `packages/clinical/src/index.ts` · `packages/clinical/src/registry.ts` · `packages/clinical/src/resolve.ts` · `packages/clinical/src/types.ts`
+Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.ts` · `packages/clinical/src/descriptors.ts` · `packages/clinical/src/index.ts` · `packages/clinical/src/registry.ts` · `packages/clinical/src/resolve.ts` · `packages/clinical/src/types.ts` · `packages/clinical/src/validate.ts`
 
 ## fn
 
@@ -13,14 +13,18 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `asRecord` <sub>local</sub> | `(value: unknown, what: string): Parsed<Record<string, unknown>>` | `packages/clinical/src/definition.ts:45` |  |
 | `asRecord` <sub>local</sub> | `(value: unknown, what: string): Parsed<Record<string, unknown>>` | `packages/clinical/src/descriptors.ts:46` |  |
 | `capabilityOf` | `(type: ConsultationSectionType): SectionCapability` | `packages/clinical/src/registry.ts:201` |  |
+| `encounterProblems` | `(definition: TemplateDefinition, answers: readonly SectionAnswers[]): readonly ValidationProblem[]` | `packages/clinical/src/validate.ts:179` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/definition.ts:37` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/descriptors.ts:42` |  |
+| `isBlank` <sub>local</sub> | `(value: unknown): boolean` | `packages/clinical/src/validate.ts:49` |  |
 | `isSectionType` | `(value: unknown): value is ConsultationSectionType` | `packages/clinical/src/registry.ts:189` | Is this string a section type the engine has a component for? |
 | `mapCodesOf` | `(definition: TemplateDefinition): readonly string[]` | `packages/clinical/src/definition.ts:311` | Every visual-map code the definition names, once. Resolved to rows in CE-6. |
+| `optionProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:88` |  |
 | `parseFieldDescriptor` | `(input: unknown, where: string): Parsed<FieldDescriptor>` | `packages/clinical/src/descriptors.ts:232` |  |
 | `parseFieldDescriptors` | `(input: unknown, where: string): Parsed<readonly FieldDescriptor[]>` | `packages/clinical/src/descriptors.ts:353` |  |
 | `parseSection` <sub>local</sub> | `(input: unknown, index: number): Parsed<TemplateSection>` | `packages/clinical/src/definition.ts:85` |  |
 | `parseTemplateDefinition` | `(input: unknown): Parsed<TemplateDefinition>` | `packages/clinical/src/definition.ts:215` |  |
+| `rangeProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:100` |  |
 | `readCodeList` <sub>local</sub> | `(raw: unknown, where: string, key: string): Parsed<readonly string[]>` | `packages/clinical/src/definition.ts:64` |  |
 | `readOptionalNumber` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string, options: { integer?: boolean; min?: number }): Parsed<number \| undefined>` | `packages/clinical/src/descriptors.ts:162` |  |
 | `readOptionalString` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string, max: number): Parsed<string \| undefined>` | `packages/clinical/src/descriptors.ts:133` |  |
@@ -30,6 +34,9 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `resolveTemplate` | `(request: ResolutionRequest): Parsed<TemplateResolution>` | `packages/clinical/src/resolve.ts:105` |  |
 | `scopeCodesOf` | `(definition: TemplateDefinition): readonly string[]` | `packages/clinical/src/definition.ts:302` |  |
 | `sectionTypesInDefaultOrder` | `(): readonly ConsultationSectionType[]` | `packages/clinical/src/registry.ts:206` | Every section type, in the order the default consultation renders them. |
+| `shapeProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:64` |  |
+| `validateEncounter` | `(definition: TemplateDefinition, answers: readonly SectionAnswers[]): Parsed<true>` | `packages/clinical/src/validate.ts:238` |  |
+| `validateSection` <sub>local</sub> | `(section: TemplateSection, answers: Readonly<Record<string, unknown>> \| undefined): ValidationProblem[]` | `packages/clinical/src/validate.ts:115` |  |
 | `visibleSections` | `(sections: readonly TemplateSection[]): readonly TemplateSection[]` | `packages/clinical/src/registry.ts:224` |  |
 
 ## const
@@ -61,11 +68,13 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `FieldDescriptor` | `{ key, type, label, required, hint, placeholder, options, unit, precision, min, max, maxLength, masterKind, source }` | `packages/clinical/src/types.ts:130` |  |
 | `FieldOption` | `{ value, label }` | `packages/clinical/src/types.ts:116` | One choice in a SELECT, MULTI_SELECT, RADIO_GROUP or CHECKBOX_GROUP. |
 | `ResolutionRequest` | `{ taxonomyPath, candidates }` | `packages/clinical/src/resolve.ts:73` |  |
+| `SectionAnswers` | `{ key, data }` | `packages/clinical/src/validate.ts:37` | One section's answers, as they come off `encounter_sections`. |
 | `SectionCapability` | `{ descriptorDriven, repeatable, vocabulary, requiresMap, defaultOrder, defaultLabel }` | `packages/clinical/src/registry.ts:35` |  |
 | `TemplateCandidate` | `{ templateId, code, specialtyId, isOwn, publishedVersion }` | `packages/clinical/src/resolve.ts:36` | One template the caller found, already narrowed to the right care context. |
 | `TemplateDefinition` | `{ schemaVersion, scopes, sections }` | `packages/clinical/src/types.ts:183` |  |
 | `TemplateResolution` | `{ templateId, code, versionId, version, definition, matchedSpecialtyId, matchedDepth }` | `packages/clinical/src/resolve.ts:57` |  |
 | `TemplateSection` | `{ type, key, label, order, visible, required, fields, scopes, mapCode }` | `packages/clinical/src/types.ts:155` | A section of a resolved template, after parsing. |
+| `ValidationProblem` | `{ sectionKey, fieldKey, problem }` | `packages/clinical/src/validate.ts:43` | Everything wrong with a consultation, not merely the first thing. |
 
 ## type
 

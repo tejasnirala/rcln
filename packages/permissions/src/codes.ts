@@ -208,6 +208,22 @@ export const PERMISSIONS = {
   ENCOUNTER_CREATE: 'clinical.encounter.create',
   ENCOUNTER_CLOSE: 'clinical.encounter.close',
   /**
+   * Correct a consultation that has already been finalized (CE-3, CD-2).
+   *
+   * ⚠️ AMENDING IS NOT EDITING, AND THIS CODE UNLOCKS NOTHING IN PLACE. A
+   *   finalized record is immutable; an amendment is a NEW encounter that cites
+   *   the one it corrects, states a reason, and is signed in its own right. What
+   *   this code permits is starting that second record — which is why it sits in
+   *   `CLINICAL_AUTHORING` with the other three and is stripped from ORG_OWNER
+   *   and ORG_ADMIN by name.
+   *
+   *   Its own code rather than part of `ENCOUNTER_CREATE` because a clinic may
+   *   reasonably let a junior clinician write up a first consultation and not
+   *   let them restate a signed one. Splitting it costs one row in the matrix
+   *   and makes that a decision the clinic can take.
+   */
+  ENCOUNTER_AMEND: 'clinical.encounter.amend',
+  /**
    * See the observations taken for a visit, and their correction history.
    *
    * ⚠️ SPLIT FROM `VITALS_RECORD` BECAUSE THE DOCTOR IS A READER HERE. This code

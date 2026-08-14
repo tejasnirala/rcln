@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 23 |
-| relations | 17 |
+| relations | 18 |
 
 ## Columns
 
@@ -61,6 +61,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | `clinicalEpisodes` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisodes ClinicalEpisode[]` |
 | `animalProfile` | [`AnimalProfile`](AnimalProfile.md) | `animalProfile AnimalProfile?` |
 | `followUpRecommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `followUpRecommendations EncounterFollowUpRecommendation[]` |
+| `encounters` | [`Encounter`](Encounter.md) | `encounters Encounter[]` |
 
 ## Indexes and constraints
 
@@ -90,4 +91,5 @@ erDiagram
     Patient }o--o{ ClinicalEpisode : relates
     Patient }o--o{ AnimalProfile : relates
     Patient }o--o{ EncounterFollowUpRecommendation : relates
+    Patient }o--o{ Encounter : relates
 ```

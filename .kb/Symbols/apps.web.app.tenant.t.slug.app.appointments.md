@@ -4,7 +4,7 @@
 
 > ⚠️ NOT EXPORTED, AND IT CANNOT BE.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx`
 
 ## component
 
@@ -38,9 +38,16 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts` · `ap
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `amendConsultation` | `(slug: string, appointmentId: string, encounterId: string, reason: string): Promise<{ ok: true } \| { ok: false; message: string }>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:153` | Correct a signed record by starting a new one that cites it (CD-2). |
+| `cancelConsultation` | `(slug: string, appointmentId: string, encounterId: string, reason: string \| undefined): Promise<{ ok: true } \| { ok: false; message: string }>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:175` | Abandon a draft. Recorded, never deleted. |
+| `finalizeConsultation` | `(slug: string, appointmentId: string, encounterId: string): Promise<{ ok: true } \| { ok: false; message: string }>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:126` | Sign the record. ⚠️ REVALIDATES, BECAUSE THIS ENDS THE INTERACTION. The page comes back with the consultation read-only and the day board reflects a visit that… |
 | `forTemperatureBox` <sub>local</sub> | `(errors: Record<string, string[]>): Record<string, string[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:528` | `temperatureC` (the contract's field) -> `temperature` (the form's box). |
+| `loadConsultation` | `(slug: string, appointmentId: string): Promise<EncounterDetail \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:75` |  |
 | `measurement` <sub>local</sub> | `(formData: FormData, key: string): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:520` |  |
+| `openConsultation` | `(slug: string, appointmentId: string): Promise<{ ok: true; encounter: EncounterDetail } \| { ok: fa…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:49` |  |
 | `readingFrom` <sub>local</sub> | `(slug: string, formData: FormData): Promise<{ ok: true; body: RecordVitalsRequest } \| { ok: fal…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:542` |  |
+| `saveConsultation` | `(slug: string, encounterId: string, patch: SaveEncounterDraftRequest): Promise<ConsultationState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:92` | The debounced save. ⚠️ RETURNS THE REVISION AND REVALIDATES NOTHING. See the file header — this is the one write in the app that deliberately leaves the page a… |
+| `searchClinicalTerms` | `(slug: string, kind: string, term: string, specialtyId: string \| undefined): Promise<{ id: string; name: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:210` |  |
 | `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:83` |  |
 
 ## const
@@ -60,6 +67,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts` · `ap
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `BookingState` | `{ status: 'idle' \| 'error' \| 'booked'; message?: string; fieldErrors?: Record<string, string[]>; /** The number to read back to the patient, once there is one.…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:49` |  |
+| `ConsultationState` | `{ status: 'idle' \| 'saving' \| 'saved' \| 'error'; message?: string; /** When the last successful save landed, for the "Saved at…" line. */ savedAt?: string; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:35` |  |
 | `LookupState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the "nobody matched" panel can offer to register them. */…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:57` |  |
 | `QuickRegisterState` | `{ status: 'idle' \| 'error' \| 'created'; message?: string; fieldErrors?: Record<string, string[]>; /** The record just created, ready to be booked without a sec…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:66` | The outcome of registering a walk-in from inside the booking panel. |
 | `VitalsState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:472` |  |

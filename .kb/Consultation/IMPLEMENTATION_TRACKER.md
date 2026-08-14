@@ -8,7 +8,7 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 | CE-0  | Repository analysis                  | ✅ complete    |
 | CE-1  | Clinical foundation                  | ✅ complete    |
 | CE-2  | Templates + config resolver          | ✅ complete    |
-| CE-3  | Encounter core + lifecycle           | ⬜ not started |
+| CE-3  | Encounter core + lifecycle           | ✅ complete    |
 | CE-4  | Clinical content sections            | ⬜ not started |
 | CE-5  | Visit history + episodes             | ⬜ not started |
 | CE-6  | Visual mapping engine + HUMAN_DENTAL | ⬜ not started |
@@ -45,6 +45,35 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 - [x] Seed — `GENERAL_HUMAN` and `GENERAL_VET`, published, parsed before writing
 - [x] Web — `/consultation-templates` list and version editor, nav entry
 - [x] Tests — 20 integration + 13 isolation
+
+## CE-3 — done
+
+- [x] Schema — `encounters` + `encounter_sections`, 3 enums, 2 partial uniques,
+      4 CHECKs. `encounter_follow_up_recommendations.encounter_id` NOT NULL
+- [x] 2 migrations (the `ENCOUNTER` counter alone, then the tables)
+- [x] RLS — `db:rls:check` green at **100** (was 98). Both tables in BOTH loops,
+      plus `template_visible` — the composite FK is impossible here (a platform
+      template has a NULL org and the encounter's is NOT NULL)
+- [x] Contracts — `encounters.ts`. Section `data` stays `unknown` on the wire
+- [x] Permissions — `clinical.encounter.amend`, in `CLINICAL_AUTHORING`
+- [x] Engine — `validate.ts` in `packages/clinical`. **89 unit tests** (was 74)
+- [x] Services — `encounter.service.ts`; `resolveConfiguration` and
+      `sectionConfigs` extracted from CE-2 so a snapshot renders the same way
+- [x] Routes — `/encounters/*`, plus `GET /appointments/:id/encounter` (the
+      reader's door: opening a draft is authorship)
+- [x] Web — `ConsultationEngine`, `FieldRenderer` (13 field types), debounced
+      autosave through a Server Action with **no `revalidatePath`**
+- [x] Tests — 12 integration + 10 isolation, plus 3 repaired CE-1 fixtures
+
+## Not done in CE-3, and deliberately
+
+- **Nine sections render a line, not an editor.** Diagnosis, prescription,
+  symptoms and the rest are FIRST-CLASS: their tables are CE-4, so the engine
+  names them and says when they arrive rather than drawing an empty box.
+- **The walk-in has an API and no screen.** `POST /encounters` takes a patient
+  and an episode (CD-1), and nothing in `apps/web` calls it that way yet —
+  there is no walk-in flow outside the booking path.
+- **Nothing has been opened in a browser.** Same item CE-3 inherits from CE-2.
 
 ## Not done in CE-2, and deliberately
 

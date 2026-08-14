@@ -204,6 +204,9 @@ model Organization {
   // consultation per care context and a clinic writes its own beside it.
   consultationTemplates        ConsultationTemplate[]
   consultationTemplateVersions ConsultationTemplateVersion[]
+  // The clinical record itself (CE-3). ⚠️ PHI in every text column.
+  encounters                   Encounter[]
+  encounterSections            EncounterSection[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
@@ -338,6 +341,10 @@ model Branch {
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   followUpRecommendations  EncounterFollowUpRecommendation[]
+  /// Consultations conducted here (CE-3). A visit belongs to the place it
+  /// happened at — the opposite call from `clinicalEpisodes`, which is org-wide.
+  encounters               Encounter[]
+  encounterSections        EncounterSection[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can
