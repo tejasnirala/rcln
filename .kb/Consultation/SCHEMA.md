@@ -114,16 +114,47 @@ migration (CD-9).
 
 ---
 
-## CE-2 — Templates
+## CE-2 — Templates ✅ SHIPPED
 
 ```text
 consultation_templates          platform-extensible
-  code, name, specialty_id, care_context_id, description, is_active
+  code, name, description, care_context_id, specialty_id NULL, is_active
+  @@unique([organizationId, code])              NULLS NOT DISTINCT
+  @@unique([organizationId, id])                composite-FK target
+  UNIQUE (org, care_context, specialty) WHERE is_active AND deleted_at IS NULL
 
 consultation_template_versions  platform-extensible
   template_id, version, definition JSONB, status, published_at, published_by,
   retired_at
+  @@unique([organizationId, templateId, version])  NULLS NOT DISTINCT
+  @@unique([organizationId, id])                   CE-3's encounters FK here
+  UNIQUE (org, template) WHERE status = 'DRAFT'
+  UNIQUE (org, template) WHERE status = 'PUBLISHED'
+  CHECK   the status/dates triple
 ```
+
+⚠️ **`specialty_id` NULL IS THE CARE-CONTEXT DEFAULT** — the template a doctor
+with no classification resolves to, and the reason resolution never returns
+nothing. Every policy and index on this table has to permit it.
+
+⚠️ **ONE MIGRATION, AND NO ENUM SPLIT.** `ConsultationTemplateStatus` is a BRAND
+NEW type rather than an `ALTER TYPE … ADD VALUE`, so the CHECKs may name its
+members in the same transaction. That is the one place CD-9's trap does not bite.
+
+⚠️ **THE PARTIAL UNIQUE ON THE NODE IS WHAT MAKES RESOLUTION A DECISION.** Two
+active templates on one node both apply equally; the resolver's tie-break picks
+one, the other is configured, visible in the admin screen and inert, and the
+consultation that renders is perfectly reasonable and not the one the clinic
+meant. A clinic's own template beside the PLATFORM's is still legal — they differ
+in `organization_id`, and `resolveTemplate` prefers the clinic's.
+
+⚠️ **BOTH TAXONOMY POINTERS ARE PLAIN FKs** and need `specialty_visible`, because
+`specialties` allows a NULL organization_id and no composite FK is drawable.
+
+⚠️ **A COMPOSITE RELATION READS EMPTY FOR A PLATFORM ROW.** The versions FK is
+(organization_id, template_id); with a NULL organization_id Prisma's join is
+`organization_id = NULL`, which is NULL rather than true. Load versions by
+`template_id` and let RLS scope them — see the CE-2 changelog entry.
 
 ⚠️ **`definition` holds section types, order, labels, field descriptors, map
 codes and SCOPE codes — never master-item ids** (CD-6, ADR-0006).
@@ -239,6 +270,7 @@ Prisma generates must be re-dated past it.
 | 2     | `…_clinical_masters`          | Items, codings, scopes + RLS                 |
 | 3     | `…_clinical_episodes`         | Table, column, **backfill, SET NOT NULL**    |
 | 4     | `…_follow_up_recommendations` | CHECK constraints may name the new enums now |
+| 5     | `…_consultation_templates`    | CE-2. One migration — the status enum is NEW |
 
 ⚠️ **Migration 1 exists solely because of the enum trap** (CD-9): a CHECK naming
 a value added by `ALTER TYPE … ADD VALUE` cannot run in the same transaction as

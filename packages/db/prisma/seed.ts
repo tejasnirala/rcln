@@ -13,6 +13,7 @@
  *   seed/designations.ts        job titles
  *   seed/role-designations.ts   which title fits which role
  *   seed/clinical-masters.ts    specialties + qualifications (data in seed/data/)
+ *   seed/consultation-templates.ts the default consultation per care context
  *   seed/product-masters.ts     units, conversions, categories, storage profiles
  *   seed/tax-rule-defaults.ts   starting-point tax rates per country
  *   seed/regulatory-packs.ts    jurisdictions, authorities, sources, rule packs
@@ -22,6 +23,7 @@
 import { prisma } from './seed/client.js';
 import { seedClinicalMasters } from './seed/clinical-masters.js';
 import { seedClinicalVocabulary } from './seed/clinical-vocabulary.js';
+import { seedConsultationTemplates } from './seed/consultation-templates.js';
 import { seedDesignations } from './seed/designations.js';
 import { seedPermissions } from './seed/permissions.js';
 import { seedPlans } from './seed/plans.js';
@@ -52,6 +54,10 @@ async function main(): Promise<void> {
   /* After the taxonomy: the vocabulary's scopes resolve specialty codes to ids,
      so the nodes have to exist first. */
   await seedClinicalVocabulary();
+  /* After the taxonomy too: a template belongs to a CARE_CONTEXT root, and a
+     care context with no published template means a consultation cannot be
+     opened for a patient of that kind at all. */
+  await seedConsultationTemplates();
   // Structural only — units, categories and storage bands. No medicine data:
   // see seed/data/product-masters.ts for why, and why no agent may add any.
   await seedProductMasters();

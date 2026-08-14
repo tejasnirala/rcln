@@ -23,6 +23,7 @@ Zod schemas shared by API and web. The request/response shape is written once an
 - `packages/contracts/src/clinical-taxonomy.ts`
 - `packages/contracts/src/clinical.ts`
 - `packages/contracts/src/common.ts`
+- `packages/contracts/src/consultation.ts`
 - `packages/contracts/src/doctors.ts`
 - `packages/contracts/src/fees.ts`
 - `packages/contracts/src/inventory.ts`
@@ -206,6 +207,28 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `ConsultationCharge` | type | `packages/contracts/src/invoices.ts:502` |
 | `consultationChargeBasis` | zod | `packages/contracts/src/invoices.ts:451` |
 | `ConsultationChargeBasis` | type | `packages/contracts/src/invoices.ts:452` |
+| `consultationConfigResponse` | zod | `packages/contracts/src/consultation.ts:238` |
+| `ConsultationConfigResponse` | type | `packages/contracts/src/consultation.ts:264` |
+| `consultationFieldConfig` | zod | `packages/contracts/src/consultation.ts:187` |
+| `ConsultationFieldConfig` | type | `packages/contracts/src/consultation.ts:203` |
+| `consultationFieldType` | zod | `packages/contracts/src/consultation.ts:64` |
+| `ConsultationFieldTypeValue` | type | `packages/contracts/src/consultation.ts:79` |
+| `consultationSectionConfig` | zod | `packages/contracts/src/consultation.ts:205` |
+| `ConsultationSectionConfig` | type | `packages/contracts/src/consultation.ts:226` |
+| `consultationSectionType` | zod | `packages/contracts/src/consultation.ts:45` |
+| `ConsultationSectionTypeValue` | type | `packages/contracts/src/consultation.ts:61` |
+| `consultationTemplate` | zod | `packages/contracts/src/consultation.ts:131` |
+| `ConsultationTemplate` | type | `packages/contracts/src/consultation.ts:148` |
+| `consultationTemplateDetail` | var | `packages/contracts/src/consultation.ts:158` |
+| `ConsultationTemplateDetail` | type | `packages/contracts/src/consultation.ts:167` |
+| `consultationTemplateListResponse` | zod | `packages/contracts/src/consultation.ts:150` |
+| `ConsultationTemplateListResponse` | type | `packages/contracts/src/consultation.ts:156` |
+| `consultationTemplateQuery` | zod | `packages/contracts/src/consultation.ts:85` |
+| `ConsultationTemplateQuery` | type | `packages/contracts/src/consultation.ts:92` |
+| `consultationTemplateStatus` | zod | `packages/contracts/src/consultation.ts:41` |
+| `ConsultationTemplateStatusValue` | type | `packages/contracts/src/consultation.ts:42` |
+| `consultationTemplateVersionSummary` | zod | `packages/contracts/src/consultation.ts:119` |
+| `ConsultationTemplateVersionSummary` | type | `packages/contracts/src/consultation.ts:129` |
 | `consultationUnpricedReason` | zod | `packages/contracts/src/invoices.ts:468` |
 | `ConsultationUnpricedReason` | type | `packages/contracts/src/invoices.ts:469` |
 | `COUNTRIES` | const | `packages/contracts/src/locale.ts:305` |
@@ -234,6 +257,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `CreateClinicTaxRuleRequest` | type | `packages/contracts/src/tax.ts:251` |
 | `createCompositionRequest` | zod | `packages/contracts/src/products.ts:367` |
 | `CreateCompositionRequest` | type | `packages/contracts/src/products.ts:877` |
+| `createConsultationTemplateRequest` | zod | `packages/contracts/src/consultation.ts:94` |
+| `CreateConsultationTemplateRequest` | type | `packages/contracts/src/consultation.ts:108` |
 | `createDesignationRequest` | zod | `packages/contracts/src/tenancy.ts:275` |
 | `CreateDesignationRequest` | type | `packages/contracts/src/tenancy.ts:970` |
 | `createDoctorRequest` | var | `packages/contracts/src/doctors.ts:321` |
@@ -766,6 +791,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `RulePackQuery` | type | `packages/contracts/src/regulatory.ts:692` |
 | `rulePackSummary` | zod | `packages/contracts/src/regulatory.ts:373` |
 | `RulePackSummary` | type | `packages/contracts/src/regulatory.ts:693` |
+| `saveTemplateVersionRequest` | zod | `packages/contracts/src/consultation.ts:178` |
+| `SaveTemplateVersionRequest` | type | `packages/contracts/src/consultation.ts:181` |
 | `searchPatientQuery` | zod | `packages/contracts/src/patients.ts:296` |
 | `SearchPatientQuery` | type | `packages/contracts/src/patients.ts:546` |
 | `serialDetail` | var | `packages/contracts/src/inventory.ts:567` |
@@ -959,6 +986,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `UpdateClinicTaxRuleRequest` | type | `packages/contracts/src/tax.ts:278` |
 | `updateCompositionRequest` | var | `packages/contracts/src/products.ts:374` |
 | `UpdateCompositionRequest` | type | `packages/contracts/src/products.ts:878` |
+| `updateConsultationTemplateRequest` | var | `packages/contracts/src/consultation.ts:110` |
+| `UpdateConsultationTemplateRequest` | type | `packages/contracts/src/consultation.ts:117` |
 | `updateDoctorQualificationRequest` | zod | `packages/contracts/src/doctors.ts:185` |
 | `UpdateDoctorQualificationRequest` | type | `packages/contracts/src/doctors.ts:586` |
 | `updateDoctorRequest` | var | `packages/contracts/src/doctors.ts:139` |

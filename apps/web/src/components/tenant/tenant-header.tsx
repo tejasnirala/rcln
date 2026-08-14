@@ -203,6 +203,18 @@ function clinicNav(permissions: string[]): NavLink[] {
       permission: ['appointment.read'],
     },
     /*
+     * What a consultation is MADE OF, as opposed to the words it is written in
+     * (CE-2). Its own entry rather than a panel on Clinical terms, because the
+     * two answer different questions and are held by different people: anyone
+     * who can read an appointment reads the vocabulary, and only
+     * `clinical.template.manage` configures the consultation.
+     */
+    {
+      href: '/consultation-templates',
+      label: 'Consultations',
+      permission: ['clinical.template.manage'],
+    },
+    /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the
      * permission that guards it: a clock format is a preference and a tax rate

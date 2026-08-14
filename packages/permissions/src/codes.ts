@@ -231,6 +231,22 @@ export const PERMISSIONS = {
   PRESCRIPTION_CREATE: 'clinical.prescription.create',
   PRESCRIPTION_SIGN: 'clinical.prescription.sign',
   CLINICAL_MASTER_MANAGE: 'clinical.master.manage',
+  /**
+   * Author the consultation CONFIGURATION: which sections a consultation has,
+   * in what order, labelled how, over which vocabulary (CE-2).
+   *
+   * ⚠️ CONFIGURING A CONSULTATION IS NOT CONDUCTING ONE, AND THAT IS WHY THIS IS
+   *   ITS OWN CODE RATHER THAN PART OF `CLINICAL_MASTER_MANAGE` OR OF THE
+   *   AUTHORING SET. A template names no patient — it is administration, and it
+   *   belongs with whoever sets the clinic up. A DOCTOR does not hold it and
+   *   does not need it: they READ the resolved configuration behind
+   *   `clinical.encounter.read`, which they already have, and changing what
+   *   every colleague's consultation looks like is not an act of practising.
+   *
+   *   It is deliberately NOT excluded from ORG_OWNER and ORG_ADMIN the way
+   *   `CLINICAL_AUTHORING` is: those roles are exactly who configures a clinic.
+   */
+  CLINICAL_TEMPLATE_MANAGE: 'clinical.template.manage',
 
   // -- lab -------------------------------------------------------------------
   LAB_ORDER_READ: 'lab.order.read',

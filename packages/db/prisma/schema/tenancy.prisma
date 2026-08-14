@@ -200,6 +200,10 @@ model Organization {
   clinicalEpisodes         ClinicalEpisode[]
   animalProfiles           AnimalProfile[]
   followUpRecommendations  EncounterFollowUpRecommendation[]
+  // Templates (CE-2). Platform-extensible: the platform ships a GENERAL
+  // consultation per care context and a clinic writes its own beside it.
+  consultationTemplates        ConsultationTemplate[]
+  consultationTemplateVersions ConsultationTemplateVersion[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])

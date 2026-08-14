@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 91 |
+| relations | 93 |
 
 ## Columns
 
@@ -128,6 +128,8 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `clinicalEpisodes` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisodes ClinicalEpisode[]` |
 | `animalProfiles` | [`AnimalProfile`](AnimalProfile.md) | `animalProfiles AnimalProfile[]` |
 | `followUpRecommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `followUpRecommendations EncounterFollowUpRecommendation[]` |
+| `consultationTemplates` | [`ConsultationTemplate`](ConsultationTemplate.md) | `consultationTemplates ConsultationTemplate[]` |
+| `consultationTemplateVersions` | [`ConsultationTemplateVersion`](ConsultationTemplateVersion.md) | `consultationTemplateVersions ConsultationTemplateVersion[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -230,4 +232,6 @@ erDiagram
     Organization }o--o{ ClinicalEpisode : relates
     Organization }o--o{ AnimalProfile : relates
     Organization }o--o{ EncounterFollowUpRecommendation : relates
+    Organization }o--o{ ConsultationTemplate : relates
+    Organization }o--o{ ConsultationTemplateVersion : relates
 ```

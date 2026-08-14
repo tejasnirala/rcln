@@ -22,7 +22,7 @@ brief assumes.
 
 ---
 
-## CE-1 — Clinical foundation ← CURRENT
+## CE-1 — Clinical foundation ✅ COMPLETE
 
 The vocabulary and the journey. No consultation yet.
 
@@ -43,7 +43,7 @@ FOLLOW_UP_ARCHITECTURE §2.
 
 ---
 
-## CE-2 — Templates and the configuration resolver
+## CE-2 — Templates and the configuration resolver ✅ COMPLETE
 
 - `consultation_templates` + `consultation_template_versions` (CD-6)
 - **`packages/clinical`** — the pure engine module (CD-10): descriptor parsing
@@ -58,7 +58,7 @@ FOLLOW_UP_ARCHITECTURE §2.
 
 ---
 
-## CE-3 — Encounter core and lifecycle
+## CE-3 — Encounter core and lifecycle ← CURRENT
 
 The engine itself.
 

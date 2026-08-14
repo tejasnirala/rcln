@@ -34,26 +34,27 @@ Booking, and the availability engine behind it. PHI: a patient, a doctor and a r
 
 | method | path | at |
 | --- | --- | --- |
-| GET | `/availability` | `apps/api/src/routes/v1/appointments.routes.ts:113` |
-| GET | `/availability/days` | `apps/api/src/routes/v1/appointments.routes.ts:139` |
-| GET | `/` | `apps/api/src/routes/v1/appointments.routes.ts:171` |
-| POST | `/` | `apps/api/src/routes/v1/appointments.routes.ts:195` |
-| GET | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:211` |
-| GET | `/:appointmentId/billing` | `apps/api/src/routes/v1/appointments.routes.ts:242` |
-| POST | `/:appointmentId/invoice` | `apps/api/src/routes/v1/appointments.routes.ts:265` |
-| PATCH | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:291` |
-| POST | `/:appointmentId/reschedule` | `apps/api/src/routes/v1/appointments.routes.ts:309` |
-| POST | `/:appointmentId/status` | `apps/api/src/routes/v1/appointments.routes.ts:332` |
-| POST | `/:appointmentId/cancel` | `apps/api/src/routes/v1/appointments.routes.ts:349` |
-| POST | `/:appointmentId/no-show` | `apps/api/src/routes/v1/appointments.routes.ts:373` |
-| DELETE | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:406` |
-| POST | `/:appointmentId/follow-up` | `apps/api/src/routes/v1/appointments.routes.ts:424` |
-| POST | `/:appointmentId/consultation` | `apps/api/src/routes/v1/appointments.routes.ts:461` |
-| GET | `/:appointmentId/vitals` | `apps/api/src/routes/v1/appointments.routes.ts:494` |
-| POST | `/:appointmentId/vitals` | `apps/api/src/routes/v1/appointments.routes.ts:518` |
-| GET | `/:appointmentId/vitals/:vitalsId/revisions` | `apps/api/src/routes/v1/appointments.routes.ts:547` |
-| PUT | `/:appointmentId/vitals/:vitalsId` | `apps/api/src/routes/v1/appointments.routes.ts:589` |
-| DELETE | `/:appointmentId/vitals/:vitalsId` | `apps/api/src/routes/v1/appointments.routes.ts:611` |
+| GET | `/availability` | `apps/api/src/routes/v1/appointments.routes.ts:114` |
+| GET | `/availability/days` | `apps/api/src/routes/v1/appointments.routes.ts:140` |
+| GET | `/` | `apps/api/src/routes/v1/appointments.routes.ts:172` |
+| POST | `/` | `apps/api/src/routes/v1/appointments.routes.ts:196` |
+| GET | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:212` |
+| GET | `/:appointmentId/billing` | `apps/api/src/routes/v1/appointments.routes.ts:243` |
+| POST | `/:appointmentId/invoice` | `apps/api/src/routes/v1/appointments.routes.ts:266` |
+| PATCH | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:292` |
+| POST | `/:appointmentId/reschedule` | `apps/api/src/routes/v1/appointments.routes.ts:310` |
+| POST | `/:appointmentId/status` | `apps/api/src/routes/v1/appointments.routes.ts:333` |
+| POST | `/:appointmentId/cancel` | `apps/api/src/routes/v1/appointments.routes.ts:350` |
+| POST | `/:appointmentId/no-show` | `apps/api/src/routes/v1/appointments.routes.ts:374` |
+| DELETE | `/:appointmentId` | `apps/api/src/routes/v1/appointments.routes.ts:407` |
+| POST | `/:appointmentId/follow-up` | `apps/api/src/routes/v1/appointments.routes.ts:425` |
+| POST | `/:appointmentId/consultation` | `apps/api/src/routes/v1/appointments.routes.ts:462` |
+| GET | `/:appointmentId/consultation-config` | `apps/api/src/routes/v1/appointments.routes.ts:498` |
+| GET | `/:appointmentId/vitals` | `apps/api/src/routes/v1/appointments.routes.ts:526` |
+| POST | `/:appointmentId/vitals` | `apps/api/src/routes/v1/appointments.routes.ts:550` |
+| GET | `/:appointmentId/vitals/:vitalsId/revisions` | `apps/api/src/routes/v1/appointments.routes.ts:579` |
+| PUT | `/:appointmentId/vitals/:vitalsId` | `apps/api/src/routes/v1/appointments.routes.ts:621` |
+| DELETE | `/:appointmentId/vitals/:vitalsId` | `apps/api/src/routes/v1/appointments.routes.ts:643` |
 
 ## Database impact
 

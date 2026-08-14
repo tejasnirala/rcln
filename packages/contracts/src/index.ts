@@ -5,6 +5,7 @@ export * from './marketing.js';
 export * from './audit.js';
 export * from './clinical-taxonomy.js';
 export * from './clinical.js';
+export * from './consultation.js';
 export * from './doctors.js';
 export * from './patients.js';
 export * from './appointments.js';

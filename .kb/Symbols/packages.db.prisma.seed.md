@@ -4,7 +4,7 @@
 
 > The seed's database connection.
 
-Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-masters.ts` · `packages/db/prisma/seed/clinical-vocabulary.ts` · `packages/db/prisma/seed/designations.ts` · `packages/db/prisma/seed/permissions.ts` · `packages/db/prisma/seed/plans.ts` · `packages/db/prisma/seed/product-masters.ts` · `packages/db/prisma/seed/regulatory-packs.ts` · `packages/db/prisma/seed/role-designations.ts` · `packages/db/prisma/seed/setting-definitions.ts` · `packages/db/prisma/seed/super-admin.ts` · `packages/db/prisma/seed/system-roles.ts` · `packages/db/prisma/seed/tax-rule-defaults.ts`
+Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-masters.ts` · `packages/db/prisma/seed/clinical-vocabulary.ts` · `packages/db/prisma/seed/consultation-templates.ts` · `packages/db/prisma/seed/designations.ts` · `packages/db/prisma/seed/permissions.ts` · `packages/db/prisma/seed/plans.ts` · `packages/db/prisma/seed/product-masters.ts` · `packages/db/prisma/seed/regulatory-packs.ts` · `packages/db/prisma/seed/role-designations.ts` · `packages/db/prisma/seed/setting-definitions.ts` · `packages/db/prisma/seed/super-admin.ts` · `packages/db/prisma/seed/system-roles.ts` · `packages/db/prisma/seed/tax-rule-defaults.ts`
 
 ## fn
 
@@ -14,6 +14,7 @@ Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-
 | `describe` <sub>local</sub> | `(code: PermissionCode): string` | `packages/db/prisma/seed/permissions.ts:10` |  |
 | `seedClinicalMasters` | `(): Promise<void>` | `packages/db/prisma/seed/clinical-masters.ts:12` |  |
 | `seedClinicalVocabulary` | `(): Promise<void>` | `packages/db/prisma/seed/clinical-vocabulary.ts:14` |  |
+| `seedConsultationTemplates` | `(): Promise<void>` | `packages/db/prisma/seed/consultation-templates.ts:23` |  |
 | `seedDesignations` | `(): Promise<void>` | `packages/db/prisma/seed/designations.ts:50` |  |
 | `seedPermissions` | `(): Promise<Map<PermissionCode, string>>` | `packages/db/prisma/seed/permissions.ts:15` |  |
 | `seedPlans` | `(): Promise<void>` | `packages/db/prisma/seed/plans.ts:6` |  |

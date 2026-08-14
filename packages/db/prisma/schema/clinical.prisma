@@ -538,3 +538,173 @@ model EncounterFollowUpRecommendation {
   @@index([organizationId, branchId, recommendedDate])
   @@map("encounter_follow_up_recommendations")
 }
+
+// -----------------------------------------------------------------------------
+// CONSULTATION TEMPLATES (CE-2)
+//
+// ⚠️ THIS IS INVARIANT 5 BEING TAKEN UP ON ITS OWN OFFER. "Per-specialty
+//   variation goes through versioned form templates — JSONB as a document, never
+//   as a foreign key." A dentist's consultation and a dermatologist's differ in
+//   which sections appear, in what order, labelled how and over which
+//   vocabulary. That is a DOCUMENT. It is emphatically not a table per
+//   specialty, and it is not a `specialty_id` list inside a document either.
+//
+// ⚠️ THE `definition` HOLDS SECTION TYPES, ORDER, LABELS, FIELD DESCRIPTORS, MAP
+//   CODES AND SCOPE CODES — NEVER MASTER-ITEM IDS (CD-6, ADR-0006). An id inside
+//   JSONB is invisible to every constraint, join and cascade in the database; it
+//   belongs to one tenant, so a document carrying one can never be a platform
+//   row and can never be copied between clinics. Vocabulary is resolved BY SCOPE
+//   at render time.
+//
+// ⚠️ AND NOTHING READS A `definition` DIRECTLY. `@rcln/clinical` parses and
+//   validates it first, and refuses a document that says nothing checkable
+//   (CD-10). A service that reaches into the JSONB has deleted that guarantee.
+// -----------------------------------------------------------------------------
+
+/// Where a template version is in its life.
+///
+/// ⚠️ A PUBLISHED VERSION IS IMMUTABLE IN EVERY FIELD, INCLUDING ITS DATES.
+///   `assertVersionIsDraft` guards every writer — the lesson `assertPackIsOpen`
+///   records in PI-5. Editing a live template is PUBLISHING A NEW VERSION, for
+///   the reason §29 gives: a finalized consultation's snapshot is a statement
+///   about the configuration that existed when it was made, and quietly
+///   rewriting v3 makes every record that cites v3 a claim about a document that
+///   no longer exists.
+enum ConsultationTemplateStatus {
+  DRAFT
+  PUBLISHED
+  /// Superseded. Kept, never deleted: encounters cite it, and the FK is what
+  /// answers "how many consultations used v3".
+  RETIRED
+}
+
+/// One clinic's (or the platform's) consultation configuration for one part of
+/// the clinical taxonomy.
+///
+/// ── WHY THIS IS TWO TABLES AND NOT ONE ───────────────────────────────────────
+///
+/// The template is the IDENTITY — "our dentistry consultation" — and it is what
+/// a clinic names, deactivates and thinks about. The version is the DOCUMENT,
+/// and there are many. Collapsing them means either no history (edit in place,
+/// and every finalized consultation's citation rots) or no identity (a new row
+/// per edit, and nothing to attach to a taxonomy node).
+///
+/// ⚠️ PLATFORM-EXTENSIBLE, WITH `specialties`' POLICY AND NOT `files`'. The
+///   platform ships a GENERAL template per care context so that a clinic can
+///   consult on day one; a clinic writes its own beside it. Reproducing `files`'
+///   NULL-permissive WITH CHECK here would let any clinic publish a
+///   PLATFORM-WIDE consultation template — visible to every other tenant, and
+///   writable by anyone holding `clinical.template.manage`.
+///
+/// NO PHI. A template is configuration; it names no patient and no clinician.
+model ConsultationTemplate {
+  id             String  @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String? @map("organization_id") @db.Uuid
+  /// ⚠️ FLAT, NOT A PATH — `DENTAL_GENERAL`, never `HUMAN-DEN-GENERAL`. Same
+  ///   rule as every other code in this repo: a path-encoded code becomes a lie
+  ///   the moment the node it names is re-parented.
+  code           String  @db.VarChar(64)
+  name           String  @db.VarChar(160)
+  description    String? @db.Text
+
+  /// The CARE CONTEXT this template belongs to — the `CARE_CONTEXT` root of the
+  /// taxonomy (CD-3). Human dermatology and veterinary dermatology want
+  /// different forms, different vocabulary and different maps, and are otherwise
+  /// indistinguishable in this tree.
+  ///
+  /// ⚠️ A COLUMN AND NOT A DERIVATION. It could be walked up from `specialtyId`
+  ///   — except that `specialtyId` is NULL for the care-context default, which
+  ///   is the one template that must always resolve.
+  careContextId  String  @map("care_context_id") @db.Uuid
+  /// The node this template is attached to, anywhere below the care context.
+  ///
+  /// ⚠️ NULL IS THE CARE-CONTEXT DEFAULT AND IS THE MOST IMPORTANT VALUE THIS
+  ///   COLUMN TAKES. It is what a doctor with no classification at all resolves
+  ///   to (Scenario 3), and it is why resolution never returns nothing.
+  specialtyId    String? @map("specialty_id") @db.Uuid
+
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// ⚠️ PLAIN FKs, NOT COMPOSITE, and they therefore need a RESTRICTIVE
+  ///   `specialty_visible` policy — `specialties` allows a NULL organization_id,
+  ///   so a composite FK cannot be drawn and the row could otherwise cite
+  ///   another tenant's private node and read its name back out of the join.
+  ///   Exactly the shape `clinical_master_scopes` has.
+  careContext  Specialty     @relation("TemplateCareContext", fields: [careContextId], references: [id], onDelete: Restrict)
+  specialty    Specialty?    @relation("TemplateSpecialty", fields: [specialtyId], references: [id], onDelete: Restrict)
+  versions     ConsultationTemplateVersion[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// templates are not unique among themselves.
+  @@unique([organizationId, code])
+  /// Composite-FK target for the versions, so a tenant can never bolt its own
+  /// version onto a PLATFORM template (ADR-0004).
+  @@unique([organizationId, id])
+  /// The resolver's read: every candidate for one care context, in one index
+  /// scan.
+  @@index([organizationId, careContextId, isActive])
+  @@index([organizationId, specialtyId])
+  /// ⚠️ THE PARTIAL UNIQUE THAT MAKES RESOLUTION DETERMINISTIC IS HAND-WRITTEN:
+  ///   at most one ACTIVE template per (organization, care context, specialty).
+  ///   Prisma cannot express `WHERE is_active AND deleted_at IS NULL`. Without
+  ///   it a clinic can attach two templates to the same node and which one
+  ///   applies is a tie-break rather than a decision.
+  @@map("consultation_templates")
+}
+
+/// One published (or draft, or retired) configuration document.
+///
+/// ⚠️ `version` IS THE ROW'S, `definition.schemaVersion` IS THE DOCUMENT'S, AND
+///   THEY ARE NOT THE SAME NUMBER. A clinic on v7 of its dentistry template has
+///   seven `schemaVersion: 1` documents. Conflating them means the day the
+///   document shape changes, every historical version claims to be the new one —
+///   and a finalized consultation's frozen snapshot (§29) is exactly what must
+///   not change under it.
+model ConsultationTemplateVersion {
+  id             String  @id @default(uuid()) @db.Uuid
+  /// Mirrors the parent's. NULL for a version of a platform template.
+  organizationId String? @map("organization_id") @db.Uuid
+  templateId     String  @map("template_id") @db.Uuid
+  /// Monotonic per template, issued by the service. 1, 2, 3 — never reused.
+  version        Int
+
+  /// The configuration document.
+  ///
+  /// ⚠️ PARSED BY `@rcln/clinical` BEFORE ANYTHING ACTS ON IT, ALWAYS. Section
+  ///   types, order, labels, field descriptors, map CODES and scope CODES. No
+  ///   ids, ever (CD-6).
+  definition Json @db.JsonB
+
+  status      ConsultationTemplateStatus @default(DRAFT)
+  publishedAt DateTime?                  @map("published_at") @db.Timestamptz(6)
+  /// SetNull: the person who published it may leave; the configuration stays.
+  publishedBy String?                    @map("published_by") @db.Uuid
+  retiredAt   DateTime?                  @map("retired_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite-FK'd so a tenant cannot bolt its own version onto a PLATFORM
+  /// template. Optional ONLY because Prisma refuses a required relation whose
+  /// scalar fields include a nullable one; the row always has a template.
+  template     ConsultationTemplate? @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Cascade)
+  publisher    User?                 @relation("TemplateVersionPublishedBy", fields: [publishedBy], references: [id], onDelete: SetNull)
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration.
+  @@unique([organizationId, templateId, version])
+  /// Composite-FK target for `encounters.template_version_id` in CE-3.
+  @@unique([organizationId, id])
+  /// The resolver's read: the latest PUBLISHED version of each candidate.
+  @@index([organizationId, templateId, status])
+  /// ⚠️ AT MOST ONE DRAFT PER TEMPLATE is a partial unique index in the
+  ///   migration. Two open drafts is two people editing the same configuration
+  ///   with no idea the other exists, and whichever publishes second silently
+  ///   discards the first.
+  @@map("consultation_template_versions")
+}
