@@ -191,6 +191,18 @@ function clinicNav(permissions: string[]): NavLink[] {
      */
     { href: '/regulatory/jurisdictions', label: 'Rules', permission: ['regulatory.rule.read'] },
     /*
+     * The clinical vocabulary. Sits after Rules rather than beside Patients
+     * because it is a SETTINGS surface — nobody opens it during a clinic. Read
+     * behind `appointment.read` for the reason the route file gives: every
+     * clinical picker needs these names, so gating the dictionary behind the
+     * permission to EDIT it shows a receptionist blanks.
+     */
+    {
+      href: '/clinical-terms',
+      label: 'Clinical terms',
+      permission: ['appointment.read'],
+    },
+    /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the
      * permission that guards it: a clock format is a preference and a tax rate

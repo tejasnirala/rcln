@@ -28,8 +28,27 @@
 /// "Sub-specialty") and so reporting can roll up consistently. It is presentation
 /// and grouping metadata. Never branch authorization on it.
 enum TaxonomyNodeType {
+  /// ⚠️ THE TRUE ROOT, ABOVE `DOMAIN` — Human, Veterinary (CE-1, CD-3).
+  ///
+  ///   Added by the consultation engine, which resolves a template by walking a
+  ///   doctor's classification UP to its care context: veterinary dermatology
+  ///   and human dermatology want different forms, different vocabulary and
+  ///   different anatomical maps, and they are otherwise indistinguishable.
+  ///
+  /// ⚠️ IT CHANGES NO EXISTING QUERY, and that is the point of the enum being a
+  ///   LABEL rather than a depth (see the note above). Adding a level above the
+  ///   old roots is a `parent_id` update on those roots and nothing else —
+  ///   `doctor_specialties` points at leaves and never noticed.
+  ///
+  ///   Never assigned to a doctor directly. A clinician practises a specialty,
+  ///   not a kingdom of patient.
+  CARE_CONTEXT
   /// Tree root — Medical, Dental, Allied Health. Practically never assigned to
   /// a doctor directly.
+  ///
+  /// ⚠️ NO LONGER THE ACTUAL ROOT since CE-1; a `CARE_CONTEXT` sits above it.
+  ///   The name is kept because renaming an enum member is a migration that
+  ///   rewrites every row referencing it, in exchange for nothing.
   DOMAIN
   /// A broad grouping that a hospital would plausibly also run as an org unit.
   /// ⚠️ Still the CLINICAL concept, not `branches` and not an org chart.
@@ -150,6 +169,13 @@ model Specialty {
   parent       Specialty?        @relation("SpecialtyParent", fields: [parentId], references: [id], onDelete: Restrict)
   children     Specialty[]       @relation("SpecialtyParent")
   doctors      DoctorSpecialty[]
+
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  /// Which clinical words are relevant here. ⚠️ RANKS, NEVER FILTERS — see
+  /// `ClinicalMasterScope`.
+  clinicalScopes   ClinicalMasterScope[]
+  productScopes    ProductClinicalScope[]
+  clinicalEpisodes ClinicalEpisode[]
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.

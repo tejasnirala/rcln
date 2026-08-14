@@ -151,6 +151,24 @@ export const createAppointmentRequest = z.object({
   source: appointmentSource.default('FRONT_DESK'),
   /** ⚠️ PHI. "Chest pain since Tuesday" is a clinical statement. */
   reason: z.string().max(2000).optional(),
+  /**
+   * The treatment journey this booking joins — the front desk saying "this is
+   * about the same thing as last time" (CE-1).
+   *
+   * ⚠️ ABSENT OPENS A NEW JOURNEY. It does NOT fall back to the patient's most
+   *   recent open episode, and that restraint is deliberate: guessing that a
+   *   sore throat in March belongs to January's diabetes journey is a clinical
+   *   claim made by a default value. Joining an existing journey is always
+   *   somebody's explicit decision — this field, or the follow-up link, which
+   *   inherits without asking because a follow-up IS a continuation by
+   *   definition.
+   *
+   * ⚠️ IT MUST BELONG TO `patientId`, and the service re-checks that rather than
+   *   trusting the pair. Both arrive from one form, and a picker that does not
+   *   re-filter when the patient changes would file one person's visit under
+   *   another person's treatment history.
+   */
+  clinicalEpisodeId: uuid.optional(),
 });
 
 /**
@@ -627,6 +645,19 @@ export const appointmentDetail = appointmentSummary.extend({
    */
   parentAppointmentId: uuid.nullable(),
   parentAppointmentNumber: z.string().nullable(),
+  /**
+   * The treatment journey this visit belongs to (CE-1).
+   *
+   * ⚠️ A DIFFERENT ANSWER FROM `parentAppointmentId`, AND BOTH ARE NEEDED. The
+   *   parent is the immediate predecessor — A -> B -> C. The episode is the
+   *   whole journey — A, B, C. The consultation screen walks the first to show
+   *   the previous visit, and links the second to show the timeline.
+   *
+   * Never nullable: every appointment belongs to exactly one journey, and an
+   * episode of one is the ordinary case.
+   */
+  clinicalEpisodeId: uuid,
+  clinicalEpisodeCode: z.string(),
   /** Follow-ups already booked off this visit, earliest first. */
   followUps: z.array(
     z.object({

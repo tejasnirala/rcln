@@ -105,6 +105,12 @@ export function childrenOf(tree: TaxonomyTree, id: string | null): SpecialtySumm
  *   the tree. The nodes in the column say what they are.
  */
 const TYPE_LABELS: Record<TaxonomyNodeType, string> = {
+  /*
+   * Human, Veterinary (CE-1). "Care context" is the word the schema uses and
+   * "Kind of patient" is what a receptionist would say, so the column says the
+   * second — this table exists to translate the model into the clinic's words.
+   */
+  CARE_CONTEXT: 'Kind of patient',
   DOMAIN: 'Clinical area',
   DEPARTMENT: 'Department',
   SPECIALTY: 'Specialty',

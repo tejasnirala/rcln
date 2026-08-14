@@ -45,6 +45,15 @@ enum NumberSequenceType {
   ///   now and that phase would otherwise pay for under live stock. The same
   ///   call PI-2 made for the `RESERVED` and `IN_TRANSIT` stock statuses.
   DISPENSE
+  /// Treatment journeys (CE-1). ⚠️ PER ORGANIZATION, NOT PER BRANCH, and it
+  ///   never resets — the only counter in this enum with that shape.
+  ///
+  ///   An episode follows the PATIENT, who is org-wide (ADR-0016): a journey
+  ///   that starts at the main branch and continues at the satellite is one
+  ///   journey, so a per-branch counter would either issue two codes for it or
+  ///   have to pick a branch arbitrarily. And it never resets because an episode
+  ///   code is quoted on a discharge summary and a referral letter years later.
+  CLINICAL_EPISODE
 }
 
 /// One counter per (organization, branch, type, period). The issuer for every

@@ -251,6 +251,18 @@ enum DataAccessResource {
   ///   review is more useful when that question is distinguishable from a
   ///   clinician reading a chart. Same reasoning that keeps `VITALS` apart.
   INVENTORY_SERIAL
+  /// A consultation: what the doctor concluded, prescribed and advised (CE-3).
+  ///
+  /// ⚠️ THE DENSEST DISCLOSURE IN THE PRODUCT, and kept apart from
+  ///   `MEDICAL_HISTORY` for the reason `VITALS` is: history is what the patient
+  ///   brought with them, an encounter is what THIS clinician wrote down. A
+  ///   disclosure review asking "who read Mrs Rao's diagnosis" wants an answer
+  ///   that is not buried among chart-summary reads.
+  ENCOUNTER
+  /// A treatment journey (CE-1). Reading one discloses that a named person is
+  /// under ongoing treatment, and its title usually says what for — which is a
+  /// diagnosis by another name, and is why this is not folded into `APPOINTMENT`.
+  CLINICAL_EPISODE
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

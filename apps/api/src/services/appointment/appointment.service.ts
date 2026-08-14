@@ -38,6 +38,7 @@ import type {
 } from '@rcln/contracts';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
+import { resolveEpisodeForBooking } from '../clinical/episode.service.js';
 import { recordDataAccess } from '../audit/data-access.service.js';
 import { resolveFee } from '../fees/fee-schedule.service.js';
 import { liveInvoicesFor } from '../invoicing/appointment-billing.service.js';
@@ -169,6 +170,10 @@ const APPOINTMENT_SELECT = {
   startedAt: true,
   completedAt: true,
   parentAppointmentId: true,
+  /* The journey. An id and, through the relation, its code — the detail screen
+     links to the timeline and the day board ignores both. */
+  clinicalEpisodeId: true,
+  clinicalEpisode: { select: { code: true } },
   /*
    * ⚠️ NEITHER `parent` NOR `followUps` IS SELECTED HERE, for two reasons that
    *   happen to agree. This select feeds the day board, where a nested relation
@@ -802,6 +807,23 @@ export async function createAppointment(
 
       const registration = await ensureRegistration(tx, ctx, input.patientId, input.branchId);
 
+      /*
+       * Which treatment journey this visit belongs to (CE-1).
+       *
+       * ⚠️ ABSENT MEANS A NEW JOURNEY, NOT "THE PATIENT'S MOST RECENT OPEN ONE".
+       *   See `resolveEpisodeForBooking` — the tempting fallback is a diagnosis
+       *   made by a default value.
+       *
+       * Before `issueNumber`, because opening an episode takes its own counter
+       * lock and holding two of them at once is how two counters deadlock
+       * against each other under concurrent booking.
+       */
+      const clinicalEpisodeId = await resolveEpisodeForBooking(tx, ctx, {
+        patientId: input.patientId,
+        branchId: input.branchId,
+        clinicalEpisodeId: input.clinicalEpisodeId,
+      });
+
       /* The price, decided now and frozen onto the row. See `freezeFee`. */
       const bookedFee = await freezeFee(tx, {
         doctorProfileId: input.doctorProfileId,
@@ -828,6 +850,7 @@ export async function createAppointment(
           patientId: input.patientId,
           patientRegistrationId: registration.id,
           doctorProfileId: input.doctorProfileId,
+          clinicalEpisodeId,
           appointmentNumber: number.formatted,
           scheduledStart: startsAt,
           scheduledEnd: endsAt,
@@ -1293,6 +1316,7 @@ export async function createFollowUp(
           branchId: true,
           patientId: true,
           doctorProfileId: true,
+          clinicalEpisodeId: true,
           patient: { select: { status: true } },
         },
       });
@@ -1341,6 +1365,18 @@ export async function createFollowUp(
           patientRegistrationId: registration.id,
           doctorProfileId,
           parentAppointmentId: parent.id,
+          /*
+           * ⚠️ INHERITED FROM THE PARENT WITHOUT ANYBODY BEING ASKED, and this
+           *   is the one place that is right. A follow-up IS by definition a
+           *   continuation of the visit it follows, so the journey is not a
+           *   decision anyone at the desk has to make — the same reasoning that
+           *   makes the patient and the branch inherited rather than accepted.
+           *
+           *   That gives the chain and the journey their separate jobs:
+           *     parentAppointmentId  A -> B -> C   the immediate predecessor
+           *     clinicalEpisodeId    A, B, C       the whole journey
+           */
+          clinicalEpisodeId: parent.clinicalEpisodeId,
           appointmentNumber: number.formatted,
           scheduledStart: startsAt,
           scheduledEnd: endsAt,
@@ -1546,6 +1582,8 @@ function detailOf(
     mrn: row.registration.mrn,
     statusHistory,
     parentAppointmentId: row.parentAppointmentId,
+    clinicalEpisodeId: row.clinicalEpisodeId,
+    clinicalEpisodeCode: row.clinicalEpisode.code,
     /*
      * The id is always on the row; the NUMBER needs a second read, so a write's
      * response reports the link without it. Only `getAppointment` pays for it,

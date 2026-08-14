@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 49 |
+| relations | 52 |
 
 ## Columns
 
@@ -59,6 +59,9 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `medicationsNoted` | [`PatientMedication`](PatientMedication.md) | `medicationsNoted PatientMedication[] @relation("MedicationNotedBy")` |
 | `appointmentsBooked` | [`Appointment`](Appointment.md) | `appointmentsBooked Appointment[] @relation("AppointmentBookedBy")` |
 | `appointmentsCancelled` | [`Appointment`](Appointment.md) | `appointmentsCancelled Appointment[] @relation("AppointmentCancelledBy")` |
+| `episodesOpened` | [`ClinicalEpisode`](ClinicalEpisode.md) | `episodesOpened ClinicalEpisode[] @relation("EpisodeOpenedBy")` |
+| `episodesClosed` | [`ClinicalEpisode`](ClinicalEpisode.md) | `episodesClosed ClinicalEpisode[] @relation("EpisodeClosedBy")` |
+| `recommendationsCancelled` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `recommendationsCancelled EncounterFollowUpRecommendation[] @relation("RecommendationCancelledBy")` |
 | `appointmentStatusChanges` | [`AppointmentStatusHistory`](AppointmentStatusHistory.md) | `appointmentStatusChanges AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")` |
 | `vitalsRecorded` | [`AppointmentVital`](AppointmentVital.md) | `vitalsRecorded AppointmentVital[] @relation("VitalRecordedBy")` |
 | `vitalsAmended` | [`AppointmentVital`](AppointmentVital.md) | `vitalsAmended AppointmentVital[] @relation("VitalSupersededBy")` |
@@ -116,6 +119,8 @@ erDiagram
     User }o--o{ PatientCondition : relates
     User }o--o{ PatientMedication : relates
     User }o--o{ Appointment : relates
+    User }o--o{ ClinicalEpisode : relates
+    User }o--o{ EncounterFollowUpRecommendation : relates
     User }o--o{ AppointmentStatusHistory : relates
     User }o--o{ AppointmentVital : relates
     User }o--o{ Invoice : relates

@@ -9,8 +9,8 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | table | `patients` |
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
-| columns | 22 |
-| relations | 14 |
+| columns | 23 |
+| relations | 17 |
 
 ## Columns
 
@@ -24,6 +24,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | `lastName` | `String?` | `lastName String? @map("last_name") @db.VarChar(100)` |
 | `dateOfBirth` | `DateTime?` | `dateOfBirth DateTime? @map("date_of_birth") @db.Date` |
 | `approxAgeYears` | `Int?` | `approxAgeYears Int? @map("approx_age_years") @db.SmallInt` |
+| `subjectType` | `CareSubjectType` | `subjectType CareSubjectType @default(HUMAN) @map("subject_type")` |
 | `gender` | `Gender` | `gender Gender @default(UNKNOWN)` |
 | `bloodGroup` | `BloodGroup` | `bloodGroup BloodGroup @default(UNKNOWN) @map("blood_group")` |
 | `phone` | `String?` | `phone String? @db.VarChar(20)` |
@@ -57,6 +58,9 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | `vitals` | [`AppointmentVital`](AppointmentVital.md) | `vitals AppointmentVital[]` |
 | `invoices` | [`Invoice`](Invoice.md) | `invoices Invoice[]` |
 | `serials` | [`Serial`](Serial.md) | `serials Serial[]` |
+| `clinicalEpisodes` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisodes ClinicalEpisode[]` |
+| `animalProfile` | [`AnimalProfile`](AnimalProfile.md) | `animalProfile AnimalProfile?` |
+| `followUpRecommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `followUpRecommendations EncounterFollowUpRecommendation[]` |
 
 ## Indexes and constraints
 
@@ -83,4 +87,7 @@ erDiagram
     Patient }o--o{ AppointmentVital : relates
     Patient }o--o{ Invoice : relates
     Patient }o--o{ Serial : relates
+    Patient }o--o{ ClinicalEpisode : relates
+    Patient }o--o{ AnimalProfile : relates
+    Patient }o--o{ EncounterFollowUpRecommendation : relates
 ```

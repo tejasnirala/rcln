@@ -105,6 +105,39 @@ model Appointment {
   ///   column, which is a stronger link than a reused string because the database
   ///   enforces it.
   parentAppointmentId   String?              @map("parent_appointment_id") @db.Uuid
+  /// The treatment journey this booking belongs to (CE-1, CD-13).
+  ///
+  /// ⚠️ A DIFFERENT QUESTION FROM `parentAppointmentId`, AND CONFLATING THE TWO
+  ///   IS THE MISTAKE THIS COLUMN EXISTS TO PREVENT.
+  ///     `parentAppointmentId`  "what visit did this one come from?"  A -> B -> C
+  ///     `clinicalEpisodeId`    "what journey is this part of?"       A, B, C
+  ///
+  ///   The chain is not enough on its own for three reasons: walking it is a
+  ///   recursive CTE on every render where this is one indexed equality; a
+  ///   journey can BRANCH when a patient is sent to a colleague and back; and a
+  ///   journey can start WITHOUT a chain, because a walk-in has no booking at
+  ///   all. See .kb/Consultation/FOLLOW_UP_ARCHITECTURE.md.
+  ///
+  /// ⚠️ NOT NULL, AFTER A BACKFILL. Every appointment belongs to exactly one
+  ///   journey; an episode of ONE is the ordinary case, because a single acute
+  ///   visit that never repeats is a complete journey. Nullable would only make
+  ///   "a booking belonging to no journey" representable, and nothing should be
+  ///   able to produce that. The migration opens one episode per existing chain
+  ///   ROOT, walks `parent_appointment_id` down assigning it, and only then sets
+  ///   NOT NULL — all in ONE migration, because a deploy that lands the column
+  ///   and defers the NOT NULL leaves a window in which `createAppointment`
+  ///   writes NULL and the later migration fails on live data.
+  ///
+  /// ⚠️ A FRESH BOOKING OPENS A NEW EPISODE. It never joins the patient's most
+  ///   recent open one: guessing that a sore throat in March belongs to
+  ///   January's diabetes journey is a clinical claim the software has no basis
+  ///   for. Joining an existing journey is always somebody's explicit decision.
+  ///
+  /// ⚠️ IT PRICES NOTHING. The free-review window still reads
+  ///   `parentAppointmentId` and `follow_up_free_days`. Letting a journey decide
+  ///   chargeability would turn a front-desk grouping decision into a billing
+  ///   one.
+  clinicalEpisodeId     String               @map("clinical_episode_id") @db.Uuid
   /// ⚠️ PHI, AND IN `REDACTED_KEYS`. "Chest pain since Tuesday" is a clinical
   /// statement typed at the front desk. It never reaches an audit row.
   reason                String?              @db.Text
@@ -153,6 +186,15 @@ model Appointment {
   parent    Appointment?  @relation("AppointmentFollowUp", fields: [organizationId, parentAppointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
   followUps Appointment[] @relation("AppointmentFollowUp")
 
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  /// Restrict, not Cascade: deleting a booking must never silently take the
+  /// journey it belongs to, which outlives any one visit in it.
+  clinicalEpisode ClinicalEpisode @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)
+  /// Follow-ups the doctor recommended AT this visit — advice, not bookings.
+  recommendationsMade      EncounterFollowUpRecommendation[] @relation("RecommendationSource")
+  /// The recommendation, if any, that THIS booking satisfied.
+  recommendationsFulfilled EncounterFollowUpRecommendation[] @relation("RecommendationFulfilment")
+
   @@unique([organizationId, branchId, appointmentNumber])
   /// Composite-FK target: encounters, invoices and queue tokens will reference
   /// (organization_id, id) so a cross-tenant child is unrepresentable (ADR-0004).
@@ -167,6 +209,9 @@ model Appointment {
   /// "What follows this visit?" — walked in both directions when the diagnosis
   /// page assembles the cumulative prescription for a chain.
   @@index([organizationId, parentAppointmentId])
+  /// "Show me this whole treatment journey, in order." One indexed equality
+  /// where walking the chain would be a recursive CTE per render.
+  @@index([organizationId, clinicalEpisodeId, scheduledStart])
   @@map("appointments")
 }
 

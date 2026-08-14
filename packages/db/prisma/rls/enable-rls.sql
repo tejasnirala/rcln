@@ -184,6 +184,27 @@ DECLARE
     -- member of both loops instead of a hand-written parent predicate. Contrast
     -- `appointment_status_history`, which has neither and pays for it below.
     'appointment_vitals',
+    -- ---------------------------------------------------------------------
+    -- The consultation engine (CE-1).
+    --
+    -- ⚠️ `clinical_episodes` IS ORG-SCOPED AND DELIBERATELY NOT BRANCH-SCOPED,
+    --   the same call `patients` makes and for the same reason. A person who
+    --   starts treatment at the main branch and continues at the satellite has
+    --   ONE treatment journey; a branch-scoped episode would split it in two
+    --   and hide the second half from the first branch, which is a clinician
+    --   reading half a history. ADR-0016.
+    --
+    --   `animal_profiles` follows `patients` for the identical reason: the
+    --   record follows the subject into whichever branch it walks into.
+    'clinical_episodes',
+    'animal_profiles',
+    -- ⚠️ THE RECOMMENDATION IS THE EXCEPTION AND IS IN BOTH LOOPS. Advice is
+    --   given AT a place, and `reason` is clinical free text about a named
+    --   person, so it carries its own organization_id AND branch_id rather
+    --   than inheriting the org half through its appointment — the call the
+    --   invoice children made and the one `appointment_status_history` did
+    --   not. See the note against the invoice tables above.
+    'encounter_follow_up_recommendations',
     -- Patient invoicing. ALL FOUR are also in the branch_scoped array below,
     -- and the children are here rather than in the parent_scoped loop for a
     -- specific reason: that loop's predicate asks the ORGANIZATION question
@@ -426,7 +447,24 @@ DECLARE
     --   catalogue tables above: a platform profile is a starting point every
     --   clinic reads, and a clinic's own row overrides nothing and belongs to
     --   it. The composite FK to `products` does the rest.
-    'product_regulatory_profiles'
+    'product_regulatory_profiles',
+    -- ---------------------------------------------------------------------
+    -- The clinical vocabulary (CE-1). "Tooth pain", "Dental caries" and "Root
+    -- canal treatment" are WORDS — every clinic needs the same few hundred on
+    -- the day it opens, and shipping them as platform rows is what lets a
+    -- dentist record a first consultation without inventing a vocabulary
+    -- first. The same argument `stock_reason_codes` makes, and the same
+    -- read-permissive / write-strict policy plus `platform_rows_immutable`.
+    --
+    -- ⚠️ THE TWO SCOPE TABLES POINT AT `specialties`, WHICH IS ITSELF
+    --   PLATFORM-EXTENSIBLE, so `specialty_id` cannot be composite-FK'd and
+    --   gets a RESTRICTIVE `specialty_visible` policy below — exactly as
+    --   `doctor_specialties` does. `product_clinical_scopes` needs
+    --   `product_visible` for the same reason on its other parent.
+    'clinical_master_items',
+    'clinical_master_codings',
+    'clinical_master_scopes',
+    'product_clinical_scopes'
   ];
 BEGIN
   FOREACH t IN ARRAY platform_extensible LOOP
@@ -506,6 +544,76 @@ CREATE POLICY specialty_visible ON doctor_specialties AS RESTRICTIVE
     WHERE s.id = doctor_specialties.specialty_id
       AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
   ));
+
+-- ---------------------------------------------------------------------------
+-- The clinical scope tables (CE-1) point at `specialties` the same way
+-- `doctor_specialties` does, and need the same restrictive predicate for the
+-- same reason: `specialty_id` is a PLAIN FK because a specialty may be a
+-- platform row with no organization_id to compose with, so tenant_isolation
+-- constrains the ITEM/PRODUCT side and says nothing at all about the SPECIALTY
+-- side. Without this a tenant could scope its own diagnosis to ANOTHER TENANT'S
+-- private specialty and read that specialty's name back out of the join.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS specialty_visible ON clinical_master_scopes;
+CREATE POLICY specialty_visible ON clinical_master_scopes AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = clinical_master_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = clinical_master_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS specialty_visible ON product_clinical_scopes;
+CREATE POLICY specialty_visible ON product_clinical_scopes AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = product_clinical_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = product_clinical_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
+-- `product_clinical_scopes` has a SECOND platform-extensible parent. Its
+-- composite FK to products(organization_id, id) is not checked at all under
+-- MATCH SIMPLE when organization_id is NULL, which is exactly the platform case.
+DROP POLICY IF EXISTS product_visible ON product_clinical_scopes;
+CREATE POLICY product_visible ON product_clinical_scopes AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = product_clinical_scopes.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = product_clinical_scopes.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+-- `clinical_episodes.primary_specialty_id` is nullable and points at the same
+-- platform-extensible table. NULL is permitted — most episodes never name one.
+DROP POLICY IF EXISTS specialty_visible ON clinical_episodes;
+CREATE POLICY specialty_visible ON clinical_episodes AS RESTRICTIVE
+  USING (
+    primary_specialty_id IS NULL OR EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = clinical_episodes.primary_specialty_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+  )
+  WITH CHECK (
+    primary_specialty_id IS NULL OR EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = clinical_episodes.primary_specialty_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+  );
 
 DROP POLICY IF EXISTS qualification_visible ON doctor_qualifications;
 CREATE POLICY qualification_visible ON doctor_qualifications AS RESTRICTIVE
@@ -766,6 +874,11 @@ DECLARE
     'appointment_vitals',
     -- Same shape, same reasoning, and the reason text is PHI.
     'appointment_reschedules',
+    -- What the doctor asked the patient to come back FOR (CE-1). branch_id is
+    -- NOT NULL and copied from the appointment, so this is absolute like
+    -- `appointment_vitals` — and it has to be, because `reason` says why a named
+    -- person is being recalled.
+    'encounter_follow_up_recommendations',
     -- ⚠️ THE ONLY TABLE HERE WHOSE NULL BRANCH IS MEANINGFUL RATHER THAN
     -- TOLERATED. Everywhere else in this array branch_id is NOT NULL and the
     -- `branch_id IS NULL OR ...` predicate never fires; here NULL is how the

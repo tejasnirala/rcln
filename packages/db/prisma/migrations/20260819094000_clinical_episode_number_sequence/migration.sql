@@ -1,0 +1,24 @@
+-- ===========================================================================
+-- CE-1 · 5 of 5 — the episode counter.
+--
+-- ⚠️ ITS OWN MIGRATION FOR THE SAME REASON MIGRATION 1 WAS: `NumberSequenceType`
+--   already exists, so this is `ALTER TYPE … ADD VALUE` and nothing in the same
+--   transaction may USE the new member. It is used at runtime by
+--   `openEpisode`, which is a later transaction by definition.
+--
+--   It could not be folded into migration 1 either: that one is applied and
+--   checksummed, and editing an applied migration is refused by Prisma.
+--
+-- ⚠️ PER ORGANIZATION, NOT PER BRANCH, and it never resets — the only counter in
+--   the enum with that shape. An episode follows the PATIENT, who is org-wide
+--   (ADR-0016): a journey that starts at the main branch and continues at the
+--   satellite is ONE journey, so a per-branch counter would either issue two
+--   codes for it or have to pick a branch arbitrarily. It never resets because
+--   the code is quoted on a discharge summary and a referral letter years later.
+--
+-- The rows backfilled by migration 3 carry a derived `EP-<8 hex>` code rather
+-- than a sequence number, and deliberately so — see the note there. This counter
+-- governs episodes opened from CE-1 onwards.
+-- ===========================================================================
+
+ALTER TYPE "NumberSequenceType" ADD VALUE 'CLINICAL_EPISODE';

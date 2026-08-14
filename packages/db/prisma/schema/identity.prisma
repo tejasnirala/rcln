@@ -79,6 +79,11 @@ model User {
   medicationsNoted          PatientMedication[]        @relation("MedicationNotedBy")
   appointmentsBooked        Appointment[]              @relation("AppointmentBookedBy")
   appointmentsCancelled     Appointment[]              @relation("AppointmentCancelledBy")
+
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  episodesOpened            ClinicalEpisode[]          @relation("EpisodeOpenedBy")
+  episodesClosed            ClinicalEpisode[]          @relation("EpisodeClosedBy")
+  recommendationsCancelled  EncounterFollowUpRecommendation[] @relation("RecommendationCancelledBy")
   appointmentStatusChanges  AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
   vitalsRecorded            AppointmentVital[]         @relation("VitalRecordedBy")
   vitalsAmended             AppointmentVital[]         @relation("VitalSupersededBy")

@@ -25,7 +25,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `clearSessionCookies` | `(): Promise<void>` | `apps/web/src/lib/session.ts:80` |  |
 | `clientAddress` <sub>local</sub> | `(): Promise<string \| undefined>` | `apps/web/src/lib/api.ts:85` |  |
 | `cn` | `(inputs: ClassValue[]): string` | `apps/web/src/lib/cn.ts:9` | Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be overridden by its caller without specifici… |
-| `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:116` |  |
+| `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:122` |  |
 | `countryOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:160` |  |
 | `eachDay` | `(from: string, to: string): string[]` | `apps/web/src/lib/calendar-range.ts:109` |  |
 | `emptyToNull` | `(value: FormDataEntryValue \| null): string \| null` | `apps/web/src/lib/api.ts:271` |  |
@@ -57,7 +57,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `rangeLabel` | `(view: BoardView, range: DateRange): string` | `apps/web/src/lib/calendar-range.ts:264` |  |
 | `readCookie` | `(jar: string, name: string): string \| undefined` | `apps/web/src/lib/theme.ts:192` | Read a cookie out of a `document.cookie` string. Empty when absent. |
 | `resolveAppearance` | `(appearance: Appearance, prefersDark: boolean): ResolvedAppearance` | `apps/web/src/lib/theme.ts:164` |  |
-| `searchNodes` | `(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:133` |  |
+| `searchNodes` | `(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:139` |  |
 | `setSessionCookies` | `(session: AuthSession): Promise<void>` | `apps/web/src/lib/session.ts:54` |  |
 | `shiftDays` | `(date: string, days: number): string` | `apps/web/src/lib/calendar-range.ts:53` | `YYYY-MM-DD` shifted by whole days. |
 | `shiftMonths` | `(date: string, months: number): string` | `apps/web/src/lib/calendar-range.ts:67` |  |
@@ -65,7 +65,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `startOfMonth` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:93` |  |
 | `startOfWeek` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:87` |  |
 | `stepAnchor` | `(view: BoardView, anchor: string, direction: -1 \| 1): string` | `apps/web/src/lib/calendar-range.ts:153` | Where the arrows go: one day, one week or one month either side. |
-| `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:148` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
+| `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:154` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
 | `themeBootScript` | `(): string` | `apps/web/src/lib/theme.ts:242` |  |
 | `timeFormatOf` | `(slug: string): Promise<TimeFormat>` | `apps/web/src/lib/session.ts:215` |  |
 | `timezoneOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:187` |  |
