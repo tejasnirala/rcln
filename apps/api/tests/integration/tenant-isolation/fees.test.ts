@@ -52,6 +52,8 @@ describe('fee schedule, compensation and reschedules', () => {
   const FEE_AT_B2 = 'ffffffff-8888-4888-8888-0000000000f2';
   const COMP_B = 'ffffffff-9999-4999-8999-0000000000c1';
   const RESCHED_B2 = 'ffffffff-9999-4999-8999-00000000be02';
+  /** The journey that booking belongs to — see the fixture note. */
+  const RESCHED_EPISODE_B2 = 'ffffffff-eeee-4eee-8eee-0000000000a2';
   const RESCHED_APT_B2 = 'ffffffff-9999-4999-8999-0000000000a2';
   const RESCHED_PATIENT_B = 'ffffffff-9999-4999-8999-00000000be03';
   const RESCHED_REG_B2 = 'ffffffff-9999-4999-8999-00000000be04';
@@ -115,14 +117,35 @@ describe('fee schedule, compensation and reschedules', () => {
        VALUES ($1, $2, $3, $4, 'RESMRNB', now()) ON CONFLICT DO NOTHING`,
       [RESCHED_REG_B2, ORG_B, RESCHED_PATIENT_B, BRANCH_B2]
     );
+    /*
+     * ⚠️ AN EPISODE FIRST. `appointments.clinical_episode_id` is NOT NULL since
+     *   CE-1, so a raw fixture insert has to open a journey before it can book.
+     *   Nothing in this file is about journeys; this is an episode of one.
+     */
+    await owner.query(
+      `INSERT INTO clinical_episodes
+         (id, organization_id, patient_id, code, opened_on, updated_at)
+       VALUES ($1, $2, $3, 'FEEEPB0001', current_date, now())
+       ON CONFLICT DO NOTHING`,
+      [RESCHED_EPISODE_B2, ORG_B, RESCHED_PATIENT_B]
+    );
     await owner.query(
       `INSERT INTO appointments
          (id, organization_id, branch_id, patient_id, patient_registration_id,
-          doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'RES-B2-0001',
+          doctor_profile_id, clinical_episode_id, appointment_number,
+          scheduled_start, scheduled_end, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'RES-B2-0001',
                now() + interval '1 day', now() + interval '1 day 15 minutes', now())
        ON CONFLICT DO NOTHING`,
-      [RESCHED_APT_B2, ORG_B, BRANCH_B2, RESCHED_PATIENT_B, RESCHED_REG_B2, FEE_DOC_B]
+      [
+        RESCHED_APT_B2,
+        ORG_B,
+        BRANCH_B2,
+        RESCHED_PATIENT_B,
+        RESCHED_REG_B2,
+        FEE_DOC_B,
+        RESCHED_EPISODE_B2,
+      ]
     );
     await owner.query(
       `INSERT INTO appointment_reschedules

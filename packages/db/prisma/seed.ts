@@ -21,6 +21,7 @@
  */
 import { prisma } from './seed/client.js';
 import { seedClinicalMasters } from './seed/clinical-masters.js';
+import { seedClinicalVocabulary } from './seed/clinical-vocabulary.js';
 import { seedDesignations } from './seed/designations.js';
 import { seedPermissions } from './seed/permissions.js';
 import { seedPlans } from './seed/plans.js';
@@ -48,6 +49,9 @@ async function main(): Promise<void> {
   // After both roles and designations exist — it pairs them by code.
   await seedRoleDesignations();
   await seedClinicalMasters();
+  /* After the taxonomy: the vocabulary's scopes resolve specialty codes to ids,
+     so the nodes have to exist first. */
+  await seedClinicalVocabulary();
   // Structural only — units, categories and storage bands. No medicine data:
   // see seed/data/product-masters.ts for why, and why no agent may add any.
   await seedProductMasters();

@@ -708,6 +708,11 @@ model Product {
    */
   regulatoryProfiles  ProductRegulatoryProfile[]
 
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  /// Which specialties this product is relevant to. ⚠️ RANKS, NEVER FILTERS —
+  /// a medicine belongs to no single specialty (§42.8).
+  clinicalScopes      ProductClinicalScope[]
+
   @@unique([organizationId, code])
   /// The composite-FK target every child in this file references.
   @@unique([organizationId, id])

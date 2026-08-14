@@ -10,4 +10,4 @@ Files: `packages/db/prisma/seed.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:41` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/prisma/seed.ts:42` |  |

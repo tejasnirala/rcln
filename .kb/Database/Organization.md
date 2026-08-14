@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 84 |
+| relations | 91 |
 
 ## Columns
 
@@ -121,6 +121,13 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[]` |
 | `productCostAverages` | [`ProductCostAverage`](ProductCostAverage.md) | `productCostAverages ProductCostAverage[]` |
 | `productRegulatoryProfiles` | [`ProductRegulatoryProfile`](ProductRegulatoryProfile.md) | `productRegulatoryProfiles ProductRegulatoryProfile[]` |
+| `clinicalMasterItems` | [`ClinicalMasterItem`](ClinicalMasterItem.md) | `clinicalMasterItems ClinicalMasterItem[]` |
+| `clinicalMasterCodings` | [`ClinicalMasterCoding`](ClinicalMasterCoding.md) | `clinicalMasterCodings ClinicalMasterCoding[]` |
+| `clinicalMasterScopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `clinicalMasterScopes ClinicalMasterScope[]` |
+| `productClinicalScopes` | [`ProductClinicalScope`](ProductClinicalScope.md) | `productClinicalScopes ProductClinicalScope[]` |
+| `clinicalEpisodes` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisodes ClinicalEpisode[]` |
+| `animalProfiles` | [`AnimalProfile`](AnimalProfile.md) | `animalProfiles AnimalProfile[]` |
+| `followUpRecommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `followUpRecommendations EncounterFollowUpRecommendation[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -216,4 +223,11 @@ erDiagram
     Organization }o--o{ PurchaseReturnLine : relates
     Organization }o--o{ ProductCostAverage : relates
     Organization }o--o{ ProductRegulatoryProfile : relates
+    Organization }o--o{ ClinicalMasterItem : relates
+    Organization }o--o{ ClinicalMasterCoding : relates
+    Organization }o--o{ ClinicalMasterScope : relates
+    Organization }o--o{ ProductClinicalScope : relates
+    Organization }o--o{ ClinicalEpisode : relates
+    Organization }o--o{ AnimalProfile : relates
+    Organization }o--o{ EncounterFollowUpRecommendation : relates
 ```

@@ -1,0 +1,540 @@
+// =============================================================================
+// CLINICAL — the consultation engine's vocabulary and its journey.
+//
+// CE-1 ships the FOUNDATION: what a clinic can say, and what treatment journey
+// it is saying it about. No consultation yet — `encounters` lands in CE-3.
+//
+// Full reasoning: .kb/Consultation/. Decisions are cited as CD-n from
+// .kb/Consultation/DECISIONS.md.
+//
+// ── THREE TENANCY CLASSES, AND THE SEAM IS "WHOSE FACT IS IT" ────────────────
+//
+//   PLATFORM-EXTENSIBLE, organization_id NULLABLE
+//     clinical_master_items · clinical_master_codings · clinical_master_scopes ·
+//     product_clinical_scopes
+//
+//   ORG-SCOPED, no branch
+//     clinical_episodes · animal_profiles
+//
+//   ORG + BRANCH SCOPED
+//     encounter_follow_up_recommendations
+//
+// "Tooth pain", "Dental caries" and "Root canal treatment" are WORDS. Every
+// clinic needs the same few hundred on the day it opens, and shipping them as
+// platform rows is what lets a dentist record a first consultation without
+// inventing a vocabulary first. Same argument `stock_reason_codes` makes.
+//
+// A patient's treatment JOURNEY is not a word. It is a fact about one person at
+// one clinic, so it is org-scoped and it is PHI.
+//
+// ⚠️ THE PLATFORM-EXTENSIBLE POLICY HERE IS `specialties`', NOT `files`'.
+//   `files` permits a NULL organization_id in its WITH CHECK, which is right for
+//   an asset the platform uploads on a tenant's behalf. Reproducing it here
+//   would let ANY CLINIC INSERT A PLATFORM-WIDE DIAGNOSIS — a row with
+//   organization_id NULL, instantly visible to every other tenant, writable by
+//   anyone holding `clinical.master.manage`. Read is permissive; write is not.
+//
+// ⚠️ PHI LIVES IN THIS FILE. `clinical_episodes.title` is a clinical statement
+//   about a named person ("Androgenetic alopecia — management") and so is every
+//   text column on a follow-up recommendation. None of it reaches an audit row;
+//   all of it is in REDACTED_KEYS; reads that disclose one patient write a
+//   `data_access_logs` row.
+// =============================================================================
+
+/// What KIND of clinical word this is.
+///
+/// ⚠️ ONE TABLE WITH A DISCRIMINATOR, NOT SEVEN TABLES (CD-5). This is the house
+///   pattern: `products` is one table with a `ProductType` discriminator over
+///   twelve types (PI-ADR-001), and `specialties` deliberately collapsed a
+///   specialties / sub-specialties / specialization-map triple into one
+///   self-referencing master.
+///
+///   Seven near-identical tables would mean seven search endpoints, seven
+///   scope join tables, seven coding tables and seven RLS policies that have to
+///   stay in step with one another. They differ in nothing but this column.
+enum ClinicalMasterKind {
+  /// What the patient reports. "Hair fall", "Tooth pain".
+  SYMPTOM
+  /// What the clinician concludes. "Androgenetic alopecia", "Dental caries".
+  DIAGNOSIS
+  /// What is done about it. "Root canal treatment", "Chemical peel".
+  PROCEDURE
+  /// What is ordered. "CBC", "OPG", "Biopsy".
+  ///
+  /// ⚠️ NOT A LAB TEST. The lab module does not exist (only its permission
+  ///   codes do). An investigation here is the ORDER's vocabulary; when the lab
+  ///   ships, its catalogue references these rather than replacing them.
+  INVESTIGATION
+  /// What the patient is told to do. "Brushing technique", "Sun protection".
+  ADVICE
+  /// A structured history entry. "Diabetes mellitus", "Smoking", "Penicillin".
+  HISTORY_ITEM
+  /// What is observed AT an anatomical region, for the visual map (CE-6).
+  /// "Caries", "Mobility", "Erythema". Distinct from DIAGNOSIS: a finding is
+  /// what you see on tooth 36, a diagnosis is what it means.
+  FINDING_TYPE
+}
+
+/// Whether a treatment journey is still running.
+///
+/// Deliberately two states. "Abandoned" and "completed" are both CLOSED and the
+/// difference belongs in `closureReason`, not in the enum — a clinic that wants
+/// to report on the difference filters on text it wrote, and a clinic that does
+/// not is spared a decision at close time.
+enum ClinicalEpisodeStatus {
+  OPEN
+  CLOSED
+}
+
+/// Whether the patient is a person or an animal (CD-4).
+///
+/// ⚠️ THE ONLY THING IN THE CONSULTATION ENGINE THAT BRANCHES ON THIS IS CARE
+///   CONTEXT RESOLUTION. §4 asks that the architecture not bake in a human-only
+///   assumption; §42.7 forbids building veterinary functionality now. A column
+///   and a thin extension table satisfy the first without doing the second.
+enum CareSubjectType {
+  HUMAN
+  ANIMAL
+}
+
+/// The unit a follow-up interval is expressed in.
+enum FollowUpIntervalUnit {
+  DAYS
+  WEEKS
+  MONTHS
+}
+
+/// Why the patient is being asked back. Drives the recall list's grouping and
+/// nothing else — it is never an authorization or billing input.
+enum FollowUpType {
+  ROUTINE
+  PROCEDURE_REVIEW
+  LAB_REVIEW
+  POST_OPERATIVE
+  OTHER
+}
+
+// -----------------------------------------------------------------------------
+// CLINICAL VOCABULARY
+// -----------------------------------------------------------------------------
+
+/// Every clinical word the platform or a clinic can say (CD-5).
+///
+/// Platform catalogue with per-tenant extension, exactly like `specialties`:
+/// `organizationId = NULL` is a row every clinic sees, and a clinic that needs a
+/// word we have not thought of adds its own rather than waiting for a deploy.
+///
+/// ⚠️ NOT SCOPED TO A SPECIALTY BY A COLUMN. Relevance is
+/// `clinical_master_scopes`, a join table, because §34 is explicit that a word
+/// can matter to several specialties and a single `specialty_id` forces a lie.
+/// And the scope RANKS rather than FILTERS — see that model.
+model ClinicalMasterItem {
+  id             String             @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?            @map("organization_id") @db.Uuid
+  kind           ClinicalMasterKind
+  /// Optional grouping within a kind — "Cardiovascular" over a set of symptoms.
+  ///
+  /// ⚠️ `onDelete: Restrict`, NOT SetNull, for the reason `specialties` records:
+  ///   SetNull "succeeds" at deleting a node and silently promotes its entire
+  ///   subtree to the root. Refusing is the honest outcome.
+  parentId       String?            @map("parent_id") @db.Uuid
+  /// ⚠️ FLAT, NOT A PATH — `DENTAL_CARIES`, never `DENT-CARIES-DEEP`. A
+  ///   path-encoded code becomes a lie the moment a node is re-parented, and the
+  ///   path already has a home: `parent_id`. Same rule as the taxonomy's codes.
+  code           String             @db.VarChar(64)
+  name           String             @db.VarChar(255)
+  /// Clinician-facing detail. NOT patient data — this is a dictionary entry.
+  description    String?            @db.Text
+  /// Sort among siblings. Ties break by `name` so the order is total.
+  displayOrder   Int                @default(0) @map("display_order")
+  /// Free-form document: display labels per locale, severity vocabularies a
+  /// kind wants to offer, units for a measurement.
+  ///
+  /// ⚠️ A DOCUMENT, NEVER FOREIGN KEYS (ADR-0006). A list of `specialty_id`s in
+  ///   here is `clinical_master_scopes` wearing a disguise.
+  metadata       Json?              @db.JsonB
+  isActive       Boolean            @default(true) @map("is_active")
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime?          @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       ClinicalMasterItem?    @relation("ClinicalMasterParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children     ClinicalMasterItem[]   @relation("ClinicalMasterParent")
+  codings      ClinicalMasterCoding[]
+  scopes       ClinicalMasterScope[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// rows (organization_id NULL) are not unique among themselves.
+  ///
+  /// `kind` is part of the key deliberately: `DENTAL_CARIES` as a DIAGNOSIS and
+  /// `DENTAL_CARIES` as a FINDING_TYPE are two legitimate rows saying different
+  /// things about the same word.
+  @@unique([organizationId, kind, code])
+  /// Composite-FK target for the codings and scopes below, so a tenant can never
+  /// bolt its own coding onto a PLATFORM word (ADR-0004).
+  @@unique([organizationId, id])
+  /// The search: one kind, active rows, one tenant plus the platform.
+  @@index([organizationId, kind, isActive])
+  /// Descendant walks recurse on `parent_id`. Without this the recursive CTE
+  /// seq-scans the table once PER LEVEL — the lesson `specialties` records.
+  @@index([parentId])
+  /// ⚠️ THE NAME SEARCH INDEX IS A GIN TRIGRAM INDEX WRITTEN BY HAND in the
+  ///   migration, over `lower(name)`. Prisma cannot express an expression index,
+  ///   and without it every clinical selector's search is a sequential scan over
+  ///   every word on the PLATFORM — filtered by RLS afterwards, so the cost
+  ///   grows with the platform and not with the tenant. Exactly `patients`.
+  @@map("clinical_master_items")
+}
+
+/// External codes for a clinical word. ICD-10, SNOMED CT, LOINC, ICD-11, or a
+/// clinic's own scheme — all at once, on the same row.
+///
+/// ⚠️ WHY THIS IS A TABLE AND NOT TWO COLUMNS ON THE ITEM (§9). "Support
+///   standardized clinical codes such as ICD without making the architecture
+///   dependent on a single coding system" is only true if there is NO coding
+///   column on the item at all. One `icd10_code` column makes ICD-10 the
+///   privileged system and everything else a second-class citizen; two columns
+///   (`system`, `code`) make it impossible to carry both an ICD-10 and a SNOMED
+///   code for one diagnosis, which is the ordinary case in a hospital that
+///   reports to more than one body.
+///
+/// ⚠️ `system` IS A VARCHAR, NOT AN ENUM, and for the reason
+///   `patients.national_id_type` is one: the accepted list is per-market and
+///   grows every time the platform opens a country. As an enum that is a
+///   migration per coding system, and a clinic carrying a scheme the enum has
+///   not learned yet cannot record it at all.
+model ClinicalMasterCoding {
+  id             String  @id @default(uuid()) @db.Uuid
+  /// Mirrors the parent's. NULL for a coding on a platform item.
+  organizationId String? @map("organization_id") @db.Uuid
+  itemId         String  @map("item_id") @db.Uuid
+  /// `ICD10`, `ICD11`, `SNOMEDCT`, `LOINC`, or a clinic's own label.
+  system         String  @db.VarChar(32)
+  code           String  @db.VarChar(64)
+  /// The term as that system words it, which is often not how the clinic does.
+  display        String? @db.VarChar(512)
+  /// Which code to print on a report when several exist. At most one TRUE per
+  /// (item, system), enforced by a partial unique index in the migration —
+  /// Prisma cannot express `WHERE is_primary`.
+  isPrimary      Boolean @default(false) @map("is_primary")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite-FK'd so a tenant cannot bolt its own coding onto a PLATFORM item
+  /// — the tenant row would have to name an organization_id the platform row
+  /// does not have. The same guard the product children use.
+  ///
+  /// Optional ONLY because Prisma refuses a required relation whose scalar
+  /// fields include a nullable one. The row always has an item.
+  item         ClinicalMasterItem? @relation(fields: [organizationId, itemId], references: [organizationId, id], onDelete: Cascade)
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration.
+  @@unique([organizationId, itemId, system, code])
+  @@index([organizationId, system, code])
+  @@map("clinical_master_codings")
+}
+
+/// Which parts of the clinical taxonomy a word is relevant to (§34).
+///
+/// ⚠️ THIS RANKS. IT DOES NOT FILTER. §11 and §34 both say so in as many words:
+///   "Prescription search should be context-aware but must not prevent the
+///   doctor from using an appropriate medicine merely because it is not tagged
+///   to a specialty."
+///
+///   So the search orders scoped matches above unscoped ones and returns both.
+///   A hard filter would mean that the day a clinic adds a diagnosis and forgets
+///   to tag it, that diagnosis becomes invisible to every doctor — a failure
+///   mode with no error message, discovered by a clinician who cannot record
+///   what they just concluded.
+model ClinicalMasterScope {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String? @map("organization_id") @db.Uuid
+  itemId         String  @map("item_id") @db.Uuid
+  /// A node anywhere in the taxonomy — a care context, a domain, a specialty or
+  /// a sub-specialty. Scoping a word to DENTISTRY covers every node beneath it;
+  /// the resolver walks down, so a clinic tags once at the level it means.
+  specialtyId    String  @map("specialty_id") @db.Uuid
+  /// Higher sorts first among scoped matches. A tie-break, not a filter.
+  relevance      Int     @default(0) @db.SmallInt
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  item         ClinicalMasterItem? @relation(fields: [organizationId, itemId], references: [organizationId, id], onDelete: Cascade)
+  /// ⚠️ A PLAIN FK, NOT COMPOSITE, and it therefore needs a RESTRICTIVE
+  ///   `specialty_visible` policy — `specialties` allows a NULL organization_id,
+  ///   so a composite FK cannot be drawn and the row would otherwise be able to
+  ///   cite another tenant's specialty. Exactly the shape `doctor_specialties`
+  ///   has, for exactly the same reason.
+  specialty    Specialty           @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, itemId, specialtyId])
+  @@index([organizationId, specialtyId])
+  @@map("clinical_master_scopes")
+}
+
+/// The same relevance mapping for the product catalogue (§34, §42.8).
+///
+/// ⚠️ A SEPARATE TABLE RATHER THAN A POLYMORPHIC `entity_type` COLUMN ON
+///   `clinical_master_scopes`. A polymorphic parent cannot carry a foreign key,
+///   which would mean the one thing this codebase refuses everywhere else: an id
+///   the database does not check. Two small tables with real FKs beat one table
+///   with none.
+///
+/// ⚠️ AND MEDICINES ARE STILL NEVER FILTERED BY IT. §42.8 — "do not assume
+///   medicines belong to exactly one specialty". A dermatologist prescribes an
+///   antibiotic; a dentist prescribes the same one.
+model ProductClinicalScope {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String? @map("organization_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  specialtyId    String  @map("specialty_id") @db.Uuid
+  relevance      Int     @default(0) @db.SmallInt
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product?      @relation(fields: [organizationId, productId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FK into a possibly-platform row — `specialty_visible` policy, as above.
+  specialty    Specialty     @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, productId, specialtyId])
+  @@index([organizationId, specialtyId])
+  @@map("product_clinical_scopes")
+}
+
+// -----------------------------------------------------------------------------
+// THE TREATMENT JOURNEY
+// -----------------------------------------------------------------------------
+
+/// One continuous treatment journey: every appointment about the same thing.
+///
+/// ⚠️ THREE DIFFERENT QUESTIONS, THREE DIFFERENT MECHANISMS, AND CONFLATING ANY
+///   TWO IS THE MISTAKE THIS MODEL EXISTS TO PREVENT:
+///
+///     "what visit did this one come from?"  -> appointments.parent_appointment_id
+///     "what journey is this part of?"       -> appointments.clinical_episode_id
+///     "what did the doctor ASK for?"        -> encounter_follow_up_recommendations
+///
+///   The first two are facts about bookings. The third is a clinical
+///   instruction, true whether or not anybody books anything. See
+///   .kb/Consultation/FOLLOW_UP_ARCHITECTURE.md.
+///
+/// ── WHY THIS IS NOT "WALK parent_appointment_id TO THE ROOT" ─────────────────
+///
+///   1. A walk is O(depth) and recursive — a CTE on every render, where this is
+///      one indexed equality.
+///   2. A journey can BRANCH. A patient sent to a colleague and back has two
+///      chains and one journey.
+///   3. A journey can start WITHOUT a chain. A walk-in has no appointment at
+///      all, and a chain rooted at a booking cannot express that.
+///
+/// ⚠️ ORG-SCOPED, NOT BRANCH-SCOPED — the same call `patients` makes, for the
+///   same reason. A person who starts treatment at the main branch and continues
+///   at the satellite has ONE journey; a branch-scoped episode would split it in
+///   two and hide the second half from the first branch.
+///
+/// ⚠️ PHI. `title` and `notes` are clinical statements about a named person.
+///   Both are in REDACTED_KEYS, neither reaches an audit row, and every read
+///   that discloses one writes a `data_access_logs` row under CLINICAL_EPISODE.
+model ClinicalEpisode {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  patientId      String                @map("patient_id") @db.Uuid
+  /// Human-facing identifier, issued from the `CLINICAL_EPISODE` counter. Said
+  /// out loud and quoted on a report, so it is issued rather than typed.
+  code           String                @db.VarChar(32)
+  /// ⚠️ PHI. "Androgenetic alopecia — management". Optional: a clinic that never
+  ///   titles an episode still gets the grouping, and an untitled journey
+  ///   renders by its first diagnosis rather than forcing a decision at booking
+  ///   time, when nobody yet knows what the journey is about.
+  title          String?               @db.VarChar(255)
+  /// What the journey is broadly about. Advisory grouping for reporting; never
+  /// an authorization input, and never what resolves a consultation template —
+  /// that is the DOCTOR's classification, not the episode's.
+  primarySpecialtyId String?           @map("primary_specialty_id") @db.Uuid
+  status         ClinicalEpisodeStatus @default(OPEN)
+  /// A DATE, not an instant: "when did this journey start" is a calendar
+  /// question a clinic answers in its own timezone.
+  ///
+  /// ⚠️ Compare it with `startOfCalendarDay`, never against an instant.
+  openedOn       DateTime              @map("opened_on") @db.Date
+  closedOn       DateTime?             @map("closed_on") @db.Date
+  /// ⚠️ PHI. Why it was closed, in the clinician's words.
+  closureReason  String?               @map("closure_reason") @db.Text
+  /// ⚠️ PHI.
+  notes          String?               @db.Text
+  /// SetNull: the person who opened it may leave; the journey stays.
+  openedBy       String?               @map("opened_by") @db.Uuid
+  closedBy       String?               @map("closed_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient          Patient       @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  primarySpecialty Specialty?    @relation(fields: [primarySpecialtyId], references: [id], onDelete: Restrict)
+  opener           User?         @relation("EpisodeOpenedBy", fields: [openedBy], references: [id], onDelete: SetNull)
+  closer           User?         @relation("EpisodeClosedBy", fields: [closedBy], references: [id], onDelete: SetNull)
+  appointments     Appointment[]
+
+  @@unique([organizationId, code])
+  /// Composite-FK target: appointments and, from CE-3, encounters reference
+  /// (organization_id, id) so a cross-tenant child is unrepresentable (ADR-0004).
+  @@unique([organizationId, id])
+  /// "What journeys is this patient on?" — the visit-history read, newest first.
+  @@index([organizationId, patientId, openedOn])
+  /// The open-episode picker at the front desk.
+  @@index([organizationId, status])
+  @@map("clinical_episodes")
+}
+
+/// Species, breed and weight, when the patient is not a person (CD-4).
+///
+/// ⚠️ DELIBERATELY THIN, AND DELIBERATELY NOT ON `patients`. §42.7 forbids
+///   building veterinary functionality now; §4 asks only that the architecture
+///   stop assuming humans. Six nullable columns on `patients` that are NULL for
+///   every row in every clinic on the platform would be the wrong trade — this
+///   table exists, has no rows, and costs a join that only a veterinary practice
+///   ever pays for.
+///
+///   `weightKg` is here rather than on the encounter on purpose: it is the
+///   animal's current recorded weight for the record, NOT the observation taken
+///   at a visit. That observation is `appointment_vitals`, which already exists
+///   and already handles a measurement taken at a point in time.
+model AnimalProfile {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  patientId      String    @map("patient_id") @db.Uuid
+  /// Free text, not an enum: the species list is unbounded and a veterinary
+  /// clinic that treats a tortoise must not need a migration. Same reasoning as
+  /// `patients.national_id_type`.
+  species        String?   @db.VarChar(64)
+  breed          String?   @db.VarChar(128)
+  /// Recorded weight in kilograms. ⚠️ Decimal, never a float — a dose is
+  /// calculated from it.
+  weightKg       Decimal?  @map("weight_kg") @db.Decimal(8, 3)
+  /// Who brings the animal in and is billed. NOT a `patients` row: the guardian
+  /// is not the patient, and making them one would put a human's identity on an
+  /// animal's chart.
+  guardianName   String?   @map("guardian_name") @db.VarChar(255)
+  guardianPhone  String?   @map("guardian_phone") @db.VarChar(20)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, patientId])
+  @@map("animal_profiles")
+}
+
+/// What the doctor ASKED the patient to do — which is not an appointment (CD-13).
+///
+/// ⚠️ THE TABLE LANDS IN CE-1 AND FILLS IN CE-4. `encounterId` is nullable ONLY
+///   until `encounters` exists in CE-3; the column is documented as required and
+///   the migration that adds the FK also makes it NOT NULL. Nothing writes here
+///   before CE-4.
+///
+/// ── WHY A RECOMMENDATION IS NOT A BOOKING ────────────────────────────────────
+///
+/// "Come back after 15 days" has nowhere to live today. The only way to express
+/// it is to BOOK an appointment — which asserts a slot the patient never agreed
+/// to, burns a number from a branch counter a clinic reads as a sequence, and
+/// puts a booking on the day board nobody is expecting.
+///
+/// ⚠️ AND IT IS WHAT MAKES A RECALL LIST POSSIBLE. The clinic's real question is
+///   "who was told to come back and hasn't?" — unanswerable if a recommendation
+///   and a booking are the same row, because an unbooked recommendation would
+///   simply not exist. What the doctor advised also stays clinically true
+///   whether or not the patient complies: deriving it from a booking means a
+///   patient who never returns has no record of having been told to.
+///
+/// ⚠️ PHI throughout. `reason` and `notes` are clinical free text.
+model EncounterFollowUpRecommendation {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  /// Copied from the appointment rather than reached through a parent, so this
+  /// row is an ordinary member of the branch RLS loop. The call the invoice
+  /// children made and the one `appointment_status_history` did not — a child of
+  /// a branch-scoped parent that inherits only the org half re-opens the branch
+  /// boundary.
+  branchId       String  @map("branch_id") @db.Uuid
+  /// ⚠️ NULLABLE ONLY UNTIL CE-3. See the model note.
+  encounterId    String? @map("encounter_id") @db.Uuid
+  /// The visit at which the advice was given. Denormalised from the encounter so
+  /// the recall list can be assembled without joining through it.
+  appointmentId  String  @map("appointment_id") @db.Uuid
+  patientId      String  @map("patient_id") @db.Uuid
+
+  /// ⚠️ FALSE IS A REAL ANSWER, NOT AN ABSENCE. "No follow-up needed" is a
+  ///   clinical decision worth recording, and it carries no interval. A screen
+  ///   that only ever wrote a row when a follow-up WAS needed could not tell
+  ///   "the doctor decided against one" from "the doctor forgot".
+  isRequired     Boolean @default(true) @map("is_required")
+
+  /// "In 15 days." ⚠️ EXACTLY ONE OF (intervalValue + intervalUnit) OR
+  ///   `recommendedDate` is set — a CHECK constraint in the migration, not a
+  ///   convention. Both are legitimate ways for a doctor to put it, and storing
+  ///   both invites them to disagree about which one the recall list believes.
+  intervalValue  Int?                  @map("interval_value") @db.SmallInt
+  intervalUnit   FollowUpIntervalUnit? @map("interval_unit")
+  /// "On 4 September." A DATE, not an instant — compare with
+  /// `startOfCalendarDay`, never against a timestamp.
+  recommendedDate DateTime?            @map("recommended_date") @db.Date
+
+  followUpType   FollowUpType @default(ROUTINE) @map("follow_up_type")
+  /// ⚠️ PHI.
+  reason         String?      @db.Text
+  /// ⚠️ PHI.
+  notes          String?      @db.Text
+
+  /// The booking that satisfied this, once the patient actually made one.
+  ///
+  /// ⚠️ NULL IS THE INTERESTING STATE — it is the whole recall list. And
+  ///   fulfilment is optional in BOTH directions: a patient may book a follow-up
+  ///   nobody recommended, and a recommendation may never be fulfilled. Neither
+  ///   is an error.
+  ///
+  /// ⚠️ A PARTIAL UNIQUE INDEX in the migration stops one appointment fulfilling
+  ///   two recommendations, and makes re-posting the same booking idempotent.
+  fulfilledByAppointmentId String?   @map("fulfilled_by_appointment_id") @db.Uuid
+  fulfilledAt              DateTime? @map("fulfilled_at") @db.Timestamptz(6)
+
+  /// The patient declined, or the plan changed before they booked. Recorded
+  /// rather than deleted: "we asked and they said no" is the answer to a recall
+  /// chase, and a deleted row makes the desk ring them again next month.
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?   @map("cancelled_by") @db.Uuid
+  /// ⚠️ PHI.
+  cancelledReason String?   @map("cancelled_reason") @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  appointment  Appointment  @relation("RecommendationSource", fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Cascade)
+  /// Restrict, not Cascade: deleting the booking that FULFILLED a recommendation
+  /// must not take the clinical advice with it. The advice was given; the
+  /// booking is what happened next.
+  fulfilledBy  Appointment? @relation("RecommendationFulfilment", fields: [organizationId, fulfilledByAppointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  canceller    User?        @relation("RecommendationCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
+
+  /// The recall list: everything still outstanding, soonest first. ⚠️ The
+  /// partial predicate (`fulfilled_by_appointment_id IS NULL AND cancelled_at IS
+  /// NULL`) is hand-written in the migration — Prisma cannot express a partial
+  /// index, and without it the recall query scans every recommendation the
+  /// clinic has ever made.
+  @@index([organizationId, patientId, createdAt])
+  @@index([organizationId, branchId, recommendedDate])
+  @@map("encounter_follow_up_recommendations")
+}

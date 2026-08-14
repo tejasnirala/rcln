@@ -139,6 +139,18 @@ model Patient {
   /// Age in whole years as stated, when no birth date is known. Never derived
   /// from `dateOfBirth` — one of the two is authoritative and the other is null.
   approxAgeYears Int?          @map("approx_age_years") @db.SmallInt
+  /// Whether this record is a person or an animal (CE-1, CD-4).
+  ///
+  /// ⚠️ THE ONLY CODE THAT BRANCHES ON IT IS CARE-CONTEXT RESOLUTION in the
+  ///   consultation engine. §4 of the brief asks that the architecture stop
+  ///   assuming every patient is human; it does NOT ask for veterinary features,
+  ///   which are deliberately not built. Species, breed and weight live on
+  ///   `animal_profiles` rather than as six columns here that are NULL for every
+  ///   row in every clinic on the platform.
+  ///
+  /// Defaults to HUMAN, so every row written before this column existed is
+  /// correct without a backfill.
+  subjectType    CareSubjectType @default(HUMAN) @map("subject_type")
   gender         Gender        @default(UNKNOWN)
   bloodGroup     BloodGroup    @default(UNKNOWN) @map("blood_group")
   phone          String?       @db.VarChar(20)
@@ -194,6 +206,13 @@ model Patient {
   /// Serialised devices and implants fitted to this person. ⚠️ PHI — see the
   /// model comment on `Serial` in inventory.prisma.
   serials       Serial[]
+
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  /// The treatment journeys this person is on. ⚠️ PHI.
+  clinicalEpisodes        ClinicalEpisode[]
+  /// Present only when `subjectType = ANIMAL`.
+  animalProfile           AnimalProfile?
+  followUpRecommendations EncounterFollowUpRecommendation[]
 
   @@unique([organizationId, uhid])
   /// Composite-FK target. Registrations, appointments, encounters, invoices and

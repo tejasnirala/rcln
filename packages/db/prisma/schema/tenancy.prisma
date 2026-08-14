@@ -191,6 +191,15 @@ model Organization {
   // this one — is tenant data, platform-extensible like the rest of the
   // catalogue. See regulatory.prisma's header.
   productRegulatoryProfiles ProductRegulatoryProfile[]
+
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  clinicalMasterItems      ClinicalMasterItem[]
+  clinicalMasterCodings    ClinicalMasterCoding[]
+  clinicalMasterScopes     ClinicalMasterScope[]
+  productClinicalScopes    ProductClinicalScope[]
+  clinicalEpisodes         ClinicalEpisode[]
+  animalProfiles           AnimalProfile[]
+  followUpRecommendations  EncounterFollowUpRecommendation[]
   lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
@@ -322,6 +331,9 @@ model Branch {
   purchaseReturns          PurchaseReturn[]
   purchaseReturnLines      PurchaseReturnLine[]
   productCostAverages      ProductCostAverage[]
+
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  followUpRecommendations  EncounterFollowUpRecommendation[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

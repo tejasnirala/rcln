@@ -71,7 +71,7 @@ ADMIN_HOST	const	export	apps/web/src/lib/api.ts:119	apps/web/lib	`admin.${ROOT_D
 administrationRoute	zod	export	packages/contracts/src/products.ts:83	packages/contracts	z.enum(…)	
 AdministrationRoute	type	export	packages/contracts/src/products.ts:851	packages/contracts	z.infer<typeof administrationRoute>	
 ADVANCE_MS	const	local	apps/web/src/components/marketing/journey-rail.tsx:116	apps/web/components/marketing	3400	
-advanceAutomatically	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:404	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, from: AppointmentStatusValue, to: AppointmentStatusValue, note: string): Promise<void>	Advance to `to` only if that is a legal forward step from where we are. Silent by design: the caller is an event handle…
+advanceAutomatically	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:409	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, from: AppointmentStatusValue, to: AppointmentStatusValue, note: string): Promise<void>	Advance to `to` only if that is a legal forward step from where we are. Silent by design: the caller is an event handle…
 ageFrom	fn	local	apps/api/src/services/patient/patient.service.ts:140	apps/api/services/patient	(dateOfBirth: Date | null, approxAgeYears: number | null): number | null	
 ageFromDob	fn	local	apps/web/src/components/tenant/patient-search.tsx:97	apps/web/components/tenant	(value: string): number | null	
 ageLabel	fn	local	apps/web/src/components/tenant/patient-search.tsx:112	apps/web/components/tenant	(years: number): string	Plain words for the age line under the date field.
@@ -107,6 +107,7 @@ AnalyticsEvent	type	export	apps/web/src/lib/analytics.ts:14	apps/web/lib	| 'cta_
 AncestorChains	type	local	apps/api/src/services/doctor/doctor.service.ts:104	apps/api/services/doctor	Map<string, DoctorSpecialtyDetail['ancestors']>	Root-first chain above one node. Keyed by the node's own id.
 ancestorLabel	fn	export	apps/web/src/lib/taxonomy.ts:88	apps/web/lib	(tree: TaxonomyTree, id: string): string	`Medical › Cardiology › Interventional Cardiology`, excluding the node itself.
 AncestorRow	interface	local	apps/api/src/services/doctor/doctor.service.ts:106	apps/api/services/doctor	{ descendant_id, id, code, name, type, depth }	
+api	fn	local	apps/api/tests/integration/clinical.test.ts:86	apps/api/tests/integration	(method: 'get' | 'post' | 'patch' | 'delete')	
 api	fn/async	export	apps/web/src/lib/api.ts:160	apps/web/lib	(path: string, request: ApiRequest): Promise<ApiResult<T>>	
 API_BASE	const	local	packages/payments/src/providers/razorpay.ts:108	packages/payments/providers	'https://api.razorpay.com/v1'	One base URL for both modes. See difference (2) in the header — this is not an oversight, it is how Razorpay works, and…
 API_URL	const	local	apps/web/src/app/(marketing)/actions.ts:16	apps/web/app/(marketing)	process.env['API_INTERNAL_URL'] ?? 'http://api:5000'	
@@ -143,42 +144,42 @@ applyToResponse	fn	local	apps/web/src/proxy.ts:185	apps/web	(response: NextRespo
 applyUpgrade	fn/async	export	apps/api/src/services/billing/billing.service.ts:246	apps/api/services/billing	(ctx: TenantContext, slug: string, actor: BillingActor, planPriceId: string): Promise<CheckoutResponse>	
 applyUpgrade	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/actions.ts:130	apps/web/app/(tenant)/t/[slug]/(app)/billing	(slug: string, planPriceId: string, _previous: BillingFormState): Promise<BillingFormState>	
 AppNav	component	export	apps/web/src/components/shell/app-nav.tsx:22	apps/web/components/shell	({ label, links }: { label: string; links: NavLink[] })	
-APPOINTMENT_PREFIX	const	local	apps/api/src/services/appointment/appointment.service.ts:68	apps/api/services/appointment	'A'	
-APPOINTMENT_RANGE_MAX_DAYS	const	export	packages/contracts/src/appointments.ts:444	packages/contracts	45	
-APPOINTMENT_SELECT	const	local	apps/api/src/services/appointment/appointment.service.ts:155	apps/api/services/appointment	{ id: true, appointmentNumber: true, branchId: true, patientId: true, doctorProfileId: tr…	
+APPOINTMENT_PREFIX	const	local	apps/api/src/services/appointment/appointment.service.ts:69	apps/api/services/appointment	'A'	
+APPOINTMENT_RANGE_MAX_DAYS	const	export	packages/contracts/src/appointments.ts:462	packages/contracts	45	
+APPOINTMENT_SELECT	const	local	apps/api/src/services/appointment/appointment.service.ts:156	apps/api/services/appointment	{ id: true, appointmentNumber: true, branchId: true, patientId: true, doctorProfileId: tr…	
 APPOINTMENT_SELECT	const	local	apps/api/src/services/invoicing/appointment-billing.service.ts:187	apps/api/services/invoicing	{ id: true, branchId: true, patientId: true, doctorProfileI…	
-AppointmentActionOptions	interface	export	apps/api/src/services/appointment/appointment.service.ts:53	apps/api/services/appointment	{ ipAddress, userAgent, route }	Request metadata, carried onto both trails.
+AppointmentActionOptions	interface	export	apps/api/src/services/appointment/appointment.service.ts:54	apps/api/services/appointment	{ ipAddress, userAgent, route }	Request metadata, carried onto both trails.
 appointmentBilling	zod	export	packages/contracts/src/invoices.ts:513	packages/contracts	z.object(…)	
 AppointmentBilling	type	export	packages/contracts/src/invoices.ts:550	packages/contracts	z.infer<typeof appointmentBilling>	
 appointmentBillingBlockedReason	zod	export	packages/contracts/src/invoices.ts:480	packages/contracts	z.enum(…)	
 AppointmentBillingBlockedReason	type	export	packages/contracts/src/invoices.ts:485	packages/contracts	z.infer<typeof appointmentBillingBlockedReason>	
 AppointmentBillingPanel	component	export	apps/web/src/components/tenant/appointment-billing-panel.tsx:35	apps/web/components/tenant	({ slug, billing, canRaise, }: { slug: string; billing: Appo…)	
 AppointmentBoard	component	export	apps/web/src/components/tenant/appointment-board.tsx:161	apps/web/components/tenant	({ slug, branchId, branchName, timezone, timeFormat, view, a…)	
-appointmentDetail	var	export	packages/contracts/src/appointments.ts:615	packages/contracts	appointmentSummary.extend(…)	
-AppointmentDetail	type	export	packages/contracts/src/appointments.ts:763	packages/contracts	z.infer<typeof appointmentDetail>	
+appointmentDetail	var	export	packages/contracts/src/appointments.ts:633	packages/contracts	appointmentSummary.extend(…)	
+AppointmentDetail	type	export	packages/contracts/src/appointments.ts:794	packages/contracts	z.infer<typeof appointmentDetail>	
 appointmentInvoiceLink	zod	export	packages/contracts/src/invoices.ts:422	packages/contracts	z.object(…)	
 AppointmentInvoiceLink	type	export	packages/contracts/src/invoices.ts:433	packages/contracts	z.infer<typeof appointmentInvoiceLink>	
 AppointmentItems	component	local	packages/documents/src/invoice/items.tsx:315	packages/documents/invoice	({ data, fmt }: ItemTableProps): JSX.Element	
-appointmentListQuery	var	export	packages/contracts/src/appointments.ts:481	packages/contracts	z .object({ branchId: uuid, date: calendarDate, /** Inclusi…	
-AppointmentListQuery	type	export	packages/contracts/src/appointments.ts:765	packages/contracts	z.infer<typeof appointmentListQuery>	
-appointmentListResponse	zod	export	packages/contracts/src/appointments.ts:740	packages/contracts	z.object(…)	
-AppointmentListResponse	type	export	packages/contracts/src/appointments.ts:764	packages/contracts	z.infer<typeof appointmentListResponse>	
+appointmentListQuery	var	export	packages/contracts/src/appointments.ts:499	packages/contracts	z .object({ branchId: uuid, date: calendarDate, /** Inclusi…	
+AppointmentListQuery	type	export	packages/contracts/src/appointments.ts:796	packages/contracts	z.infer<typeof appointmentListQuery>	
+appointmentListResponse	zod	export	packages/contracts/src/appointments.ts:771	packages/contracts	z.object(…)	
+AppointmentListResponse	type	export	packages/contracts/src/appointments.ts:795	packages/contracts	z.infer<typeof appointmentListResponse>	
 appointmentParams	zod	local	apps/api/src/routes/v1/appointments.routes.ts:99	apps/api/routes/v1	z.object(…)	
-AppointmentRow	type	local	apps/api/src/services/appointment/appointment.service.ts:198	apps/api/services/appointment	Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>	
+AppointmentRow	type	local	apps/api/src/services/appointment/appointment.service.ts:203	apps/api/services/appointment	Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>	
 AppointmentRow	component	local	apps/web/src/components/tenant/appointment-board.tsx:925	apps/web/components/tenant	({ slug, timezone, timeFormat, appointment, canCheckIn, canC…)	
 appointmentSource	zod	export	packages/contracts/src/appointments.ts:44	packages/contracts	z.enum(…)	
-AppointmentSourceValue	type	export	packages/contracts/src/appointments.ts:752	packages/contracts	z.infer<typeof appointmentSource>	
+AppointmentSourceValue	type	export	packages/contracts/src/appointments.ts:783	packages/contracts	z.infer<typeof appointmentSource>	
 AppointmentsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.tsx:34	apps/web/app/(tenant)/t/[slug]/(app)/appointments	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 appointmentStatus	zod	export	packages/contracts/src/appointments.ts:26	packages/contracts	z.enum(…)	
-appointmentStatusEvent	zod	export	packages/contracts/src/appointments.ts:546	packages/contracts	z.object(…)	
-AppointmentStatusEvent	type	export	packages/contracts/src/appointments.ts:761	packages/contracts	z.infer<typeof appointmentStatusEvent>	
-AppointmentStatusValue	type	export	packages/contracts/src/appointments.ts:750	packages/contracts	z.infer<typeof appointmentStatus>	
-appointmentSummary	zod	export	packages/contracts/src/appointments.ts:563	packages/contracts	z.object(…)	
-AppointmentSummary	type	export	packages/contracts/src/appointments.ts:762	packages/contracts	z.infer<typeof appointmentSummary>	
-appointmentTransitionRequest	zod	export	packages/contracts/src/appointments.ts:226	packages/contracts	z.object(…)	
-AppointmentTransitionRequest	type	export	packages/contracts/src/appointments.ts:769	packages/contracts	z.infer<typeof appointmentTransitionRequest>	
+appointmentStatusEvent	zod	export	packages/contracts/src/appointments.ts:564	packages/contracts	z.object(…)	
+AppointmentStatusEvent	type	export	packages/contracts/src/appointments.ts:792	packages/contracts	z.infer<typeof appointmentStatusEvent>	
+AppointmentStatusValue	type	export	packages/contracts/src/appointments.ts:781	packages/contracts	z.infer<typeof appointmentStatus>	
+appointmentSummary	zod	export	packages/contracts/src/appointments.ts:581	packages/contracts	z.object(…)	
+AppointmentSummary	type	export	packages/contracts/src/appointments.ts:793	packages/contracts	z.infer<typeof appointmentSummary>	
+appointmentTransitionRequest	zod	export	packages/contracts/src/appointments.ts:244	packages/contracts	z.object(…)	
+AppointmentTransitionRequest	type	export	packages/contracts/src/appointments.ts:800	packages/contracts	z.infer<typeof appointmentTransitionRequest>	
 appointmentVisitType	zod	export	packages/contracts/src/appointments.ts:36	packages/contracts	z.enum(…)	
-AppointmentVisitTypeValue	type	export	packages/contracts/src/appointments.ts:751	packages/contracts	z.infer<typeof appointmentVisitType>	
+AppointmentVisitTypeValue	type	export	packages/contracts/src/appointments.ts:782	packages/contracts	z.infer<typeof appointmentVisitType>	
 apportion	fn	export	packages/invoicing/src/discount.ts:84	packages/invoicing	(total: number, weights: readonly number[]): number[]	
 apportionByValue	fn	export	packages/inventory/src/costing.ts:59	packages/inventory	(total: number, weights: readonly number[]): number[]	
 apportionLanded	fn	local	apps/api/src/services/procurement/goods-receipt.service.ts:479	apps/api/services/procurement	(header: { freight: bigint; duty: bigint; handling: bigint }, lines: ResolvedLine[]): number[]	
@@ -211,7 +212,8 @@ asOrg	fn	local	apps/api/tests/integration/product-resolvers.test.ts:92	apps/api/
 asPositiveInt	fn	export	apps/api/src/services/settings/resolver.service.ts:215	apps/api/services/settings	(value: SettingValue, fallback: number): number	
 asRecord	fn	local	packages/regulatory/src/parameters.ts:32	packages/regulatory	(parameters: unknown): Parsed<Record<string, unknown>>	
 assertBranchAssignable	fn/async	export	apps/api/src/services/iam/guards.ts:127	apps/api/services/iam	(tx: TxClient, ctx: TenantContext, caller: Caller, branchId: string | null): Promise<void>	May this caller write a `membership_roles` / `membership_permission_overrides` row for this branch? Throws if not.
-assertBranchInScope	fn	local	apps/api/src/services/appointment/appointment.service.ts:280	apps/api/services/appointment	(ctx: TenantContext, branchId: string): void	
+assertBranchInScope	fn	local	apps/api/src/services/appointment/appointment.service.ts:285	apps/api/services/appointment	(ctx: TenantContext, branchId: string): void	
+assertBranchInScope	fn	local	apps/api/src/services/clinical/episode.service.ts:68	apps/api/services/clinical	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/allocation.service.ts:37	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/balance.service.ts:33	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/batch.service.ts:124	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
@@ -232,6 +234,7 @@ assertIdentityForProduct	fn	local	apps/api/src/services/procurement/goods-receip
 assertJurisdiction	fn	local	apps/api/src/services/branch/branch.service.ts:62	apps/api/services/branch	(countryCode: string, regionCode: string | null, pincode: string | undefined): void	
 assertKeyMatchesEnvironment	fn	local	packages/payments/src/providers/razorpay.ts:1536	packages/payments/providers	(keyId: string, environment: 'sandbox' | 'production'): void	
 assertLotIsReceivable	fn/async	local	apps/api/src/services/procurement/goods-receipt.service.ts:335	apps/api/services/procurement	(tx: TxClient, branchId: string, productName: string, expiresOn: Date | null): Promise<void>	
+assertMutable	fn	local	apps/api/src/services/clinical/master.service.ts:45	apps/api/services/clinical	(row: { organization_id: string | null }): void	
 assertMutable	fn	local	apps/api/src/services/doctor/clinical-taxonomy.service.ts:156	apps/api/services/doctor	(row: NodeRow): void	
 assertMutable	fn	local	apps/api/src/services/inventory/reason-code.service.ts:81	apps/api/services/inventory	(row: Row): void	
 assertMutable	fn	local	apps/api/src/services/product/catalogue.service.ts:54	apps/api/services/product	(organizationId: string | null, noun: string): void	
@@ -259,7 +262,7 @@ assertSerialIsStillStock	fn/async	local	apps/api/src/services/inventory/transfer
 assertSerialIsStillStock	fn/async	local	apps/api/src/services/procurement/purchase-return.service.ts:182	apps/api/services/procurement	(tx: TxClient, serialId: string): Promise<void>	
 assertSerialReferences	fn/async	local	apps/api/src/services/inventory/serial.service.ts:96	apps/api/services/inventory	(tx: TxClient, product: { id: string; name: string }, branchId: string, refs: { batchId?: string | null | undefined; locationId?: s…): Promise<void>	
 assertSpecialtiesUsable	fn/async	local	apps/api/src/services/doctor/doctor.service.ts:410	apps/api/services/doctor	(tx: TxClient, entries: DoctorClassificationInput[], primaryId: string | undefined, alreadyAssignedIds: ReadonlySet<string>): Promise<void>	
-assertTransition	fn	local	apps/api/src/services/appointment/appointment.service.ts:1505	apps/api/services/appointment	(from: AppointmentStatusValue, to: AppointmentStatusValue): void	
+assertTransition	fn	local	apps/api/src/services/appointment/appointment.service.ts:1541	apps/api/services/appointment	(from: AppointmentStatusValue, to: AppointmentStatusValue): void	
 assertValidKey	fn	export	packages/storage/src/keys.ts:56	packages/storage	(key: string): void	
 assertValidPackaging	fn	export	packages/inventory/src/units.ts:476	packages/inventory	(levels: PackagingLevelRow[]): void	
 assertWholeClinic	fn/async	local	apps/api/src/services/iam/role.service.ts:160	apps/api/services/iam	(tx: TxClient, ctx: TenantContext, caller: Caller): Promise<void>	
@@ -298,6 +301,7 @@ auditHistoryResponse	zod	export	packages/contracts/src/audit.ts:72	packages/cont
 AuditHistoryResponse	type	export	packages/contracts/src/audit.ts:98	packages/contracts	z.infer<typeof auditHistoryResponse>	
 auditMeta	fn	local	apps/api/src/routes/v1/branches.routes.ts:54	apps/api/routes/v1	(req: Request): { ipAddress?: string; userAgent?: string }	
 auditMeta	fn	local	apps/api/src/routes/v1/clinical-taxonomy.routes.ts:70	apps/api/routes/v1	(req: Request): { ipAddress?: string; userAgent?: string }	
+auditMeta	fn	local	apps/api/src/routes/v1/clinical.routes.ts:97	apps/api/routes/v1	(req: Request): { ipAddress?: string; userAgent?: string }	
 auditMeta	fn	local	apps/api/src/routes/v1/designations.routes.ts:43	apps/api/routes/v1	(req: Request): { ipAddress?: string; userAgent?: string }	
 auditMeta	fn	local	apps/api/src/routes/v1/doctors.routes.ts:101	apps/api/routes/v1	(req: Request): { ipAddress?: string; userAgent?: string }	
 auditMeta	fn	local	apps/api/src/routes/v1/inventory.routes.ts:172	apps/api/routes/v1	(req: Request): { ipAddress?: string; userAgent?: string }	
@@ -330,11 +334,11 @@ AutoRenewControl	component	local	apps/web/src/components/tenant/billing-screen.t
 AutoRenewResponse	interface	export	packages/contracts/src/billing.ts:363	packages/contracts	{ autoRenew }	
 availability	fn	local	apps/api/tests/integration/appointments.test.ts:208	apps/api/tests/integration	(client: ReturnType<typeof asOrg>, branchId: string, doctorId: string, date: string)	
 availabilityQuery	zod	export	packages/contracts/src/appointments.ts:57	packages/contracts	z.object(…)	
-AvailabilityQuery	type	export	packages/contracts/src/appointments.ts:756	packages/contracts	z.infer<typeof availabilityQuery>	
-availabilityResponse	zod	export	packages/contracts/src/appointments.ts:530	packages/contracts	z.object(…)	
-AvailabilityResponse	type	export	packages/contracts/src/appointments.ts:755	packages/contracts	z.infer<typeof availabilityResponse>	
-availabilitySlot	zod	export	packages/contracts/src/appointments.ts:518	packages/contracts	z.object(…)	
-AvailabilitySlot	type	export	packages/contracts/src/appointments.ts:754	packages/contracts	z.infer<typeof availabilitySlot>	
+AvailabilityQuery	type	export	packages/contracts/src/appointments.ts:787	packages/contracts	z.infer<typeof availabilityQuery>	
+availabilityResponse	zod	export	packages/contracts/src/appointments.ts:548	packages/contracts	z.object(…)	
+AvailabilityResponse	type	export	packages/contracts/src/appointments.ts:786	packages/contracts	z.infer<typeof availabilityResponse>	
+availabilitySlot	zod	export	packages/contracts/src/appointments.ts:536	packages/contracts	z.object(…)	
+AvailabilitySlot	type	export	packages/contracts/src/appointments.ts:785	packages/contracts	z.infer<typeof availabilitySlot>	
 availableSlug	var	export	packages/contracts/src/common.ts:52	packages/contracts	slug.refine(…)	
 averageCostBase	fn	export	packages/inventory/src/costing.ts:157	packages/inventory	(valuedCostMinor: bigint, valuedQuantityBase: string): number	
 balanceInclude	var	local	apps/api/src/services/inventory/balance.service.ts:37	apps/api/services/inventory	Prisma.validator<Prisma.StockBalanceInclude>()(…)	
@@ -411,7 +415,7 @@ bookFollowUp	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appoin
 BookingPanel	component	local	apps/web/src/components/tenant/appointment-board.tsx:1231	apps/web/components/tenant	({ slug, branchId, initialDate, today, doctors, canRegisterP…)	
 BookingState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:49	apps/web/app/(tenant)/t/[slug]/(app)/appointments	{ status: 'idle' | 'error' | 'booked'; message?: string; fieldErrors?: Record<string, string[]>; /** The number to read back to the patient, once there is one.…	
 BOOL_CHOICES	const	local	apps/web/src/components/tenant/clinic-settings.tsx:38	apps/web/components/tenant	: SelectOption[]	A BOOL setting, in the words the row already uses to display it.
-bounded	fn	local	packages/contracts/src/appointments.ts:361	packages/contracts	(key: VitalKey): z.ZodNumber	A bounded number, with a message somebody can act on, from one entry.
+bounded	fn	local	packages/contracts/src/appointments.ts:379	packages/contracts	(key: VitalKey): z.ZodNumber	A bounded number, with a message somebody can act on, from one entry.
 boxFor	fn	local	apps/web/src/components/tenant/vitals-panel.tsx:563	apps/web/components/tenant	(range: VitalRange): { type: 'number'; min: number; max: number; step: number; i…	
 BRANCH_A	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:29	apps/api/tests/integration/tenant-isolation	'aaaaaaaa-0000-0000-0000-0000000000a1'	
 BRANCH_B1	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:30	apps/api/tests/integration/tenant-isolation	'bbbbbbbb-0000-0000-0000-0000000000b1'	
@@ -489,9 +493,9 @@ can	fn	export	packages/permissions/src/resolver.ts:61	packages/permissions	(ctx:
 canAll	fn	export	packages/permissions/src/resolver.ts:80	packages/permissions	(ctx: AccessContext, permissions: PermissionCode[], now): boolean	
 canAny	fn	export	packages/permissions/src/resolver.ts:88	packages/permissions	(ctx: AccessContext, permissions: PermissionCode[], now): boolean	
 cancel	fn/async	export	apps/api/src/services/billing/billing.service.ts:272	apps/api/services/billing	(ctx: TenantContext, slug: string, actor: BillingActor, input: CancelSubscriptionRequest): Promise<CancelSubscriptionResponse>	
-cancelAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1150	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: { reason: string }, options: AppointmentActionOptions): Promise<AppointmentDetail>	
-cancelAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:232	packages/contracts	z.object(…)	
-CancelAppointmentRequest	type	export	packages/contracts/src/appointments.ts:770	packages/contracts	z.infer<typeof cancelAppointmentRequest>	
+cancelAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1173	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: { reason: string }, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+cancelAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:250	packages/contracts	z.object(…)	
+CancelAppointmentRequest	type	export	packages/contracts/src/appointments.ts:801	packages/contracts	z.infer<typeof cancelAppointmentRequest>	
 cancelBooking	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:348	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, _previous: BookingState, formData: FormData): Promise<BookingState>	
 cancelDraftInvoice	fn/async	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:562	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, input: { invoiceId: string; reason?: string | null }, options: InvoiceAuditOptions): Promise<void>	
 CancelForm	component	local	apps/web/src/components/tenant/appointment-board.tsx:1172	apps/web/components/tenant	({ slug, appointmentId, onDone, onCancel, }: { slug: string;…)	
@@ -527,6 +531,8 @@ canStartCheckout	fn	export	packages/billing/src/policy.ts:151	packages/billing	(
 canUpgrade	fn	export	packages/billing/src/policy.ts:162	packages/billing	(status: SubscriptionStatus): boolean	
 Card	component	local	apps/web/src/components/tenant/patient-chart.tsx:230	apps/web/components/tenant	({ children, className }: { children: React.ReactNode; class…)	
 cardFor	fn/async	local	apps/api/tests/integration/clinic-tax.test.ts:235	apps/api/tests/integration	(category: string): Promise<CategoryCard | undefined>	
+careSubjectType	zod	export	packages/contracts/src/clinical.ts:41	packages/contracts	z.enum(…)	
+CareSubjectTypeValue	type	export	packages/contracts/src/clinical.ts:42	packages/contracts	z.infer<typeof careSubjectType>	
 CASH_ROUNDING_KEY	const	local	apps/api/src/services/invoicing/pricing.service.ts:67	apps/api/services/invoicing	'billing.cash_rounding_minor'	
 CashfreeConfig	interface	export	packages/payments/src/providers/cashfree.ts:101	packages/payments/providers	{ appId, secretKey, webhookSecret, environment, checkoutBaseUrl, timeoutMs, webhookToleranceSeconds }	
 CashfreeProvider	class	export	packages/payments/src/providers/cashfree.ts:248	packages/payments/providers	{ name, capabilities, config, request, createCharge, chargeMandate, getCharge, createMandate, getMandate, cancelMandate, toMandate, refund, parseWebhook, toEvent, customerPayload, instrument }	
@@ -603,6 +609,7 @@ clearRateLimits	fn/async	local	apps/api/tests/integration/auth.test.ts:64	apps/a
 clearRateLimits	fn/async	local	apps/api/tests/integration/branches.test.ts:66	apps/api/tests/integration	(): Promise<void>	
 clearRateLimits	fn/async	local	apps/api/tests/integration/clinic-tax.test.ts:96	apps/api/tests/integration	(): Promise<void>	
 clearRateLimits	fn/async	local	apps/api/tests/integration/clinical-taxonomy.test.ts:86	apps/api/tests/integration	(): Promise<void>	
+clearRateLimits	fn/async	local	apps/api/tests/integration/clinical.test.ts:81	apps/api/tests/integration	(): Promise<void>	
 clearRateLimits	fn/async	local	apps/api/tests/integration/demo-requests.test.ts:44	apps/api/tests/integration	(): Promise<void>	
 clearRateLimits	fn/async	local	apps/api/tests/integration/doctors.test.ts:72	apps/api/tests/integration	(): Promise<void>	
 clearRateLimits	fn/async	local	apps/api/tests/integration/fee-schedule.test.ts:91	apps/api/tests/integration	(): Promise<void>	
@@ -624,6 +631,29 @@ clientAddress	fn/async	local	apps/web/src/lib/api.ts:85	apps/web/lib	(): Promise
 clientAddress	fn	local	apps/web/src/proxy.ts:97	apps/web	(request: NextRequest): Record<string, string>	The browser's address, as a header to pass on — or nothing if we do not know it. A chain of proxies appends, so the ori…
 CLINICAL_AUTHORING	const	local	packages/permissions/src/roles.ts:57	packages/permissions	: PermissionCode[]	
 CLINICAL_LOCALE	const	local	apps/web/src/lib/format.ts:90	apps/web/lib	'en-GB'	
+CLINICAL_MASTERS	const	export	packages/db/prisma/seed/data/clinical-masters.ts:38	packages/db/prisma/seed/data	: ClinicalMasterSeed[]	
+clinicalEpisodeDetail	var	export	packages/contracts/src/clinical.ts:201	packages/contracts	clinicalEpisodeSummary.extend(…)	The journey with its visits — the timeline (§18, §19). Appointments in scheduled order, each carrying the parent link s…
+ClinicalEpisodeDetail	type	export	packages/contracts/src/clinical.ts:219	packages/contracts	z.infer<typeof clinicalEpisodeDetail>	
+clinicalEpisodeListResponse	zod	export	packages/contracts/src/clinical.ts:229	packages/contracts	z.object(…)	
+ClinicalEpisodeListResponse	type	export	packages/contracts/src/clinical.ts:235	packages/contracts	z.infer<typeof clinicalEpisodeListResponse>	
+clinicalEpisodeQuery	zod	export	packages/contracts/src/clinical.ts:221	packages/contracts	z.object(…)	
+ClinicalEpisodeQuery	type	export	packages/contracts/src/clinical.ts:227	packages/contracts	z.infer<typeof clinicalEpisodeQuery>	
+clinicalEpisodeStatus	zod	export	packages/contracts/src/clinical.ts:38	packages/contracts	z.enum(…)	
+ClinicalEpisodeStatusValue	type	export	packages/contracts/src/clinical.ts:39	packages/contracts	z.infer<typeof clinicalEpisodeStatus>	
+clinicalEpisodeSummary	zod	export	packages/contracts/src/clinical.ts:178	packages/contracts	z.object(…)	
+ClinicalEpisodeSummary	type	export	packages/contracts/src/clinical.ts:193	packages/contracts	z.infer<typeof clinicalEpisodeSummary>	
+clinicalMasterCoding	zod	export	packages/contracts/src/clinical.ts:88	packages/contracts	z.object(…)	
+clinicalMasterItem	zod	export	packages/contracts/src/clinical.ts:97	packages/contracts	z.object(…)	
+ClinicalMasterItem	type	export	packages/contracts/src/clinical.ts:111	packages/contracts	z.infer<typeof clinicalMasterItem>	
+clinicalMasterKind	zod	export	packages/contracts/src/clinical.ts:25	packages/contracts	z.enum(…)	
+ClinicalMasterKindValue	type	export	packages/contracts/src/clinical.ts:36	packages/contracts	z.infer<typeof clinicalMasterKind>	
+clinicalMasterListResponse	zod	export	packages/contracts/src/clinical.ts:113	packages/contracts	z.object(…)	
+ClinicalMasterListResponse	type	export	packages/contracts/src/clinical.ts:119	packages/contracts	z.infer<typeof clinicalMasterListResponse>	
+clinicalMasterQuery	zod	export	packages/contracts/src/clinical.ts:75	packages/contracts	z.object(…)	
+ClinicalMasterQuery	type	export	packages/contracts/src/clinical.ts:86	packages/contracts	z.infer<typeof clinicalMasterQuery>	
+ClinicalMasterSeed	interface	export	packages/db/prisma/seed/data/clinical-masters.ts:27	packages/db/prisma/seed/data	{ kind, code, name, description, specialties, codings }	
+ClinicalTermList	component	export	apps/web/src/components/tenant/clinical-term-list.tsx:27	apps/web/components/tenant	({ slug, kind, kinds, search, data, specialties, canManage, …)	
+ClinicalTermsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical-terms/page.tsx:38	apps/web/app/(tenant)/t/[slug]/(app)/clinical-terms	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 ClinicFinder	component	export	apps/web/src/components/marketing/clinic-finder.tsx:23	apps/web/components/marketing	()	
 clinicNav	fn	local	apps/web/src/components/tenant/tenant-header.tsx:94	apps/web/components/tenant	(permissions: string[]): NavLink[]	
 ClinicSettings	component	export	apps/web/src/components/tenant/clinic-settings.tsx:560	apps/web/components/tenant	({ slug, organization, settings, rolePairings, fees, branche…)	
@@ -651,9 +681,10 @@ CodeForm	component	local	apps/web/src/components/tenant/login-form.tsx:191	apps/
 codes	fn	local	apps/api/tests/integration/india-rule-pack.test.ts:208	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codeSettableMaturity	zod	export	packages/contracts/src/regulatory.ts:63	packages/contracts	z.enum(…)	The maturities a request may set. The other two need a human and a name.
 CodeSettableMaturity	type	export	packages/contracts/src/regulatory.ts:660	packages/contracts	z.infer<typeof codeSettableMaturity>	
+codingsFor	fn/async	local	apps/api/src/services/clinical/master.service.ts:53	apps/api/services/clinical	(tx: TxClient, itemIds: string[]): Promise<Map<string, ClinicalMasterItem['codings']>>	
 ColGroup	component	local	packages/documents/src/invoice/items.tsx:208	packages/documents/invoice	({ fixed, taxColumns, }: { /** Every column except the descr…): JSX.Element	
 Column	component	local	apps/web/src/components/tenant/classification-picker.tsx:441	apps/web/components/tenant	({ nodes, openId, alreadyChosen, tree, onOpen, onChoose, }: …)	
-columnLabel	fn	export	apps/web/src/lib/taxonomy.ts:116	apps/web/lib	(nodes: SpecialtySummary[]): string	
+columnLabel	fn	export	apps/web/src/lib/taxonomy.ts:122	apps/web/lib	(nodes: SpecialtySummary[]): string	
 COLUMNS	component	local	apps/web/src/components/marketing/site-footer.tsx:11	apps/web/components/marketing	[ { title: 'Product', links: [ { href: '#product', label: 'What it runs' }, { href: '#bra…	
 commonContactRelations	var	export	packages/contracts/src/patients.ts:218	packages/contracts	[ 'Spouse', 'Parent', 'Child', 'Sibling', 'Grandparent', 'Grandchild', 'Son-in-law', 'Dau…	
 compareDecimals	fn	export	packages/regulatory/src/decimal.ts:48	packages/regulatory	(a: string, b: string): -1 | 0 | 1	
@@ -767,11 +798,11 @@ createActiveIngredient	fn/async	export	apps/api/src/services/product/catalogue.s
 createActiveIngredientRequest	zod	export	packages/contracts/src/products.ts:323	packages/contracts	z.object(…)	
 CreateActiveIngredientRequest	type	export	packages/contracts/src/products.ts:872	packages/contracts	z.infer<typeof createActiveIngredientRequest>	
 createApp	fn	export	apps/api/src/app.ts:28	apps/api	(): Express	
-createAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:768	apps/api/services/appointment	(ctx: TenantContext, input: CreateAppointmentRequest, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+createAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:773	apps/api/services/appointment	(ctx: TenantContext, input: CreateAppointmentRequest, options: AppointmentActionOptions): Promise<AppointmentDetail>	
 createAppointmentInvoiceRequest	zod	export	packages/contracts/src/invoices.ts:563	packages/contracts	z.object(…)	
 CreateAppointmentInvoiceRequest	type	export	packages/contracts/src/invoices.ts:578	packages/contracts	z.infer<typeof createAppointmentInvoiceRequest>	
 createAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:134	packages/contracts	z.object(…)	
-CreateAppointmentRequest	type	export	packages/contracts/src/appointments.ts:766	packages/contracts	z.infer<typeof createAppointmentRequest>	
+CreateAppointmentRequest	type	export	packages/contracts/src/appointments.ts:797	packages/contracts	z.infer<typeof createAppointmentRequest>	
 createAuthority	fn/async	export	apps/api/src/services/platform/regulatory.service.ts:224	apps/api/services/platform	(input: CreateRegulatoryAuthorityRequest): Promise<RegulatoryAuthoritySummary>	
 createBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:220	apps/api/services/inventory	(ctx: TenantContext, input: CreateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>	
 createBatchRequest	zod	export	packages/contracts/src/inventory.ts:342	packages/contracts	z.object(…)	
@@ -782,6 +813,10 @@ createBranchRequest	zod	export	packages/contracts/src/tenancy.ts:162	packages/co
 CreateBranchRequest	type	export	packages/contracts/src/tenancy.ts:967	packages/contracts	z.infer<typeof createBranchRequest>	
 createCategory	fn/async	export	apps/api/src/services/product/category.service.ts:243	apps/api/services/product	(ctx: TenantContext, input: CreateProductCategoryRequest, options: CatalogueActionOptions): Promise<ProductCategory>	
 CreateChargeInput	interface	export	packages/payments/src/types.ts:121	packages/payments	{ reference, amountMinor, currency, customer, description, returnUrl, webhookUrl, expiresAt, mandateId, presentation }	
+createClinicalEpisodeRequest	zod	export	packages/contracts/src/clinical.ts:237	packages/contracts	z.object(…)	
+CreateClinicalEpisodeRequest	type	export	packages/contracts/src/clinical.ts:245	packages/contracts	z.infer<typeof createClinicalEpisodeRequest>	
+createClinicalMasterRequest	zod	export	packages/contracts/src/clinical.ts:126	packages/contracts	z.object(…)	⚠️ CODE IS `/^[A-Z0-9_]+$/` AND FLAT, never a path. The taxonomy learned this: a path-encoded code becomes a lie the mo…
+CreateClinicalMasterRequest	type	export	packages/contracts/src/clinical.ts:152	packages/contracts	z.infer<typeof createClinicalMasterRequest>	
 createClinicTaxRegistration	fn/async	export	apps/api/src/services/tax/clinic-tax.service.ts:516	apps/api/services/tax	(ctx: TenantContext, input: CreateClinicTaxRegistrationRequest, options: ClinicTaxActionOptions): Promise<ClinicTaxRegistrationSummary>	
 createClinicTaxRegistrationRequest	zod	export	packages/contracts/src/tax.ts:85	packages/contracts	z.object(…)	
 CreateClinicTaxRegistrationRequest	type	export	packages/contracts/src/tax.ts:114	packages/contracts	z.infer<typeof createClinicTaxRegistrationRequest>	
@@ -803,7 +838,8 @@ CreateDoctorRequest	type	export	packages/contracts/src/doctors.ts:583	packages/c
 createDraftInvoice	fn/async	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:146	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, input: CreateDraftInvoiceInput, options: InvoiceAuditOptions): Promise<{ id: string }>	
 CreateDraftInvoiceInput	interface	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:75	apps/api/services/invoicing	{ branchId, sourceType, appointmentId, patientId, customer, practitioner, suppliedAt, dueDate, currency, lines, discount, notes }	
 createEmploymentRecord	fn/async	local	apps/api/src/services/invitation/invitation.service.ts:568	apps/api/services/invitation	(tx: TxClient, input: { organizationId: string; membershipId: string; desi…): Promise<{ employeeCode: string | null; joinedOn: string | n…	
-createFollowUp	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1274	apps/api/services/appointment	(ctx: TenantContext, parentAppointmentId: string, input: { startsAt: string; durationMinutes?: number | undef…, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+createEpisode	fn/async	export	apps/api/src/services/clinical/episode.service.ts:433	apps/api/services/clinical	(ctx: TenantContext, input: CreateClinicalEpisodeRequest): Promise<{ id: string; code: string }>	Open a journey explicitly. Rare — booking normally does it. Exists for the front desk that knows, before any slot is pi…
+createFollowUp	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1297	apps/api/services/appointment	(ctx: TenantContext, parentAppointmentId: string, input: { startsAt: string; durationMinutes?: number | undef…, options: AppointmentActionOptions): Promise<AppointmentDetail>	
 CreateForm	component	local	apps/web/src/components/tenant/branch-list.tsx:351	apps/web/components/tenant	({ slug, defaultCountry, defaultRegion, onDone, }: { slug: s…)	
 CreateForm	component	local	apps/web/src/components/tenant/role-list.tsx:404	apps/web/components/tenant	({ slug, draft, permissions, grantable, onDone, }: { slug: s…)	
 createFormatter	fn	export	packages/documents/src/invoice/format.ts:92	packages/documents/invoice	(data: InvoiceDocumentData): InvoiceFormatter	
@@ -832,6 +868,7 @@ CreateMandateInput	interface	export	packages/payments/src/types.ts:155	packages/
 createManufacturer	fn/async	export	apps/api/src/services/product/catalogue.service.ts:88	apps/api/services/product	(ctx: TenantContext, input: CreateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>	
 createManufacturerRequest	zod	export	packages/contracts/src/products.ts:294	packages/contracts	z.object(…)	
 CreateManufacturerRequest	type	export	packages/contracts/src/products.ts:868	packages/contracts	z.infer<typeof createManufacturerRequest>	
+createMaster	fn/async	export	apps/api/src/services/clinical/master.service.ts:151	apps/api/services/clinical	(ctx: TenantContext, input: CreateClinicalMasterRequest, options: { ipAddress?: string | undefined; userAgent?: stri…): Promise<ClinicalMasterItem>	
 createNode	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:454	apps/api/services/doctor	(ctx: TenantContext, input: CreateTaxonomyNodeRequest, options: TaxonomyActionOptions): Promise<TaxonomyNode>	Add a node to THIS CLINIC's catalogue. Always org-scoped. There is no path here that writes a platform row: the seed ow…
 createPatient	fn/async	export	apps/api/src/services/patient/patient.service.ts:726	apps/api/services/patient	(ctx: TenantContext, input: CreatePatientRequest, options: PatientActionOptions): Promise<PatientDetail>	
 createPatientRequest	var	export	packages/contracts/src/patients.ts:253	packages/contracts	z .object({ ...patientIdentityFields, branchId: uuid, addre…	
@@ -906,14 +943,15 @@ createSupplierRequest	zod	export	packages/contracts/src/procurement.ts:146	packa
 CreateSupplierRequest	type	export	packages/contracts/src/procurement.ts:1034	packages/contracts	z.infer<typeof createSupplierRequest>	
 createSupplierTaxIdentifierRequest	zod	export	packages/contracts/src/procurement.ts:252	packages/contracts	z.object(…)	
 CreateSupplierTaxIdentifierRequest	type	export	packages/contracts/src/procurement.ts:1041	packages/contracts	z.infer<typeof createSupplierTaxIdentifierRequest>	
-createTaxonomyNodeRequest	zod	export	packages/contracts/src/clinical-taxonomy.ts:49	packages/contracts	z.object(…)	
-CreateTaxonomyNodeRequest	type	export	packages/contracts/src/clinical-taxonomy.ts:143	packages/contracts	z.infer<typeof createTaxonomyNodeRequest>	
+createTaxonomyNodeRequest	zod	export	packages/contracts/src/clinical-taxonomy.ts:59	packages/contracts	z.object(…)	
+CreateTaxonomyNodeRequest	type	export	packages/contracts/src/clinical-taxonomy.ts:153	packages/contracts	z.infer<typeof createTaxonomyNodeRequest>	
 createTaxRegistration	fn/async	export	apps/api/src/services/platform/tax-registration.service.ts:105	apps/api/services/platform	(input: CreateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>	
 createTaxRegistrationRequest	zod	export	packages/contracts/src/billing.ts:411	packages/contracts	z.object(…)	
 CreateTaxRegistrationRequest	type	export	packages/contracts/src/billing.ts:461	packages/contracts	z.infer<typeof createTaxRegistrationRequest>	
 createTaxRuleDefault	fn/async	export	apps/api/src/services/platform/tax-rule-default.service.ts:156	apps/api/services/platform	(input: CreateTaxRuleDefaultRequest): Promise<TaxRuleDefaultSummary>	
 createTaxRuleDefaultRequest	zod	export	packages/contracts/src/billing.ts:508	packages/contracts	z.object(…)	
 CreateTaxRuleDefaultRequest	type	export	packages/contracts/src/billing.ts:555	packages/contracts	z.infer<typeof createTaxRuleDefaultRequest>	
+createTerm	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical-terms/actions.ts:22	apps/web/app/(tenant)/t/[slug]/(app)/clinical-terms	(slug: string, kind: string, _prev: TermFormState, formData: FormData): Promise<TermFormState>	
 createTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.ts:543	apps/api/services/inventory	(ctx: TenantContext, input: CreateStockTransferRequest, options: CatalogueActionOptions): Promise<StockTransferDetail>	
 createTransferAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:427	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
 createUnit	fn/async	export	apps/api/src/services/product/unit.service.ts:188	apps/api/services/product	(ctx: TenantContext, input: CreateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>	
@@ -956,7 +994,7 @@ DAY_KEY_FORMATTERS	const	local	apps/web/src/components/tenant/appointment-board.
 DAY_MONTH	const	local	apps/web/src/lib/calendar-range.ts:233	apps/web/lib	new Intl.DateTimeFormat(…)	
 DAY_OPTIONS	const	local	apps/web/src/components/tenant/doctor-create-form.tsx:61	apps/web/components/tenant	: SelectOption[]	
 DAY_OPTIONS	const	local	apps/web/src/components/tenant/doctor-sections.tsx:72	apps/web/components/tenant	: SelectOption[]	
-DayBoardScope	interface	export	apps/api/src/services/appointment/appointment.service.ts:535	apps/api/services/appointment	{ ownDoctorOnly, withBilling }	
+DayBoardScope	interface	export	apps/api/src/services/appointment/appointment.service.ts:540	apps/api/services/appointment	{ ownDoctorOnly, withBilling }	
 DayCell	component	local	apps/web/src/components/tenant/working-day-picker.tsx:272	apps/web/components/tenant	({ date, day, selected, isToday, onPick, }: { date: string; …)	One day in the grid. ⚠️ `aria-disabled`, NOT `disabled` — see the component header. The click is dropped in the handler…
 dayFrame	fn/async	local	apps/api/src/services/appointment/availability.service.ts:89	apps/api/services/appointment	(tx: TxClient, branchId: string, date: string): Promise<DayFrameRow | undefined>	
 DayFrameRow	interface	local	apps/api/src/services/appointment/availability.service.ts:57	apps/api/services/appointment	{ timezone, day_start, day_end, is_closed }	
@@ -971,11 +1009,13 @@ daysBetween	fn	export	packages/billing/src/periods.ts:91	packages/billing	(from:
 daysBetween	fn	local	packages/regulatory/src/engine.ts:121	packages/regulatory	(from: Date, to: Date): number	Whole days between two calendar days. Negative when `to` precedes `from`.
 daysInMonth	fn	local	packages/billing/src/periods.ts:35	packages/billing	(year: number, monthIndex: number): number	Days in a UTC month. Handles February and leap years by asking the calendar.
 daysRemaining	fn	export	packages/billing/src/periods.ts:102	packages/billing	(period: Period, at: Date): number	
-daysSpanned	fn	local	packages/contracts/src/appointments.ts:430	packages/contracts	(from: string, to: string): number	Whole days between two `YYYY-MM-DD` dates, inclusive of both ends.
+daysSpanned	fn	local	packages/contracts/src/appointments.ts:448	packages/contracts	(from: string, to: string): number	Whole days between two `YYYY-MM-DD` dates, inclusive of both ends.
 DayTally	component	local	apps/web/src/components/tenant/appointment-board.tsx:774	apps/web/components/tenant	({ counts, selected, onSelect, }: { counts: Record<string, n…)	
 DbConfig	interface	export	packages/db/src/client.ts:13	packages/db	{ url, maxConnections, logQueries }	
 deactivateCategory	fn/async	export	apps/api/src/services/product/category.service.ts:355	apps/api/services/product	(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<void>	
+deactivateMaster	fn/async	export	apps/api/src/services/clinical/master.service.ts:383	apps/api/services/clinical	(ctx: TenantContext, itemId: string, options: { ipAddress?: string | undefined; userAgent?: stri…): Promise<void>	
 deactivateNode	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:588	apps/api/services/doctor	(ctx: TenantContext, id: string, options: TaxonomyActionOptions): Promise<void>	
+deactivateTerm	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical-terms/actions.ts:61	apps/web/app/(tenant)/t/[slug]/(app)/clinical-terms	(slug: string, itemId: string): Promise<TermFormState>	
 decideException	fn/async	export	apps/api/src/services/doctor/doctor-schedule.service.ts:469	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, exceptionId: string, input: DecideScheduleExceptionRequest, options: DoctorActionOptions): Promise<DoctorScheduleExceptionDetail>	
 decideGoodsReceiptQuality	fn/async	export	apps/api/src/services/procurement/goods-receipt.service.ts:1370	apps/api/services/procurement	(ctx: TenantContext, id: string, input: DecideGoodsReceiptQualityRequest, options: CatalogueActionOptions): Promise<GoodsReceiptDetail>	
 decideGoodsReceiptQualityRequest	zod	export	packages/contracts/src/procurement.ts:731	packages/contracts	z.object(…)	
@@ -1006,8 +1046,8 @@ DEFINITION_SELECT	const	local	apps/api/src/services/organization/setting.service
 DefinitionList	component	export	apps/web/src/components/marketing/legal.tsx:160	apps/web/components/marketing	({ items }: { items: { term: ReactNode; detail: ReactNode }[…)	
 DefinitionRow	interface	local	apps/api/src/services/organization/setting.service.ts:153	apps/api/services/organization	{ key, module, dataType, defaultValue, allowedScopes, allowedValues, isTenantEditable, description, helpText }	
 DegreeRow	interface	local	apps/web/src/components/tenant/doctor-create-form.tsx:104	apps/web/components/tenant	{ key, qualificationId, institute, yearOfCompletion }	
-DELETABLE	const	local	apps/api/src/services/appointment/appointment.service.ts:153	apps/api/services/appointment	: AppointmentStatusValue[]	
-deleteAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1415	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions): Promise<void>	
+DELETABLE	const	local	apps/api/src/services/appointment/appointment.service.ts:154	apps/api/services/appointment	: AppointmentStatusValue[]	
+deleteAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1451	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions): Promise<void>	
 deleteBooking	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:407	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string): Promise<BookingState>	
 deleteBranch	fn/async	export	apps/api/src/services/branch/branch.service.ts:434	apps/api/services/branch	(ctx: TenantContext, branchId: string, options: BranchActionOptions): Promise<void>	
 deletePatient	fn/async	export	apps/api/src/services/patient/patient.service.ts:1154	apps/api/services/patient	(ctx: TenantContext, patientId: string, options: PatientActionOptions): Promise<void>	
@@ -1058,7 +1098,7 @@ detailInclude	var	local	apps/api/src/services/procurement/requisition.service.ts
 detailInclude	var	local	apps/api/src/services/procurement/supplier-product.service.ts:46	apps/api/services/procurement	Prisma.validator<Prisma.SupplierProductInclude>()(…)	
 detailInclude	var	local	apps/api/src/services/procurement/supplier.service.ts:41	apps/api/services/procurement	Prisma.validator<Prisma.SupplierInclude>()(…)	
 detailInclude	var	local	apps/api/src/services/product/product.service.ts:70	apps/api/services/product	Prisma.validator<Prisma.ProductInclude>()(…)	
-detailOf	fn	local	apps/api/src/services/appointment/appointment.service.ts:1525	apps/api/services/appointment	(row: AppointmentRow, statusHistory: AppointmentDetail['statusHistory'], chain: { parentAppointmentNumber?: string | null; followUps…): AppointmentDetail	
+detailOf	fn	local	apps/api/src/services/appointment/appointment.service.ts:1561	apps/api/services/appointment	(row: AppointmentRow, statusHistory: AppointmentDetail['statusHistory'], chain: { parentAppointmentNumber?: string | null; followUps…): AppointmentDetail	
 DetailRow	type	local	apps/api/src/services/inventory/batch.service.ts:61	apps/api/services/inventory	Prisma.BatchGetPayload<{ include: typeof detailInclude }>	
 DetailRow	type	local	apps/api/src/services/inventory/location.service.ts:51	apps/api/services/inventory	Prisma.InventoryLocationGetPayload<{ include: typeof detailInclude }>	
 DetailRow	type	local	apps/api/src/services/inventory/transfer.service.ts:96	apps/api/services/inventory	Prisma.StockTransferGetPayload<{ include: typeof detailInclude }>	
@@ -1211,7 +1251,7 @@ EMPTY_DRAFT	const	local	apps/web/src/components/tenant/role-list.tsx:153	apps/we
 EMPTY_LOOKUP	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:81	apps/web/app/(tenant)/t/[slug]/(app)/appointments	: LookupState	
 EMPTY_SEARCH	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:76	apps/web/app/(tenant)/t/[slug]/(app)/patients	: SearchState	
 EMPTY_SEARCH	const	local	apps/web/src/components/tenant/patient-search.tsx:46	apps/web/components/tenant	: SearchState	
-emptyCounts	fn	local	apps/api/src/services/appointment/appointment.service.ts:342	apps/api/services/appointment	(): Record<AppointmentStatusValue, number>	Zero-filled rather than sparse: a board header that renders "Cancelled 3" one minute and nothing the next, because the …
+emptyCounts	fn	local	apps/api/src/services/appointment/appointment.service.ts:347	apps/api/services/appointment	(): Record<AppointmentStatusValue, number>	Zero-filled rather than sparse: a board header that renders "Cancelled 3" one minute and nothing the next, because the …
 EmptyLedger	component	local	apps/web/src/components/tenant/invoice-list.tsx:449	apps/web/components/tenant	({ filtered }: { filtered: boolean })	
 emptyToNull	fn	export	apps/web/src/lib/api.ts:271	apps/web/lib	(value: FormDataEntryValue | null): string | null	
 encodeBranchScope	fn	local	packages/db/src/tenant.ts:43	packages/db	(branchIds: string[]): string	
@@ -1236,6 +1276,9 @@ Entry	component	local	apps/web/src/components/tenant/record-history.tsx:229	apps
 ENTRY_SELECT	const	local	apps/api/src/services/fees/fee-schedule.service.ts:59	apps/api/services/fees	{ id: true, branchId: true, doctorProfileId: true, feeType:…	
 EntryRow	type	local	apps/api/src/services/fees/fee-schedule.service.ts:68	apps/api/services/fees	Prisma.FeeScheduleEntryGetPayload<{ select: typeof ENTRY_SELECT }>	
 env	var	local	apps/api/src/config/index.ts:52	apps/api/config	getEnvVar(…)	
+EPISODE_PREFIX	const	local	apps/api/src/services/clinical/episode.service.ts:37	apps/api/services/clinical	'EP'	
+episodeParams	zod	local	apps/api/src/routes/v1/clinical.routes.ts:82	apps/api/routes/v1	z.object(…)	
+EpisodeReadOptions	interface	export	apps/api/src/services/clinical/episode.service.ts:40	apps/api/services/clinical	{ ipAddress, userAgent, route }	Request metadata, carried onto the read trail.
 equivalentProductsResponse	zod	export	packages/contracts/src/products.ts:836	packages/contracts	z.object(…)	
 EquivalentProductsResponse	type	export	packages/contracts/src/products.ts:910	packages/contracts	z.infer<typeof equivalentProductsResponse>	
 EquivalentsTab	component	local	apps/web/src/components/tenant/product-panel.tsx:983	apps/web/components/tenant	({ products }: { products: ProductSummary[] })	
@@ -1350,7 +1393,7 @@ FinalizedInvoice	interface	export	apps/api/src/services/invoicing/invoice-lifecy
 finalizeInvoice	fn/async	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:444	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, input: FinalizeInvoiceInput, options: InvoiceAuditOptions): Promise<FinalizedInvoice>	
 FinalizeInvoiceInput	interface	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:122	apps/api/services/invoicing	{ invoiceId, issuedAt }	
 FINANCIAL_YEAR_COUNTRIES	const	local	apps/api/src/services/invoicing/invoice-number.service.ts:77	apps/api/services/invoicing	new Set(…)	
-financialYearOf	fn	export	apps/api/src/services/numbering/number-sequence.service.ts:183	apps/api/services/numbering	(localDate: Date): string	
+financialYearOf	fn	export	apps/api/src/services/numbering/number-sequence.service.ts:194	apps/api/services/numbering	(localDate: Date): string	
 findBatchOrThrow	fn/async	local	apps/api/src/services/inventory/batch.service.ts:128	apps/api/services/inventory	(tx: TxClient, id: string): Promise<DetailRow>	
 findCompositionOrThrow	fn/async	local	apps/api/src/services/product/catalogue.service.ts:366	apps/api/services/product	(tx: TxClient, id: string)	
 findDue	fn/async	export	packages/billing/src/engine/renewal.ts:77	packages/billing/engine	(tx: TxClient, at: Date, limit): Promise<DueSubscription[]>	
@@ -1379,13 +1422,17 @@ fitsAnyRole	fn	local	apps/api/src/services/iam/designation.service.ts:110	apps/a
 flatTax	fn	local	packages/invoicing/tests/pricing.test.ts:37	packages/invoicing/tests	(rateBps: number): InvoicePricingInput['quoteTax']	
 foldBuckets	fn	local	apps/web/src/components/tenant/stock-overview.tsx:213	apps/web/components/tenant	(rows: StockBalanceListResponse['balances']): FoldedEntry[]	Collapse one location's bucket rows into one entry per (product, lot).
 FoldedEntry	interface	local	apps/web/src/components/tenant/stock-overview.tsx:202	apps/web/components/tenant	{ key, productName, productCode, lotNumber, expiresOn, unit, buckets }	
-followUpAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:258	packages/contracts	z.object(…)	
-FollowUpAppointmentRequest	type	export	packages/contracts/src/appointments.ts:772	packages/contracts	z.infer<typeof followUpAppointmentRequest>	
+followUpAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:276	packages/contracts	z.object(…)	
+FollowUpAppointmentRequest	type	export	packages/contracts/src/appointments.ts:803	packages/contracts	z.infer<typeof followUpAppointmentRequest>	
+followUpIntervalUnit	zod	export	packages/contracts/src/clinical.ts:44	packages/contracts	z.enum(…)	
+FollowUpIntervalUnitValue	type	export	packages/contracts/src/clinical.ts:45	packages/contracts	z.infer<typeof followUpIntervalUnit>	
+followUpType	zod	export	packages/contracts/src/clinical.ts:47	packages/contracts	z.enum(…)	
+FollowUpTypeValue	type	export	packages/contracts/src/clinical.ts:54	packages/contracts	z.infer<typeof followUpType>	
 fontFaceCss	fn	export	packages/documents/src/fonts.ts:63	packages/documents	(): string	
 FOOTER_BAND	const	export	packages/documents/src/chrome/styles.ts:115	packages/documents/chrome	'10mm'	The band along the foot: a rule, the document's small print, the page count.
 FOOTER_TEMPLATE_ID	const	export	packages/documents/src/chrome/template.tsx:57	packages/documents/chrome	'rcln-pdf-footer'	
 forgotPasswordRequest	zod	export	packages/contracts/src/auth.ts:42	packages/contracts	z.object(…)	
-format	fn	local	apps/api/src/services/numbering/number-sequence.service.ts:168	apps/api/services/numbering	(prefix: string, value: number, padding: number): string	
+format	fn	local	apps/api/src/services/numbering/number-sequence.service.ts:179	apps/api/services/numbering	(prefix: string, value: number, padding: number): string	
 format	fn	local	apps/web/src/components/tenant/checkout/provider-checkout.tsx:281	apps/web/components/tenant/checkout	(minor: number, currency: string): string	
 format	fn	local	apps/web/src/components/tenant/record-history.tsx:406	apps/web/components/tenant	(value: unknown): string	
 format	fn	local	apps/web/src/lib/calendar-range.ts:48	apps/web/lib	(at: Date): string	
@@ -1410,7 +1457,7 @@ formatRationalQuantity	fn	local	packages/inventory/src/costing.ts:296	packages/i
 formatZodErrors	fn	local	apps/api/src/middleware/error.middleware.ts:16	apps/api/middleware	(error: ZodError): Record<string, string[]>	Format Zod validation errors
 forTemperatureBox	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:528	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(errors: Record<string, string[]>): Record<string, string[]>	`temperatureC` (the contract's field) -> `temperature` (the form's box).
 forTenant	fn	export	packages/db/src/tenant.ts:200	packages/db	(ctx: TenantContext): ReturnType<PrismaClient['$extends']>	
-freezeFee	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:132	apps/api/services/appointment	(tx: TxClient, args: { doctorProfileId: string; branchId: string; visitTyp…): Promise<Prisma.Decimal | null>	
+freezeFee	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:133	apps/api/services/appointment	(tx: TxClient, args: { doctorProfileId: string; branchId: string; visitTyp…): Promise<Prisma.Decimal | null>	
 fromCelsius	fn	export	packages/contracts/src/locale.ts:1135	packages/contracts	(celsius: number, unit: TemperatureUnit): number	Celsius as stored → what this country reads it in.
 fromDate	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:55	apps/api/services/doctor	(value: Date | null): string | null	
 fromDateOnly	fn	local	apps/api/src/services/platform/tax-registration.service.ts:38	apps/api/services/platform	(value: Date): string	`2026-08-06`. The inverse, for the wire.
@@ -1437,9 +1484,9 @@ GET	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/[invoiceId
 GET	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/[invoiceId]/preview/route.ts:27	apps/web/app/(tenant)/t/[slug]/(app)/invoices/[invoiceId]/preview	(_request: NextRequest, { params }: { params: Promise<{ slug: string; invoiceId: st…): Promise<NextResponse>	
 getAccessToken	fn/async	export	apps/web/src/lib/session.ts:86	apps/web/lib	(): Promise<string | undefined>	
 getAncestors	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:338	apps/api/services/doctor	(ctx: TenantContext, id: string): Promise<TaxonomyNodeWithAncestors>	
-getAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:645	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions, scope: { withBilling?: boolean }): Promise<AppointmentDetail>	
+getAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:650	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions, scope: { withBilling?: boolean }): Promise<AppointmentDetail>	
 getAppointmentBilling	fn/async	export	apps/api/src/services/invoicing/appointment-billing.service.ts:472	apps/api/services/invoicing	(ctx: TenantContext, appointmentId: string): Promise<AppointmentBilling>	
-getAvailability	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:485	apps/api/services/appointment	(ctx: TenantContext, input: { branchId: string; doctorProfileId: string; date: s…): Promise<AvailabilityResponse>	
+getAvailability	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:490	apps/api/services/appointment	(ctx: TenantContext, input: { branchId: string; doctorProfileId: string; date: s…): Promise<AvailabilityResponse>	
 getBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:212	apps/api/services/inventory	(ctx: TenantContext, id: string): Promise<BatchDetail>	
 getBillingCurrency	fn/async	export	apps/api/src/services/billing/billing.service.ts:132	apps/api/services/billing	(ctx: TenantContext, countryCode: string | null): Promise<string>	Which currency this clinic is quoted in, for a screen that only needs that.
 getBillingOverview	fn/async	export	packages/billing/src/engine/read.ts:286	packages/billing/engine	(tx: TxClient, ctx: TenantContext, provider: PaymentProvider, countryCode: string | null, at: Date): Promise<BillingOverview>	
@@ -1453,6 +1500,7 @@ getDocument	fn/async	export	packages/documents/src/store/document.service.ts:268
 getDocumentUrl	fn/async	export	packages/documents/src/store/document.service.ts:249	packages/documents/store	(ctx: TenantContext, documentId: string, expiresInSeconds): Promise<{ document: StoredDocument; url: string | null }>	
 getEnvNumber	fn	local	apps/api/src/config/index.ts:44	apps/api/config	(key: string, defaultValue: number): number	
 getEnvVar	fn	local	apps/api/src/config/index.ts:19	apps/api/config	(key: string, defaultValue?: string): string	
+getEpisode	fn/async	export	apps/api/src/services/clinical/episode.service.ts:354	apps/api/services/clinical	(ctx: TenantContext, episodeId: string, options: EpisodeReadOptions): Promise<ClinicalEpisodeDetail>	
 getFeeSchedule	fn/async	export	apps/api/src/services/fees/fee-schedule.service.ts:206	apps/api/services/fees	(ctx: TenantContext, args: { doctorProfileId?: string | undefined; branchId?: st…): Promise<FeeScheduleView>	
 getGoodsReceipt	fn/async	export	apps/api/src/services/procurement/goods-receipt.service.ts:602	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<GoodsReceiptDetail>	
 getHistory	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:72	apps/api/services/patient	(ctx: TenantContext, patientId: string, options: PatientActionOptions): Promise<PatientHistoryResponse>	
@@ -1486,7 +1534,7 @@ getSupplier	fn/async	export	apps/api/src/services/procurement/supplier.service.t
 getTaxRateCard	fn/async	export	apps/api/src/services/tax/clinic-tax.service.ts:1187	apps/api/services/tax	(ctx: TenantContext): Promise<TaxRateCardResponse>	
 getTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.ts:535	apps/api/services/inventory	(ctx: TenantContext, id: string): Promise<StockTransferDetail>	
 getTransporter	fn	local	apps/api/src/services/notification/smtp.sender.ts:33	apps/api/services/notification	(): Promise<Transporter>	
-getWorkingDays	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:497	apps/api/services/appointment	(ctx: TenantContext, input: { branchId: string; doctorProfileId: string; from: s…): Promise<WorkingDaysResponse>	Which days the doctor consults on, across a span — what the date picker greys out. The cheap question; `getAvailability…
+getWorkingDays	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:502	apps/api/services/appointment	(ctx: TenantContext, input: { branchId: string; doctorProfileId: string; from: s…): Promise<WorkingDaysResponse>	Which days the doctor consults on, across a span — what the date picker greys out. The cheap question; `getAvailability…
 GIVE_UP_AFTER_MS	const	local	apps/web/src/components/tenant/payment-return.tsx:31	apps/web/components/tenant	90_000	
 giveRole	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:41	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState>	
 GiveRoleForm	component	local	apps/web/src/components/tenant/member-list.tsx:421	apps/web/components/tenant	({ slug, member, roles, branches, canAssignOrgWide, }: { slu…)	
@@ -1568,6 +1616,7 @@ hostFor	fn	local	apps/api/tests/integration/auth.test.ts:29	apps/api/tests/integ
 hostFor	fn	local	apps/api/tests/integration/branches.test.ts:32	apps/api/tests/integration	(slug: string): string	
 hostFor	fn	local	apps/api/tests/integration/clinic-tax.test.ts:56	apps/api/tests/integration	(slug: string): string	
 hostFor	fn	local	apps/api/tests/integration/clinical-taxonomy.test.ts:49	apps/api/tests/integration	(slug: string): string	
+hostFor	fn	local	apps/api/tests/integration/clinical.test.ts:48	apps/api/tests/integration	(slug: string): string	
 hostFor	fn	local	apps/api/tests/integration/doctors.test.ts:34	apps/api/tests/integration	(slug: string): string	
 hostFor	fn	local	apps/api/tests/integration/fee-schedule.test.ts:43	apps/api/tests/integration	(slug: string): string	
 hostFor	fn	local	apps/api/tests/integration/iam.test.ts:49	apps/api/tests/integration	(slug: string): string	
@@ -1810,7 +1859,7 @@ isoDate	fn	local	apps/api/src/services/patient/patient-history.service.ts:38	app
 isoDate	fn	local	apps/api/src/services/patient/patient.service.ts:130	apps/api/services/patient	(value: Date | null): string | null	`Date | null` -> `YYYY-MM-DD`. The columns are bare dates; read them in UTC.
 isoDate	fn	export	packages/payments/src/providers/shared.ts:51	packages/payments/providers	(value: string | undefined): Date | undefined	An ISO-8601 timestamp, or undefined if it is absent or unparseable.
 ISOLATION	component	local	apps/web/src/app/(marketing)/page.tsx:80	apps/web/app/(marketing)	[ { title: 'Your own address', body: 'Your clinic runs at your own subdomain with its own…	
-isOverlapViolation	fn	local	apps/api/src/services/appointment/appointment.service.ts:264	apps/api/services/appointment	(err: unknown): boolean	
+isOverlapViolation	fn	local	apps/api/src/services/appointment/appointment.service.ts:269	apps/api/services/appointment	(err: unknown): boolean	
 isPeriodOver	fn	export	packages/billing/src/periods.ts:110	packages/billing	(period: Period, at: Date): boolean	Has this period run out at `at`? The due-sweep's question.
 isPositive	fn	export	packages/payments/src/money.ts:82	packages/payments	(a: Money): boolean	
 isPrismaKnownError	fn	local	apps/api/src/middleware/error.middleware.ts:5	apps/api/middleware	(e: Error): e is Error & { code: string }	Structural check for a Prisma known-request error.
@@ -1826,7 +1875,7 @@ issue	fn	local	apps/api/tests/integration/invoice-numbering.test.ts:119	apps/api
 issueChallenge	fn/async	export	apps/api/src/services/auth/challenge.service.ts:68	apps/api/services/auth	(input: { userId: string; purpose: AuthTokenPurpose; /** The…): Promise<IssuedChallenge>	
 IssuedChallenge	interface	export	apps/api/src/services/auth/challenge.service.ts:54	apps/api/services/auth	{ code, expiresAt }	
 issuedInvoice	fn/async	local	apps/api/tests/integration/invoice-document.test.ts:159	apps/api/tests/integration	(ctx: TenantContext, org: Org, lines: ReturnType<typeof line>[], extra: Record<string, unknown>): Promise<string>	
-IssuedNumber	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:84	apps/api/services/numbering	{ number, formatted }	
+IssuedNumber	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:95	apps/api/services/numbering	{ number, formatted }	
 IssuedSession	interface	export	apps/api/src/services/auth/session.service.ts:93	apps/api/services/auth	{ refreshToken }	
 issueInvoice	fn/async	export	apps/api/src/services/invoicing/issue-invoice.ts:37	apps/api/services/invoicing	(ctx: TenantContext, input: { invoiceId: string; issuedAt: Date }, options: InvoiceAuditOptions): Promise<FinalizedInvoice>	
 issueInvoice	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:177	apps/web/app/(tenant)/t/[slug]/(app)/invoices	(slug: string, invoiceId: string): Promise<InvoiceFormState>	
@@ -1835,8 +1884,8 @@ issueInvoiceById	fn/async	export	apps/api/src/services/invoicing/invoice.service
 issueInvoiceNumber	fn/async	export	apps/api/src/services/invoicing/invoice-number.service.ts:97	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, spec: InvoiceNumberSpec): Promise<IssuedNumber>	Take the next invoice number for a branch, source and period. Runs on the caller's transaction, so a finalisation that …
 issueInvoiceRequest	zod	export	packages/contracts/src/invoices.ts:217	packages/contracts	z.object(…)	
 IssueInvoiceRequest	type	export	packages/contracts/src/invoices.ts:220	packages/contracts	z.infer<typeof issueInvoiceRequest>	
-issueNumber	fn/async	export	apps/api/src/services/numbering/number-sequence.service.ts:103	apps/api/services/numbering	(tx: TxClient, ctx: TenantContext, spec: IssueNumberSpec): Promise<IssuedNumber>	Take the next number for a counter, creating the counter if it is the first. Runs on the caller's transaction so the nu…
-IssueNumberSpec	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:69	apps/api/services/numbering	{ type, branchId, periodKey, prefix, padding }	
+issueNumber	fn/async	export	apps/api/src/services/numbering/number-sequence.service.ts:114	apps/api/services/numbering	(tx: TxClient, ctx: TenantContext, spec: IssueNumberSpec): Promise<IssuedNumber>	Take the next number for a counter, creating the counter if it is the first. Runs on the caller's transaction so the nu…
+IssueNumberSpec	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:80	apps/api/services/numbering	{ type, branchId, periodKey, prefix, padding }	
 issuePurchaseOrder	fn/async	export	apps/api/src/services/procurement/purchase-order.service.ts:648	apps/api/services/procurement	(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseOrderDetail>	
 IssuerRegistration	interface	export	packages/tax/src/types.ts:78	packages/tax	{ id, legalName, scheme, registrationNumber, effectiveFrom, standardRateBps }	
 issuesToErrors	fn	local	apps/web/src/components/marketing/signup-form.tsx:124	apps/web/components/marketing	(issues: { path: PropertyKey[]; message: string }[], prefix: string): Errors	
@@ -1854,6 +1903,8 @@ isWithinGrace	fn	export	packages/billing/src/policy.ts:115	packages/billing	(sub
 isZero	fn	export	packages/payments/src/money.ts:78	packages/payments	(a: Money): boolean	
 ITEM_TABLES	const	export	packages/documents/src/invoice/items.tsx:403	packages/documents/invoice	: Record<InvoiceDocumentSourceType, ItemTable>	
 itemLevelExit	fn	local	packages/tax/src/engine.ts:101	packages/tax	(registration: IssuerRegistration, rate: ResolvedRate, untaxed: ReturnType<typeof untaxedWith>): Quote | null	
+itemParams	zod	local	apps/api/src/routes/v1/clinical.routes.ts:81	apps/api/routes/v1	z.object(…)	
+ItemRow	interface	local	apps/api/src/services/clinical/master.service.ts:33	apps/api/services/clinical	{ id, organization_id, kind, code, name, description, parent_id, display_order, is_active }	
 ItemsTable	component	local	packages/documents/src/invoice/items.tsx:278	packages/documents/invoice	({ head, rows, colgroup, }: { head: JSX.Element; rows: JSX.E…): JSX.Element	
 ItemTable	type	export	packages/documents/src/invoice/items.tsx:49	packages/documents/invoice	(props: ItemTableProps) => JSX.Element	
 itemTableFor	fn	export	packages/documents/src/invoice/items.tsx:413	packages/documents/invoice	(sourceType: InvoiceDocumentSourceType): ItemTable	
@@ -1898,6 +1949,7 @@ jwtSecret	var	local	apps/api/src/config/index.ts:55	apps/api/config	getEnvVar(�
 KEY	const	local	packages/payments/src/providers/mock.ts:112	packages/payments/providers	{ charge: (id: string): string => `mockpay:charge:${id}`, mandate: (id: string): string =…	
 KEY_PREFIX	const	local	packages/payments/src/providers/razorpay.ts:110	packages/payments/providers	{ sandbox: 'rzp_test_', production: 'rzp_live_' } as const	
 KIND_LABEL	const	local	apps/web/src/components/tenant/location-list.tsx:25	apps/web/components/tenant	: Record<string, string>	
+KINDS	component	local	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical-terms/page.tsx:28	apps/web/app/(tenant)/t/[slug]/(app)/clinical-terms	[ { value: 'SYMPTOM', label: 'Symptoms' }, { value: 'DIAGNOSIS', label: 'Diagnoses' }, { …	
 KINDS	component	local	apps/web/src/components/tenant/location-form.tsx:35	apps/web/components/tenant	[ { value: 'MAIN_PHARMACY', label: 'Main pharmacy' }, { value: 'SATELLITE_PHARMACY', labe…	
 KNOWN_FEE_TYPES	const	export	packages/contracts/src/fees.ts:40	packages/contracts	[ 'NEW', 'FOLLOW_UP', 'WALK_IN', 'TELECONSULT', 'PROCEDURE', 'RESCHEDULE', ] as const	
 knownCurrency	fn	local	packages/contracts/src/common.ts:119	packages/contracts	(value: string): boolean	
@@ -1961,9 +2013,10 @@ listClinicTaxRulesQuery	zod	export	packages/contracts/src/tax.ts:380	packages/co
 ListClinicTaxRulesQuery	type	export	packages/contracts/src/tax.ts:388	packages/contracts	z.infer<typeof listClinicTaxRulesQuery>	
 listCompositions	fn/async	export	apps/api/src/services/product/catalogue.service.ts:394	apps/api/services/product	(ctx: TenantContext, query: { q?: string | undefined; includeInactive: boolean; …): Promise<CompositionSummary[]>	
 listCostAverages	fn/async	export	apps/api/src/services/procurement/costing.service.ts:201	apps/api/services/procurement	(ctx: TenantContext, query: ProductCostAverageQuery): Promise<ProductCostAverageListResponse>	
-listDay	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:548	apps/api/services/appointment	(ctx: TenantContext, query: AppointmentListQuery, scope: DayBoardScope): Promise<AppointmentListResponse>	
+listDay	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:553	apps/api/services/appointment	(ctx: TenantContext, query: AppointmentListQuery, scope: DayBoardScope): Promise<AppointmentListResponse>	
 listDesignations	fn/async	export	apps/api/src/services/iam/designation.service.ts:123	apps/api/services/iam	(ctx: TenantContext): Promise<DesignationSummary[]>	
 listDoctors	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:314	apps/api/services/doctor	(ctx: TenantContext, query: DoctorListQuery, includeSchedules): Promise<DoctorSummary[]>	
+listEpisodes	fn/async	export	apps/api/src/services/clinical/episode.service.ts:282	apps/api/services/clinical	(ctx: TenantContext, query: ClinicalEpisodeQuery, options: EpisodeReadOptions): Promise<ClinicalEpisodeListResponse>	
 listEquivalentProducts	fn/async	export	apps/api/src/services/product/product.service.ts:340	apps/api/services/product	(ctx: TenantContext, productId: string): Promise<EquivalentProductsResponse>	
 listExceptions	fn/async	export	apps/api/src/services/doctor/doctor-schedule.service.ts:386	apps/api/services/doctor	(ctx: TenantContext, doctorId: string): Promise<DoctorScheduleExceptionDetail[]>	
 listFeeScheduleEntries	fn/async	export	apps/api/src/services/fees/fee-schedule.service.ts:256	apps/api/services/fees	(ctx: TenantContext): Promise<FeeScheduleEntry[]>	Every stored row, for the screen that lists what a clinic has configured.
@@ -2117,7 +2170,7 @@ lot	fn	local	apps/api/tests/unit/inventory-allocation.test.ts:17	apps/api/tests/
 LotForm	component	export	apps/web/src/components/tenant/lot-form.tsx:46	apps/web/components/tenant	({ slug, branches, products, manufacturers, moreProducts }: …)	
 LotList	component	export	apps/web/src/components/tenant/lot-list.tsx:42	apps/web/components/tenant	({ batches, meta, canManage }: Props)	
 LotsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/page.tsx:21	apps/web/app/(tenant)/t/[slug]/(app)/stock/lots	({ params, searchParams, }: { params: Promise<{ slug: string…)	
-main	fn/async	local	packages/db/prisma/seed.ts:41	packages/db/prisma	(): Promise<void>	
+main	fn/async	local	packages/db/prisma/seed.ts:42	packages/db/prisma	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/apply-grants.ts:77	packages/db/scripts	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/check-rls.ts:108	packages/db/scripts	(): Promise<void>	
 maintainsPlatformLaw	fn	local	packages/permissions/src/roles.ts:109	packages/permissions	(p: PermissionCode): boolean	
@@ -2148,7 +2201,7 @@ maritalStatusValues	var	export	packages/contracts/src/patients.ts:54	packages/co
 markAbsent	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:382	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string): Promise<BookingState>	Nobody came. A different fact from a cancellation, and a different button.
 MarketingLayout	component	export	apps/web/src/app/(marketing)/layout.tsx:8	apps/web/app/(marketing)	({ children }: { children: React.ReactNode })	The apex domain (rcln.com). Tenants never reach this layout — src/proxy.ts rewrites `<slug>.rcln.com` into the (tenant)…
 markFailed	fn/async	local	packages/documents/src/store/document.service.ts:325	packages/documents/store	(ctx: TenantContext, documentId: string, cause: unknown): Promise<void>	
-markNoShow	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1210	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: { note?: string | undefined }, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+markNoShow	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1233	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: { note?: string | undefined }, options: AppointmentActionOptions): Promise<AppointmentDetail>	
 maskEmail	fn	export	apps/api/src/services/notification/types.ts:23	apps/api/services/notification	(value: string): string	`asha@northwind.test` -> `a***@northwind.test`. The domain is the useful half.
 maskPhone	fn	export	apps/api/src/services/notification/types.ts:17	apps/api/services/notification	(value: string): string	`+919876543210` -> `+9198****3210`. Enough to debug, not enough to identify.
 matchesJurisdiction	fn	local	apps/api/src/services/tax/clinic-tax.service.ts:156	apps/api/services/tax	(branch: BranchRow, row: RegistrationRow): boolean	
@@ -2219,6 +2272,7 @@ metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/page.t
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/billing	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/return/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/billing/return	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/branches	: Metadata	
+metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical-terms/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/clinical-terms	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/[doctorId]/page.tsx:11	apps/web/app/(tenant)/t/[slug]/(app)/doctors/[doctorId]	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/page.tsx:15	apps/web/app/(tenant)/t/[slug]/(app)/doctors	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invitations/page.tsx:13	apps/web/app/(tenant)/t/[slug]/(app)/invitations	: Metadata	
@@ -2372,8 +2426,8 @@ normaliseClassifications	fn	local	apps/api/src/services/doctor/doctor.service.ts
 normaliseHost	fn	local	apps/api/src/middleware/tenant.middleware.ts:30	apps/api/middleware	(hostHeader: string | undefined): string | null	Strip the port and lowercase. `Alpha.LVH.me:3000` -> `alpha.lvh.me`.
 normalizeNationalId	fn	export	packages/contracts/src/locale.ts:867	packages/contracts	(value: string | null | undefined): string	
 normalizePostalCode	fn	export	packages/contracts/src/locale.ts:1019	packages/contracts	(countryCode: string | null | undefined, value: string): string	Upper-cased, single-spaced. What we store and what we validate.
-noShowAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:240	packages/contracts	z.object(…)	
-NoShowAppointmentRequest	type	export	packages/contracts/src/appointments.ts:771	packages/contracts	z.infer<typeof noShowAppointmentRequest>	
+noShowAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:258	packages/contracts	z.object(…)	
+NoShowAppointmentRequest	type	export	packages/contracts/src/appointments.ts:802	packages/contracts	z.infer<typeof noShowAppointmentRequest>	
 noTaxExplanation	fn	local	packages/documents/src/invoice/document.tsx:334	packages/documents/invoice	(treatment: InvoiceTaxTreatment): string	
 NOTER	const	local	apps/api/src/services/patient/patient-history.service.ts:54	apps/api/services/patient	{ select: { fullName: true } } as const	
 NotFoundError	class	export	apps/api/src/utils/errors.ts:65	apps/api/utils	{ }	404 - Not Found Error
@@ -2390,7 +2444,7 @@ numberOrUndefined	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/products/act
 obj	fn	export	packages/payments/src/providers/shared.ts:35	packages/payments/providers	(source: Json | undefined, key: string): Json | undefined	
 ObjectMetadata	interface	export	packages/storage/src/types.ts:45	packages/storage	{ key, sizeBytes, contentType, checksum, storedAt }	
 ObligationParameters	interface	export	packages/regulatory/src/parameters.ts:170	packages/regulatory	{ detail, fields, years, cadence, recipient, method, witnessRequired }	
-onConsultationOpened	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:465	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, currentStatus: AppointmentStatusValue): Promise<void>	
+onConsultationOpened	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:470	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, currentStatus: AppointmentStatusValue): Promise<void>	
 oneClassificationForm	fn	local	packages/contracts/src/doctors.ts:96	packages/contracts	(v: { specialtyIds?: string[] | undefined; classifications?:…, ctx: z.RefinementCtx): void	Reject the two request forms being used at once. `specialtyIds` defaults to `[]`, so "both supplied" is `classification…
 oneQuantityBasis	fn	local	packages/contracts/src/procurement.ts:115	packages/contracts	(v: { unitId?: string | null | undefined; packagingLevel?: n…): boolean	
 oneQuantityBasisMessage	var	local	packages/contracts/src/procurement.ts:120	packages/contracts	'give either a unit or a packaging level, not both — a quan…	
@@ -2398,8 +2452,10 @@ OnlineDispensingParameters	interface	export	packages/regulatory/src/parameters.t
 onlineSalePosition	zod	export	packages/contracts/src/regulatory.ts:131	packages/contracts	z.enum(…)	
 OnlineSalePosition	type	export	packages/contracts/src/regulatory.ts:668	packages/contracts	z.infer<typeof onlineSalePosition>	
 onPaymentFailed	fn/async	local	packages/billing/src/engine/checkout.ts:706	packages/billing/engine	(tx: TxClient, ctx: TenantContext, subscriptionId: string | null, purpose: string, invoiceId: string | null, now: Date): Promise<void>	
-onVitalsRecorded	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:440	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, currentStatus: AppointmentStatusValue): Promise<void>	Vitals were taken, so the patient is here. BOOKED and CONFIRMED both advance; anything from CHECKED_IN onwards is alrea…
-openConsultation	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:741	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+onVitalsRecorded	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:445	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, currentStatus: AppointmentStatusValue): Promise<void>	Vitals were taken, so the patient is here. BOOKED and CONFIRMED both advance; anything from CHECKED_IN onwards is alrea…
+openConsultation	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:746	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+openEpisode	fn/async	export	apps/api/src/services/clinical/episode.service.ts:128	apps/api/services/clinical	(tx: TxClient, ctx: TenantContext, input: OpenEpisodeInput): Promise<{ id: string; code: string }>	
+OpenEpisodeInput	interface	local	apps/api/src/services/clinical/episode.service.ts:104	apps/api/services/clinical	{ patientId, branchId, title, primarySpecialtyId }	
 operatingHour	zod	export	packages/contracts/src/tenancy.ts:206	packages/contracts	z.object(…)	0 = Sunday, matching Postgres `extract(dow)` and JS `Date#getDay`.
 OperatingHour	type	export	packages/contracts/src/tenancy.ts:958	packages/contracts	z.infer<typeof operatingHour>	
 optional	fn	local	apps/worker/src/index.ts:35	apps/worker	(value: string | undefined): string | undefined	An optional variable, where blank means unset. Mirrors the API's config.
@@ -2534,7 +2590,7 @@ patientMedicationDetail	zod	export	packages/contracts/src/patients.ts:428	packag
 PatientMedicationDetail	type	export	packages/contracts/src/patients.ts:558	packages/contracts	z.infer<typeof patientMedicationDetail>	
 patientMedicationRequest	var	export	packages/contracts/src/patients.ts:347	packages/contracts	z .object({ medicineText: z.string().min(1).max(255).trim()…	
 PatientMedicationRequest	type	export	packages/contracts/src/patients.ts:551	packages/contracts	z.infer<typeof patientMedicationRequest>	
-patientName	fn	local	apps/api/src/services/appointment/appointment.service.ts:205	apps/api/services/appointment	(parts: { firstName: string; lastName: string | null }): string	
+patientName	fn	local	apps/api/src/services/appointment/appointment.service.ts:210	apps/api/services/appointment	(parts: { firstName: string; lastName: string | null }): string	
 PatientPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:34	apps/web/app/(tenant)/t/[slug]/(app)/patients/[patientId]	({ params, }: { params: Promise<{ slug: string; patientId: s…)	
 patientParams	zod	local	apps/api/src/routes/v1/patients.routes.ts:87	apps/api/routes/v1	z.object(…)	
 PatientPicker	component	local	apps/web/src/components/tenant/appointment-board.tsx:1577	apps/web/components/tenant	({ slug, branchId, chosen, canRegister, onChoose, }: { slug:…)	
@@ -2554,6 +2610,7 @@ payload	fn	local	apps/api/tests/integration/auth.test.ts:40	apps/api/tests/integ
 payload	fn	local	apps/api/tests/integration/branches.test.ts:43	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/clinic-tax.test.ts:73	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/clinical-taxonomy.test.ts:63	apps/api/tests/integration	(slug: string, label: string)	
+payload	fn	local	apps/api/tests/integration/clinical.test.ts:58	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/doctors.test.ts:49	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/documents.test.ts:66	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/fee-schedule.test.ts:68	apps/api/tests/integration	(slug: string, label: string)	
@@ -2901,7 +2958,7 @@ quoteFee	fn/async	export	apps/api/src/services/fees/fee-schedule.service.ts:409	
 quoteUpgrade	fn/async	export	packages/billing/src/engine/lifecycle.ts:89	packages/billing/engine	(ctx: TenantContext, runtime: BillingRuntime, planPriceId: string, run: TenantRunner): Promise<UpgradeQuote>	
 raise	fn	local	apps/api/tests/integration/appointment-billing.test.ts:188	apps/api/tests/integration	(appointmentId: string, body: object)	
 raiseAppointmentInvoice	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:748	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, input: CreateAppointmentInvoiceRequest): Promise<{ status: 'error'; message: string } | { status: 'd…	
-rangeBounds	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:620	apps/api/services/appointment	(tx: TxClient, branchId: string, from: string, to: string): Promise<[Date, Date]>	
+rangeBounds	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:625	apps/api/services/appointment	(tx: TxClient, branchId: string, from: string, to: string): Promise<[Date, Date]>	
 rangeFor	fn	export	apps/web/src/lib/calendar-range.ts:141	apps/web/lib	(view: BoardView, anchor: string): DateRange	The span a view covers around its anchor day.
 rangeLabel	fn	export	apps/web/src/lib/calendar-range.ts:264	apps/web/lib	(view: BoardView, range: DateRange): string	
 RangeNav	component	local	apps/web/src/components/tenant/appointment-board.tsx:527	apps/web/components/tenant	({ view, anchor, range, today, onGo, }: { view: BoardView; a…)	
@@ -2934,6 +2991,7 @@ readingFrom	fn/async	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments
 Readings	component	local	apps/web/src/components/tenant/vitals-panel.tsx:294	apps/web/components/tenant	({ slug, appointmentId, vitals, timezone, timeFormat, temper…)	
 readInteger	fn	local	packages/regulatory/src/parameters.ts:51	packages/regulatory	(source: Record<string, unknown>, key: string): Parsed<number | undefined>	
 readInvoiceDetail	fn/async	export	apps/api/src/services/invoicing/invoice.service.ts:345	apps/api/services/invoicing	(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions, log: boolean): Promise<InvoiceDetail>	
+readMeta	fn	local	apps/api/src/routes/v1/clinical.routes.ts:88	apps/api/routes/v1	(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }	⚠️ `route` IS THE MATCHED PATTERN, NEVER `req.originalUrl`. A URL carries its query string, and a search term is a disc…
 ReadOnlyHours	component	local	apps/web/src/components/tenant/doctor-profile.tsx:425	apps/web/components/tenant	({ doctor }: { doctor: DoctorDetail })	
 ReadOnlyIdentity	component	local	apps/web/src/components/tenant/doctor-profile.tsx:327	apps/web/components/tenant	({ doctor }: { doctor: DoctorDetail })	
 ReadOnlyQualifications	component	local	apps/web/src/components/tenant/doctor-profile.tsx:401	apps/web/components/tenant	({ doctor }: { doctor: DoctorDetail })	
@@ -2977,10 +3035,10 @@ recordMovementRequest	var	export	packages/contracts/src/inventory.ts:589	package
 RecordMovementRequest	type	export	packages/contracts/src/inventory.ts:880	packages/contracts	z.infer<typeof recordMovementRequest>	
 recordMovementResponse	zod	export	packages/contracts/src/inventory.ts:649	packages/contracts	z.object(…)	
 RecordMovementResponse	type	export	packages/contracts/src/inventory.ts:881	packages/contracts	z.infer<typeof recordMovementResponse>	
-recordTransition	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:350	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, from: AppointmentStatusValue | null, to: AppointmentStatusValue, note?: string | undefined): Promise<void>	Write the status trail row. Append-only: nothing ever updates one.
+recordTransition	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:355	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, from: AppointmentStatusValue | null, to: AppointmentStatusValue, note?: string | undefined): Promise<void>	Write the status trail row. Append-only: nothing ever updates one.
 recordVitals	fn/async	export	apps/api/src/services/appointment/vitals.service.ts:216	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: RecordVitalsRequest, options: AppointmentActionOptions): Promise<VitalsReading>	
-recordVitalsRequest	var	export	packages/contracts/src/appointments.ts:378	packages/contracts	z .object({ /** Centimetres. */ heightCm: bounded('heightCm…	
-RecordVitalsRequest	type	export	packages/contracts/src/appointments.ts:773	packages/contracts	z.infer<typeof recordVitalsRequest>	
+recordVitalsRequest	var	export	packages/contracts/src/appointments.ts:396	packages/contracts	z .object({ /** Centimetres. */ heightCm: bounded('heightCm…	
+RecordVitalsRequest	type	export	packages/contracts/src/appointments.ts:804	packages/contracts	z.infer<typeof recordVitalsRequest>	
 redact	fn	local	apps/api/src/services/audit/audit.service.ts:158	apps/api/services/audit	(snapshot: AuditSnapshot): AuditSnapshot	
 REDACTED	const	local	apps/api/src/services/audit/audit.service.ts:138	apps/api/services/audit	'[redacted]'	
 REDACTED_KEYS	const	local	apps/api/src/services/audit/audit.service.ts:38	apps/api/services/audit	new Set(…)	
@@ -3176,14 +3234,14 @@ requisitionParams	zod	local	apps/api/src/routes/v1/procurement.routes.ts:416	app
 requisitionRoutes	var	export	apps/api/src/routes/v1/procurement.routes.ts:414	apps/api/routes/v1	: IRouter	
 RequisitionsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/requisitions/page.tsx:17	apps/web/app/(tenant)/t/[slug]/(app)/procurement/requisitions	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 requisitionTransitionAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:406	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(slug: string, requisitionId: string, verb: 'submit' | 'approve' | 'reject' | 'cancel', form?: FormData): Promise<ProcurementFormState>	
-RESCHEDULABLE	const	local	apps/api/src/services/appointment/appointment.service.ts:102	apps/api/services/appointment	: AppointmentStatusValue[]	Statuses whose time may still be changed. A visit under way cannot be moved.
-RESCHEDULE_FEE_TYPE	const	local	apps/api/src/services/appointment/appointment.service.ts:108	apps/api/services/appointment	'RESCHEDULE'	The fee key for moving a booking. Priced in the same grid as every visit type, so a clinic sets a default and a doctor …
-rescheduleAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:898	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: RescheduleAppointmentRequest, options: AppointmentActionOptions): Promise<AppointmentDetail>	
-rescheduleAppointmentRequest	var	export	packages/contracts/src/appointments.ts:174	packages/contracts	z .object({ startsAt: z.iso.datetime(), durationMinutes: z.…	
-RescheduleAppointmentRequest	type	export	packages/contracts/src/appointments.ts:767	packages/contracts	z.infer<typeof rescheduleAppointmentRequest>	
+RESCHEDULABLE	const	local	apps/api/src/services/appointment/appointment.service.ts:103	apps/api/services/appointment	: AppointmentStatusValue[]	Statuses whose time may still be changed. A visit under way cannot be moved.
+RESCHEDULE_FEE_TYPE	const	local	apps/api/src/services/appointment/appointment.service.ts:109	apps/api/services/appointment	'RESCHEDULE'	The fee key for moving a booking. Priced in the same grid as every visit type, so a clinic sets a default and a doctor …
+rescheduleAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:921	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: RescheduleAppointmentRequest, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+rescheduleAppointmentRequest	var	export	packages/contracts/src/appointments.ts:192	packages/contracts	z .object({ startsAt: z.iso.datetime(), durationMinutes: z.…	
+RescheduleAppointmentRequest	type	export	packages/contracts/src/appointments.ts:798	packages/contracts	z.infer<typeof rescheduleAppointmentRequest>	
 rescheduleCharges	fn/async	local	apps/api/src/services/invoicing/appointment-billing.service.ts:402	apps/api/services/invoicing	(tx: TxClient, appointmentId: string, currency: string): Promise<{ totalMinor: number; count: number; lines: DraftLi…	
-rescheduleInitiator	zod	export	packages/contracts/src/appointments.ts:171	packages/contracts	z.enum(…)	
-RescheduleInitiatorValue	type	export	packages/contracts/src/appointments.ts:172	packages/contracts	z.infer<typeof rescheduleInitiator>	
+rescheduleInitiator	zod	export	packages/contracts/src/appointments.ts:189	packages/contracts	z.enum(…)	
+RescheduleInitiatorValue	type	export	packages/contracts/src/appointments.ts:190	packages/contracts	z.infer<typeof rescheduleInitiator>	
 ResendButton	component	local	apps/web/src/components/tenant/invitation-list.tsx:206	apps/web/components/tenant	({ slug, invitation }: { slug: string; invitation: Invitatio…)	
 resendInvitation	fn/async	export	apps/api/src/services/invitation/invitation.service.ts:439	apps/api/services/invitation	(ctx: TenantContext, invitationId: string, options: InvitationActionOptions): Promise<InvitationSummary>	
 resendInvitation	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invitations/actions.ts:121	apps/web/app/(tenant)/t/[slug]/(app)/invitations	(slug: string, invitationId: string, _previous: InviteFormState): Promise<InviteFormState>	Send it again — with a new link. Worth saying in the UI, because it is not what "resend" usually means: the previous li…
@@ -3222,6 +3280,8 @@ resolvedTaxCategoryResponse	zod	export	packages/contracts/src/products.ts:773	pa
 ResolvedTaxCategoryResponse	type	export	packages/contracts/src/products.ts:906	packages/contracts	z.infer<typeof resolvedTaxCategoryResponse>	
 ResolvedTenant	interface	export	apps/api/src/middleware/tenant.middleware.ts:18	apps/api/middleware	{ organizationId, slug, status, currency, timezone }	
 resolveEntitlements	fn	export	packages/billing/src/entitlements.ts:74	packages/billing	(planFeatures: readonly FeatureRow[], overrides: readonly OverrideRow[]): FeatureMap	
+resolveEpisodeForBooking	fn/async	export	apps/api/src/services/clinical/episode.service.ts:224	apps/api/services/clinical	(tx: TxClient, ctx: TenantContext, input: ResolveEpisodeInput): Promise<string>	
+ResolveEpisodeInput	interface	local	apps/api/src/services/clinical/episode.service.ts:188	apps/api/services/clinical	{ patientId, branchId, clinicalEpisodeId, inheritFromEpisodeId }	
 resolveFee	fn/async	export	apps/api/src/services/fees/fee-schedule.service.ts:154	apps/api/services/fees	(tx: TxClient, args: { doctorProfileId: string | null; branchId: string | …): Promise<ResolvedFee | null>	
 resolveGst	fn	local	packages/tax/src/engine.ts:388	packages/tax	(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction): Quote	
 resolveIdentifier	fn/async	export	apps/api/src/services/product/identifier.service.ts:216	apps/api/services/product	(ctx: TenantContext, query: ResolveIdentifierQuery): Promise<ResolveIdentifierResponse>	
@@ -3243,7 +3303,7 @@ resolveProductForLine	fn/async	export	apps/api/src/services/procurement/shared.t
 resolveReceivingPolicy	fn/async	export	apps/api/src/services/procurement/shared.ts:232	apps/api/services/procurement	(tx: TxClient, ctx: TenantContext, branchId: string): Promise<{ tolerancePercent: number; qualityHoldRequired: bo…	
 resolveSettingForBranches	fn/async	export	apps/api/src/services/settings/resolver.service.ts:166	apps/api/services/settings	(tx: TxClient, key: string, scopes: { organizationId: string; branchIds: string[] }): Promise<Map<string, SettingValue>>	
 resolveSettings	fn/async	export	apps/api/src/services/settings/resolver.service.ts:69	apps/api/services/settings	(tx: TxClient, keys: string[], scopes: SettingScopes): Promise<Map<string, SettingValue>>	
-resolveSlotEnd	fn	local	apps/api/src/services/appointment/appointment.service.ts:296	apps/api/services/appointment	(availability: AvailabilityResponse, startsAt: Date, durationMinutes: number | undefined): Date	
+resolveSlotEnd	fn	local	apps/api/src/services/appointment/appointment.service.ts:301	apps/api/services/appointment	(availability: AvailabilityResponse, startsAt: Date, durationMinutes: number | undefined): Date	
 resolveStoragePath	fn	local	apps/api/src/config/index.ts:41	apps/api/config	(value: string): string	Absolute paths pass through; relative ones are anchored to the repo root.
 resolveStrategy	fn	export	packages/inventory/src/allocate.ts:228	packages/inventory	(requested: AllocationStrategy | null | undefined, productStrategy: AllocationStrategy | null | undefined): { strategy: AllocationStrategy; source: 'REQUEST' | 'PRODUC…	
 resolveSupplierForDocument	fn/async	export	apps/api/src/services/procurement/shared.ts:40	apps/api/services/procurement	(tx: TxClient, supplierId: string): Promise<{ id: string; name: string; currency: string | null…	
@@ -3329,11 +3389,12 @@ router	var	local	apps/api/src/routes/v1/auth.routes.ts:86	apps/api/routes/v1	: I
 router	var	local	apps/api/src/routes/v1/billing.routes.ts:50	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/branches.routes.ts:48	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/clinical-taxonomy.routes.ts:64	apps/api/routes/v1	: IRouter	
+router	var	local	apps/api/src/routes/v1/clinical.routes.ts:77	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/designations.routes.ts:37	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/doctors.routes.ts:92	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/fees.routes.ts:54	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/health.routes.ts:7	apps/api/routes/v1	: IRouter	
-router	var	local	apps/api/src/routes/v1/index.ts:48	apps/api/routes/v1	: IRouter	
+router	var	local	apps/api/src/routes/v1/index.ts:49	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/invitations.routes.ts:43	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/invoices.routes.ts:87	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/members.routes.ts:55	apps/api/routes/v1	: IRouter	
@@ -3435,8 +3496,9 @@ ScopeSwitcher	component	export	apps/web/src/components/shell/scope-switcher.tsx:
 score	fn	local	apps/api/src/services/fees/fee-schedule.service.ts:91	apps/api/services/fees	(row: Pick<EntryRow, 'branchId' | 'doctorProfileId'>, doctorProfileId: string | null, branchId: string | null): { rank: number; level: FeeScopeLevel } | null	
 scriptOf	fn	local	apps/worker/src/documents/invoice-pdf.job.ts:245	apps/worker/documents	(character: string): string	
 SearchForm	component	local	apps/web/src/components/tenant/patient-search.tsx:239	apps/web/components/tenant	({ action, pending, state, multiBranch, }: { action: (formDa…)	
+searchMasters	fn/async	export	apps/api/src/services/clinical/master.service.ts:88	apps/api/services/clinical	(ctx: TenantContext, query: ClinicalMasterQuery): Promise<ClinicalMasterListResponse>	
 searchNodes	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:384	apps/api/services/doctor	(ctx: TenantContext, query: TaxonomySearchQuery): Promise<TaxonomyNode[]>	
-searchNodes	fn	export	apps/web/src/lib/taxonomy.ts:133	apps/web/lib	(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]	
+searchNodes	fn	export	apps/web/src/lib/taxonomy.ts:139	apps/web/lib	(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]	
 searchPatientQuery	zod	export	packages/contracts/src/patients.ts:296	packages/contracts	z.object(…)	
 SearchPatientQuery	type	export	packages/contracts/src/patients.ts:546	packages/contracts	z.infer<typeof searchPatientQuery>	
 searchPatients	fn/async	export	apps/api/src/services/patient/patient.service.ts:915	apps/api/services/patient	(ctx: TenantContext, query: SearchPatientQuery, options: PatientActionOptions, scope: PatientSearchScope): Promise<PatientListResponse>	
@@ -3449,6 +3511,7 @@ SectionHead	component	export	apps/web/src/components/marketing/section.tsx:40	ap
 SectionHeader	component	local	apps/web/src/components/tenant/regulatory-lists.tsx:88	apps/web/components/tenant	({ title, blurb }: { title: string; blurb: string })	
 SeedCategory	interface	export	packages/db/prisma/seed/data/product-masters.ts:135	packages/db/prisma/seed/data	{ code, name, parent, description }	
 seedClinicalMasters	fn/async	export	packages/db/prisma/seed/clinical-masters.ts:12	packages/db/prisma/seed	(): Promise<void>	
+seedClinicalVocabulary	fn/async	export	packages/db/prisma/seed/clinical-vocabulary.ts:14	packages/db/prisma/seed	(): Promise<void>	
 SeedConversion	interface	export	packages/db/prisma/seed/data/product-masters.ts:101	packages/db/prisma/seed/data	{ from, to, numerator, denominator }	
 seedDesignations	fn/async	export	packages/db/prisma/seed/designations.ts:50	packages/db/prisma/seed	(): Promise<void>	
 seedDoctor	fn/async	local	apps/api/tests/integration/appointments.test.ts:132	apps/api/tests/integration	(client: ReturnType<typeof asOrg>, userId: string, branchId: string): Promise<string>	A doctor working Mondays 09:00–13:00 at the org's main branch.
@@ -3482,8 +3545,8 @@ SendPanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:226
 sendPurchaseReturn	fn/async	export	apps/api/src/services/procurement/purchase-return.service.ts:645	apps/api/services/procurement	(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseReturnDetail>	
 sendSuccess	fn	export	apps/api/src/utils/response.ts:22	apps/api/utils	(res: Response, data: T, message: string, statusCode: number, meta?: ApiResponse<T>['meta']): Response	Send success response
 sendVerificationCode	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:40	apps/web/app/(tenant)/t/[slug]/(app)/verify	(channel: VerifyChannel, slug: string, _previous: VerifyFormState): Promise<VerifyFormState>	
-SequenceRow	interface	local	apps/api/src/services/numbering/number-sequence.service.ts:91	apps/api/services/numbering	{ last_number, prefix, padding }	
-SequenceType	type	export	apps/api/src/services/numbering/number-sequence.service.ts:39	apps/api/services/numbering	| 'UHID' | 'MRN' | 'APPOINTMENT' | 'QUEUE_TOKEN' | 'EMPLOYEE' /** Patient invoice serials. Built by `invoice-number.service.ts`, never here. */ | 'INVOICE' /**…	Matches the `NumberSequenceType` enum in schema.prisma.
+SequenceRow	interface	local	apps/api/src/services/numbering/number-sequence.service.ts:102	apps/api/services/numbering	{ last_number, prefix, padding }	
+SequenceType	type	export	apps/api/src/services/numbering/number-sequence.service.ts:39	apps/api/services/numbering	| 'UHID' | 'MRN' | 'APPOINTMENT' | 'QUEUE_TOKEN' | 'EMPLOYEE' /** * Treatment journeys (CE-1). * * ⚠️ THE ONLY COUNTER HERE THAT IS PER ORGANIZATION RATHER THA…	Matches the `NumberSequenceType` enum in schema.prisma.
 serialDetail	var	export	packages/contracts/src/inventory.ts:567	packages/contracts	serialSummary.extend(…)	
 SerialDetail	type	export	packages/contracts/src/inventory.ts:877	packages/contracts	z.infer<typeof serialDetail>	
 SerialForm	component	export	apps/web/src/components/tenant/serial-form.tsx:47	apps/web/components/tenant	({ slug, branches, products, batches, locations, moreLots }:…)	
@@ -3592,9 +3655,9 @@ SLOT_LENGTHS	const	local	apps/web/src/components/tenant/doctor-sections.tsx:78	a
 SLOT_MINUTES_KEY	const	local	apps/api/src/services/doctor/doctor.service.ts:51	apps/api/services/doctor	'appointment.slot_minutes'	
 SLOT_REASONS	const	local	apps/web/src/components/tenant/appointment-board.tsx:111	apps/web/components/tenant	: Record<string, string>	
 SlotGrid	component	local	apps/web/src/components/tenant/appointment-board.tsx:1504	apps/web/components/tenant	({ slots, timezone, timeFormat, selected, onPick, }: { slots…)	
-slotTakenError	fn	local	apps/api/src/services/appointment/appointment.service.ts:276	apps/api/services/appointment	(): ConflictError	
-slotUnavailableReason	zod	export	packages/contracts/src/appointments.ts:510	packages/contracts	z.enum(…)	Why a slot cannot be booked. Null when it can.
-SlotUnavailableReason	type	export	packages/contracts/src/appointments.ts:753	packages/contracts	z.infer<typeof slotUnavailableReason>	
+slotTakenError	fn	local	apps/api/src/services/appointment/appointment.service.ts:281	apps/api/services/appointment	(): ConflictError	
+slotUnavailableReason	zod	export	packages/contracts/src/appointments.ts:528	packages/contracts	z.enum(…)	Why a slot cannot be booked. Null when it can.
+SlotUnavailableReason	type	export	packages/contracts/src/appointments.ts:784	packages/contracts	z.infer<typeof slotUnavailableReason>	
 slug	var	export	packages/contracts/src/common.ts:6	packages/contracts	z .string() .min(3) .max(63) .regex(/^[a-z0-9]([a-z0-9-]*[a…	Subdomain label: what becomes `alpha` in alpha.xyz.com.
 slugAvailabilityResponse	zod	export	packages/contracts/src/tenancy.ts:566	packages/contracts	z.object(…)	Deliberately thin. This endpoint is unauthenticated and answers questions about which clinics exist, so it returns a bo…
 SlugAvailabilityResponse	type	export	packages/contracts/src/tenancy.ts:964	packages/contracts	z.infer<typeof slugAvailabilityResponse>	
@@ -3602,9 +3665,10 @@ slugCheckLimiter	var	export	apps/api/src/middleware/rateLimiter.middleware.ts:99
 slugOf	fn	local	apps/api/src/routes/v1/billing.routes.ts:90	apps/api/routes/v1	(req: Request): string	
 SmsTemplate	type	export	apps/api/src/services/notification/types.ts:8	apps/api/services/notification	'LOGIN_OTP' | 'VERIFY_PHONE'	
 smtpSender	var	export	apps/api/src/services/notification/smtp.sender.ts:50	apps/api/services/notification	: NotificationSender	
-snapshot	fn	local	apps/api/src/services/appointment/appointment.service.ts:238	apps/api/services/appointment	(row: AppointmentRow): Record<string, unknown>	
+snapshot	fn	local	apps/api/src/services/appointment/appointment.service.ts:243	apps/api/services/appointment	(row: AppointmentRow): Record<string, unknown>	
 snapshot	fn	local	apps/api/src/services/appointment/vitals.service.ts:125	apps/api/services/appointment	(row: VitalsRow): Record<string, unknown>	
 snapshot	fn	local	apps/api/src/services/branch/branch.service.ts:190	apps/api/services/branch	(row: BranchRow): Record<string, unknown>	
+snapshot	fn	local	apps/api/src/services/clinical/episode.service.ts:84	apps/api/services/clinical	(row: { id: string; code: string; status: string; patientId:…): Record<string, unknown>	
 snapshot	fn	local	apps/api/src/services/doctor/doctor.service.ts:223	apps/api/services/doctor	(row: DoctorRow): Record<string, unknown>	
 snapshot	fn	local	apps/api/src/services/iam/role.service.ts:127	apps/api/services/iam	(row: RoleRow): Record<string, unknown>	The audit snapshot: codes and flags, never a member's name. A role change is recorded as what the role now grants. Who …
 snapshot	fn	local	apps/api/src/services/invitation/invitation.service.ts:147	apps/api/services/invitation	(row: InvitationRow): Record<string, unknown>	What goes on the audit row: the grant, never the token.
@@ -3620,8 +3684,8 @@ SpanListing	component	local	apps/web/src/components/tenant/appointment-board.tsx
 SPECIALTIES	const	export	packages/db/prisma/seed/data/specialties.ts:57	packages/db/prisma/seed/data	: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…	
 specialtyListResponse	zod	export	packages/contracts/src/doctors.ts:560	packages/contracts	z.object(…)	
 SpecialtyListResponse	type	export	packages/contracts/src/doctors.ts:579	packages/contracts	z.infer<typeof specialtyListResponse>	
-specialtyProficiency	zod	export	packages/contracts/src/clinical-taxonomy.ts:28	packages/contracts	z.enum(…)	
-SpecialtyProficiency	type	export	packages/contracts/src/clinical-taxonomy.ts:138	packages/contracts	z.infer<typeof specialtyProficiency>	
+specialtyProficiency	zod	export	packages/contracts/src/clinical-taxonomy.ts:38	packages/contracts	z.enum(…)	
+SpecialtyProficiency	type	export	packages/contracts/src/clinical-taxonomy.ts:148	packages/contracts	z.infer<typeof specialtyProficiency>	
 specialtySummary	zod	export	packages/contracts/src/doctors.ts:378	packages/contracts	z.object(…)	
 SpecialtySummary	type	export	packages/contracts/src/doctors.ts:569	packages/contracts	z.infer<typeof specialtySummary>	
 specificity	fn	export	packages/regulatory/src/selection.ts:132	packages/regulatory	(rule: RegulatoryRule): number	
@@ -3670,7 +3734,7 @@ STATUS_LABEL	const	local	apps/web/src/components/tenant/serial-list.tsx:25	apps/
 STATUS_LABEL	const	local	apps/web/src/components/tenant/supplier-list.tsx:33	apps/web/components/tenant	: Record<string, string>	
 STATUS_LABEL	const	local	apps/web/src/components/tenant/transfer-detail.tsx:37	apps/web/components/tenant	: Record<StockTransferDetail['status'], string>	
 STATUS_LABEL	const	local	apps/web/src/components/tenant/transfer-list.tsx:38	apps/web/components/tenant	: Record<string, string>	The words a storekeeper uses, not the column's.
-STATUS_ORDER	const	local	apps/api/src/services/appointment/appointment.service.ts:70	apps/api/services/appointment	: AppointmentStatusValue[]	
+STATUS_ORDER	const	local	apps/api/src/services/appointment/appointment.service.ts:71	apps/api/services/appointment	: AppointmentStatusValue[]	
 STATUS_WORDS	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:311	apps/web/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]	: Record<string, string>	
 STATUS_WORDS	const	local	apps/web/src/components/tenant/appointment-board.tsx:84	apps/web/components/tenant	: Record<AppointmentStatusValue, string>	
 STATUS_WORDS	const	local	apps/web/src/components/tenant/doctor-profile.tsx:58	apps/web/components/tenant	: Record<DoctorDetail['status'], string>	
@@ -3804,7 +3868,7 @@ substitutionRules	var	local	packages/db/prisma/seed/data/regulatory-in.ts:279	pa
 subtract	fn	local	packages/inventory/src/allocate.ts:134	packages/inventory	(a: string, b: string): string	Subtract two positive decimal strings exactly, over the rationals.
 subtractMoney	fn	export	packages/payments/src/money.ts:64	packages/payments	(a: Money, b: Money): Money	
 subtractQuantities	fn	local	packages/inventory/src/costing.ts:277	packages/inventory	(a: string, b: string): string	
-subtreeIds	fn	export	apps/web/src/lib/taxonomy.ts:148	apps/web/lib	(tree: TaxonomyTree, id: string): Set<string>	Every id at or beneath `id`. Used to filter the roster by a subtree.
+subtreeIds	fn	export	apps/web/src/lib/taxonomy.ts:154	apps/web/lib	(tree: TaxonomyTree, id: string): Set<string>	Every id at or beneath `id`. Used to filter the roster by a subtree.
 suggestSlug	fn	local	apps/web/src/components/platform/demo-request-list.tsx:128	apps/web/components/platform	(name: string): string	`Sunrise Clinic` -> `sunrise-clinic`, as a starting suggestion only.
 summarise	fn	export	apps/api/src/services/regulatory/enforcement.ts:91	apps/api/services/regulatory	(decision: RegulatoryDecisionResponse, productId: string): { productId: string; outcome: string; jurisdiction: string;…	
 summarise	fn	local	apps/web/src/components/tenant/vitals-panel.tsx:585	apps/web/components/tenant	(reading: VitalsReading, unit: TemperatureUnit): string	
@@ -3900,24 +3964,24 @@ TaxIdStatus	type	export	packages/tax/src/types.ts:54	packages/tax	'NOT_PROVIDED'
 TaxLine	interface	export	packages/tax/src/types.ts:263	packages/tax	{ name, rateBps, amount, jurisdiction, ruleId, ruleSource }	
 taxOn	fn	export	packages/tax/src/arithmetic.ts:15	packages/tax	(net: Money, rateBps: number): Money	Tax on a net amount, rounded half-up at the currency's own scale. `scaleMoney` multiplies before dividing, so the inter…
 TaxonomyActionOptions	interface	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:55	apps/api/services/doctor	{ ipAddress, userAgent }	
-taxonomyCode	var	local	packages/contracts/src/clinical-taxonomy.ts:39	packages/contracts	z .string() .min(2) .max(64) .regex(…)	
-taxonomyNode	zod	export	packages/contracts/src/clinical-taxonomy.ts:95	packages/contracts	z.object(…)	
-TaxonomyNode	type	export	packages/contracts/src/clinical-taxonomy.ts:139	packages/contracts	z.infer<typeof taxonomyNode>	
-taxonomyNodeListResponse	zod	export	packages/contracts/src/clinical-taxonomy.ts:134	packages/contracts	z.object(…)	
-TaxonomyNodeListResponse	type	export	packages/contracts/src/clinical-taxonomy.ts:141	packages/contracts	z.infer<typeof taxonomyNodeListResponse>	
+taxonomyCode	var	local	packages/contracts/src/clinical-taxonomy.ts:49	packages/contracts	z .string() .min(2) .max(64) .regex(…)	
+taxonomyNode	zod	export	packages/contracts/src/clinical-taxonomy.ts:105	packages/contracts	z.object(…)	
+TaxonomyNode	type	export	packages/contracts/src/clinical-taxonomy.ts:149	packages/contracts	z.infer<typeof taxonomyNode>	
+taxonomyNodeListResponse	zod	export	packages/contracts/src/clinical-taxonomy.ts:144	packages/contracts	z.object(…)	
+TaxonomyNodeListResponse	type	export	packages/contracts/src/clinical-taxonomy.ts:151	packages/contracts	z.infer<typeof taxonomyNodeListResponse>	
 taxonomyNodeType	zod	export	packages/contracts/src/clinical-taxonomy.ts:19	packages/contracts	z.enum(…)	
-TaxonomyNodeType	type	export	packages/contracts/src/clinical-taxonomy.ts:137	packages/contracts	z.infer<typeof taxonomyNodeType>	
-taxonomyNodeWithAncestors	zod	export	packages/contracts/src/clinical-taxonomy.ts:120	packages/contracts	z.object(…)	
-TaxonomyNodeWithAncestors	type	export	packages/contracts/src/clinical-taxonomy.ts:140	packages/contracts	z.infer<typeof taxonomyNodeWithAncestors>	
-taxonomySearchQuery	zod	export	packages/contracts/src/clinical-taxonomy.ts:78	packages/contracts	z.object(…)	
-TaxonomySearchQuery	type	export	packages/contracts/src/clinical-taxonomy.ts:145	packages/contracts	z.infer<typeof taxonomySearchQuery>	
+TaxonomyNodeType	type	export	packages/contracts/src/clinical-taxonomy.ts:147	packages/contracts	z.infer<typeof taxonomyNodeType>	
+taxonomyNodeWithAncestors	zod	export	packages/contracts/src/clinical-taxonomy.ts:130	packages/contracts	z.object(…)	
+TaxonomyNodeWithAncestors	type	export	packages/contracts/src/clinical-taxonomy.ts:150	packages/contracts	z.infer<typeof taxonomyNodeWithAncestors>	
+taxonomySearchQuery	zod	export	packages/contracts/src/clinical-taxonomy.ts:88	packages/contracts	z.object(…)	
+TaxonomySearchQuery	type	export	packages/contracts/src/clinical-taxonomy.ts:155	packages/contracts	z.infer<typeof taxonomySearchQuery>	
 TaxonomyTree	interface	export	apps/web/src/lib/taxonomy.ts:22	apps/web/lib	{ byId, childrenOf }	
-taxonomyTreeNode	var	export	packages/contracts/src/clinical-taxonomy.ts:130	packages/contracts	: z.ZodType<TaxonomyTreeNode>	
-TaxonomyTreeNode	type	export	packages/contracts/src/clinical-taxonomy.ts:126	packages/contracts	z.infer<typeof taxonomyNode> & { children: TaxonomyTreeNode[]; }	One node with its descendants inlined. Recursive, so the depth is the data's.
-taxonomyTreeQuery	zod	export	packages/contracts/src/clinical-taxonomy.ts:87	packages/contracts	z.object(…)	
-TaxonomyTreeQuery	type	export	packages/contracts/src/clinical-taxonomy.ts:146	packages/contracts	z.infer<typeof taxonomyTreeQuery>	
-taxonomyTreeResponse	zod	export	packages/contracts/src/clinical-taxonomy.ts:135	packages/contracts	z.object(…)	
-TaxonomyTreeResponse	type	export	packages/contracts/src/clinical-taxonomy.ts:142	packages/contracts	z.infer<typeof taxonomyTreeResponse>	
+taxonomyTreeNode	var	export	packages/contracts/src/clinical-taxonomy.ts:140	packages/contracts	: z.ZodType<TaxonomyTreeNode>	
+TaxonomyTreeNode	type	export	packages/contracts/src/clinical-taxonomy.ts:136	packages/contracts	z.infer<typeof taxonomyNode> & { children: TaxonomyTreeNode[]; }	One node with its descendants inlined. Recursive, so the depth is the data's.
+taxonomyTreeQuery	zod	export	packages/contracts/src/clinical-taxonomy.ts:97	packages/contracts	z.object(…)	
+TaxonomyTreeQuery	type	export	packages/contracts/src/clinical-taxonomy.ts:156	packages/contracts	z.infer<typeof taxonomyTreeQuery>	
+taxonomyTreeResponse	zod	export	packages/contracts/src/clinical-taxonomy.ts:145	packages/contracts	z.object(…)	
+TaxonomyTreeResponse	type	export	packages/contracts/src/clinical-taxonomy.ts:152	packages/contracts	z.infer<typeof taxonomyTreeResponse>	
 TaxProviderQuote	interface	export	packages/tax/src/types.ts:203	packages/tax	{ lines, total, treatment, reason }	
 TaxQuote	interface	export	packages/tax/src/types.ts:282	packages/tax	{ treatment, lines, total, placeOfSupply, supplierTaxId, customerTaxId, reason }	
 TaxRateCard	component	export	apps/web/src/components/tenant/tax-rate-card.tsx:45	apps/web/components/tenant	({ slug, card, rules, showHistory, canManage, canReadHistory…)	
@@ -3942,7 +4006,7 @@ TaxSplitValue	type	export	packages/contracts/src/tax.ts:56	packages/contracts	z.
 TaxSummary	component	local	packages/documents/src/invoice/document.tsx:283	packages/documents/invoice	({ data, fmt, }: { data: InvoiceDocumentData; fmt: InvoiceFo…): JSX.Element	
 TaxTab	component	local	apps/web/src/components/tenant/product-panel.tsx:704	apps/web/components/tenant	({ product, clinicToday, editable, pending, onSave, }: { pro…)	
 TaxTreatment	type	export	packages/tax/src/types.ts:15	packages/tax	| 'STANDARD' | 'REVERSE_CHARGE' | 'ZERO_RATED' | 'EXEMPT' | 'NOT_REGISTERED' | 'UNRATED' | 'PROVIDER_REQUIRED'	Mirrors `TaxTreatment`. See the schema for what each one means.
-temperatureRangeFor	fn	export	packages/contracts/src/appointments.ts:345	packages/contracts	(unit: TemperatureUnit): VitalRange	
+temperatureRangeFor	fn	export	packages/contracts/src/appointments.ts:363	packages/contracts	(unit: TemperatureUnit): VitalRange	
 temperatureSymbol	fn	export	packages/contracts/src/locale.ts:1115	packages/contracts	(unit: TemperatureUnit): string	`°C` or `°F`, for a label.
 TemperatureUnit	type	export	packages/contracts/src/locale.ts:213	packages/contracts	'C' | 'F'	How a body temperature is written down. Never how it is stored.
 temperatureUnitFor	fn	export	packages/contracts/src/locale.ts:1104	packages/contracts	(code: string | null | undefined): TemperatureUnit	
@@ -3960,6 +4024,7 @@ TenantLoginPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/login/
 TenantRunner	type	export	packages/billing/src/engine/checkout.ts:869	packages/billing/engine	<T>(ctx: TenantContext, fn: (tx: TxClient) => Promise<T>) => Promise<T>	
 tenantUrlFor	fn	local	apps/api/src/services/billing/billing.service.ts:69	apps/api/services/billing	(slug: string): string	
 Term	component	export	apps/web/src/components/marketing/legal.tsx:111	apps/web/components/marketing	({ children }: { children: ReactNode })	A defined term. Capitalised terms are load-bearing in a contract.
+TermFormState	interface	export	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical-terms/actions.ts:17	apps/web/app/(tenant)/t/[slug]/(app)/clinical-terms	{ error, ok }	
 TermsPage	component	export	apps/web/src/app/(marketing)/legal/terms/page.tsx:30	apps/web/app/(marketing)/legal/terms	()	
 text	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:83	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(formData: FormData, key: string): string | undefined	
 text	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:37	apps/web/app/(tenant)/t/[slug]/(app)/branches	(formData: FormData, key: string): string | undefined	Empty strings from an untouched optional input mean "not provided".
@@ -3992,6 +4057,7 @@ toBaseUnits	fn/async	export	packages/inventory/src/movement.ts:355	packages/inve
 toBasisPoints	fn	local	apps/web/src/app/(platform)/platform/taxes/actions.ts:46	apps/web/app/(platform)/platform/taxes	(percent: string): number | null	
 toBoardView	fn	export	apps/web/src/lib/calendar-range.ts:40	apps/web/lib	(value: string | undefined): BoardView	Anything else — a hand-edited URL, a missing parameter — is the day view.
 toBox	fn	local	apps/web/src/components/tenant/fee-schedule-grid.tsx:62	apps/web/components/tenant	(amountMinor: number | null): string	Minor units to the major-unit string a person types back.
+toCalendarDate	fn	local	apps/api/src/services/clinical/episode.service.ts:55	apps/api/services/clinical	(value: Date): string	
 toCalendarDate	fn	export	apps/api/src/services/product/values.ts:36	apps/api/services/product	(value: Date): string	
 toCategory	fn	local	apps/api/src/services/product/category.service.ts:59	apps/api/services/product	(row: CategoryRow): ProductCategory	
 toCelsius	fn	export	packages/contracts/src/locale.ts:1129	packages/contracts	(value: number, unit: TemperatureUnit): number	
@@ -4087,7 +4153,7 @@ toScheduleDetails	fn/async	local	apps/api/src/services/doctor/doctor-schedule.se
 toSourceSummary	fn	export	apps/api/src/services/regulatory/shared.ts:107	apps/api/services/regulatory	(row: SourceRow): RegulatorySourceSummary	
 toStoredDocument	fn	local	packages/documents/src/store/document.service.ts:384	packages/documents/store	(row: StoredFileRow): StoredDocument	
 toSubscriptionView	fn	export	packages/billing/src/engine/read.ts:152	packages/billing/engine	(subscription: LoadedSubscription, provider: PaymentProvider, at: Date): SubscriptionView	
-toSummary	fn	local	apps/api/src/services/appointment/appointment.service.ts:209	apps/api/services/appointment	(row: AppointmentRow): AppointmentSummary	
+toSummary	fn	local	apps/api/src/services/appointment/appointment.service.ts:214	apps/api/services/appointment	(row: AppointmentRow): AppointmentSummary	
 toSummary	fn	local	apps/api/src/services/doctor/doctor.service.ts:160	apps/api/services/doctor	(row: DoctorRow, chains: AncestorChains): DoctorSummary	
 toSummary	fn	local	apps/api/src/services/inventory/batch.service.ts:82	apps/api/services/inventory	(row: SummaryRow): BatchSummary	
 toSummary	fn	local	apps/api/src/services/inventory/location.service.ts:53	apps/api/services/inventory	(row: SummaryRow): InventoryLocationSummary	
@@ -4133,8 +4199,8 @@ TransferPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/sto
 transferParams	zod	local	apps/api/src/routes/v1/inventory.routes.ts:662	apps/api/routes/v1	z.object(…)	
 TransferProgress	component	export	apps/web/src/components/tenant/stock-status.tsx:222	apps/web/components/tenant	({ sent, received, unit, label, }: { sent: string; received:…)	
 TransfersPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/transfers/page.tsx:28	apps/web/app/(tenant)/t/[slug]/(app)/stock/transfers	({ params, searchParams, }: { params: Promise<{ slug: string…)	
-transitionAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1097	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: { status: AppointmentStatusValue; note?: string | un…, options: AppointmentActionOptions): Promise<AppointmentDetail>	
-TRANSITIONS	const	local	apps/api/src/services/appointment/appointment.service.ts:91	apps/api/services/appointment	: Record<AppointmentStatusValue, AppointmentStatusValue[]>	
+transitionAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1120	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: { status: AppointmentStatusValue; note?: string | un…, options: AppointmentActionOptions): Promise<AppointmentDetail>	
+TRANSITIONS	const	local	apps/api/src/services/appointment/appointment.service.ts:92	apps/api/services/appointment	: Record<AppointmentStatusValue, AppointmentStatusValue[]>	
 translateWriteError	fn	local	apps/api/src/services/doctor/clinical-taxonomy.service.ts:642	apps/api/services/doctor	(err: unknown): Error	
 transporter	var	local	apps/api/src/services/notification/smtp.sender.ts:31	apps/api/services/notification	: Promise<Transporter> | null	
 TREATMENT_PRECEDENCE	const	local	packages/invoicing/src/pricing.ts:67	packages/invoicing	: readonly TaxTreatment[]	
@@ -4176,9 +4242,9 @@ untaxedWith	fn	local	packages/tax/src/engine.ts:83	packages/tax	(supply: Taxable
 updateActiveIngredient	fn/async	export	apps/api/src/services/product/catalogue.service.ts:283	apps/api/services/product	(ctx: TenantContext, ingredientId: string, input: UpdateActiveIngredientRequest, options: CatalogueActionOptions): Promise<ActiveIngredientSummary>	
 updateActiveIngredientRequest	var	export	packages/contracts/src/products.ts:334	packages/contracts	createActiveIngredientRequest .omit({ code: true }) .extend…	
 UpdateActiveIngredientRequest	type	export	packages/contracts/src/products.ts:873	packages/contracts	z.infer<typeof updateActiveIngredientRequest>	
-updateAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1030	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: UpdateAppointmentRequest, options: AppointmentActionOptions): Promise<AppointmentDetail>	Visit type and reason. Neither moves the booking nor changes its status.
-updateAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:215	packages/contracts	z.object(…)	Everything about a booking that is not its time or its status.
-UpdateAppointmentRequest	type	export	packages/contracts/src/appointments.ts:768	packages/contracts	z.infer<typeof updateAppointmentRequest>	
+updateAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:1053	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: UpdateAppointmentRequest, options: AppointmentActionOptions): Promise<AppointmentDetail>	Visit type and reason. Neither moves the booking nor changes its status.
+updateAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:233	packages/contracts	z.object(…)	Everything about a booking that is not its time or its status.
+UpdateAppointmentRequest	type	export	packages/contracts/src/appointments.ts:799	packages/contracts	z.infer<typeof updateAppointmentRequest>	
 updateAuthority	fn/async	export	apps/api/src/services/platform/regulatory.service.ts:251	apps/api/services/platform	(id: string, input: UpdateRegulatoryAuthorityRequest): Promise<RegulatoryAuthoritySummary>	
 updateBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:311	apps/api/services/inventory	(ctx: TenantContext, id: string, input: UpdateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>	
 updateBatchRequest	var	export	packages/contracts/src/inventory.ts:366	packages/contracts	z .object({ manufacturedOn: effectiveDate.nullable(), expir…	
@@ -4188,6 +4254,10 @@ updateBranch	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branch
 updateBranchRequest	var	export	packages/contracts/src/tenancy.ts:201	packages/contracts	createBranchRequest.partial().extend(…)	
 UpdateBranchRequest	type	export	packages/contracts/src/tenancy.ts:968	packages/contracts	z.infer<typeof updateBranchRequest>	
 updateCategory	fn/async	export	apps/api/src/services/product/category.service.ts:286	apps/api/services/product	(ctx: TenantContext, id: string, input: UpdateProductCategoryRequest, options: CatalogueActionOptions): Promise<ProductCategory>	
+updateClinicalEpisodeRequest	var	export	packages/contracts/src/clinical.ts:255	packages/contracts	z .object({ /** ⚠️ PHI. */ title: z.string().trim().max(255…	
+UpdateClinicalEpisodeRequest	type	export	packages/contracts/src/clinical.ts:274	packages/contracts	z.infer<typeof updateClinicalEpisodeRequest>	
+updateClinicalMasterRequest	zod	export	packages/contracts/src/clinical.ts:154	packages/contracts	z.object(…)	
+UpdateClinicalMasterRequest	type	export	packages/contracts/src/clinical.ts:161	packages/contracts	z.infer<typeof updateClinicalMasterRequest>	
 updateClinicTaxRegistration	fn/async	export	apps/api/src/services/tax/clinic-tax.service.ts:620	apps/api/services/tax	(ctx: TenantContext, id: string, input: UpdateClinicTaxRegistrationRequest, options: ClinicTaxActionOptions): Promise<ClinicTaxRegistrationSummary>	
 updateClinicTaxRegistrationRequest	var	export	packages/contracts/src/tax.ts:125	packages/contracts	createClinicTaxRegistrationRequest.partial(…)	
 UpdateClinicTaxRegistrationRequest	type	export	packages/contracts/src/tax.ts:126	packages/contracts	z.infer<typeof updateClinicTaxRegistrationRequest>	
@@ -4210,6 +4280,7 @@ updateDoctorRequest	var	export	packages/contracts/src/doctors.ts:139	packages/co
 UpdateDoctorRequest	type	export	packages/contracts/src/doctors.ts:584	packages/contracts	z.infer<typeof updateDoctorRequest>	
 updateDraftInvoice	fn/async	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:287	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, input: UpdateDraftInvoiceInput, options: InvoiceAuditOptions): Promise<void>	
 UpdateDraftInvoiceInput	interface	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:262	apps/api/services/invoicing	{ invoiceId }	
+updateEpisode	fn/async	export	apps/api/src/services/clinical/episode.service.ts:468	apps/api/services/clinical	(ctx: TenantContext, episodeId: string, input: UpdateClinicalEpisodeRequest, options: EpisodeReadOptions): Promise<void>	
 updateGoodsReceipt	fn/async	export	apps/api/src/services/procurement/goods-receipt.service.ts:746	apps/api/services/procurement	(ctx: TenantContext, id: string, input: UpdateGoodsReceiptRequest, options: CatalogueActionOptions): Promise<GoodsReceiptDetail>	
 updateGoodsReceiptRequest	var	export	packages/contracts/src/procurement.ts:702	packages/contracts	z .object({ locationId: uuid, receivedAt: z.iso.datetime(),…	
 UpdateGoodsReceiptRequest	type	export	packages/contracts/src/procurement.ts:1073	packages/contracts	z.infer<typeof updateGoodsReceiptRequest>	
@@ -4227,6 +4298,7 @@ updateLocationAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app
 updateManufacturer	fn/async	export	apps/api/src/services/product/catalogue.service.ts:132	apps/api/services/product	(ctx: TenantContext, manufacturerId: string, input: UpdateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>	
 updateManufacturerRequest	var	export	packages/contracts/src/products.ts:302	packages/contracts	createManufacturerRequest .omit({ code: true }) .extend({ i…	
 UpdateManufacturerRequest	type	export	packages/contracts/src/products.ts:869	packages/contracts	z.infer<typeof updateManufacturerRequest>	
+updateMaster	fn/async	export	apps/api/src/services/clinical/master.service.ts:273	apps/api/services/clinical	(ctx: TenantContext, itemId: string, input: UpdateClinicalMasterRequest, options: { ipAddress?: string | undefined; userAgent?: stri…): Promise<ClinicalMasterItem>	
 updateMember	fn/async	export	apps/api/src/services/iam/member.service.ts:650	apps/api/services/iam	(ctx: TenantContext, membershipId: string, input: UpdateMemberRequest, options: MemberActionOptions): Promise<MemberDetail>	
 updateMemberRequest	zod	export	packages/contracts/src/tenancy.ts:447	packages/contracts	z.object(…)	
 UpdateMemberRequest	type	export	packages/contracts/src/tenancy.ts:953	packages/contracts	z.infer<typeof updateMemberRequest>	
@@ -4288,8 +4360,8 @@ UpdateSupplierRequest	type	export	packages/contracts/src/procurement.ts:1035	pac
 updateSupplierTaxIdentifier	fn/async	export	apps/api/src/services/procurement/supplier.service.ts:433	apps/api/services/procurement	(ctx: TenantContext, supplierId: string, identifierId: string, input: UpdateSupplierTaxIdentifierRequest, options: CatalogueActionOptions): Promise<SupplierDetail>	
 updateSupplierTaxIdentifierRequest	var	export	packages/contracts/src/procurement.ts:266	packages/contracts	z .object({ legalName: z.string().trim().max(255).nullable(…	
 UpdateSupplierTaxIdentifierRequest	type	export	packages/contracts/src/procurement.ts:1042	packages/contracts	z.infer<typeof updateSupplierTaxIdentifierRequest>	
-updateTaxonomyNodeRequest	var	export	packages/contracts/src/clinical-taxonomy.ts:66	packages/contracts	z .object({ name: z.string().min(2).max(255), parentId: uui…	
-UpdateTaxonomyNodeRequest	type	export	packages/contracts/src/clinical-taxonomy.ts:144	packages/contracts	z.infer<typeof updateTaxonomyNodeRequest>	
+updateTaxonomyNodeRequest	var	export	packages/contracts/src/clinical-taxonomy.ts:76	packages/contracts	z .object({ name: z.string().min(2).max(255), parentId: uui…	
+UpdateTaxonomyNodeRequest	type	export	packages/contracts/src/clinical-taxonomy.ts:154	packages/contracts	z.infer<typeof updateTaxonomyNodeRequest>	
 updateTaxRegistration	fn/async	export	apps/api/src/services/platform/tax-registration.service.ts:129	apps/api/services/platform	(id: string, input: UpdateTaxRegistrationRequest, at): Promise<TaxRegistrationSummary>	
 updateTaxRegistrationRequest	var	export	packages/contracts/src/billing.ts:466	packages/contracts	createTaxRegistrationRequest.partial(…)	
 UpdateTaxRegistrationRequest	type	export	packages/contracts/src/billing.ts:467	packages/contracts	z.infer<typeof updateTaxRegistrationRequest>	
@@ -4300,8 +4372,8 @@ updateTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.
 updateUnit	fn/async	export	apps/api/src/services/product/unit.service.ts:247	apps/api/services/product	(ctx: TenantContext, unitId: string, input: UpdateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>	
 updateUnitRequest	var	export	packages/contracts/src/products.ts:181	packages/contracts	z .object({ name: z.string().trim().min(1).max(128), symbol…	
 UpdateUnitRequest	type	export	packages/contracts/src/products.ts:856	packages/contracts	z.infer<typeof updateUnitRequest>	
-updateVitalsRequest	var	export	packages/contracts/src/appointments.ts:467	packages/contracts	recordVitalsRequest	
-UpdateVitalsRequest	type	export	packages/contracts/src/appointments.ts:774	packages/contracts	z.infer<typeof updateVitalsRequest>	
+updateVitalsRequest	var	export	packages/contracts/src/appointments.ts:485	packages/contracts	recordVitalsRequest	
+UpdateVitalsRequest	type	export	packages/contracts/src/appointments.ts:805	packages/contracts	z.infer<typeof updateVitalsRequest>	
 UPGRADABLE_STATUSES	const	local	packages/billing/src/policy.ts:156	packages/billing	: ReadonlySet<SubscriptionStatus>	Statuses an upgrade may be applied to. A cancelled plan is re-subscribed to.
 upgradePreviewRequest	zod	export	packages/contracts/src/billing.ts:44	packages/contracts	z.object(…)	What an upgrade would cost. Same shape as applying it, on purpose.
 UpgradePreviewRequest	type	export	packages/contracts/src/billing.ts:48	packages/contracts	z.infer<typeof upgradePreviewRequest>	
@@ -4365,24 +4437,26 @@ visibleRoleWhere	fn	export	apps/api/src/services/iam/role.service.ts:144	apps/ap
 VISIT_TYPES	const	local	apps/web/src/components/tenant/appointment-board.tsx:104	apps/web/components/tenant	: SelectOption[]	
 VISIT_WORDS	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:321	apps/web/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]	: Record<string, string>	
 visitDates	fn/async	local	apps/api/src/services/invoicing/appointment-billing.service.ts:245	apps/api/services/invoicing	(tx: TxClient, appointmentId: string): Promise<{ suppliedOn: string; parentOn: string | null }>	
-VITAL_RANGES	const	export	packages/contracts/src/appointments.ts:309	packages/contracts	{ heightCm: { min: 20, max: 280, step: 0.1, unit: 'cm', nou…	
-VitalKey	type	export	packages/contracts/src/appointments.ts:321	packages/contracts	keyof typeof VITAL_RANGES	
-VitalRange	interface	export	packages/contracts/src/appointments.ts:298	packages/contracts	{ min, max, step, unit, noun }	
-vitalRangeMessage	fn	export	packages/contracts/src/appointments.ts:332	packages/contracts	(range: VitalRange): string	
+visitHistoryQuery	zod	export	packages/contracts/src/clinical.ts:283	packages/contracts	z.object(…)	
+VisitHistoryQuery	type	export	packages/contracts/src/clinical.ts:287	packages/contracts	z.infer<typeof visitHistoryQuery>	
+VITAL_RANGES	const	export	packages/contracts/src/appointments.ts:327	packages/contracts	{ heightCm: { min: 20, max: 280, step: 0.1, unit: 'cm', nou…	
+VitalKey	type	export	packages/contracts/src/appointments.ts:339	packages/contracts	keyof typeof VITAL_RANGES	
+VitalRange	interface	export	packages/contracts/src/appointments.ts:316	packages/contracts	{ min, max, step, unit, noun }	
+vitalRangeMessage	fn	export	packages/contracts/src/appointments.ts:350	packages/contracts	(range: VitalRange): string	
 VITALS_SELECT	const	local	apps/api/src/services/appointment/vitals.service.ts:44	apps/api/services/appointment	{ id: true, appointmentId: true, patientId: true, branchId:…	
-vitalsChange	zod	export	packages/contracts/src/appointments.ts:691	packages/contracts	z.object(…)	
-VitalsChange	type	export	packages/contracts/src/appointments.ts:777	packages/contracts	z.infer<typeof vitalsChange>	
+vitalsChange	zod	export	packages/contracts/src/appointments.ts:722	packages/contracts	z.object(…)	
+VitalsChange	type	export	packages/contracts/src/appointments.ts:808	packages/contracts	z.infer<typeof vitalsChange>	
 VitalsChart	component	local	apps/web/src/components/tenant/vitals-panel.tsx:139	apps/web/components/tenant	({ slug, appointmentId, vitals, timezone, timeFormat, temper…)	
 VitalsHistory	component	export	apps/web/src/components/tenant/vitals-history.tsx:59	apps/web/components/tenant	({ slug, appointmentId, vitalsId, /** The reading's time, as…)	
-vitalsListResponse	zod	export	packages/contracts/src/appointments.ts:735	packages/contracts	z.object(…)	
-VitalsListResponse	type	export	packages/contracts/src/appointments.ts:776	packages/contracts	z.infer<typeof vitalsListResponse>	
+vitalsListResponse	zod	export	packages/contracts/src/appointments.ts:766	packages/contracts	z.object(…)	
+VitalsListResponse	type	export	packages/contracts/src/appointments.ts:807	packages/contracts	z.infer<typeof vitalsListResponse>	
 VitalsPanel	component	export	apps/web/src/components/tenant/vitals-panel.tsx:41	apps/web/components/tenant	({ slug, appointmentId, vitals, canRecord, temperatureUnit, …)	
-vitalsReading	zod	export	packages/contracts/src/appointments.ts:651	packages/contracts	z.object(…)	
-VitalsReading	type	export	packages/contracts/src/appointments.ts:775	packages/contracts	z.infer<typeof vitalsReading>	
-vitalsRevision	zod	export	packages/contracts/src/appointments.ts:707	packages/contracts	z.object(…)	
-VitalsRevision	type	export	packages/contracts/src/appointments.ts:778	packages/contracts	z.infer<typeof vitalsRevision>	
-vitalsRevisionsResponse	zod	export	packages/contracts/src/appointments.ts:722	packages/contracts	z.object(…)	
-VitalsRevisionsResponse	type	export	packages/contracts/src/appointments.ts:779	packages/contracts	z.infer<typeof vitalsRevisionsResponse>	
+vitalsReading	zod	export	packages/contracts/src/appointments.ts:682	packages/contracts	z.object(…)	
+VitalsReading	type	export	packages/contracts/src/appointments.ts:806	packages/contracts	z.infer<typeof vitalsReading>	
+vitalsRevision	zod	export	packages/contracts/src/appointments.ts:738	packages/contracts	z.object(…)	
+VitalsRevision	type	export	packages/contracts/src/appointments.ts:809	packages/contracts	z.infer<typeof vitalsRevision>	
+vitalsRevisionsResponse	zod	export	packages/contracts/src/appointments.ts:753	packages/contracts	z.object(…)	
+VitalsRevisionsResponse	type	export	packages/contracts/src/appointments.ts:810	packages/contracts	z.infer<typeof vitalsRevisionsResponse>	
 VitalsRow	type	local	apps/api/src/services/appointment/vitals.service.ts:69	apps/api/services/appointment	Prisma.AppointmentVitalGetPayload<{ select: typeof VITALS_SELECT }>	
 VitalsState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:472	apps/web/app/(tenant)/t/[slug]/(app)/appointments	{ status: 'idle' | 'error' | 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }	
 voidInvoice	fn/async	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:620	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, input: { invoiceId: string; reason: string }, options: InvoiceAuditOptions): Promise<void>	
@@ -4420,15 +4494,15 @@ workerRepoRoot	var	local	apps/worker/src/index.ts:120	apps/worker	new URL('../..
 workers	var	local	apps/worker/src/index.ts:140	apps/worker	: Worker[]	
 WORKING_DAYS_MAX_SPAN	const	export	packages/contracts/src/appointments.ts:70	packages/contracts	62	The longest span the working-day probe will answer for. A calendar month plus the leading and trailing days a month gri…
 workingDay	zod	export	packages/contracts/src/appointments.ts:109	packages/contracts	z.object(…)	
-WorkingDay	type	export	packages/contracts/src/appointments.ts:759	packages/contracts	z.infer<typeof workingDay>	
+WorkingDay	type	export	packages/contracts/src/appointments.ts:790	packages/contracts	z.infer<typeof workingDay>	
 WorkingDayPicker	component	export	apps/web/src/components/tenant/working-day-picker.tsx:59	apps/web/components/tenant	({ slug, branchId, doctorProfileId, value, today, onChange, …)	
 workingDayReason	zod	export	packages/contracts/src/appointments.ts:107	packages/contracts	z.enum(…)	Why a whole day cannot be booked. Null when some part of it can.
-WorkingDayReason	type	export	packages/contracts/src/appointments.ts:758	packages/contracts	z.infer<typeof workingDayReason>	
+WorkingDayReason	type	export	packages/contracts/src/appointments.ts:789	packages/contracts	z.infer<typeof workingDayReason>	
 WorkingDayRow	interface	local	apps/api/src/services/appointment/availability.service.ts:365	apps/api/services/appointment	{ date, is_past, scheduled, extra_shift, closed, blocked }	One row of the working-day probe, straight out of Postgres. Every flag is an `EXISTS`, so the whole span is one stateme…
 workingDaysQuery	var	export	packages/contracts/src/appointments.ts:85	packages/contracts	z .object({ branchId: uuid, doctorProfileId: uuid, from: ca…	
-WorkingDaysQuery	type	export	packages/contracts/src/appointments.ts:757	packages/contracts	z.infer<typeof workingDaysQuery>	
+WorkingDaysQuery	type	export	packages/contracts/src/appointments.ts:788	packages/contracts	z.infer<typeof workingDaysQuery>	
 workingDaysResponse	zod	export	packages/contracts/src/appointments.ts:125	packages/contracts	z.object(…)	
-WorkingDaysResponse	type	export	packages/contracts/src/appointments.ts:760	packages/contracts	z.infer<typeof workingDaysResponse>	
+WorkingDaysResponse	type	export	packages/contracts/src/appointments.ts:791	packages/contracts	z.infer<typeof workingDaysResponse>	
 wouldExceed	fn	export	packages/billing/src/entitlements.ts:112	packages/billing	(features: FeatureMap, key: string, currentUsage: number, count): boolean	
 writeDoctorCompensation	fn/async	export	apps/api/src/services/doctor/doctor-compensation.service.ts:113	apps/api/services/doctor	(tx: TxClient, ctx: TenantContext, doctorId: string, input: SetDoctorCompensationRequest, options: CompensationActionOptions): Promise<void>	
 writeFeeEntries	fn/async	export	apps/api/src/services/fees/fee-schedule.service.ts:304	apps/api/services/fees	(tx: TxClient, ctx: TenantContext, scope: { doctorProfileId: string | null; branchId: string |…, fees: SetFeeScheduleRequest['fees'], options: FeeActionOptions): Promise<void>	

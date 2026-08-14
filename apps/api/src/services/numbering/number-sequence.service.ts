@@ -42,6 +42,17 @@ export type SequenceType =
   | 'APPOINTMENT'
   | 'QUEUE_TOKEN'
   | 'EMPLOYEE'
+  /**
+   * Treatment journeys (CE-1).
+   *
+   * ⚠️ THE ONLY COUNTER HERE THAT IS PER ORGANIZATION RATHER THAN PER BRANCH,
+   *   and it never resets. An episode follows the PATIENT, who is org-wide
+   *   (ADR-0016): a journey that starts at the main branch and continues at the
+   *   satellite is one journey, so a per-branch counter would either issue two
+   *   codes for it or have to pick a branch arbitrarily. `openEpisode` passes no
+   *   `branchId` for exactly that reason.
+   */
+  | 'CLINICAL_EPISODE'
   /** Patient invoice serials. Built by `invoice-number.service.ts`, never here. */
   | 'INVOICE'
   /**

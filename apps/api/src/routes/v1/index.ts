@@ -5,6 +5,7 @@ import billingRoutes from './billing.routes.js';
 import appointmentRoutes from './appointments.routes.js';
 import branchRoutes from './branches.routes.js';
 import clinicalTaxonomyRoutes from './clinical-taxonomy.routes.js';
+import clinicalRoutes from './clinical.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
 import invoiceRoutes from './invoices.routes.js';
@@ -81,6 +82,14 @@ router.use('/doctors', doctorRoutes);
 // that first needed it. Reads sit behind DOCTOR_READ so every screen showing a
 // doctor can render their specialty name; curation is DOCTOR_MASTER_MANAGE.
 router.use('/clinical-taxonomy', clinicalTaxonomyRoutes);
+/*
+ * Mounted at the ROOT rather than under a prefix, because it serves two
+ * unrelated paths — `/clinical-data` (the vocabulary) and `/clinical-episodes`
+ * (a patient's treatment journeys). Folding them under one prefix would put a
+ * dictionary and PHI behind the same-looking URL, and the brief names both
+ * paths as they are (§32).
+ */
+router.use('/', clinicalRoutes);
 
 // Job titles. Its own surface rather than a path under /members, which would be
 // swallowed by /members/:membershipId.

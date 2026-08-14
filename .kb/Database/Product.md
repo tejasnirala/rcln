@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/products.prisma:597`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `visible` policy |
 | columns | 25 |
-| relations | 23 |
+| relations | 24 |
 
 ## Columns
 
@@ -69,6 +69,7 @@ Declared at `packages/db/prisma/schema/products.prisma:597`.
 | `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[]` |
 | `costAverages` | [`ProductCostAverage`](ProductCostAverage.md) | `costAverages ProductCostAverage[]` |
 | `regulatoryProfiles` | [`ProductRegulatoryProfile`](ProductRegulatoryProfile.md) | `regulatoryProfiles ProductRegulatoryProfile[]` |
+| `clinicalScopes` | [`ProductClinicalScope`](ProductClinicalScope.md) | `clinicalScopes ProductClinicalScope[]` |
 
 ## Indexes and constraints
 
@@ -107,4 +108,5 @@ erDiagram
     Product }o--o{ PurchaseReturnLine : relates
     Product }o--o{ ProductCostAverage : relates
     Product }o--o{ ProductRegulatoryProfile : relates
+    Product }o--o{ ProductClinicalScope : relates
 ```

@@ -61,6 +61,38 @@ export const SPECIALTIES: {
   type?: TaxonomyNodeType;
   description?: string;
 }[] = [
+  // ── Care contexts ──────────────────────────────────────────────────────────
+  //
+  // ⚠️ THE TRUE ROOTS, ADDED BY CE-1. Every DOMAIN below now hangs off HUMAN.
+  //
+  //   The consultation engine resolves a template by walking a doctor's
+  //   classification UP to its care context, because veterinary dermatology and
+  //   human dermatology want different forms, different vocabulary and different
+  //   anatomical maps — and are otherwise indistinguishable in this tree.
+  //
+  // ⚠️ RE-PARENTING THE SEVEN DOMAINS IS SAFE **BECAUSE CODES ARE FLAT**. This
+  //   file's own header says a path-encoded code becomes a lie the moment a node
+  //   moves, and that the path belongs in `parent_id`. That decision is what
+  //   makes inserting a level above the old roots a `parent_id` UPDATE and
+  //   nothing else: `doctor_specialties` points at leaves and never notices.
+  //
+  // ⚠️ VET IS DELIBERATELY EMPTY. §42.7 forbids building veterinary
+  //   functionality now; the architecture only has to stop assuming humans. An
+  //   empty subtree costs nothing and is the honest statement that no veterinary
+  //   specialty has been researched.
+  {
+    code: 'HUMAN',
+    name: 'Human',
+    type: 'CARE_CONTEXT',
+    description: 'Care delivered to people.',
+  },
+  {
+    code: 'VET',
+    name: 'Veterinary',
+    type: 'CARE_CONTEXT',
+    description:
+      'Care delivered to animals. Deliberately empty — no veterinary specialty has been researched yet.',
+  },
   // ── Domains ────────────────────────────────────────────────────────────────
   //
   // Seven roots, not the six the brief named. `TRAD` is the addition: Ayurveda
@@ -71,18 +103,21 @@ export const SPECIALTIES: {
   // all belong here rather than in a country-specific bucket.
   {
     code: 'MED',
+    parent: 'HUMAN',
     name: 'Medical',
     type: 'DOMAIN',
     description: 'Physician specialties in the allopathic tradition.',
   },
   {
     code: 'DEN',
+    parent: 'HUMAN',
     name: 'Dental',
     type: 'DOMAIN',
     description: 'Dental and oral health specialties.',
   },
   {
     code: 'MBH',
+    parent: 'HUMAN',
     name: 'Mental & Behavioural Health',
     type: 'DOMAIN',
     description:
@@ -90,6 +125,7 @@ export const SPECIALTIES: {
   },
   {
     code: 'ALH',
+    parent: 'HUMAN',
     name: 'Allied Health',
     type: 'DOMAIN',
     description:
@@ -97,6 +133,7 @@ export const SPECIALTIES: {
   },
   {
     code: 'DGN',
+    parent: 'HUMAN',
     name: 'Diagnostic Services',
     type: 'DOMAIN',
     description:
@@ -104,6 +141,7 @@ export const SPECIALTIES: {
   },
   {
     code: 'REH',
+    parent: 'HUMAN',
     name: 'Rehabilitation',
     type: 'DOMAIN',
     description:
@@ -111,6 +149,7 @@ export const SPECIALTIES: {
   },
   {
     code: 'TRAD',
+    parent: 'HUMAN',
     name: 'Traditional & Complementary Medicine',
     type: 'DOMAIN',
     description:
