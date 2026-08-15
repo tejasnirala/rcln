@@ -56,6 +56,7 @@ import {
 } from '../../services/appointment/appointment.service.js';
 import { getConsultationConfig } from '../../services/clinical/consultation-config.service.js';
 import { getEncounterForAppointment } from '../../services/clinical/encounter.service.js';
+import { getPreviousVisit } from '../../services/clinical/visit-history.service.js';
 import {
   amendVitals,
   deleteVitals,
@@ -541,6 +542,43 @@ router.get(
           ? { userAgent: req.get('user-agent') as string }
           : {}),
         route: 'GET /v1/appointments/:appointmentId/encounter',
+      })
+    );
+  }
+);
+
+/**
+ * What happened LAST time (CE-5, §37).
+ *
+ * ⚠️ THE PANEL THE DOCTOR READS WHILE WRITING THIS CONSULTATION, which is why it
+ *   carries the previous visit's whole content rather than a summary: seeing the
+ *   dose prescribed last time must not mean leaving the record being written.
+ *   It is one visit, so the payload is bounded.
+ *
+ * ⚠️ THE RESPONSE SAYS HOW IT WAS FOUND, AND THE SCREEN MUST NOT FLATTEN THAT.
+ *   `PARENT_APPOINTMENT` is a fact the database enforces; `SAME_EPISODE` is a
+ *   strong inference; `MOST_RECENT` is a convenience. Rendering all three with
+ *   one sentence would tell a doctor that an unrelated visit is what this
+ *   follow-up follows — a clinical claim nothing here has a basis for.
+ *
+ * ⚠️ `clinical.encounter.read` AND A `data_access_logs` ROW, for the same reason
+ *   the route above has both: this is another consultation's clinical content,
+ *   read from this booking's screen.
+ */
+router.get(
+  '/:appointmentId/previous-visit',
+  authorize(PERMISSIONS.ENCOUNTER_READ),
+  validate(appointmentParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { appointmentId } = req.params as z.infer<typeof appointmentParams>;
+    sendSuccess(
+      res,
+      await getPreviousVisit(tenantContextFrom(req), appointmentId, {
+        ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
+        ...(req.get('user-agent') !== undefined
+          ? { userAgent: req.get('user-agent') as string }
+          : {}),
+        route: 'GET /v1/appointments/:appointmentId/previous-visit',
       })
     );
   }

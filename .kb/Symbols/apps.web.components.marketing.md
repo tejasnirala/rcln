@@ -66,5 +66,5 @@ Files: `apps/web/src/components/marketing/clinic-finder.tsx` · `apps/web/src/co
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `Errors` <sub>local</sub> | `Record<string, string[]>` | `apps/web/src/components/marketing/signup-form.tsx:90` |  |
-| `Row` <sub>local</sub> | `{ label: string; value: string; mono?: boolean; note?: string }` | `apps/web/src/components/marketing/journey-rail.tsx:17` |  |
+| `Row` <sub>local</sub> | `{ label: string; value: string; note?: string }` | `apps/web/src/components/marketing/journey-rail.tsx:17` |  |
 | `Station` <sub>local</sub> | `{ key: string; short: string; label: string; time: string; actor: string; headline: string; rows: Row[]; }` | `apps/web/src/components/marketing/journey-rail.tsx:19` |  |

@@ -655,15 +655,30 @@ export type CancelFollowUpRecommendationRequest = z.infer<
  *   disclosure nobody has a reason to request in one call — the same rule
  *   `clinical-episodes` follows.
  */
+/**
+ * Which window of the recall list.
+ *
+ * `DUE` is outstanding and at or past its date; `UPCOMING` is outstanding and
+ * still in the future; `OVERDUE` is `DUE` more than a week ago.
+ *
+ * ⚠️ THE WINDOW IS THE CLINIC'S CALENDAR DAY, NOT AN INSTANT. A recall due
+ *   "today" is due all day in the branch's timezone.
+ *
+ * ⚠️ NAMED RATHER THAN INLINE BECAUSE THE SCREEN SWITCHES ON IT (CE-5). A second
+ *   copy of these five strings on the web side is a list that drifts the day a
+ *   sixth window is added, and the drift shows up as a tab that returns nothing.
+ */
+export const followUpRecallStatus = z.enum([
+  'DUE',
+  'UPCOMING',
+  'OVERDUE',
+  'FULFILLED',
+  'CANCELLED',
+]);
+export type FollowUpRecallStatusValue = z.infer<typeof followUpRecallStatus>;
+
 export const followUpRecommendationQuery = z.object({
-  /**
-   * `DUE` is outstanding and at or past its date; `UPCOMING` is outstanding and
-   * still in the future; `OVERDUE` is `DUE` more than a week ago.
-   *
-   * ⚠️ THE WINDOW IS THE CLINIC'S CALENDAR DAY, NOT AN INSTANT. A recall due
-   *   "today" is due all day in the branch's timezone.
-   */
-  status: z.enum(['DUE', 'UPCOMING', 'OVERDUE', 'FULFILLED', 'CANCELLED']).default('DUE'),
+  status: followUpRecallStatus.default('DUE'),
   patientId: uuid.optional(),
   branchId: uuid.optional(),
   /** How far ahead `UPCOMING` looks. Days. */
@@ -687,6 +702,21 @@ export const followUpRecallEntry = followUpRecommendation.extend({
   branchId: uuid,
   /** The visit the advice was given at, for the "book a follow-up" link. */
   sourceAppointmentId: uuid,
+  /**
+   * Who saw them, from the recommending appointment (CE-5).
+   *
+   * ⚠️ FOR THE DIARY THE BOOKING FORM SHOWS, NOT FOR WHAT IT SENDS. The API
+   *   reads the doctor off the parent booking and refuses to be told one from
+   *   the wire; the desk still has to be shown SOMEBODY'S free slots, and a
+   *   follow-up is normally with whoever saw them. Sending the id here saves the
+   *   recall screen a lookup per row.
+   *
+   * ⚠️ AND A CLINICIAN'S NAME IS NOT PHI. It rides on a response that is full of
+   *   it, which is why this note exists: the patient name beside it is the
+   *   disclosure, and this is staff.
+   */
+  doctorProfileId: uuid,
+  doctorName: z.string(),
 });
 export type FollowUpRecallEntry = z.infer<typeof followUpRecallEntry>;
 

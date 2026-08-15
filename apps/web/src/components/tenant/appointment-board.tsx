@@ -1020,8 +1020,19 @@ function AppointmentRow({
         <span className="sr-only">Open this visit</span>
       </Link>
 
-      {/* The rail. Tabular figures so the times line up as a column. */}
-      <p className="font-mono text-ink w-16 shrink-0 text-[0.875rem] tabular-nums">
+      {/*
+       * The rail. Tabular figures so the times line up as a column.
+       *
+       * ⚠️ `w-20` AND `whitespace-nowrap`, NOT `w-16`. The column is mono at
+       *   14px, where IBM Plex Mono advances 0.6em — 8.4px a character. A 12H
+       *   time runs to EIGHT characters ("11:20 am", "12:05 pm"), which is
+       *   67.2px and overflowed a 64px box, so every appointment between 10:00
+       *   and 12:59 wrapped onto a second line and made its row taller than the
+       *   rest of the day. `nowrap` is the belt to that braces: if the webfont
+       *   ever falls back, the metric changes and the box must not start
+       *   breaking again silently.
+       */}
+      <p className="font-mono text-ink w-20 shrink-0 text-[0.875rem] whitespace-nowrap tabular-nums">
         {formatClinicTime(appointment.scheduledStart, timezone, timeFormat)}
       </p>
 
@@ -1141,28 +1152,48 @@ function AppointmentRow({
  *   visit unbilled and billable again, which is why a row can go back to "Not
  *   billed" after having shown a number.
  */
+/**
+ * The bill against a visit, on the day board.
+ *
+ * ⚠️ `w-48` AND `truncate`, NOT `w-32`. An invoice number is
+ *   `INV-<year>-<source>-<branch>-<serial>` — `INV-2026-APP-MAIN-000001` is 24
+ *   characters, and it wrapped onto a second line inside a 128px box, which
+ *   made the row taller than every other row in the day.
+ *
+ * ⚠️ AND NO FIXED WIDTH CAN GUARANTEE ONE LINE, WHICH IS WHY `truncate` IS HERE
+ *   RATHER THAN JUST A BIGGER NUMBER. `branches.code` is `VarChar(32)`, so a
+ *   clinic that names a branch something long produces a number past fifty
+ *   characters. 192px fits the ordinary MAIN/ANNEX case comfortably; anything
+ *   beyond it ends in an ellipsis instead of reflowing the board, and `title`
+ *   keeps the full number readable on hover for the rare row that needs it.
+ */
 function BillingCell({ liveInvoice }: { liveInvoice: AppointmentSummary['liveInvoice'] }) {
   if (liveInvoice === undefined) return null;
 
   if (liveInvoice === null) {
     return (
-      <p className="text-muted w-32 shrink-0 text-[0.8125rem]">
+      <p className="text-muted w-48 shrink-0 text-[0.8125rem]">
         Not billed
         {/* The word carries the meaning; nothing here is colour-only. */}
       </p>
     );
   }
 
+  const number = liveInvoice.invoiceNumber ?? 'Draft';
+
   return (
-    <p className="relative z-10 w-32 shrink-0 text-[0.8125rem]">
+    <p className="relative z-10 w-48 shrink-0 text-[0.8125rem]">
       <Link
         href={`/invoices/${liveInvoice.invoiceId}`}
-        className="text-drape font-mono hover:underline focus-visible:underline"
+        /* `block` so `truncate` has a box to clip against — it is a no-op on an
+           inline element, which is what this used to be. */
+        className="text-drape block truncate font-mono hover:underline focus-visible:underline"
+        title={number}
       >
         {/* A draft has no number by construction. */}
-        {liveInvoice.invoiceNumber ?? 'Draft'}
+        {number}
       </Link>
-      <span className="text-ink mt-0.5 block font-mono">
+      <span className="text-ink mt-0.5 block font-mono whitespace-nowrap">
         {formatMoney(money(liveInvoice.grandTotalMinor, liveInvoice.currency))}
       </span>
     </p>
@@ -1500,8 +1531,12 @@ function FeeLine({
  * that silently omits 10:20 makes the day look shorter than it is, and the
  * front desk cannot tell "fully booked" from "not working that morning".
  * ⚠️ It never says WHO holds a slot, and the API never sends it.
+ *
+ * ⚠️ EXPORTED FOR CE-5's FOLLOW-UP FORM, which books against the same engine
+ *   from the consultation and from the recall list. A second slot grid would be
+ *   a second place for "taken" to stop being said in words.
  */
-function SlotGrid({
+export function SlotGrid({
   slots,
   timezone,
   timeFormat,

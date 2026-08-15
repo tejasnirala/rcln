@@ -99,7 +99,34 @@
    */
   --font-display: var(--font-plex-serif), ui-serif, Georgia, serif;
   --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /*
+   * ⚠️ `font-mono` IS THE BODY FACE, AND THAT IS DELIBERATE RATHER THAN A
+   *   MISTAKE. The product used to set anything the system generated — a token,
+   *   an MRN, a GSTIN, an HSN, a batch, an invoice number — in IBM Plex Mono.
+   *   The intent was sound and the result was not: mono and sans ended up
+   *   MIXED INSIDE SINGLE LINES all over the app ("MRN branch-local
+   *   AND/MRN-000014"), which reads as an inconsistency rather than as a
+   *   distinction, and Plex Mono's 0.6em advance made every identifier look a
+   *   size larger than the prose beside it.
+   *
+   *   The fix is HERE, at the token, and not at the 281 `font-mono` call sites
+   *   and 87 eyebrows that flow through it. One definition means the app cannot
+   *   drift back into two faces a screen at a time, and it means putting mono
+   *   back is this line rather than another 85-file sweep.
+   *
+   * ⚠️ TABULAR FIGURES ARE WHAT MONO WAS ACTUALLY BUYING, and they are kept —
+   *   see the `.font-mono` rule in the base layer below. A column of money that
+   *   stops lining up is a real regression; a column of money in a different
+   *   typeface was never the point.
+   *
+   * ⚠️ REAL CODE IS STILL MONOSPACED. `--font-code` below keeps `code`/`kbd`/
+   *   `samp`/`pre` on Plex Mono, where a fixed advance genuinely carries meaning.
+   */
+  --font-mono: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* Genuine monospace, for genuine code. Not an identifier treatment. */
+  --font-code: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
 
   /* Display sizes. Clamped so the hero does not need a breakpoint of its own. */
   /* Floor is set for a 320px screen, where 2.5rem crowded the gutters. */
@@ -150,15 +177,31 @@
   }
 
   /*
-   * An eyebrow, a token, an MRN — anything the system generated rather than a
-   * person wrote — is set in mono. Tabular figures so columns of ids and money
-   * line up without extra classes.
+   * Real code is monospaced. An eyebrow, a token or an MRN is NOT — the app is
+   * one typeface throughout, and `--font-mono` above says why. Tabular figures
+   * either way, so columns of ids and money line up without extra classes.
    */
   code,
   kbd,
   samp,
   pre {
-    font-family: var(--font-mono);
+    font-family: var(--font-code);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * ⚠️ THIS IS WHAT KEEPS THE COLUMNS STRAIGHT. `font-mono` no longer changes
+   *   the typeface (see the token above), so the one property it was genuinely
+   *   relied on for — a fixed digit advance, which is how a column of amounts,
+   *   quantities, token numbers and dates lines up — has to be stated. IBM Plex
+   *   Sans ships tabular figures; they are simply not on by default.
+   *
+   *   Without this, every money column in invoicing, procurement and stock goes
+   *   proportional and the decimal points wander. Only 12 of the 281 call sites
+   *   asked for `tabular-nums` explicitly, so relying on them would have been
+   *   relying on the 12.
+   */
+  .font-mono {
     font-variant-numeric: tabular-nums;
   }
 
@@ -277,6 +320,12 @@
   background-size: 0.75rem 0.5rem;
 }
 
+/*
+ * The eyebrow keeps its size, weight, tracking and colour — everything that
+ * made it read as a label — and loses only the second typeface. It points at
+ * `--font-mono` still, which now IS the body face; naming it explicitly would
+ * be a second place to change if this is ever reverted.
+ */
 @utility eyebrow {
   font-family: var(--font-mono);
   font-size: 0.6875rem;

@@ -87,6 +87,8 @@ interface RecallRow {
   first_name: string;
   last_name: string;
   phone: string | null;
+  doctor_profile_id: string;
+  doctor_name: string;
   total: bigint;
 }
 
@@ -159,6 +161,17 @@ export async function listRecall(
         : Prisma.sql`AND r.patient_id = ${query.patientId}::uuid`;
 
     /*
+     * ⚠️ THE JOIN THROUGH `appointments` INTO `doctor_profiles` AND `users` IS
+     *   FOR THE DESK'S BOOKING FORM (CE-5): a recall row has to say whose diary
+     *   to show, and a follow-up is normally with whoever saw them.
+     *   `appointment_id` is NOT NULL on a recommendation — denormalised onto the
+     *   row precisely so this list needs no walk through the encounter — so
+     *   these are INNER joins and cannot drop a row.
+     *
+     *   ⚠️ `users` HAS NO TENANT COLUMN AND NO POLICY. It is safe only because
+     *     it is reached THROUGH `doctor_profiles`, which has both. The
+     *     tenant-isolation suite asserts that reach.
+     *
      * ⚠️ NO `organization_id` OR `branch_id = ANY(...)` PREDICATE HERE, AND
      *   THAT IS NOT AN OVERSIGHT. `withTenant` runs this inside a transaction
      *   with `app.current_org` and `app.branch_scope` set, and RLS applies to
@@ -188,9 +201,15 @@ export async function listRecall(
         p.first_name,
         p.last_name,
         p.phone,
+        a.doctor_profile_id,
+        u.full_name AS doctor_name,
         COUNT(*) OVER () AS total
       FROM encounter_follow_up_recommendations r
       JOIN patients p ON p.id = r.patient_id
+      -- The recommending appointment, and who saw them. See the note above.
+      JOIN appointments a ON a.id = r.appointment_id
+      JOIN doctor_profiles dp ON dp.id = a.doctor_profile_id
+      JOIN users u ON u.id = dp.user_id
       WHERE ${window}
         ${branchFilter}
         ${patientFilter}
@@ -220,6 +239,8 @@ export async function listRecall(
         branchId: row.branch_id,
         patientName: `${row.first_name} ${row.last_name}`,
         patientPhone: row.phone,
+        doctorProfileId: row.doctor_profile_id,
+        doctorName: row.doctor_name,
         isRequired: row.is_required,
         intervalValue: row.interval_value,
         intervalUnit: row.interval_unit as 'DAYS' | 'WEEKS' | 'MONTHS' | null,

@@ -83,6 +83,9 @@ export default async function PatientPage({
       canCreate={permissions.includes(PERMISSIONS.PATIENT_CREATE)}
       canWriteHistory={permissions.includes(PERMISSIONS.PATIENT_MEDICAL_HISTORY_WRITE)}
       canReadAudit={permissions.includes(PERMISSIONS.AUDIT_READ)}
+      /* The consultations, which is a wider read than the medical history —
+         see the link's own note in `patient-chart.tsx`. */
+      canReadVisitHistory={permissions.includes(PERMISSIONS.ENCOUNTER_READ)}
     />
   );
 }

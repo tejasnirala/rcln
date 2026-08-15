@@ -6,8 +6,11 @@ import type {
   EncounterContent,
   EncounterDetail,
   EncounterSaveResponse,
+  PreviousVisitResponse,
+  ReferralTargetResponse,
   SaveEncounterDraftRequest,
   SetFollowUpRecommendationRequest,
+  TaxonomyNodeListResponse,
 } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@/lib/session';
@@ -371,4 +374,83 @@ export async function searchPrescribableProducts(
   );
   if (!result.ok || !result.data) return [];
   return result.data.items.map((item) => ({ id: item.id, name: item.name, code: item.code }));
+}
+
+// ---------------------------------------------------------------------------
+// The read surfaces (CE-5)
+// ---------------------------------------------------------------------------
+
+/**
+ * What happened last time (§37).
+ *
+ * ⚠️ THE RESPONSE SAYS HOW IT WAS FOUND AND THE PANEL MUST NOT FLATTEN THAT.
+ *   `PARENT_APPOINTMENT` is a fact the database enforces; `MOST_RECENT` is a
+ *   convenience. See `PreviousVisitSummary` — the three get three sentences.
+ *
+ * ⚠️ IT WRITES A `data_access_logs` ROW. Another consultation's clinical content
+ *   is read here, and reading it is a disclosure even from the doctor's own
+ *   screen.
+ */
+export async function loadPreviousVisit(
+  slug: string,
+  appointmentId: string
+): Promise<PreviousVisitResponse['previous']> {
+  const result = await api<PreviousVisitResponse>(
+    `/api/v1/appointments/${appointmentId}/previous-visit`,
+    { slug, accessToken: await getAccessToken() }
+  );
+  return result.ok && result.data ? result.data.previous : null;
+}
+
+/**
+ * The specialties behind a referral's destination picker (§37).
+ *
+ * ⚠️ THE TAXONOMY, NOT `clinical_master_items`. "Refer to a cardiologist" names
+ *   a CLASSIFICATION — the same tree a doctor's own specialties hang off — and
+ *   `encounter_referrals.specialty_id` points at it. A second vocabulary of
+ *   specialty-shaped words would be a second answer to what a specialty is.
+ */
+export async function searchReferralSpecialties(
+  slug: string,
+  term: string
+): Promise<{ id: string; name: string }[]> {
+  if (term.trim().length < 2) return [];
+  /* ⚠️ THE PARAMETER IS `q`, WHICH IS WHAT `taxonomySearchQuery` DECLARES. A
+     `search=` here validates as "q is required" and answers 400. */
+  const query = new URLSearchParams({ q: term.trim(), limit: '10' });
+  const result = await api<TaxonomyNodeListResponse>(
+    `/api/v1/clinical-taxonomy/search?${query.toString()}`,
+    { slug, accessToken: await getAccessToken() }
+  );
+  if (!result.ok || !result.data) return [];
+  return result.data.nodes.map((node) => ({ id: node.id, name: node.name }));
+}
+
+/**
+ * The colleagues behind a referral's in-house destination (§37).
+ *
+ * ⚠️ NOT THE DOCTOR ROSTER, AND THE ENDPOINT IS DIFFERENT FOR AN ACCESS REASON
+ *   RATHER THAN A SHAPE ONE. A DOCTOR does not hold `doctor.directory.read` —
+ *   the roster is a personnel list and `roles.ts` says so — so `GET /doctors`
+ *   403s for the very person writing the referral. `GET /doctors/referral-targets`
+ *   sits behind `clinical.encounter.create`, requires a search term, and answers
+ *   a name and a specialty and nothing else. See the route.
+ */
+export async function searchReferralDoctors(
+  slug: string,
+  term: string
+): Promise<{ id: string; name: string }[]> {
+  if (term.trim().length < 2) return [];
+  const query = new URLSearchParams({ search: term.trim(), pageSize: '10' });
+  const result = await api<ReferralTargetResponse>(
+    `/api/v1/doctors/referral-targets?${query.toString()}`,
+    { slug, accessToken: await getAccessToken() }
+  );
+  if (!result.ok || !result.data) return [];
+  return result.data.targets.map((target) => ({
+    id: target.doctorProfileId,
+    /* The specialty disambiguates two colleagues of one name, which is exactly
+       what a picker of people needs and a picker of words does not. */
+    name: target.specialtyName === null ? target.name : `${target.name} — ${target.specialtyName}`,
+  }));
 }

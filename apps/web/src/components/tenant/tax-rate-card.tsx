@@ -84,7 +84,7 @@ export function TaxRateCard({
   return (
     <div className="space-y-10">
       <header>
-        <h1 className="text-title font-display text-ink">Tax</h1>
+        <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">Tax</h1>
         <p className="text-muted mt-2 max-w-prose text-sm">
           The registrations this clinic holds, and what it charges for each kind of item. These
           decide what every patient is billed and what the clinic owes — they are not display

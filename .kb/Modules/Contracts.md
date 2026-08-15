@@ -38,6 +38,7 @@ Zod schemas shared by API and web. The request/response shape is written once an
 - `packages/contracts/src/regulatory.ts`
 - `packages/contracts/src/tax.ts`
 - `packages/contracts/src/tenancy.ts`
+- `packages/contracts/src/visit-history.ts`
 
 ## Known limitations
 
@@ -420,8 +421,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `EncounterAttachment` | type | `packages/contracts/src/encounter-content.ts:554` |
 | `encounterAttachmentKind` | zod | `packages/contracts/src/encounter-content.ts:105` |
 | `EncounterAttachmentKindValue` | type | `packages/contracts/src/encounter-content.ts:113` |
-| `encounterContent` | zod | `packages/contracts/src/encounter-content.ts:717` |
-| `EncounterContent` | type | `packages/contracts/src/encounter-content.ts:729` |
+| `encounterContent` | zod | `packages/contracts/src/encounter-content.ts:747` |
+| `EncounterContent` | type | `packages/contracts/src/encounter-content.ts:759` |
 | `encounterDetail` | zod | `packages/contracts/src/encounters.ts:192` |
 | `EncounterDetail` | type | `packages/contracts/src/encounters.ts:235` |
 | `encounterDiagnosis` | zod | `packages/contracts/src/encounter-content.ts:247` |
@@ -446,6 +447,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `EncounterStatusValue` | type | `packages/contracts/src/encounters.ts:39` |
 | `encounterSymptom` | zod | `packages/contracts/src/encounter-content.ts:205` |
 | `EncounterSymptom` | type | `packages/contracts/src/encounter-content.ts:217` |
+| `encounterVisitSummary` | zod | `packages/contracts/src/visit-history.ts:45` |
+| `EncounterVisitSummary` | type | `packages/contracts/src/visit-history.ts:76` |
 | `equivalentProductsResponse` | zod | `packages/contracts/src/products.ts:836` |
 | `EquivalentProductsResponse` | type | `packages/contracts/src/products.ts:910` |
 | `evaluateRegulatoryRequest` | zod | `packages/contracts/src/regulatory.ts:542` |
@@ -478,14 +481,16 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `FollowUpAppointmentRequest` | type | `packages/contracts/src/appointments.ts:818` |
 | `followUpIntervalUnit` | zod | `packages/contracts/src/clinical.ts:44` |
 | `FollowUpIntervalUnitValue` | type | `packages/contracts/src/clinical.ts:45` |
-| `followUpRecallEntry` | var | `packages/contracts/src/encounter-content.ts:684` |
-| `FollowUpRecallEntry` | type | `packages/contracts/src/encounter-content.ts:691` |
-| `followUpRecallResponse` | zod | `packages/contracts/src/encounter-content.ts:693` |
-| `FollowUpRecallResponse` | type | `packages/contracts/src/encounter-content.ts:699` |
+| `followUpRecallEntry` | var | `packages/contracts/src/encounter-content.ts:699` |
+| `FollowUpRecallEntry` | type | `packages/contracts/src/encounter-content.ts:721` |
+| `followUpRecallResponse` | zod | `packages/contracts/src/encounter-content.ts:723` |
+| `FollowUpRecallResponse` | type | `packages/contracts/src/encounter-content.ts:729` |
+| `followUpRecallStatus` | zod | `packages/contracts/src/encounter-content.ts:671` |
+| `FollowUpRecallStatusValue` | type | `packages/contracts/src/encounter-content.ts:678` |
 | `followUpRecommendation` | zod | `packages/contracts/src/encounter-content.ts:615` |
 | `FollowUpRecommendation` | type | `packages/contracts/src/encounter-content.ts:640` |
-| `followUpRecommendationQuery` | zod | `packages/contracts/src/encounter-content.ts:658` |
-| `FollowUpRecommendationQuery` | type | `packages/contracts/src/encounter-content.ts:674` |
+| `followUpRecommendationQuery` | zod | `packages/contracts/src/encounter-content.ts:680` |
+| `FollowUpRecommendationQuery` | type | `packages/contracts/src/encounter-content.ts:689` |
 | `followUpType` | zod | `packages/contracts/src/clinical.ts:47` |
 | `FollowUpTypeValue` | type | `packages/contracts/src/clinical.ts:54` |
 | `forgotPasswordRequest` | zod | `packages/contracts/src/auth.ts:42` |
@@ -693,6 +698,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `PrescribedProductRef` | type | `packages/contracts/src/encounter-content.ts:353` |
 | `prescriptionRequirement` | zod | `packages/contracts/src/regulatory.ts:123` |
 | `PrescriptionRequirement` | type | `packages/contracts/src/regulatory.ts:667` |
+| `previousVisit` | zod | `packages/contracts/src/visit-history.ts:158` |
+| `PreviousVisit` | type | `packages/contracts/src/visit-history.ts:176` |
+| `previousVisitResponse` | zod | `packages/contracts/src/visit-history.ts:184` |
+| `PreviousVisitResponse` | type | `packages/contracts/src/visit-history.ts:187` |
+| `previousVisitSource` | zod | `packages/contracts/src/visit-history.ts:142` |
+| `PreviousVisitSourceValue` | type | `packages/contracts/src/visit-history.ts:143` |
 | `productCategory` | zod | `packages/contracts/src/products.ts:263` |
 | `ProductCategory` | type | `packages/contracts/src/products.ts:865` |
 | `productCategoryListResponse` | zod | `packages/contracts/src/products.ts:286` |
@@ -791,6 +802,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `RecordMovementResponse` | type | `packages/contracts/src/inventory.ts:881` |
 | `recordVitalsRequest` | var | `packages/contracts/src/appointments.ts:411` |
 | `RecordVitalsRequest` | type | `packages/contracts/src/appointments.ts:819` |
+| `referralTarget` | zod | `packages/contracts/src/visit-history.ts:203` |
+| `ReferralTarget` | type | `packages/contracts/src/visit-history.ts:209` |
+| `referralTargetQuery` | zod | `packages/contracts/src/visit-history.ts:218` |
+| `ReferralTargetQuery` | type | `packages/contracts/src/visit-history.ts:222` |
+| `referralTargetResponse` | zod | `packages/contracts/src/visit-history.ts:224` |
+| `ReferralTargetResponse` | type | `packages/contracts/src/visit-history.ts:227` |
 | `referralUrgency` | zod | `packages/contracts/src/encounter-content.ts:78` |
 | `ReferralUrgencyValue` | type | `packages/contracts/src/encounter-content.ts:79` |
 | `refreshRequest` | zod | `packages/contracts/src/auth.ts:26` |
@@ -1178,8 +1195,14 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `VerificationResult` | type | `packages/contracts/src/auth.ts:330` |
 | `verifyBalancesResponse` | zod | `packages/contracts/src/inventory.ts:782` |
 | `VerifyBalancesResponse` | type | `packages/contracts/src/inventory.ts:891` |
+| `visitHistoryEpisode` | var | `packages/contracts/src/visit-history.ts:105` |
+| `VisitHistoryEpisode` | type | `packages/contracts/src/visit-history.ts:108` |
 | `visitHistoryQuery` | zod | `packages/contracts/src/clinical.ts:283` |
 | `VisitHistoryQuery` | type | `packages/contracts/src/clinical.ts:287` |
+| `visitHistoryResponse` | zod | `packages/contracts/src/visit-history.ts:118` |
+| `VisitHistoryResponse` | type | `packages/contracts/src/visit-history.ts:125` |
+| `visitHistoryVisit` | zod | `packages/contracts/src/visit-history.ts:87` |
+| `VisitHistoryVisit` | type | `packages/contracts/src/visit-history.ts:102` |
 | `VITAL_RANGES` | const | `packages/contracts/src/appointments.ts:342` |
 | `VitalKey` | type | `packages/contracts/src/appointments.ts:354` |
 | `VitalRange` | interface | `packages/contracts/src/appointments.ts:331` |

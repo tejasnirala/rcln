@@ -149,7 +149,18 @@ export function ConsultationEngine({
   canAmend,
 }: {
   slug: string;
-  appointmentId: string;
+  /**
+   * The visit this consultation belongs to.
+   *
+   * ⚠️ NULL FOR A WALK-IN (CD-1) AND ON THE READ-ONLY RECORD SCREEN (CE-5),
+   *   where a consultation is opened by its own id rather than through a
+   *   booking. It is only ever used to revalidate the visit's page after a
+   *   transition, and the three transitions are already behind `canWrite` /
+   *   `canFinalize` / `canAmend` — all false on that screen. The guards below
+   *   are belt and braces: a permission prop is a statement about the caller,
+   *   and this is a statement about the route.
+   */
+  appointmentId: string | null;
   encounter: EncounterDetail;
   /** `clinical.encounter.create` — writing the consultation up. */
   canWrite: boolean;
@@ -304,6 +315,7 @@ export function ConsultationEngine({
   );
 
   const sign = async () => {
+    if (appointmentId === null) return;
     setBusy(true);
     setProblem(null);
     /* Save first: the button is pressed inside the debounce window often
@@ -315,6 +327,7 @@ export function ConsultationEngine({
   };
 
   const amend = async () => {
+    if (appointmentId === null) return;
     setBusy(true);
     setProblem(null);
     const result = await amendConsultation(slug, appointmentId, encounter.id, amendReason);
@@ -324,6 +337,7 @@ export function ConsultationEngine({
   };
 
   const abandon = async () => {
+    if (appointmentId === null) return;
     setBusy(true);
     setProblem(null);
     const result = await cancelConsultation(slug, appointmentId, encounter.id, undefined);

@@ -11,8 +11,12 @@ import { Alert } from '@/components/ui/alert';
 import { VitalsPanel } from '@/components/tenant/vitals-panel';
 import { AppointmentBillingPanel } from '@/components/tenant/appointment-billing-panel';
 import { ConsultationEngine } from '@/components/tenant/consultation-engine';
+import { FollowUpForm } from '@/components/tenant/follow-up-form';
+import { PreviousVisitSummary } from '@/components/tenant/previous-visit-summary';
+import { VisitCancel } from '@/components/tenant/visit-cancel';
+import { todayIn } from '@/lib/calendar-range';
 import { loadAppointmentBilling, loadVitals } from '../actions';
-import { loadConsultation, openConsultation } from '../consultation-actions';
+import { loadConsultation, loadPreviousVisit, openConsultation } from '../consultation-actions';
 
 export const metadata: Metadata = {
   /**
@@ -145,6 +149,23 @@ export default async function ConsultationPage({
    *   would read as "this visit has not been billed", which is a claim rather
    *   than a silence.
    */
+  const canBook = permissions.includes(PERMISSIONS.APPOINTMENT_CREATE);
+
+  /*
+   * ⚠️ OFFERED RIGHT UP TO "SEEN", INCLUDING WHILE THE PATIENT IS WITH THE
+   *   DOCTOR. `TRANSITIONS` allows `IN_PROGRESS -> CANCELLED`, and that is the
+   *   case this control exists for: opening the consultation is what sets
+   *   IN_PROGRESS, so the person who needs to call the visit off is on THIS page
+   *   and the day board's button was two navigations away.
+   *
+   *   The three terminal states have no outgoing edge — a completed, cancelled
+   *   or missed booking is not cancellable, and the API refuses it. This mirrors
+   *   the board's own `finished` check rather than inventing a second rule.
+   */
+  const visitFinished =
+    visit.status === 'COMPLETED' || visit.status === 'CANCELLED' || visit.status === 'NO_SHOW';
+  const canCancelVisit = permissions.includes(PERMISSIONS.APPOINTMENT_CANCEL) && !visitFinished;
+
   const canReadBilling = permissions.includes(PERMISSIONS.INVOICE_READ);
   const billing = canReadBilling ? await loadAppointmentBilling(slug, appointmentId) : null;
 
@@ -161,6 +182,20 @@ export default async function ConsultationPage({
     : canReadEncounter
       ? ({ ok: true, encounter: await loadConsultation(slug, appointmentId) } as const)
       : null;
+
+  /*
+   * What happened last time (CE-5, §37).
+   *
+   * ⚠️ ONLY FOR A CALLER WHO MAY READ A CONSULTATION, and for the reason the
+   *   vitals call above gives: fetching it regardless and rendering nothing on a
+   *   403 would read as "this patient has never been seen before", which is a
+   *   claim rather than a silence.
+   *
+   * ⚠️ IT WRITES A `data_access_logs` ROW OF ITS OWN. This page now discloses two
+   *   consultations — the one being written and the one before it — and the trail
+   *   says so.
+   */
+  const previous = canReadEncounter ? await loadPreviousVisit(slug, appointmentId) : null;
 
   const consultation = opened === null ? null : opened.ok ? opened.encounter : null;
   /* The API's sentence — usually "no published template applies", which names a
@@ -252,6 +287,10 @@ export default async function ConsultationPage({
         </section>
       ) : null}
 
+      {previous === null ? null : (
+        <PreviousVisitSummary previous={previous} timeFormat={timeFormat} />
+      )}
+
       {visit.reason !== null ? (
         <section className="border-rule bg-card mt-4 rounded-lg border p-5">
           <h2 className="eyebrow text-drape">Reason given</h2>
@@ -328,6 +367,40 @@ export default async function ConsultationPage({
             canAmend={permissions.includes(PERMISSIONS.ENCOUNTER_AMEND)}
           />
         )
+      ) : null}
+
+      {/*
+        Book the next visit in the same chain (CE-5).
+
+        ⚠️ `appointment.create`, WHICH THE DOCTOR AND THE FRONT DESK BOTH HOLD.
+          Booking is not authorship — the doctor books the review at the end of
+          the consultation and the desk books it off the recall list weeks later,
+          and both go through this same endpoint against this appointment.
+
+        ⚠️ IT DOES NOT SEND `fulfilsRecommendationId` HERE, DELIBERATELY. This
+          booking is made at the visit that is being written up, so the
+          recommendation it would tick off is the one being recorded right now —
+          which does not exist yet, and which the doctor may still change. The
+          recall list is where a recommendation is fulfilled, because that is
+          where one exists to fulfil.
+      */}
+      {canCancelVisit ? <VisitCancel slug={slug} appointmentId={appointmentId} /> : null}
+
+      {canBook ? (
+        <section className="border-rule bg-card mt-4 rounded-lg border p-5">
+          <h2 className="eyebrow text-drape">Book a follow-up</h2>
+          <FollowUpForm
+            slug={slug}
+            sourceAppointmentId={appointmentId}
+            branchId={visit.branchId}
+            doctorProfileId={visit.doctorProfileId}
+            doctorName={visit.doctorName}
+            timezone={visit.timezone}
+            timeFormat={timeFormat}
+            /* ⚠️ TODAY IN THE BOOKING'S OWN ZONE, not the container's UTC. */
+            today={todayIn(visit.timezone)}
+          />
+        </section>
       ) : null}
     </div>
   );
