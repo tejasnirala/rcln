@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 95 |
+| relations | 103 |
 
 ## Columns
 
@@ -132,6 +132,14 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `consultationTemplateVersions` | [`ConsultationTemplateVersion`](ConsultationTemplateVersion.md) | `consultationTemplateVersions ConsultationTemplateVersion[]` |
 | `encounters` | [`Encounter`](Encounter.md) | `encounters Encounter[]` |
 | `encounterSections` | [`EncounterSection`](EncounterSection.md) | `encounterSections EncounterSection[]` |
+| `encounterSymptoms` | [`EncounterSymptom`](EncounterSymptom.md) | `encounterSymptoms EncounterSymptom[]` |
+| `encounterDiagnoses` | [`EncounterDiagnosis`](EncounterDiagnosis.md) | `encounterDiagnoses EncounterDiagnosis[]` |
+| `encounterProcedures` | [`EncounterProcedure`](EncounterProcedure.md) | `encounterProcedures EncounterProcedure[]` |
+| `encounterPrescriptions` | [`EncounterPrescription`](EncounterPrescription.md) | `encounterPrescriptions EncounterPrescription[]` |
+| `encounterInvestigations` | [`EncounterInvestigation`](EncounterInvestigation.md) | `encounterInvestigations EncounterInvestigation[]` |
+| `encounterAdvice` | [`EncounterAdvice`](EncounterAdvice.md) | `encounterAdvice EncounterAdvice[]` |
+| `encounterReferrals` | [`EncounterReferral`](EncounterReferral.md) | `encounterReferrals EncounterReferral[]` |
+| `encounterAttachments` | [`EncounterAttachment`](EncounterAttachment.md) | `encounterAttachments EncounterAttachment[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -238,4 +246,12 @@ erDiagram
     Organization }o--o{ ConsultationTemplateVersion : relates
     Organization }o--o{ Encounter : relates
     Organization }o--o{ EncounterSection : relates
+    Organization }o--o{ EncounterSymptom : relates
+    Organization }o--o{ EncounterDiagnosis : relates
+    Organization }o--o{ EncounterProcedure : relates
+    Organization }o--o{ EncounterPrescription : relates
+    Organization }o--o{ EncounterInvestigation : relates
+    Organization }o--o{ EncounterAdvice : relates
+    Organization }o--o{ EncounterReferral : relates
+    Organization }o--o{ EncounterAttachment : relates
 ```

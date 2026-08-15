@@ -262,7 +262,7 @@ model IssuerTaxRegistrationBranch {
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// Composite FKs, per ADR-0004: the tenant travels in the key, so a link can
   /// never join this org's branch to another org's registration.
   registration IssuerTaxRegistration @relation(fields: [organizationId, taxRegistrationId], references: [organizationId, id], onDelete: Cascade)

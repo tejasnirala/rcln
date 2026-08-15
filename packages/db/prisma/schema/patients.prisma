@@ -121,24 +121,24 @@ enum PatientConditionStatus {
 /// never changes — including across a merge, where the losing record keeps its
 /// own so an old file card still resolves.
 model Patient {
-  id             String        @id @default(uuid()) @db.Uuid
-  organizationId String        @map("organization_id") @db.Uuid
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
   /// The org-wide hospital number. Issued, never typed.
-  uhid           String        @db.VarChar(32)
+  uhid           String          @db.VarChar(32)
   /// Set only when the patient signs up for the portal. Most never will, which
   /// is why `patients` is not a kind of `users`: the record must exist for an
   /// unconscious admission with no email address.
-  userId         String?       @map("user_id") @db.Uuid
-  firstName      String        @map("first_name") @db.VarChar(100)
-  lastName       String?       @map("last_name") @db.VarChar(100)
+  userId         String?         @map("user_id") @db.Uuid
+  firstName      String          @map("first_name") @db.VarChar(100)
+  lastName       String?         @map("last_name") @db.VarChar(100)
   /// ⚠️ NULLABLE, AND `approx_age_years` EXISTS FOR THE REASON.
   ///   A walk-in who knows they are "about 60" is the common case in an Indian
   ///   OPD. Storing a fabricated 1st-January birthday to satisfy a NOT NULL is
   ///   how a paediatric dose gets calculated from a lie.
-  dateOfBirth    DateTime?     @map("date_of_birth") @db.Date
+  dateOfBirth    DateTime?       @map("date_of_birth") @db.Date
   /// Age in whole years as stated, when no birth date is known. Never derived
   /// from `dateOfBirth` — one of the two is authoritative and the other is null.
-  approxAgeYears Int?          @map("approx_age_years") @db.SmallInt
+  approxAgeYears Int?            @map("approx_age_years") @db.SmallInt
   /// Whether this record is a person or an animal (CE-1, CD-4).
   ///
   /// ⚠️ THE ONLY CODE THAT BRANCHES ON IT IS CARE-CONTEXT RESOLUTION in the
@@ -151,12 +151,12 @@ model Patient {
   /// Defaults to HUMAN, so every row written before this column existed is
   /// correct without a backfill.
   subjectType    CareSubjectType @default(HUMAN) @map("subject_type")
-  gender         Gender        @default(UNKNOWN)
-  bloodGroup     BloodGroup    @default(UNKNOWN) @map("blood_group")
-  phone          String?       @db.VarChar(20)
-  email          String?       @db.VarChar(255)
+  gender         Gender          @default(UNKNOWN)
+  bloodGroup     BloodGroup      @default(UNKNOWN) @map("blood_group")
+  phone          String?         @db.VarChar(20)
+  email          String?         @db.VarChar(255)
   /// India's health account number. 14 digits, or the `user@abdm` address form.
-  abhaNumber     String?       @map("abha_number") @db.VarChar(32)
+  abhaNumber     String?         @map("abha_number") @db.VarChar(32)
   /// Aadhaar, passport, or whatever the clinic photocopied. Deliberately not
   /// validated per-country here — see the contract.
   ///
@@ -164,7 +164,7 @@ model Patient {
   ///   and `2345-6789-0123` are one Aadhaar, and a duplicate check that treats
   ///   them as two is a duplicate check that does nothing. The grouping is put
   ///   back for display by `formatNationalId`.
-  nationalId     String?       @map("national_id") @db.VarChar(64)
+  nationalId     String?         @map("national_id") @db.VarChar(64)
   /// WHICH document `national_id` is: `AADHAAR`, `PAN`, `NHS_NUMBER`, `PASSPORT`.
   ///
   /// ⚠️ A VARCHAR, NOT A PRISMA ENUM, AND FOR THE SAME REASON `country_code` is
@@ -176,19 +176,19 @@ model Patient {
   ///
   /// Null where the desk did not say — including on every row written before
   /// this column existed, which is why it is nullable and not defaulted.
-  nationalIdType String?       @map("national_id_type") @db.VarChar(32)
-  maritalStatus  MaritalStatus @default(UNKNOWN) @map("marital_status")
-  status         PatientStatus @default(ACTIVE)
+  nationalIdType String?         @map("national_id_type") @db.VarChar(32)
+  maritalStatus  MaritalStatus   @default(UNKNOWN) @map("marital_status")
+  status         PatientStatus   @default(ACTIVE)
   /// Set with `status = DECEASED`. A date, because the time of death is a
   /// clinical record this table is not the place for.
-  deceasedOn     DateTime?     @map("deceased_on") @db.Date
+  deceasedOn     DateTime?       @map("deceased_on") @db.Date
   /// The surviving record, when `status = MERGED`. Composite-FK'd to this same
   /// table so a merge can never point across tenants.
-  mergedIntoId   String?       @map("merged_into_id") @db.Uuid
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  mergedIntoId   String?         @map("merged_into_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
   /// Erasure, not death and not a merge. See `PatientStatus`.
-  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  deletedAt      DateTime?       @map("deleted_at") @db.Timestamptz(6)
 
   organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user          User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)

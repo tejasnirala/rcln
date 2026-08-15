@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/clinical.prisma:158`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 13 |
-| relations | 5 |
+| relations | 10 |
 
 ## Columns
 
@@ -39,6 +39,11 @@ Declared at `packages/db/prisma/schema/clinical.prisma:158`.
 | `children` | [`ClinicalMasterItem`](ClinicalMasterItem.md) | `children ClinicalMasterItem[] @relation("ClinicalMasterParent")` |
 | `codings` | [`ClinicalMasterCoding`](ClinicalMasterCoding.md) | `codings ClinicalMasterCoding[]` |
 | `scopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `scopes ClinicalMasterScope[]` |
+| `symptomUses` | [`EncounterSymptom`](EncounterSymptom.md) | `symptomUses EncounterSymptom[] @relation("SymptomItem")` |
+| `diagnosisUses` | [`EncounterDiagnosis`](EncounterDiagnosis.md) | `diagnosisUses EncounterDiagnosis[] @relation("DiagnosisItem")` |
+| `procedureUses` | [`EncounterProcedure`](EncounterProcedure.md) | `procedureUses EncounterProcedure[] @relation("ProcedureItem")` |
+| `investigationUses` | [`EncounterInvestigation`](EncounterInvestigation.md) | `investigationUses EncounterInvestigation[] @relation("InvestigationItem")` |
+| `adviceUses` | [`EncounterAdvice`](EncounterAdvice.md) | `adviceUses EncounterAdvice[] @relation("AdviceItem")` |
 
 ## Indexes and constraints
 
@@ -55,4 +60,9 @@ erDiagram
     ClinicalMasterItem }o--o{ ClinicalMasterItem : relates
     ClinicalMasterItem }o--o{ ClinicalMasterCoding : relates
     ClinicalMasterItem }o--o{ ClinicalMasterScope : relates
+    ClinicalMasterItem }o--o{ EncounterSymptom : relates
+    ClinicalMasterItem }o--o{ EncounterDiagnosis : relates
+    ClinicalMasterItem }o--o{ EncounterProcedure : relates
+    ClinicalMasterItem }o--o{ EncounterInvestigation : relates
+    ClinicalMasterItem }o--o{ EncounterAdvice : relates
 ```

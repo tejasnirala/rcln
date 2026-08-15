@@ -189,7 +189,7 @@ model Appointment {
   // -- Clinical consultation engine (CE-1) ------------------------------------
   /// Restrict, not Cascade: deleting a booking must never silently take the
   /// journey it belongs to, which outlives any one visit in it.
-  clinicalEpisode ClinicalEpisode @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)
+  clinicalEpisode          ClinicalEpisode                   @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)
   /// Follow-ups the doctor recommended AT this visit — advice, not bookings.
   recommendationsMade      EncounterFollowUpRecommendation[] @relation("RecommendationSource")
   /// The recommendation, if any, that THIS booking satisfied.

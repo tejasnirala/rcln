@@ -173,15 +173,18 @@ model Specialty {
   // -- Clinical consultation engine (CE-1) ------------------------------------
   /// Which clinical words are relevant here. ⚠️ RANKS, NEVER FILTERS — see
   /// `ClinicalMasterScope`.
-  clinicalScopes   ClinicalMasterScope[]
-  productScopes    ProductClinicalScope[]
-  clinicalEpisodes ClinicalEpisode[]
+  clinicalScopes       ClinicalMasterScope[]
+  productScopes        ProductClinicalScope[]
+  clinicalEpisodes     ClinicalEpisode[]
   /// Consultation templates (CE-2). Two relations because a template names the
   /// CARE CONTEXT it belongs to and, optionally, the node it is attached to —
   /// and the second is NULL for the care-context default, which is the one
   /// template that must always resolve.
   templateCareContexts ConsultationTemplate[] @relation("TemplateCareContext")
   templateSpecialties  ConsultationTemplate[] @relation("TemplateSpecialty")
+  /// "Send them to a cardiologist" (CE-4). A plain FK, so `encounter_referrals`
+  /// needs `specialty_visible` — see that model.
+  referrals            EncounterReferral[]    @relation("ReferralSpecialty")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -259,6 +262,10 @@ model DoctorProfile {
   /// What this doctor wrote (CE-3). Restrict on the FK: an unsigned clinical
   /// record is not a thing, so a profile with encounters cannot be deleted.
   encounters     Encounter[]
+  /// Consultations that referred a patient TO this doctor (CE-4). Restrict on
+  /// the FK for the same reason: a colleague who left is still who the patient
+  /// was sent to.
+  referralsTo    EncounterReferral[]       @relation("ReferralDoctor")
 
   @@unique([organizationId, userId])
   /// Composite-FK target: schedules, appointments and queue tokens reference

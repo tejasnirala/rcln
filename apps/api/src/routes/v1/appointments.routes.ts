@@ -422,6 +422,13 @@ router.delete(
  * `appointment.create` — it is a booking, and it consumes a slot like any other.
  * The patient and the branch come off the parent rather than the body, so this
  * cannot be used to book for somebody else while looking like a continuation.
+ *
+ * ⚠️ IT MAY ALSO FULFIL A RECOMMENDATION (CD-13, CE-4), AND IT IS STILL
+ *   `appointment.create` AND NOT A CLINICAL CODE. Ticking "this is the recall
+ *   the doctor asked for" is a fact about a BOOKING, recorded by whoever takes
+ *   it — the front desk, on the telephone, weeks after the visit. The desk
+ *   holds no clinical code at all, and requiring one here would mean the
+ *   recall list could be worked only by clinicians.
  */
 router.post(
   '/:appointmentId/follow-up',

@@ -25,13 +25,18 @@
 import { z } from 'zod';
 import { uuid } from './common.js';
 import { consultationSectionConfig, consultationSectionType } from './consultation.js';
+/*
+ * ⚠️ THE DEPENDENCY RUNS ONE WAY, AND IT HAS TO. `encounter-content.ts` imports
+ *   nothing from this file — which is why `clinicalDurationUnit` is declared
+ *   there and used here rather than the other way round. A cycle between two
+ *   Zod modules is not a lint complaint: the schemas are built at module
+ *   evaluation, so whichever side loads second reads `undefined` and every
+ *   request against it fails at runtime with nothing on screen to explain it.
+ */
+import { clinicalDurationUnit, encounterContent } from './encounter-content.js';
 
 export const encounterStatus = z.enum(['DRAFT', 'FINALIZED', 'AMENDED', 'CANCELLED']);
 export type EncounterStatusValue = z.infer<typeof encounterStatus>;
-
-/** Mirrors `ClinicalDurationUnit`. Both ends of the range — see the enum. */
-export const clinicalDurationUnit = z.enum(['HOURS', 'DAYS', 'WEEKS', 'MONTHS', 'YEARS']);
-export type ClinicalDurationUnitValue = z.infer<typeof clinicalDurationUnit>;
 
 export const clinicalOnset = z.enum(['SUDDEN', 'GRADUAL', 'UNKNOWN']);
 export type ClinicalOnsetValue = z.infer<typeof clinicalOnset>;
@@ -215,6 +220,17 @@ export const encounterDetail = z.object({
   /** The form, from the snapshot. Same shape the resolver returns at CE-2. */
   configuration: z.array(consultationSectionConfig),
   answers: z.array(encounterSection),
+  /**
+   * The first-class clinical content — diagnoses, prescriptions, orders,
+   * advice, referrals, attachments and the follow-up plan (CE-4).
+   *
+   * ⚠️ IT SITS BESIDE `answers` RATHER THAN INSIDE IT, and the split is the
+   *   architecture. `answers` is a DOCUMENT: the descriptor-driven sections'
+   *   free-form answers, keyed by section. `content` is ROWS, each with a real
+   *   foreign key that the database checks and that PI-7 and PI-9 read. A
+   *   `productId` inside `answers` would be ADR-0006 exactly.
+   */
+  content: encounterContent,
 });
 export type EncounterDetail = z.infer<typeof encounterDetail>;
 

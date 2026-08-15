@@ -31,7 +31,12 @@
  *   written once and never rewritten.
  */
 import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcln/db';
-import { validateEncounter, type SectionAnswers } from '@rcln/clinical';
+import {
+  requiredContentSections,
+  validateEncounter,
+  type SectionAnswers,
+  type TemplateDefinition,
+} from '@rcln/clinical';
 import type {
   AmendEncounterRequest,
   CancelEncounterRequest,
@@ -46,6 +51,7 @@ import { recordDataAccess } from '../audit/data-access.service.js';
 import { issueNumber } from '../numbering/number-sequence.service.js';
 import { parseStoredDefinition } from './definition.js';
 import { resolveConfiguration, sectionConfigs } from './consultation-config.service.js';
+import { copyContentToAmendment, encounterContentOf } from './encounter-content.service.js';
 
 const ENCOUNTER_PREFIX = 'ENC';
 
@@ -159,8 +165,16 @@ function answersOf(row: DetailRow): SectionAnswers[] {
 async function toDetail(tx: TxClient, row: DetailRow): Promise<EncounterDetail> {
   const definition = parseStoredDefinition(row.templateSnapshot, `Encounter ${row.id}`);
   const configuration = await sectionConfigs(tx, definition);
+  /*
+   * ⚠️ THE FIRST-CLASS CONTENT IS LOADED HERE AND ASSEMBLED NOWHERE ELSE
+   *   (CE-4). One reader and one shape: a second assembly in the content
+   *   service would be the same nine queries written twice, and the two would
+   *   start to disagree about ordering the first time either was touched.
+   */
+  const content = await encounterContentOf(tx, row.id);
 
   return {
+    content,
     id: row.id,
     status: row.status,
     encounterNumber: row.encounterNumber,
@@ -636,6 +650,81 @@ export async function saveEncounterDraft(
 // ---------------------------------------------------------------------------
 
 /**
+ * The required first-class sections that have nothing in them (CE-4).
+ *
+ * ⚠️ THE HALF `@rcln/clinical` CANNOT ANSWER. The engine says WHICH sections a
+ *   clinic marked required; the counting is here because the answers are rows
+ *   in eight tables and that package holds no Prisma client and never will
+ *   (CD-10). The rule itself is stated in exactly one place — the template.
+ *
+ * ⚠️ AN UNRECOGNISED FIRST-CLASS SECTION IS SKIPPED RATHER THAN REFUSED, and
+ *   this is the one permissive branch in the finalization path. VISUAL_MAPPING
+ *   is required-able today and has no table until CE-6; refusing would make
+ *   every consultation under a template that marked it required unsignable, for
+ *   a feature that does not exist yet. The section still renders a line saying
+ *   so, which is the honest thing for a clinician to see.
+ */
+async function missingRequiredContent(
+  tx: TxClient,
+  row: { id: string; chiefComplaint: string | null; clinicalNotes: string | null },
+  definition: TemplateDefinition
+): Promise<string[]> {
+  const problems: string[] = [];
+
+  for (const section of requiredContentSections(definition)) {
+    switch (section.type) {
+      /* Columns on `encounters`, not lists — see the engine's note. */
+      case 'CHIEF_COMPLAINT':
+        if (row.chiefComplaint === null || row.chiefComplaint.trim() === '') {
+          problems.push(`"${section.label}" is required`);
+        }
+        break;
+      case 'CLINICAL_NOTES':
+        if (row.clinicalNotes === null || row.clinicalNotes.trim() === '') {
+          problems.push(`"${section.label}" is required`);
+        }
+        break;
+      default: {
+        const count = await countFor(tx, section.type, row.id);
+        if (count === 0) problems.push(`"${section.label}" has nothing recorded`);
+      }
+    }
+  }
+
+  return problems;
+}
+
+/** How many rows one first-class section has. `null` = no table yet (CE-6). */
+async function countFor(tx: TxClient, type: string, encounterId: string): Promise<number> {
+  const where = { encounterId };
+  switch (type) {
+    case 'SYMPTOMS':
+      return tx.encounterSymptom.count({ where });
+    case 'DIAGNOSIS':
+      return tx.encounterDiagnosis.count({ where });
+    case 'PROCEDURE':
+      return tx.encounterProcedure.count({ where });
+    case 'PRESCRIPTION':
+      return tx.encounterPrescription.count({ where });
+    case 'INVESTIGATION':
+      return tx.encounterInvestigation.count({ where });
+    case 'ADVICE':
+      return tx.encounterAdvice.count({ where });
+    case 'REFERRAL':
+      return tx.encounterReferral.count({ where });
+    case 'ATTACHMENTS':
+      return tx.encounterAttachment.count({ where });
+    case 'FOLLOW_UP':
+      return tx.encounterFollowUpRecommendation.count({
+        where: { encounterId, deletedAt: null },
+      });
+    /* VISUAL_MAPPING — `clinical_findings` lands in CE-6. See the note above. */
+    default:
+      return 1;
+  }
+}
+
+/**
  * Sign the record.
  *
  * The transaction that validates every descriptor-driven section against the
@@ -662,8 +751,17 @@ export async function finalizeEncounter(
 
     const definition = parseStoredDefinition(row.templateSnapshot, `Encounter ${row.id}`);
     const validated = validateEncounter(definition, answersOf(row));
-    if (!validated.ok) {
-      throw new ValidationError(`This consultation is not complete: ${validated.problem}`);
+    const contentProblems = await missingRequiredContent(tx, row, definition);
+    if (!validated.ok || contentProblems.length > 0) {
+      /*
+       * ⚠️ BOTH HALVES IN ONE SENTENCE, AND ALL OF EACH. A doctor sent back
+       *   three times for three missing things learns to distrust the button —
+       *   which is why `encounterProblems` returns every descriptor problem
+       *   rather than the first, and why the content problems are appended
+       *   rather than checked in a second, earlier throw.
+       */
+      const problems = [...(validated.ok ? [] : [validated.problem]), ...contentProblems];
+      throw new ValidationError(`This consultation is not complete: ${problems.join('; ')}`);
     }
 
     const number = await issueNumber(tx, ctx, {
@@ -779,6 +877,16 @@ export async function amendEncounter(
       select: DETAIL_SELECT,
     });
 
+    /*
+     * ⚠️ THE CLINICAL CONTENT IS COPIED, NOT MOVED (CE-4). The record being
+     *   corrected keeps every diagnosis, prescription and order it was signed
+     *   with — that is the whole difference between an amendment and an edit.
+     *   The copy also REMAPS `procedures.diagnosis_id`, without which every
+     *   procedure on the amendment would cite a diagnosis on the original: a
+     *   reference the composite FK happily permits and the chart cannot render.
+     */
+    await copyContentToAmendment(tx, ctx, row, { id: created.id, branchId: row.branchId });
+
     await recordAudit(tx, ctx, {
       action: 'UPDATE',
       entityType: 'encounter',
@@ -797,7 +905,8 @@ export async function amendEncounter(
       ...options,
     });
 
-    return toDetail(tx, created);
+    /* Re-read: the copy above landed after `created` was selected. */
+    return toDetail(tx, await loadForWrite(tx, created.id));
   });
 }
 

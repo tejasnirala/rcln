@@ -29,7 +29,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:1015`.
 | `destinationBatchId` | `String?` | `destinationBatchId String? @map("destination_batch_id") @db.Uuid` |
 | `lotNumber` | `String?` | `lotNumber String? @map("lot_number") @db.VarChar(128)` |
 | `manufacturedOn` | `DateTime?` | `manufacturedOn DateTime? @map("manufactured_on") @db.Date` |
-| `expiresOn` | `DateTime?` | `expiresOn DateTime? @db.Date @map("expires_on")` |
+| `expiresOn` | `DateTime?` | `expiresOn DateTime? @map("expires_on") @db.Date` |
 | `manufacturerId` | `String?` | `manufacturerId String? @map("manufacturer_id") @db.Uuid` |
 | `unitCostBase` | `BigInt?` | `unitCostBase BigInt? @map("unit_cost_base") @db.BigInt` |
 | `currency` | `String?` | `currency String? @db.Char(3)` |

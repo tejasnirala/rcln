@@ -1302,6 +1302,8 @@ export async function createFollowUp(
     durationMinutes?: number | undefined;
     doctorProfileId?: string | undefined;
     reason?: string | undefined;
+    /** The recommendation this booking satisfies (CD-13, CE-4). */
+    fulfilsRecommendationId?: string | undefined;
   },
   options: AppointmentActionOptions = {}
 ): Promise<AppointmentDetail> {
@@ -1391,6 +1393,21 @@ export async function createFollowUp(
 
       await recordTransition(tx, ctx, created.id, null, 'BOOKED');
 
+      /*
+       * ⚠️ FULFILMENT IS THE LAST THING AND IS OPTIONAL IN BOTH DIRECTIONS
+       *   (CD-13). A patient may book a follow-up nobody recommended, and a
+       *   recommendation may never be booked at all — the second is the entire
+       *   recall list. Neither is an error.
+       *
+       * ⚠️ AND IT IS THE ONE WRITE TO A RECOMMENDATION THAT REACHES A FINALIZED
+       *   CONSULTATION, deliberately. Booking happens days later, at the desk;
+       *   it is a fact about the recommendation's FATE and not an edit to the
+       *   clinical record. Nothing the doctor wrote changes.
+       */
+      if (input.fulfilsRecommendationId !== undefined) {
+        await fulfilRecommendation(tx, input.fulfilsRecommendationId, created.id, parent.patientId);
+      }
+
       await recordAudit(tx, ctx, {
         action: 'CREATE',
         entityType: 'appointment',
@@ -1409,6 +1426,59 @@ export async function createFollowUp(
     if (isOverlapViolation(err)) throw slotTakenError();
     throw err;
   }
+}
+
+/**
+ * Mark a recommendation as satisfied by this booking (CD-13).
+ *
+ * ⚠️ THE PATIENT CHECK IS NOT PARANOIA. Both ids arrive from one form, and a
+ *   recall list that does not re-filter when the patient changes would record
+ *   one person's booking as the answer to another person's recall — and then
+ *   both are wrong: one patient is chased who has come, and one is not chased
+ *   who has not.
+ *
+ * ⚠️ ONE-TO-ONE, BY PARTIAL UNIQUE INDEX. `fulfilled_by_appointment_id` is
+ *   unique where it is not null, so one appointment cannot satisfy two
+ *   recommendations — the index is the guarantee and this read is only what
+ *   turns its violation into a sentence.
+ *
+ * ⚠️ AND IT REFUSES RATHER THAN IGNORING. A desk that ticked "this fulfils the
+ *   recall" and got a silent no-op would leave the patient on the list and
+ *   nobody looking for the reason.
+ */
+async function fulfilRecommendation(
+  tx: TxClient,
+  recommendationId: string,
+  appointmentId: string,
+  patientId: string
+): Promise<void> {
+  const recommendation = await tx.encounterFollowUpRecommendation.findFirst({
+    where: { id: recommendationId, deletedAt: null },
+    select: {
+      id: true,
+      patientId: true,
+      cancelledAt: true,
+      fulfilledByAppointmentId: true,
+    },
+  });
+  if (!recommendation) throw new NotFoundError('Follow-up recommendation');
+  if (recommendation.patientId !== patientId) {
+    throw new NotFoundError('Follow-up recommendation');
+  }
+  if (recommendation.cancelledAt !== null) {
+    throw new ConflictError('That follow-up recommendation was cancelled.');
+  }
+  /* Idempotent when it is the SAME booking; a different one is a real clash. */
+  if (recommendation.fulfilledByAppointmentId !== null) {
+    if (recommendation.fulfilledByAppointmentId === appointmentId) return;
+    throw new ConflictError('That follow-up has already been booked.');
+  }
+
+  await tx.encounterFollowUpRecommendation.update({
+    where: { id: recommendation.id },
+    data: { fulfilledByAppointmentId: appointmentId, fulfilledAt: new Date() },
+    select: { id: true },
+  });
 }
 
 /**

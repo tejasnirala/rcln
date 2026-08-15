@@ -31,11 +31,12 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `readOptions` <sub>local</sub> | `(raw: unknown, where: string): Parsed<readonly FieldOption[]>` | `packages/clinical/src/descriptors.ts:182` |  |
 | `readRequiredBoolean` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string): Parsed<boolean>` | `packages/clinical/src/descriptors.ts:147` | ⚠️ MANDATORY, AND THE ERROR SAYS SO. See the file header — this single decision is why the package exists. |
 | `readRequiredString` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string, max: number): Parsed<string>` | `packages/clinical/src/descriptors.ts:118` |  |
+| `requiredContentSections` | `(definition: TemplateDefinition): readonly TemplateSection[]` | `packages/clinical/src/validate.ts:251` |  |
 | `resolveTemplate` | `(request: ResolutionRequest): Parsed<TemplateResolution>` | `packages/clinical/src/resolve.ts:105` |  |
 | `scopeCodesOf` | `(definition: TemplateDefinition): readonly string[]` | `packages/clinical/src/definition.ts:302` |  |
 | `sectionTypesInDefaultOrder` | `(): readonly ConsultationSectionType[]` | `packages/clinical/src/registry.ts:206` | Every section type, in the order the default consultation renders them. |
 | `shapeProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:64` |  |
-| `validateEncounter` | `(definition: TemplateDefinition, answers: readonly SectionAnswers[]): Parsed<true>` | `packages/clinical/src/validate.ts:238` |  |
+| `validateEncounter` | `(definition: TemplateDefinition, answers: readonly SectionAnswers[]): Parsed<true>` | `packages/clinical/src/validate.ts:267` |  |
 | `validateSection` <sub>local</sub> | `(section: TemplateSection, answers: Readonly<Record<string, unknown>> \| undefined): ValidationProblem[]` | `packages/clinical/src/validate.ts:115` |  |
 | `visibleSections` | `(sections: readonly TemplateSection[]): readonly TemplateSection[]` | `packages/clinical/src/registry.ts:224` |  |
 

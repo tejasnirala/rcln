@@ -192,14 +192,14 @@ enum PurchaseReturnStatus {
 ///   because they all order from the same list. What one SITE paid is on that
 ///   site's purchase orders and receipts, which are branch-scoped.
 model Supplier {
-  id             String         @id @default(uuid()) @db.Uuid
-  organizationId String         @map("organization_id") @db.Uuid
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
 
   /// The clinic's own code for them. Uppercase, matched exactly, and
   /// tenant-qualified — never a bare `@@unique([code])`.
-  code   String @db.VarChar(64)
+  code      String  @db.VarChar(64)
   /// The name over the door, and what every screen shows.
-  name   String @db.VarChar(255)
+  name      String  @db.VarChar(255)
   /// The name on the contract, when it differs. A purchase order and a tax
   /// return want this one; a picker wants `name`.
   legalName String? @map("legal_name") @db.VarChar(255)
@@ -248,12 +248,12 @@ model Supplier {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  taxIdentifiers SupplierTaxIdentifier[]
-  products       SupplierProduct[]
+  taxIdentifiers   SupplierTaxIdentifier[]
+  products         SupplierProduct[]
   requisitionLines PurchaseRequisitionLine[]
-  purchaseOrders PurchaseOrder[]
-  goodsReceipts  GoodsReceipt[]
-  returns        PurchaseReturn[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  returns          PurchaseReturn[]
 
   @@unique([organizationId, code])
   /// The composite-FK target every child references.
@@ -284,15 +284,15 @@ model SupplierTaxIdentifier {
   supplierId     String @map("supplier_id") @db.Uuid
 
   /// ISO 3166-1 alpha-2.
-  countryCode String  @map("country_code") @db.Char(2)
+  countryCode        String    @map("country_code") @db.Char(2)
   /// ISO 3166-2 subdivision without the country prefix. NULL = country-wide.
-  regionCode  String? @map("region_code") @db.VarChar(10)
-  scheme      TaxScheme
+  regionCode         String?   @map("region_code") @db.VarChar(10)
+  scheme             TaxScheme
   /// Their number, exactly as printed. Case preserved, compared exactly — it is
   /// an identifier, and `29ABCDE1234F1Z5` is not `29abcde1234f1z5` to a registry.
-  registrationNumber String @map("registration_number") @db.VarChar(64)
+  registrationNumber String    @map("registration_number") @db.VarChar(64)
   /// The name the registration is held in, which is not always the trading name.
-  legalName String? @map("legal_name") @db.VarChar(255)
+  legalName          String?   @map("legal_name") @db.VarChar(255)
 
   /// When it took effect, and when it lapsed. Kept rather than deleted so a
   /// three-year-old purchase order stays explicable.
@@ -346,14 +346,14 @@ model SupplierProduct {
 
   /// Their catalogue number. What goes on the purchase order and what their
   /// invoice will quote back.
-  supplierSku String  @map("supplier_sku") @db.VarChar(128)
+  supplierSku         String  @map("supplier_sku") @db.VarChar(128)
   /// What THEY call it, when that differs from what the clinic calls it. Kept for
   /// matching an invoice line by eye, which is how it is actually done.
   supplierProductName String? @map("supplier_product_name") @db.VarChar(255)
 
   /// The word for one of their packs — BOX, CASE, VIAL. See the model comment:
   /// presentation only, never arithmetic.
-  packUnitId String @map("pack_unit_id") @db.Uuid
+  packUnitId      String  @map("pack_unit_id") @db.Uuid
   /// Base units in one pack. THE conversion. Positive, CHECKed.
   quantityPerPack Decimal @map("quantity_per_pack") @db.Decimal(18, 6)
 
@@ -372,7 +372,7 @@ model SupplierProduct {
 
   /// Days from order to delivery for THIS item. Overrides the supplier's
   /// blanket figure.
-  leadTimeDays Int? @map("lead_time_days") @db.SmallInt
+  leadTimeDays      Int?     @map("lead_time_days") @db.SmallInt
   /// The smallest order they will accept, in PACKS. Warned about, not enforced —
   /// a supplier's minimum is their commercial policy and a clinic ordering less
   /// is having a conversation, not making an error.
@@ -454,17 +454,17 @@ model PurchaseRequisition {
 
   createdById String @map("created_by_id") @db.Uuid
 
-  submittedAt   DateTime? @map("submitted_at") @db.Timestamptz(6)
-  submittedById String?   @map("submitted_by_id") @db.Uuid
-  approvedAt    DateTime? @map("approved_at") @db.Timestamptz(6)
-  approvedById  String?   @map("approved_by_id") @db.Uuid
-  rejectedAt    DateTime? @map("rejected_at") @db.Timestamptz(6)
-  rejectedById  String?   @map("rejected_by_id") @db.Uuid
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+  submittedById   String?   @map("submitted_by_id") @db.Uuid
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedById    String?   @map("approved_by_id") @db.Uuid
+  rejectedAt      DateTime? @map("rejected_at") @db.Timestamptz(6)
+  rejectedById    String?   @map("rejected_by_id") @db.Uuid
   /// CHECKed present whenever `rejected_at` is. A refusal with no reason is a
   /// refusal the requester cannot act on, and they will simply raise it again.
-  rejectionReason String? @map("rejection_reason") @db.Text
-  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
-  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  rejectionReason String?   @map("rejection_reason") @db.Text
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById   String?   @map("cancelled_by_id") @db.Uuid
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -528,7 +528,7 @@ model PurchaseRequisitionLine {
   /// Resolved by the same `toBaseUnits` the ledger uses, so the requisition, the
   /// order it becomes and the receipt that closes it all agree to the last
   /// decimal place.
-  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+  quantityBase    Decimal @map("quantity_base") @db.Decimal(18, 6)
   /// What the requester actually typed, and in what. Kept for the same reason
   /// the ledger keeps it: "2 boxes" must still read as "2 boxes" a year later.
   quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
@@ -543,14 +543,14 @@ model PurchaseRequisitionLine {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  requisition  PurchaseRequisition @relation(fields: [organizationId, requisitionId], references: [organizationId, id], onDelete: Cascade)
+  organization      Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch            Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  requisition       PurchaseRequisition @relation(fields: [organizationId, requisitionId], references: [organizationId, id], onDelete: Cascade)
   /// Plain FKs into possibly-platform rows — `product_visible`, `unit_visible`.
-  product      Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
-  unit         UnitOfMeasure       @relation("RequisitionLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  product           Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit              UnitOfMeasure       @relation("RequisitionLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
   /// The supplier IS org-scoped, so this one CAN be a composite FK, and is.
-  suggestedSupplier Supplier? @relation(fields: [organizationId, suggestedSupplierId], references: [organizationId, id], onDelete: Restrict)
+  suggestedSupplier Supplier?           @relation(fields: [organizationId, suggestedSupplierId], references: [organizationId, id], onDelete: Restrict)
 
   /// One line per product. Asking for the same thing twice on one document has
   /// two plausible readings — the sum, or a duplicate — and neither should be
@@ -590,7 +590,7 @@ model PurchaseOrder {
   /// will ask about.
   orderNumber String? @map("order_number") @db.VarChar(64)
 
-  supplierId String  @map("supplier_id") @db.Uuid
+  supplierId    String  @map("supplier_id") @db.Uuid
   /// The requisition this came from, when it came from one. Buying without a
   /// requisition is ordinary — a standing monthly order does not need one — so
   /// this is nullable rather than the flow being forced through paperwork nobody
@@ -621,7 +621,7 @@ model PurchaseOrder {
   /// The sum of the lines. Stored rather than re-derived, exactly as invoice
   /// totals are: a document states a total, and a total that is recomputed on
   /// every read is a total that changes when a rounding rule does.
-  subtotalMinor BigInt @default(0) @map("subtotal_minor") @db.BigInt
+  subtotalMinor  BigInt @default(0) @map("subtotal_minor") @db.BigInt
   /// What the supplier charged in tax. ⚠️ RECORDED, NEVER CALCULATED. Nothing in
   /// this programme computes input tax and nothing calls `@rcln/tax`, which
   /// prices sales.
@@ -634,24 +634,24 @@ model PurchaseOrder {
 
   createdById String @map("created_by_id") @db.Uuid
 
-  issuedAt   DateTime? @map("issued_at") @db.Timestamptz(6)
-  issuedById String?   @map("issued_by_id") @db.Uuid
+  issuedAt           DateTime? @map("issued_at") @db.Timestamptz(6)
+  issuedById         String?   @map("issued_by_id") @db.Uuid
   /// When the buyer decided nothing more is coming. See `PurchaseOrderStatus`.
-  closedAt   DateTime? @map("closed_at") @db.Timestamptz(6)
-  closedById String?   @map("closed_by_id") @db.Uuid
-  closureReason String? @map("closure_reason") @db.Text
-  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
-  cancelledById String?   @map("cancelled_by_id") @db.Uuid
-  cancellationReason String? @map("cancellation_reason") @db.Text
+  closedAt           DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedById         String?   @map("closed_by_id") @db.Uuid
+  closureReason      String?   @map("closure_reason") @db.Text
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById      String?   @map("cancelled_by_id") @db.Uuid
+  cancellationReason String?   @map("cancellation_reason") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
-  requisition  PurchaseRequisition? @relation(fields: [organizationId, requisitionId], references: [organizationId, id], onDelete: Restrict)
-  deliverToLocation InventoryLocation? @relation("PurchaseOrderDeliverTo", fields: [organizationId, branchId, deliverToLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch            Branch               @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  supplier          Supplier             @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  requisition       PurchaseRequisition? @relation(fields: [organizationId, requisitionId], references: [organizationId, id], onDelete: Restrict)
+  deliverToLocation InventoryLocation?   @relation("PurchaseOrderDeliverTo", fields: [organizationId, branchId, deliverToLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
 
   createdBy   User  @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   issuedBy    User? @relation("PurchaseOrderIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
@@ -708,7 +708,7 @@ model PurchaseOrderLine {
   /// pattern this follows.
   lineNumber Int @map("line_number") @db.SmallInt
 
-  productId String  @map("product_id") @db.Uuid
+  productId         String  @map("product_id") @db.Uuid
   /// The supplier's catalogue row this was priced from, when it was. Nullable: a
   /// buyer ordering something the price book has never carried is ordinary, and
   /// refusing it would make the price book a gate rather than a convenience.
@@ -717,8 +717,8 @@ model PurchaseOrderLine {
   /// What was ordered, in the product's BASE UNIT. Positive, CHECKed.
   orderedQuantityBase Decimal @map("ordered_quantity_base") @db.Decimal(18, 6)
   /// What the buyer typed, and in what — "5 BOX". See the ledger's identical pair.
-  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
-  unitId          String  @map("unit_id") @db.Uuid
+  quantityEntered     Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId              String  @map("unit_id") @db.Uuid
 
   /// What has been signed for against this line, in base units, accumulated
   /// across every receipt. Starts at zero and only ever grows. ⚠️ See the model
@@ -727,7 +727,7 @@ model PurchaseOrderLine {
 
   /// Cost per BASE UNIT, in integer minor units (PI-ADR-010). THE canonical cost
   /// figure, and what `batches.unit_cost_base` is set from at receipt.
-  unitCostBase BigInt @map("unit_cost_base") @db.BigInt
+  unitCostBase      BigInt   @map("unit_cost_base") @db.BigInt
   /// What the supplier quoted, as quoted: a price per pack and how many base
   /// units that pack holds. The money equivalent of `quantity_entered` — kept so
   /// "₹412 per box of 100" still reads that way when the pack size changes.
@@ -747,15 +747,15 @@ model PurchaseOrderLine {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch        Branch        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  purchaseOrder PurchaseOrder @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Cascade)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch          Branch           @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  purchaseOrder   PurchaseOrder    @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Cascade)
   /// Plain FKs into possibly-platform rows — `product_visible`, `unit_visible`.
-  product Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
-  unit    UnitOfMeasure @relation("PurchaseOrderLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit            UnitOfMeasure    @relation("PurchaseOrderLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
   supplierProduct SupplierProduct? @relation(fields: [organizationId, supplierProductId], references: [organizationId, id], onDelete: Restrict)
 
-  goodsReceiptLines  GoodsReceiptLine[]
+  goodsReceiptLines GoodsReceiptLine[]
 
   /// One line per product, for the reason the requisition gives.
   @@unique([organizationId, purchaseOrderId, productId])
@@ -804,7 +804,7 @@ model GoodsReceipt {
   /// Issued from `number_sequences` at POST, never at create.
   receiptNumber String? @map("receipt_number") @db.VarChar(64)
 
-  supplierId String  @map("supplier_id") @db.Uuid
+  supplierId      String  @map("supplier_id") @db.Uuid
   /// The order this delivers against, when there is one. A donation, an opening
   /// stock load and a sample all arrive without a PO.
   purchaseOrderId String? @map("purchase_order_id") @db.Uuid
@@ -812,7 +812,7 @@ model GoodsReceipt {
   status GoodsReceiptStatus @default(DRAFT)
 
   /// Snapshotted for the reason the purchase order's is. See that model.
-  supplierName String @map("supplier_name") @db.VarChar(255)
+  supplierName          String    @map("supplier_name") @db.VarChar(255)
   /// Their invoice, as the number and date printed on the paper that came with
   /// the boxes. This is what an accountant reconciles against.
   supplierInvoiceNumber String?   @map("supplier_invoice_number") @db.VarChar(64)
@@ -853,20 +853,20 @@ model GoodsReceipt {
 
   createdById String @map("created_by_id") @db.Uuid
 
-  postedAt   DateTime? @map("posted_at") @db.Timestamptz(6)
-  postedById String?   @map("posted_by_id") @db.Uuid
-  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
-  cancelledById String?   @map("cancelled_by_id") @db.Uuid
-  cancellationReason String? @map("cancellation_reason") @db.Text
+  postedAt           DateTime? @map("posted_at") @db.Timestamptz(6)
+  postedById         String?   @map("posted_by_id") @db.Uuid
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById      String?   @map("cancelled_by_id") @db.Uuid
+  cancellationReason String?   @map("cancellation_reason") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
-  purchaseOrder PurchaseOrder? @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Restrict)
-  location     InventoryLocation @relation("GoodsReceiptLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  organization  Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch        Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  supplier      Supplier          @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  purchaseOrder PurchaseOrder?    @relation(fields: [organizationId, purchaseOrderId], references: [organizationId, id], onDelete: Restrict)
+  location      InventoryLocation @relation("GoodsReceiptLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
 
   createdBy   User  @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   postedBy    User? @relation("GoodsReceiptPostedBy", fields: [postedById], references: [id], onDelete: Restrict)
@@ -939,8 +939,8 @@ model GoodsReceiptLine {
   /// What was counted in, in the product's BASE UNIT. Positive, CHECKed.
   receivedQuantityBase Decimal @map("received_quantity_base") @db.Decimal(18, 6)
   /// What the receiver typed, and in what.
-  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
-  unitId          String  @map("unit_id") @db.Uuid
+  quantityEntered      Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId               String  @map("unit_id") @db.Uuid
 
   /// How much of the received quantity was refused at inspection. ⚠️ NOT
   ///   SUBTRACTED FROM `received_quantity_base`: it arrived, it is on the
@@ -983,31 +983,31 @@ model GoodsReceiptLine {
   lineTotalMinor    BigInt @default(0) @map("line_total_minor") @db.BigInt
 
   // -- inspection (PI-4.6) --------------------------------------------------
-  qualityStatus     GoodsReceiptQualityStatus @default(NOT_REQUIRED) @map("quality_status")
-  qualityDecidedAt  DateTime?                 @map("quality_decided_at") @db.Timestamptz(6)
-  qualityDecidedById String?                  @map("quality_decided_by_id") @db.Uuid
+  qualityStatus      GoodsReceiptQualityStatus @default(NOT_REQUIRED) @map("quality_status")
+  qualityDecidedAt   DateTime?                 @map("quality_decided_at") @db.Timestamptz(6)
+  qualityDecidedById String?                   @map("quality_decided_by_id") @db.Uuid
   /// CHECKed present whenever the status is `REJECTED`. "We refused it" without
   /// "because" is not a record anybody can act on.
-  qualityNotes      String?                   @map("quality_notes") @db.Text
+  qualityNotes       String?                   @map("quality_notes") @db.Text
 
   notes String? @db.Text
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  goodsReceipt GoodsReceipt @relation(fields: [organizationId, goodsReceiptId], references: [organizationId, id], onDelete: Cascade)
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch            Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  goodsReceipt      GoodsReceipt       @relation(fields: [organizationId, goodsReceiptId], references: [organizationId, id], onDelete: Cascade)
   purchaseOrderLine PurchaseOrderLine? @relation(fields: [organizationId, purchaseOrderLineId], references: [organizationId, id], onDelete: Restrict)
   /// Plain FKs into possibly-platform rows — `product_visible`, `unit_visible`,
   /// `manufacturer_visible`.
-  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
-  unit         UnitOfMeasure @relation("GoodsReceiptLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
-  manufacturer Manufacturer? @relation("GoodsReceiptLineManufacturer", fields: [manufacturerId], references: [id], onDelete: Restrict)
+  product           Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit              UnitOfMeasure      @relation("GoodsReceiptLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  manufacturer      Manufacturer?      @relation("GoodsReceiptLineManufacturer", fields: [manufacturerId], references: [id], onDelete: Restrict)
   /// Branch-qualified, exactly as the ledger's are: a receipt line at branch A
   /// citing a lot or a device at branch B is unrepresentable.
-  batch  Batch?  @relation("GoodsReceiptLineBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
-  serial Serial? @relation("GoodsReceiptLineSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+  batch             Batch?             @relation("GoodsReceiptLineBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial            Serial?            @relation("GoodsReceiptLineSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
 
   qualityDecidedBy User? @relation("GoodsReceiptLineQualityDecidedBy", fields: [qualityDecidedById], references: [id], onDelete: Restrict)
 
@@ -1056,7 +1056,7 @@ model PurchaseReturn {
   /// Issued from `number_sequences` when it is SENT, never at create.
   returnNumber String? @map("return_number") @db.VarChar(64)
 
-  supplierId String @map("supplier_id") @db.Uuid
+  supplierId     String  @map("supplier_id") @db.Uuid
   /// The delivery this is going back against. Nullable — a clinic returning
   /// stock it can no longer tie to a specific delivery is ordinary after a few
   /// years — but a line MAY cite a receipt line, and that is the join a supplier
@@ -1084,19 +1084,19 @@ model PurchaseReturn {
 
   createdById String @map("created_by_id") @db.Uuid
 
-  sentAt   DateTime? @map("sent_at") @db.Timestamptz(6)
-  sentById String?   @map("sent_by_id") @db.Uuid
-  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
-  cancelledById String?   @map("cancelled_by_id") @db.Uuid
-  cancellationReason String? @map("cancellation_reason") @db.Text
+  sentAt             DateTime? @map("sent_at") @db.Timestamptz(6)
+  sentById           String?   @map("sent_by_id") @db.Uuid
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById      String?   @map("cancelled_by_id") @db.Uuid
+  cancellationReason String?   @map("cancellation_reason") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  supplier     Supplier     @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
-  goodsReceipt GoodsReceipt? @relation(fields: [organizationId, goodsReceiptId], references: [organizationId, id], onDelete: Restrict)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  supplier     Supplier          @relation(fields: [organizationId, supplierId], references: [organizationId, id], onDelete: Restrict)
+  goodsReceipt GoodsReceipt?     @relation(fields: [organizationId, goodsReceiptId], references: [organizationId, id], onDelete: Restrict)
   location     InventoryLocation @relation("PurchaseReturnLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
 
   createdBy   User  @relation("PurchaseReturnCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -1167,16 +1167,16 @@ model PurchaseReturnLine {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch         Branch         @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  purchaseReturn PurchaseReturn @relation(fields: [organizationId, purchaseReturnId], references: [organizationId, id], onDelete: Cascade)
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch           Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  purchaseReturn   PurchaseReturn    @relation(fields: [organizationId, purchaseReturnId], references: [organizationId, id], onDelete: Cascade)
   goodsReceiptLine GoodsReceiptLine? @relation(fields: [organizationId, goodsReceiptLineId], references: [organizationId, id], onDelete: Restrict)
   /// Plain FKs into possibly-platform rows.
-  product Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
-  unit    UnitOfMeasure @relation("PurchaseReturnLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  product          Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit             UnitOfMeasure     @relation("PurchaseReturnLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
   /// Branch-qualified, as everywhere a lot or a device is cited.
-  batch  Batch?  @relation("PurchaseReturnLineBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
-  serial Serial? @relation("PurchaseReturnLineSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+  batch            Batch?            @relation("PurchaseReturnLineBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial           Serial?           @relation("PurchaseReturnLineSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
 
   /// One line per (product, lot, serial). NULLS NOT DISTINCT in the migration.
   @@unique([organizationId, purchaseReturnId, productId, batchId, serialId])

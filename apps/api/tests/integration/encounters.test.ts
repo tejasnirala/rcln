@@ -293,7 +293,25 @@ describe('the lifecycle', () => {
     expect(res.body.message).toMatch(/not a section/i);
   });
 
+  /**
+   * ⚠️ THE SEEDED `GENERAL` TEMPLATE MARKS FOLLOW-UP REQUIRED, AND CE-4 IS WHAT
+   *   MADE THAT TRUE. The flag was inert while nothing counted the first-class
+   *   sections; now finalization refuses a consultation that never answered the
+   *   question — which is precisely what `default-definition.ts` says it is for:
+   *   a clinic can only tell "the doctor decided against a follow-up" from "the
+   *   doctor forgot" if the question is always asked.
+   *
+   *   So the plan is stated first. "No follow-up needed" is a real answer and is
+   *   the cheapest one to give here.
+   */
   it('signs the record and burns the branch’s next number', async () => {
+    const plan = await request(app)
+      .put(`/api/v1/encounters/${encounterId}/follow-up`)
+      .set('Host', hostFor(SLUG))
+      .set('Authorization', `Bearer ${token}`)
+      .send({ isRequired: false });
+    expect(plan.status).toBe(200);
+
     const res = await post(`/encounters/${encounterId}/finalize`, {});
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('FINALIZED');

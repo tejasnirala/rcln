@@ -85,104 +85,104 @@ model Organization {
   updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(6)
 
-  owner                  User?                      @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  domains                OrganizationDomain[]
-  branches               Branch[]
-  memberships            Membership[]
-  roles                  Role[]
-  invitations            Invitation[]
-  subscriptions          Subscription[]
-  subscriptionInvoices   SubscriptionInvoice[]
-  subscriptionChanges    SubscriptionChange[]
-  issuerTaxRegistrations IssuerTaxRegistration[]
-  taxRegistrationBranches IssuerTaxRegistrationBranch[]
-  taxRules               TaxRule[]
-  paymentMandates        PaymentMandate[]
-  paymentIntents         PaymentIntent[]
-  usageCounters          UsageCounter[]
-  files                  StoredFile[]
-  auditLogs              AuditLog[]
-  dataAccessLogs         DataAccessLog[]
-  numberSequences        NumberSequence[]
-  specialties            Specialty[]
-  qualifications         Qualification[]
-  designations           Designation[]
-  roleDesignations       RoleDesignation[]
-  doctorProfiles         DoctorProfile[]
-  doctorSpecialties      DoctorSpecialty[]
-  doctorQualifications   DoctorQualification[]
-  doctorBranchSettings   DoctorBranchSetting[]
-  doctorCompensation     DoctorCompensation[]
-  feeScheduleEntries     FeeScheduleEntry[]
-  appointmentReschedules AppointmentReschedule[]
-  doctorSchedules        DoctorSchedule[]
-  doctorExceptions       DoctorScheduleException[]
-  patients               Patient[]
-  patientRegistrations   PatientRegistration[]
-  patientAddresses       PatientAddress[]
-  patientContacts        PatientContact[]
-  patientAllergies       PatientAllergy[]
-  patientConditions      PatientCondition[]
-  patientMedications     PatientMedication[]
-  appointments           Appointment[]
-  appointmentHistory     AppointmentStatusHistory[]
-  appointmentVitals      AppointmentVital[]
-  invoices               Invoice[]
-  invoiceItems           InvoiceItem[]
-  invoiceTaxes           InvoiceTax[]
-  invoiceDocuments       InvoiceDocument[]
+  owner                     User?                         @relation("OrganizationOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  domains                   OrganizationDomain[]
+  branches                  Branch[]
+  memberships               Membership[]
+  roles                     Role[]
+  invitations               Invitation[]
+  subscriptions             Subscription[]
+  subscriptionInvoices      SubscriptionInvoice[]
+  subscriptionChanges       SubscriptionChange[]
+  issuerTaxRegistrations    IssuerTaxRegistration[]
+  taxRegistrationBranches   IssuerTaxRegistrationBranch[]
+  taxRules                  TaxRule[]
+  paymentMandates           PaymentMandate[]
+  paymentIntents            PaymentIntent[]
+  usageCounters             UsageCounter[]
+  files                     StoredFile[]
+  auditLogs                 AuditLog[]
+  dataAccessLogs            DataAccessLog[]
+  numberSequences           NumberSequence[]
+  specialties               Specialty[]
+  qualifications            Qualification[]
+  designations              Designation[]
+  roleDesignations          RoleDesignation[]
+  doctorProfiles            DoctorProfile[]
+  doctorSpecialties         DoctorSpecialty[]
+  doctorQualifications      DoctorQualification[]
+  doctorBranchSettings      DoctorBranchSetting[]
+  doctorCompensation        DoctorCompensation[]
+  feeScheduleEntries        FeeScheduleEntry[]
+  appointmentReschedules    AppointmentReschedule[]
+  doctorSchedules           DoctorSchedule[]
+  doctorExceptions          DoctorScheduleException[]
+  patients                  Patient[]
+  patientRegistrations      PatientRegistration[]
+  patientAddresses          PatientAddress[]
+  patientContacts           PatientContact[]
+  patientAllergies          PatientAllergy[]
+  patientConditions         PatientCondition[]
+  patientMedications        PatientMedication[]
+  appointments              Appointment[]
+  appointmentHistory        AppointmentStatusHistory[]
+  appointmentVitals         AppointmentVital[]
+  invoices                  Invoice[]
+  invoiceItems              InvoiceItem[]
+  invoiceTaxes              InvoiceTax[]
+  invoiceDocuments          InvoiceDocument[]
   // The product catalogue. Every one of these allows a NULL organization_id —
   // the row is then a PLATFORM row belonging to nobody, which is why they are in
   // the `platform_extensible` RLS array and not the `org_scoped` one. See
   // products.prisma.
-  unitsOfMeasure           UnitOfMeasure[]
-  unitConversions          UnitConversion[]
-  productCategories        ProductCategory[]
-  manufacturers            Manufacturer[]
-  activeIngredients        ActiveIngredient[]
-  compositions             Composition[]
-  compositionIngredients   CompositionIngredient[]
-  storageProfiles          StorageRequirementProfile[]
-  products                 Product[]
-  productPackagings        ProductPackaging[]
-  productIdentifiers       ProductIdentifier[]
+  unitsOfMeasure            UnitOfMeasure[]
+  unitConversions           UnitConversion[]
+  productCategories         ProductCategory[]
+  manufacturers             Manufacturer[]
+  activeIngredients         ActiveIngredient[]
+  compositions              Composition[]
+  compositionIngredients    CompositionIngredient[]
+  storageProfiles           StorageRequirementProfile[]
+  products                  Product[]
+  productPackagings         ProductPackaging[]
+  productIdentifiers        ProductIdentifier[]
   productTaxClassifications ProductTaxClassification[]
-  medicineDetails          MedicineDetail[]
+  medicineDetails           MedicineDetail[]
   // Inventory (PI-2). Unlike the catalogue above, EVERY one of these is
   // organization_id NOT NULL — a location, a batch and a movement are facts
   // about one clinic at one site, never platform data (PI-ADR-003). They are in
   // the `org_scoped` AND `branch_scoped` RLS arrays. See inventory.prisma.
-  inventoryLocations       InventoryLocation[]
-  storageAreas             StorageArea[]
-  storageBins              StorageBin[]
-  batches                  Batch[]
-  serials                  Serial[]
-  stockLedgerEntries       StockLedgerEntry[]
-  stockBalances            StockBalance[]
+  inventoryLocations        InventoryLocation[]
+  storageAreas              StorageArea[]
+  storageBins               StorageBin[]
+  batches                   Batch[]
+  serials                   Serial[]
+  stockLedgerEntries        StockLedgerEntry[]
+  stockBalances             StockBalance[]
   // Movements (PI-3). ⚠️ `stockReasonCodes` is the ONE platform-extensible table
   // in the inventory domain, so it is the one whose `organization_id` is
   // nullable — a reason code is a word, not a fact about a clinic. See its model
   // comment. The other three are strictly tenant rows like everything above.
-  stockReasonCodes         StockReasonCode[]
-  stockTransfers           StockTransfer[]
-  stockTransferLines       StockTransferLine[]
-  stockReservations        StockReservation[]
+  stockReasonCodes          StockReasonCode[]
+  stockTransfers            StockTransfer[]
+  stockTransferLines        StockTransferLine[]
+  stockReservations         StockReservation[]
   // Procurement (PI-4). Nothing here allows a NULL `organization_id`: a supplier,
   // a price agreed with them and every purchase document are facts about one
   // clinic (PI-ADR-003). The seam inside the domain is branch, not platform —
   // the three supplier tables are org-wide and every document is branch-scoped.
-  suppliers                Supplier[]
-  supplierTaxIdentifiers   SupplierTaxIdentifier[]
-  supplierProducts         SupplierProduct[]
-  purchaseRequisitions     PurchaseRequisition[]
-  purchaseRequisitionLines PurchaseRequisitionLine[]
-  purchaseOrders           PurchaseOrder[]
-  purchaseOrderLines       PurchaseOrderLine[]
-  goodsReceipts            GoodsReceipt[]
-  goodsReceiptLines        GoodsReceiptLine[]
-  purchaseReturns          PurchaseReturn[]
-  purchaseReturnLines      PurchaseReturnLine[]
-  productCostAverages      ProductCostAverage[]
+  suppliers                 Supplier[]
+  supplierTaxIdentifiers    SupplierTaxIdentifier[]
+  supplierProducts          SupplierProduct[]
+  purchaseRequisitions      PurchaseRequisition[]
+  purchaseRequisitionLines  PurchaseRequisitionLine[]
+  purchaseOrders            PurchaseOrder[]
+  purchaseOrderLines        PurchaseOrderLine[]
+  goodsReceipts             GoodsReceipt[]
+  goodsReceiptLines         GoodsReceiptLine[]
+  purchaseReturns           PurchaseReturn[]
+  purchaseReturnLines       PurchaseReturnLine[]
+  productCostAverages       ProductCostAverage[]
   // Regulatory (PI-5). ⚠️ THE ONLY ONE OF THE SIX REGULATORY TABLES THAT
   // APPEARS HERE AT ALL, and that is the seam of the whole domain: a
   // jurisdiction, an authority, a source, a pack and a rule are the LAW, which
@@ -193,13 +193,13 @@ model Organization {
   productRegulatoryProfiles ProductRegulatoryProfile[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
-  clinicalMasterItems      ClinicalMasterItem[]
-  clinicalMasterCodings    ClinicalMasterCoding[]
-  clinicalMasterScopes     ClinicalMasterScope[]
-  productClinicalScopes    ProductClinicalScope[]
-  clinicalEpisodes         ClinicalEpisode[]
-  animalProfiles           AnimalProfile[]
-  followUpRecommendations  EncounterFollowUpRecommendation[]
+  clinicalMasterItems          ClinicalMasterItem[]
+  clinicalMasterCodings        ClinicalMasterCoding[]
+  clinicalMasterScopes         ClinicalMasterScope[]
+  productClinicalScopes        ProductClinicalScope[]
+  clinicalEpisodes             ClinicalEpisode[]
+  animalProfiles               AnimalProfile[]
+  followUpRecommendations      EncounterFollowUpRecommendation[]
   // Templates (CE-2). Platform-extensible: the platform ships a GENERAL
   // consultation per care context and a clinic writes its own beside it.
   consultationTemplates        ConsultationTemplate[]
@@ -207,7 +207,17 @@ model Organization {
   // The clinical record itself (CE-3). ⚠️ PHI in every text column.
   encounters                   Encounter[]
   encounterSections            EncounterSection[]
-  lastForPlatformAdmins  User[]                     @relation("PlatformAdminLastOrganization")
+  // Clinical content (CE-4). ⚠️ PHI throughout — what was concluded,
+  // prescribed, ordered and advised about one named person.
+  encounterSymptoms            EncounterSymptom[]
+  encounterDiagnoses           EncounterDiagnosis[]
+  encounterProcedures          EncounterProcedure[]
+  encounterPrescriptions       EncounterPrescription[]
+  encounterInvestigations      EncounterInvestigation[]
+  encounterAdvice              EncounterAdvice[]
+  encounterReferrals           EncounterReferral[]
+  encounterAttachments         EncounterAttachment[]
+  lastForPlatformAdmins        User[]                            @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
   @@index([status])
@@ -289,42 +299,42 @@ model Branch {
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
 
-  organization           Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  operatingHours         BranchOperatingHour[]
-  closures               BranchClosure[]
-  membershipRoles        MembershipRole[]
-  membershipOverrides    MembershipPermissionOverride[]
-  invitationBranches     InvitationBranch[]
-  sessions               Session[]
-  lastForMemberships     Membership[]                   @relation("MembershipLastBranch")
-  doctorSettings         DoctorBranchSetting[]
-  doctorSchedules        DoctorSchedule[]
-  doctorExceptions       DoctorScheduleException[]
-  patientRegistrations   PatientRegistration[]
-  appointments           Appointment[]
-  appointmentVitals      AppointmentVital[]
-  appointmentReschedules AppointmentReschedule[]
-  feeScheduleEntries     FeeScheduleEntry[]
-  invoices               Invoice[]
-  invoiceItems           InvoiceItem[]
-  invoiceTaxes           InvoiceTax[]
-  invoiceDocuments       InvoiceDocument[]
-  taxRegistrationCoverage IssuerTaxRegistrationBranch[]
-  inventoryLocations      InventoryLocation[]
-  storageAreas            StorageArea[]
-  storageBins             StorageBin[]
-  batches                 Batch[]
-  serials                 Serial[]
-  stockLedgerEntries      StockLedgerEntry[]
-  stockBalances           StockBalance[]
+  organization             Organization                   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  operatingHours           BranchOperatingHour[]
+  closures                 BranchClosure[]
+  membershipRoles          MembershipRole[]
+  membershipOverrides      MembershipPermissionOverride[]
+  invitationBranches       InvitationBranch[]
+  sessions                 Session[]
+  lastForMemberships       Membership[]                   @relation("MembershipLastBranch")
+  doctorSettings           DoctorBranchSetting[]
+  doctorSchedules          DoctorSchedule[]
+  doctorExceptions         DoctorScheduleException[]
+  patientRegistrations     PatientRegistration[]
+  appointments             Appointment[]
+  appointmentVitals        AppointmentVital[]
+  appointmentReschedules   AppointmentReschedule[]
+  feeScheduleEntries       FeeScheduleEntry[]
+  invoices                 Invoice[]
+  invoiceItems             InvoiceItem[]
+  invoiceTaxes             InvoiceTax[]
+  invoiceDocuments         InvoiceDocument[]
+  taxRegistrationCoverage  IssuerTaxRegistrationBranch[]
+  inventoryLocations       InventoryLocation[]
+  storageAreas             StorageArea[]
+  storageBins              StorageBin[]
+  batches                  Batch[]
+  serials                  Serial[]
+  stockLedgerEntries       StockLedgerEntry[]
+  stockBalances            StockBalance[]
   // Movements (PI-3). ⚠️ A transfer has TWO branches and therefore appears here
   // twice, under two relation names. It is the only table in the programme with
   // that shape and it is why `stock_transfers` is not in the `branch_scoped` RLS
   // array — the generic policy names a `branch_id` column it does not have. See
   // its model comment and the bespoke policy in enable-rls.sql.
-  transfersOut            StockTransfer[]     @relation("TransferFromBranch")
-  transfersIn             StockTransfer[]     @relation("TransferToBranch")
-  stockReservations       StockReservation[]
+  transfersOut             StockTransfer[]                @relation("TransferFromBranch")
+  transfersIn              StockTransfer[]                @relation("TransferToBranch")
+  stockReservations        StockReservation[]
   // Procurement (PI-4). Every document is branch-scoped — a requisition is
   // raised at a site, a PO commits for a site, a delivery arrives at one loading
   // bay. ⚠️ `suppliers` is deliberately NOT here: a supplier is the
@@ -340,11 +350,21 @@ model Branch {
   productCostAverages      ProductCostAverage[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
-  followUpRecommendations  EncounterFollowUpRecommendation[]
+  followUpRecommendations EncounterFollowUpRecommendation[]
   /// Consultations conducted here (CE-3). A visit belongs to the place it
   /// happened at — the opposite call from `clinicalEpisodes`, which is org-wide.
-  encounters               Encounter[]
-  encounterSections        EncounterSection[]
+  encounters              Encounter[]
+  encounterSections       EncounterSection[]
+  /// Clinical content (CE-4). All eight carry their own `branch_id` rather than
+  /// inheriting it through the encounter — see the note on the models.
+  encounterSymptoms       EncounterSymptom[]
+  encounterDiagnoses      EncounterDiagnosis[]
+  encounterProcedures     EncounterProcedure[]
+  encounterPrescriptions  EncounterPrescription[]
+  encounterInvestigations EncounterInvestigation[]
+  encounterAdvice         EncounterAdvice[]
+  encounterReferrals      EncounterReferral[]
+  encounterAttachments    EncounterAttachment[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

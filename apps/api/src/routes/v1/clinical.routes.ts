@@ -43,11 +43,15 @@ import {
   createClinicalEpisodeRequest,
   createClinicalMasterRequest,
   updateClinicalEpisodeRequest,
+  cancelFollowUpRecommendationRequest,
+  followUpRecommendationQuery,
   updateClinicalMasterRequest,
+  type CancelFollowUpRecommendationRequest,
   type ClinicalEpisodeQuery,
   type ClinicalMasterQuery,
   type CreateClinicalEpisodeRequest,
   type CreateClinicalMasterRequest,
+  type FollowUpRecommendationQuery,
   type UpdateClinicalEpisodeRequest,
   type UpdateClinicalMasterRequest,
 } from '@rcln/contracts';
@@ -72,6 +76,8 @@ import {
   searchMasters,
   updateMaster,
 } from '../../services/clinical/master.service.js';
+import { cancelFollowUpRecommendation } from '../../services/clinical/encounter-content.service.js';
+import { listRecall } from '../../services/clinical/recall.service.js';
 import { sendCreated, sendSuccess } from '../../utils/response.js';
 
 const router: IRouter = Router();
@@ -80,6 +86,7 @@ router.use(requireTenant, authenticate, requireAuth);
 
 const itemParams = z.object({ itemId: z.uuid() });
 const episodeParams = z.object({ episodeId: z.uuid() });
+const recommendationParams = z.object({ recommendationId: z.uuid() });
 
 /**
  * ⚠️ `route` IS THE MATCHED PATTERN, NEVER `req.originalUrl`. A URL carries its
@@ -229,6 +236,77 @@ router.patch(
     const body = req.body as UpdateClinicalEpisodeRequest;
     await updateEpisode(tenantContextFrom(req), episodeId, body, auditMeta(req));
     sendSuccess(res, { updated: true });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// The recall list (CD-13, CE-4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Who was told to come back and hasn't.
+ *
+ * ⚠️ `APPOINTMENT_READ` AND `APPOINTMENT_UPDATE`, NOT A CLINICAL CODE, AND FOR
+ *   THE REASON THE EPISODE ROUTES ABOVE GIVE. This list is worked by the front
+ *   desk: somebody rings the patient and books them in. The desk holds no
+ *   clinical code at all, so gating the recall list behind
+ *   `clinical.encounter.read` would mean the only people who can work it are
+ *   the people who do not do that job.
+ *
+ *   The recommendation ITSELF is written from the consultation, behind
+ *   `clinical.encounter.create` — see `encounters.routes.ts`. Advising a
+ *   follow-up is authorship; chasing one is administration, and the split here
+ *   is exactly invariant 7's.
+ *
+ * ⚠️ IT DISCLOSES A NAMED PATIENT AND WRITES A `data_access_logs` ROW, under
+ *   `PATIENT_LIST`. A list of who is under ongoing treatment for what IS the
+ *   disclosure — which is also why it is always paginated and always filtered
+ *   to a window, with no "give me everything" form (§39).
+ */
+router.get(
+  '/follow-up-recommendations',
+  authorize(PERMISSIONS.APPOINTMENT_READ),
+  validate(followUpRecommendationQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as FollowUpRecommendationQuery;
+    sendSuccess(
+      res,
+      await listRecall(
+        tenantContextFrom(req),
+        query,
+        readMeta(req, 'GET /v1/follow-up-recommendations')
+      )
+    );
+  }
+);
+
+/**
+ * The patient declined, or the plan changed before they booked.
+ *
+ * ⚠️ RECORDED RATHER THAN DELETED. "We asked and they said no" is the answer to
+ *   a recall chase; a deleted row makes the desk ring them again next month.
+ *
+ * ⚠️ AND IT REACHES A FINALIZED CONSULTATION'S RECOMMENDATION, deliberately —
+ *   the one place in CE-4 that does, alongside fulfilment. Declining happens
+ *   weeks later, at the desk, and it is a fact about the recommendation's FATE
+ *   rather than an edit to the clinical record. Nothing the doctor wrote
+ *   changes.
+ */
+router.post(
+  '/follow-up-recommendations/:recommendationId/cancel',
+  authorize(PERMISSIONS.APPOINTMENT_UPDATE),
+  validate(recommendationParams, 'params'),
+  validate(cancelFollowUpRecommendationRequest, 'body'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { recommendationId } = req.params as z.infer<typeof recommendationParams>;
+    const body = req.body as CancelFollowUpRecommendationRequest;
+    await cancelFollowUpRecommendation(
+      tenantContextFrom(req),
+      recommendationId,
+      body,
+      auditMeta(req)
+    );
+    sendSuccess(res, { cancelled: true });
   }
 );
 

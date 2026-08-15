@@ -7,6 +7,7 @@ export * from './clinical-taxonomy.js';
 export * from './clinical.js';
 export * from './consultation.js';
 export * from './encounters.js';
+export * from './encounter-content.js';
 export * from './doctors.js';
 export * from './patients.js';
 export * from './appointments.js';

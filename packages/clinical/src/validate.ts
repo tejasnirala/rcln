@@ -228,6 +228,35 @@ export function encounterProblems(
 }
 
 /**
+ * The FIRST-CLASS sections a template says a consultation cannot be signed
+ * without (CE-4).
+ *
+ * ⚠️ THE COUNTERPART TO `encounterProblems`, AND THE SPLIT IS THE ARCHITECTURE.
+ *   That function checks the sections whose answers live in a DOCUMENT and can
+ *   therefore be checked against descriptors here, with no database. A
+ *   diagnosis, a prescription and an order live in their own TABLES — this
+ *   package holds no Prisma client and never will (CD-10), so it cannot count
+ *   them.
+ *
+ *   So the engine answers the half it owns — WHICH sections a clinic said are
+ *   required — and the service answers the half it owns: whether any rows
+ *   exist. Neither half knows the rule the other enforces, and the rule itself
+ *   is stated in exactly one place: the template.
+ *
+ * ⚠️ CHIEF_COMPLAINT AND CLINICAL_NOTES ARE FIRST-CLASS AND ARE NOT IN HERE.
+ *   They are columns on `encounters` rather than lists, so "has it any rows" is
+ *   the wrong question — the encounter service checks them directly against the
+ *   columns it already has in hand.
+ */
+export function requiredContentSections(
+  definition: TemplateDefinition
+): readonly TemplateSection[] {
+  return definition.sections.filter(
+    (section) => section.visible && section.required && !capabilityOf(section.type).descriptorDriven
+  );
+}
+
+/**
  * The same check as one sentence, in the `Parsed` shape the rest of the package
  * speaks.
  *

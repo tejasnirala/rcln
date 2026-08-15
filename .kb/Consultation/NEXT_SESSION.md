@@ -2,76 +2,84 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-14 · **By:** session CE-3 · **Branch:**
-`feat/ce-3-encounter-lifecycle`
+**Written:** 2026-08-15 · **By:** session CE-4 · **Branch:**
+`feat/ce-4-clinical-content`
 
 ---
 
 ## Where we are
 
-**CE-0 through CE-3 are complete and verified.** A consultation now opens,
-autosaves, signs and amends, and the screen renders from the encounter's own
-frozen snapshot. What it does NOT yet hold is clinical content: diagnosis,
-prescription, symptoms, investigations, advice, referrals, procedures,
-attachments and follow-up all render a line saying when they arrive. That is
-CE-4, and it is what unblocks PI-7 and PI-9.
+**CE-0 through CE-4 are complete and verified.** A consultation now holds
+clinical content: symptoms, diagnoses, procedures, prescriptions,
+investigations, advice, referrals, attachments and a follow-up plan, all as real
+rows with real foreign keys. **PI-7 and PI-9 are unblocked** —
+`encounter_prescriptions` and `encounter_procedures` exist.
 
 Validation ran once, at the end, in CLAUDE.md's order. `db:rls:check` is green at
-**100**. Nothing has been opened in a browser.
+**108**. Nothing has been opened in a browser.
 
 ## The five things to know before typing
 
-1. **A COMPOSITE FK IS IMPOSSIBLE WHEN THE PARENT MAY BE A PLATFORM ROW.**
-   `encounters.template_id` is a plain FK with a RESTRICTIVE `template_visible`
-   policy, because (organization_id, template_id) would refuse the platform's
-   GENERAL template — the encounter's org is NOT NULL and the template's is not.
-   **CE-4's `encounter_prescriptions.product_id` is the same shape** and needs
-   `product_visible`, exactly as `batches` has it.
+1. **`item_visible` IS THE NEW `template_visible`, AND THERE ARE SEVEN OF THEM.**
+   Five content tables cite `clinical_master_items`, one cites `products`, one
+   cites `specialties` — all three parents allow a NULL `organization_id`, so no
+   composite FK is drawable and each needs a RESTRICTIVE `*_visible` policy.
+   CE-6's `clinical_findings.finding_item_id` is the eighth, and
+   `visual_region_id` will be the ninth if `visual_regions` stays
+   platform-extensible.
 
-2. **A COMPOSITE PRISMA RELATION STILL READS EMPTY FOR A PLATFORM ROW.** The
-   CE-2 trap, unchanged: load children by the parent's id and let RLS scope them.
+2. **A `SetNull` FK IS IMPOSSIBLE WHEN THE COMPOSITE INCLUDES `organization_id`.**
+   `encounter_procedures.diagnosis_id` wanted SetNull and cannot have it — the
+   column is NOT NULL, so Postgres refuses. It is `Restrict`, and
+   `removeDiagnosis` unlinks the procedures first. **CE-6's
+   `clinical_findings.diagnosis_id` is the same shape.**
 
-3. **NOTHING EDITS A FINALIZED ENCOUNTER.** `assertDraft` guards every writer and
-   `encounters_lifecycle_facts` guards the row. A correction is a NEW encounter
-   citing the old one; CE-4's children hang off whichever encounter is live, and
-   an amendment copies them rather than moving them.
+3. **AN AMENDMENT COPIES THE CONTENT AND REMAPS THE DIAGNOSIS LINKS.**
+   `copyContentToAmendment` builds an old-id → new-id map for the diagnoses so
+   the copied procedures cite the copies. A straight copy passes the composite FK
+   — it only says "same tenant" — and renders as a procedure treating a diagnosis
+   that is not on this consultation. **Anything CE-6 hangs off a diagnosis needs
+   the same remap.**
 
-4. **THE SNAPSHOT IS FROZEN AT OPEN, NOT AT FINALIZE.** `parseStoredDefinition`
-   is the one door to it and `sectionConfigs` is the one way to render it. A
-   service that resolves the LIVE template to display a stored consultation has
-   reintroduced §29.
+4. **THE SEEDED TEMPLATE MARKS FOLLOW-UP REQUIRED, AND THAT IS NOW ENFORCED.**
+   `requiredContentSections` (engine) says WHICH first-class sections a template
+   requires; `missingRequiredContent` (service) counts the rows. The flag was
+   inert before CE-4 and repairing one CE-3 test was the whole cost.
+   ⚠️ **VISUAL_MAPPING falls through `countFor`'s default and returns 1** — it has
+   no table until CE-6. Delete that branch when `clinical_findings` lands.
 
 5. **`pnpm typecheck` and `pnpm test` both OOM the api container.** Run per
    package, or per batch of ~13 integration files with
-   `--max-old-space-size=3072`. Tests LAST and ONCE. And **re-run `db:seed`
-   AFTER the packages build** if you add a permission code — the seed reads
-   `packages/permissions/dist`, and a stale one cost a round here.
+   `--max-old-space-size=3072`. Tests LAST and ONCE. Jest also needs
+   `--experimental-vm-modules`, which `pnpm test` sets and a bare `jest` does not.
 
 ## Next task
 
-**CE-4 — clinical content sections.** The eight child tables, all org + branch
-scoped, all carrying both ids themselves rather than inheriting through the
-encounter. Plus follow-up recommendation UI and fulfilment (CD-13), server-side
-search on every selector (§39), and `DocumentType.CLINICAL_ATTACHMENT`.
+**CE-5 — visit history and episodes.** The read surfaces over everything CE-1…CE-4
+now stores.
 
-What CE-3 hands it:
+What CE-4 hands it:
 
-| From CE-3                             | What CE-4 does with it                                  |
-| ------------------------------------- | ------------------------------------------------------- |
-| `encounters` + the composite unique   | the parent every child composite-FKs to                 |
-| `PENDING_SECTIONS` in the engine      | delete an entry as each component lands                 |
-| `validateEncounter`                   | descriptor sections only — children validate themselves |
-| `encounter_follow_up_recommendations` | the table CE-1 shipped, now with a real writer          |
-| `ClinicalDurationUnit`                | `encounter_symptoms.duration`, already there            |
+| From CE-4                        | What CE-5 does with it                              |
+| -------------------------------- | --------------------------------------------------- |
+| `GET /follow-up-recommendations` | the recall list ENDPOINT exists; build its screen   |
+| `fulfilsRecommendationId`        | the booking form that sends it — no form exists yet |
+| `encounterContentOf`             | the previous-visit summary reads it unchanged       |
+| the referral contract            | the specialty and colleague pickers (§37)           |
 
 ## Do not
 
-- Do not compose a foreign key onto a table that allows a NULL `organization_id`
-  — write the `*_visible` policy instead (item 1).
-- Do not edit a finalized encounter, or add an endpoint that could.
+- Do not add a `*_visible` policy's table to the RLS loops and stop there — the
+  loop gives you `tenant_isolation` and `branch_isolation`, and the plain FK into
+  a platform-extensible parent is a THIRD policy (item 1).
+- Do not edit a finalized encounter, or add an endpoint that could. The two
+  exceptions are fulfilment and cancellation of a RECOMMENDATION, which are facts
+  about a booking's fate and not about the record.
 - Do not read `definition` or `template_snapshot` without `parseStoredDefinition`.
-- Do not autosave with `revalidatePath` — it fights the cursor.
+- Do not autosave with `revalidatePath` — and the content writers do not
+  revalidate either, for the same caret reason.
 - Do not add a specialty check to any component in `apps/web` (§33).
-- Do not put master-item ids inside `encounter_sections.data` — a document is
-  not a place for a foreign key (CD-6, ADR-0006). Coded content is its own table.
-- Do not build the visual map. `mapCode` is still carried and unresolved (CE-6).
+- Do not put master-item ids inside `encounter_sections.data` (CD-6, ADR-0006).
+  Coded content is its own table, and now all eight of them exist.
+- Do not build the visual map. `mapCode` is still carried and unresolved (CE-6),
+  and `PENDING_SECTIONS` in `consultation-engine.tsx` is down to that one entry.
