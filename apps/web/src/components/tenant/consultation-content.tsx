@@ -22,6 +22,8 @@ import { cn } from '@/lib/cn';
 import {
   searchClinicalTerms,
   searchPrescribableProducts,
+  searchReferralDoctors,
+  searchReferralSpecialties,
   type ContentCollection,
   type ContentResult,
 } from '@/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions';
@@ -1108,10 +1110,16 @@ const URGENCIES = [
 ];
 
 export function ReferralSection(props: ContentSectionProps) {
-  const { content, readOnly, add, edit, remove } = props;
+  const { slug, content, readOnly, add, edit, remove } = props;
   const rows: EncounterReferral[] = content.referrals;
   const [to, setTo] = useState('');
   const name = useId();
+
+  const searchSpecialty = useCallback(
+    (term: string) => searchReferralSpecialties(slug, term),
+    [slug]
+  );
+  const searchColleague = useCallback((term: string) => searchReferralDoctors(slug, term), [slug]);
 
   return (
     <div>
@@ -1153,39 +1161,76 @@ export function ReferralSection(props: ContentSectionProps) {
       )}
 
       {readOnly ? null : (
-        <div className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="mt-4 space-y-3">
           {/*
-            ⚠️ BY NAME, AND NOT YET BY SPECIALTY OR COLLEAGUE PICKER. The
-            contract accepts all three destinations and the CHECK requires one;
-            what this screen offers today is the external one, which is the case
-            a clinic actually meets — the in-house pickers are CE-5's, where the
-            doctor directory is already on screen.
+            ⚠️ THREE DESTINATIONS, THREE CONTROLS, AND THE CHECK CONSTRAINT WANTS
+              EXACTLY ONE OF THEM PER ROW. A specialty ("see a cardiologist"), a
+              named colleague inside this organization, or somebody outside it by
+              name. CE-4 offered only the third and said the other two were CE-5's;
+              these are they.
+
+            ⚠️ AND THE COLLEAGUE PICKER IS NOT THE DOCTOR ROSTER. A DOCTOR does not
+              hold `doctor.directory.read` — the roster is a personnel list, and
+              `GET /doctors` refuses them. `searchReferralDoctors` goes to
+              `/doctors/referral-targets`, which sits behind the authoring code,
+              requires a search term, and answers a name and a specialty. You can
+              confirm the colleague you already know; you cannot ask who works here.
           */}
-          <Field
-            name={name}
-            label="Refer to"
-            hint="The clinician or department the patient is being sent to."
-            className="min-w-[16rem] flex-1"
-          >
-            <input
-              id={name}
-              name={name}
-              value={to}
-              disabled={readOnly}
-              className={inputClass}
-              onChange={(event) => setTo(event.target.value)}
-            />
-          </Field>
-          <Button
-            variant="secondary"
-            disabled={readOnly || to.trim() === ''}
-            onClick={() => {
-              void add('referrals', { externalName: to.trim() });
-              setTo('');
+          <TermPicker
+            label="Refer to a specialty"
+            hint="A classification, when the patient needs a kind of clinician rather than a named one."
+            placeholder="Start typing a specialty"
+            disabled={readOnly}
+            search={searchSpecialty}
+            onPick={(picked) => {
+              /* ⚠️ A SPECIALTY MUST BE PICKED, NOT TYPED. `specialty_id` is a
+                 foreign key; free text here would have to become an
+                 `externalName`, which silently turns "see a cardiologist" into
+                 "refer to a person called Cardiology". */
+              if ('id' in picked) void add('referrals', { specialtyId: picked.id });
             }}
-          >
-            Add
-          </Button>
+          />
+
+          <TermPicker
+            label="Refer to a colleague"
+            hint="Somebody at this organization. Type at least two letters of their name."
+            placeholder="Start typing a name"
+            disabled={readOnly}
+            search={searchColleague}
+            onPick={(picked) => {
+              /* Same rule as the specialty above: an id or nothing. Somebody who
+                 is not on the list is an outside referral, below. */
+              if ('id' in picked) void add('referrals', { doctorProfileId: picked.id });
+            }}
+          />
+
+          <div className="flex flex-wrap items-end gap-3">
+            <Field
+              name={name}
+              label="Refer outside the clinic"
+              hint="A clinician or hospital elsewhere, by name."
+              className="min-w-[16rem] flex-1"
+            >
+              <input
+                id={name}
+                name={name}
+                value={to}
+                disabled={readOnly}
+                className={inputClass}
+                onChange={(event) => setTo(event.target.value)}
+              />
+            </Field>
+            <Button
+              variant="secondary"
+              disabled={readOnly || to.trim() === ''}
+              onClick={() => {
+                void add('referrals', { externalName: to.trim() });
+                setTo('');
+              }}
+            >
+              Add
+            </Button>
+          </div>
         </div>
       )}
     </div>

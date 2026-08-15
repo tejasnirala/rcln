@@ -31,26 +31,27 @@ The people being treated. The first PHI in the product: identity is org-wide so 
 
 | method | path | at |
 | --- | --- | --- |
-| GET | `/` | `apps/api/src/routes/v1/patients.routes.ts:148` |
-| POST | `/duplicate-check` | `apps/api/src/routes/v1/patients.routes.ts:174` |
-| POST | `/` | `apps/api/src/routes/v1/patients.routes.ts:187` |
-| GET | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:203` |
-| PATCH | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:214` |
-| DELETE | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:238` |
-| POST | `/:patientId/registrations` | `apps/api/src/routes/v1/patients.routes.ts:250` |
-| POST | `/:patientId/addresses` | `apps/api/src/routes/v1/patients.routes.ts:269` |
-| DELETE | `/:patientId/addresses/:addressId` | `apps/api/src/routes/v1/patients.routes.ts:286` |
-| POST | `/:patientId/contacts` | `apps/api/src/routes/v1/patients.routes.ts:302` |
-| DELETE | `/:patientId/contacts/:contactId` | `apps/api/src/routes/v1/patients.routes.ts:319` |
-| GET | `/:patientId/history` | `apps/api/src/routes/v1/patients.routes.ts:340` |
-| POST | `/:patientId/allergies` | `apps/api/src/routes/v1/patients.routes.ts:355` |
-| DELETE | `/:patientId/allergies/:allergyId` | `apps/api/src/routes/v1/patients.routes.ts:372` |
-| POST | `/:patientId/conditions` | `apps/api/src/routes/v1/patients.routes.ts:388` |
-| PUT | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:405` |
-| DELETE | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:423` |
-| POST | `/:patientId/medications` | `apps/api/src/routes/v1/patients.routes.ts:439` |
-| POST | `/:patientId/medications/:medicationId/stop` | `apps/api/src/routes/v1/patients.routes.ts:461` |
-| DELETE | `/:patientId/medications/:medicationId` | `apps/api/src/routes/v1/patients.routes.ts:480` |
+| GET | `/` | `apps/api/src/routes/v1/patients.routes.ts:151` |
+| POST | `/duplicate-check` | `apps/api/src/routes/v1/patients.routes.ts:177` |
+| POST | `/` | `apps/api/src/routes/v1/patients.routes.ts:190` |
+| GET | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:206` |
+| PATCH | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:217` |
+| DELETE | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:241` |
+| POST | `/:patientId/registrations` | `apps/api/src/routes/v1/patients.routes.ts:253` |
+| POST | `/:patientId/addresses` | `apps/api/src/routes/v1/patients.routes.ts:272` |
+| DELETE | `/:patientId/addresses/:addressId` | `apps/api/src/routes/v1/patients.routes.ts:289` |
+| POST | `/:patientId/contacts` | `apps/api/src/routes/v1/patients.routes.ts:305` |
+| DELETE | `/:patientId/contacts/:contactId` | `apps/api/src/routes/v1/patients.routes.ts:322` |
+| GET | `/:patientId/visit-history` | `apps/api/src/routes/v1/patients.routes.ts:362` |
+| GET | `/:patientId/history` | `apps/api/src/routes/v1/patients.routes.ts:387` |
+| POST | `/:patientId/allergies` | `apps/api/src/routes/v1/patients.routes.ts:402` |
+| DELETE | `/:patientId/allergies/:allergyId` | `apps/api/src/routes/v1/patients.routes.ts:419` |
+| POST | `/:patientId/conditions` | `apps/api/src/routes/v1/patients.routes.ts:435` |
+| PUT | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:452` |
+| DELETE | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:470` |
+| POST | `/:patientId/medications` | `apps/api/src/routes/v1/patients.routes.ts:486` |
+| POST | `/:patientId/medications/:medicationId/stop` | `apps/api/src/routes/v1/patients.routes.ts:508` |
+| DELETE | `/:patientId/medications/:medicationId` | `apps/api/src/routes/v1/patients.routes.ts:527` |
 
 ## Database impact
 

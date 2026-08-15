@@ -260,3 +260,79 @@ from a booking means a patient who never returns has no record of being told to.
 ⚠️ **A fresh booking opens a NEW episode — never "the patient's most recent open
 one".** Guessing that a sore throat in March belongs to January's diabetes
 journey is a clinical claim the software has no basis for.
+
+---
+
+## CD-14 — Two disclosure classes over one journey, and two endpoints
+
+`GET /v1/clinical-episodes/:id` stays `appointment.read` and carries no
+diagnosis. `GET /v1/patients/:id/visit-history` is `clinical.encounter.read` and
+carries what was concluded at every visit.
+
+**The tempting shape was one endpoint.** The episode detail already returns the
+journey's appointments in order; adding each one's encounter summary is four
+lines and one nested select, and it is what FOLLOW_UP_ARCHITECTURE §5 literally
+describes.
+
+**Why it is two.** The front desk holds `appointment.read` and no clinical code
+at all — that is the whole point of the split the recall list already makes. The
+desk picks a journey while booking, which is why the episode endpoint is theirs.
+Widening it to carry diagnoses would hand the desk the chart through the booking
+screen, silently, with no role named anywhere and nothing on screen saying it had
+happened.
+
+⚠️ **Nor is it `patient.medical_history.read`.** That is a DIFFERENT record —
+allergies, conditions and long-term medications, the things true of a person
+BETWEEN visits. Visit history is the sequence of consultations. A doctor holds
+both and they are not the same disclosure.
+
+---
+
+## CD-15 — A referral lookup is not the doctor directory
+
+`GET /v1/doctors/referral-targets?search=` sits behind
+`clinical.encounter.create`, requires a two-character term, and answers a name
+and a primary specialty.
+
+**The conflict.** `encounter_referrals.doctor_profile_id` is a destination the
+contract offers and a CHECK accepts, so the person writing a consultation has to
+be able to reach it. But a DOCTOR deliberately does not hold
+`doctor.directory.read`, and `roles.ts` says why in as many words:
+
+> ⚠️ NO DOCTOR_DIRECTORY_READ, DELIBERATELY. […] the colleague roster is a
+> personnel list, and `GET /doctors` refuses it here too.
+
+**What resolves it is that a lookup is not an enumeration.** There is no form of
+this call that answers "who works here": `search` is required, so you can confirm
+the colleague you already know and cannot ask for the list. The payload is a name
+and a specialty — no schedule, no contact details, no registration number, no
+fees, no employment status, every one of which `DoctorSummary` carries.
+
+⚠️ **The alternative was leaving `doctorProfileId` unreachable from the screen
+that writes referrals**, which would make a supported destination usable only by
+a clinic that widens DOCTOR's role — a default nobody chose.
+
+---
+
+## CD-16 — The previous visit says HOW it was found
+
+`GET /v1/appointments/:id/previous-visit` answers with a `source`:
+
+```text
+PARENT_APPOINTMENT  the booking this one was made from    a fact, FK-enforced
+SAME_EPISODE        the last consultation in this journey  a strong inference
+MOST_RECENT         the last consultation anywhere         a convenience
+```
+
+**Why the label travels.** The three are not equally true, and a panel that
+worded all of them "last visit" would tell a doctor that an unrelated visit from
+March is what this follow-up follows. That is a clinical claim the software has
+no basis for — the same trap `resolveEpisodeForBooking` refuses when it declines
+to guess an episode for a fresh booking (CD-13).
+
+The screen renders three different sentences and opens the panel by default only
+for the first two.
+
+⚠️ **`FINALIZED` or `AMENDED` only, and never the visit being asked about.** A
+draft is what somebody is in the middle of writing, and the current visit is not
+its own history.

@@ -98,7 +98,9 @@ export function InvoiceList({
     <div className="space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-title font-display text-ink">Invoices</h1>
+          <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">
+            Invoices
+          </h1>
           <p className="text-muted mt-1 text-sm">
             What this clinic has billed. Dates are the clinic&rsquo;s own.
           </p>
@@ -382,7 +384,7 @@ function InvoiceRow({
          */}
         <Link
           href={`/invoices/${invoice.id}`}
-          className="text-drape font-mono hover:underline focus-visible:underline
+          className="text-drape font-mono text-[0.8125rem] hover:underline focus-visible:underline
                      after:absolute after:inset-0 after:content-['']"
         >
           {invoice.invoiceNumber ?? 'Draft'}
@@ -398,10 +400,26 @@ function InvoiceRow({
       <td className="px-4 py-3">
         <StatusPill status={invoice.status} />
       </td>
-      <td className="text-ink px-4 py-3 text-right font-mono">
+      {/*
+       * ⚠️ MONO IS STEPPED DOWN A NOTCH FROM THE TABLE'S OWN `text-sm`, and
+       *   `tabular-nums` is not free. Plex Mono advances 0.6em against Plex
+       *   Sans's ~0.5, so a figure set at the same nominal size as the prose
+       *   beside it READS a size larger — which is why every other mono
+       *   identifier in the app (the UHID on the day board, the appointment
+       *   number, the ledger's references) is a step smaller than its
+       *   neighbours. And `.font-mono` does NOT carry tabular figures: globals.css
+       *   sets `font-variant-numeric` on `code`/`kbd`/`samp`/`pre` only, so a
+       *   money column has to ask for it or the decimal points drift.
+       */}
+      <td className="text-ink px-4 py-3 text-right font-mono text-[0.8125rem] tabular-nums">
         {formatMoney(money(invoice.grandTotalMinor, invoice.currency))}
       </td>
-      <td className={cn('px-4 py-3 text-right font-mono', settled ? 'text-muted' : 'text-ink')}>
+      <td
+        className={cn(
+          'px-4 py-3 text-right font-mono text-[0.8125rem] tabular-nums',
+          settled ? 'text-muted' : 'text-ink'
+        )}
+      >
         {/*
          * ⚠️ A SETTLED BILL SAYS "Settled", NOT A ZERO, AND THE TWO ARE NOT THE
          *   SAME CLAIM. There are no payments yet, so `amountPaid` is always

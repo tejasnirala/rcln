@@ -228,8 +228,13 @@ function decimal(value: Prisma.Decimal | null): string | null {
  * ⚠️ AND IT IS COUNTED FROM THE ADVICE, NOT FROM TODAY. "Come back in 15 days"
  *   said on the 1st is due on the 16th whenever anybody asks; anchoring it to
  *   the read would make every recall permanently fifteen days away.
+ *
+ * ⚠️ EXPORTED FOR CE-5's VISIT HISTORY, WHICH NEEDS THE SAME ANSWER OVER ROWS IT
+ *   LOADED ITSELF. Its twin is `DUE_DATE` in `recall.service.ts` — the same rule
+ *   written as SQL, because the recall list FILTERS on it and cannot load every
+ *   outstanding recommendation to do so. **The two must be changed together.**
  */
-function dueOn(row: {
+export function dueOn(row: {
   isRequired: boolean;
   intervalValue: number | null;
   intervalUnit: string | null;

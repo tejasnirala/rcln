@@ -113,6 +113,19 @@ function clinicNav(permissions: string[]): NavLink[] {
     // is the screen the front desk actually works from all day.
     { href: '/appointments', label: 'Appointments', permission: ['appointment.read'] },
     /*
+     * ⚠️ `appointment.read`, THE SAME CODE AS THE BOARD, AND NOT A CLINICAL ONE
+     *   (CE-5). The recall list is worked by the front desk: somebody rings the
+     *   patient and books them in. The desk holds no clinical code at all, so
+     *   gating this behind `clinical.encounter.read` would offer the tab only to
+     *   the people who do not do the job. Advising a follow-up IS clinical and
+     *   happens in the consultation — invariant 7, applied to a chase rather
+     *   than to a chart.
+     *
+     * Sits directly after Appointments because it is the same desk's second
+     * screen: the board is today, and this is who should have been on it.
+     */
+    { href: '/recall', label: 'Recall', permission: ['appointment.read'] },
+    /*
      * ⚠️ "INVOICES", NOT "BILLING" — THE TAB BELOW IS ALREADY CALLED BILLING AND
      *   IS A DIFFERENT DOCUMENT ENTIRELY. That one is rcln billing the CLINIC
      *   for its subscription; this one is the clinic billing a PATIENT. Two

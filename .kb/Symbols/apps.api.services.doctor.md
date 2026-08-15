@@ -10,84 +10,85 @@ Files: `apps/api/src/services/doctor/clinical-taxonomy.service.ts` · `apps/api/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addQualification` | `(ctx: TenantContext, doctorId: string, input: DoctorQualificationRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:988` |  |
+| `addQualification` | `(ctx: TenantContext, doctorId: string, input: DoctorQualificationRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:990` |  |
 | `addSchedule` | `(ctx: TenantContext, doctorId: string, input: DoctorScheduleRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:323` |  |
-| `archiveDoctor` | `(ctx: TenantContext, doctorId: string, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:898` | Retire a doctor. Soft delete, because prescriptions and appointments point at this row and must keep resolving after the person has left. |
+| `archiveDoctor` | `(ctx: TenantContext, doctorId: string, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:900` | Retire a doctor. Soft delete, because prescriptions and appointments point at this row and must keep resolving after the person has left. |
 | `assertMutable` <sub>local</sub> | `(row: NodeRow): void` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:156` |  |
 | `assertNoInternalOverlap` | `(blocks: DoctorScheduleRequest[]): void` | `apps/api/src/services/doctor/doctor-schedule.service.ts:166` |  |
 | `assertSafeToDeactivate` <sub>local</sub> | `(tx: TxClient, id: string): Promise<void>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:617` |  |
-| `assertSpecialtiesUsable` <sub>local</sub> | `(tx: TxClient, entries: DoctorClassificationInput[], primaryId: string \| undefined, alreadyAssignedIds: ReadonlySet<string>): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:410` |  |
+| `assertSpecialtiesUsable` <sub>local</sub> | `(tx: TxClient, entries: DoctorClassificationInput[], primaryId: string \| undefined, alreadyAssignedIds: ReadonlySet<string>): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:412` |  |
 | `blocksClash` <sub>local</sub> | `(a: DoctorScheduleRequest, b: DoctorScheduleRequest): boolean` | `apps/api/src/services/doctor/doctor-schedule.service.ts:151` |  |
-| `classificationData` <sub>local</sub> | `(entry: DoctorClassificationInput, organizationId: string, primaryId: string \| undefined): { organizationId: string; specialtyId: string; isPrimary: b…` | `apps/api/src/services/doctor/doctor.service.ts:456` |  |
-| `createDoctor` | `(ctx: TenantContext, input: CreateDoctorRequest, options: DoctorActionOptions): Promise<DoctorDetail>` | `apps/api/src/services/doctor/doctor.service.ts:680` |  |
-| `createDoctorRecord` <sub>local</sub> | `(ctx: TenantContext, input: CreateDoctorRequest, schedules: CreateDoctorRequest['schedules'] & object, options: DoctorActionOptions): Promise<{ created: DoctorRow; chains: AncestorChains }>` | `apps/api/src/services/doctor/doctor.service.ts:703` |  |
+| `classificationData` <sub>local</sub> | `(entry: DoctorClassificationInput, organizationId: string, primaryId: string \| undefined): { organizationId: string; specialtyId: string; isPrimary: b…` | `apps/api/src/services/doctor/doctor.service.ts:458` |  |
+| `createDoctor` | `(ctx: TenantContext, input: CreateDoctorRequest, options: DoctorActionOptions): Promise<DoctorDetail>` | `apps/api/src/services/doctor/doctor.service.ts:682` |  |
+| `createDoctorRecord` <sub>local</sub> | `(ctx: TenantContext, input: CreateDoctorRequest, schedules: CreateDoctorRequest['schedules'] & object, options: DoctorActionOptions): Promise<{ created: DoctorRow; chains: AncestorChains }>` | `apps/api/src/services/doctor/doctor.service.ts:705` |  |
 | `createNode` | `(ctx: TenantContext, input: CreateTaxonomyNodeRequest, options: TaxonomyActionOptions): Promise<TaxonomyNode>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:454` | Add a node to THIS CLINIC's catalogue. Always org-scoped. There is no path here that writes a platform row: the seed owns those, and the RLS WITH CHECK would r… |
-| `createQualificationRow` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, doctorId: string, input: DoctorQualificationRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:619` |  |
+| `createQualificationRow` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, doctorId: string, input: DoctorQualificationRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:621` |  |
 | `createScheduleRow` | `(tx: TxClient, ctx: TenantContext, doctorId: string, input: DoctorScheduleRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:189` |  |
 | `deactivateNode` | `(ctx: TenantContext, id: string, options: TaxonomyActionOptions): Promise<void>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:588` |  |
 | `decideException` | `(ctx: TenantContext, doctorId: string, exceptionId: string, input: DecideScheduleExceptionRequest, options: DoctorActionOptions): Promise<DoctorScheduleExceptionDetail>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:469` |  |
 | `descendantRows` | `(tx: TxClient, id: string, includeInactive: boolean, includeSelf: boolean): Promise<NodeRow[]>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:244` |  |
-| `effectiveSlotMinutes` | `(tx: TxClient, ctx: TenantContext, scope: { branchId?: string \| undefined; doctorProfileId?: s…, override: number \| null): Promise<number>` | `apps/api/src/services/doctor/doctor.service.ts:1126` |  |
+| `effectiveSlotMinutes` | `(tx: TxClient, ctx: TenantContext, scope: { branchId?: string \| undefined; doctorProfileId?: s…, override: number \| null): Promise<number>` | `apps/api/src/services/doctor/doctor.service.ts:1128` |  |
 | `fromDate` <sub>local</sub> | `(value: Date \| null): string \| null` | `apps/api/src/services/doctor/doctor-schedule.service.ts:55` |  |
 | `fromTime` <sub>local</sub> | `(value: Date): string` | `apps/api/src/services/doctor/doctor-schedule.service.ts:44` |  |
 | `getAncestors` | `(ctx: TenantContext, id: string): Promise<TaxonomyNodeWithAncestors>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:338` |  |
-| `getDoctor` | `(ctx: TenantContext, doctorId: string): Promise<DoctorDetail>` | `apps/api/src/services/doctor/doctor.service.ts:559` |  |
+| `getDoctor` | `(ctx: TenantContext, doctorId: string): Promise<DoctorDetail>` | `apps/api/src/services/doctor/doctor.service.ts:561` |  |
 | `getDoctorCompensation` | `(ctx: TenantContext, doctorId: string, access: CompensationAccess): Promise<DoctorCompensationDetail>` | `apps/api/src/services/doctor/doctor-compensation.service.ts:60` |  |
-| `getOwnDoctor` | `(ctx: TenantContext): Promise<DoctorDetail>` | `apps/api/src/services/doctor/doctor.service.ts:600` |  |
+| `getOwnDoctor` | `(ctx: TenantContext): Promise<DoctorDetail>` | `apps/api/src/services/doctor/doctor.service.ts:602` |  |
 | `getSubtree` | `(ctx: TenantContext, id: string, includeInactive: boolean): Promise<TaxonomyTreeNode>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:301` |  |
-| `isoDate` <sub>local</sub> | `(value: Date \| null): string \| null` | `apps/api/src/services/doctor/doctor.service.ts:99` | `Date \| null` -> `YYYY-MM-DD`. The column is a bare date; read it in UTC. |
+| `isoDate` <sub>local</sub> | `(value: Date \| null): string \| null` | `apps/api/src/services/doctor/doctor.service.ts:101` | `Date \| null` -> `YYYY-MM-DD`. The column is a bare date; read it in UTC. |
 | `isScheduleOverlap` | `(err: unknown): boolean` | `apps/api/src/services/doctor/doctor-schedule.service.ts:131` |  |
 | `listChildren` | `(ctx: TenantContext, id: string, includeInactive: boolean): Promise<TaxonomyNode[]>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:193` | Immediate children of one node. One level, not the subtree. |
-| `listDoctors` | `(ctx: TenantContext, query: DoctorListQuery, includeSchedules): Promise<DoctorSummary[]>` | `apps/api/src/services/doctor/doctor.service.ts:314` |  |
+| `listDoctors` | `(ctx: TenantContext, query: DoctorListQuery, includeSchedules): Promise<DoctorSummary[]>` | `apps/api/src/services/doctor/doctor.service.ts:316` |  |
 | `listExceptions` | `(ctx: TenantContext, doctorId: string): Promise<DoctorScheduleExceptionDetail[]>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:386` |  |
-| `listMasters` | `(ctx: TenantContext): Promise<SpecialtyListResponse>` | `apps/api/src/services/doctor/doctor.service.ts:242` |  |
+| `listMasters` | `(ctx: TenantContext): Promise<SpecialtyListResponse>` | `apps/api/src/services/doctor/doctor.service.ts:244` |  |
 | `listRoots` | `(ctx: TenantContext, includeInactive: boolean): Promise<TaxonomyNode[]>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:169` | The roots — the clinical domains. `parent_id IS NULL`. |
 | `listSchedules` | `(ctx: TenantContext, doctorId: string): Promise<DoctorScheduleDetail[]>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:273` |  |
 | `listSchedulesForDoctors` | `(tx: TxClient, ctx: TenantContext, doctorIds: string[]): Promise<Map<string, DoctorScheduleDetail[]>>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:296` |  |
-| `loadAncestorChains` <sub>local</sub> | `(tx: TxClient, specialtyIds: string[]): Promise<AncestorChains>` | `apps/api/src/services/doctor/doctor.service.ts:128` |  |
+| `loadAncestorChains` <sub>local</sub> | `(tx: TxClient, specialtyIds: string[]): Promise<AncestorChains>` | `apps/api/src/services/doctor/doctor.service.ts:130` |  |
 | `loadNode` <sub>local</sub> | `(tx: TxClient, id: string): Promise<NodeRow>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:115` |  |
-| `normaliseClassifications` <sub>local</sub> | `(input: { specialtyIds?: string[] \| undefined; classificatio…): DoctorClassificationInput[]` | `apps/api/src/services/doctor/doctor.service.ts:387` | The two request forms collapse to one internal shape here, so nothing below this line has to care which the client used. |
-| `reconcileClassifications` <sub>local</sub> | `(tx: TxClient, organizationId: string, doctorProfileId: string, entries: DoctorClassificationInput[], primaryId: string \| undefined): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:492` |  |
-| `removeQualification` | `(ctx: TenantContext, doctorId: string, qualificationRowId: string, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:1095` |  |
+| `normaliseClassifications` <sub>local</sub> | `(input: { specialtyIds?: string[] \| undefined; classificatio…): DoctorClassificationInput[]` | `apps/api/src/services/doctor/doctor.service.ts:389` | The two request forms collapse to one internal shape here, so nothing below this line has to care which the client used. |
+| `reconcileClassifications` <sub>local</sub> | `(tx: TxClient, organizationId: string, doctorProfileId: string, entries: DoctorClassificationInput[], primaryId: string \| undefined): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:494` |  |
+| `removeQualification` | `(ctx: TenantContext, doctorId: string, qualificationRowId: string, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:1097` |  |
 | `removeSchedule` | `(ctx: TenantContext, doctorId: string, scheduleId: string, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:360` |  |
 | `requestException` | `(ctx: TenantContext, doctorId: string, input: DoctorScheduleExceptionRequest, options: DoctorActionOptions): Promise<DoctorScheduleExceptionDetail>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:407` |  |
 | `searchNodes` | `(ctx: TenantContext, query: TaxonomySearchQuery): Promise<TaxonomyNode[]>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:384` |  |
-| `setBranchSetting` | `(ctx: TenantContext, doctorId: string, input: DoctorBranchSettingRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:937` |  |
+| `searchReferralTargets` | `(ctx: TenantContext, query: ReferralTargetQuery): Promise<ReferralTarget[]>` | `apps/api/src/services/doctor/doctor.service.ts:1171` |  |
+| `setBranchSetting` | `(ctx: TenantContext, doctorId: string, input: DoctorBranchSettingRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:939` |  |
 | `setDoctorCompensation` | `(ctx: TenantContext, doctorId: string, input: SetDoctorCompensationRequest, options: CompensationActionOptions): Promise<DoctorCompensationDetail>` | `apps/api/src/services/doctor/doctor-compensation.service.ts:174` | Agree a figure, or clear one. The endpoint behind `doctor.compensation.manage`. |
-| `snapshot` <sub>local</sub> | `(row: DoctorRow): Record<string, unknown>` | `apps/api/src/services/doctor/doctor.service.ts:223` |  |
+| `snapshot` <sub>local</sub> | `(row: DoctorRow): Record<string, unknown>` | `apps/api/src/services/doctor/doctor.service.ts:225` |  |
 | `snapshotSchedule` <sub>local</sub> | `(row: ScheduleRow): Record<string, unknown>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:108` |  |
 | `toDate` <sub>local</sub> | `(yyyymmdd: string): Date` | `apps/api/src/services/doctor/doctor-schedule.service.ts:51` | A bare `date` column: read it in UTC or it slides a day either way. |
-| `toDateColumn` <sub>local</sub> | `(value: string \| null \| undefined): Date \| null` | `apps/api/src/services/doctor/doctor.service.ts:452` | `YYYY-MM-DD` -> a UTC midnight Date for a bare `date` column. |
-| `toDetail` <sub>local</sub> | `(row: DoctorRow, chains: AncestorChains): Omit<DoctorDetail, 'schedules' \| 'exceptions'>` | `apps/api/src/services/doctor/doctor.service.ts:188` |  |
+| `toDateColumn` <sub>local</sub> | `(value: string \| null \| undefined): Date \| null` | `apps/api/src/services/doctor/doctor.service.ts:454` | `YYYY-MM-DD` -> a UTC midnight Date for a bare `date` column. |
+| `toDetail` <sub>local</sub> | `(row: DoctorRow, chains: AncestorChains): Omit<DoctorDetail, 'schedules' \| 'exceptions'>` | `apps/api/src/services/doctor/doctor.service.ts:190` |  |
 | `toExceptionDetail` <sub>local</sub> | `(row: ExceptionRow): DoctorScheduleExceptionDetail` | `apps/api/src/services/doctor/doctor-schedule.service.ts:92` |  |
 | `toNode` <sub>local</sub> | `(row: NodeRow): TaxonomyNode` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:81` |  |
 | `toScheduleDetails` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, rows: ScheduleRow[]): Promise<DoctorScheduleDetail[]>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:233` |  |
-| `toSummary` <sub>local</sub> | `(row: DoctorRow, chains: AncestorChains): DoctorSummary` | `apps/api/src/services/doctor/doctor.service.ts:160` |  |
+| `toSummary` <sub>local</sub> | `(row: DoctorRow, chains: AncestorChains): DoctorSummary` | `apps/api/src/services/doctor/doctor.service.ts:162` |  |
 | `toTime` <sub>local</sub> | `(hhmm: string): Date` | `apps/api/src/services/doctor/doctor-schedule.service.ts:40` |  |
 | `translateWriteError` <sub>local</sub> | `(err: unknown): Error` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:642` |  |
-| `updateDoctor` | `(ctx: TenantContext, doctorId: string, input: UpdateDoctorRequest, options: DoctorActionOptions): Promise<Omit<DoctorDetail, 'schedules' \| 'exceptions'>>` | `apps/api/src/services/doctor/doctor.service.ts:826` |  |
+| `updateDoctor` | `(ctx: TenantContext, doctorId: string, input: UpdateDoctorRequest, options: DoctorActionOptions): Promise<Omit<DoctorDetail, 'schedules' \| 'exceptions'>>` | `apps/api/src/services/doctor/doctor.service.ts:828` |  |
 | `updateNode` | `(ctx: TenantContext, id: string, input: UpdateTaxonomyNodeRequest, options: TaxonomyActionOptions): Promise<TaxonomyNode>` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:504` |  |
-| `updateQualification` | `(ctx: TenantContext, doctorId: string, qualificationRowId: string, input: UpdateDoctorQualificationRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:1020` |  |
+| `updateQualification` | `(ctx: TenantContext, doctorId: string, qualificationRowId: string, input: UpdateDoctorQualificationRequest, options: DoctorActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor.service.ts:1022` |  |
 | `writeDoctorCompensation` | `(tx: TxClient, ctx: TenantContext, doctorId: string, input: SetDoctorCompensationRequest, options: CompensationActionOptions): Promise<void>` | `apps/api/src/services/doctor/doctor-compensation.service.ts:113` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DEFAULT_SLOT_MINUTES` <sub>local</sub> | `15` | `apps/api/src/services/doctor/doctor.service.ts:50` | Fallback when no `appointment.slot_minutes` is set anywhere. Matches the seed. |
-| `DOCTOR_SELECT` <sub>local</sub> | `{ id: true, userId: true, registrationNumber: true, registrationCouncil: true, registrati…` | `apps/api/src/services/doctor/doctor.service.ts:54` | The shape Prisma is asked for, so list and detail cannot drift apart. |
+| `DEFAULT_SLOT_MINUTES` <sub>local</sub> | `15` | `apps/api/src/services/doctor/doctor.service.ts:52` | Fallback when no `appointment.slot_minutes` is set anywhere. Matches the seed. |
+| `DOCTOR_SELECT` <sub>local</sub> | `{ id: true, userId: true, registrationNumber: true, registrationCouncil: true, registrati…` | `apps/api/src/services/doctor/doctor.service.ts:56` | The shape Prisma is asked for, so list and detail cannot drift apart. |
 | `EXCEPTION_SELECT` <sub>local</sub> | `{ id: true, branchId: true, doctorProfileId: true, exceptionType: true, startsAt: true, e…` | `apps/api/src/services/doctor/doctor-schedule.service.ts:74` |  |
 | `SCHEDULE_SELECT` <sub>local</sub> | `{ id: true, branchId: true, doctorProfileId: true, dayOfWeek: true, startTime: true, endT…` | `apps/api/src/services/doctor/doctor-schedule.service.ts:59` |  |
-| `SLOT_MINUTES_KEY` <sub>local</sub> | `'appointment.slot_minutes'` | `apps/api/src/services/doctor/doctor.service.ts:51` |  |
+| `SLOT_MINUTES_KEY` <sub>local</sub> | `'appointment.slot_minutes'` | `apps/api/src/services/doctor/doctor.service.ts:53` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AncestorRow` <sub>local</sub> | `{ descendant_id, id, code, name, type, depth }` | `apps/api/src/services/doctor/doctor.service.ts:106` |  |
+| `AncestorRow` <sub>local</sub> | `{ descendant_id, id, code, name, type, depth }` | `apps/api/src/services/doctor/doctor.service.ts:108` |  |
 | `CompensationAccess` | `{ holdsCode }` | `apps/api/src/services/doctor/doctor-compensation.service.ts:49` |  |
 | `CompensationActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/doctor/doctor-compensation.service.ts:37` | Request metadata, carried onto the audit row. |
-| `DoctorActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/doctor/doctor.service.ts:44` |  |
+| `DoctorActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/doctor/doctor.service.ts:46` |  |
 | `NodeRow` <sub>local</sub> | `{ id, code, name, parent_id, type, description, display_order, is_active, organization_id, depth, has_children }` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:67` |  |
 | `TaxonomyActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/doctor/clinical-taxonomy.service.ts:55` |  |
 
@@ -95,7 +96,7 @@ Files: `apps/api/src/services/doctor/clinical-taxonomy.service.ts` · `apps/api/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AncestorChains` <sub>local</sub> | `Map<string, DoctorSpecialtyDetail['ancestors']>` | `apps/api/src/services/doctor/doctor.service.ts:104` | Root-first chain above one node. Keyed by the node's own id. |
-| `DoctorRow` <sub>local</sub> | `Prisma.DoctorProfileGetPayload<{ select: typeof DOCTOR_SELECT }>` | `apps/api/src/services/doctor/doctor.service.ts:96` |  |
+| `AncestorChains` <sub>local</sub> | `Map<string, DoctorSpecialtyDetail['ancestors']>` | `apps/api/src/services/doctor/doctor.service.ts:106` | Root-first chain above one node. Keyed by the node's own id. |
+| `DoctorRow` <sub>local</sub> | `Prisma.DoctorProfileGetPayload<{ select: typeof DOCTOR_SELECT }>` | `apps/api/src/services/doctor/doctor.service.ts:98` |  |
 | `ExceptionRow` <sub>local</sub> | `Prisma.DoctorScheduleExceptionGetPayload<{ select: typeof EXCEPTION_SELECT }>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:90` |  |
 | `ScheduleRow` <sub>local</sub> | `Prisma.DoctorScheduleGetPayload<{ select: typeof SCHEDULE_SELECT }>` | `apps/api/src/services/doctor/doctor-schedule.service.ts:89` |  |

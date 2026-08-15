@@ -4,7 +4,7 @@
 
 > Appointments: what is free, what is booked, and what happened to it.
 
-Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit.ts` · `packages/contracts/src/auth.ts` · `packages/contracts/src/billing.ts` · `packages/contracts/src/clinical-taxonomy.ts` · `packages/contracts/src/clinical.ts` · `packages/contracts/src/common.ts` · `packages/contracts/src/consultation.ts` · `packages/contracts/src/doctors.ts` · `packages/contracts/src/encounter-content.ts` · `packages/contracts/src/encounters.ts` · `packages/contracts/src/fees.ts` · `packages/contracts/src/index.ts` · `packages/contracts/src/inventory.ts` · `packages/contracts/src/invoices.ts` · `packages/contracts/src/locale.ts` · `packages/contracts/src/marketing.ts` · `packages/contracts/src/patients.ts` · `packages/contracts/src/procurement.ts` · `packages/contracts/src/products.ts` · `packages/contracts/src/regulatory.ts` · `packages/contracts/src/tax.ts` · `packages/contracts/src/tenancy.ts`
+Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit.ts` · `packages/contracts/src/auth.ts` · `packages/contracts/src/billing.ts` · `packages/contracts/src/clinical-taxonomy.ts` · `packages/contracts/src/clinical.ts` · `packages/contracts/src/common.ts` · `packages/contracts/src/consultation.ts` · `packages/contracts/src/doctors.ts` · `packages/contracts/src/encounter-content.ts` · `packages/contracts/src/encounters.ts` · `packages/contracts/src/fees.ts` · `packages/contracts/src/index.ts` · `packages/contracts/src/inventory.ts` · `packages/contracts/src/invoices.ts` · `packages/contracts/src/locale.ts` · `packages/contracts/src/marketing.ts` · `packages/contracts/src/patients.ts` · `packages/contracts/src/procurement.ts` · `packages/contracts/src/products.ts` · `packages/contracts/src/regulatory.ts` · `packages/contracts/src/tax.ts` · `packages/contracts/src/tenancy.ts` · `packages/contracts/src/visit-history.ts`
 
 ## fn
 
@@ -214,7 +214,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `encounterAdvice` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:453` |  |
 | `encounterAttachment` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:543` |  |
 | `encounterAttachmentKind` | `z.enum(…)` | `packages/contracts/src/encounter-content.ts:105` |  |
-| `encounterContent` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:717` |  |
+| `encounterContent` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:747` |  |
 | `encounterDetail` | `z.object(…)` | `packages/contracts/src/encounters.ts:192` |  |
 | `encounterDiagnosis` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:247` |  |
 | `encounterInvestigation` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:411` |  |
@@ -227,6 +227,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `encounterSectionData` | `z.record(…)` | `packages/contracts/src/encounters.ts:53` |  |
 | `encounterStatus` | `z.enum(…)` | `packages/contracts/src/encounters.ts:38` |  |
 | `encounterSymptom` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:205` |  |
+| `encounterVisitSummary` | `z.object(…)` | `packages/contracts/src/visit-history.ts:45` |  |
 | `equivalentProductsResponse` | `z.object(…)` | `packages/contracts/src/products.ts:836` |  |
 | `evaluateRegulatoryRequest` | `z.object(…)` | `packages/contracts/src/regulatory.ts:542` |  |
 | `expiryReportQuery` | `z.object(…)` | `packages/contracts/src/inventory.ts:814` |  |
@@ -242,9 +243,10 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `finalizeEncounterRequest` | `z.object(…)` | `packages/contracts/src/encounters.ts:151` |  |
 | `followUpAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:276` |  |
 | `followUpIntervalUnit` | `z.enum(…)` | `packages/contracts/src/clinical.ts:44` |  |
-| `followUpRecallResponse` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:693` |  |
+| `followUpRecallResponse` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:723` |  |
+| `followUpRecallStatus` | `z.enum(…)` | `packages/contracts/src/encounter-content.ts:671` |  |
 | `followUpRecommendation` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:615` |  |
-| `followUpRecommendationQuery` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:658` |  |
+| `followUpRecommendationQuery` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:680` |  |
 | `followUpType` | `z.enum(…)` | `packages/contracts/src/clinical.ts:47` |  |
 | `forgotPasswordRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:42` |  |
 | `gender` | `z.enum(…)` | `packages/contracts/src/patients.ts:65` |  |
@@ -325,6 +327,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `platformOrganizationSummary` | `z.object(…)` | `packages/contracts/src/tenancy.ts:923` |  |
 | `prescribedProductRef` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:348` | The medicine, resolved for display. Same argument as `clinicalTermRef`. |
 | `prescriptionRequirement` | `z.enum(…)` | `packages/contracts/src/regulatory.ts:123` |  |
+| `previousVisit` | `z.object(…)` | `packages/contracts/src/visit-history.ts:158` |  |
+| `previousVisitResponse` | `z.object(…)` | `packages/contracts/src/visit-history.ts:184` |  |
+| `previousVisitSource` | `z.enum(…)` | `packages/contracts/src/visit-history.ts:142` |  |
 | `productCategory` | `z.object(…)` | `packages/contracts/src/products.ts:263` |  |
 | `productCategoryListResponse` | `z.object(…)` | `packages/contracts/src/products.ts:286` |  |
 | `productCostAverageListResponse` | `z.object(…)` | `packages/contracts/src/procurement.ts:1018` |  |
@@ -362,6 +367,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `qualificationSummary` | `z.object(…)` | `packages/contracts/src/doctors.ts:390` |  |
 | `receiveStockTransferRequest` | `z.object(…)` | `packages/contracts/src/inventory.ts:1041` |  |
 | `recordMovementResponse` | `z.object(…)` | `packages/contracts/src/inventory.ts:649` |  |
+| `referralTarget` | `z.object(…)` | `packages/contracts/src/visit-history.ts:203` |  |
+| `referralTargetQuery` | `z.object(…)` | `packages/contracts/src/visit-history.ts:218` |  |
+| `referralTargetResponse` | `z.object(…)` | `packages/contracts/src/visit-history.ts:224` |  |
 | `referralUrgency` | `z.enum(…)` | `packages/contracts/src/encounter-content.ts:78` |  |
 | `refreshRequest` | `z.object(…)` | `packages/contracts/src/auth.ts:26` |  |
 | `registerOrganizationResponse` | `z.object(…)` | `packages/contracts/src/tenancy.ts:554` |  |
@@ -496,6 +504,8 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `verificationResult` | `z.object(…)` | `packages/contracts/src/auth.ts:179` |  |
 | `verifyBalancesResponse` | `z.object(…)` | `packages/contracts/src/inventory.ts:782` | The replay verifier's answer. `verifyBalances()` replays the ledger and compares. It NEVER silently repairs — a cache that heals itself hides the bug that brok… |
 | `visitHistoryQuery` | `z.object(…)` | `packages/contracts/src/clinical.ts:283` |  |
+| `visitHistoryResponse` | `z.object(…)` | `packages/contracts/src/visit-history.ts:118` |  |
+| `visitHistoryVisit` | `z.object(…)` | `packages/contracts/src/visit-history.ts:87` |  |
 | `vitalsChange` | `z.object(…)` | `packages/contracts/src/appointments.ts:737` |  |
 | `vitalsListResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:781` |  |
 | `vitalsReading` | `z.object(…)` | `packages/contracts/src/appointments.ts:697` |  |
@@ -567,7 +577,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `documentPage` <sub>local</sub> | `{ page: z.coerce.number().int().min(1).default(1), limit: z.coerce.number().int().min(1).…` | `packages/contracts/src/regulatory.ts:173` |  |
 | `enteredQuantity` <sub>local</sub> | `{ quantity: positiveQuantity, unitId: uuid.nullish(), packagingLevel: z.number().int().mi…` | `packages/contracts/src/procurement.ts:109` |  |
 | `feeType` | `z .string() .min(1) .max(64) .regex(…)` | `packages/contracts/src/fees.ts:57` |  |
-| `followUpRecallEntry` | `followUpRecommendation.extend(…)` | `packages/contracts/src/encounter-content.ts:684` |  |
+| `followUpRecallEntry` | `followUpRecommendation.extend(…)` | `packages/contracts/src/encounter-content.ts:699` |  |
 | `genderValues` | `['MALE', 'FEMALE', 'OTHER', 'UNKNOWN'] as const` | `packages/contracts/src/patients.ts:40` |  |
 | `goodsReceiptDetail` | `goodsReceiptSummary.extend(…)` | `packages/contracts/src/procurement.ts:844` |  |
 | `goodsReceiptLineRequest` | `z .object({ productId: uuid, /** The order line this satisf…` | `packages/contracts/src/procurement.ts:647` |  |
@@ -654,6 +664,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `updateUnitRequest` | `z .object({ name: z.string().trim().min(1).max(128), symbol…` | `packages/contracts/src/products.ts:181` |  |
 | `updateVitalsRequest` | `recordVitalsRequest` | `packages/contracts/src/appointments.ts:500` |  |
 | `upgradeRequest` | `upgradePreviewRequest` | `packages/contracts/src/billing.ts:50` |  |
+| `visitHistoryEpisode` | `clinicalEpisodeSummary.extend(…)` | `packages/contracts/src/visit-history.ts:105` | A journey and the visits along it, oldest first within the journey. |
 | `workingDaysQuery` | `z .object({ branchId: uuid, doctorProfileId: uuid, from: ca…` | `packages/contracts/src/appointments.ts:85` |  |
 
 ## interface
@@ -877,7 +888,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `EncounterAdvice` | `z.infer<typeof encounterAdvice>` | `packages/contracts/src/encounter-content.ts:460` |  |
 | `EncounterAttachment` | `z.infer<typeof encounterAttachment>` | `packages/contracts/src/encounter-content.ts:554` |  |
 | `EncounterAttachmentKindValue` | `z.infer<typeof encounterAttachmentKind>` | `packages/contracts/src/encounter-content.ts:113` |  |
-| `EncounterContent` | `z.infer<typeof encounterContent>` | `packages/contracts/src/encounter-content.ts:729` |  |
+| `EncounterContent` | `z.infer<typeof encounterContent>` | `packages/contracts/src/encounter-content.ts:759` |  |
 | `EncounterDetail` | `z.infer<typeof encounterDetail>` | `packages/contracts/src/encounters.ts:235` |  |
 | `EncounterDiagnosis` | `z.infer<typeof encounterDiagnosis>` | `packages/contracts/src/encounter-content.ts:256` |  |
 | `EncounterInvestigation` | `z.infer<typeof encounterInvestigation>` | `packages/contracts/src/encounter-content.ts:420` |  |
@@ -890,6 +901,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `EncounterSectionData` | `z.infer<typeof encounterSectionData>` | `packages/contracts/src/encounters.ts:54` |  |
 | `EncounterStatusValue` | `z.infer<typeof encounterStatus>` | `packages/contracts/src/encounters.ts:39` |  |
 | `EncounterSymptom` | `z.infer<typeof encounterSymptom>` | `packages/contracts/src/encounter-content.ts:217` |  |
+| `EncounterVisitSummary` | `z.infer<typeof encounterVisitSummary>` | `packages/contracts/src/visit-history.ts:76` |  |
 | `EquivalentProductsResponse` | `z.infer<typeof equivalentProductsResponse>` | `packages/contracts/src/products.ts:910` |  |
 | `EvaluateRegulatoryRequest` | `z.infer<typeof evaluateRegulatoryRequest>` | `packages/contracts/src/regulatory.ts:708` |  |
 | `ExpiryReportQuery` | `z.infer<typeof expiryReportQuery>` | `packages/contracts/src/inventory.ts:892` |  |
@@ -906,10 +918,11 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `FinalizeEncounterRequest` | `z.infer<typeof finalizeEncounterRequest>` | `packages/contracts/src/encounters.ts:152` |  |
 | `FollowUpAppointmentRequest` | `z.infer<typeof followUpAppointmentRequest>` | `packages/contracts/src/appointments.ts:818` |  |
 | `FollowUpIntervalUnitValue` | `z.infer<typeof followUpIntervalUnit>` | `packages/contracts/src/clinical.ts:45` |  |
-| `FollowUpRecallEntry` | `z.infer<typeof followUpRecallEntry>` | `packages/contracts/src/encounter-content.ts:691` |  |
-| `FollowUpRecallResponse` | `z.infer<typeof followUpRecallResponse>` | `packages/contracts/src/encounter-content.ts:699` |  |
+| `FollowUpRecallEntry` | `z.infer<typeof followUpRecallEntry>` | `packages/contracts/src/encounter-content.ts:721` |  |
+| `FollowUpRecallResponse` | `z.infer<typeof followUpRecallResponse>` | `packages/contracts/src/encounter-content.ts:729` |  |
+| `FollowUpRecallStatusValue` | `z.infer<typeof followUpRecallStatus>` | `packages/contracts/src/encounter-content.ts:678` |  |
 | `FollowUpRecommendation` | `z.infer<typeof followUpRecommendation>` | `packages/contracts/src/encounter-content.ts:640` |  |
-| `FollowUpRecommendationQuery` | `z.infer<typeof followUpRecommendationQuery>` | `packages/contracts/src/encounter-content.ts:674` |  |
+| `FollowUpRecommendationQuery` | `z.infer<typeof followUpRecommendationQuery>` | `packages/contracts/src/encounter-content.ts:689` |  |
 | `FollowUpTypeValue` | `z.infer<typeof followUpType>` | `packages/contracts/src/clinical.ts:54` |  |
 | `Gender` | `z.infer<typeof gender>` | `packages/contracts/src/patients.ts:539` |  |
 | `GoodsReceiptDetail` | `z.infer<typeof goodsReceiptDetail>` | `packages/contracts/src/procurement.ts:1079` |  |
@@ -995,6 +1008,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `PlatformOrganizationSummary` | `z.infer<typeof platformOrganizationSummary>` | `packages/contracts/src/tenancy.ts:937` |  |
 | `PrescribedProductRef` | `z.infer<typeof prescribedProductRef>` | `packages/contracts/src/encounter-content.ts:353` |  |
 | `PrescriptionRequirement` | `z.infer<typeof prescriptionRequirement>` | `packages/contracts/src/regulatory.ts:667` |  |
+| `PreviousVisit` | `z.infer<typeof previousVisit>` | `packages/contracts/src/visit-history.ts:176` |  |
+| `PreviousVisitResponse` | `z.infer<typeof previousVisitResponse>` | `packages/contracts/src/visit-history.ts:187` |  |
+| `PreviousVisitSourceValue` | `z.infer<typeof previousVisitSource>` | `packages/contracts/src/visit-history.ts:143` |  |
 | `ProductCategory` | `z.infer<typeof productCategory>` | `packages/contracts/src/products.ts:865` |  |
 | `ProductCategoryListResponse` | `z.infer<typeof productCategoryListResponse>` | `packages/contracts/src/products.ts:866` |  |
 | `ProductCategoryTreeNode` | `z.infer<typeof productCategory> & { children: ProductCategoryTreeNode[]; }` | `packages/contracts/src/products.ts:278` |  |
@@ -1042,6 +1058,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `RecordMovementRequest` | `z.infer<typeof recordMovementRequest>` | `packages/contracts/src/inventory.ts:880` |  |
 | `RecordMovementResponse` | `z.infer<typeof recordMovementResponse>` | `packages/contracts/src/inventory.ts:881` |  |
 | `RecordVitalsRequest` | `z.infer<typeof recordVitalsRequest>` | `packages/contracts/src/appointments.ts:819` |  |
+| `ReferralTarget` | `z.infer<typeof referralTarget>` | `packages/contracts/src/visit-history.ts:209` |  |
+| `ReferralTargetQuery` | `z.infer<typeof referralTargetQuery>` | `packages/contracts/src/visit-history.ts:222` |  |
+| `ReferralTargetResponse` | `z.infer<typeof referralTargetResponse>` | `packages/contracts/src/visit-history.ts:227` |  |
 | `ReferralUrgencyValue` | `z.infer<typeof referralUrgency>` | `packages/contracts/src/encounter-content.ts:79` |  |
 | `RefreshRequest` | `z.infer<typeof refreshRequest>` | `packages/contracts/src/auth.ts:325` |  |
 | `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:966` |  |
@@ -1221,7 +1240,10 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `VerificationRequestResult` | `z.infer<typeof verificationRequestResult>` | `packages/contracts/src/auth.ts:329` |  |
 | `VerificationResult` | `z.infer<typeof verificationResult>` | `packages/contracts/src/auth.ts:330` |  |
 | `VerifyBalancesResponse` | `z.infer<typeof verifyBalancesResponse>` | `packages/contracts/src/inventory.ts:891` |  |
+| `VisitHistoryEpisode` | `z.infer<typeof visitHistoryEpisode>` | `packages/contracts/src/visit-history.ts:108` |  |
 | `VisitHistoryQuery` | `z.infer<typeof visitHistoryQuery>` | `packages/contracts/src/clinical.ts:287` |  |
+| `VisitHistoryResponse` | `z.infer<typeof visitHistoryResponse>` | `packages/contracts/src/visit-history.ts:125` |  |
+| `VisitHistoryVisit` | `z.infer<typeof visitHistoryVisit>` | `packages/contracts/src/visit-history.ts:102` |  |
 | `VitalKey` | `keyof typeof VITAL_RANGES` | `packages/contracts/src/appointments.ts:354` |  |
 | `VitalsChange` | `z.infer<typeof vitalsChange>` | `packages/contracts/src/appointments.ts:823` |  |
 | `VitalsListResponse` | `z.infer<typeof vitalsListResponse>` | `packages/contracts/src/appointments.ts:822` |  |

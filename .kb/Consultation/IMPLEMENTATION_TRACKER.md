@@ -10,7 +10,7 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 | CE-2  | Templates + config resolver          | ✅ complete    |
 | CE-3  | Encounter core + lifecycle           | ✅ complete    |
 | CE-4  | Clinical content sections            | ✅ complete    |
-| CE-5  | Visit history + episodes             | ⬜ not started |
+| CE-5  | Visit history + episodes             | ✅ complete    |
 | CE-6  | Visual mapping engine + HUMAN_DENTAL | ⬜ not started |
 | CE-7  | HUMAN_SCALP/BODY + reference configs | ⬜ not started |
 | CE-8  | Hardening                            | ⬜ not started |
@@ -87,23 +87,59 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
       `PENDING_SECTIONS` down from ten entries to one
 - [x] Tests — 31 integration + 15 isolation, plus one repaired CE-3 case
 
+## CE-5 — done
+
+- [x] Schema — **none.** CE-5 is read surfaces over CE-1…CE-4's tables; no
+      migration, no new RLS policy, `db:rls:check` unchanged at **108**
+- [x] Contracts — `visit-history.ts` (a new file: it imports `clinical.ts` AND
+      `encounter-content.ts`, and a Zod cycle fails at runtime). Named
+      `followUpRecallStatus`; `doctorProfileId`/`doctorName` on the recall entry
+- [x] Permissions — **none added.** Two disclosure classes over one journey
+      (CD-14); the referral lookup reuses `clinical.encounter.create` (CD-15)
+- [x] Services — `visit-history.service.ts`; `searchReferralTargets` in
+      `doctor.service.ts`; `dueOn` exported from the content service so the
+      timeline and the recall list answer alike
+- [x] Routes — `GET /patients/:id/visit-history`,
+      `GET /appointments/:id/previous-visit`, `GET /doctors/referral-targets`
+- [x] Web — `/recall` + nav, `/patients/:id/visit-history`, `/episodes/:id`,
+      `/consultations/:id` (read-only), the previous-visit panel, the follow-up
+      booking form, and the referral specialty + colleague pickers
+- [x] Tests — 17 integration + 5 isolation
+
+## Not done in CE-5, and deliberately
+
+- **The walk-in still has an API and no screen.** `POST /encounters` takes a
+  patient and an episode (CD-1) and the visit history now RENDERS walk-ins, but
+  nothing in `apps/web` opens one. Inherited from CE-3, still open.
+- **The episode screen renders one timezone for a journey that may span two.**
+  `clinicalEpisodeDetail` carries no per-visit zone, so a journey across two
+  branches renders both halves in the organization's. The page says which zone
+  it is in rather than being silent about it, and the visit history — which does
+  carry the zone per row — gets it exactly right. Widening the episode contract
+  is the fix, and it is additive.
+- **Amending is not offered from the read-only record screen.** An amendment
+  starts a draft that belongs to a VISIT, and that route reaches a record by its
+  own id — a walk-in among them, with no visit to return to. The visit's own
+  page is one link away and is where the button lives.
+- **A booking made from the consultation does not fulfil a recommendation.** The
+  form there sends no `fulfilsRecommendationId`, because the recommendation it
+  would tick off is the one being written at that moment. Fulfilment happens
+  from the recall list, where a recommendation exists to fulfil.
+- **Nothing has been opened in a browser.** Same item CE-5 inherits from CE-4.
+
 ## Not done in CE-4, and deliberately
 
-- **The recall list has an API and no screen.** `GET /follow-up-recommendations`
-  answers DUE / OVERDUE / UPCOMING and nothing in `apps/web` calls it. The desk's
-  screen is CE-5, where the visit history it links into also lands.
-- **`bookFollowUp` accepts a recommendation and no form sends one.** The action
-  and the API take `fulfilsRecommendationId`; the follow-up booking form does not
-  exist in `apps/web` at all — CE-3 left it unbuilt and CE-4 did not add it.
+- ~~**The recall list has an API and no screen.**~~ Closed by CE-5.
+- ~~**`bookFollowUp` accepts a recommendation and no form sends one.**~~ Closed
+  by CE-5's `FollowUpForm`, on the recall list.
 - **Attachments link a file and do not upload one.** §27: the bytes are the
   documents surface's. The chart claims an existing `files` row and re-types it
   `CLINICAL_ATTACHMENT`; the upload control is the patient record's.
 - **A walk-in cannot recommend a follow-up.** `appointment_id` is NOT NULL on the
   recommendation, denormalised so the recall list needs no join. The service says
   so in a sentence rather than working around it.
-- **Referrals are by name only on screen.** The contract and the CHECK accept a
-  specialty and an in-house colleague too; the pickers for both are CE-5, where
-  the doctor directory is already loaded.
+- ~~**Referrals are by name only on screen.**~~ Closed by CE-5 — and the
+  colleague picker needed a new endpoint rather than the roster (CD-15).
 - **Nothing has been opened in a browser.** Same item CE-4 inherits from CE-3.
 
 ## Not done in CE-3, and deliberately

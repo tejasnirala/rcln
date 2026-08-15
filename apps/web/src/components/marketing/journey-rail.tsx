@@ -14,7 +14,7 @@ import { cn } from '@/lib/cn';
  * Every value below is invented. Never put a plausible patient name here.
  */
 
-type Row = { label: string; value: string; mono?: boolean; note?: string };
+type Row = { label: string; value: string; note?: string };
 
 type Station = {
   key: string;
@@ -35,9 +35,9 @@ const STATIONS: Station[] = [
     actor: 'Reception · Andheri branch',
     headline: 'Walk-in registered, token issued',
     rows: [
-      { label: 'Token', value: 'T-014', mono: true },
+      { label: 'Token', value: 'T-014' },
       { label: 'Patient', value: 'Test Patient, 34' },
-      { label: 'MRN', value: 'AND/MRN-000014', mono: true, note: 'branch-local' },
+      { label: 'MRN', value: 'AND/MRN-000014', note: 'branch-local' },
       { label: 'Queue', value: 'General OPD · 4 ahead' },
     ],
   },
@@ -50,9 +50,9 @@ const STATIONS: Station[] = [
     headline: 'Vitals recorded, encounter open',
     rows: [
       { label: 'Complaint', value: 'Fever, 3 days' },
-      { label: 'BP', value: '124/82 mmHg', mono: true },
-      { label: 'Temp', value: '99.1 °F', mono: true },
-      { label: 'Weight', value: '71.0 kg', mono: true },
+      { label: 'BP', value: '124/82 mmHg' },
+      { label: 'Temp', value: '99.1 °F' },
+      { label: 'Weight', value: '71.0 kg' },
     ],
   },
   {
@@ -64,7 +64,7 @@ const STATIONS: Station[] = [
     headline: 'Prescribed against the same record',
     rows: [
       { label: 'Drug', value: 'Paracetamol 500 mg' },
-      { label: 'Dose', value: '1–0–1 after food', mono: true },
+      { label: 'Dose', value: '1–0–1 after food' },
       { label: 'Duration', value: '3 days' },
       { label: 'Allergy check', value: 'No conflict found', note: 'from the patient file' },
     ],
@@ -77,8 +77,8 @@ const STATIONS: Station[] = [
     actor: 'Pharmacy · in-house',
     headline: 'Dispensed from the earliest-expiring batch',
     rows: [
-      { label: 'Batch', value: 'PCM-2409', mono: true, note: 'FEFO' },
-      { label: 'Expiry', value: '08/2027', mono: true },
+      { label: 'Batch', value: 'PCM-2409', note: 'FEFO' },
+      { label: 'Expiry', value: '08/2027' },
       { label: 'Quantity', value: '6 tablets' },
       { label: 'Stock left', value: '112 tablets', note: 'ledger updated' },
     ],
@@ -92,7 +92,7 @@ const STATIONS: Station[] = [
     headline: 'Sample collected, result released',
     rows: [
       { label: 'Order', value: 'Complete blood count' },
-      { label: 'Sample', value: 'LB-0031', mono: true },
+      { label: 'Sample', value: 'LB-0031' },
       { label: 'Parameters', value: '22 measured' },
       { label: 'Status', value: 'Verified and released' },
     ],
@@ -105,10 +105,10 @@ const STATIONS: Station[] = [
     actor: 'Front desk · UPI',
     headline: 'One invoice for the whole visit',
     rows: [
-      { label: 'Consultation', value: '₹400.00', mono: true, note: 'GST exempt' },
-      { label: 'Complete blood count', value: '₹350.00', mono: true, note: 'GST exempt' },
-      { label: 'Paracetamol 500 mg', value: '₹42.00', mono: true, note: '₹37.50 + 12% GST' },
-      { label: 'Total paid', value: '₹792.00', mono: true, note: 'INV/2026-27/00187' },
+      { label: 'Consultation', value: '₹400.00', note: 'GST exempt' },
+      { label: 'Complete blood count', value: '₹350.00', note: 'GST exempt' },
+      { label: 'Paracetamol 500 mg', value: '₹42.00', note: '₹37.50 + 12% GST' },
+      { label: 'Total paid', value: '₹792.00', note: 'INV/2026-27/00187' },
     ],
   },
 ];
@@ -254,7 +254,7 @@ export function JourneyRail() {
             left: `calc(${active} * (100% / ${STATIONS.length}) + (100% / ${STATIONS.length * 2}))`,
           }}
         >
-          <span className="bg-signal-tint text-signal ring-signal/20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-sm px-2 py-1 font-mono text-[0.6875rem] font-medium tracking-wide whitespace-nowrap ring-1">
+          <span className="bg-signal-tint text-signal ring-signal/20 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-sm px-2 py-1 text-[0.6875rem] font-medium tracking-wide whitespace-nowrap ring-1">
             <span className="bg-signal size-1.5 rounded-full" />
             MRN-000014
           </span>
@@ -368,7 +368,9 @@ export function JourneyRail() {
       >
         <div className="border-rule flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b px-5 py-3.5 sm:px-6">
           <div className="flex items-baseline gap-3">
-            <span className="text-signal font-mono text-[0.8125rem] font-medium tabular-nums">
+            {/* One face across the whole card — see the row note below. The
+                colour and the tabular figures do the work mono used to. */}
+            <span className="text-signal text-[0.8125rem] font-medium tabular-nums">
               {station.time}
             </span>
             <span className="text-ink text-sm font-medium">{station.label}</span>
@@ -389,18 +391,24 @@ export function JourneyRail() {
                 <dd className="flex items-baseline gap-2 text-right">
                   {/* Full-strength muted: at 80% this note was 3.44:1 on white. */}
                   {row.note ? (
-                    <span className="text-muted font-mono text-[0.6875rem] tracking-wide">
-                      {row.note}
-                    </span>
+                    <span className="text-muted text-[0.6875rem] tracking-wide">{row.note}</span>
                   ) : null}
-                  <span
-                    className={cn(
-                      'text-ink text-[0.8125rem]',
-                      row.mono && 'font-mono tabular-nums'
-                    )}
-                  >
-                    {row.value}
-                  </span>
+                  {/*
+                   * ⚠️ ONE TYPEFACE DOWN THE WHOLE ROW — label, note and value.
+                   *   These rows used to set identifiers in mono, following the
+                   *   product's rule that anything the SYSTEM generated (a token,
+                   *   an MRN, a batch, an invoice number) is mono. That rule earns
+                   *   its keep inside the app, where a clinician reads an MRN back
+                   *   over the phone and a column of amounts has to line up. It
+                   *   does not earn it here: this is a marketing card being
+                   *   skim-read, and mixing two faces inside one four-line list
+                   *   reads as an inconsistency rather than as a distinction.
+                   *
+                   * `tabular-nums` stays and is NOT a font switch — Plex Sans
+                   *   carries tabular figures of its own, so the ₹ column still
+                   *   lines up without changing face.
+                   */}
+                  <span className="text-ink text-[0.8125rem] tabular-nums">{row.value}</span>
                 </dd>
               </div>
             ))}
