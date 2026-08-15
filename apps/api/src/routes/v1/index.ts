@@ -7,6 +7,7 @@ import branchRoutes from './branches.routes.js';
 import clinicalTaxonomyRoutes from './clinical-taxonomy.routes.js';
 import clinicalRoutes from './clinical.routes.js';
 import consultationTemplateRoutes from './consultation-templates.routes.js';
+import encounterRoutes from './encounters.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
 import invoiceRoutes from './invoices.routes.js';
@@ -103,6 +104,17 @@ router.use('/', clinicalRoutes);
  *   behind `clinical.encounter.read`, which they already hold.
  */
 router.use('/consultation-templates', consultationTemplateRoutes);
+
+/*
+ * The consultation ITSELF (CE-3) — what the doctor recorded, not what the form
+ * looks like.
+ *
+ * ⚠️ THE OPPOSITE PHI POSTURE FROM THE TEMPLATES ABOVE. Every response here is a
+ *   clinical statement about a named person: every read writes a
+ *   `data_access_logs` row, and each verb sits behind its own code, with the
+ *   authoring set held by DOCTOR alone among the system roles (invariant 7).
+ */
+router.use('/encounters', encounterRoutes);
 
 // Job titles. Its own surface rather than a path under /members, which would be
 // swallowed by /members/:membershipId.

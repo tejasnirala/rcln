@@ -57,6 +57,7 @@ const P = PERMISSIONS;
 const CLINICAL_AUTHORING: PermissionCode[] = [
   P.ENCOUNTER_CREATE,
   P.ENCOUNTER_CLOSE,
+  P.ENCOUNTER_AMEND,
   P.PRESCRIPTION_CREATE,
   P.PRESCRIPTION_SIGN,
 ];
@@ -349,6 +350,13 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.ENCOUNTER_READ,
       P.ENCOUNTER_CREATE,
       P.ENCOUNTER_CLOSE,
+      /*
+       * Corrects a signed record by writing a new one that cites it (CE-3). The
+       * doctor who signed it is who restates it — an amendment carries the same
+       * clinical accountability as the original, which is why it is authoring
+       * and not administration.
+       */
+      P.ENCOUNTER_AMEND,
       /*
        * ⚠️ READS VITALS, DOES NOT RECORD THEM — the one clinical code a doctor
        *   deliberately lacks, and the only role in this file that reads without

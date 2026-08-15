@@ -248,9 +248,9 @@ describe('the clinical vocabulary and the treatment journey', () => {
         await app.query(`SELECT set_config('app.branch_scope', $1, true)`, [`{${BRANCH_A}}`]);
         return app.query(
           `INSERT INTO encounter_follow_up_recommendations
-             (id, organization_id, branch_id, appointment_id, patient_id,
+             (id, organization_id, branch_id, encounter_id, appointment_id, patient_id,
               is_required, interval_value, interval_unit, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, gen_random_uuid(), $3,
+           VALUES (gen_random_uuid(), $1, $2, gen_random_uuid(), gen_random_uuid(), $3,
                    true, 15, 'DAYS', now())`,
           [ORG_A, BRANCH_B2, PATIENT_A]
         );
@@ -261,6 +261,11 @@ describe('the clinical vocabulary and the treatment journey', () => {
   /**
    * ⚠️ THE CHECK THAT STOPS A RECOMMENDATION SAYING NOTHING CHECKABLE (CD-13).
    *
+   *   ⚠️ `encounter_id` IS NOT NULL SINCE CE-3 and is a made-up id here, exactly
+   *     as `appointment_id` is: both FKs fail, and Postgres evaluates CHECK
+   *     constraints BEFORE the FK triggers, so the constraint under test is
+   *     still the one that raises.
+   *
    *   "In 15 days" and "on 4 September" are both legitimate, and storing BOTH
    *   invites them to disagree — the recall list would then pick a winner
    *   silently, for ever. This is a database constraint rather than a
@@ -270,9 +275,9 @@ describe('the clinical vocabulary and the treatment journey', () => {
     await expect(
       owner.query(
         `INSERT INTO encounter_follow_up_recommendations
-           (id, organization_id, branch_id, appointment_id, patient_id,
+           (id, organization_id, branch_id, encounter_id, appointment_id, patient_id,
             is_required, interval_value, interval_unit, recommended_date, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, gen_random_uuid(), $3,
+         VALUES (gen_random_uuid(), $1, $2, gen_random_uuid(), gen_random_uuid(), $3,
                  true, 15, 'DAYS', DATE '2027-09-04', now())`,
         [ORG_A, BRANCH_A, PATIENT_A]
       )
@@ -288,9 +293,10 @@ describe('the clinical vocabulary and the treatment journey', () => {
     await expect(
       owner.query(
         `INSERT INTO encounter_follow_up_recommendations
-           (id, organization_id, branch_id, appointment_id, patient_id,
+           (id, organization_id, branch_id, encounter_id, appointment_id, patient_id,
             is_required, updated_at)
-         VALUES (gen_random_uuid(), $1, $2, gen_random_uuid(), $3, false, now())`,
+         VALUES (gen_random_uuid(), $1, $2, gen_random_uuid(), gen_random_uuid(), $3,
+                 false, now())`,
         [ORG_A, BRANCH_A, PATIENT_A]
       )
     ).rejects.toThrow(/foreign key/i); // the appointment id is fake; the CHECK passed

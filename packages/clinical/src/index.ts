@@ -24,3 +24,4 @@ export * from './registry.js';
 export * from './descriptors.js';
 export * from './definition.js';
 export * from './resolve.js';
+export * from './validate.js';

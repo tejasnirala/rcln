@@ -2,76 +2,76 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-14 · **By:** session CE-2 · **Branch:**
-`feat/ce-2-templates-resolver`
+**Written:** 2026-08-14 · **By:** session CE-3 · **Branch:**
+`feat/ce-3-encounter-lifecycle`
 
 ---
 
 ## Where we are
 
-**CE-0, CE-1 and CE-2 are complete and verified.** The configuration layer is
-done: a template resolves from an appointment, and `@rcln/clinical` decides what
-a definition means. Nothing renders a consultation yet — that is CE-3.
+**CE-0 through CE-3 are complete and verified.** A consultation now opens,
+autosaves, signs and amends, and the screen renders from the encounter's own
+frozen snapshot. What it does NOT yet hold is clinical content: diagnosis,
+prescription, symptoms, investigations, advice, referrals, procedures,
+attachments and follow-up all render a line saying when they arrive. That is
+CE-4, and it is what unblocks PI-7 and PI-9.
 
 Validation ran once, at the end, in CLAUDE.md's order. `db:rls:check` is green at
-**98**. Nothing has been opened in a browser.
+**100**. Nothing has been opened in a browser.
 
 ## The five things to know before typing
 
-1. **A COMPOSITE PRISMA RELATION RETURNS NOTHING FOR A PLATFORM ROW.** The
-   relation is (organization_id, parent_id) -> (organization_id, id), and for a
-   platform parent `organization_id` is NULL — so the join compiles to
-   `organization_id = NULL`, which is NULL rather than true. The relation comes
-   back EMPTY, nothing errors, and the platform row looks childless. This cost a
-   real bug in CE-2: every unclassified doctor on the platform got "no published
-   template applies". **CE-3's `encounters` will meet it again** — load children
-   by the parent's id and let RLS scope them.
+1. **A COMPOSITE FK IS IMPOSSIBLE WHEN THE PARENT MAY BE A PLATFORM ROW.**
+   `encounters.template_id` is a plain FK with a RESTRICTIVE `template_visible`
+   policy, because (organization_id, template_id) would refuse the platform's
+   GENERAL template — the encounter's org is NOT NULL and the template's is not.
+   **CE-4's `encounter_prescriptions.product_id` is the same shape** and needs
+   `product_visible`, exactly as `batches` has it.
 
-2. **Nothing reads a raw `definition`.** `parseStoredDefinition` in
-   `services/clinical/definition.ts` is the only door, and it throws rather than
-   returning an empty configuration. A service that reaches into the JSONB has
-   deleted the guarantee `packages/clinical` exists to provide.
+2. **A COMPOSITE PRISMA RELATION STILL READS EMPTY FOR A PLATFORM ROW.** The
+   CE-2 trap, unchanged: load children by the parent's id and let RLS scope them.
 
-3. **A published version is immutable in every field, including its dates.**
-   `assertVersionIsDraft` guards every writer. The one exception is the SEED,
-   which refreshes the platform template's published document in place —
-   documented where it happens, and safe only because a finalized encounter will
-   render from its own frozen `template_snapshot`.
+3. **NOTHING EDITS A FINALIZED ENCOUNTER.** `assertDraft` guards every writer and
+   `encounters_lifecycle_facts` guards the row. A correction is a NEW encounter
+   citing the old one; CE-4's children hang off whichever encounter is live, and
+   an amendment copies them rather than moving them.
 
-4. **`pnpm typecheck` and `pnpm test` both OOM the api container.** Run per
-   package, or per batch of ~8 integration files with
-   `--max-old-space-size=3072`. Tests LAST and ONCE.
+4. **THE SNAPSHOT IS FROZEN AT OPEN, NOT AT FINALIZE.** `parseStoredDefinition`
+   is the one door to it and `sectionConfigs` is the one way to render it. A
+   service that resolves the LIVE template to display a stored consultation has
+   reintroduced §29.
 
-5. **Any platform row a test inserts outlives the test.** The isolation harness
-   deletes organizations; a NULL-org row does not cascade. A parentless platform
-   specialty broke `clinical-taxonomy` on the following run.
+5. **`pnpm typecheck` and `pnpm test` both OOM the api container.** Run per
+   package, or per batch of ~13 integration files with
+   `--max-old-space-size=3072`. Tests LAST and ONCE. And **re-run `db:seed`
+   AFTER the packages build** if you add a permission code — the seed reads
+   `packages/permissions/dist`, and a stale one cost a round here.
 
 ## Next task
 
-**CE-3 — the encounter and its lifecycle.** `encounters` (CD-1: nullable
-`appointment_id`, because a walk-in has no booking) + `encounter_sections`,
-`DRAFT` → `FINALIZED` → `AMENDED`/`CANCELLED` with amendment as a NEW ROW
-(CD-2), `clinical.encounter.amend`, debounced autosave through a Server Action
-(CD-8), and `ConsultationEngine` over the section registry.
+**CE-4 — clinical content sections.** The eight child tables, all org + branch
+scoped, all carrying both ids themselves rather than inheriting through the
+encounter. Plus follow-up recommendation UI and fulfilment (CD-13), server-side
+search on every selector (§39), and `DocumentType.CLINICAL_ATTACHMENT`.
 
-What CE-2 hands it:
+What CE-3 hands it:
 
-| From CE-2                                   | What CE-3 does with it                           |
-| ------------------------------------------- | ------------------------------------------------ |
-| `GET /appointments/:id/consultation-config` | the screen specification, already resolved       |
-| `visibleSections` + the registry            | which component renders each section             |
-| `FieldDescriptor`                           | what `FieldRenderer` draws                       |
-| `consultation_template_versions.id`         | `encounters.template_version_id`, composite-FK'd |
-| the parsed definition                       | `encounters.template_snapshot` — freeze it (§29) |
+| From CE-3                             | What CE-4 does with it                                  |
+| ------------------------------------- | ------------------------------------------------------- |
+| `encounters` + the composite unique   | the parent every child composite-FKs to                 |
+| `PENDING_SECTIONS` in the engine      | delete an entry as each component lands                 |
+| `validateEncounter`                   | descriptor sections only — children validate themselves |
+| `encounter_follow_up_recommendations` | the table CE-1 shipped, now with a real writer          |
+| `ClinicalDurationUnit`                | `encounter_symptoms.duration`, already there            |
 
 ## Do not
 
-- Do not read `definition` without `parseStoredDefinition`.
-- Do not select a platform row's children through a composite relation (item 1).
-- Do not edit a published version, or add an endpoint that could.
-- Do not add a specialty check to any component in `apps/web` (§33). The resolver
-  already decided; the browser renders what it was handed.
-- Do not put master-item ids inside a template `definition` (CD-6).
-- Do not build the visual map. `mapCode` is carried and unresolved until CE-6.
-- Do not autosave with `revalidatePath` — it re-renders per keystroke and fights
-  the cursor (ARCHITECTURE.md).
+- Do not compose a foreign key onto a table that allows a NULL `organization_id`
+  — write the `*_visible` policy instead (item 1).
+- Do not edit a finalized encounter, or add an endpoint that could.
+- Do not read `definition` or `template_snapshot` without `parseStoredDefinition`.
+- Do not autosave with `revalidatePath` — it fights the cursor.
+- Do not add a specialty check to any component in `apps/web` (§33).
+- Do not put master-item ids inside `encounter_sections.data` — a document is
+  not a place for a foreign key (CD-6, ADR-0006). Coded content is its own table.
+- Do not build the visual map. `mapCode` is still carried and unresolved (CE-6).

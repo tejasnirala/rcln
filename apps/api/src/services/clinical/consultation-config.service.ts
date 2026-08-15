@@ -45,6 +45,7 @@ import {
   visibleSections,
   type FieldDescriptor,
   type TemplateCandidate,
+  type TemplateDefinition,
 } from '@rcln/clinical';
 import type {
   ConsultationConfigResponse,
@@ -187,12 +188,206 @@ async function careContextFor(tx: TxClient, subjectType: string): Promise<CareCo
 }
 
 /**
- * Resolve the consultation configuration for one appointment.
+ * The definition's sections, as the screen consumes them.
+ *
+ * ── SCOPE CODES → TAXONOMY IDS ───────────────────────────────────────────────
+ *
+ * ⚠️ RESOLVED HERE AND NEVER STORED IN THE DOCUMENT (CD-6, ADR-0006). The
+ *   template names `DENTISTRY`; the id it maps to belongs to one tenant and
+ *   would make the document uncopyable and unconstrained.
+ *
+ * ⚠️ AND A CODE THAT MATCHES NOTHING IS DROPPED RATHER THAN FATAL. A scope RANKS
+ *   and never FILTERS (§34), so losing one makes a term sort lower and changes
+ *   nothing about what a clinician can record. Refusing the whole consultation
+ *   over a display preference would be the wrong trade — the same asymmetry the
+ *   vocabulary seed makes.
+ *
+ * ⚠️ EXPORTED BECAUSE AN ENCOUNTER RENDERS FROM ITS OWN FROZEN SNAPSHOT (§29,
+ *   CE-3) AND MUST RENDER IT THE SAME WAY. A second mapping for the stored
+ *   document is how a finalized consultation starts to look subtly unlike the
+ *   screen it was written on.
+ */
+export async function sectionConfigs(
+  tx: TxClient,
+  definition: TemplateDefinition
+): Promise<ConsultationSectionConfig[]> {
+  const wantedCodes = new Set<string>(definition.scopes);
+  for (const section of definition.sections) {
+    for (const code of section.scopes ?? []) wantedCodes.add(code);
+  }
+
+  const scopeNodes =
+    wantedCodes.size === 0
+      ? []
+      : await tx.specialty.findMany({
+          where: { code: { in: [...wantedCodes] }, deletedAt: null },
+          select: { id: true, code: true },
+        });
+  const idsByCode = new Map<string, string[]>();
+  for (const node of scopeNodes) {
+    const list = idsByCode.get(node.code) ?? [];
+    list.push(node.id);
+    idsByCode.set(node.code, list);
+  }
+  const idsFor = (codes: readonly string[]): string[] => [
+    ...new Set(codes.flatMap((code) => idsByCode.get(code) ?? [])),
+  ];
+
+  return visibleSections(definition.sections).map((section) => ({
+    type: section.type,
+    key: section.key,
+    label: section.label,
+    order: section.order,
+    required: section.required,
+    ...(section.fields !== undefined ? { fields: section.fields.map(toFieldConfig) } : {}),
+    /* The section's own scopes if it names any, otherwise the template's. */
+    scopeIds: idsFor(section.scopes ?? definition.scopes),
+    ...(section.mapCode !== undefined ? { mapCode: section.mapCode } : {}),
+  }));
+}
+
+/** Who is being seen, and by whom. Everything resolution needs and no more. */
+export interface ResolutionSubject {
+  /** `patients.subject_type` — the ONE thing that branches on human/animal. */
+  subjectType: string;
+  doctorProfileId: string;
+}
+
+/**
+ * The resolved configuration, before it is dressed as a wire response.
+ *
+ * ⚠️ IT CARRIES THE PARSED DEFINITION AS WELL AS THE SECTIONS, because CE-3
+ *   needs both and for different things: the SECTIONS are what the screen
+ *   renders, and the DEFINITION is what an encounter freezes into its
+ *   `template_snapshot` and is later validated against (§29).
+ */
+export interface ResolvedConfiguration {
+  careContext: CareContextRow;
+  template: ConsultationConfigResponse['template'];
+  definition: TemplateDefinition;
+  sections: ConsultationSectionConfig[];
+}
+
+/**
+ * appointment (or walk-in) → which template applies, and what it says.
+ *
+ * ⚠️ THE ONE PLACE THAT DECIDES, AND THE REASON IT TAKES A SUBJECT RATHER THAN
+ *   AN APPOINTMENT. A walk-in has no booking (CD-1) and must resolve by exactly
+ *   the same rules as a booked visit — a second resolver for the unbooked case
+ *   is how the two start to disagree about which template a dentist gets.
  *
  * ⚠️ A FAILURE HERE IS AN ERROR, NOT AN EMPTY SCREEN. "No template applies" is a
  *   state somebody has to fix — usually by publishing the draft that was never
  *   published — and a clinician must not discover it as a blank consultation
  *   with a patient in the chair.
+ */
+export async function resolveConfiguration(
+  tx: TxClient,
+  subject: ResolutionSubject
+): Promise<ResolvedConfiguration> {
+  const careContext = await careContextFor(tx, subject.subjectType);
+  const path = await taxonomyPath(tx, careContext, subject.doctorProfileId);
+
+  /*
+   * Candidates: every active template in this care context whose node is on
+   * the path (or which IS the context default), with its published version.
+   *
+   * ⚠️ THE `specialtyId: null` BRANCH IS NOT AN OPTIMISATION. It is the
+   *   care-context default — the template a doctor with no classification at
+   *   all resolves to (Scenario 3), and the reason resolution never returns
+   *   nothing.
+   */
+  const rows = await tx.consultationTemplate.findMany({
+    where: {
+      deletedAt: null,
+      isActive: true,
+      careContextId: careContext.id,
+      OR: [{ specialtyId: null }, { specialtyId: { in: path } }],
+    },
+    select: {
+      id: true,
+      organizationId: true,
+      code: true,
+      name: true,
+      specialtyId: true,
+    },
+  });
+
+  /*
+   * ⚠️ THE PUBLISHED VERSIONS ARE LOADED BY `template_id` AND NOT THROUGH THE
+   *   `versions` RELATION, AND THIS IS NOT A STYLE CHOICE — IT IS THE ONE
+   *   THING THAT MAKES THE PLATFORM TEMPLATE RESOLVE AT ALL.
+   *
+   *   The relation is composite: (organization_id, template_id) ->
+   *   (organization_id, id). For a PLATFORM row `organization_id` is NULL, so
+   *   Prisma's join compiles to `organization_id = NULL`, which is NULL rather
+   *   than true — and the relation comes back EMPTY for exactly the rows every
+   *   clinic depends on. Nothing errors: the template is found, it simply
+   *   appears never to have been published, and resolution refuses with "no
+   *   published template applies" for every unclassified doctor on the
+   *   platform.
+   *
+   *   `master.service.ts` loads its codings the same way, for the same reason.
+   *   RLS still scopes this read — the policy is on the table, not the join.
+   */
+  const versions = await tx.consultationTemplateVersion.findMany({
+    where: { templateId: { in: rows.map((row) => row.id) }, status: 'PUBLISHED' },
+    select: { id: true, templateId: true, version: true, definition: true },
+  });
+  const publishedByTemplate = new Map(versions.map((version) => [version.templateId, version]));
+
+  const candidates: TemplateCandidate[] = rows.map((row) => {
+    const published = publishedByTemplate.get(row.id);
+    return {
+      templateId: row.id,
+      code: row.code,
+      specialtyId: row.specialtyId,
+      isOwn: row.organizationId !== null,
+      publishedVersion:
+        published === undefined
+          ? null
+          : {
+              versionId: published.id,
+              version: published.version,
+              definition: parseStoredDefinition(
+                published.definition,
+                `${row.code} version ${published.version}`
+              ),
+            },
+    };
+  });
+
+  const resolution = resolveTemplate({ taxonomyPath: path, candidates });
+  if (!resolution.ok) throw new ValidationError(resolution.problem);
+
+  const template = rows.find((row) => row.id === resolution.value.templateId);
+  if (!template) throw new NotFoundError('Consultation template');
+
+  const definition = resolution.value.definition;
+  const sections = await sectionConfigs(tx, definition);
+
+  return {
+    careContext,
+    template: {
+      id: template.id,
+      code: template.code,
+      name: template.name,
+      versionId: resolution.value.versionId,
+      version: resolution.value.version,
+      matchedSpecialtyId: resolution.value.matchedSpecialtyId,
+      matchedDepth: resolution.value.matchedDepth,
+    },
+    definition,
+    sections,
+  };
+}
+
+/**
+ * The same resolution for one appointment, as the screen asks for it.
+ *
+ * ⚠️ 404 FOR A BRANCH OUTSIDE THE CALLER'S SCOPE, for the reason every other
+ *   service in this codebase gives: whether a branch exists is itself tenant
+ *   information, and the two responses tell an outsider apart from a colleague.
  */
 export async function getConsultationConfig(
   ctx: TenantContext,
@@ -212,158 +407,21 @@ export async function getConsultationConfig(
     });
     /* 404, never 403 — RLS has already filtered another tenant's booking out. */
     if (!appointment) throw new NotFoundError('Appointment');
-    /*
-     * ⚠️ 404 FOR A BRANCH OUTSIDE THE CALLER'S SCOPE, for the reason every other
-     *   service in this codebase gives: whether a branch exists is itself tenant
-     *   information, and the two responses tell an outsider apart from a
-     *   colleague.
-     */
     if (!ctx.branchIds.includes(appointment.branchId)) throw new NotFoundError('Appointment');
 
-    const careContext = await careContextFor(tx, appointment.patient.subjectType);
-    const path = await taxonomyPath(tx, careContext, appointment.doctorProfileId);
-
-    /*
-     * Candidates: every active template in this care context whose node is on
-     * the path (or which IS the context default), with its published version.
-     *
-     * ⚠️ THE `specialtyId: null` BRANCH IS NOT AN OPTIMISATION. It is the
-     *   care-context default — the template a doctor with no classification at
-     *   all resolves to (Scenario 3), and the reason resolution never returns
-     *   nothing.
-     */
-    const rows = await tx.consultationTemplate.findMany({
-      where: {
-        deletedAt: null,
-        isActive: true,
-        careContextId: careContext.id,
-        OR: [{ specialtyId: null }, { specialtyId: { in: path } }],
-      },
-      select: {
-        id: true,
-        organizationId: true,
-        code: true,
-        name: true,
-        specialtyId: true,
-      },
+    const resolved = await resolveConfiguration(tx, {
+      subjectType: appointment.patient.subjectType,
+      doctorProfileId: appointment.doctorProfileId,
     });
-
-    /*
-     * ⚠️ THE PUBLISHED VERSIONS ARE LOADED BY `template_id` AND NOT THROUGH THE
-     *   `versions` RELATION, AND THIS IS NOT A STYLE CHOICE — IT IS THE ONE
-     *   THING THAT MAKES THE PLATFORM TEMPLATE RESOLVE AT ALL.
-     *
-     *   The relation is composite: (organization_id, template_id) ->
-     *   (organization_id, id). For a PLATFORM row `organization_id` is NULL, so
-     *   Prisma's join compiles to `organization_id = NULL`, which is NULL rather
-     *   than true — and the relation comes back EMPTY for exactly the rows every
-     *   clinic depends on. Nothing errors: the template is found, it simply
-     *   appears never to have been published, and resolution refuses with "no
-     *   published template applies" for every unclassified doctor on the
-     *   platform.
-     *
-     *   `master.service.ts` loads its codings the same way, for the same reason.
-     *   RLS still scopes this read — the policy is on the table, not the join.
-     */
-    const versions = await tx.consultationTemplateVersion.findMany({
-      where: { templateId: { in: rows.map((row) => row.id) }, status: 'PUBLISHED' },
-      select: { id: true, templateId: true, version: true, definition: true },
-    });
-    const publishedByTemplate = new Map(versions.map((version) => [version.templateId, version]));
-
-    const candidates: TemplateCandidate[] = rows.map((row) => {
-      const published = publishedByTemplate.get(row.id);
-      return {
-        templateId: row.id,
-        code: row.code,
-        specialtyId: row.specialtyId,
-        isOwn: row.organizationId !== null,
-        publishedVersion:
-          published === undefined
-            ? null
-            : {
-                versionId: published.id,
-                version: published.version,
-                definition: parseStoredDefinition(
-                  published.definition,
-                  `${row.code} version ${published.version}`
-                ),
-              },
-      };
-    });
-
-    const resolution = resolveTemplate({ taxonomyPath: path, candidates });
-    if (!resolution.ok) throw new ValidationError(resolution.problem);
-
-    const template = rows.find((row) => row.id === resolution.value.templateId);
-    if (!template) throw new NotFoundError('Consultation template');
-
-    /*
-     * ── SCOPE CODES → TAXONOMY IDS ─────────────────────────────────────────
-     *
-     * ⚠️ RESOLVED HERE AND NEVER STORED IN THE DOCUMENT (CD-6, ADR-0006). The
-     *   template names `DENTISTRY`; the id it maps to belongs to one tenant and
-     *   would make the document uncopyable and unconstrained.
-     *
-     * ⚠️ AND A CODE THAT MATCHES NOTHING IS DROPPED RATHER THAN FATAL. A scope
-     *   RANKS and never FILTERS (§34), so losing one makes a term sort lower and
-     *   changes nothing about what a clinician can record. Refusing the whole
-     *   consultation over a display preference would be the wrong trade — the
-     *   same asymmetry the vocabulary seed makes.
-     */
-    const definition = resolution.value.definition;
-    const wantedCodes = new Set<string>(definition.scopes);
-    for (const section of definition.sections) {
-      for (const code of section.scopes ?? []) wantedCodes.add(code);
-    }
-
-    const scopeNodes =
-      wantedCodes.size === 0
-        ? []
-        : await tx.specialty.findMany({
-            where: { code: { in: [...wantedCodes] }, deletedAt: null },
-            select: { id: true, code: true },
-          });
-    const idsByCode = new Map<string, string[]>();
-    for (const node of scopeNodes) {
-      const list = idsByCode.get(node.code) ?? [];
-      list.push(node.id);
-      idsByCode.set(node.code, list);
-    }
-    const idsFor = (codes: readonly string[]): string[] => [
-      ...new Set(codes.flatMap((code) => idsByCode.get(code) ?? [])),
-    ];
-
-    const sections: ConsultationSectionConfig[] = visibleSections(definition.sections).map(
-      (section) => ({
-        type: section.type,
-        key: section.key,
-        label: section.label,
-        order: section.order,
-        required: section.required,
-        ...(section.fields !== undefined ? { fields: section.fields.map(toFieldConfig) } : {}),
-        /* The section's own scopes if it names any, otherwise the template's. */
-        scopeIds: idsFor(section.scopes ?? definition.scopes),
-        ...(section.mapCode !== undefined ? { mapCode: section.mapCode } : {}),
-      })
-    );
 
     return {
       appointmentId: appointment.id,
       patientId: appointment.patientId,
       clinicalEpisodeId: appointment.clinicalEpisodeId,
       doctorProfileId: appointment.doctorProfileId,
-      careContext,
-      template: {
-        id: template.id,
-        code: template.code,
-        name: template.name,
-        versionId: resolution.value.versionId,
-        version: resolution.value.version,
-        matchedSpecialtyId: resolution.value.matchedSpecialtyId,
-        matchedDepth: resolution.value.matchedDepth,
-      },
-      sections,
+      careContext: resolved.careContext,
+      template: resolved.template,
+      sections: resolved.sections,
     };
   });
 }

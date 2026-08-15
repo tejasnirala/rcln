@@ -133,6 +133,26 @@ const REDACTED_KEYS = new Set([
    */
   'notes',
   'cancellationReason',
+
+  /*
+   * The consultation's free text (CE-3). Every one of these is a clinical
+   * statement about a named person on the only entity that carries it:
+   * `clinicalNotes` is the doctor's narrative, `amendmentReason` says why a
+   * signed record was restated, and `cancelledReason` says why a consultation
+   * was abandoned. `chiefComplaint` is already above, from phase 3.
+   *
+   * ⚠️ `cancelledReason` AND `cancellationReason` ARE BOTH HERE BECAUSE BOTH
+   *   SPELLINGS EXIST IN THE SCHEMA — `invoices` uses one, `encounters` and
+   *   `encounter_follow_up_recommendations` the other. A deny-list matches the
+   *   key it is given and nothing near it, so the near-miss is the whole risk.
+   *
+   * The first layer is still the allow-list snapshot: the encounter service
+   * reports `hasChiefComplaint` / `hasClinicalNotes` rather than the text, and
+   * "the record was amended, and a reason was recorded" is the auditable fact.
+   */
+  'clinicalNotes',
+  'amendmentReason',
+  'cancelledReason',
 ]);
 
 const REDACTED = '[redacted]';

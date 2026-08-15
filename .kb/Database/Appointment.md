@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/scheduling.prisma:80`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 25 |
-| relations | 16 |
+| relations | 17 |
 
 ## Columns
 
@@ -62,6 +62,7 @@ Declared at `packages/db/prisma/schema/scheduling.prisma:80`.
 | `clinicalEpisode` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisode ClinicalEpisode @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)` |
 | `recommendationsMade` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `recommendationsMade EncounterFollowUpRecommendation[] @relation("RecommendationSource")` |
 | `recommendationsFulfilled` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `recommendationsFulfilled EncounterFollowUpRecommendation[] @relation("RecommendationFulfilment")` |
+| `encounters` | [`Encounter`](Encounter.md) | `encounters Encounter[]` |
 
 ## Indexes and constraints
 
@@ -90,4 +91,5 @@ erDiagram
     Appointment }o--o{ Appointment : relates
     Appointment }o--o{ ClinicalEpisode : relates
     Appointment }o--o{ EncounterFollowUpRecommendation : relates
+    Appointment }o--o{ Encounter : relates
 ```

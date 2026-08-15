@@ -167,3 +167,71 @@ shape PI-5's tests never took. Section `visible` and `required`, and every field
 NAME so a typo is a sentence rather than a silent omission.
 
 **Remaining.** CE-3…CE-8. Nothing in CE-2's scope is outstanding.
+
+---
+
+## CE-3 — the encounter and its lifecycle
+
+**Schema.** `encounters` and `encounter_sections`, both org + branch scoped and
+both PHI in every text column. Three new enums (`EncounterStatus`,
+`ClinicalDurationUnit`, `ClinicalOnset`), plus `ConsultationSectionType` as a
+Postgres enum whose parity with `@rcln/clinical`'s union is asserted at compile
+time in `services/clinical/sections.ts`. Two migrations: the `ENCOUNTER` counter
+alone (CD-9), then the tables. `encounter_follow_up_recommendations.encounter_id`
+became NOT NULL — the last deploy in which that costs no backfill, because CE-4
+is what fills the table.
+
+**RLS.** 98 → **100**. Both tables in both loops; `branch_id` is NOT NULL on
+both, so the branch boundary is absolute — the opposite call from
+`clinical_episodes`, because a journey follows the patient and a visit belongs to
+the place it happened at.
+
+**Permissions.** `clinical.encounter.amend`, added to `CLINICAL_AUTHORING` and so
+stripped from ORG_OWNER and ORG_ADMIN by name. Its own code rather than part of
+`create`, because a clinic may reasonably let a junior write a first consultation
+and not restate a signed one.
+
+**Engine.** `validate.ts` in `packages/clinical` — the answer side of the grammar,
+run at finalization against the encounter's frozen snapshot and never at
+autosave. 74 → **89 unit tests**.
+
+**Backend.** `encounter.service.ts`: open-or-resume, autosave, finalize, amend,
+cancel. `resolveConfiguration` and `sectionConfigs` were lifted out of CE-2's
+resolver so a stored snapshot renders through exactly the code the live screen
+does. Routes at `/v1/encounters/*`, plus `GET /v1/appointments/:id/encounter` —
+the reader's door, because opening a draft is an act of authorship.
+
+**Frontend.** `ConsultationEngine` over the section registry, `FieldRenderer`
+across all thirteen field types, and a debounced Server Action that deliberately
+does not `revalidatePath`.
+
+**Tests.** 89 unit · 12 integration · 10 isolation, plus three repaired CE-1
+fixtures.
+
+**Verified — validation ran once, at the end, in CLAUDE.md's order.** Lint clean
+(two pre-existing warnings, both `window.location.assign` on other screens) ·
+typecheck green in clinical, contracts, permissions, db, api, web · 89 + 193 +
+344 + 864 integration tests green, run in batches · `db:rls:check` green at
+**100** · seed applied twice, the second time because the first ran against a
+stale `packages/permissions/dist` · nothing opened in a browser.
+
+**Decisions.** CD-1, CD-2 and CD-8 as written. Two learned during the work:
+
+⚠️ **THE COMPOSITE FK IS IMPOSSIBLE ON `encounters.template_id`, AND THE POLICY
+IS WHAT REPLACES IT.** ADR-0004 wants (organization_id, template_id) ->
+(organization_id, id); the encounter's `organization_id` is NOT NULL, a platform
+template's is NULL, so that FK would refuse the most ordinary consultation on the
+platform — the GENERAL template an unclassified doctor resolves to. The pointers
+are therefore plain FKs with a RESTRICTIVE `template_visible` policy, the same
+shape `batches` uses for `product_id`. **A plain FK into a platform-extensible
+table always needs its `*_visible` policy; the isolation suite asserts it
+directly.**
+
+⚠️ **A NOT NULL ON AN EMPTY TABLE IS FREE EXACTLY ONCE.** `encounter_id` had been
+nullable since CE-1 with no writer at all, so tightening it needed no backfill —
+and the only cost was three CE-1 isolation fixtures that inserted a
+recommendation with no encounter. Waiting until CE-4 fills the table would have
+made the same change a migration with live PHI in it.
+
+**Remaining.** CE-4…CE-8. The nine first-class sections render a line naming what
+they are and when they arrive, rather than an empty box.

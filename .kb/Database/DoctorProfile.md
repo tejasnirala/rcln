@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/doctors.prisma:232`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `org` policy |
 | columns | 13 |
-| relations | 11 |
+| relations | 12 |
 
 ## Columns
 
@@ -45,6 +45,7 @@ Declared at `packages/db/prisma/schema/doctors.prisma:232`.
 | `schedules` | [`DoctorSchedule`](DoctorSchedule.md) | `schedules DoctorSchedule[]` |
 | `exceptions` | [`DoctorScheduleException`](DoctorScheduleException.md) | `exceptions DoctorScheduleException[]` |
 | `appointments` | [`Appointment`](Appointment.md) | `appointments Appointment[]` |
+| `encounters` | [`Encounter`](Encounter.md) | `encounters Encounter[]` |
 
 ## Indexes and constraints
 
@@ -68,4 +69,5 @@ erDiagram
     DoctorProfile }o--o{ DoctorSchedule : relates
     DoctorProfile }o--o{ DoctorScheduleException : relates
     DoctorProfile }o--o{ Appointment : relates
+    DoctorProfile }o--o{ Encounter : relates
 ```

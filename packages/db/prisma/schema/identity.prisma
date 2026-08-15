@@ -87,6 +87,12 @@ model User {
   /// Who put a configuration live (CE-2). SetNull — they may leave, the
   /// configuration stays.
   templateVersionsPublished ConsultationTemplateVersion[]     @relation("TemplateVersionPublishedBy")
+  /// Who signed a clinical record (CE-3). ⚠️ Restrict, NOT SetNull, and the only
+  /// `*_by` relation in this block with that shape: who finalized a consultation
+  /// is part of the consultation, and a user row that could be deleted out from
+  /// under it would leave an unsigned record.
+  encountersFinalized       Encounter[]                       @relation("EncounterFinalizedBy")
+  encountersCancelled       Encounter[]                       @relation("EncounterCancelledBy")
   appointmentStatusChanges  AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
   vitalsRecorded            AppointmentVital[]         @relation("VitalRecordedBy")
   vitalsAmended             AppointmentVital[]         @relation("VitalSupersededBy")

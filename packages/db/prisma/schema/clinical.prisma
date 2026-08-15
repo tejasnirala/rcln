@@ -97,6 +97,33 @@ enum CareSubjectType {
   ANIMAL
 }
 
+/// How long a clinical thing has been going on.
+///
+/// ⚠️ DELIBERATELY NOT `FollowUpIntervalUnit`, WHICH IT RESEMBLES. That enum
+///   says when to come BACK and stops at MONTHS because nobody recalls a patient
+///   in hours; this one says how long a complaint has been RUNNING and needs
+///   both ends of the range — "tooth pain since this morning" and "hair fall for
+///   three years" are the two ordinary answers. Sharing one enum would mean
+///   either offering HOURS on a recall or refusing YEARS on a complaint.
+///
+/// CE-4's `encounter_symptoms` uses this too, which is why it is named for the
+/// duration and not for the chief complaint.
+enum ClinicalDurationUnit {
+  HOURS
+  DAYS
+  WEEKS
+  MONTHS
+  YEARS
+}
+
+/// How the complaint began. UNKNOWN is a real answer — the patient does not
+/// always know, and a NULL would say the clinician did not ask.
+enum ClinicalOnset {
+  SUDDEN
+  GRADUAL
+  UNKNOWN
+}
+
 /// The unit a follow-up interval is expressed in.
 enum FollowUpIntervalUnit {
   DAYS
@@ -382,6 +409,8 @@ model ClinicalEpisode {
   opener           User?         @relation("EpisodeOpenedBy", fields: [openedBy], references: [id], onDelete: SetNull)
   closer           User?         @relation("EpisodeClosedBy", fields: [closedBy], references: [id], onDelete: SetNull)
   appointments     Appointment[]
+  /// The consultations recorded along this journey (CE-3). ⚠️ PHI.
+  encounters       Encounter[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: appointments and, from CE-3, encounters reference
@@ -466,8 +495,13 @@ model EncounterFollowUpRecommendation {
   /// a branch-scoped parent that inherits only the org half re-opens the branch
   /// boundary.
   branchId       String  @map("branch_id") @db.Uuid
-  /// ⚠️ NULLABLE ONLY UNTIL CE-3. See the model note.
-  encounterId    String? @map("encounter_id") @db.Uuid
+  /// ⚠️ NOT NULL SINCE CE-3, AND THE MIGRATION THAT ADDED THE FK IS THE ONE THAT
+  ///   TIGHTENED IT. Advice is given IN a consultation; a recommendation with no
+  ///   encounter is a row nothing could ever have written. The tightening was
+  ///   free because nothing wrote here before CE-4 — the table was empty on
+  ///   every deployment, which is exactly the window in which a NOT NULL costs
+  ///   nothing and after which it costs a backfill.
+  encounterId    String  @map("encounter_id") @db.Uuid
   /// The visit at which the advice was given. Denormalised from the encounter so
   /// the recall list can be assembled without joining through it.
   appointmentId  String  @map("appointment_id") @db.Uuid
@@ -523,6 +557,9 @@ model EncounterFollowUpRecommendation {
   branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
   patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
   appointment  Appointment  @relation("RecommendationSource", fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Cascade)
+  /// The consultation the advice was given in (CE-3). Cascade: a deleted
+  /// encounter takes its own content with it, and a recommendation is content.
+  encounter    Encounter    @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
   /// Restrict, not Cascade: deleting the booking that FULFILLED a recommendation
   /// must not take the clinical advice with it. The advice was given; the
   /// booking is what happened next.
@@ -536,6 +573,8 @@ model EncounterFollowUpRecommendation {
   /// clinic has ever made.
   @@index([organizationId, patientId, createdAt])
   @@index([organizationId, branchId, recommendedDate])
+  /// "What did this consultation ask for?" — the read CE-4's screen does.
+  @@index([organizationId, encounterId])
   @@map("encounter_follow_up_recommendations")
 }
 
@@ -638,6 +677,9 @@ model ConsultationTemplate {
   careContext  Specialty     @relation("TemplateCareContext", fields: [careContextId], references: [id], onDelete: Restrict)
   specialty    Specialty?    @relation("TemplateSpecialty", fields: [specialtyId], references: [id], onDelete: Restrict)
   versions     ConsultationTemplateVersion[]
+  /// Consultations conducted under this template (CE-3). Restrict on the FK: a
+  /// template an encounter cites is deactivated, never deleted.
+  encounters   Encounter[]
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// templates are not unique among themselves.
@@ -695,6 +737,10 @@ model ConsultationTemplateVersion {
   /// scalar fields include a nullable one; the row always has a template.
   template     ConsultationTemplate? @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Cascade)
   publisher    User?                 @relation("TemplateVersionPublishedBy", fields: [publishedBy], references: [id], onDelete: SetNull)
+  /// ⚠️ THE REPORTING JOIN, NOT THE RENDERING ONE (§29). "How many
+  ///   consultations used v3" is answered here; what a given consultation LOOKS
+  ///   like is answered by its own frozen `templateSnapshot`.
+  encounters   Encounter[]
 
   /// ⚠️ NULLS NOT DISTINCT in the migration.
   @@unique([organizationId, templateId, version])
@@ -707,4 +753,300 @@ model ConsultationTemplateVersion {
   ///   with no idea the other exists, and whichever publishes second silently
   ///   discards the first.
   @@map("consultation_template_versions")
+}
+
+// -----------------------------------------------------------------------------
+// THE ENCOUNTER (CE-3)
+//
+// The clinical record itself: what one doctor recorded about one patient at one
+// visit. Everything above this line is configuration or vocabulary and names
+// nobody; everything from here down is PHI in every text column.
+//
+// ⚠️ THE ENCOUNTER IS THE ONLY THING IN THIS FILE ONLY A DOCTOR MAY AUTHOR
+//   (invariant 7). `clinical.encounter.create` / `.close` / `.amend` belong to
+//   DOCTOR alone among the system roles and are stripped from ORG_OWNER and
+//   ORG_ADMIN by name. Reading a patient's record is not writing in it.
+//
+// ⚠️ FINALIZED IS IMMUTABLE, AND AN AMENDMENT IS A NEW ROW (CD-2). Nothing edits
+//   a finalized consultation — not a typo, not a correction, not "just this
+//   once". The correction is a fresh row that cites the old one through
+//   `amendsEncounterId`, the old row moves to AMENDED, and both stay readable.
+//   A clinical record that can be silently rewritten is not a record.
+// -----------------------------------------------------------------------------
+
+/// The sections a consultation can be made of.
+///
+/// ⚠️ THE AUTHORITATIVE COPY OF THIS SET IS `ConsultationSectionType` IN
+///   `packages/clinical/src/types.ts`, AND THE TWO ARE ASSERTED EQUAL BY A
+///   TYPE-LEVEL CHECK IN `services/clinical/sections.ts`. It is duplicated here
+///   on purpose: `encounter_sections.section_type` is a column the database
+///   should be able to check, and a VarChar would let a typo'd section type land
+///   as a row no component ever renders and nobody ever sees again.
+///
+///   A new member is therefore a migration AND a component. That is the intended
+///   cost — ARCHITECTURE.md's line is that configuration selects sections and
+///   cannot invent one.
+enum ConsultationSectionType {
+  CHIEF_COMPLAINT
+  SYMPTOMS
+  HISTORY
+  EXAMINATION
+  VISUAL_MAPPING
+  DIAGNOSIS
+  PROCEDURE
+  PRESCRIPTION
+  INVESTIGATION
+  ADVICE
+  REFERRAL
+  CLINICAL_NOTES
+  ATTACHMENTS
+  FOLLOW_UP
+}
+
+/// Where a consultation is in its life.
+///
+/// ⚠️ AMENDED IS A STATE OF THE SUPERSEDED ROW, NOT OF THE CORRECTION. The
+///   amendment itself is DRAFT and then FINALIZED like any other consultation;
+///   what it amends becomes AMENDED and stops being the current record. Reading
+///   it the other way round is the mistake that makes a chain of amendments
+///   unresolvable — every row would claim to be an amendment of something.
+enum EncounterStatus {
+  DRAFT
+  FINALIZED
+  /// Superseded by a later row that cites it. Kept for ever.
+  AMENDED
+  /// Abandoned before it was finalized. Kept rather than deleted: "the doctor
+  /// started a consultation and abandoned it" is a fact about a visit.
+  CANCELLED
+}
+
+/// One consultation: the clinical record of one visit.
+///
+/// ⚠️ `appointmentId` IS NULLABLE, AND THAT IS CD-1 RATHER THAN AN OVERSIGHT. A
+///   walk-in seen without a booking is an ordinary event in a clinic, and a
+///   required appointment would force the desk to invent a slot the patient
+///   never took just so the doctor could write. What is NOT nullable is the
+///   patient, the episode and the doctor — a consultation with no subject, no
+///   journey or no author is not a record of anything.
+///
+/// ⚠️ ORG + BRANCH SCOPED, IN BOTH RLS LOOPS. A consultation happens AT a place;
+///   `branchId` is NOT NULL, so the branch policy is absolute — a doctor scoped
+///   to one site cannot read what was written about a patient at another. That
+///   is the opposite call from `clinical_episodes`, deliberately: the journey
+///   follows the person, the visit belongs to the clinic it happened at.
+///
+/// ⚠️ IT CARRIES `templateVersionId` AND `templateSnapshot`, AND THEY ANSWER
+///   DIFFERENT QUESTIONS (§29). The FK is for REPORTING — "how many
+///   consultations used v3". The SNAPSHOT is what RENDERS the record, and it is
+///   the reason a template edited in 2029 changes nothing about a consultation
+///   finalized in 2026. A record that re-read the live template to display
+///   itself would show a 2026 visit through a 2029 form, with sections the
+///   clinician never saw and answers under keys that no longer exist.
+///
+///   The snapshot is written when the draft is OPENED, not at finalization. A
+///   draft resumed after the clinic published a new version must go on showing
+///   the form the doctor started typing into; re-resolving mid-consultation
+///   would move the fields under the cursor.
+model Encounter {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  /// Where the consultation happened. Copied from the appointment when there is
+  /// one, and taken from the acting membership's branch for a walk-in.
+  branchId       String  @map("branch_id") @db.Uuid
+  patientId      String  @map("patient_id") @db.Uuid
+  /// ⚠️ NULL FOR A WALK-IN (CD-1). See the model note.
+  appointmentId  String? @map("appointment_id") @db.Uuid
+  /// The journey this consultation belongs to. NOT NULL for the same reason
+  /// `appointments.clinical_episode_id` is: an episode of one is the ordinary
+  /// case, and "a consultation belonging to no journey" should not be
+  /// representable.
+  clinicalEpisodeId String @map("clinical_episode_id") @db.Uuid
+  /// Who wrote it. Restrict, never SetNull: an unsigned clinical record is not
+  /// a thing, and a doctor leaving the clinic does not un-write what they saw.
+  doctorProfileId   String @map("doctor_profile_id") @db.Uuid
+
+  /// Branch-local, issued from the `ENCOUNTER` counter.
+  ///
+  /// ⚠️ NULL UNTIL FINALIZATION, AND ISSUED THERE RATHER THAN AT CREATE. It is
+  ///   printed on a prescription and quoted back months later, so it is a
+  ///   document number in the sense PI-4's four counters are — and a draft that
+  ///   is abandoned must burn none, because a gap in the series is a question
+  ///   somebody will ask.
+  ///
+  /// ⚠️ AN AMENDMENT GETS ITS OWN NUMBER rather than reusing the number of the
+  ///   row it corrects. Reusing it would put two live rows behind one
+  ///   identifier, which is exactly what `appointments.appointment_number`
+  ///   refuses for a follow-up and for the same reason: the link the clinic
+  ///   needs is `amendsEncounterId`, and the database enforces that where it
+  ///   cannot enforce a shared string.
+  encounterNumber String? @map("encounter_number") @db.VarChar(32)
+
+  /// The configuration this consultation was conducted under.
+  ///
+  /// Restrict on both: a template version an encounter cites can be RETIRED but
+  /// never deleted, because deleting it would break the reporting question the
+  /// FK exists to answer.
+  templateId        String @map("template_id") @db.Uuid
+  templateVersionId String @map("template_version_id") @db.Uuid
+  /// ⚠️ THE FROZEN COPY OF THE PARSED DEFINITION (§29). Written at open, read by
+  ///   every render and by finalization's validation, and never rewritten.
+  ///   Nothing reads it raw — `parseStoredDefinition` is the one door, and it
+  ///   throws rather than returning an empty configuration.
+  templateSnapshot  Json   @map("template_snapshot") @db.JsonB
+
+  status EncounterStatus @default(DRAFT)
+
+  /// ⚠️ PHI. "Pain in the lower left molar." Free text and not a master item on
+  ///   purpose: the chief complaint is the patient's own words, and forcing it
+  ///   through a vocabulary loses the only part of the record written in them.
+  ///   The coded version of the same thing is `encounter_symptoms` in CE-4.
+  chiefComplaint String? @map("chief_complaint") @db.Text
+  /// "Three days." Value and unit travel together or not at all — a CHECK in the
+  /// migration, because a duration of "3" of nothing is not a duration.
+  chiefComplaintDurationValue Int?                  @map("chief_complaint_duration_value") @db.SmallInt
+  chiefComplaintDurationUnit  ClinicalDurationUnit? @map("chief_complaint_duration_unit")
+  onset                       ClinicalOnset?
+  /// ⚠️ PHI. The doctor's own narrative, which every specialty wants and no
+  ///   template can structure away.
+  clinicalNotes               String?               @db.Text @map("clinical_notes")
+
+  /// When the doctor opened it. Not the appointment's `startedAt`: a
+  /// consultation can be written up after the patient has left, and pretending
+  /// otherwise would put a false time on a clinical record.
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  finalizedAt DateTime? @map("finalized_at") @db.Timestamptz(6)
+  /// Restrict on the FK, not SetNull: who signed a clinical record is part of
+  /// the record. Contrast every other `*_by` column in this file.
+  finalizedBy String?   @map("finalized_by") @db.Uuid
+
+  /// The consultation THIS ONE CORRECTS. NULL on an original.
+  amendsEncounterId String?   @map("amends_encounter_id") @db.Uuid
+  /// Set on the row that WAS amended, at the moment its correction is finalized.
+  /// ⚠️ Read the enum's note: this column and `amendsEncounterId` are never both
+  ///   set on the same row unless an amendment was itself amended, which is
+  ///   legitimate and is why neither is unique on its own.
+  amendedAt         DateTime? @map("amended_at") @db.Timestamptz(6)
+  /// ⚠️ PHI. Why the record was corrected — required by the service on amend,
+  ///   because "the record changed and nobody said why" is the failure an
+  ///   amendment trail exists to prevent.
+  amendmentReason   String?   @map("amendment_reason") @db.Text
+
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?   @map("cancelled_by") @db.Uuid
+  /// ⚠️ PHI.
+  cancelledReason String?   @map("cancelled_reason") @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch          Branch          @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  patient         Patient         @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  appointment     Appointment?    @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  clinicalEpisode ClinicalEpisode @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)
+  doctorProfile   DoctorProfile   @relation(fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Restrict)
+  /// ⚠️ PLAIN FKs, NOT COMPOSITE, AND THIS IS THE ONE PLACE ADR-0004 CANNOT BE
+  ///   FOLLOWED HERE. A composite (organization_id, template_id) reference would
+  ///   make a PLATFORM template — organization_id NULL — UNCITABLE: the
+  ///   encounter's organization_id is NOT NULL, both columns are therefore
+  ///   non-null, and the FK would demand a template row belonging to the
+  ///   clinic. Since the platform's `GENERAL_HUMAN` is precisely what a doctor
+  ///   with no classification resolves to, that constraint would refuse the most
+  ///   ordinary consultation on the platform.
+  ///
+  ///   The same shape `encounter_prescriptions.product_id` has in CE-4, and
+  ///   `batches` has today, and for the identical reason. What replaces the
+  ///   composite FK is a RESTRICTIVE `template_visible` policy in the migration:
+  ///   without it a clinic could cite ANOTHER TENANT'S private template and read
+  ///   its name and definition back out of the join.
+  template        ConsultationTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  templateVersion ConsultationTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+  finalizer       User?                        @relation("EncounterFinalizedBy", fields: [finalizedBy], references: [id], onDelete: Restrict)
+  canceller       User?                        @relation("EncounterCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
+  amends          Encounter?                   @relation("EncounterAmendment", fields: [organizationId, amendsEncounterId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  amendedBy       Encounter[]                  @relation("EncounterAmendment")
+
+  sections        EncounterSection[]
+  recommendations EncounterFollowUpRecommendation[]
+
+  @@unique([organizationId, branchId, encounterNumber])
+  /// Composite-FK target for every CE-4 child, the sections below and the
+  /// follow-up recommendations above (ADR-0004).
+  @@unique([organizationId, id])
+  /// The chart: this patient's consultations, newest first.
+  @@index([organizationId, patientId, startedAt])
+  /// "Show me this whole journey." One indexed equality, as on `appointments`.
+  @@index([organizationId, clinicalEpisodeId, startedAt])
+  /// "What is still open on my desk?" — the doctor's draft list.
+  @@index([organizationId, doctorProfileId, status])
+  /// Reporting: how many consultations used version v.
+  @@index([organizationId, templateVersionId])
+  /// ⚠️ TWO PARTIAL UNIQUES ARE HAND-WRITTEN IN THE MIGRATION, because Prisma
+  ///   cannot express a predicate:
+  ///
+  ///     at most one LIVE encounter per appointment
+  ///       (status IN ('DRAFT','FINALIZED') AND deleted_at IS NULL) — without
+  ///       it a second "start consultation" click opens a second record of the
+  ///       same visit, and which one the prescription hangs off is a race.
+  ///
+  ///     at most one amendment per amended encounter
+  ///       (amends_encounter_id IS NOT NULL AND deleted_at IS NULL AND status <>
+  ///       'CANCELLED') — two live corrections of one record is two versions of
+  ///       the truth with nothing to choose between them.
+  @@map("encounters")
+}
+
+/// The answers to a descriptor-driven section — HISTORY and EXAMINATION.
+///
+/// ⚠️ ONLY THE DESCRIPTOR-DRIVEN SECTIONS LIVE HERE, AND THAT IS THE WHOLE LINE
+///   THE ARCHITECTURE DRAWS. A diagnosis, a prescription, an investigation and a
+///   procedure are FIRST-CLASS: they have their own tables in CE-4, they are
+///   queried, reported on, dispensed against and consumed from stock. Putting
+///   them in a JSONB blob here would make "what did we prescribe this year"
+///   unanswerable and would put a `product_id` inside a document, which is
+///   ADR-0006 exactly.
+///
+///   What is left is genuinely per-specialty and genuinely unqueried: a
+///   dentist's occlusion notes, a dermatologist's Fitzpatrick type. Those are a
+///   document, and `data` is where they go.
+///
+/// ⚠️ `data` IS VALIDATED AGAINST THE ENCOUNTER'S SNAPSHOT DESCRIPTORS, NOT
+///   AGAINST THE LIVE TEMPLATE, and it is validated at finalization rather than
+///   at every autosave — a half-typed draft is allowed to be incomplete, and a
+///   finalized one is not.
+model EncounterSection {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  /// Copied from the encounter so this is an ordinary member of the branch RLS
+  /// loop rather than a child inheriting only the org half — the call the
+  /// invoice children made and the one `appointment_status_history` did not.
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  /// Which component wrote it. A Postgres enum rather than free text: the set is
+  /// closed by the engine anyway, and a typo'd section type would be a row no
+  /// component ever renders and nobody ever sees again.
+  sectionType  ConsultationSectionType @map("section_type")
+  /// The template section's `key`. Stable by contract — renaming one in a
+  /// template orphans every answer already recorded under the old key, in every
+  /// finalized consultation.
+  sectionKey   String                  @map("section_key") @db.VarChar(64)
+  /// ⚠️ PHI. The descriptor answers, keyed by `FieldDescriptor.key`.
+  data         Json                    @default("{}") @db.JsonB
+  /// Copied from the section's `order` in the snapshot, so a read that does not
+  /// parse the snapshot can still render in the right order.
+  displayOrder Int                     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter    @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+
+  /// One row per section key per encounter — the autosave upserts on it.
+  @@unique([organizationId, encounterId, sectionKey])
+  @@index([organizationId, encounterId, displayOrder])
+  @@map("encounter_sections")
 }

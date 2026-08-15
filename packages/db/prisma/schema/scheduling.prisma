@@ -194,6 +194,10 @@ model Appointment {
   recommendationsMade      EncounterFollowUpRecommendation[] @relation("RecommendationSource")
   /// The recommendation, if any, that THIS booking satisfied.
   recommendationsFulfilled EncounterFollowUpRecommendation[] @relation("RecommendationFulfilment")
+  /// The consultation(s) recorded at this visit (CE-3). A list rather than a
+  /// single row because an amendment is a NEW encounter citing the same
+  /// appointment (CD-2); the partial unique index keeps at most one of them LIVE.
+  encounters               Encounter[]
 
   @@unique([organizationId, branchId, appointmentNumber])
   /// Composite-FK target: encounters, invoices and queue tokens will reference

@@ -35,13 +35,15 @@ sources, 22 rules — read from CDSCO's own consolidated Drugs Rules, 1945 and t
 Pharmacy Act, 1948 on India Code, at maturity `AUTOMATED_TESTED`. Goods receipt
 and transfer now consult the engine while posting.
 
-**The Consultation Engine programme has also started, and CE-0 through CE-2 are
-done** — the clinical vocabulary, the treatment journey, and now the
-configuration layer. `@rcln/clinical` is the tested core; a consultation
-template resolves from an appointment by walking the doctor's classification up
-to the patient's care context, most specific wins. Adding a specialty is meant
-to cost a configuration row and never a screen. The consultation ITSELF —
-`encounters`, the section components, autosave — is CE-3 and is not built.
+**The Consultation Engine programme has also started, and CE-0 through CE-3 are
+done** — the clinical vocabulary, the treatment journey, the configuration layer
+and now the consultation itself. `@rcln/clinical` is the tested core; a template
+resolves from an appointment by walking the doctor's classification up to the
+patient's care context, most specific wins. Adding a specialty is meant to cost a
+configuration row and never a screen. A consultation now opens, autosaves, signs
+and amends — a finalized record is immutable, and a correction is a new row
+citing it. What it does not yet HOLD is clinical content: diagnosis,
+prescription, investigations and the rest are CE-4.
 Everything about that programme lives in
 [`Consultation/`](Consultation/README.md).
 
@@ -986,10 +988,17 @@ Its own programme, with its own tracker. Full detail in
       `GET /appointments/:id/consultation-config`, `clinical.template.manage`,
       the `/consultation-templates` admin surface, and a published GENERAL
       template per care context so a clinic can consult on day one.
-- [ ] **CE-3…CE-8.** The encounter and its lifecycle, the clinical content
-      sections, visit history, the visual mapping engine, the reference
-      configurations, hardening. **PI-7 and PI-9 unblock at CE-4**, when
-      `encounter_prescriptions` and `encounter_procedures` exist.
+- [x] **CE-3 — the encounter and its lifecycle.** `encounters` +
+      `encounter_sections`; DRAFT → FINALIZED → AMENDED/CANCELLED with the
+      amendment as a NEW ROW; `clinical.encounter.amend`; the debounced autosave
+      Server Action; `validate.ts` in `@rcln/clinical` (89 unit tests); the
+      `ConsultationEngine` and `FieldRenderer` on the visit screen. The
+      configuration is frozen onto the encounter when it opens, so a record
+      renders through the form it was written on for ever.
+- [ ] **CE-4…CE-8.** The clinical content sections, visit history, the visual
+      mapping engine, the reference configurations, hardening. **PI-7 and PI-9
+      unblock at CE-4**, when `encounter_prescriptions` and
+      `encounter_procedures` exist.
 
 ### Consultation fees and doctor compensation
 

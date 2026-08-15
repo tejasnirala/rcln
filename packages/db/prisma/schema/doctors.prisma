@@ -256,6 +256,9 @@ model DoctorProfile {
   schedules      DoctorSchedule[]
   exceptions     DoctorScheduleException[]
   appointments   Appointment[]
+  /// What this doctor wrote (CE-3). Restrict on the FK: an unsigned clinical
+  /// record is not a thing, so a profile with encounters cannot be deleted.
+  encounters     Encounter[]
 
   @@unique([organizationId, userId])
   /// Composite-FK target: schedules, appointments and queue tokens reference

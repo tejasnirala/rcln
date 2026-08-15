@@ -25,6 +25,7 @@ Zod schemas shared by API and web. The request/response shape is written once an
 - `packages/contracts/src/common.ts`
 - `packages/contracts/src/consultation.ts`
 - `packages/contracts/src/doctors.ts`
+- `packages/contracts/src/encounters.ts`
 - `packages/contracts/src/fees.ts`
 - `packages/contracts/src/inventory.ts`
 - `packages/contracts/src/invoices.ts`
@@ -62,6 +63,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `AllocationPlanResponse` | type | `packages/contracts/src/inventory.ts:1342` |
 | `allocationStrategy` | zod | `packages/contracts/src/inventory.ts:923` |
 | `AllocationStrategy` | type | `packages/contracts/src/inventory.ts:1315` |
+| `amendEncounterRequest` | zod | `packages/contracts/src/encounters.ts:155` |
+| `AmendEncounterRequest` | type | `packages/contracts/src/encounters.ts:158` |
 | `apiError` | zod | `packages/contracts/src/common.ts:157` |
 | `ApiError` | type | `packages/contracts/src/common.ts:165` |
 | `applyNationalIdMask` | fn | `packages/contracts/src/locale.ts:921` |
@@ -150,6 +153,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `calendarDate` | zod | `packages/contracts/src/common.ts:73` |
 | `cancelAppointmentRequest` | zod | `packages/contracts/src/appointments.ts:250` |
 | `CancelAppointmentRequest` | type | `packages/contracts/src/appointments.ts:801` |
+| `cancelEncounterRequest` | zod | `packages/contracts/src/encounters.ts:160` |
+| `CancelEncounterRequest` | type | `packages/contracts/src/encounters.ts:163` |
 | `cancelGoodsReceiptRequest` | zod | `packages/contracts/src/procurement.ts:716` |
 | `CancelGoodsReceiptRequest` | type | `packages/contracts/src/procurement.ts:1074` |
 | `cancelInvoiceRequest` | zod | `packages/contracts/src/invoices.ts:222` |
@@ -170,6 +175,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `CheckoutResponse` | interface | `packages/contracts/src/billing.ts:263` |
 | `checkSlugQuery` | zod | `packages/contracts/src/tenancy.ts:542` |
 | `CheckSlugQuery` | type | `packages/contracts/src/tenancy.ts:939` |
+| `clinicalDurationUnit` | zod | `packages/contracts/src/encounters.ts:33` |
+| `ClinicalDurationUnitValue` | type | `packages/contracts/src/encounters.ts:34` |
 | `clinicalEpisodeDetail` | var | `packages/contracts/src/clinical.ts:201` |
 | `ClinicalEpisodeDetail` | type | `packages/contracts/src/clinical.ts:219` |
 | `clinicalEpisodeListResponse` | zod | `packages/contracts/src/clinical.ts:229` |
@@ -189,6 +196,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `ClinicalMasterListResponse` | type | `packages/contracts/src/clinical.ts:119` |
 | `clinicalMasterQuery` | zod | `packages/contracts/src/clinical.ts:75` |
 | `ClinicalMasterQuery` | type | `packages/contracts/src/clinical.ts:86` |
+| `clinicalOnset` | zod | `packages/contracts/src/encounters.ts:36` |
+| `ClinicalOnsetValue` | type | `packages/contracts/src/encounters.ts:37` |
 | `clinicTaxParams` | zod | `packages/contracts/src/tax.ts:390` |
 | `ClinicTaxRegistrationSummary` | interface | `packages/contracts/src/tax.ts:152` |
 | `ClinicTaxRuleSummary` | interface | `packages/contracts/src/tax.ts:280` |
@@ -378,6 +387,16 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `effectiveDate` | zod | `packages/contracts/src/products.ts:161` |
 | `email` | zod | `packages/contracts/src/common.ts:62` |
 | `EmbeddedCheckout` | interface | `packages/contracts/src/billing.ts:216` |
+| `encounterDetail` | zod | `packages/contracts/src/encounters.ts:187` |
+| `EncounterDetail` | type | `packages/contracts/src/encounters.ts:219` |
+| `encounterSaveResponse` | zod | `packages/contracts/src/encounters.ts:228` |
+| `EncounterSaveResponse` | type | `packages/contracts/src/encounters.ts:233` |
+| `encounterSection` | zod | `packages/contracts/src/encounters.ts:169` |
+| `EncounterSection` | type | `packages/contracts/src/encounters.ts:175` |
+| `encounterSectionData` | zod | `packages/contracts/src/encounters.ts:48` |
+| `EncounterSectionData` | type | `packages/contracts/src/encounters.ts:49` |
+| `encounterStatus` | zod | `packages/contracts/src/encounters.ts:29` |
+| `EncounterStatusValue` | type | `packages/contracts/src/encounters.ts:30` |
 | `equivalentProductsResponse` | zod | `packages/contracts/src/products.ts:836` |
 | `EquivalentProductsResponse` | type | `packages/contracts/src/products.ts:910` |
 | `evaluateRegulatoryRequest` | zod | `packages/contracts/src/regulatory.ts:542` |
@@ -404,6 +423,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `FeeScopeLevel` | type | `packages/contracts/src/fees.ts:79` |
 | `feeType` | var | `packages/contracts/src/fees.ts:57` |
 | `FeeTypeValue` | type | `packages/contracts/src/fees.ts:62` |
+| `finalizeEncounterRequest` | zod | `packages/contracts/src/encounters.ts:146` |
+| `FinalizeEncounterRequest` | type | `packages/contracts/src/encounters.ts:147` |
 | `followUpAppointmentRequest` | zod | `packages/contracts/src/appointments.ts:276` |
 | `FollowUpAppointmentRequest` | type | `packages/contracts/src/appointments.ts:803` |
 | `followUpIntervalUnit` | zod | `packages/contracts/src/clinical.ts:44` |
@@ -536,6 +557,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `NoShowAppointmentRequest` | type | `packages/contracts/src/appointments.ts:802` |
 | `onlineSalePosition` | zod | `packages/contracts/src/regulatory.ts:131` |
 | `OnlineSalePosition` | type | `packages/contracts/src/regulatory.ts:668` |
+| `openEncounterRequest` | var | `packages/contracts/src/encounters.ts:68` |
+| `OpenEncounterRequest` | type | `packages/contracts/src/encounters.ts:92` |
 | `operatingHour` | zod | `packages/contracts/src/tenancy.ts:206` |
 | `OperatingHour` | type | `packages/contracts/src/tenancy.ts:958` |
 | `organizationProfile` | zod | `packages/contracts/src/tenancy.ts:786` |
@@ -791,6 +814,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `RulePackQuery` | type | `packages/contracts/src/regulatory.ts:692` |
 | `rulePackSummary` | zod | `packages/contracts/src/regulatory.ts:373` |
 | `RulePackSummary` | type | `packages/contracts/src/regulatory.ts:693` |
+| `saveEncounterDraftRequest` | var | `packages/contracts/src/encounters.ts:110` |
+| `SaveEncounterDraftRequest` | type | `packages/contracts/src/encounters.ts:132` |
 | `saveTemplateVersionRequest` | zod | `packages/contracts/src/consultation.ts:178` |
 | `SaveTemplateVersionRequest` | type | `packages/contracts/src/consultation.ts:181` |
 | `searchPatientQuery` | zod | `packages/contracts/src/patients.ts:296` |

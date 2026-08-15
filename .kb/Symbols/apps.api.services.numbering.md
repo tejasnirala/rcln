@@ -10,17 +10,17 @@ Files: `apps/api/src/services/numbering/number-sequence.service.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `financialYearOf` | `(localDate: Date): string` | `apps/api/src/services/numbering/number-sequence.service.ts:194` |  |
-| `format` <sub>local</sub> | `(prefix: string, value: number, padding: number): string` | `apps/api/src/services/numbering/number-sequence.service.ts:179` |  |
-| `issueNumber` | `(tx: TxClient, ctx: TenantContext, spec: IssueNumberSpec): Promise<IssuedNumber>` | `apps/api/src/services/numbering/number-sequence.service.ts:114` | Take the next number for a counter, creating the counter if it is the first. Runs on the caller's transaction so the number is rolled back with whatever failed… |
+| `financialYearOf` | `(localDate: Date): string` | `apps/api/src/services/numbering/number-sequence.service.ts:204` |  |
+| `format` <sub>local</sub> | `(prefix: string, value: number, padding: number): string` | `apps/api/src/services/numbering/number-sequence.service.ts:189` |  |
+| `issueNumber` | `(tx: TxClient, ctx: TenantContext, spec: IssueNumberSpec): Promise<IssuedNumber>` | `apps/api/src/services/numbering/number-sequence.service.ts:124` | Take the next number for a counter, creating the counter if it is the first. Runs on the caller's transaction so the number is rolled back with whatever failed… |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `IssuedNumber` | `{ number, formatted }` | `apps/api/src/services/numbering/number-sequence.service.ts:95` |  |
-| `IssueNumberSpec` | `{ type, branchId, periodKey, prefix, padding }` | `apps/api/src/services/numbering/number-sequence.service.ts:80` |  |
-| `SequenceRow` <sub>local</sub> | `{ last_number, prefix, padding }` | `apps/api/src/services/numbering/number-sequence.service.ts:102` |  |
+| `IssuedNumber` | `{ number, formatted }` | `apps/api/src/services/numbering/number-sequence.service.ts:105` |  |
+| `IssueNumberSpec` | `{ type, branchId, periodKey, prefix, padding }` | `apps/api/src/services/numbering/number-sequence.service.ts:90` |  |
+| `SequenceRow` <sub>local</sub> | `{ last_number, prefix, padding }` | `apps/api/src/services/numbering/number-sequence.service.ts:112` |  |
 
 ## type
 
