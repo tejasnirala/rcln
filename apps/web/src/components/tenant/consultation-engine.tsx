@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ConsultationSectionConfig,
+  EncounterContent,
   EncounterDetail,
   SaveEncounterDraftRequest,
 } from '@rcln/contracts';
@@ -12,12 +13,43 @@ import { Input, Select, Textarea } from '@/components/ui/field';
 import { cn } from '@/lib/cn';
 import { FieldRenderer, type FieldValue } from '@/components/tenant/field-renderer';
 import {
+  AdviceSection,
+  AttachmentsSection,
+  DiagnosisSection,
+  FollowUpSection,
+  InvestigationSection,
+  PrescriptionSection,
+  ProcedureSection,
+  ReferralSection,
+  SymptomsSection,
+} from '@/components/tenant/consultation-content';
+import {
+  addContentRow,
   amendConsultation,
   cancelConsultation,
   finalizeConsultation,
+  removeContentRow,
   saveConsultation,
+  setFollowUp,
+  updateContentRow,
   type ConsultationState,
+  type ContentCollection,
+  type ContentResult,
 } from '@/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions';
+
+/** The clinical content and the verbs over it, handed to every CE-4 section. */
+interface ContentHandlers {
+  encounterId: string;
+  content: EncounterContent;
+  add: (collection: ContentCollection, body: Record<string, unknown>) => Promise<ContentResult>;
+  edit: (
+    collection: ContentCollection,
+    rowId: string,
+    body: Record<string, unknown>
+  ) => Promise<ContentResult>;
+  remove: (collection: ContentCollection, rowId: string) => Promise<ContentResult>;
+  setFollowUp: (body: Parameters<typeof setFollowUp>[2]) => void;
+}
 
 /**
  * The consultation, rendered from its configuration.
@@ -93,22 +125,18 @@ const ONSETS = [
 /**
  * The sections whose components land in a later phase.
  *
- * ⚠️ NAMED, NOT BLANK. A clinic that configured a prescription section and sees
- *   an empty space assumes the configuration is broken; a line saying what the
- *   section is and when it arrives is the honest answer. Every one of these is a
- *   FIRST-CLASS section with its own table — they are not missing renderers, they
- *   are unbuilt features.
+ * ⚠️ NAMED, NOT BLANK. A clinic that configured a section and sees an empty
+ *   space assumes the configuration is broken; a line saying what the section is
+ *   and when it arrives is the honest answer.
+ *
+ * ⚠️ CE-4 EMPTIED THIS OF EVERYTHING BUT ONE ENTRY, AND THAT IS HOW IT SHRINKS.
+ *   The nine clinical content sections now have real editors over real tables.
+ *   VISUAL_MAPPING is the last one left: `visual_maps` and `clinical_findings`
+ *   land in CE-6, and until then a template that configured a chart has nothing
+ *   to draw. Deleting an entry as each component lands is the intended
+ *   mechanism, not a chore.
  */
 const PENDING_SECTIONS: Record<string, string> = {
-  SYMPTOMS: 'Coded symptoms arrive with the clinical content tables.',
-  DIAGNOSIS: 'Diagnoses arrive with the clinical content tables.',
-  PROCEDURE: 'Procedures arrive with the clinical content tables.',
-  PRESCRIPTION: 'Prescribing arrives with the clinical content tables.',
-  INVESTIGATION: 'Investigation orders arrive with the clinical content tables.',
-  ADVICE: 'Advice arrives with the clinical content tables.',
-  REFERRAL: 'Referrals arrive with the clinical content tables.',
-  ATTACHMENTS: 'Attachments arrive with the clinical content tables.',
-  FOLLOW_UP: 'Follow-up recommendations arrive with the clinical content tables.',
   VISUAL_MAPPING: 'The chart arrives with the visual mapping engine.',
 };
 
@@ -133,6 +161,14 @@ export function ConsultationEngine({
   const [draft, setDraft] = useState<Draft>(() => draftFrom(encounter));
   const [save, setSave] = useState<ConsultationState>({ status: 'idle' });
   const [problem, setProblem] = useState<string | null>(null);
+  /*
+   * ⚠️ THE CLINICAL CONTENT IS ITS OWN STATE, BESIDE `draft` AND NOT INSIDE IT
+   *   (CE-4). `draft` is a DOCUMENT the autosave debounces; content is ROWS with
+   *   server-issued ids that are written the moment they are added. Folding them
+   *   together would either debounce a row creation — which loses the id the
+   *   next edit needs — or fire the document save on every row change.
+   */
+  const [content, setContent] = useState<EncounterContent>(encounter.content);
   const [busy, setBusy] = useState(false);
   const [amending, setAmending] = useState(false);
   const [amendReason, setAmendReason] = useState('');
@@ -220,6 +256,53 @@ export function ConsultationEngine({
     [encounter.configuration]
   );
 
+  /*
+   * ⚠️ ONE HANDLER PER VERB, SHARED BY EVERY CONTENT SECTION, AND EACH SWAPS THE
+   *   WHOLE CONTENT FOR WHAT CAME BACK. One of these writes legitimately changes
+   *   a row in a DIFFERENT list — removing a diagnosis unlinks every procedure
+   *   citing it — so merging per-row would get that case wrong, quietly, in a
+   *   way that renders as "this procedure treats nothing".
+   *
+   * ⚠️ AND A FAILURE IS SHOWN RATHER THAN SWALLOWED. The API's sentence names
+   *   what happened — "this consultation already has a primary diagnosis" — and
+   *   replacing it with "could not be saved" sends the clinician to support with
+   *   nothing to say.
+   */
+  const applyContent = useCallback((result: ContentResult) => {
+    if (result.ok) {
+      setContent(result.content);
+      setProblem(null);
+    } else {
+      setProblem(result.message);
+    }
+  }, []);
+
+  const contentHandlers = useMemo(
+    () => ({
+      encounterId: encounter.id,
+      content,
+      add: async (collection: ContentCollection, body: Record<string, unknown>) => {
+        const result = await addContentRow(slug, encounter.id, collection, body);
+        applyContent(result);
+        return result;
+      },
+      edit: async (collection: ContentCollection, rowId: string, body: Record<string, unknown>) => {
+        const result = await updateContentRow(slug, encounter.id, collection, rowId, body);
+        applyContent(result);
+        return result;
+      },
+      remove: async (collection: ContentCollection, rowId: string) => {
+        const result = await removeContentRow(slug, encounter.id, collection, rowId);
+        applyContent(result);
+        return result;
+      },
+      setFollowUp: (body: Parameters<typeof setFollowUp>[2]) => {
+        void setFollowUp(slug, encounter.id, body).then(applyContent);
+      },
+    }),
+    [slug, encounter.id, content, applyContent]
+  );
+
   const sign = async () => {
     setBusy(true);
     setProblem(null);
@@ -304,6 +387,7 @@ export function ConsultationEngine({
                 setSectionField={setSectionField}
                 readOnly={readOnly}
                 slug={slug}
+                content={contentHandlers}
               />
             </div>
           </li>
@@ -381,6 +465,7 @@ function SectionBody({
   setSectionField,
   readOnly,
   slug,
+  content,
 }: {
   section: ConsultationSectionConfig;
   draft: Draft;
@@ -388,6 +473,8 @@ function SectionBody({
   setSectionField: (sectionKey: string, fieldKey: string, value: FieldValue) => void;
   readOnly: boolean;
   slug: string;
+  /** The clinical content and the three verbs over it (CE-4). */
+  content: ContentHandlers | null;
 }) {
   if (section.type === 'CHIEF_COMPLAINT') {
     return (
@@ -455,6 +542,56 @@ function SectionBody({
         }
       />
     );
+  }
+
+  /*
+   * ⚠️ THE FIRST-CLASS SECTIONS ARE ONE COMPONENT EACH, CHOSEN FROM A CLOSED
+   *   TABLE, AND THEY DO NOT TOUCH `draft` (CE-4). Their content is ROWS on the
+   *   server with server-issued ids, not fields of the autosaved document — so
+   *   they write immediately through their own actions and hand the whole
+   *   content back, and the engine swaps its copy for it. That is why `content`
+   *   is passed down rather than lifted into `draft`: a row is not a keystroke.
+   */
+  if (content !== null) {
+    const shared = {
+      slug,
+      encounterId: content.encounterId,
+      content: content.content,
+      readOnly,
+      ...(section.scopeIds[0] !== undefined ? { scopeId: section.scopeIds[0] } : {}),
+      add: content.add,
+      edit: content.edit,
+      remove: content.remove,
+    };
+
+    switch (section.type) {
+      case 'SYMPTOMS':
+        return <SymptomsSection {...shared} />;
+      case 'DIAGNOSIS':
+        return <DiagnosisSection {...shared} />;
+      case 'PROCEDURE':
+        return <ProcedureSection {...shared} />;
+      case 'PRESCRIPTION':
+        return <PrescriptionSection {...shared} />;
+      case 'INVESTIGATION':
+        return <InvestigationSection {...shared} />;
+      case 'ADVICE':
+        return <AdviceSection {...shared} />;
+      case 'REFERRAL':
+        return <ReferralSection {...shared} />;
+      case 'ATTACHMENTS':
+        return <AttachmentsSection {...shared} />;
+      case 'FOLLOW_UP':
+        return (
+          <FollowUpSection
+            followUp={content.content.followUp}
+            readOnly={readOnly}
+            onSet={content.setFollowUp}
+          />
+        );
+      default:
+        break;
+    }
   }
 
   if (section.type === 'HISTORY' || section.type === 'EXAMINATION') {

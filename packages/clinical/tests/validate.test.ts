@@ -7,7 +7,7 @@
  *   looked for the missing key would pass `{}` and let an unfilled examination
  *   be signed.
  */
-import { validateEncounter, encounterProblems } from '../src/index.js';
+import { encounterProblems, requiredContentSections, validateEncounter } from '../src/index.js';
 import type { FieldDescriptor, TemplateDefinition } from '../src/index.js';
 
 type Section = TemplateDefinition['sections'][number];
@@ -216,5 +216,66 @@ describe('what is checked, and what is somebody else’s job', () => {
     const problems = encounterProblems(definition, [{ key: 'examination', data: { other: 1 } }]);
     expect(problems).toHaveLength(3);
     expect(problems.map((p) => p.fieldKey)).toEqual(['finding', 'grade', 'other']);
+  });
+});
+
+/**
+ * The half of finalization the engine owns (CE-4).
+ *
+ * ⚠️ THE SPLIT IS THE ARCHITECTURE, NOT AN OMISSION. `encounterProblems` checks
+ *   sections whose answers live in a DOCUMENT, which it can do with no
+ *   database. A diagnosis, a prescription and an order live in their own
+ *   TABLES — this package holds no Prisma client and never will (CD-10), so it
+ *   answers WHICH sections a clinic marked required and the service answers
+ *   whether any rows exist. The rule itself is stated in exactly one place: the
+ *   template.
+ */
+describe('requiredContentSections', () => {
+  const withSections = (sections: Section[]): TemplateDefinition => ({
+    schemaVersion: 1,
+    scopes: [],
+    sections,
+  });
+
+  const section = (over: Partial<Section> & Pick<Section, 'type' | 'key'>): Section => ({
+    label: over.key,
+    order: 10,
+    visible: true,
+    required: true,
+    ...over,
+  });
+
+  it('names the required first-class sections', () => {
+    const definition = withSections([
+      section({ type: 'DIAGNOSIS', key: 'diagnosis' }),
+      section({ type: 'PRESCRIPTION', key: 'prescription' }),
+    ]);
+    expect(requiredContentSections(definition).map((s) => s.key)).toEqual([
+      'diagnosis',
+      'prescription',
+    ]);
+  });
+
+  /**
+   * ⚠️ DESCRIPTOR-DRIVEN SECTIONS ARE `encounterProblems`' BUSINESS AND MUST NOT
+   *   BE COUNTED TWICE. A required EXAMINATION appearing in both lists would
+   *   report the same missing section as two problems in one sentence.
+   */
+  it('leaves the descriptor-driven sections to encounterProblems', () => {
+    const definition = withSections([
+      section({ type: 'EXAMINATION', key: 'examination', fields: [textField] }),
+      section({ type: 'HISTORY', key: 'history', fields: [textField] }),
+      section({ type: 'DIAGNOSIS', key: 'diagnosis' }),
+    ]);
+    expect(requiredContentSections(definition).map((s) => s.key)).toEqual(['diagnosis']);
+  });
+
+  /** A section a clinic switched off cannot make a consultation unsignable. */
+  it('ignores an invisible section and an optional one', () => {
+    const definition = withSections([
+      section({ type: 'DIAGNOSIS', key: 'diagnosis', visible: false }),
+      section({ type: 'ADVICE', key: 'advice', required: false }),
+    ]);
+    expect(requiredContentSections(definition)).toHaveLength(0);
   });
 });

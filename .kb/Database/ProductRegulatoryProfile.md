@@ -26,7 +26,7 @@ Declared at `packages/db/prisma/schema/regulatory.prisma:482`.
 | `controlledSchedule` | `String?` | `controlledSchedule String? @map("controlled_schedule") @db.VarChar(64)` |
 | `prescriptionRequirement` | `PrescriptionRequirement` | `prescriptionRequirement PrescriptionRequirement @default(UNKNOWN) @map("prescription_requirement")` |
 | `onlineSalePosition` | `OnlineSalePosition` | `onlineSalePosition OnlineSalePosition @default(UNKNOWN) @map("online_sale_position")` |
-| `dispensingNotes` | `String?` | `dispensingNotes String? @db.Text @map("dispensing_notes")` |
+| `dispensingNotes` | `String?` | `dispensingNotes String? @map("dispensing_notes") @db.Text` |
 | `effectiveFrom` | `DateTime` | `effectiveFrom DateTime @map("effective_from") @db.Date` |
 | `effectiveTo` | `DateTime?` | `effectiveTo DateTime? @map("effective_to") @db.Date` |
 | `createdAt` | `DateTime` | `createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)` |

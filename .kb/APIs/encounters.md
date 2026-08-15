@@ -8,23 +8,27 @@ Source: `apps/api/src/routes/v1/encounters.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/encounters.routes.ts:61` |
-| POST | `/` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(openEncounterRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:82` |
-| GET | `/:encounterId` | `authorize(PERMISSIONS.ENCOUNTER_READ)` → `validate(encounterParams)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:96` |
-| PATCH | `/:encounterId` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(encounterParams)` → `validate(saveEncounterDraftRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:124` |
-| POST | `/:encounterId/finalize` | `authorize(PERMISSIONS.ENCOUNTER_CLOSE)` → `validate(encounterParams)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:144` |
-| POST | `/:encounterId/amend` | `authorize(PERMISSIONS.ENCOUNTER_AMEND)` → `validate(encounterParams)` → `validate(amendEncounterRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:169` |
-| POST | `/:encounterId/cancel` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(encounterParams)` → `validate(cancelEncounterRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:195` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/encounters.routes.ts:106` |
+| POST | `/` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(openEncounterRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:127` |
+| GET | `/:encounterId` | `authorize(PERMISSIONS.ENCOUNTER_READ)` → `validate(encounterParams)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:141` |
+| PATCH | `/:encounterId` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(encounterParams)` → `validate(saveEncounterDraftRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:169` |
+| POST | `/:encounterId/finalize` | `authorize(PERMISSIONS.ENCOUNTER_CLOSE)` → `validate(encounterParams)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:189` |
+| POST | `/:encounterId/amend` | `authorize(PERMISSIONS.ENCOUNTER_AMEND)` → `validate(encounterParams)` → `validate(amendEncounterRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:214` |
+| POST | `/:encounterId/cancel` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(encounterParams)` → `validate(cancelEncounterRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:240` |
+| POST | `*` | `base` → `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(encounterParams)` → `validate(collection.create)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:366` |
+| PATCH | `*` | ``${base}/:rowId`` → `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(rowParams)` → `validate(collection.update)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:385` |
+| DELETE | `*` | ``${base}/:rowId`` → `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(rowParams)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:412` |
+| PUT | `/:encounterId/follow-up` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(encounterParams)` → `validate(setFollowUpRecommendationRequest)` → `<inline>` | `apps/api/src/routes/v1/encounters.routes.ts:441` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `encounterParams` | `apps/api/src/routes/v1/encounters.routes.ts:63` |
+| `encounterParams` | `apps/api/src/routes/v1/encounters.routes.ts:108` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`AmendEncounterRequest` · `CancelEncounterRequest` · `OpenEncounterRequest` · `SaveEncounterDraftRequest` · `amendEncounterRequest` · `cancelEncounterRequest` · `openEncounterRequest` · `saveEncounterDraftRequest`
+`AmendEncounterRequest` · `CancelEncounterRequest` · `OpenEncounterRequest` · `SaveEncounterDraftRequest` · `SetFollowUpRecommendationRequest` · `amendEncounterRequest` · `cancelEncounterRequest` · `createEncounterAdviceRequest` · `createEncounterAttachmentRequest` · `createEncounterDiagnosisRequest` · `createEncounterInvestigationRequest` · `createEncounterPrescriptionRequest` · `createEncounterProcedureRequest` · `createEncounterReferralRequest` · `createEncounterSymptomRequest` · `openEncounterRequest` · `saveEncounterDraftRequest` · `setFollowUpRecommendationRequest` · `updateEncounterAdviceRequest` · `updateEncounterAttachmentRequest` · `updateEncounterDiagnosisRequest` · `updateEncounterInvestigationRequest` · `updateEncounterPrescriptionRequest` · `updateEncounterProcedureRequest` · `updateEncounterReferralRequest` · `updateEncounterSymptomRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

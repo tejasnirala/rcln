@@ -8,26 +8,29 @@ Source: `apps/api/src/routes/v1/clinical.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/clinical.routes.ts:79` |
-| GET | `/clinical-data` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(clinicalMasterQuery)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:119` |
-| POST | `/clinical-data` | `authorize(PERMISSIONS.CLINICAL_MASTER_MANAGE)` → `validate(createClinicalMasterRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:129` |
-| PATCH | `/clinical-data/:itemId` | `authorize(PERMISSIONS.CLINICAL_MASTER_MANAGE)` → `validate(itemParams)` → `validate(updateClinicalMasterRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:139` |
-| DELETE | `/clinical-data/:itemId` | `authorize(PERMISSIONS.CLINICAL_MASTER_MANAGE)` → `validate(itemParams)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:159` |
-| GET | `/clinical-episodes` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(clinicalEpisodeQuery)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:181` |
-| POST | `/clinical-episodes` | `authorize(PERMISSIONS.APPOINTMENT_CREATE)` → `validate(createClinicalEpisodeRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:194` |
-| GET | `/clinical-episodes/:episodeId` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(episodeParams)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:205` |
-| PATCH | `/clinical-episodes/:episodeId` | `authorize(PERMISSIONS.APPOINTMENT_UPDATE)` → `validate(episodeParams)` → `validate(updateClinicalEpisodeRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:222` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/clinical.routes.ts:85` |
+| GET | `/clinical-data` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(clinicalMasterQuery)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:126` |
+| POST | `/clinical-data` | `authorize(PERMISSIONS.CLINICAL_MASTER_MANAGE)` → `validate(createClinicalMasterRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:136` |
+| PATCH | `/clinical-data/:itemId` | `authorize(PERMISSIONS.CLINICAL_MASTER_MANAGE)` → `validate(itemParams)` → `validate(updateClinicalMasterRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:146` |
+| DELETE | `/clinical-data/:itemId` | `authorize(PERMISSIONS.CLINICAL_MASTER_MANAGE)` → `validate(itemParams)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:166` |
+| GET | `/clinical-episodes` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(clinicalEpisodeQuery)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:188` |
+| POST | `/clinical-episodes` | `authorize(PERMISSIONS.APPOINTMENT_CREATE)` → `validate(createClinicalEpisodeRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:201` |
+| GET | `/clinical-episodes/:episodeId` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(episodeParams)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:212` |
+| PATCH | `/clinical-episodes/:episodeId` | `authorize(PERMISSIONS.APPOINTMENT_UPDATE)` → `validate(episodeParams)` → `validate(updateClinicalEpisodeRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:229` |
+| GET | `/follow-up-recommendations` | `authorize(PERMISSIONS.APPOINTMENT_READ)` → `validate(followUpRecommendationQuery)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:266` |
+| POST | `/follow-up-recommendations/:recommendationId/cancel` | `authorize(PERMISSIONS.APPOINTMENT_UPDATE)` → `validate(recommendationParams)` → `validate(cancelFollowUpRecommendationRequest)` → `<inline>` | `apps/api/src/routes/v1/clinical.routes.ts:295` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `itemParams` | `apps/api/src/routes/v1/clinical.routes.ts:81` |
-| `episodeParams` | `apps/api/src/routes/v1/clinical.routes.ts:82` |
+| `itemParams` | `apps/api/src/routes/v1/clinical.routes.ts:87` |
+| `episodeParams` | `apps/api/src/routes/v1/clinical.routes.ts:88` |
+| `recommendationParams` | `apps/api/src/routes/v1/clinical.routes.ts:89` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`ClinicalEpisodeQuery` · `ClinicalMasterQuery` · `CreateClinicalEpisodeRequest` · `CreateClinicalMasterRequest` · `UpdateClinicalEpisodeRequest` · `UpdateClinicalMasterRequest` · `clinicalEpisodeQuery` · `clinicalMasterQuery` · `createClinicalEpisodeRequest` · `createClinicalMasterRequest` · `updateClinicalEpisodeRequest` · `updateClinicalMasterRequest`
+`CancelFollowUpRecommendationRequest` · `ClinicalEpisodeQuery` · `ClinicalMasterQuery` · `CreateClinicalEpisodeRequest` · `CreateClinicalMasterRequest` · `FollowUpRecommendationQuery` · `UpdateClinicalEpisodeRequest` · `UpdateClinicalMasterRequest` · `cancelFollowUpRecommendationRequest` · `clinicalEpisodeQuery` · `clinicalMasterQuery` · `createClinicalEpisodeRequest` · `createClinicalMasterRequest` · `followUpRecommendationQuery` · `updateClinicalEpisodeRequest` · `updateClinicalMasterRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

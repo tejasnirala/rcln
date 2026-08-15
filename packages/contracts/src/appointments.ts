@@ -280,6 +280,21 @@ export const followUpAppointmentRequest = z.object({
   doctorProfileId: uuid.optional(),
   /** ⚠️ PHI. Why they are coming back. */
   reason: z.string().max(2000).optional(),
+  /**
+   * The recommendation this booking satisfies (CD-13, CE-4).
+   *
+   * ⚠️ OPTIONAL IN BOTH DIRECTIONS, AND NEITHER ABSENCE IS AN ERROR. A patient
+   *   may book a follow-up nobody recommended, and a recommendation may never
+   *   be booked at all — the second is the entire recall list. What a
+   *   recommendation and a booking are NOT is one row: "who was told to come
+   *   back and hasn't" is unanswerable if an unbooked recommendation does not
+   *   exist.
+   *
+   * ⚠️ FULFILMENT IS ONE-TO-ONE, BY PARTIAL UNIQUE INDEX. One appointment
+   *   cannot satisfy two recommendations, and re-posting the same booking
+   *   changes nothing.
+   */
+  fulfilsRecommendationId: uuid.optional(),
 });
 
 // ---------------------------------------------------------------------------

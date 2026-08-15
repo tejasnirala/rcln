@@ -35,15 +35,18 @@ sources, 22 rules — read from CDSCO's own consolidated Drugs Rules, 1945 and t
 Pharmacy Act, 1948 on India Code, at maturity `AUTOMATED_TESTED`. Goods receipt
 and transfer now consult the engine while posting.
 
-**The Consultation Engine programme has also started, and CE-0 through CE-3 are
-done** — the clinical vocabulary, the treatment journey, the configuration layer
-and now the consultation itself. `@rcln/clinical` is the tested core; a template
-resolves from an appointment by walking the doctor's classification up to the
-patient's care context, most specific wins. Adding a specialty is meant to cost a
-configuration row and never a screen. A consultation now opens, autosaves, signs
-and amends — a finalized record is immutable, and a correction is a new row
-citing it. What it does not yet HOLD is clinical content: diagnosis,
-prescription, investigations and the rest are CE-4.
+**The Consultation Engine programme has also started, and CE-0 through CE-4 are
+done** — the clinical vocabulary, the treatment journey, the configuration layer,
+the consultation itself and now its content. `@rcln/clinical` is the tested core;
+a template resolves from an appointment by walking the doctor's classification up
+to the patient's care context, most specific wins. Adding a specialty is meant to
+cost a configuration row and never a screen. A consultation opens, autosaves,
+signs and amends — a finalized record is immutable, and a correction is a new row
+citing it that carries a COPY of its content. And it now holds that content as
+real rows: diagnoses, prescriptions, procedures, investigations, advice,
+referrals, attachments and a follow-up plan, each with a foreign key the database
+checks. **PI-7 and PI-9 are unblocked.** What is left is the READ side — visit
+history and the recall screen (CE-5) — and the visual map (CE-6).
 Everything about that programme lives in
 [`Consultation/`](Consultation/README.md).
 
@@ -995,10 +998,17 @@ Its own programme, with its own tracker. Full detail in
       `ConsultationEngine` and `FieldRenderer` on the visit screen. The
       configuration is frozen onto the encounter when it opens, so a record
       renders through the form it was written on for ever.
-- [ ] **CE-4…CE-8.** The clinical content sections, visit history, the visual
-      mapping engine, the reference configurations, hardening. **PI-7 and PI-9
-      unblock at CE-4**, when `encounter_prescriptions` and
-      `encounter_procedures` exist.
+- [x] **CE-4 — the clinical content sections.** Eight tables — symptoms,
+      diagnoses, procedures, prescriptions, investigations, advice, referrals,
+      attachments — all org + branch scoped and all PHI, plus the follow-up
+      recommendation's writer and the recall-list endpoint (CD-13).
+      `db:rls:check` at **108**, including seven `*_visible` policies standing in
+      for composite FKs that cannot be drawn into a platform-extensible parent.
+      **No new permission codes**: recording a diagnosis IS writing up the
+      consultation. **PI-7 and PI-9 are unblocked** — `encounter_prescriptions`
+      and `encounter_procedures` exist.
+- [ ] **CE-5…CE-8.** Visit history and the recall screen, the visual mapping
+      engine, the reference configurations, hardening.
 
 ### Consultation fees and doctor compensation
 

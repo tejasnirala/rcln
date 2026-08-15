@@ -15,7 +15,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `asDocumentAppError` <sub>local</sub> | `(error: unknown): AppError` | `apps/api/src/routes/v1/invoices.routes.ts:217` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/branches.routes.ts:54` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:70` |  |
-| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/clinical.routes.ts:97` |  |
+| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/clinical.routes.ts:104` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/consultation-templates.routes.ts:69` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/designations.routes.ts:43` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/doctors.routes.ts:101` |  |
@@ -35,14 +35,14 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `handle` <sub>local</sub> | `(fn: (req: Request, res: Response) => Promise<void>): (req: Request, res: Response) => Promise<void>` | `apps/api/src/routes/v1/billing.routes.ts:126` | Every handler goes through this, so the mapping above cannot be forgotten. |
 | `invitedOrganizationId` <sub>local</sub> | `(req: Request, res: Response): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:258` |  |
 | `meta` <sub>local</sub> | `(req: Request, pattern: string): AppointmentActionOptions` | `apps/api/src/routes/v1/appointments.routes.ts:103` |  |
-| `meta` <sub>local</sub> | `(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }` | `apps/api/src/routes/v1/encounters.routes.ts:65` |  |
+| `meta` <sub>local</sub> | `(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }` | `apps/api/src/routes/v1/encounters.routes.ts:110` |  |
 | `meta` <sub>local</sub> | `(req: Request): FeeActionOptions` | `apps/api/src/routes/v1/fees.routes.ts:58` |  |
 | `meta` <sub>local</sub> | `(req: Request, pattern: string): InvoiceActionOptions` | `apps/api/src/routes/v1/invoices.routes.ts:99` | Request metadata for the disclosure trail. `route` is the PATTERN composed with the mount point — `/v1/invoices/:invoiceId`, never the resolved URL. |
 | `meta` <sub>local</sub> | `(req: Request, pattern: string): PatientActionOptions` | `apps/api/src/routes/v1/patients.routes.ts:119` | Request metadata for both trails. `route` is `req.route?.path` composed with the mount point — the PATTERN, so `/v1/patients/:patientId`, never the resolved UR… |
 | `meta` <sub>local</sub> | `(req: Request): ClinicTaxActionOptions` | `apps/api/src/routes/v1/tax.routes.ts:77` | Request metadata carried onto the audit row. |
 | `organizationCurrencyOf` <sub>local</sub> | `(req: Request): Promise<string>` | `apps/api/src/routes/v1/invoices.routes.ts:194` |  |
 | `providerEnvironment` <sub>local</sub> | `(providerName: string): string \| null` | `apps/api/src/routes/v1/webhooks.routes.ts:85` |  |
-| `readMeta` <sub>local</sub> | `(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }` | `apps/api/src/routes/v1/clinical.routes.ts:88` | ⚠️ `route` IS THE MATCHED PATTERN, NEVER `req.originalUrl`. A URL carries its query string, and a search term is a disclosure. |
+| `readMeta` <sub>local</sub> | `(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }` | `apps/api/src/routes/v1/clinical.routes.ts:95` | ⚠️ `route` IS THE MATCHED PATTERN, NEVER `req.originalUrl`. A URL carries its query string, and a search term is a disclosure. |
 | `refererHost` <sub>local</sub> | `(req: Request): string \| undefined` | `apps/api/src/routes/v1/public.routes.ts:54` | The referring site, host only. Never the full URL: a referrer's path and query can carry anything the other site put there, and this column is not the place to… |
 | `slugOf` <sub>local</sub> | `(req: Request): string` | `apps/api/src/routes/v1/billing.routes.ts:90` |  |
 | `targetOrganizationId` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:89` | The tenant this request is signing in to, or null on the apex/admin host. |
@@ -64,13 +64,13 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `demoRequestQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:280` |  |
 | `doctorParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/doctors.routes.ts:96` |  |
 | `duplicateProbeRequest` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/patients.routes.ts:95` | The duplicate probe. A GET would put a phone number in the access log. |
-| `encounterParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/encounters.routes.ts:63` |  |
+| `encounterParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/encounters.routes.ts:108` |  |
 | `endRuleBody` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/tax.routes.ts:264` |  |
-| `episodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical.routes.ts:82` |  |
+| `episodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical.routes.ts:88` |  |
 | `intentParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/billing.routes.ts:54` |  |
 | `invitationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/invitations.routes.ts:47` |  |
 | `invoiceParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/invoices.routes.ts:91` |  |
-| `itemParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical.routes.ts:81` |  |
+| `itemParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical.routes.ts:87` |  |
 | `listQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/product-catalogue.routes.ts:102` | Every one of these masters takes the same list query. |
 | `locationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:190` |  |
 | `mandateParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/billing.routes.ts:182` |  |
@@ -85,6 +85,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `providerParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/webhooks.routes.ts:47` |  |
 | `reasonCodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:521` |  |
 | `receiptParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/procurement.routes.ts:635` |  |
+| `recommendationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical.routes.ts:89` |  |
 | `regulatoryIdParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:488` |  |
 | `requisitionParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/procurement.routes.ts:416` |  |
 | `reservationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:582` |  |
@@ -113,6 +114,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | --- | --- | --- | --- |
 | `ADJUST` <sub>local</sub> | `PERMISSIONS.STOCK_ADJUST` | `apps/api/src/routes/v1/inventory.routes.ts:167` |  |
 | `BATCH_MANAGE` <sub>local</sub> | `PERMISSIONS.BATCH_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:166` |  |
+| `COLLECTIONS` <sub>local</sub> | `[ { path: 'symptoms', create: createEncounterSymptomRequest, update: updateEncounterSympt…` | `apps/api/src/routes/v1/encounters.routes.ts:296` |  |
 | `DEDUPE_WINDOW_MS` <sub>local</sub> | `24 * 60 * 60 * 1000` | `apps/api/src/routes/v1/public.routes.ts:46` | One clinic re-submitting inside this window is the same lead, not a new one. |
 | `HISTORY_ALSO_READABLE_BY` <sub>local</sub> | `: Record<string, PermissionCode>` | `apps/api/src/routes/v1/audit.routes.ts:78` |  |
 | `LOCATION_MANAGE` <sub>local</sub> | `PERMISSIONS.INVENTORY_LOCATION_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:165` |  |
@@ -166,11 +168,11 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/billing.routes.ts:50` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/branches.routes.ts:48` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:64` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/clinical.routes.ts:77` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/clinical.routes.ts:83` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/consultation-templates.routes.ts:61` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/designations.routes.ts:37` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/doctors.routes.ts:92` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/encounters.routes.ts:59` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/encounters.routes.ts:104` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/fees.routes.ts:54` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/health.routes.ts:7` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:51` |  |
@@ -186,6 +188,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/roles.routes.ts:38` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/tax.routes.ts:70` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/webhooks.routes.ts:37` |  |
+| `rowParams` <sub>local</sub> | `encounterParams.extend(…)` | `apps/api/src/routes/v1/encounters.routes.ts:283` |  |
 | `scheduleParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:97` |  |
 | `serialRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:353` |  |
 | `stockRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:429` |  |

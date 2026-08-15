@@ -9,7 +9,7 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 | CE-1  | Clinical foundation                  | ✅ complete    |
 | CE-2  | Templates + config resolver          | ✅ complete    |
 | CE-3  | Encounter core + lifecycle           | ✅ complete    |
-| CE-4  | Clinical content sections            | ⬜ not started |
+| CE-4  | Clinical content sections            | ✅ complete    |
 | CE-5  | Visit history + episodes             | ⬜ not started |
 | CE-6  | Visual mapping engine + HUMAN_DENTAL | ⬜ not started |
 | CE-7  | HUMAN_SCALP/BODY + reference configs | ⬜ not started |
@@ -65,14 +65,53 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
       autosave through a Server Action with **no `revalidatePath`**
 - [x] Tests — 12 integration + 10 isolation, plus 3 repaired CE-1 fixtures
 
+## CE-4 — done
+
+- [x] Schema — 8 models, 11 enums, `DocumentType.CLINICAL_ATTACHMENT`
+- [x] 2 migrations (the enum member alone, then the tables). 14 CHECKs, 1
+      partial unique (`one_primary`), 2 `SET NOT NULL` Prisma cannot infer
+- [x] RLS — `db:rls:check` green at **108** (was 100). All eight in BOTH loops,
+      plus `item_visible` × 5, `product_visible`, `specialty_visible`
+- [x] Contracts — `encounter-content.ts`; `content` on `encounterDetail`;
+      `fulfilsRecommendationId` on the follow-up booking
+- [x] Permissions — **none added** (CD-7). Recording a diagnosis IS writing up
+      the consultation; the recall list is `appointment.*`, because the desk
+      works it
+- [x] Engine — `requiredContentSections` in `packages/clinical`. **92 unit
+      tests** (was 89)
+- [x] Services — `encounter-content.service.ts`, `recall.service.ts`; amendment
+      copies content and **remaps the diagnosis links**
+- [x] Routes — 24 collection routes from one table, `PUT …/follow-up`,
+      `GET /follow-up-recommendations`, `POST …/cancel`
+- [x] Web — nine section editors in `consultation-content.tsx`;
+      `PENDING_SECTIONS` down from ten entries to one
+- [x] Tests — 31 integration + 15 isolation, plus one repaired CE-3 case
+
+## Not done in CE-4, and deliberately
+
+- **The recall list has an API and no screen.** `GET /follow-up-recommendations`
+  answers DUE / OVERDUE / UPCOMING and nothing in `apps/web` calls it. The desk's
+  screen is CE-5, where the visit history it links into also lands.
+- **`bookFollowUp` accepts a recommendation and no form sends one.** The action
+  and the API take `fulfilsRecommendationId`; the follow-up booking form does not
+  exist in `apps/web` at all — CE-3 left it unbuilt and CE-4 did not add it.
+- **Attachments link a file and do not upload one.** §27: the bytes are the
+  documents surface's. The chart claims an existing `files` row and re-types it
+  `CLINICAL_ATTACHMENT`; the upload control is the patient record's.
+- **A walk-in cannot recommend a follow-up.** `appointment_id` is NOT NULL on the
+  recommendation, denormalised so the recall list needs no join. The service says
+  so in a sentence rather than working around it.
+- **Referrals are by name only on screen.** The contract and the CHECK accept a
+  specialty and an in-house colleague too; the pickers for both are CE-5, where
+  the doctor directory is already loaded.
+- **Nothing has been opened in a browser.** Same item CE-4 inherits from CE-3.
+
 ## Not done in CE-3, and deliberately
 
-- **Nine sections render a line, not an editor.** Diagnosis, prescription,
-  symptoms and the rest are FIRST-CLASS: their tables are CE-4, so the engine
-  names them and says when they arrive rather than drawing an empty box.
+- ~~**Nine sections render a line, not an editor.**~~ Closed by CE-4.
 - **The walk-in has an API and no screen.** `POST /encounters` takes a patient
   and an episode (CD-1), and nothing in `apps/web` calls it that way yet —
-  there is no walk-in flow outside the booking path.
+  there is no walk-in flow outside the booking path. Still open.
 - **Nothing has been opened in a browser.** Same item CE-3 inherits from CE-2.
 
 ## Not done in CE-2, and deliberately

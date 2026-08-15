@@ -3,9 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import type {
   ClinicalMasterListResponse,
+  EncounterContent,
   EncounterDetail,
   EncounterSaveResponse,
   SaveEncounterDraftRequest,
+  SetFollowUpRecommendationRequest,
 } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@/lib/session';
@@ -224,4 +226,149 @@ export async function searchClinicalTerms(
 
   if (!result.ok || !result.data) return [];
   return result.data.items.map((item) => ({ id: item.id, name: item.name }));
+}
+
+// ---------------------------------------------------------------------------
+// The clinical content (CE-4)
+// ---------------------------------------------------------------------------
+
+/*
+ * ⚠️ THESE DO NOT `revalidatePath` EITHER, AND FOR THE SAME REASON THE AUTOSAVE
+ *   DOES NOT. A clinician adds a diagnosis, types a note beside it, then adds a
+ *   prescription — all in one sitting with a patient in the chair. Revalidating
+ *   on each would re-render the consultation from the server, re-mount every
+ *   input and throw the caret out of whichever box is being typed in. So each
+ *   returns the whole content and the component swaps its own state for it.
+ *
+ * ⚠️ AND THE RESPONSE IS THE WHOLE CONTENT RATHER THAN THE ROW THAT CHANGED,
+ *   because one of these writes legitimately changes a row in a DIFFERENT list:
+ *   removing a diagnosis unlinks every procedure citing it. A per-row response
+ *   would leave the screen reconciling eight lists by hand and getting that one
+ *   case wrong.
+ */
+
+export type ContentResult =
+  { ok: true; content: EncounterContent } | { ok: false; message: string };
+
+/** The eight collections, spelled as the API paths spell them. */
+export type ContentCollection =
+  | 'symptoms'
+  | 'diagnoses'
+  | 'procedures'
+  | 'prescriptions'
+  | 'investigations'
+  | 'advice'
+  | 'referrals'
+  | 'attachments';
+
+/**
+ * Add a row.
+ *
+ * ⚠️ ONE ACTION OVER A COLLECTION NAME RATHER THAN EIGHT NEAR-IDENTICAL ONES.
+ *   The collection is a closed union the compiler checks, and the body is
+ *   whatever that collection's contract accepts — the API validates it, which
+ *   is where a request is validated in this codebase. Eight copies of this
+ *   function would be eight places to forget the access token.
+ */
+export async function addContentRow(
+  slug: string,
+  encounterId: string,
+  collection: ContentCollection,
+  body: Record<string, unknown>
+): Promise<ContentResult> {
+  const result = await api<EncounterContent>(`/api/v1/encounters/${encounterId}/${collection}`, {
+    method: 'POST',
+    slug,
+    accessToken: await getAccessToken(),
+    body,
+  });
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message ?? 'That could not be added.' };
+  }
+  return { ok: true, content: result.data };
+}
+
+export async function updateContentRow(
+  slug: string,
+  encounterId: string,
+  collection: ContentCollection,
+  rowId: string,
+  body: Record<string, unknown>
+): Promise<ContentResult> {
+  const result = await api<EncounterContent>(
+    `/api/v1/encounters/${encounterId}/${collection}/${rowId}`,
+    { method: 'PATCH', slug, accessToken: await getAccessToken(), body }
+  );
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message ?? 'That could not be saved.' };
+  }
+  return { ok: true, content: result.data };
+}
+
+export async function removeContentRow(
+  slug: string,
+  encounterId: string,
+  collection: ContentCollection,
+  rowId: string
+): Promise<ContentResult> {
+  const result = await api<EncounterContent>(
+    `/api/v1/encounters/${encounterId}/${collection}/${rowId}`,
+    { method: 'DELETE', slug, accessToken: await getAccessToken() }
+  );
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message ?? 'That could not be removed.' };
+  }
+  return { ok: true, content: result.data };
+}
+
+/**
+ * State the follow-up plan (CD-13).
+ *
+ * ⚠️ A `PUT`, BECAUSE THERE IS ONE PER CONSULTATION. A second statement
+ *   replaces the first; the superseded row is kept rather than overwritten,
+ *   because "the doctor said 15 days and then changed it to 30" is part of the
+ *   record.
+ */
+export async function setFollowUp(
+  slug: string,
+  encounterId: string,
+  body: SetFollowUpRecommendationRequest
+): Promise<ContentResult> {
+  const result = await api<EncounterContent>(`/api/v1/encounters/${encounterId}/follow-up`, {
+    method: 'PUT',
+    slug,
+    accessToken: await getAccessToken(),
+    body,
+  });
+  if (!result.ok || !result.data) {
+    return { ok: false, message: result.message ?? 'The follow-up could not be recorded.' };
+  }
+  return { ok: true, content: result.data };
+}
+
+/**
+ * The medicines behind the prescription selector.
+ *
+ * ⚠️ THE PRODUCT CATALOGUE, NOT `clinical_master_items` (§11). A medicine is a
+ *   stocked, batched, taxed thing (PI-ADR-001), not a clinical word — which is
+ *   why the PRESCRIPTION section's registry entry has `vocabulary: null`, and
+ *   why this is a different endpoint from `searchClinicalTerms` above.
+ *
+ * ⚠️ AND IT SEARCHES THE SERVER, NEVER A LOADED CATALOGUE (§39). The same
+ *   argument as the clinical selector, more forcefully: a formulary runs to
+ *   tens of thousands of rows.
+ */
+export async function searchPrescribableProducts(
+  slug: string,
+  term: string
+): Promise<{ id: string; name: string; code: string }[]> {
+  const query = new URLSearchParams({ pageSize: '10' });
+  if (term.trim() !== '') query.set('search', term.trim());
+
+  const result = await api<{ items: { id: string; name: string; code: string }[] }>(
+    `/api/v1/products?${query.toString()}`,
+    { slug, accessToken: await getAccessToken() }
+  );
+  if (!result.ok || !result.data) return [];
+  return result.data.items.map((item) => ({ id: item.id, name: item.name, code: item.code }));
 }

@@ -253,10 +253,10 @@ model Jurisdiction {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  authorities        RegulatoryAuthority[]
-  sources            RegulatorySource[]
-  rulePacks          RegulatoryRulePack[]
-  productProfiles    ProductRegulatoryProfile[]
+  authorities     RegulatoryAuthority[]
+  sources         RegulatorySource[]
+  rulePacks       RegulatoryRulePack[]
+  productProfiles ProductRegulatoryProfile[]
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — `region_code` is
   /// nullable and the country-wide row is the common case, so without it the
@@ -309,29 +309,29 @@ model RegulatoryAuthority {
 ///   checkable later, because regulations move and a rule sourced three years
 ///   ago is a rule nobody has read recently.
 model RegulatorySource {
-  id             String                 @id @default(uuid()) @db.Uuid
-  jurisdictionId String                 @map("jurisdiction_id") @db.Uuid
-  authorityId    String                 @map("authority_id") @db.Uuid
+  id                String                 @id @default(uuid()) @db.Uuid
+  jurisdictionId    String                 @map("jurisdiction_id") @db.Uuid
+  authorityId       String                 @map("authority_id") @db.Uuid
   /// The document's own title, as published.
-  title          String                 @db.VarChar(500)
+  title             String                 @db.VarChar(500)
   /// The citation a lawyer would use — an act, a rule number, a schedule.
-  documentReference String?             @map("document_reference") @db.VarChar(255)
+  documentReference String?                @map("document_reference") @db.VarChar(255)
   /// Where it was read. ⚠️ The regulator's own domain, or a note in `notes`
   /// saying why not.
-  sourceUrl      String?                @map("source_url") @db.VarChar(1000)
+  sourceUrl         String?                @map("source_url") @db.VarChar(1000)
   /// The version or amendment the citation refers to.
-  version        String?                @db.VarChar(64)
+  version           String?                @db.VarChar(64)
   /// When the authority published it.
-  publishedOn    DateTime?              @map("published_on") @db.Date
+  publishedOn       DateTime?              @map("published_on") @db.Date
   /// When it took legal effect, where that differs from publication.
-  effectiveFrom  DateTime?              @map("effective_from") @db.Date
+  effectiveFrom     DateTime?              @map("effective_from") @db.Date
   /// ⚠️ AN INSTANT, NOT A DATE — this is a thing somebody DID, and invariant 6
   ///   governs it. It is what a staleness report reads.
-  retrievedAt    DateTime?              @map("retrieved_at") @db.Timestamptz(6)
-  reviewStatus   RegulatorySourceStatus @default(UNVERIFIED) @map("review_status")
-  notes          String?                @db.Text
-  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  retrievedAt       DateTime?              @map("retrieved_at") @db.Timestamptz(6)
+  reviewStatus      RegulatorySourceStatus @default(UNVERIFIED) @map("review_status")
+  notes             String?                @db.Text
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   jurisdiction Jurisdiction        @relation(fields: [jurisdictionId], references: [id], onDelete: Restrict)
   authority    RegulatoryAuthority @relation(fields: [authorityId], references: [id], onDelete: Restrict)
@@ -354,38 +354,38 @@ model RegulatorySource {
 ///   forever (PI-ADR-008), and re-running the engine over a historical
 ///   transaction must never change what that transaction says.
 model RegulatoryRulePack {
-  id             String           @id @default(uuid()) @db.Uuid
-  jurisdictionId String           @map("jurisdiction_id") @db.Uuid
-  authorityId    String           @map("authority_id") @db.Uuid
+  id               String           @id @default(uuid()) @db.Uuid
+  jurisdictionId   String           @map("jurisdiction_id") @db.Uuid
+  authorityId      String           @map("authority_id") @db.Uuid
   /// Semantic, monotonic per jurisdiction. `1.0.0`.
-  version        String           @db.VarChar(32)
-  name           String           @db.VarChar(255)
-  description    String?          @db.Text
-  maturity       RulePackMaturity @default(ARCHITECTURE_SUPPORTED)
-  effectiveFrom  DateTime         @map("effective_from") @db.Date
-  effectiveTo    DateTime?        @map("effective_to") @db.Date
+  version          String           @db.VarChar(32)
+  name             String           @db.VarChar(255)
+  description      String?          @db.Text
+  maturity         RulePackMaturity @default(ARCHITECTURE_SUPPORTED)
+  effectiveFrom    DateTime         @map("effective_from") @db.Date
+  effectiveTo      DateTime?        @map("effective_to") @db.Date
   /// When the pack was last looked at by a person. Drives the staleness report;
   /// an instant, not a date.
-  lastReviewedAt DateTime?        @map("last_reviewed_at") @db.Timestamptz(6)
+  lastReviewedAt   DateTime?        @map("last_reviewed_at") @db.Timestamptz(6)
   /// ⚠️ THE NAME OF A HUMAN, WRITTEN BY THAT HUMAN'S OWN ACTION, and NOT a user
   ///   id. Whoever signs a jurisdiction off is a qualified person — in-house
   ///   counsel, a retained consultant, a registered pharmacist — and is not
   ///   necessarily a user of this system at all. Recorded together with
   ///   `reviewedByUserId`, which IS the account that pressed the button, because
   ///   the two are different questions and an audit asks both.
-  reviewedBy     String?          @map("reviewed_by") @db.VarChar(255)
-  reviewedByUserId String?        @map("reviewed_by_user_id") @db.Uuid
-  reviewedAt     DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  reviewedBy       String?          @map("reviewed_by") @db.VarChar(255)
+  reviewedByUserId String?          @map("reviewed_by_user_id") @db.Uuid
+  reviewedAt       DateTime?        @map("reviewed_at") @db.Timestamptz(6)
   /// What the reviewer said. Kept because "approved" with no reasoning is not a
   /// review anybody can stand behind later.
-  reviewNotes    String?          @map("review_notes") @db.Text
-  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reviewNotes      String?          @map("review_notes") @db.Text
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  jurisdiction Jurisdiction        @relation(fields: [jurisdictionId], references: [id], onDelete: Restrict)
-  authority    RegulatoryAuthority @relation(fields: [authorityId], references: [id], onDelete: Restrict)
-  reviewedByUser User?             @relation("RulePackReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
-  rules        RegulatoryRule[]
+  jurisdiction   Jurisdiction        @relation(fields: [jurisdictionId], references: [id], onDelete: Restrict)
+  authority      RegulatoryAuthority @relation(fields: [authorityId], references: [id], onDelete: Restrict)
+  reviewedByUser User?               @relation("RulePackReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  rules          RegulatoryRule[]
 
   @@unique([jurisdictionId, version])
   @@index([jurisdictionId, maturity])
@@ -408,21 +408,21 @@ model RegulatoryRulePack {
 ///   engine treats it as the least specific match, so any rule naming a type, a
 ///   category or a classification beats it.
 model RegulatoryRule {
-  id       String               @id @default(uuid()) @db.Uuid
-  packId   String               @map("pack_id") @db.Uuid
-  ruleType RegulatoryRuleType   @map("rule_type")
+  id        String               @id @default(uuid()) @db.Uuid
+  packId    String               @map("pack_id") @db.Uuid
+  ruleType  RegulatoryRuleType   @map("rule_type")
   /// Stable machine key, unique within the pack. Cited in a decision's reasons
   /// and in the test that pins this rule's behaviour.
-  code     String               @db.VarChar(64)
+  code      String               @db.VarChar(64)
   /// One sentence a human can read, printed verbatim in a refusal. ⚠️ It ends up
   /// in front of a pharmacist at a counter, so it says what to DO, not what
   /// failed.
-  statement String              @db.Text
-  status   RegulatoryRuleStatus @default(DRAFT)
+  statement String               @db.Text
+  status    RegulatoryRuleStatus @default(DRAFT)
 
   // -- what it applies to (typed, never JSON) ---------------------------------
   /// A whole class of product. NULL = not narrowed by type.
-  appliesToProductType ProductType? @map("applies_to_product_type")
+  appliesToProductType    ProductType?                @map("applies_to_product_type")
   /// ⚠️ A PLATFORM CATEGORY ONLY, ENFORCED BY A TRIGGER IN THE MIGRATION.
   ///   `product_categories` is platform-EXTENSIBLE, so this plain FK could
   ///   otherwise name one tenant's private category — and this table is read by
@@ -431,30 +431,30 @@ model RegulatoryRule {
   ///   policy to stop it, which is exactly the class of hole `*_visible` closes
   ///   elsewhere. Here the fix is upstream: platform law may only speak about
   ///   platform categories.
-  appliesToCategoryId  String?      @map("applies_to_category_id") @db.Uuid
+  appliesToCategoryId     String?                     @map("applies_to_category_id") @db.Uuid
   /// The classification string a `product_regulatory_profiles` row asserts —
   /// "SCHEDULE_H", "POM", "GSL". Compared EXACTLY, the way `tax_category` keys
   /// `tax_rules`, and never parsed.
-  appliesToClassification String?   @map("applies_to_classification") @db.VarChar(64)
+  appliesToClassification String?                     @map("applies_to_classification") @db.VarChar(64)
   /// Which transactions this rule speaks to. ⚠️ EMPTY MEANS EVERY TRANSACTION.
   ///   A scalar list rather than a join table because these are ENUM MEMBERS,
   ///   not rows — there is nothing to reference and nothing to cascade, so
   ///   ADR-0006 has nothing to say about it.
-  appliesToTransactions RegulatoryTransactionType[] @map("applies_to_transactions")
+  appliesToTransactions   RegulatoryTransactionType[] @map("applies_to_transactions")
 
   /// The rule's own parameters. A DOCUMENT, never foreign keys.
-  parameters Json      @db.JsonB
-  sourceId   String    @map("source_id") @db.Uuid
+  parameters    Json      @db.JsonB
+  sourceId      String    @map("source_id") @db.Uuid
   /// Monotonic per `(pack, code)`. A change is a new row, never an edit.
-  version    Int       @default(1)
+  version       Int       @default(1)
   effectiveFrom DateTime  @map("effective_from") @db.Date
   effectiveTo   DateTime? @map("effective_to") @db.Date
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  pack             RegulatoryRulePack @relation(fields: [packId], references: [id], onDelete: Cascade)
-  source           RegulatorySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
-  appliesToCategory ProductCategory?  @relation("RegulatoryRuleCategory", fields: [appliesToCategoryId], references: [id], onDelete: Restrict)
+  pack              RegulatoryRulePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+  source            RegulatorySource   @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  appliesToCategory ProductCategory?   @relation("RegulatoryRuleCategory", fields: [appliesToCategoryId], references: [id], onDelete: Restrict)
 
   @@unique([packId, code, version])
   @@index([packId, ruleType, status])
@@ -491,23 +491,23 @@ model ProductRegulatoryProfile {
   ///   is how a profile silently never matches a rule.
   jurisdictionId String  @map("jurisdiction_id") @db.Uuid
 
-  registrationNumber String?                   @map("registration_number") @db.VarChar(128)
-  registrationStatus ProductRegistrationStatus @default(UNKNOWN) @map("registration_status")
+  registrationNumber      String?                   @map("registration_number") @db.VarChar(128)
+  registrationStatus      ProductRegistrationStatus @default(UNKNOWN) @map("registration_status")
   /// The authority's own words for what this is — `SCHEDULE_H`, `POM`, `GSL`.
   /// Matched EXACTLY against `regulatory_rules.applies_to_classification`.
-  classification     String?                   @map("classification") @db.VarChar(64)
+  classification          String?                   @map("classification") @db.VarChar(64)
   /// The controlled schedule, where the jurisdiction has one. What that schedule
   /// OBLIGES is `CONTROLLED_SCHEDULE` rules, never this string.
-  controlledSchedule String?                   @map("controlled_schedule") @db.VarChar(64)
-  prescriptionRequirement PrescriptionRequirement @default(UNKNOWN) @map("prescription_requirement")
-  onlineSalePosition      OnlineSalePosition      @default(UNKNOWN) @map("online_sale_position")
+  controlledSchedule      String?                   @map("controlled_schedule") @db.VarChar(64)
+  prescriptionRequirement PrescriptionRequirement   @default(UNKNOWN) @map("prescription_requirement")
+  onlineSalePosition      OnlineSalePosition        @default(UNKNOWN) @map("online_sale_position")
   /// Anything the clinic must know that is not one of the columns above —
   /// cold chain on import, a witnessed disposal. Text, and never parsed.
-  dispensingNotes String?  @db.Text @map("dispensing_notes")
-  effectiveFrom   DateTime  @map("effective_from") @db.Date
-  effectiveTo     DateTime? @map("effective_to") @db.Date
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  dispensingNotes         String?                   @map("dispensing_notes") @db.Text
+  effectiveFrom           DateTime                  @map("effective_from") @db.Date
+  effectiveTo             DateTime?                 @map("effective_to") @db.Date
+  createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// Optional ONLY because Prisma refuses a required relation whose scalar

@@ -235,3 +235,77 @@ made the same change a migration with live PHI in it.
 
 **Remaining.** CE-4…CE-8. The nine first-class sections render a line naming what
 they are and when they arrive, rather than an empty box.
+
+---
+
+## CE-4 — clinical content sections
+
+**Schema.** Eight tables, eleven new enums, and one member added to an existing
+one. `encounter_symptoms`, `_diagnoses`, `_procedures`, `_prescriptions`,
+`_investigations`, `_advice`, `_referrals`, `_attachments` — all org + branch
+scoped, all PHI, all carrying `organization_id` AND `branch_id` themselves rather
+than inheriting through the encounter. Two migrations: the
+`DocumentType.CLINICAL_ATTACHMENT` member alone (CD-9), then the tables with
+fourteen CHECKs, the `one_primary` partial unique, and the two `item_id` NOT
+NULLs Prisma cannot express.
+
+**RLS.** 100 → **108** protected tables. All eight in both loops, plus seven
+`*_visible` policies: `item_visible` on the five tables that cite a clinical
+word, `product_visible` on prescriptions, `specialty_visible` on referrals.
+
+**Contracts.** `encounter-content.ts`, and `content` on `encounterDetail`.
+`fulfilsRecommendationId` joins the follow-up booking request.
+
+**Permissions.** **None added** (CD-7). Recording a diagnosis IS writing up the
+consultation, so every content writer is `clinical.encounter.create`; the recall
+list is `appointment.read` and `appointment.update`, because the front desk works
+it and holds no clinical code at all.
+
+**Engine.** `requiredContentSections` in `packages/clinical`. 89 → **92 unit
+tests**.
+
+**Backend.** `encounter-content.service.ts` — three verbs over eight
+collections, one `PUT` over the follow-up plan, and `copyContentToAmendment`.
+`recall.service.ts` for the outstanding-recall window. Twenty-four collection
+routes generated from one table, because twenty-seven hand-written near-identical
+handlers is twenty-seven places to forget `validate`.
+
+**Frontend.** Nine section editors in `consultation-content.tsx`, all over
+server-backed selectors that never load their master. `PENDING_SECTIONS` in the
+engine drops from ten entries to one — VISUAL_MAPPING, which is CE-6.
+
+**Tests.** 92 unit · 31 integration · 15 isolation, plus one repaired CE-3 case.
+
+**Verified — validation ran once, at the end, in CLAUDE.md's order.** Lint clean
+(two pre-existing `window.location.assign` warnings on other screens) ·
+typecheck green in clinical, contracts, db, api, web · 92 + 172 unit, 193 api
+unit, 359 isolation and 895 integration tests green, run in batches ·
+`db:rls:check` green at **108** · nothing opened in a browser.
+
+**Decisions.** CD-5, CD-6 and CD-13 as written. Three learned during the work:
+
+⚠️ **`SetNull` IS UNAVAILABLE ON ANY COMPOSITE FK THAT INCLUDES
+`organization_id`.** `encounter_procedures.diagnosis_id` wanted it — removing a
+diagnosis should leave the procedure standing and drop only the claim about why —
+and Postgres refuses, because the column is NOT NULL and it cannot null half a
+pair. So the FK is `Restrict` and the service unlinks first. The same constraint
+`appointments.parent_appointment_id` has lived under since PI, restated because
+it is invisible until Prisma warns about it.
+
+⚠️ **AN AMENDMENT THAT COPIES ROWS MUST REMAP THE LINKS BETWEEN THEM.** A
+straight copy leaves every procedure on the amendment citing a diagnosis on the
+ORIGINAL — and the composite FK permits it, because it only ever said "same
+tenant". The failure renders as a procedure treating a diagnosis that is not on
+this consultation, and nothing in the database objects. `copyContentToAmendment`
+builds the old-id → new-id map, and the integration suite asserts the shape.
+
+⚠️ **A `required` FLAG NOTHING COUNTS IS A FLAG THAT IS NOT ENFORCED.** The
+seeded `GENERAL` template has marked FOLLOW_UP required since CE-2, and it did
+nothing, because finalization only ever validated the descriptor-driven sections.
+CE-4 split the check in two — the engine answers WHICH sections a template
+requires and the service counts the rows, because `@rcln/clinical` holds no
+Prisma client and never will (CD-10) — and the entire cost of turning the flag on
+was one CE-3 test that had never stated a follow-up plan.
+
+**Remaining.** CE-5…CE-8. The recall list has an endpoint and no screen, and the
+follow-up booking form still does not exist in `apps/web` at all.

@@ -196,10 +196,24 @@ sections have their own tables and store nothing here.
 
 ---
 
-## CE-4 — Clinical content
+## CE-4 — Clinical content ✅ SHIPPED
 
 All org + branch scoped, all PHI, all children of `encounters` carrying
 `organization_id` **and** `branch_id` themselves.
+
+⚠️ **THREE THINGS SHIFTED FROM THE PLAN BELOW, AND ALL THREE ARE RECORDED HERE
+RATHER THAN QUIETLY:**
+
+- **`encounter_procedures.visual_region_id` IS NOT BUILT.** It would be a foreign
+  key into `visual_regions`, which lands in CE-6. The column arrives with the
+  table it points at.
+- **`item_id` IS NOT NULL ON PROCEDURES AND INVESTIGATIONS.** The list below is
+  silent on it; the call is that a procedure is billed, consumed from stock
+  (PI-9) and reported on, so a free-text one is a line nothing downstream can
+  price or count. Symptoms, diagnoses and advice stay nullable, which is §6.
+- **`diagnosis_id` IS `Restrict`, NOT `SetNull`.** The composite includes
+  `organization_id`, which is NOT NULL, so Postgres cannot null half the pair —
+  the service unlinks the procedures before deleting the diagnosis.
 
 ⚠️ **They carry both ids rather than inheriting through a parent predicate.**
 This is the call the invoice children made and the one

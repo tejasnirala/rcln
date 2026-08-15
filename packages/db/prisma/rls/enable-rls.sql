@@ -221,6 +221,29 @@ DECLARE
     --   `appointment_status_history` had to restate by hand.
     'encounters',
     'encounter_sections',
+    -- ---------------------------------------------------------------------
+    -- The clinical CONTENT (CE-4). ALL EIGHT are in both loops, for exactly
+    -- the reasons the two tables above are.
+    --
+    -- ⚠️ EACH CARRIES ITS OWN organization_id AND branch_id rather than
+    --   inheriting through its encounter. A child of a branch-scoped parent
+    --   that inherits only the org half is the hole
+    --   `appointment_status_history` had to restate by hand — the org policy
+    --   passes and the branch boundary is simply not there. The composite FK
+    --   to (organization_id, encounter_id) is what stops the two columns
+    --   disagreeing with the consultation they belong to.
+    --
+    -- ⚠️ AND THE DENSEST PHI IN THE PRODUCT IS HERE, not on `encounters`.
+    --   What a named person was diagnosed with, prescribed and referred for
+    --   is answerable by primary key on these eight tables.
+    'encounter_symptoms',
+    'encounter_diagnoses',
+    'encounter_procedures',
+    'encounter_prescriptions',
+    'encounter_investigations',
+    'encounter_advice',
+    'encounter_referrals',
+    'encounter_attachments',
     -- Patient invoicing. ALL FOUR are also in the branch_scoped array below,
     -- and the children are here rather than in the parent_scoped loop for a
     -- specific reason: that loop's predicate asks the ORGANIZATION question
@@ -729,6 +752,89 @@ CREATE POLICY template_visible ON encounters AS RESTRICTIVE
     )
   );
 
+-- ---------------------------------------------------------------------------
+-- THE CLINICAL CONTENT CITES WORDS, PRODUCTS AND SPECIALTIES THAT MAY BE
+-- PLATFORM ROWS (CE-4), AND NONE OF THOSE POINTERS CAN BE COMPOSITE-FK'D.
+--
+-- ⚠️ SAME ARGUMENT AS `template_visible` DIRECTLY ABOVE, three more times.
+--   `clinical_master_items`, `products` and `specialties` all allow a NULL
+--   organization_id so the platform can ship a catalogue every clinic sees;
+--   these rows' organization_id is NOT NULL, so a composite reference would
+--   demand a parent belonging to the clinic and would refuse the entire
+--   platform catalogue.
+--
+--   Without these restrictions a clinic cites ANOTHER TENANT'S private
+--   diagnosis, medicine or specialty and reads its name straight back out of
+--   the join — a competitor's clinical vocabulary and formulary, disclosed one
+--   selector at a time.
+--
+-- ⚠️ `encounter_referrals.doctor_profile_id` HAS NO POLICY AND NEEDS NONE. A
+--   doctor profile is always org-scoped, so the composite FK CAN be drawn
+--   there and is — which is precisely why these policies exist only where it
+--   cannot.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  t text;
+  cites_an_item text[] := ARRAY[
+    'encounter_symptoms',
+    'encounter_diagnoses',
+    'encounter_procedures',
+    'encounter_investigations',
+    'encounter_advice'
+  ];
+BEGIN
+  FOREACH t IN ARRAY cites_an_item LOOP
+    EXECUTE format('DROP POLICY IF EXISTS item_visible ON %I', t);
+    -- `item_id IS NULL OR …` because three of the five allow a typed entry
+    -- with no coded word at all (§6). On the two where the column is NOT NULL
+    -- the left half is dead code, as it is in `designation_visible` below.
+    EXECUTE format($f$
+      CREATE POLICY item_visible ON %I AS RESTRICTIVE
+        USING (item_id IS NULL OR EXISTS (
+          SELECT 1 FROM clinical_master_items i
+          WHERE i.id = %I.item_id
+            AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+        ))
+        WITH CHECK (item_id IS NULL OR EXISTS (
+          SELECT 1 FROM clinical_master_items i
+          WHERE i.id = %I.item_id
+            AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+        ))
+    $f$, t, t, t);
+  END LOOP;
+END
+$$;
+
+-- What was prescribed. Exactly the shape `batches` has, and named the same.
+DROP POLICY IF EXISTS product_visible ON encounter_prescriptions;
+CREATE POLICY product_visible ON encounter_prescriptions AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = encounter_prescriptions.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = encounter_prescriptions.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+-- Who the patient was sent to. Nullable — a referral to a named colleague or
+-- to somebody outside the organization names no specialty at all.
+DROP POLICY IF EXISTS specialty_visible ON encounter_referrals;
+CREATE POLICY specialty_visible ON encounter_referrals AS RESTRICTIVE
+  USING (specialty_id IS NULL OR EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = encounter_referrals.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (specialty_id IS NULL OR EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = encounter_referrals.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
 DROP POLICY IF EXISTS qualification_visible ON doctor_qualifications;
 CREATE POLICY qualification_visible ON doctor_qualifications AS RESTRICTIVE
   USING (EXISTS (
@@ -998,6 +1104,18 @@ DECLARE
     -- for a walk-in), so this is absolute — see the org_scoped note above.
     'encounters',
     'encounter_sections',
+    -- The clinical content (CE-4). branch_id is NOT NULL on all eight and is
+    -- copied from the encounter, so this policy is absolute: a doctor scoped
+    -- to one site cannot read what another site prescribed, concluded or
+    -- ordered for a patient, even by guessing a primary key.
+    'encounter_symptoms',
+    'encounter_diagnoses',
+    'encounter_procedures',
+    'encounter_prescriptions',
+    'encounter_investigations',
+    'encounter_advice',
+    'encounter_referrals',
+    'encounter_attachments',
     -- ⚠️ THE ONLY TABLE HERE WHOSE NULL BRANCH IS MEANINGFUL RATHER THAN
     -- TOLERATED. Everywhere else in this array branch_id is NOT NULL and the
     -- `branch_id IS NULL OR ...` predicate never fires; here NULL is how the

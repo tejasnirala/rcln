@@ -186,11 +186,20 @@ model ClinicalMasterItem {
   updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt      DateTime?          @map("deleted_at") @db.Timestamptz(6)
 
-  organization Organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  parent       ClinicalMasterItem?    @relation("ClinicalMasterParent", fields: [parentId], references: [id], onDelete: Restrict)
-  children     ClinicalMasterItem[]   @relation("ClinicalMasterParent")
-  codings      ClinicalMasterCoding[]
-  scopes       ClinicalMasterScope[]
+  organization      Organization?            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent            ClinicalMasterItem?      @relation("ClinicalMasterParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children          ClinicalMasterItem[]     @relation("ClinicalMasterParent")
+  codings           ClinicalMasterCoding[]
+  scopes            ClinicalMasterScope[]
+  /// What consultations have actually said with this word (CE-4). Five
+  /// relations rather than one because the FKs are five different columns on
+  /// five different tables — and `onDelete: Restrict` on every one of them is
+  /// why the admin screen deactivates a word instead of deleting it.
+  symptomUses       EncounterSymptom[]       @relation("SymptomItem")
+  diagnosisUses     EncounterDiagnosis[]     @relation("DiagnosisItem")
+  procedureUses     EncounterProcedure[]     @relation("ProcedureItem")
+  investigationUses EncounterInvestigation[] @relation("InvestigationItem")
+  adviceUses        EncounterAdvice[]        @relation("AdviceItem")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -369,35 +378,35 @@ model ProductClinicalScope {
 ///   Both are in REDACTED_KEYS, neither reaches an audit row, and every read
 ///   that discloses one writes a `data_access_logs` row under CLINICAL_EPISODE.
 model ClinicalEpisode {
-  id             String                @id @default(uuid()) @db.Uuid
-  organizationId String                @map("organization_id") @db.Uuid
-  patientId      String                @map("patient_id") @db.Uuid
+  id                 String                @id @default(uuid()) @db.Uuid
+  organizationId     String                @map("organization_id") @db.Uuid
+  patientId          String                @map("patient_id") @db.Uuid
   /// Human-facing identifier, issued from the `CLINICAL_EPISODE` counter. Said
   /// out loud and quoted on a report, so it is issued rather than typed.
-  code           String                @db.VarChar(32)
+  code               String                @db.VarChar(32)
   /// ⚠️ PHI. "Androgenetic alopecia — management". Optional: a clinic that never
   ///   titles an episode still gets the grouping, and an untitled journey
   ///   renders by its first diagnosis rather than forcing a decision at booking
   ///   time, when nobody yet knows what the journey is about.
-  title          String?               @db.VarChar(255)
+  title              String?               @db.VarChar(255)
   /// What the journey is broadly about. Advisory grouping for reporting; never
   /// an authorization input, and never what resolves a consultation template —
   /// that is the DOCTOR's classification, not the episode's.
-  primarySpecialtyId String?           @map("primary_specialty_id") @db.Uuid
-  status         ClinicalEpisodeStatus @default(OPEN)
+  primarySpecialtyId String?               @map("primary_specialty_id") @db.Uuid
+  status             ClinicalEpisodeStatus @default(OPEN)
   /// A DATE, not an instant: "when did this journey start" is a calendar
   /// question a clinic answers in its own timezone.
   ///
   /// ⚠️ Compare it with `startOfCalendarDay`, never against an instant.
-  openedOn       DateTime              @map("opened_on") @db.Date
-  closedOn       DateTime?             @map("closed_on") @db.Date
+  openedOn           DateTime              @map("opened_on") @db.Date
+  closedOn           DateTime?             @map("closed_on") @db.Date
   /// ⚠️ PHI. Why it was closed, in the clinician's words.
-  closureReason  String?               @map("closure_reason") @db.Text
+  closureReason      String?               @map("closure_reason") @db.Text
   /// ⚠️ PHI.
-  notes          String?               @db.Text
+  notes              String?               @db.Text
   /// SetNull: the person who opened it may leave; the journey stays.
-  openedBy       String?               @map("opened_by") @db.Uuid
-  closedBy       String?               @map("closed_by") @db.Uuid
+  openedBy           String?               @map("opened_by") @db.Uuid
+  closedBy           String?               @map("closed_by") @db.Uuid
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -437,22 +446,22 @@ model ClinicalEpisode {
 ///   at a visit. That observation is `appointment_vitals`, which already exists
 ///   and already handles a measurement taken at a point in time.
 model AnimalProfile {
-  id             String    @id @default(uuid()) @db.Uuid
-  organizationId String    @map("organization_id") @db.Uuid
-  patientId      String    @map("patient_id") @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  patientId      String   @map("patient_id") @db.Uuid
   /// Free text, not an enum: the species list is unbounded and a veterinary
   /// clinic that treats a tortoise must not need a migration. Same reasoning as
   /// `patients.national_id_type`.
-  species        String?   @db.VarChar(64)
-  breed          String?   @db.VarChar(128)
+  species        String?  @db.VarChar(64)
+  breed          String?  @db.VarChar(128)
   /// Recorded weight in kilograms. ⚠️ Decimal, never a float — a dose is
   /// calculated from it.
-  weightKg       Decimal?  @map("weight_kg") @db.Decimal(8, 3)
+  weightKg       Decimal? @map("weight_kg") @db.Decimal(8, 3)
   /// Who brings the animal in and is billed. NOT a `patients` row: the guardian
   /// is not the patient, and making them one would put a human's identity on an
   /// animal's chart.
-  guardianName   String?   @map("guardian_name") @db.VarChar(255)
-  guardianPhone  String?   @map("guardian_phone") @db.VarChar(20)
+  guardianName   String?  @map("guardian_name") @db.VarChar(255)
+  guardianPhone  String?  @map("guardian_phone") @db.VarChar(20)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -487,47 +496,47 @@ model AnimalProfile {
 ///
 /// ⚠️ PHI throughout. `reason` and `notes` are clinical free text.
 model EncounterFollowUpRecommendation {
-  id             String  @id @default(uuid()) @db.Uuid
-  organizationId String  @map("organization_id") @db.Uuid
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
   /// Copied from the appointment rather than reached through a parent, so this
   /// row is an ordinary member of the branch RLS loop. The call the invoice
   /// children made and the one `appointment_status_history` did not — a child of
   /// a branch-scoped parent that inherits only the org half re-opens the branch
   /// boundary.
-  branchId       String  @map("branch_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
   /// ⚠️ NOT NULL SINCE CE-3, AND THE MIGRATION THAT ADDED THE FK IS THE ONE THAT
   ///   TIGHTENED IT. Advice is given IN a consultation; a recommendation with no
   ///   encounter is a row nothing could ever have written. The tightening was
   ///   free because nothing wrote here before CE-4 — the table was empty on
   ///   every deployment, which is exactly the window in which a NOT NULL costs
   ///   nothing and after which it costs a backfill.
-  encounterId    String  @map("encounter_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
   /// The visit at which the advice was given. Denormalised from the encounter so
   /// the recall list can be assembled without joining through it.
-  appointmentId  String  @map("appointment_id") @db.Uuid
-  patientId      String  @map("patient_id") @db.Uuid
+  appointmentId  String @map("appointment_id") @db.Uuid
+  patientId      String @map("patient_id") @db.Uuid
 
   /// ⚠️ FALSE IS A REAL ANSWER, NOT AN ABSENCE. "No follow-up needed" is a
   ///   clinical decision worth recording, and it carries no interval. A screen
   ///   that only ever wrote a row when a follow-up WAS needed could not tell
   ///   "the doctor decided against one" from "the doctor forgot".
-  isRequired     Boolean @default(true) @map("is_required")
+  isRequired Boolean @default(true) @map("is_required")
 
   /// "In 15 days." ⚠️ EXACTLY ONE OF (intervalValue + intervalUnit) OR
   ///   `recommendedDate` is set — a CHECK constraint in the migration, not a
   ///   convention. Both are legitimate ways for a doctor to put it, and storing
   ///   both invites them to disagree about which one the recall list believes.
-  intervalValue  Int?                  @map("interval_value") @db.SmallInt
-  intervalUnit   FollowUpIntervalUnit? @map("interval_unit")
+  intervalValue   Int?                  @map("interval_value") @db.SmallInt
+  intervalUnit    FollowUpIntervalUnit? @map("interval_unit")
   /// "On 4 September." A DATE, not an instant — compare with
   /// `startOfCalendarDay`, never against a timestamp.
-  recommendedDate DateTime?            @map("recommended_date") @db.Date
+  recommendedDate DateTime?             @map("recommended_date") @db.Date
 
-  followUpType   FollowUpType @default(ROUTINE) @map("follow_up_type")
+  followUpType FollowUpType @default(ROUTINE) @map("follow_up_type")
   /// ⚠️ PHI.
-  reason         String?      @db.Text
+  reason       String?      @db.Text
   /// ⚠️ PHI.
-  notes          String?      @db.Text
+  notes        String?      @db.Text
 
   /// The booking that satisfied this, once the patient actually made one.
   ///
@@ -655,27 +664,27 @@ model ConsultationTemplate {
   /// ⚠️ A COLUMN AND NOT A DERIVATION. It could be walked up from `specialtyId`
   ///   — except that `specialtyId` is NULL for the care-context default, which
   ///   is the one template that must always resolve.
-  careContextId  String  @map("care_context_id") @db.Uuid
+  careContextId String  @map("care_context_id") @db.Uuid
   /// The node this template is attached to, anywhere below the care context.
   ///
   /// ⚠️ NULL IS THE CARE-CONTEXT DEFAULT AND IS THE MOST IMPORTANT VALUE THIS
   ///   COLUMN TAKES. It is what a doctor with no classification at all resolves
   ///   to (Scenario 3), and it is why resolution never returns nothing.
-  specialtyId    String? @map("specialty_id") @db.Uuid
+  specialtyId   String? @map("specialty_id") @db.Uuid
 
   isActive  Boolean   @default(true) @map("is_active")
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// ⚠️ PLAIN FKs, NOT COMPOSITE, and they therefore need a RESTRICTIVE
   ///   `specialty_visible` policy — `specialties` allows a NULL organization_id,
   ///   so a composite FK cannot be drawn and the row could otherwise cite
   ///   another tenant's private node and read its name back out of the join.
   ///   Exactly the shape `clinical_master_scopes` has.
-  careContext  Specialty     @relation("TemplateCareContext", fields: [careContextId], references: [id], onDelete: Restrict)
-  specialty    Specialty?    @relation("TemplateSpecialty", fields: [specialtyId], references: [id], onDelete: Restrict)
+  careContext  Specialty                     @relation("TemplateCareContext", fields: [careContextId], references: [id], onDelete: Restrict)
+  specialty    Specialty?                    @relation("TemplateSpecialty", fields: [specialtyId], references: [id], onDelete: Restrict)
   versions     ConsultationTemplateVersion[]
   /// Consultations conducted under this template (CE-3). Restrict on the FK: a
   /// template an encounter cites is deactivated, never deleted.
@@ -848,22 +857,22 @@ enum EncounterStatus {
 ///   the form the doctor started typing into; re-resolving mid-consultation
 ///   would move the fields under the cursor.
 model Encounter {
-  id             String  @id @default(uuid()) @db.Uuid
-  organizationId String  @map("organization_id") @db.Uuid
+  id                String  @id @default(uuid()) @db.Uuid
+  organizationId    String  @map("organization_id") @db.Uuid
   /// Where the consultation happened. Copied from the appointment when there is
   /// one, and taken from the acting membership's branch for a walk-in.
-  branchId       String  @map("branch_id") @db.Uuid
-  patientId      String  @map("patient_id") @db.Uuid
+  branchId          String  @map("branch_id") @db.Uuid
+  patientId         String  @map("patient_id") @db.Uuid
   /// ⚠️ NULL FOR A WALK-IN (CD-1). See the model note.
-  appointmentId  String? @map("appointment_id") @db.Uuid
+  appointmentId     String? @map("appointment_id") @db.Uuid
   /// The journey this consultation belongs to. NOT NULL for the same reason
   /// `appointments.clinical_episode_id` is: an episode of one is the ordinary
   /// case, and "a consultation belonging to no journey" should not be
   /// representable.
-  clinicalEpisodeId String @map("clinical_episode_id") @db.Uuid
+  clinicalEpisodeId String  @map("clinical_episode_id") @db.Uuid
   /// Who wrote it. Restrict, never SetNull: an unsigned clinical record is not
   /// a thing, and a doctor leaving the clinic does not un-write what they saw.
-  doctorProfileId   String @map("doctor_profile_id") @db.Uuid
+  doctorProfileId   String  @map("doctor_profile_id") @db.Uuid
 
   /// Branch-local, issued from the `ENCOUNTER` counter.
   ///
@@ -900,7 +909,7 @@ model Encounter {
   ///   purpose: the chief complaint is the patient's own words, and forcing it
   ///   through a vocabulary loses the only part of the record written in them.
   ///   The coded version of the same thing is `encounter_symptoms` in CE-4.
-  chiefComplaint String? @map("chief_complaint") @db.Text
+  chiefComplaint              String?               @map("chief_complaint") @db.Text
   /// "Three days." Value and unit travel together or not at all — a CHECK in the
   /// migration, because a duration of "3" of nothing is not a duration.
   chiefComplaintDurationValue Int?                  @map("chief_complaint_duration_value") @db.SmallInt
@@ -908,7 +917,7 @@ model Encounter {
   onset                       ClinicalOnset?
   /// ⚠️ PHI. The doctor's own narrative, which every specialty wants and no
   ///   template can structure away.
-  clinicalNotes               String?               @db.Text @map("clinical_notes")
+  clinicalNotes               String?               @map("clinical_notes") @db.Text
 
   /// When the doctor opened it. Not the appointment's `startedAt`: a
   /// consultation can be written up after the patient has left, and pretending
@@ -940,12 +949,12 @@ model Encounter {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch          Branch          @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
-  patient         Patient         @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
-  appointment     Appointment?    @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
-  clinicalEpisode ClinicalEpisode @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)
-  doctorProfile   DoctorProfile   @relation(fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Restrict)
+  organization    Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch          Branch                      @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  patient         Patient                     @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  appointment     Appointment?                @relation(fields: [organizationId, appointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  clinicalEpisode ClinicalEpisode             @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)
+  doctorProfile   DoctorProfile               @relation(fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Restrict)
   /// ⚠️ PLAIN FKs, NOT COMPOSITE, AND THIS IS THE ONE PLACE ADR-0004 CANNOT BE
   ///   FOLLOWED HERE. A composite (organization_id, template_id) reference would
   ///   make a PLATFORM template — organization_id NULL — UNCITABLE: the
@@ -962,13 +971,23 @@ model Encounter {
   ///   its name and definition back out of the join.
   template        ConsultationTemplate        @relation(fields: [templateId], references: [id], onDelete: Restrict)
   templateVersion ConsultationTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
-  finalizer       User?                        @relation("EncounterFinalizedBy", fields: [finalizedBy], references: [id], onDelete: Restrict)
-  canceller       User?                        @relation("EncounterCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
-  amends          Encounter?                   @relation("EncounterAmendment", fields: [organizationId, amendsEncounterId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
-  amendedBy       Encounter[]                  @relation("EncounterAmendment")
+  finalizer       User?                       @relation("EncounterFinalizedBy", fields: [finalizedBy], references: [id], onDelete: Restrict)
+  canceller       User?                       @relation("EncounterCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
+  amends          Encounter?                  @relation("EncounterAmendment", fields: [organizationId, amendsEncounterId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  amendedBy       Encounter[]                 @relation("EncounterAmendment")
 
   sections        EncounterSection[]
   recommendations EncounterFollowUpRecommendation[]
+  /// The clinical content (CE-4). Cascade on every one of them: a deleted
+  /// consultation takes its own content with it, and all of this IS content.
+  symptoms        EncounterSymptom[]
+  diagnoses       EncounterDiagnosis[]
+  procedures      EncounterProcedure[]
+  prescriptions   EncounterPrescription[]
+  investigations  EncounterInvestigation[]
+  advice          EncounterAdvice[]
+  referrals       EncounterReferral[]
+  attachments     EncounterAttachment[]
 
   @@unique([organizationId, branchId, encounterNumber])
   /// Composite-FK target for every CE-4 child, the sections below and the
@@ -1049,4 +1068,550 @@ model EncounterSection {
   @@unique([organizationId, encounterId, sectionKey])
   @@index([organizationId, encounterId, displayOrder])
   @@map("encounter_sections")
+}
+
+// -----------------------------------------------------------------------------
+// CLINICAL CONTENT (CE-4)
+//
+// The eight tables that hold what the doctor actually concluded, prescribed,
+// ordered and advised. Everything above the encounter is configuration or
+// vocabulary and names nobody; every row from here down is PHI about one named
+// person.
+//
+// ⚠️ ALL EIGHT CARRY `organization_id` AND `branch_id` THEMSELVES rather than
+//   inheriting through the encounter, and that is a security decision and not a
+//   normalisation one. A child of a branch-scoped parent that inherits only the
+//   org half is exactly the hole `appointment_status_history` had to restate by
+//   hand — the org policy passes and the branch boundary is simply not there.
+//   The composite FK to `(organization_id, encounter_id)` is what stops the two
+//   columns disagreeing with the consultation they belong to.
+//
+// ⚠️ THEY ARE TABLES AND NOT JSONB, AND THAT IS THE LINE `encounter_sections`
+//   DRAWS. A diagnosis is reported on, a prescription is dispensed against
+//   (PI-7), a procedure is consumed from stock (PI-9). "What did we prescribe
+//   this year" has to be a query, and a `product_id` inside a document is
+//   ADR-0006 exactly.
+//
+// ⚠️ NOTHING HERE EDITS A FINALIZED CONSULTATION (CD-2). Every writer goes
+//   through `assertDraft` on the parent encounter; an amendment COPIES these
+//   rows onto a new encounter rather than moving them, so both records stay
+//   whole and readable for ever.
+//
+// ⚠️ FIVE OF THEM POINT AT `clinical_master_items`, WHICH ALLOWS A NULL
+//   `organization_id`, SO NONE OF THOSE POINTERS CAN BE A COMPOSITE FK. What
+//   replaces it is a RESTRICTIVE `item_visible` policy, the same shape
+//   `template_visible` has on `encounters` and `product_visible` has on
+//   `batches`. Without it a clinic could cite another tenant's private word and
+//   read its name back out of the join.
+// -----------------------------------------------------------------------------
+
+/// How bad the patient says it is. Three steps and not ten: a scale a clinician
+/// has to think about is a scale they stop filling in.
+enum ClinicalSeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+/// What a diagnosis IS to this consultation.
+///
+/// ⚠️ `DIFFERENTIAL` IS NOT A WEAKER `SECONDARY`. A differential is something
+///   being considered and not concluded; recording it as a secondary diagnosis
+///   asserts the patient has a condition the clinician was only ruling out.
+enum DiagnosisRole {
+  PRIMARY
+  SECONDARY
+  DIFFERENTIAL
+}
+
+/// How sure the clinician is. `RULED_OUT` is a real and useful answer — "we
+/// looked and it is not this" is worth as much on a chart as a confirmation.
+enum DiagnosisCertainty {
+  CONFIRMED
+  PROVISIONAL
+  SUSPECTED
+  RULED_OUT
+}
+
+/// Where a procedure recorded on a consultation has got to.
+///
+/// ⚠️ NOT AN INVENTORY STATE. What was consumed doing it is `stock_ledger`
+///   (PI-9); this says whether the clinician did it, plans to, or called it off.
+enum EncounterProcedureStatus {
+  PLANNED
+  PERFORMED
+  CANCELLED
+}
+
+/// How soon an investigation is wanted.
+enum InvestigationPriority {
+  ROUTINE
+  URGENT
+  STAT
+}
+
+/// Where an order has got to.
+///
+/// ⚠️ THE LAB MODULE DOES NOT EXIST, AND THIS ENUM IS NOT PRETENDING IT DOES.
+///   These are the states the CLINIC can observe from the consultation side —
+///   ordered, taken, back, called off. When the lab ships it owns its own
+///   workflow and reports into this column rather than replacing it.
+enum InvestigationStatus {
+  ORDERED
+  COLLECTED
+  COMPLETED
+  CANCELLED
+}
+
+/// How soon a referral is wanted.
+enum ReferralUrgency {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
+/// How a medicine is taken.
+///
+/// ⚠️ AN ENUM WHERE `clinical_master_codings.system` IS A VARCHAR, AND THE
+///   DIFFERENCE IS REAL. A coding system is a per-market list that grows every
+///   time the platform opens a country; a route of administration is a closed
+///   clinical set that has not moved in a century. `OTHER` is the escape, and it
+///   pairs with `instructions` rather than with a migration.
+enum MedicationRoute {
+  ORAL
+  TOPICAL
+  INTRAVENOUS
+  INTRAMUSCULAR
+  SUBCUTANEOUS
+  INHALATION
+  OPHTHALMIC
+  OTIC
+  NASAL
+  RECTAL
+  VAGINAL
+  SUBLINGUAL
+  TRANSDERMAL
+  OTHER
+}
+
+/// The period a dose count is per. "1 × per DAY", "2 × per WEEK".
+///
+/// ⚠️ DELIBERATELY NOT `ClinicalDurationUnit`, WHICH IT RESEMBLES AND WHICH THIS
+///   TABLE ALSO USES. That enum says how LONG the course runs and needs HOURS
+///   and YEARS at its ends; this one says how OFTEN a dose is taken, and neither
+///   "twice per hour" nor "twice per year" is a prescription anybody writes.
+///   Sharing one enum would offer both.
+enum MedicationFrequencyUnit {
+  DAY
+  WEEK
+  MONTH
+}
+
+/// When to take it relative to eating. `ANY` is a real answer and NULL is not:
+/// NULL says the clinician did not say, which for a medicine that must be taken
+/// with food is a different and more dangerous statement.
+enum MedicationFoodRelation {
+  BEFORE_FOOD
+  AFTER_FOOD
+  WITH_FOOD
+  ANY
+}
+
+/// What an attachment on a consultation is.
+///
+/// ⚠️ NOT `DocumentType`, WHICH IT SITS BESIDE. `DocumentType` says what kind of
+///   FILE the platform is storing and is read by the storage layer;
+///   `CLINICAL_ATTACHMENT` is one of its members. This says what the file is
+///   clinically, which is a question only the chart asks.
+enum EncounterAttachmentKind {
+  /// A clinical photograph. ⚠️ The densest PHI the product stores.
+  PHOTO
+  /// A report the patient brought, or one the clinic produced.
+  REPORT
+  /// An X-ray, an OPG, a scan.
+  SCAN
+  /// A signed consent.
+  CONSENT
+  /// A letter to or from another clinician.
+  LETTER
+  OTHER
+}
+
+/// What the patient reports, coded (§6).
+///
+/// ⚠️ `itemId` OR `customText`, EXACTLY ONE, AND A CHECK CONSTRAINT SAYS SO.
+///   §6 wants a clinician able to record a symptom the vocabulary has not
+///   learned yet, and forcing every free-text entry to create a master row
+///   pollutes a shared platform catalogue with one clinic's typos. Allowing both
+///   would let a custom label silently contradict the coded word beside it.
+///
+/// The free-text COMPLAINT is `encounters.chief_complaint` and is a different
+/// thing: that is the patient's own words about why they came, this is the
+/// clinician's coded list of what is wrong.
+model EncounterSymptom {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  /// A `SYMPTOM` row from the vocabulary. NULL when the clinician typed one.
+  itemId     String? @map("item_id") @db.Uuid
+  /// ⚠️ PHI. The clinician's own words when the vocabulary has no word for it.
+  customText String? @map("custom_text") @db.VarChar(255)
+
+  /// How long it has been going on. ⚠️ Value and unit travel together or not at
+  /// all — a CHECK, because "3" of nothing is not a duration.
+  durationValue Int?                  @map("duration_value") @db.SmallInt
+  durationUnit  ClinicalDurationUnit? @map("duration_unit")
+  severity      ClinicalSeverity?
+  /// "Intermittent", "on waking", "after meals". Free text: the useful answers
+  /// are endless and an enum would refuse the one the patient gave.
+  frequency     String?               @db.VarChar(120)
+  /// Where on the body. ⚠️ Free text until CE-6 — the coded version is a finding
+  /// against a `visual_regions` row, and that table does not exist yet.
+  site          String?               @db.VarChar(120)
+  /// ⚠️ PHI.
+  notes         String?               @db.Text
+  displayOrder  Int                   @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter           @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  /// ⚠️ A PLAIN FK INTO A POSSIBLY-PLATFORM ROW, so it needs `item_visible`.
+  ///   Restrict, never Cascade: a word is deactivated and never deleted, because
+  ///   deleting one would erase what a clinician actually concluded.
+  item         ClinicalMasterItem? @relation("SymptomItem", fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, encounterId, displayOrder])
+  @@index([organizationId, itemId])
+  @@map("encounter_symptoms")
+}
+
+/// What the clinician concluded.
+///
+/// ⚠️ THE ROW A PROCEDURE HANGS OFF, WHICH IS WHY IT CARRIES
+///   `@@unique([organizationId, id])`. "This root canal was for that caries" is
+///   a real clinical link and it is a foreign key, not a note.
+model EncounterDiagnosis {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  itemId     String? @map("item_id") @db.Uuid
+  /// ⚠️ PHI. See `EncounterSymptom` — exactly one of the two, by CHECK.
+  customText String? @map("custom_text") @db.VarChar(255)
+
+  role         DiagnosisRole      @default(SECONDARY)
+  certainty    DiagnosisCertainty @default(PROVISIONAL)
+  /// ⚠️ PHI.
+  notes        String?            @db.Text
+  displayOrder Int                @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch               @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter            @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  item         ClinicalMasterItem?  @relation("DiagnosisItem", fields: [itemId], references: [id], onDelete: Restrict)
+  procedures   EncounterProcedure[]
+
+  /// Composite-FK target for `encounter_procedures.diagnosis_id` (ADR-0004).
+  @@unique([organizationId, id])
+  /// ⚠️ AT MOST ONE PRIMARY DIAGNOSIS PER CONSULTATION is a partial unique index
+  ///   in the migration — Prisma cannot express `WHERE role = 'PRIMARY'`. Two
+  ///   primaries is two answers to "what is this visit about", and every report
+  ///   that groups by primary diagnosis would count the visit twice.
+  @@index([organizationId, encounterId, displayOrder])
+  @@index([organizationId, itemId])
+  @@map("encounter_diagnoses")
+}
+
+/// What was done about it, or is planned.
+///
+/// ⚠️ `itemId` IS NOT NULL HERE, UNLIKE SYMPTOMS AND DIAGNOSES. A procedure is
+///   what gets billed, consumed from stock (PI-9) and reported on; a free-text
+///   one is a line nothing downstream can price or count. The clinic adds the
+///   word to its own vocabulary first — which is one click and is the right
+///   place for it to live.
+model EncounterProcedure {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  itemId      String? @map("item_id") @db.Uuid
+  /// What it treats. NULL is ordinary — not every procedure answers a diagnosis
+  /// recorded at the same visit.
+  diagnosisId String? @map("diagnosis_id") @db.Uuid
+
+  /// A DATE, not an instant: "when was this done" is a calendar question the
+  /// clinic answers in its own timezone. ⚠️ Compare with `startOfCalendarDay`.
+  performedOn  DateTime?                @map("performed_on") @db.Date
+  status       EncounterProcedureStatus @default(PLANNED)
+  /// ⚠️ PHI.
+  notes        String?                  @db.Text
+  displayOrder Int                      @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter           @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  /// Optional in Prisma's eyes ONLY because a required relation may not include
+  /// a nullable scalar; `item_id` is NOT NULL in the migration.
+  item         ClinicalMasterItem? @relation("ProcedureItem", fields: [itemId], references: [id], onDelete: Restrict)
+  /// ⚠️ Restrict, AND SetNull IS NOT AVAILABLE HERE. The composite includes
+  ///   `organization_id`, which is NOT NULL, so Postgres cannot null the pair —
+  ///   the same constraint `appointments.parent_appointment_id` lives under.
+  ///   Removing a diagnosis a procedure cites therefore unlinks the procedure
+  ///   first, in the service, which is the honest order anyway: what was done
+  ///   stays on the record and only the link goes.
+  diagnosis    EncounterDiagnosis? @relation(fields: [organizationId, diagnosisId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+
+  /// ⚠️ CE-6 ADDS `visual_region_id` HERE, and deliberately not now: the column
+  ///   would be a foreign key into a table that does not exist. SCHEMA.md lists
+  ///   it against this model for that phase.
+  @@index([organizationId, encounterId, displayOrder])
+  /// PI-9 reads this: what procedures were performed, and therefore what stock
+  /// they consumed.
+  @@index([organizationId, itemId, status])
+  @@map("encounter_procedures")
+}
+
+/// What was prescribed. The row PI-7 dispenses against.
+///
+/// ⚠️ `productId` IS A PLAIN FK INTO A POSSIBLY-PLATFORM ROW, exactly as
+///   `encounters.template_id` is and `batches.product_id` is. The composite FK
+///   is impossible — this row's `organization_id` is NOT NULL and a platform
+///   medicine's is NULL, so the constraint would refuse the whole platform
+///   catalogue. A RESTRICTIVE `product_visible` policy is what replaces it.
+///
+/// ⚠️ EVERY DOSING COLUMN IS A COLUMN AND NOT A SENTENCE. "1 tablet twice daily
+///   after food for 5 days" typed as free text cannot be checked, cannot be
+///   dispensed against and cannot be totalled — and a pharmacist reading it is
+///   parsing English at the counter. `instructions` exists for what the columns
+///   genuinely cannot say.
+model EncounterPrescription {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  productId String  @map("product_id") @db.Uuid
+  /// "500 mg", "5%". A snapshot of what was written, because a product's
+  /// catalogue strength can be corrected and this prescription cannot.
+  strength  String? @db.VarChar(64)
+
+  /// How much per dose. ⚠️ Decimal, never a float — half a tablet is 0.5 and a
+  /// float would make it 0.49999999999999994 on some row, some day.
+  dose     Decimal?         @db.Decimal(10, 3)
+  /// "tablet", "ml", "drop", "puff". A VarChar for the reason
+  /// `animal_profiles.species` is one: the list is unbounded per form.
+  doseUnit String?          @map("dose_unit") @db.VarChar(32)
+  route    MedicationRoute?
+
+  /// "TWICE per DAY" — a count and its period. Both or neither, by CHECK.
+  frequency     Int?                     @db.SmallInt
+  frequencyUnit MedicationFrequencyUnit? @map("frequency_unit")
+
+  /// How long the course runs. Both or neither, by CHECK.
+  durationValue Int?                  @map("duration_value") @db.SmallInt
+  durationUnit  ClinicalDurationUnit? @map("duration_unit")
+
+  foodRelation MedicationFoodRelation? @map("food_relation")
+  /// "Morning and night", "at bedtime". Free text beside the structured
+  /// frequency, because a clinic's timing vocabulary is its own.
+  timing       String?                 @db.VarChar(120)
+
+  /// Total to dispense. ⚠️ Decimal for the same reason `dose` is, and NULLABLE
+  ///   because a doctor prescribing an ointment "as needed" is not stating one.
+  quantity Decimal? @db.Decimal(12, 3)
+
+  /// ⚠️ DATES, NOT INSTANTS. "Start on Monday" is a calendar statement.
+  startDate DateTime? @map("start_date") @db.Date
+  endDate   DateTime? @map("end_date") @db.Date
+
+  /// "As needed". ⚠️ NOT the same as a NULL frequency: PRN says the patient
+  ///   decides when, a NULL says the doctor did not write it down.
+  isPrn        Boolean @default(false) @map("is_prn")
+  /// ⚠️ PHI. What the columns cannot say — "shake well", "stop if rash".
+  instructions String? @db.Text
+  /// ⚠️ PHI. For the record rather than for the patient.
+  notes        String? @db.Text
+  displayOrder Int     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter    @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  /// Restrict: a medicine somebody was prescribed is deactivated, never deleted.
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, encounterId, displayOrder])
+  /// PI-7's read: what is outstanding against this product, and what was
+  /// prescribed at this branch.
+  @@index([organizationId, productId])
+  @@index([organizationId, branchId, createdAt])
+  @@map("encounter_prescriptions")
+}
+
+/// What was ordered.
+///
+/// ⚠️ NOT A LAB ORDER, BECAUSE THE LAB MODULE DOES NOT EXIST. This is the
+///   CONSULTATION's statement that something was asked for; when the lab ships,
+///   its own workflow references these rows rather than replacing them.
+model EncounterInvestigation {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  /// Not nullable in the migration — see `EncounterProcedure` for why an order
+  /// is coded and a symptom need not be.
+  itemId String? @map("item_id") @db.Uuid
+
+  /// ⚠️ PHI. Why it was ordered, in the clinician's words.
+  reason       String?               @db.Text
+  priority     InvestigationPriority @default(ROUTINE)
+  /// ⚠️ PHI. "Fasting", "left side only".
+  instructions String?               @db.Text
+  status       InvestigationStatus   @default(ORDERED)
+  displayOrder Int                   @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter           @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  item         ClinicalMasterItem? @relation("InvestigationItem", fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, encounterId, displayOrder])
+  @@index([organizationId, status, createdAt])
+  @@map("encounter_investigations")
+}
+
+/// What the patient was told to do.
+///
+/// ⚠️ `isEdited` IS NOT DECORATION. Advice is picked from a library and then
+///   tailored — "brushing technique" becomes "brushing technique, and stop using
+///   the hard brush". The flag is how a clinic knows which of its standard
+///   advice actually reaches patients unchanged, and it is the difference
+///   between a library that is used and one that is worked around.
+model EncounterAdvice {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  itemId     String? @map("item_id") @db.Uuid
+  /// ⚠️ PHI once tailored. Exactly one of the two, by CHECK — see the symptom.
+  customText String? @map("custom_text") @db.Text
+
+  /// TRUE when the clinician changed the library text before giving it.
+  isEdited     Boolean @default(false) @map("is_edited")
+  displayOrder Int     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter           @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  item         ClinicalMasterItem? @relation("AdviceItem", fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, encounterId, displayOrder])
+  @@map("encounter_advice")
+}
+
+/// Who else the patient is being sent to.
+///
+/// ⚠️ THREE WAYS TO NAME THE DESTINATION AND AT LEAST ONE IS REQUIRED, by CHECK.
+///   A referral to a specialty ("see a cardiologist"), to a named colleague in
+///   this organization, or to somebody outside it entirely are all ordinary, and
+///   a row naming none of the three is a referral to nobody.
+model EncounterReferral {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  /// ⚠️ A PLAIN FK INTO `specialties`, WHICH ALLOWS A NULL organization_id, so
+  ///   it needs `specialty_visible` — the same shape `clinical_master_scopes`
+  ///   and `consultation_templates` have.
+  specialtyId     String? @map("specialty_id") @db.Uuid
+  /// A colleague in this organization. Composite-FK'd: a doctor profile is
+  /// always org-scoped, so the constraint CAN be drawn here and therefore is.
+  doctorProfileId String? @map("doctor_profile_id") @db.Uuid
+  /// ⚠️ PHI-adjacent. A clinician outside this organization, by name.
+  externalName    String? @map("external_name") @db.VarChar(255)
+
+  /// ⚠️ PHI. Why they are being referred.
+  reason       String?         @db.Text
+  urgency      ReferralUrgency @default(ROUTINE)
+  /// ⚠️ PHI.
+  notes        String?         @db.Text
+  displayOrder Int             @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch        Branch         @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter     Encounter      @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  specialty     Specialty?     @relation("ReferralSpecialty", fields: [specialtyId], references: [id], onDelete: Restrict)
+  doctorProfile DoctorProfile? @relation("ReferralDoctor", fields: [organizationId, doctorProfileId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([organizationId, encounterId, displayOrder])
+  @@map("encounter_referrals")
+}
+
+/// A file on the consultation — a photograph, a report, a consent.
+///
+/// ⚠️ THE BYTES ARE IN `files` AND THE CLINICAL MEANING IS HERE, and the split is
+///   §27's. This row says a stored file belongs to this consultation and what it
+///   is clinically; `files` says where the bytes are and who uploaded them. A
+///   `storage_key` in this table would put the storage layer inside the chart.
+///
+/// ⚠️ THE FK IS COMPOSITE AND THAT REFUSES A PLATFORM FILE, WHICH IS CORRECT.
+///   `files.organization_id` is nullable so that the platform can hold an asset
+///   on a tenant's behalf; a clinical attachment is never one of those, so the
+///   constraint saying so is a feature rather than the limitation it is on
+///   `encounters.template_id`.
+model EncounterAttachment {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+
+  storedFileId String @map("stored_file_id") @db.Uuid
+
+  kind         EncounterAttachmentKind @default(OTHER)
+  /// ⚠️ PHI. "Pre-operative, upper left quadrant."
+  caption      String?                 @db.VarChar(500)
+  displayOrder Int                     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter    @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  /// Optional in Prisma's eyes only because the composite includes a column
+  /// `files` allows to be NULL; the row always has a file.
+  storedFile   StoredFile?  @relation(fields: [organizationId, storedFileId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+
+  /// One row per file per consultation — attaching the same photograph twice is
+  /// a double-click, not a second attachment.
+  @@unique([organizationId, encounterId, storedFileId])
+  @@index([organizationId, encounterId, displayOrder])
+  @@map("encounter_attachments")
 }

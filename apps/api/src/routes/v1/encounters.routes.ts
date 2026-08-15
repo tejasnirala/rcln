@@ -30,12 +30,30 @@ import { z } from 'zod';
 import {
   amendEncounterRequest,
   cancelEncounterRequest,
+  createEncounterAdviceRequest,
+  createEncounterAttachmentRequest,
+  createEncounterDiagnosisRequest,
+  createEncounterInvestigationRequest,
+  createEncounterPrescriptionRequest,
+  createEncounterProcedureRequest,
+  createEncounterReferralRequest,
+  createEncounterSymptomRequest,
   openEncounterRequest,
   saveEncounterDraftRequest,
+  setFollowUpRecommendationRequest,
+  updateEncounterAdviceRequest,
+  updateEncounterAttachmentRequest,
+  updateEncounterDiagnosisRequest,
+  updateEncounterInvestigationRequest,
+  updateEncounterPrescriptionRequest,
+  updateEncounterProcedureRequest,
+  updateEncounterReferralRequest,
+  updateEncounterSymptomRequest,
   type AmendEncounterRequest,
   type CancelEncounterRequest,
   type OpenEncounterRequest,
   type SaveEncounterDraftRequest,
+  type SetFollowUpRecommendationRequest,
 } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import {
@@ -54,6 +72,33 @@ import {
   openEncounter,
   saveEncounterDraft,
 } from '../../services/clinical/encounter.service.js';
+import {
+  addAdvice,
+  addAttachment,
+  addDiagnosis,
+  addInvestigation,
+  addPrescription,
+  addProcedure,
+  addReferral,
+  addSymptom,
+  removeAdvice,
+  removeAttachment,
+  removeDiagnosis,
+  removeInvestigation,
+  removePrescription,
+  removeProcedure,
+  removeReferral,
+  removeSymptom,
+  setFollowUpRecommendation,
+  updateAdvice,
+  updateAttachment,
+  updateDiagnosis,
+  updateInvestigation,
+  updatePrescription,
+  updateProcedure,
+  updateReferral,
+  updateSymptom,
+} from '../../services/clinical/encounter-content.service.js';
 import { sendCreated, sendSuccess } from '../../utils/response.js';
 
 const router: IRouter = Router();
@@ -207,6 +252,209 @@ router.post(
       meta(req, 'POST /v1/encounters/:encounterId/cancel')
     );
     sendSuccess(res, { cancelled: true });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// The clinical content (CE-4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Eight collections and one singleton, all under the consultation they belong
+ * to.
+ *
+ * ⚠️ NO NEW PERMISSION CODES, AND THAT IS CD-7. Recording a diagnosis IS
+ *   writing up the consultation — the same act `PATCH /:encounterId` is. A
+ *   `clinical.diagnosis.create` beside `clinical.encounter.create` would be a
+ *   second answer to "who may author the clinical record", and a role matrix
+ *   that has to be kept in step with itself. Every writer here is
+ *   `ENCOUNTER_CREATE`, held by DOCTOR alone among the system roles.
+ *
+ * ⚠️ EVERY WRITE ANSWERS WITH THE WHOLE CONTENT, not the row that changed. One
+ *   of them legitimately changes a row in a DIFFERENT list — removing a
+ *   diagnosis unlinks the procedures citing it — so a per-row response would
+ *   leave the screen reconciling nine lists by hand and getting that one case
+ *   wrong. This is not the autosave, which fires per keystroke and stays small.
+ *
+ * ⚠️ AND NONE OF THEM IS READ-AUDITED. A write is not a disclosure, and whoever
+ *   is writing has already been logged reading the consultation.
+ */
+
+const rowParams = encounterParams.extend({ rowId: z.uuid() });
+
+/**
+ * The nine collections, each with its create and update schema and the three
+ * service functions behind it.
+ *
+ * ⚠️ A TABLE AND NOT NINE COPIES OF THE SAME THREE HANDLERS. Twenty-seven
+ *   near-identical route bodies is twenty-seven places to forget `validate`, to
+ *   pass the wrong permission or to drop the `meta` route pattern — and the one
+ *   that got it wrong would look exactly like the twenty-six that did not. The
+ *   shapes still differ where they genuinely differ: the schemas are per
+ *   collection, and the services are per table.
+ */
+const COLLECTIONS = [
+  {
+    path: 'symptoms',
+    create: createEncounterSymptomRequest,
+    update: updateEncounterSymptomRequest,
+    add: addSymptom,
+    edit: updateSymptom,
+    remove: removeSymptom,
+  },
+  {
+    path: 'diagnoses',
+    create: createEncounterDiagnosisRequest,
+    update: updateEncounterDiagnosisRequest,
+    add: addDiagnosis,
+    edit: updateDiagnosis,
+    remove: removeDiagnosis,
+  },
+  {
+    path: 'procedures',
+    create: createEncounterProcedureRequest,
+    update: updateEncounterProcedureRequest,
+    add: addProcedure,
+    edit: updateProcedure,
+    remove: removeProcedure,
+  },
+  {
+    path: 'prescriptions',
+    create: createEncounterPrescriptionRequest,
+    update: updateEncounterPrescriptionRequest,
+    add: addPrescription,
+    edit: updatePrescription,
+    remove: removePrescription,
+  },
+  {
+    path: 'investigations',
+    create: createEncounterInvestigationRequest,
+    update: updateEncounterInvestigationRequest,
+    add: addInvestigation,
+    edit: updateInvestigation,
+    remove: removeInvestigation,
+  },
+  {
+    path: 'advice',
+    create: createEncounterAdviceRequest,
+    update: updateEncounterAdviceRequest,
+    add: addAdvice,
+    edit: updateAdvice,
+    remove: removeAdvice,
+  },
+  {
+    path: 'referrals',
+    create: createEncounterReferralRequest,
+    update: updateEncounterReferralRequest,
+    add: addReferral,
+    edit: updateReferral,
+    remove: removeReferral,
+  },
+  {
+    path: 'attachments',
+    create: createEncounterAttachmentRequest,
+    update: updateEncounterAttachmentRequest,
+    add: addAttachment,
+    edit: updateAttachment,
+    remove: removeAttachment,
+  },
+] as const;
+
+for (const collection of COLLECTIONS) {
+  const base = `/:encounterId/${collection.path}`;
+
+  router.post(
+    base,
+    authorize(PERMISSIONS.ENCOUNTER_CREATE),
+    validate(encounterParams, 'params'),
+    validate(collection.create, 'body'),
+    async (req: Request, res: Response): Promise<void> => {
+      const { encounterId } = req.params as z.infer<typeof encounterParams>;
+      sendCreated(
+        res,
+        await collection.add(
+          tenantContextFrom(req),
+          encounterId,
+          req.body as never,
+          meta(req, `POST /v1/encounters/:encounterId/${collection.path}`)
+        )
+      );
+    }
+  );
+
+  router.patch(
+    `${base}/:rowId`,
+    authorize(PERMISSIONS.ENCOUNTER_CREATE),
+    validate(rowParams, 'params'),
+    validate(collection.update, 'body'),
+    async (req: Request, res: Response): Promise<void> => {
+      const { encounterId, rowId } = req.params as z.infer<typeof rowParams>;
+      sendSuccess(
+        res,
+        await collection.edit(
+          tenantContextFrom(req),
+          encounterId,
+          rowId,
+          req.body as never,
+          meta(req, `PATCH /v1/encounters/:encounterId/${collection.path}/:rowId`)
+        )
+      );
+    }
+  );
+
+  /**
+   * ⚠️ A HARD DELETE, AND THE MIGRATION EXPLAINS WHY NONE OF THESE TABLES HAS A
+   *   `deleted_at`. A diagnosis typed and then removed before signing is a
+   *   correction to something that was never a record; a tombstone of it makes
+   *   the chart's history noisier without making it truer. Immutability begins
+   *   at FINALIZED, and the service refuses every write past it.
+   */
+  router.delete(
+    `${base}/:rowId`,
+    authorize(PERMISSIONS.ENCOUNTER_CREATE),
+    validate(rowParams, 'params'),
+    async (req: Request, res: Response): Promise<void> => {
+      const { encounterId, rowId } = req.params as z.infer<typeof rowParams>;
+      sendSuccess(
+        res,
+        await collection.remove(
+          tenantContextFrom(req),
+          encounterId,
+          rowId,
+          meta(req, `DELETE /v1/encounters/:encounterId/${collection.path}/:rowId`)
+        )
+      );
+    }
+  );
+}
+
+/**
+ * The follow-up plan (CD-13).
+ *
+ * ⚠️ A `PUT` AND NOT A `POST`, BECAUSE THERE IS EXACTLY ONE PER CONSULTATION. A
+ *   doctor states a follow-up plan once; a second statement replaces the first
+ *   rather than adding to it, and a screen that could produce two would leave
+ *   the recall list with no way to say which the clinic meant. The superseded
+ *   row is soft-deleted rather than overwritten — "the doctor said 15 days and
+ *   then changed it to 30" is part of the record.
+ */
+router.put(
+  '/:encounterId/follow-up',
+  authorize(PERMISSIONS.ENCOUNTER_CREATE),
+  validate(encounterParams, 'params'),
+  validate(setFollowUpRecommendationRequest, 'body'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { encounterId } = req.params as z.infer<typeof encounterParams>;
+    const body = req.body as SetFollowUpRecommendationRequest;
+    sendSuccess(
+      res,
+      await setFollowUpRecommendation(
+        tenantContextFrom(req),
+        encounterId,
+        body,
+        meta(req, 'PUT /v1/encounters/:encounterId/follow-up')
+      )
+    );
   }
 );
 
