@@ -45,6 +45,29 @@ export async function seedConsultationTemplates(): Promise<void> {
     }
 
     /*
+     * ⚠️ A NAMED SPECIALTY THAT IS MISSING IS FATAL, AND THIS IS THE ONE PLACE
+     *   IN THE SEED WHERE THAT ASYMMETRY GOES THE OTHER WAY. A missing scope on
+     *   a clinical term makes it sort lower; a missing specialty here does not
+     *   make a template apply less — it makes it apply to EVERYTHING. A
+     *   `specialty_id` of NULL is the care-context default, so the dentistry
+     *   template would land at depth 0 beside the general one and win the tie
+     *   on its code, handing every human consultation in the product an
+     *   odontogram. See `ConsultationTemplateSeed.specialtyCode`.
+     */
+    const specialty =
+      template.specialtyCode === undefined
+        ? null
+        : await prisma.specialty.findFirst({
+            where: { organizationId: null, code: template.specialtyCode },
+            select: { id: true },
+          });
+    if (template.specialtyCode !== undefined && specialty === null) {
+      throw new Error(
+        `Consultation template ${template.code} names the specialty ${template.specialtyCode}, which is missing — seed the clinical taxonomy first.`
+      );
+    }
+
+    /*
      * ⚠️ `findFirst` THEN create/update, NOT `upsert`. The unique is
      *   (organization_id, code) NULLS NOT DISTINCT, and Prisma refuses to build
      *   a `where` for a compound unique with a nullable component —
@@ -65,6 +88,10 @@ export async function seedConsultationTemplates(): Promise<void> {
               name: template.name,
               description: template.description,
               careContextId: careContext.id,
+              /* ⚠️ UPDATED, NOT ONLY SET ON CREATE. A template that moved node
+                 between releases must move in every database that already has
+                 it, or the deploy leaves it resolving at the old depth. */
+              specialtyId: specialty?.id ?? null,
             },
           })
         ).id
@@ -76,9 +103,10 @@ export async function seedConsultationTemplates(): Promise<void> {
               name: template.name,
               description: template.description,
               careContextId: careContext.id,
-              /* ⚠️ NULL specialty_id: this IS the care-context default, the
-                 template that always resolves. */
-              specialtyId: null,
+              /* ⚠️ NULL specialty_id IS THE CARE-CONTEXT DEFAULT — the template
+                 that always resolves. The reference configurations name a node
+                 instead; see the check above. */
+              specialtyId: specialty?.id ?? null,
             },
           })
         ).id;

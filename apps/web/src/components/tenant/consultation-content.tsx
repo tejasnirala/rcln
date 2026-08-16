@@ -599,14 +599,32 @@ const PROCEDURE_STATUSES = [
   { value: 'CANCELLED', label: 'Called off' },
 ];
 
-export function ProcedureSection(props: ContentSectionProps) {
-  const { slug, content, readOnly, scopeId, add, edit, remove } = props;
+export function ProcedureSection(
+  props: ContentSectionProps & {
+    /**
+     * The places this consultation's charts offer (CE-7). Empty when the
+     * template resolved no chart, and the control is then not rendered at all —
+     * a "Where" with one option saying "nowhere" is a question with no answer.
+     */
+    chartRegions: readonly { value: string; label: string }[];
+  }
+) {
+  const { slug, content, readOnly, scopeId, chartRegions, add, edit, remove } = props;
   const rows: EncounterProcedure[] = content.procedures;
 
   const search = useCallback(
     (term: string) => searchClinicalTerms(slug, 'PROCEDURE', term, scopeId),
     [slug, scopeId]
   );
+
+  /*
+   * ⚠️ THE CHART IS WHERE A REGION IS CHOSEN, AND THIS IS THE SAME LIST IN A
+   *   SELECT (CE-6 deferred it here on purpose). A procedure is not drawn on —
+   *   it is recorded against a place — so it takes the region as a value rather
+   *   than a click, and the two stay one list because both come from the
+   *   template's resolved maps.
+   */
+  const regionOptions = [{ value: '', label: 'Not on the chart' }, ...chartRegions];
 
   /* What it treats — the diagnoses recorded on THIS consultation, and no others. */
   const diagnosisOptions = [
@@ -626,7 +644,14 @@ export function ProcedureSection(props: ContentSectionProps) {
           {rows.map((row) => (
             <Row
               key={row.id}
-              title={row.item?.name ?? '—'}
+              /* "Root canal treatment — 36": the place is part of what the
+                 procedure IS, and the contract carries the region so the list
+                 does not need a lookup per row to say it. */
+              title={
+                row.region === null
+                  ? (row.item?.name ?? '—')
+                  : `${row.item?.name ?? '—'} — ${row.region.label}`
+              }
               readOnly={readOnly}
               onRemove={() => void remove('procedures', row.id)}
             >
@@ -653,6 +678,19 @@ export function ProcedureSection(props: ContentSectionProps) {
                     void edit('procedures', row.id, { diagnosisId: value === '' ? null : value })
                   }
                 />
+                {chartRegions.length === 0 ? null : (
+                  <RowSelect
+                    label="Where"
+                    value={row.region?.id ?? null}
+                    options={regionOptions}
+                    disabled={readOnly}
+                    onCommit={(value) =>
+                      void edit('procedures', row.id, {
+                        visualRegionId: value === '' ? null : value,
+                      })
+                    }
+                  />
+                )}
                 <RowText
                   label="Notes"
                   value={row.notes}

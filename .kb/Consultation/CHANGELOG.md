@@ -374,3 +374,64 @@ through `@rcln/contracts`, so this is the same boundary, honestly drawn.
 
 **Remaining.** CE-7 and CE-8. The chart editor edits geometry as JSON; no
 template ships with a chart on it; `IMAGE_MAP` has an enum member and no map.
+
+---
+
+## CE-7 — The reference configurations · 2026-08-16
+
+**Implemented.** `HUMAN_SCALP` and `HUMAN_BODY`, and the dentistry and hair &
+scalp templates that cite them. The phase whose definition of done was a
+negative: **no `HairConsultation.tsx` exists, and none was needed.**
+
+**Files.** Two seed data files, one seeder, two web components, one new
+integration suite. That is the whole of it, and the shortness IS the result.
+
+**Schema.** **None.** No model, no migration, no policy. `db:rls:check`
+unchanged at **111**.
+
+**Seed — the charts.** Three maps now, **70 regions**. `HUMAN_SCALP` is the
+scalp from above in eight zones — hairline, frontal, both temples, mid-scalp,
+vertex, occiput and the nape as the donor area — drawn as PATHs generated from
+one ellipse, entirely FLAT, and every zone anchors its own label because
+`labelAnchorOf` has no centre to compute for a path. `HUMAN_BODY` is two
+silhouettes of twelve places each under two grouping views, mirrored so the
+patient's left is their left on both, and belongs to no specialty at all.
+
+**Seed — the templates.** `DENTAL_HUMAN` at the `DEN` domain and
+`HAIR_SCALP_HUMAN` at the `TRICHOLOGY` focus area, both published, both citing
+their chart by CODE (CD-6). The seeder learned `specialtyCode`, and a
+named-but-missing node is FATAL — see CD-18 for why that asymmetry runs the
+opposite way to the vocabulary seed's.
+
+**APIs · contracts · permissions · engine.** **Nothing added, in any of them.**
+
+**Frontend.** One control: a "Where" on a recorded procedure, built from the
+regions of the template's own resolved maps and rendered only when the
+consultation has a chart. `encounter_procedures.visual_region_id` has had a
+column, a contract and a service since CE-6 and no way to fill it in; this is
+that way, and the procedure row now reads "Root canal treatment — 36". The list
+is derived from the CONFIGURATION rather than from a lookup of its own, because
+a screen that fetched "all regions" would offer a dentist the scalp zones.
+
+**Tests.** 12 integration, in `reference-configurations.test.ts`. The suite is
+one doctor reclassified three times — `DEN`, then `TRICHOLOGY`, then nothing —
+getting three genuinely different consultations out of the same engine, plus a
+dental consultation end to end: a finding on tooth 36, the procedure recorded
+against that tooth, signed. And a second consultation signed with the chart
+untouched, because the reference charts are `required: false` on purpose.
+
+**Verified — validation ran once, at the end, in CLAUDE.md's order.** Lint clean
+(the same two pre-existing `window.location.assign` warnings on other screens) ·
+`pnpm format` · typecheck green in clinical, db, api and web, run per package ·
+117 clinical unit, 193 api unit, 70 regulatory unit, 378 isolation and 948
+integration tests green, run in batches · `db:rls:check` green at **111** ·
+nothing opened in a browser, though both new maps were rendered from the seeded
+rows to check the geometry before it shipped.
+
+**Decisions.** CD-18 — the reference configurations are platform rows attached
+to a node; dentistry at the domain and hair at the focus area; both charts
+optional; a missing specialty code fatal.
+
+**Remaining.** CE-8 — hardening. Plus the standing three: the chart editor edits
+geometry as JSON, `IMAGE_MAP` has an enum member and no map, and nothing has
+been opened in a browser.

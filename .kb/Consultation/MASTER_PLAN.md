@@ -105,12 +105,15 @@ The engine itself.
 
 ---
 
-## CE-7 — `HUMAN_SCALP` / `HUMAN_BODY` + the reference configurations
+## CE-7 — `HUMAN_SCALP` / `HUMAN_BODY` + the reference configurations ✅ COMPLETE
 
 The phase that proves the engine is generic. Dentistry and Hair & Scalp
 templates, both maps, both driven by configuration.
 
 **Definition of done: no `HairConsultation.tsx` exists, and none was needed.**
+Met. Two charts and two templates, all four seed rows; no model, no migration,
+no route, no contract, no permission and no second renderer (CD-18). The only
+code was a region picker on a procedure, which CE-6 had deferred here.
 
 ---
 

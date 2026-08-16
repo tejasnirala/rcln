@@ -49,8 +49,9 @@ checks. **PI-7 and PI-9 are unblocked.** CE-5 added the read side — visit
 history, the episode timeline, the read-only record, the previous-visit panel and
 the recall screen — and CE-6 added the chart: `visual_maps`, `visual_regions` and
 `clinical_findings`, with the 32-tooth FDI odontogram seeded and ONE generic
-renderer in `apps/web` that knows nothing about teeth. What is left is CE-7's
-reference configurations and CE-8's hardening.
+renderer in `apps/web` that knows nothing about teeth. CE-7 then added the scalp
+and body charts and the dentistry and hair-and-scalp templates as SEED ROWS,
+which is the proof the renderer is generic. What is left is CE-8's hardening.
 Everything about that programme lives in
 [`Consultation/`](Consultation/README.md).
 
@@ -1027,9 +1028,16 @@ Its own programme, with its own tracker. Full detail in
       generic renderer in `apps/web`, no tooth in it, so CE-7's second map is a
       seed rather than a screen. `PENDING_SECTIONS` is now empty: every section
       type has a component over a real table.
-- [ ] **CE-7, CE-8.** The reference configurations — `HUMAN_SCALP`,
-      `HUMAN_BODY` and the dentistry and hair-and-scalp templates — then
-      hardening.
+- [x] **CE-7 — the reference configurations.** `HUMAN_SCALP` and `HUMAN_BODY`,
+      and the `DENTAL_HUMAN` and `HAIR_SCALP_HUMAN` templates that cite them —
+      all four **seed rows**. No model, no migration, no route, no contract, no
+      permission and no second renderer: one doctor reclassified between `DEN`,
+      `TRICHOLOGY` and nothing gets three genuinely different consultations out
+      of the same engine, which was the phase's whole definition of done (CD-18).
+      `db:rls:check` unchanged at **111**. The one piece of code was the region
+      picker on a procedure that CE-6 deferred here.
+- [ ] **CE-8.** Hardening: validation, the permission audit, search performance,
+      error handling and both reviewer subagents.
 
 ### Consultation fees and doctor compensation
 

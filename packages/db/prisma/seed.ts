@@ -13,7 +13,8 @@
  *   seed/designations.ts        job titles
  *   seed/role-designations.ts   which title fits which role
  *   seed/clinical-masters.ts    specialties + qualifications (data in seed/data/)
- *   seed/consultation-templates.ts the default consultation per care context
+ *   seed/consultation-templates.ts the default consultation per care context,
+ *                               plus the two reference configurations (CE-7)
  *   seed/visual-maps.ts         the charts a consultation draws on
  *   seed/product-masters.ts     units, conversions, categories, storage profiles
  *   seed/tax-rule-defaults.ts   starting-point tax rates per country

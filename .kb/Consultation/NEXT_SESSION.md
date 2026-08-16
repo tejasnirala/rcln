@@ -2,92 +2,96 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-16 · **By:** session CE-6 · **Branch:**
+**Written:** 2026-08-16 · **By:** session CE-7 · **Branch:**
 `feat/consultation-engine`
 
 ---
 
 ## Where we are
 
-**CE-0 through CE-6 are complete and verified.** Every member of
-`ConsultationSectionType` now has a component over a real table —
-`PENDING_SECTIONS` in `consultation-engine.tsx` is an empty object. A clinician
-can mark a finding on a tooth, link it to a diagnosis, sign the record, and see
-the marks again on the previous-visit panel and counted on the visit history.
+**CE-0 through CE-7 are complete and verified.** The engine is proven generic:
+one doctor, reclassified between `DEN`, `TRICHOLOGY` and no classification at
+all, gets three genuinely different consultations — a dentistry one drawing the
+odontogram, a hair & scalp one drawing the scalp map, and the general one — out
+of the same components. CE-7 added **no schema, no route, no contract, no
+permission and no renderer**. `db:rls:check` is unchanged at **111**.
 
-**CE-6 added three tables.** `db:rls:check` is green at **111** (was 108).
 Validation ran once, at the end, in CLAUDE.md's order. Nothing has been opened in
 a browser.
 
 ## The five things to know before typing
 
-1. **THE ENGINE IS GENERIC AND CE-7 IS THE PHASE THAT PROVES IT.** `apps/web`
-   has ONE chart renderer, `VisualMapChart`, and there is no tooth in it — the
-   geometry is data on `visual_regions.metadata` (CD-17). `HUMAN_SCALP` and
-   `HUMAN_BODY` should therefore be **rows in `seed/data/visual-maps.ts` and
-   nothing else**. If CE-7 finds itself writing a second renderer, stop: that is
-   the failure mode this design exists to prevent, and its definition of done is
-   "no `HairConsultation.tsx` exists, and none was needed".
+1. **THE GENERICITY CLAIM IS NOW LOAD-BEARING, AND CE-8 IS WHERE IT WOULD BE
+   QUIETLY BROKEN.** Hardening means touching validation, permissions and error
+   handling across every section — and the tempting shortcut in each of those is
+   a branch on a specialty or a section type. §33 has not moved: `apps/web`
+   decides nothing, and `resolveTemplate` is the only thing that decides which
+   template applies.
 
-2. **NO TEMPLATE SHIPS WITH A CHART ON IT YET.** `HUMAN_DENTAL` exists and the
-   seeded `GENERAL_HUMAN` does not cite it. CE-7's dentistry and hair-and-scalp
-   templates are what join the two, with `mapCode` in the definition — a CODE,
-   never an id (CD-6). §41 keeps the seeded data small; think before adding a
-   third map.
+2. **THE SEEDED DATA IS AT ITS CEILING (§41).** Three charts, four templates, 34
+   reference terms. A fifth specialty configuration is a CLINIC's template, not
+   the platform's — a half-researched default is worse than none because a
+   clinic will trust it. If CE-8 wants a fixture for a new specialty, it belongs
+   in the test, not in the seed.
 
-3. **A COMPOSITE RELATION IS INVISIBLE TO PRISMA'S `_count` ON A PLATFORM ROW.**
-   `NULL = NULL` is never true, so a relation count over `(organization_id, …)`
-   returns 0 for every platform row. It cost CE-6 a test; `master.service.ts`
-   and `visual-map.service.ts` both count by the child column alone. **Expect
-   this again** the moment CE-7 wants "how many templates cite this map".
+3. **A NAMED-BUT-MISSING SPECIALTY IN THE TEMPLATE SEED IS FATAL, AND MUST STAY
+   THAT WAY (CD-18).** `specialty_id` NULL is the care-context DEFAULT, so a
+   dentistry template that lost its node would sort before `GENERAL_HUMAN` at
+   depth 0 and hand an odontogram to every human consultation in the product.
+   The seed's usual "a missing scope only changes ranking" asymmetry runs the
+   opposite way here.
 
-4. **`countFor` IN `encounter.service.ts` IS NOW EXHAUSTIVE AND MUST STAY THAT
-   WAY.** It has no `default:` branch. A section type added to
-   `ConsultationSectionType` without a case here is a TYPE ERROR — which is the
-   whole point, because the permissive default it replaced made a required chart
-   signable with nothing on it.
+4. **A COMPOSITE RELATION IS INVISIBLE TO PRISMA'S `_count` ON A PLATFORM ROW.**
+   Inherited from CE-6 and still true: `NULL = NULL` is never true, so a relation
+   count over `(organization_id, …)` returns 0 for every platform row.
+   `master.service.ts` and `visual-map.service.ts` both count by the child column
+   alone. Expect it again the moment something wants "how many templates cite
+   this map".
 
 5. **`pnpm typecheck` and `pnpm test` both OOM the api container.** Run per
-   package, or per batch of ~12 integration files with
-   `--max-old-space-size=3072`. Tests LAST and ONCE. Jest also needs
+   package, or per batch of ~14 integration files with
+   `--max-old-space-size=3072`. Tests LAST and ONCE. Jest needs
    `--experimental-vm-modules`, which `pnpm test` sets and a bare `jest` does
-   not.
+   not — pass it through `NODE_OPTIONS` if you invoke `npx jest` directly.
 
-   ⚠️ **And a fixture that finalizes an encounter must fill in what the seeded
-   template requires** — a chief complaint AND a follow-up plan, and now a
-   finding if the template requires a chart.
+   ⚠️ **And a fixture that finalizes an encounter must fill in what the resolved
+   template requires** — a chief complaint AND a follow-up plan. The seeded
+   charts are `required: false`, so a finding is NOT required under
+   `DENTAL_HUMAN`; a fixture that publishes its own template with a required
+   chart still needs one.
 
 ## Next task
 
-**CE-7 — `HUMAN_SCALP` / `HUMAN_BODY` and the reference configurations.** The
-phase that proves the engine is generic: dentistry and hair & scalp templates,
-both maps, all four driven by configuration.
+**CE-8 — hardening.** The last phase: validation, the permission audit, search
+performance, error handling, the full §40 integration flow, and both reviewer
+subagents (`code-reviewer` and `security-reviewer`).
 
-What CE-6 hands it:
+What CE-7 hands it:
 
-| From CE-6                  | What CE-7 does with it                               |
-| -------------------------- | ---------------------------------------------------- |
-| `VisualMapChart`           | draws the scalp map for free — do not write a second |
-| `seed/data/visual-maps.ts` | add two entries; the writer is already idempotent    |
-| `mapCode` on a section     | the dentistry template cites `HUMAN_DENTAL`          |
-| `/visual-maps` admin       | a clinic can already draw its own chart              |
+| From CE-7                           | What CE-8 does with it                             |
+| ----------------------------------- | -------------------------------------------------- |
+| `reference-configurations.test.ts`  | the shape of the §40 end-to-end flow, half written |
+| Four published platform templates   | real configurations to audit permissions against   |
+| Three charts, three document shapes | the renderer's branches all have shipped data      |
 
 ## Do not
 
+- Do not add a fifth reference configuration to the seed (§41). See point 2.
 - Do not write a second chart renderer, a `DentalChart`, or any component that
-  knows what a tooth is (§23, CD-17). If a map cannot be expressed as regions
-  with geometry, say so before writing code around it.
-- Do not put an id inside `visual_regions.metadata`. `parseRegionGeometry`
-  refuses an unknown key, so one cannot be smuggled in — keep it that way.
-- Do not read a stored `definition` without `parseStoredDefinition`, or a
-  region's geometry without `parseRegionGeometry`.
+  knows what a tooth is (§23, CD-17).
+- Do not put an id inside `visual_regions.metadata`, and do not read a stored
+  `definition` without `parseStoredDefinition` or a region's geometry without
+  `parseRegionGeometry`.
 - Do not make a broken chart refuse a consultation. A `mapCode` matching no
-  active map resolves to nothing and the section says so on screen; refusing
-  would make a configuration mistake somebody else made stop a doctor with a
-  patient in the chair. Finalization is where a REQUIRED empty chart is refused.
+  active map resolves to nothing and the section says so on screen; finalization
+  is where a REQUIRED empty chart is refused.
+- Do not make the seeded charts `required: true` while hardening. A mouth with
+  nothing wrong with it is a real consultation, and the platform does not refuse
+  to sign a healthy patient's record (CD-18).
 - Do not add a specialty check to any component in `apps/web` (§33).
-- Do not widen `GET /clinical-episodes/:id` to carry clinical content (CD-14).
-- Do not add a "list every doctor" form to `/doctors/referral-targets` (CD-15).
+- Do not widen `GET /clinical-episodes/:id` to carry clinical content (CD-14),
+  and do not add a "list every doctor" form to `/doctors/referral-targets`
+  (CD-15).
 - Do not autosave with `revalidatePath`, and the content writers do not
   revalidate either, for the same caret reason.
 - Do not edit a finalized encounter, or add an endpoint that could.
