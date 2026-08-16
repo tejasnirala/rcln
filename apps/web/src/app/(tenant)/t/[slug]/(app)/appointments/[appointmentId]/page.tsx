@@ -360,6 +360,8 @@ export default async function ConsultationPage({
         ) : (
           <ConsultationEngine
             slug={slug}
+            /* The BOOKING's own zone, which an org-wide reader may not share. */
+            timeZone={visit.timezone}
             appointmentId={appointmentId}
             encounter={consultation}
             canWrite={canConsult}

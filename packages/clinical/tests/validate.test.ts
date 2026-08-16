@@ -7,7 +7,12 @@
  *   looked for the missing key would pass `{}` and let an unfilled examination
  *   be signed.
  */
-import { encounterProblems, requiredContentSections, validateEncounter } from '../src/index.js';
+import {
+  documentProblems,
+  encounterProblems,
+  requiredContentSections,
+  validateEncounter,
+} from '../src/index.js';
 import type { FieldDescriptor, TemplateDefinition } from '../src/index.js';
 
 type Section = TemplateDefinition['sections'][number];
@@ -147,6 +152,209 @@ describe('the shape of an answer', () => {
     expect(validateEncounter(definition, [{ key: 'examination', data: { depth: 40 } }]).ok).toBe(
       false
     );
+  });
+});
+
+/**
+ * Dates, and the two different things the word means (CE-8).
+ *
+ * ⚠️ BOTH USED TO PASS AS "TEXT", which is how `banana` and a wall clock with no
+ *   zone were legal answers on a signed clinical record. A date that renders as
+ *   something else on the printed record is not a formatting problem — it is the
+ *   record saying something nobody wrote.
+ */
+describe('a date is a date', () => {
+  const dateField = {
+    key: 'onset_on',
+    type: 'DATE' as const,
+    label: 'Onset',
+    required: true,
+  };
+
+  it('accepts a calendar date', () => {
+    const result = validateEncounter(examination([dateField]), [
+      { key: 'examination', data: { onset_on: '2026-08-16' } },
+    ]);
+    expect(result.ok).toBe(true);
+  });
+
+  it.each(['16/08/2026', 'yesterday', '2026-08-16T00:00:00Z', ''])('refuses %p', (value) => {
+    const result = validateEncounter(examination([dateField]), [
+      { key: 'examination', data: { onset_on: value } },
+    ]);
+    expect(result.ok).toBe(false);
+  });
+
+  /** ⚠️ THE REGEX ALONE WOULD TAKE THIS. February has no thirty-first. */
+  it('refuses a day that does not exist', () => {
+    const result = validateEncounter(examination([dateField]), [
+      { key: 'examination', data: { onset_on: '2026-02-31' } },
+    ]);
+    expect(result.ok).toBe(false);
+  });
+});
+
+/**
+ * ⚠️ INVARIANT 6, INSIDE A JSONB DOCUMENT. A DATETIME answer is an INSTANT.
+ *   `2026-08-16T14:30` is 14:30 in whichever zone whoever reads it next happens
+ *   to be in, and it looks exactly like a time — which is why nothing downstream
+ *   would ever notice it was five and a half hours out.
+ */
+describe('a date and time is an instant', () => {
+  const stampField = {
+    key: 'seen_at',
+    type: 'DATETIME' as const,
+    label: 'Seen at',
+    required: true,
+  };
+
+  it.each(['2026-08-16T09:00:00.000Z', '2026-08-16T09:00:00Z', '2026-08-16T09:00Z'])(
+    'accepts %p',
+    (value) => {
+      const result = validateEncounter(examination([stampField]), [
+        { key: 'examination', data: { seen_at: value } },
+      ]);
+      expect(result.ok).toBe(true);
+    }
+  );
+
+  it.each(['2026-08-16T14:30', '2026-08-16T14:30:00+05:30', '2026-08-16'])(
+    'refuses %p, which names no moment',
+    (value) => {
+      const result = validateEncounter(examination([stampField]), [
+        { key: 'examination', data: { seen_at: value } },
+      ]);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.problem).toMatch(/UTC/);
+    }
+  );
+});
+
+/**
+ * ⚠️ THE SAME CHOICE TWICE IS REFUSED RATHER THAN DEDUPLICATED. Collapsing it
+ *   silently would be the software editing what a clinician wrote, after the
+ *   fact, with nothing on screen saying so.
+ */
+describe('a list of choices', () => {
+  const listField = {
+    key: 'habits',
+    type: 'CHECKBOX_GROUP' as const,
+    label: 'Habits',
+    required: false,
+    options: [
+      { value: 'SMOKING', label: 'Smoking' },
+      { value: 'BRUXISM', label: 'Bruxism' },
+    ],
+  };
+
+  it('takes each choice once', () => {
+    const result = validateEncounter(examination([listField], { required: false }), [
+      { key: 'examination', data: { habits: ['SMOKING', 'BRUXISM'] } },
+    ]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('refuses the same choice twice', () => {
+    const result = validateEncounter(examination([listField], { required: false }), [
+      { key: 'examination', data: { habits: ['SMOKING', 'SMOKING'] } },
+    ]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.problem).toMatch(/twice/);
+  });
+});
+
+/**
+ * The shape of the stored document, which is checked at AUTOSAVE rather than at
+ * signing — the one place in this file where the rule runs early (CE-8).
+ *
+ * ⚠️ WHAT IT REFUSES IS NOT AN INCOMPLETE ANSWER. It is a write that would put a
+ *   document in the densest PHI table in the product that no renderer could ever
+ *   draw and nobody could correct afterwards.
+ */
+describe('the shape of a stored document', () => {
+  it('takes the four shapes the field types actually produce', () => {
+    const problems = documentProblems('examination', {
+      finding: 'Caries on 36',
+      depth: 4.5,
+      tender: true,
+      habits: ['SMOKING'],
+      /* An unanswered field. Absence is what a draft is made of. */
+      grade: null,
+    });
+    expect(problems).toEqual([]);
+  });
+
+  /**
+   * ⚠️ THE BOUNDARY, NOT ONLY THE REFUSAL. Every case in this block is one over
+   *   a limit, and a limit tested only from above is an off-by-one away from
+   *   refusing a legal consultation — which is the failure nobody would report
+   *   as a bug, because it looks like the rule working.
+   */
+  it('accepts a document sitting exactly on every limit', () => {
+    const data: Record<string, unknown> = {};
+    for (let index = 0; index < 200; index += 1) {
+      data[`field_${String(index)}`] = index === 0 ? 'x'.repeat(300) : index;
+    }
+    data['k'.repeat(64)] = Array.from({ length: 200 }, (_, index) => String(index));
+
+    /* 201 keys is over — drop one so the count is exactly at the limit. */
+    delete data['field_199'];
+
+    expect(Object.keys(data)).toHaveLength(200);
+    expect(documentProblems('examination', data)).toEqual([]);
+  });
+
+  it('refuses a nested document, which no field can hold', () => {
+    const problems = documentProblems('examination', { finding: { text: 'Caries' } });
+    expect(problems).toHaveLength(1);
+    expect(problems[0]?.problem).toMatch(/any field can hold/);
+  });
+
+  it('refuses a value longer than any clinical answer', () => {
+    const problems = documentProblems('examination', { finding: 'x'.repeat(20_001) });
+    expect(problems).toHaveLength(1);
+    expect(problems[0]?.problem).toMatch(/longer than/);
+  });
+
+  it('refuses a list nobody ticked', () => {
+    const problems = documentProblems('examination', {
+      habits: Array.from({ length: 201 }, (_, index) => `H${String(index)}`),
+    });
+    expect(problems).toHaveLength(1);
+    expect(problems[0]?.problem).toMatch(/more than 200 entries/);
+  });
+
+  /** ⚠️ EVERY PER-VALUE BOUND SATISFIED, AND MEGABYTES WRITTEN. */
+  it('refuses a document that is only large in total', () => {
+    const data: Record<string, unknown> = {};
+    for (let index = 0; index < 100; index += 1) {
+      data[`field_${String(index)}`] = 'x'.repeat(1000);
+    }
+    const problems = documentProblems('examination', data);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]?.problem).toMatch(/larger than/);
+  });
+
+  /**
+   * ⚠️ THE VALIDATOR MUST NOT BECOME THE AMPLIFIER. The caller joins these into
+   *   one sentence, puts it in a 400 body and logs it — so a megabyte of
+   *   one-character keys would otherwise produce a multi-megabyte error message
+   *   for a request whose whole purpose was to be refused.
+   */
+  it('stops listing problems long before a hostile document runs out of them', () => {
+    const data: Record<string, unknown> = {};
+    for (let index = 0; index < 5_000; index += 1) {
+      data[`k${String(index)}`] = { nested: true };
+    }
+    const problems = documentProblems('examination', data);
+
+    expect(problems.length).toBeLessThanOrEqual(22);
+    expect(problems.at(-1)?.problem).toMatch(/more wrong with it than can be listed/);
+  });
+
+  it('refuses a field name that is not a field name', () => {
+    const problems = documentProblems('examination', { ['k'.repeat(65)]: 'x' });
+    expect(problems).toHaveLength(1);
   });
 });
 

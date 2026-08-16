@@ -133,6 +133,98 @@ export function formatClinicDateTime(
   return `${formatClinicDate(value, timeZone)}, ${formatClinicTime(value, timeZone, timeFormat)}`;
 }
 
+// ---------------------------------------------------------------------------
+// Clinical time, the other way round: a control's value (CE-8)
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ EVERYTHING ABOVE TURNS AN INSTANT INTO WORDS. THESE TWO TURN A CONTROL'S
+ *   WALL CLOCK INTO AN INSTANT AND BACK, and they exist because
+ *   `<input type="datetime-local">` has no zone at all: it reads and writes
+ *   `2026-08-16T14:30`, which is 14:30 wherever whoever reads it next happens to
+ *   be. Storing that in a clinical answer is the same five-and-a-half-hour bug
+ *   the header of this file describes, one layer down — invisible, because the
+ *   string looks exactly like a time.
+ *
+ *   So a DATETIME answer is stored as an ISO instant with a `Z` (invariant 6),
+ *   the control is fed the branch's wall clock, and `@rcln/clinical` refuses to
+ *   let a zoneless string be signed into a record.
+ *
+ * ⚠️ THE ZONE IS THE BRANCH'S AND IS ALWAYS PASSED IN, exactly as above. There
+ *   is no correct default.
+ */
+
+/** How far the zone is from UTC AT THAT INSTANT — DST included, by construction. */
+function offsetMsAt(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat(CLINICAL_LOCALE, {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(instant);
+
+  const read = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value ?? '0');
+
+  const asUtc = Date.UTC(
+    read('year'),
+    read('month') - 1,
+    read('day'),
+    /* `hour12: false` renders midnight as 24 in some engines. */
+    read('hour') % 24,
+    read('minute'),
+    read('second')
+  );
+  return asUtc - instant.getTime();
+}
+
+/**
+ * `2026-08-16T14:30` in the clinic's zone → `2026-08-16T09:00:00.000Z`.
+ *
+ * ⚠️ THE OFFSET IS APPLIED TWICE, AND THE SECOND PASS IS THE DST CORRECTION. The
+ *   first uses the offset at the wrong instant — the wall clock read as if it
+ *   were UTC — which lands an hour out for the two nights a year a zone shifts.
+ *   Re-reading the offset at the answer and re-applying it converges.
+ */
+export function clinicInstantOf(local: string, timeZone: string): string | undefined {
+  /* Minutes only, because `datetime-local` with no `step` offers no seconds —
+     and `clinicInputValueOf` truncates there too, so the round trip is exact. */
+  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/.exec(local);
+  if (match === null) return undefined;
+  const naive = Date.parse(`${match[1] ?? ''}T${match[2] ?? ''}:${match[3] ?? ''}:00Z`);
+  if (Number.isNaN(naive)) return undefined;
+
+  const once = naive - offsetMsAt(new Date(naive), timeZone);
+  const twice = naive - offsetMsAt(new Date(once), timeZone);
+  return new Date(twice).toISOString();
+}
+
+/**
+ * `2026-08-16T09:00:00.000Z` → `2026-08-16T14:30`, for the control to render.
+ *
+ * ⚠️ A ZONELESS VALUE RENDERS AS BLANK, AND THE `Z` TEST IS WHY THIS FUNCTION
+ *   CANNOT JUST TRY `new Date`. Per the ECMAScript spec a date-time string with
+ *   no offset is parsed as BROWSER-LOCAL rather than as `NaN` — so an answer
+ *   stored before the engine required an instant would not fail the guard
+ *   below; it would render shifted by the browser-to-branch delta, plausibly,
+ *   and a doctor who then re-saved would write that shift back as fact.
+ *
+ *   Blank is the honest rendering of a value that names no moment. The engine
+ *   refuses it at the signature (`isInstant`), so the field is re-entered by
+ *   somebody who knows what it was meant to say.
+ */
+export function clinicInputValueOf(iso: string, timeZone: string): string {
+  if (!iso.endsWith('Z')) return '';
+  const instant = new Date(iso);
+  if (Number.isNaN(instant.getTime())) return '';
+  const shifted = new Date(instant.getTime() + offsetMsAt(instant, timeZone));
+  return shifted.toISOString().slice(0, 16);
+}
+
 /**
  * A count, formatted the same on both sides.
  *

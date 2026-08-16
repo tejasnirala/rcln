@@ -16,8 +16,8 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 | `bearerToken` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/middleware/auth.middleware.ts:28` | `Authorization: Bearer <token>` -> the token, or null. |
 | `budget` <sub>local</sub> | `(max: number): number` | `apps/api/src/middleware/rateLimiter.middleware.ts:31` |  |
 | `cacheKey` <sub>local</sub> | `(host: string): string` | `apps/api/src/middleware/tenant.middleware.ts:27` |  |
-| `callerFrom` | `(req: Request): CallerIdentity` | `apps/api/src/middleware/auth.middleware.ts:255` |  |
-| `callerHasPermission` | `(req: Request, permission: PermissionCode): Promise<boolean>` | `apps/api/src/middleware/auth.middleware.ts:282` |  |
+| `callerFrom` | `(req: Request): CallerIdentity` | `apps/api/src/middleware/auth.middleware.ts:280` |  |
+| `callerHasPermission` | `(req: Request, permission: PermissionCode): Promise<boolean>` | `apps/api/src/middleware/auth.middleware.ts:307` |  |
 | `errorHandler` | `(err: Error, req: Request, res: Response, _next: NextFunction): Response` | `apps/api/src/middleware/error.middleware.ts:33` | Global error handler middleware Must be registered LAST in middleware chain |
 | `formatZodErrors` <sub>local</sub> | `(error: ZodError): Record<string, string[]>` | `apps/api/src/middleware/error.middleware.ts:16` | Format Zod validation errors |
 | `invalidateTenantCache` | `(host: string): Promise<void>` | `apps/api/src/middleware/tenant.middleware.ts:167` | Called after any change to organizations/organization_domains. |
@@ -27,11 +27,12 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 | `notFoundHandler` | `(req: Request, res: Response): Response` | `apps/api/src/middleware/error.middleware.ts:128` | 404 Not Found handler Register AFTER all routes |
 | `requestedHost` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/middleware/tenant.middleware.ts:63` |  |
 | `requireAuth` | `(req: Request, _res: Response, next: NextFunction): void` | `apps/api/src/middleware/auth.middleware.ts:145` | 401 unless `authenticate` produced a caller. |
-| `requirePlatformAdmin` | `(req: Request, _res: Response, next: NextFunction): void` | `apps/api/src/middleware/auth.middleware.ts:214` | The `/platform` console. Membership is irrelevant; the flag is everything. |
+| `requiredPermissionsOf` | `(handler: unknown): readonly PermissionCode[] \| null` | `apps/api/src/middleware/auth.middleware.ts:232` | The permission codes an `authorize(...)` handler was built with, if it is one. |
+| `requirePlatformAdmin` | `(req: Request, _res: Response, next: NextFunction): void` | `apps/api/src/middleware/auth.middleware.ts:239` | The `/platform` console. Membership is irrelevant; the flag is everything. |
 | `requireTenant` | `(req: Request, res: Response, next: NextFunction): void` | `apps/api/src/middleware/tenant.middleware.ts:147` | Guard for tenant-scoped routes. An unknown host returns 404, never 403. A 403 would confirm the subdomain exists, which leaks the customer list to anyone who c… |
 | `resolveTenant` | `(req: Request, _res: Response, next: NextFunction): Promise<void>` | `apps/api/src/middleware/tenant.middleware.ts:116` |  |
 | `store` <sub>local</sub> | `(prefix: string): RedisStore` | `apps/api/src/middleware/rateLimiter.middleware.ts:14` |  |
-| `tenantContextFrom` | `(req: Request): TenantContext` | `apps/api/src/middleware/auth.middleware.ts:299` |  |
+| `tenantContextFrom` | `(req: Request): TenantContext` | `apps/api/src/middleware/auth.middleware.ts:324` |  |
 | `validate` | `(schema: ZodSchema, source: ValidationSource)` | `apps/api/src/middleware/validate.middleware.ts:48` | Validation middleware factory |
 | `validateMultiple` | `(schemas: Partial<Record<ValidationSource, ZodSchema>>)` | `apps/api/src/middleware/validate.middleware.ts:87` | Validate multiple sources at once |
 
@@ -59,7 +60,7 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `CallerIdentity` | `{ isPlatformAdmin, branchId }` | `apps/api/src/middleware/auth.middleware.ts:250` |  |
+| `CallerIdentity` | `{ isPlatformAdmin, branchId }` | `apps/api/src/middleware/auth.middleware.ts:275` |  |
 | `ResolvedTenant` | `{ organizationId, slug, status, currency, timezone }` | `apps/api/src/middleware/tenant.middleware.ts:18` |  |
 
 ## type

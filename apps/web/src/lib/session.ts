@@ -197,6 +197,35 @@ export async function timezoneOf(slug: string): Promise<string> {
 }
 
 /**
+ * The zone of ONE named branch, for a row that carries a `branchId` and no
+ * timezone of its own (CE-8).
+ *
+ * ⚠️ THE MIDDLE CASE BETWEEN THE ROW'S OWN `timezone` AND THE READER'S. An
+ *   appointment carries its branch's zone on the row and should use it; a
+ *   screen with no row at all uses `timezoneOf`. A CONSULTATION is the third
+ *   case: `EncounterDetail` carries `branchId` and no zone, and it is reachable
+ *   by its own id rather than through a booking — so an org-wide reader scoped
+ *   to Bengaluru opening a record written in Dubai would otherwise render its
+ *   times in their own clinic's zone, five and a half hours from where the
+ *   consultation happened, with nothing on screen saying so.
+ *
+ * ⚠️ FALLS BACK TO THE READER'S ACTIVE BRANCH rather than to a constant, because
+ *   a branch that is not in scope is one whose rows this caller cannot read
+ *   anyway.
+ */
+export async function timezoneOfBranch(slug: string, branchId: string): Promise<string> {
+  const session = await getSession(slug);
+  if (!session) return 'Asia/Kolkata';
+
+  const branches =
+    session.memberships.find((m) => m.organizationId === session.activeOrganizationId)?.branches ??
+    [];
+
+  const named = branches.find((b) => b.id === branchId);
+  return named?.timezone ?? (await timezoneOf(slug));
+}
+
+/**
  * The clock face this clinic reads — `12H` or `24H`.
  *
  * ⚠️ THE COMPANION TO `timezoneOf`, AND SUBJECT TO THE SAME CAVEAT: it answers

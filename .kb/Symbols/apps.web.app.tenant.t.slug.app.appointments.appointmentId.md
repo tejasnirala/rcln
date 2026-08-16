@@ -16,8 +16,8 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/pa
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `STATUS_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:409` |  |
-| `VISIT_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:419` |  |
+| `STATUS_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:411` |  |
+| `VISIT_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:421` |  |
 
 ## var
 

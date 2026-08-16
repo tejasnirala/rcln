@@ -102,9 +102,9 @@ Proves who a caller is and issues the session they act under. Password and phone
 | `branchesInScope` | fn | `apps/web/src/lib/session.ts:134` |
 | `buildAuthSession` | fn | `apps/api/src/services/auth/login.service.ts:248` |
 | `BuildSessionInput` | interface | `apps/api/src/services/auth/login.service.ts:233` |
-| `callerFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:255` |
-| `callerHasPermission` | fn | `apps/api/src/middleware/auth.middleware.ts:282` |
-| `CallerIdentity` | interface | `apps/api/src/middleware/auth.middleware.ts:250` |
+| `callerFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:280` |
+| `callerHasPermission` | fn | `apps/api/src/middleware/auth.middleware.ts:307` |
+| `CallerIdentity` | interface | `apps/api/src/middleware/auth.middleware.ts:275` |
 | `clearSessionCookies` | fn | `apps/web/src/lib/session.ts:80` |
 | `confirmVerification` | fn | `apps/api/src/services/auth/verification.service.ts:154` |
 | `ConfirmVerificationInput` | interface | `apps/api/src/services/auth/verification.service.ts:135` |
@@ -122,7 +122,7 @@ Proves who a caller is and issues the session they act under. Password and phone
 | `generateOtpCode` | fn | `apps/api/src/services/auth/token.service.ts:164` |
 | `generateRefreshToken` | fn | `apps/api/src/services/auth/token.service.ts:121` |
 | `getAccessToken` | fn | `apps/web/src/lib/session.ts:86` |
-| `getPlatformSession` | var | `apps/web/src/lib/session.ts:244` |
+| `getPlatformSession` | var | `apps/web/src/lib/session.ts:273` |
 | `getRefreshToken` | fn | `apps/web/src/lib/session.ts:90` |
 | `getSession` | var | `apps/web/src/lib/session.ts:108` |
 | `hashesMatch` | fn | `apps/api/src/services/auth/token.service.ts:137` |
@@ -159,7 +159,8 @@ Proves who a caller is and issues the session they act under. Password and phone
 | `requestOtp` | fn | `apps/api/src/services/auth/otp.service.ts:29` |
 | `requestVerification` | fn | `apps/api/src/services/auth/verification.service.ts:98` |
 | `requireAuth` | fn | `apps/api/src/middleware/auth.middleware.ts:145` |
-| `requirePlatformAdmin` | fn | `apps/api/src/middleware/auth.middleware.ts:214` |
+| `requiredPermissionsOf` | fn | `apps/api/src/middleware/auth.middleware.ts:232` |
+| `requirePlatformAdmin` | fn | `apps/api/src/middleware/auth.middleware.ts:239` |
 | `revokeFamily` | fn | `apps/api/src/services/auth/session.service.ts:273` |
 | `revokeSession` | fn | `apps/api/src/services/auth/session.service.ts:264` |
 | `rotateRefreshToken` | fn | `apps/api/src/services/auth/session.service.ts:172` |
@@ -167,9 +168,10 @@ Proves who a caller is and issues the session they act under. Password and phone
 | `setActiveScope` | fn | `apps/api/src/services/auth/session.service.ts:289` |
 | `setSessionCookies` | fn | `apps/web/src/lib/session.ts:54` |
 | `signAccessToken` | fn | `apps/api/src/services/auth/token.service.ts:58` |
-| `tenantContextFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:299` |
-| `timeFormatOf` | fn | `apps/web/src/lib/session.ts:215` |
+| `tenantContextFrom` | fn | `apps/api/src/middleware/auth.middleware.ts:324` |
+| `timeFormatOf` | fn | `apps/web/src/lib/session.ts:244` |
 | `timezoneOf` | fn | `apps/web/src/lib/session.ts:187` |
+| `timezoneOfBranch` | fn | `apps/web/src/lib/session.ts:216` |
 | `toAccessContext` | fn | `apps/api/src/services/auth/access.service.ts:245` |
 | `UserAccess` | interface | `apps/api/src/services/auth/access.service.ts:43` |
 | `VerificationChannel` | type | `apps/api/src/services/auth/verification.service.ts:40` |

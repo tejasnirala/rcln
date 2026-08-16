@@ -58,7 +58,7 @@ FOLLOW_UP_ARCHITECTURE §2.
 
 ---
 
-## CE-3 — Encounter core and lifecycle ← CURRENT
+## CE-3 — Encounter core and lifecycle ✅ COMPLETE
 
 The engine itself.
 
@@ -72,7 +72,7 @@ The engine itself.
 
 ---
 
-## CE-4 — Clinical content sections
+## CE-4 — Clinical content sections ✅ COMPLETE
 
 - `encounter_symptoms`, `_diagnoses`, `_procedures`, `_prescriptions`,
   `_investigations`, `_advice`, `_referrals`, `_attachments`
@@ -84,7 +84,7 @@ The engine itself.
 
 ---
 
-## CE-5 — Visit history and episodes
+## CE-5 — Visit history and episodes ✅ COMPLETE
 
 - `GET /v1/clinical-episodes/:id`, `GET /v1/patients/:id/visit-history`
 - The recall list: `GET /v1/follow-up-recommendations?status=DUE`
@@ -93,7 +93,7 @@ The engine itself.
 
 ---
 
-## CE-6 — Visual mapping engine + `HUMAN_DENTAL`
+## CE-6 — Visual mapping engine + `HUMAN_DENTAL` ✅ COMPLETE
 
 - `visual_maps`, `visual_regions`, `clinical_findings`
 - `VisualMappingEngine` — **not** `DentalChart` (§23)
@@ -117,10 +117,18 @@ code was a region picker on a procedure, which CE-6 had deferred here.
 
 ---
 
-## CE-8 — Hardening
+## CE-8 — Hardening ✅ COMPLETE
 
 Validation, permission audit, search performance, error handling, the full §40
 integration flow, and both reviewer subagents.
+
+No endpoint, no permission code, no table. A DATE is a calendar day and a
+DATETIME an ISO instant (invariant 6, inside a JSONB document); a stored section
+document is bounded at AUTOSAVE rather than at signing; the lost open race
+resumes the draft instead of returning a 409; `authorize()` stamps its codes so
+every clinical route's gate is audited off the Express stack; one partial index
+bounds the recall list's scan. Plus `consultation-journey.test.ts` — one patient
+from an open consultation to an amendment, in order.
 
 ---
 
