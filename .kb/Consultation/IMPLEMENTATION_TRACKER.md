@@ -12,7 +12,7 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 | CE-4  | Clinical content sections            | ✅ complete    |
 | CE-5  | Visit history + episodes             | ✅ complete    |
 | CE-6  | Visual mapping engine + HUMAN_DENTAL | ✅ complete    |
-| CE-7  | HUMAN_SCALP/BODY + reference configs | ⬜ not started |
+| CE-7  | HUMAN_SCALP/BODY + reference configs | ✅ complete    |
 | CE-8  | Hardening                            | ⬜ not started |
 
 ## CE-1 — done
@@ -133,23 +133,56 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
       panel and the visit history. **`PENDING_SECTIONS` is now empty**
 - [x] Tests — 25 integration + 14 isolation + 25 unit
 
+## CE-7 — done
+
+- [x] Schema — **none.** No migration, no new policy; `db:rls:check` unchanged
+      at **111**. CE-7 is data and one screen control (CD-18)
+- [x] Seed — `HUMAN_SCALP` (8 flat zones, PATH, every label anchored) and
+      `HUMAN_BODY` (2 views × 12 places). 3 maps, **70 regions**
+- [x] Seed — `DENTAL_HUMAN` at `DEN` and `HAIR_SCALP_HUMAN` at `TRICHOLOGY`,
+      published. The seeder now resolves `specialtyCode`, and a named-but-missing
+      node is **fatal** — NULL would make the template a second care-context
+      default (CD-18)
+- [x] Engine / API / contracts / permissions — **nothing added.** The definition
+      of done was that neither map cost a component; neither did
+- [x] Web — the region picker on a procedure, from the template's own resolved
+      maps. `encounter_procedures.visual_region_id` has had a column since CE-6
+      and no way to fill it in; this is that way. **No second renderer**
+- [x] Tests — 12 integration, in `reference-configurations.test.ts`: one doctor,
+      reclassified three times, gets three different consultations
+
+## Not done in CE-7, and deliberately
+
+- **No fourth reference configuration.** §41 holds: three charts and four
+  templates is the ceiling. A fifth specialty is a clinic's own template,
+  written by somebody who practises it — a half-researched cardiology default is
+  worse than none, because a clinic will trust it.
+- **`HUMAN_BODY` ships and no seeded template cites it.** It is the chart for
+  "somewhere on the body", offered across the whole care context and belonging
+  to no specialty in particular; a clinic wires it into its own template with one
+  `mapCode`. Seeding a dermatology template around it would be inventing a
+  specialty configuration nobody asked for.
+- **The chart editor still edits geometry as JSON.** Inherited from CE-6, and
+  still a real product rather than this phase.
+- **Nothing has been opened in a browser.** Inherited from CE-5 and CE-6. The
+  two new maps were rendered from the seeded rows to check the geometry, and
+  that is not the same as using the screen.
+
 ## Not done in CE-6, and deliberately
 
 - **The chart editor edits geometry as JSON.** A drag-and-drop designer is a
   real product and is not this phase; what CE-6 owes is that a clinic CAN
   configure a chart without a deploy, and that the engine refuses a document
   that says nothing checkable. The preview is what makes the JSON legible.
-- **No template ships with a chart on it.** `HUMAN_DENTAL` exists and the
-  seeded GENERAL templates do not cite it — the dentistry template is CE-7's,
-  and §41 keeps the seeded data small. A clinic wires the two together today by
-  putting `mapCode` in its own template.
+- ~~**No template ships with a chart on it.**~~ **Closed by CE-7** —
+  `DENTAL_HUMAN` cites `HUMAN_DENTAL` and `HAIR_SCALP_HUMAN` cites
+  `HUMAN_SCALP`, both as seeded platform rows (CD-18).
 - **`IMAGE_MAP` has a renderer enum member and no map.** The columns and the
   CHECK are there; nothing ships a raster chart, and the web renderer draws
   `SVG` only.
-- **`encounter_procedures.visual_region_id` has an API and no picker.** The
-  column, the contract and the service accept it; the procedure editor does not
-  offer a region yet. The chart is where a region is chosen, and wiring the two
-  lists together is a screen decision CE-7 is better placed to make.
+- ~~**`encounter_procedures.visual_region_id` has an API and no picker.**~~
+  **Closed by CE-7** — the procedure editor offers a "Where", built from the
+  template's own resolved maps, and the row reads "Root canal — 36".
 - **Nothing has been opened in a browser.** Same item CE-6 inherits from CE-5.
 
 ## Not done in CE-5, and deliberately

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { drawableRegions, parseVisualMap } from '@rcln/clinical';
 import type {
   ConsultationSectionConfig,
   EncounterContent,
@@ -139,6 +140,42 @@ const ONSETS = [
  */
 const PENDING_SECTIONS: Record<string, string> = {};
 
+/**
+ * Every place the consultation's charts offer, as options.
+ *
+ * ⚠️ THE MAP'S NAME IS PREFIXED ONLY WHEN THERE IS MORE THAN ONE CHART. A
+ *   dentist picking "36" does not need to be told it is on the odontogram; a
+ *   dermatology consultation charting front and back does, because "R arm"
+ *   appears on both.
+ *
+ * ⚠️ AND A MAP THAT WILL NOT PARSE CONTRIBUTES NOTHING RATHER THAN THROWING. The
+ *   chart section says so on screen already (CE-6); a picker that took the whole
+ *   consultation down with it would turn a bad configuration row into a doctor
+ *   who cannot record a procedure at all.
+ */
+function regionChoices(
+  sections: readonly ConsultationSectionConfig[]
+): readonly { value: string; label: string }[] {
+  const maps = new Map<string, NonNullable<ConsultationSectionConfig['map']>>();
+  for (const section of sections) {
+    if (section.map !== undefined) maps.set(section.map.id, section.map);
+  }
+  if (maps.size === 0) return [];
+
+  const choices: { value: string; label: string }[] = [];
+  for (const map of maps.values()) {
+    const parsed = parseVisualMap({ code: map.code, viewBox: map.viewBox, regions: map.regions });
+    if (!parsed.ok) continue;
+    for (const region of drawableRegions(parsed.value)) {
+      choices.push({
+        value: region.id,
+        label: maps.size === 1 ? region.label : `${map.name} · ${region.label}`,
+      });
+    }
+  }
+  return choices;
+}
+
 export function ConsultationEngine({
   slug,
   appointmentId,
@@ -265,6 +302,22 @@ export function ConsultationEngine({
     () => [...encounter.configuration].sort((a, b) => a.order - b.order),
     [encounter.configuration]
   );
+
+  /*
+   * ⚠️ THE PLACES THIS CONSULTATION CAN POINT AT — every drawn region of every
+   *   chart the template resolved, and nothing when it resolved none (CE-7).
+   *   `encounter_procedures.visual_region_id` has had a column, a contract and a
+   *   service since CE-6 and no way to fill it in; this is that way, and it is
+   *   deliberately derived from the CONFIGURATION rather than from a lookup of
+   *   its own. A screen that fetched "all regions" would offer a dentist the
+   *   scalp zones.
+   *
+   * ⚠️ AND THE LIST IS THE DRAWN REGIONS, NOT ALL OF THEM. A quadrant groups and
+   *   is not a place a root canal happens — the same filter the chart draws
+   *   with, through the same parser, because a second reading of a geometry
+   *   document is a second answer to "is this region a place".
+   */
+  const chartRegions = useMemo(() => regionChoices(sections), [sections]);
 
   /*
    * ⚠️ ONE HANDLER PER VERB, SHARED BY EVERY CONTENT SECTION, AND EACH SWAPS THE
@@ -401,6 +454,7 @@ export function ConsultationEngine({
                 readOnly={readOnly}
                 slug={slug}
                 content={contentHandlers}
+                chartRegions={chartRegions}
               />
             </div>
           </li>
@@ -479,6 +533,7 @@ function SectionBody({
   readOnly,
   slug,
   content,
+  chartRegions,
 }: {
   section: ConsultationSectionConfig;
   draft: Draft;
@@ -488,6 +543,8 @@ function SectionBody({
   slug: string;
   /** The clinical content and the three verbs over it (CE-4). */
   content: ContentHandlers | null;
+  /** Every place this consultation's charts offer. Empty when it has none. */
+  chartRegions: readonly { value: string; label: string }[];
 }) {
   if (section.type === 'CHIEF_COMPLAINT') {
     return (
@@ -598,7 +655,7 @@ function SectionBody({
       case 'DIAGNOSIS':
         return <DiagnosisSection {...shared} />;
       case 'PROCEDURE':
-        return <ProcedureSection {...shared} />;
+        return <ProcedureSection {...shared} chartRegions={chartRegions} />;
       case 'PRESCRIPTION':
         return <PrescriptionSection {...shared} />;
       case 'INVESTIGATION':

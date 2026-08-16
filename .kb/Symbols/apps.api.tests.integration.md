@@ -4,7 +4,7 @@
 
 > Billing a consultation, over real HTTP, through the real middleware chain.
 
-Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/clinical.test.ts` · `apps/api/tests/integration/consultation-templates.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/encounter-content.test.ts` · `apps/api/tests/integration/encounters.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/india-rule-pack.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/procurement.test.ts` · `apps/api/tests/integration/product-resolvers.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/regulatory-enforcement.test.ts` · `apps/api/tests/integration/regulatory.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/stock-ledger.test.ts` · `apps/api/tests/integration/stock-movements.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/verification.test.ts` · `apps/api/tests/integration/visit-history.test.ts` · `apps/api/tests/integration/visual-mapping.test.ts`
+Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tests/integration/appointments.test.ts` · `apps/api/tests/integration/audit-history.test.ts` · `apps/api/tests/integration/auth.test.ts` · `apps/api/tests/integration/branches.test.ts` · `apps/api/tests/integration/clinic-tax.test.ts` · `apps/api/tests/integration/clinical-taxonomy.test.ts` · `apps/api/tests/integration/clinical.test.ts` · `apps/api/tests/integration/consultation-templates.test.ts` · `apps/api/tests/integration/demo-requests.test.ts` · `apps/api/tests/integration/doctors.test.ts` · `apps/api/tests/integration/documents.test.ts` · `apps/api/tests/integration/encounter-content.test.ts` · `apps/api/tests/integration/encounters.test.ts` · `apps/api/tests/integration/fee-schedule.test.ts` · `apps/api/tests/integration/iam.test.ts` · `apps/api/tests/integration/impersonation.test.ts` · `apps/api/tests/integration/india-rule-pack.test.ts` · `apps/api/tests/integration/invitations.test.ts` · `apps/api/tests/integration/invoice-audit.test.ts` · `apps/api/tests/integration/invoice-document.test.ts` · `apps/api/tests/integration/invoice-lifecycle.test.ts` · `apps/api/tests/integration/invoice-numbering.test.ts` · `apps/api/tests/integration/invoice-pricing.test.ts` · `apps/api/tests/integration/invoices.test.ts` · `apps/api/tests/integration/invoicing-tax.test.ts` · `apps/api/tests/integration/numbering.test.ts` · `apps/api/tests/integration/patients.test.ts` · `apps/api/tests/integration/procurement.test.ts` · `apps/api/tests/integration/product-resolvers.test.ts` · `apps/api/tests/integration/reference-configurations.test.ts` · `apps/api/tests/integration/registration.test.ts` · `apps/api/tests/integration/regulatory-enforcement.test.ts` · `apps/api/tests/integration/regulatory.test.ts` · `apps/api/tests/integration/session-rotation.test.ts` · `apps/api/tests/integration/setting-resolver.test.ts` · `apps/api/tests/integration/settings.test.ts` · `apps/api/tests/integration/stock-ledger.test.ts` · `apps/api/tests/integration/stock-movements.test.ts` · `apps/api/tests/integration/tax-registration-coverage.test.ts` · `apps/api/tests/integration/verification.test.ts` · `apps/api/tests/integration/visit-history.test.ts` · `apps/api/tests/integration/visual-mapping.test.ts`
 
 ## fn
 
@@ -14,6 +14,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `api` <sub>local</sub> | `(method: 'get' \| 'post' \| 'patch' \| 'put' \| 'delete')` | `apps/api/tests/integration/consultation-templates.test.ts:106` |  |
 | `api` <sub>local</sub> | `(method: 'get' \| 'post' \| 'patch' \| 'put' \| 'delete')` | `apps/api/tests/integration/encounter-content.test.ts:126` |  |
 | `api` <sub>local</sub> | `(method: 'get' \| 'post' \| 'patch')` | `apps/api/tests/integration/encounters.test.ts:116` |  |
+| `api` <sub>local</sub> | `(method: 'get' \| 'post' \| 'patch' \| 'put' \| 'delete')` | `apps/api/tests/integration/reference-configurations.test.ts:118` |  |
 | `api` <sub>local</sub> | `(method: 'get' \| 'post' \| 'patch' \| 'put' \| 'delete')` | `apps/api/tests/integration/visit-history.test.ts:184` |  |
 | `api` <sub>local</sub> | `(method: 'get' \| 'post' \| 'patch' \| 'put' \| 'delete')` | `apps/api/tests/integration/visual-mapping.test.ts:125` |  |
 | `as` <sub>local</sub> | `(slug: string, token: string)` | `apps/api/tests/integration/verification.test.ts:88` |  |
@@ -44,8 +45,10 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `bookAt` <sub>local</sub> | `(startsAt: string, doctorProfileId: string, visitType)` | `apps/api/tests/integration/fee-schedule.test.ts:175` |  |
 | `cardFor` <sub>local</sub> | `(category: string): Promise<CategoryCard \| undefined>` | `apps/api/tests/integration/clinic-tax.test.ts:235` |  |
 | `claimAt` <sub>local</sub> | `(slug: string, handoffToken: string)` | `apps/api/tests/integration/impersonation.test.ts:110` | Spend a ticket at a clinic's own host, which is the only place it works. |
+| `classifyAs` <sub>local</sub> | `(specialtyId: string \| null): Promise<void>` | `apps/api/tests/integration/reference-configurations.test.ts:143` | Reclassify the one doctor. The whole suite turns on this. |
 | `clearAccessCache` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/encounter-content.test.ts:102` |  |
 | `clearAccessCache` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/encounters.test.ts:89` |  |
+| `clearAccessCache` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/reference-configurations.test.ts:100` |  |
 | `clearAccessCache` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/visit-history.test.ts:103` |  |
 | `clearAccessCache` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/visual-mapping.test.ts:100` |  |
 | `clearAccessDedupe` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/appointments.test.ts:99` |  |
@@ -75,6 +78,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/invoices.test.ts:101` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/patients.test.ts:86` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/product-resolvers.test.ts:78` |  |
+| `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/reference-configurations.test.ts:95` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/regulatory.test.ts:82` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/settings.test.ts:88` |  |
 | `clearRateLimits` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/verification.test.ts:74` |  |
@@ -100,6 +104,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `grant` <sub>local</sub> | `(codes: string[]): Promise<void>` | `apps/api/tests/integration/visit-history.test.ts:113` |  |
 | `grantAuthoring` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/encounter-content.test.ts:113` |  |
 | `grantAuthoring` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/encounters.test.ts:103` |  |
+| `grantAuthoring` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/reference-configurations.test.ts:106` | The supported widening, per `roles.ts` — the same path a real clinic takes. |
 | `grantAuthoring` <sub>local</sub> | `(): Promise<void>` | `apps/api/tests/integration/visual-mapping.test.ts:112` |  |
 | `historyOf` <sub>local</sub> | `(slug: string, token: string, entityType: string, entityId: string)` | `apps/api/tests/integration/audit-history.test.ts:90` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/appointment-billing.test.ts:44` |  |
@@ -122,6 +127,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/invoices.test.ts:54` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/patients.test.ts:40` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/product-resolvers.test.ts:41` |  |
+| `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/reference-configurations.test.ts:57` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/regulatory.test.ts:40` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/settings.test.ts:49` |  |
 | `hostFor` <sub>local</sub> | `(slug: string): string` | `apps/api/tests/integration/verification.test.ts:38` |  |
@@ -160,6 +166,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `makeAppointment` <sub>local</sub> | `(episodeId: string, number: string, offsetDays: number, parentId: string \| null): Promise<string>` | `apps/api/tests/integration/visit-history.test.ts:199` | A booking on a journey, checked in and ready for a consultation. |
 | `makeProduct` <sub>local</sub> | `(key: string, type: string, classification: string \| null, unitId: string, jurisdictionId: string): Promise<void>` | `apps/api/tests/integration/india-rule-pack.test.ts:90` | A product of `type`, with a profile asserting `classification` where given. |
 | `makeTerm` <sub>local</sub> | `(kind: string, code: string, name: string): Promise<string>` | `apps/api/tests/integration/encounter-content.test.ts:142` | A clinical word this clinic owns, so no platform row is left behind. |
+| `makeTerm` <sub>local</sub> | `(kind: string, code: string, name: string): Promise<string>` | `apps/api/tests/integration/reference-configurations.test.ts:156` |  |
 | `makeTerm` <sub>local</sub> | `(kind: string, code: string, name: string): Promise<string>` | `apps/api/tests/integration/visual-mapping.test.ts:140` |  |
 | `membershipIdFor` <sub>local</sub> | `(email: string): Promise<string>` | `apps/api/tests/integration/iam.test.ts:179` |  |
 | `newSession` <sub>local</sub> | `()` | `apps/api/tests/integration/session-rotation.test.ts:64` |  |
@@ -193,6 +200,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/patients.test.ts:63` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/procurement.test.ts:99` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/product-resolvers.test.ts:55` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/reference-configurations.test.ts:72` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/registration.test.ts:66` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/regulatory.test.ts:59` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/setting-resolver.test.ts:49` |  |
@@ -205,6 +213,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/visual-mapping.test.ts:72` |  |
 | `plantCode` <sub>local</sub> | `(userId: string, purpose: string, code): Promise<void>` | `apps/api/tests/integration/verification.test.ts:108` |  |
 | `platformId` <sub>local</sub> | `(code: string): Promise<string>` | `apps/api/tests/integration/clinical-taxonomy.test.ts:122` | Resolve a seeded platform node id by code, as the owner (RLS-exempt). |
+| `platformNode` <sub>local</sub> | `(code: string): Promise<string>` | `apps/api/tests/integration/reference-configurations.test.ts:132` |  |
 | `post` <sub>local</sub> | `(body: Record<string, unknown>)` | `apps/api/tests/integration/demo-requests.test.ts:49` |  |
 | `price` <sub>local</sub> | `(ctx: TenantContext, branchId: string, input: Record<string, unknown>)` | `apps/api/tests/integration/invoice-pricing.test.ts:157` |  |
 | `priceAt` <sub>local</sub> | `(context: TenantContext, branchId: string, currency)` | `apps/api/tests/integration/tax-registration-coverage.test.ts:183` |  |

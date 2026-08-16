@@ -374,3 +374,46 @@ more.
 `renderer` and `asset_key` survive on `visual_maps` for the IMAGE_MAP case — a
 photograph a clinician pins findings onto. CE-6 ships no map that uses them, and
 a CHECK constraint refuses a row whose renderer and asset disagree.
+
+---
+
+## CD-18 — The reference configurations are PLATFORM rows, attached to a node
+
+CE-7 ships two consultation templates — `DENTAL_HUMAN` at the `DEN` domain and
+`HAIR_SCALP_HUMAN` at the `TRICHOLOGY` focus area — and two more charts,
+`HUMAN_SCALP` and `HUMAN_BODY`. All four are seed data.
+
+**Why the platform and not a clinic's own.** The claim CE-7 was asked to prove
+is that a specialty consultation is a DOCUMENT. A claim demonstrated only by a
+fixture is a claim about the test suite; shipped in the seed it is a claim about
+the product, and a dentist who registers today gets an odontogram without
+configuring anything.
+
+**Why the DOMAIN for dentistry and the FOCUS AREA for hair.** Every dental
+specialty conducts a consultation shaped like the dental one, so it attaches at
+`DEN` and orthodontics, endodontics and the rest inherit it. Most of dermatology
+does not grade a Norwood scale, so the hair template attaches at `TRICHOLOGY`
+and a dermatologist treating acne is untouched. Specificity only ever walks UP:
+a template placed too high cannot be declined by the people below it.
+
+⚠️ **A NAMED-BUT-MISSING SPECIALTY IS FATAL IN THE SEED, and it is the one place
+the seed's usual asymmetry reverses.** A missing scope on a clinical term makes
+it sort lower; a missing node here does not make a template apply LESS, it makes
+it apply to EVERYTHING — `specialty_id` NULL is the care-context default, so the
+dentistry template would land at depth 0 beside `GENERAL_HUMAN` and win the tie
+on its code. Every human consultation in the product would silently acquire an
+odontogram.
+
+⚠️ **BOTH CHARTS ARE `required: false`.** A required chart refuses finalization
+with nothing marked on it (CE-6), and a mouth with nothing wrong with it is a
+real consultation — common, at a check-up. A clinic that wants the chart
+compulsory sets it on its own template; the platform does not refuse to sign a
+healthy patient's record.
+
+**And the three charts are deliberately three different shapes of document.**
+`HUMAN_DENTAL` is rectangles grouped four ways with computed label centres;
+`HUMAN_SCALP` is paths, entirely flat, every label anchored by hand;
+`HUMAN_BODY` is rectangles and a circle grouped two ways. `labelAnchorOf`
+returns nothing for a path, so a scalp zone that omitted its anchor would draw
+correctly and be captioned nowhere — shipping the flat path map is what keeps
+that branch honest.
