@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import type { EncounterDetail } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken, getSession } from '@/lib/session';
+import { getAccessToken, getSession, timezoneOfBranch } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { ConsultationEngine } from '@/components/tenant/consultation-engine';
 
@@ -131,6 +131,13 @@ export default async function ConsultationRecordPage({
 
       <ConsultationEngine
         slug={slug}
+        /* ⚠️ THE RECORD'S OWN BRANCH, NOT THE READER'S. Reached by encounter id
+           rather than through a booking, so there is no row carrying a zone —
+           but the encounter names its branch, and an org-wide reader opening a
+           consultation written at another site must see the times where it
+           happened. The appointments page passes the BOOKING's zone for the
+           same reason; the two screens show one record and must agree. */
+        timeZone={await timezoneOfBranch(slug, record.branchId)}
         /* Reached by encounter id, not through a booking — see the page note. */
         appointmentId={null}
         encounter={record}

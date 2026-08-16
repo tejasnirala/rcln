@@ -61,17 +61,50 @@ function isBlank(value: unknown): boolean {
  *   different sentences. A single combined message would tell a clinician their
  *   entry is invalid without telling them which half is wrong.
  */
+/**
+ * `2026-08-16`, and a real day.
+ *
+ * ⚠️ THE REGEX ALONE WOULD ACCEPT `2026-02-31`, which is why the round trip
+ *   through `Date` is here: a calendar date that does not exist renders as
+ *   something else entirely on the printed record, and the only moment anybody
+ *   can fix it is before the record is signed.
+ */
+function isCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+/**
+ * An ISO instant with a `Z` on it — invariant 6, inside a JSONB document.
+ *
+ * ⚠️ A LOCAL WALL CLOCK IS REFUSED, AND THAT IS THE POINT. `datetime-local`
+ *   hands back `2026-08-16T14:30` with no zone, and a clinical answer stored
+ *   that way means 14:30 in whichever zone whoever reads it next happens to be
+ *   in — five and a half hours out between the clinic and the container, with
+ *   nothing on screen saying it shifted. The web control converts through the
+ *   branch's zone before it saves; this is what makes that non-optional.
+ */
+function isInstant(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?Z$/.test(value)) return false;
+  return !Number.isNaN(new Date(value).getTime());
+}
+
 function shapeProblem(field: FieldDescriptor, value: unknown): string | null {
   switch (field.type) {
     case 'TEXT':
     case 'TEXTAREA':
-    case 'DATE':
-    case 'DATETIME':
     case 'SEARCH_SELECT':
     case 'CLINICAL_SELECTOR':
     case 'SELECT':
     case 'RADIO_GROUP':
       return typeof value === 'string' ? null : 'is not text';
+    case 'DATE':
+      if (typeof value !== 'string') return 'is not a date';
+      return isCalendarDate(value) ? null : 'is not a date (expected YYYY-MM-DD)';
+    case 'DATETIME':
+      if (typeof value !== 'string') return 'is not a date and time';
+      return isInstant(value) ? null : 'is not a date and time in UTC (expected an ISO instant)';
     case 'NUMBER':
     case 'MEASUREMENT':
       return typeof value === 'number' && Number.isFinite(value) ? null : 'is not a number';
@@ -79,9 +112,18 @@ function shapeProblem(field: FieldDescriptor, value: unknown): string | null {
       return typeof value === 'boolean' ? null : 'is not true or false';
     case 'MULTI_SELECT':
     case 'CHECKBOX_GROUP':
-      return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+      if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) {
+        return 'is not a list of choices';
+      }
+      /*
+       * ⚠️ THE SAME CHOICE TWICE IS REFUSED RATHER THAN DEDUPLICATED. A list
+       *   that reads "Diabetes, Diabetes" on the printed record is a question
+       *   about the record; silently collapsing it is an edit to what a
+       *   clinician wrote, made by the software, after the fact.
+       */
+      return new Set(value as string[]).size === value.length
         ? null
-        : 'is not a list of choices';
+        : 'has the same choice in it twice';
   }
 }
 
@@ -220,6 +262,179 @@ export function encounterProblems(
         sectionKey: entry.key,
         fieldKey: null,
         problem: `"${entry.key}" is not a section of this consultation`,
+      });
+    }
+  }
+
+  return problems;
+}
+
+// ---------------------------------------------------------------------------
+// The shape of a stored document, independent of any descriptor (CE-8)
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ THE LIMITS THE DESCRIPTORS CANNOT ENFORCE, BECAUSE THEY RUN BEFORE ANY
+ *   DESCRIPTOR IS CONSULTED.
+ *
+ *   `encounter_sections.data` is `Record<string, unknown>` on the wire — and it
+ *   has to be, because narrowing it in Zod would refuse a legal answer for a
+ *   field type added later, at the API, with a patient in the chair (see the
+ *   contract). What that leaves is an unbounded JSONB write behind an autosave
+ *   that fires every few seconds: a megabyte of nesting per keystroke, in the
+ *   densest PHI table in the product, accepted without a word.
+ *
+ *   ⚠️ SO THE AUTOSAVE CHECKS THE SHAPE AND FINALIZATION CHECKS THE MEANING.
+ *     A draft is allowed to be incomplete; it is not allowed to be a document no
+ *     renderer could ever draw. These bounds are deliberately far above any real
+ *     consultation — a history section with two hundred answers is not a form
+ *     somebody filled in.
+ */
+const MAX_FIELDS_PER_SECTION = 200;
+const MAX_KEY_LENGTH = 64;
+const MAX_TEXT_LENGTH = 20_000;
+const MAX_LIST_ENTRIES = 200;
+const MAX_DOCUMENT_BYTES = 64 * 1024;
+
+/**
+ * ⚠️ THE SAME NUMBERS ON BOTH SIDES OF THE DOOR, AND `descriptors.ts` IS THE
+ *   SIDE THAT MATTERS MORE.
+ *
+ *   A template declaring 250 fields, or a checkbox group with 300 options, used
+ *   to publish cleanly and then fail HERE — at the autosave, with a patient in
+ *   the chair, in front of a doctor who did not write the template and cannot
+ *   fix it. The template author is the person who can, and publishing is the
+ *   moment they are present. So the bounds are enforced at BOTH ends and stated
+ *   once.
+ *
+ *   ⚠️ `documentBytes` IS DELIBERATELY NOT MIRRORED AT PUBLISH TIME. The
+ *     worst-case size of a template is the sum of every field's ceiling, and
+ *     four TEXT fields that nobody bounded already exceed 64 KB on paper while
+ *     being an entirely ordinary form. Refusing that would refuse every real
+ *     template to catch a hypothetical one, so the byte ceiling stays where the
+ *     actual bytes are.
+ */
+export const DOCUMENT_LIMITS = {
+  fieldsPerSection: MAX_FIELDS_PER_SECTION,
+  keyLength: MAX_KEY_LENGTH,
+  textLength: MAX_TEXT_LENGTH,
+  listEntries: MAX_LIST_ENTRIES,
+  documentBytes: MAX_DOCUMENT_BYTES,
+} as const;
+/** How many problems one document reports before it stops counting. See below. */
+const MAX_REPORTED_PROBLEMS = 20;
+
+/**
+ * ⚠️ SCALARS AND LISTS OF SCALARS, AND NOTHING ELSE. Every field type in the
+ *   grammar answers with a string, a number, a boolean or a list of strings —
+ *   there is no descriptor that produces a nested object, so one arriving means
+ *   either a caller that is not the consultation screen or a shape no
+ *   `FieldRenderer` branch can render. Refusing it here keeps the one thing
+ *   `validateEncounter` assumes about a stored document true.
+ */
+function valueProblem(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'boolean') return null;
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? null : 'is not a finite number';
+  }
+  if (typeof value === 'string') {
+    return value.length > MAX_TEXT_LENGTH
+      ? `is longer than ${String(MAX_TEXT_LENGTH)} characters`
+      : null;
+  }
+  if (Array.isArray(value)) {
+    if (value.length > MAX_LIST_ENTRIES) {
+      return `has more than ${String(MAX_LIST_ENTRIES)} entries`;
+    }
+    for (const entry of value) {
+      if (typeof entry === 'string') {
+        if (entry.length > MAX_TEXT_LENGTH) {
+          return `has an entry longer than ${String(MAX_TEXT_LENGTH)} characters`;
+        }
+        continue;
+      }
+      if (typeof entry === 'number' && Number.isFinite(entry)) continue;
+      if (typeof entry === 'boolean') continue;
+      return 'is a list of something no field can hold';
+    }
+    return null;
+  }
+  return 'is not an answer any field can hold';
+}
+
+/**
+ * Everything structurally wrong with one section's document.
+ *
+ * ⚠️ CHECKED AT AUTOSAVE, NOT ONLY AT FINALIZATION, and that is the opposite of
+ *   the rule the rest of this file follows — deliberately. The descriptor checks
+ *   wait for the signature because interrupting a half-typed examination is
+ *   worse than the incompleteness. These do not, because what they refuse is not
+ *   an incomplete answer: it is a write that would put a document in the table
+ *   that nothing can render and nobody can correct afterwards.
+ */
+export function documentProblems(
+  sectionKey: string,
+  data: Readonly<Record<string, unknown>>
+): readonly ValidationProblem[] {
+  const problems: ValidationProblem[] = [];
+  const keys = Object.keys(data);
+
+  if (keys.length > MAX_FIELDS_PER_SECTION) {
+    problems.push({
+      sectionKey,
+      fieldKey: null,
+      problem: `"${sectionKey}" has more than ${String(MAX_FIELDS_PER_SECTION)} answers in it`,
+    });
+  }
+
+  for (const key of keys) {
+    /*
+     * ⚠️ THE LIST OF PROBLEMS IS BOUNDED, AND THE REASON IS THE FUNCTION'S OWN.
+     *   `encounterProblems` reports every problem at once because a doctor sent
+     *   back three times for three fields learns to distrust the button — and it
+     *   can, because the fields it walks come from a template the grammar has
+     *   already bounded. THIS walks a document from the wire. A megabyte of
+     *   one-character keys is a hundred thousand problems, which the caller
+     *   joins into one sentence, puts in a 400 body AND logs at error level: a
+     *   validator turned into an amplifier. Twenty is more than anybody reads.
+     */
+    if (problems.length >= MAX_REPORTED_PROBLEMS) {
+      problems.push({
+        sectionKey,
+        fieldKey: null,
+        problem: `"${sectionKey}" has more wrong with it than can be listed`,
+      });
+      return problems;
+    }
+
+    if (key.length > MAX_KEY_LENGTH) {
+      problems.push({
+        sectionKey,
+        fieldKey: key,
+        problem: `a field name longer than ${String(MAX_KEY_LENGTH)} characters is not a field`,
+      });
+      continue;
+    }
+    const problem = valueProblem(data[key]);
+    if (problem !== null) {
+      problems.push({ sectionKey, fieldKey: key, problem: `"${key}" ${problem}` });
+    }
+  }
+
+  /*
+   * ⚠️ THE BYTE CEILING IS LAST AND IS MEASURED ON THE SERIALISED DOCUMENT,
+   *   because two hundred legal answers of twenty thousand characters each is
+   *   every per-value bound satisfied and four megabytes written.
+   */
+  if (problems.length === 0) {
+    /* `TextEncoder` rather than `Buffer` — this package runs in the browser too. */
+    const size = new TextEncoder().encode(JSON.stringify(data)).length;
+    if (size > MAX_DOCUMENT_BYTES) {
+      problems.push({
+        sectionKey,
+        fieldKey: null,
+        problem: `"${sectionKey}" is larger than ${String(MAX_DOCUMENT_BYTES / 1024)} KB`,
       });
     }
   }

@@ -158,7 +158,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
  * compromised account after the fact.
  */
 export function authorize(...permissions: PermissionCode[]): RequestHandler {
-  return (req: Request, _res: Response, next: NextFunction): void => {
+  const handler: RequestHandler = (req: Request, _res: Response, next: NextFunction): void => {
     void (async (): Promise<void> => {
       const auth = req.auth;
       if (!auth) {
@@ -208,6 +208,31 @@ export function authorize(...permissions: PermissionCode[]): RequestHandler {
       }
     })();
   };
+
+  /*
+   * ⚠️ THE GATE, LEGIBLE FROM OUTSIDE THE CLOSURE (CE-8). An Express router
+   *   stack is a list of anonymous functions, so "is this route gated, and by
+   *   what" is a question nothing could ask — and an ungated route looks exactly
+   *   like a gated one in a diff, in a review and at runtime until somebody
+   *   walks through the hole. Stamping the codes onto the handler is what lets
+   *   `tests/unit/route-gates.test.ts` audit every clinical route at once.
+   *
+   *   Non-enumerable so it stays out of logs and out of anything that
+   *   serialises a middleware stack.
+   */
+  Object.defineProperty(handler, 'requiredPermissions', {
+    value: Object.freeze([...permissions]),
+    enumerable: false,
+  });
+
+  return handler;
+}
+
+/** The permission codes an `authorize(...)` handler was built with, if it is one. */
+export function requiredPermissionsOf(handler: unknown): readonly PermissionCode[] | null {
+  if (typeof handler !== 'function') return null;
+  const codes = (handler as { requiredPermissions?: unknown }).requiredPermissions;
+  return Array.isArray(codes) ? (codes as PermissionCode[]) : null;
 }
 
 /** The `/platform` console. Membership is irrelevant; the flag is everything. */

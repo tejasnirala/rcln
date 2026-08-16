@@ -5,15 +5,15 @@ the generic, configuration-driven clinical consultation platform. Everything
 about this programme lives in this directory. Start here.
 
 ```text
-CURRENT PHASE:        CE-2 — Templates and the configuration resolver
+CURRENT PHASE:        CE-8 — Hardening
 CURRENT STATUS:       COMPLETE
-LAST COMPLETED PHASE: CE-2 — Templates and the configuration resolver
-CURRENT WORK:         none — CE-2 shipped
-NEXT PHASE:           CE-3 — Encounter core and lifecycle
-BLOCKERS:             none. The resolver answers what a screen should be; CE-3
-                      builds the screen and the record behind it.
-BRANCH:               feat/ce-2-templates-resolver
-LAST UPDATED:         2026-08-14
+LAST COMPLETED PHASE: CE-8 — Hardening
+CURRENT WORK:         none — the programme is finished
+NEXT PHASE:           none. CE-0 through CE-8 are done; open work is elsewhere,
+                      see .kb/STATUS.md
+BLOCKERS:             none
+BRANCH:               feat/ce-8-hardening
+LAST UPDATED:         2026-08-16
 ```
 
 ---

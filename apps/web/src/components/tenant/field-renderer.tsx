@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { ConsultationFieldConfig } from '@rcln/contracts';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { cn } from '@/lib/cn';
+import { clinicInputValueOf, clinicInstantOf } from '@/lib/format';
 import { searchClinicalTerms } from '@/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions';
 
 /**
@@ -38,6 +39,16 @@ export interface FieldRendererProps {
   sectionKey: string;
   /** The clinic, for the server-backed selectors. Bound, never user-supplied. */
   slug: string;
+  /**
+   * The branch's zone, for DATETIME.
+   *
+   * ⚠️ REQUIRED RATHER THAN DEFAULTED, and it is the only prop here that is a
+   *   correctness matter rather than a rendering one. A `datetime-local` control
+   *   speaks wall clock and the record stores instants; without the zone the
+   *   conversion between them is a guess, and a wrong guess is a clinical answer
+   *   that is hours out and looks perfectly ordinary.
+   */
+  timeZone: string;
   /** The section's vocabulary scope. Ranks the selector's results (§34). */
   scopeId?: string | undefined;
 }
@@ -54,6 +65,7 @@ export function FieldRenderer({
   disabled,
   sectionKey,
   slug,
+  timeZone,
   scopeId,
 }: FieldRendererProps) {
   const name = `${sectionKey}.${field.key}`;
@@ -156,14 +168,38 @@ export function FieldRenderer({
       );
 
     case 'DATE':
-    case 'DATETIME':
+      /* A calendar date has no zone and needs none — `1998-04-02` is a birthday
+         in every timezone. `YYYY-MM-DD` is what the control speaks and what the
+         engine stores; there is nothing to convert. */
       return (
         <Input
           {...shared}
           name={name}
-          type={field.type === 'DATE' ? 'date' : 'datetime-local'}
+          type="date"
           value={asString(value)}
           onChange={(event) => onChange(event.target.value === '' ? undefined : event.target.value)}
+        />
+      );
+
+    case 'DATETIME':
+      /*
+       * ⚠️ THE CONTROL SPEAKS THE BRANCH'S WALL CLOCK AND THE RECORD STORES AN
+       *   INSTANT (invariant 6). `datetime-local` has no zone in it at all, so
+       *   `2026-08-16T14:30` typed in Kolkata and read back in the container
+       *   would be the same string and a different moment. Converting on both
+       *   edges is what makes the stored answer mean one thing.
+       */
+      return (
+        <Input
+          {...shared}
+          name={name}
+          type="datetime-local"
+          value={typeof value === 'string' ? clinicInputValueOf(value, timeZone) : ''}
+          onChange={(event) =>
+            onChange(
+              event.target.value === '' ? undefined : clinicInstantOf(event.target.value, timeZone)
+            )
+          }
         />
       );
 

@@ -32,6 +32,7 @@
  */
 import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcln/db';
 import {
+  documentProblems,
   requiredContentSections,
   validateEncounter,
   type ConsultationSectionType,
@@ -47,6 +48,7 @@ import type {
   SaveEncounterDraftRequest,
 } from '@rcln/contracts';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
+import { logger } from '../../utils/logger.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { recordDataAccess } from '../audit/data-access.service.js';
 import { issueNumber } from '../numbering/number-sequence.service.js';
@@ -232,6 +234,22 @@ function assertDraft(row: { status: string }): void {
   throw new ConflictError('This consultation was cancelled.');
 }
 
+/**
+ * The one live consultation of a visit, if there is one.
+ *
+ * ⚠️ `DRAFT` OR `FINALIZED`, AND NEVER THE SUPERSEDED ONES. An amendment
+ *   supersedes its original (CD-2), so an appointment carries a chain and
+ *   exactly one row of it is current — the partial unique index says the same
+ *   thing to the database. Three callers ask this question, and asking it three
+ *   ways is how one of them would eventually resume a cancelled draft.
+ */
+async function liveEncounterFor(tx: TxClient, appointmentId: string): Promise<DetailRow | null> {
+  return tx.encounter.findFirst({
+    where: { appointmentId, deletedAt: null, status: { in: ['DRAFT', 'FINALIZED'] } },
+    select: DETAIL_SELECT,
+  });
+}
+
 async function loadForWrite(tx: TxClient, encounterId: string): Promise<DetailRow> {
   const row = await tx.encounter.findFirst({
     where: { id: encounterId, deletedAt: null },
@@ -411,24 +429,97 @@ async function resolveDoctorProfile(
  *   template on resume is exactly the bug §29 describes: a clinic that publishes
  *   a new version at lunchtime would move the fields under a doctor who started
  *   at eleven.
+ *
+ * ⚠️ AND THE LOST RACE IS RESOLVED HERE RATHER THAN RETURNED (CE-8). The read
+ *   below is a fast path, not a lock: two tabs opening one visit at the same
+ *   instant both find nothing and both INSERT, and the index refuses the second.
+ *   That refusal used to reach the doctor as a 409 on the one screen they cannot
+ *   proceed without — for a consultation that exists and is theirs. The retry
+ *   below re-reads it and answers with it, which is what the first call would
+ *   have done a millisecond earlier.
+ *
+ *   ⚠️ IT RETRIES OUTSIDE THE TRANSACTION, NOT INSIDE IT. A constraint violation
+ *     aborts the Postgres transaction; every subsequent statement in it fails
+ *     with 25P02, so a `catch` around the INSERT could not read anything.
  */
 export async function openEncounter(
   ctx: TenantContext,
   input: OpenEncounterRequest,
   options: EncounterRequestOptions = {}
 ): Promise<EncounterDetail> {
+  const appointmentId = input.appointmentId;
+  try {
+    return await openEncounterOnce(ctx, input, options);
+  } catch (error) {
+    if (appointmentId === undefined || !isUniqueViolation(error)) throw error;
+
+    /*
+     * ⚠️ THIS PATH IS REACHABLE ONLY AFTER `openEncounterOnce` GOT AS FAR AS THE
+     *   INSERT, AND THAT PRECONDITION IS LOAD-BEARING. `subjectFromRequest` has
+     *   therefore already refused a cancelled booking, a booking at a branch
+     *   outside scope, a merged patient and a closed episode — none of which is
+     *   re-checked here, because none of them can have become true in the
+     *   milliseconds since.
+     *
+     * ⚠️ AND THE RE-READ IS `getEncounterForAppointment`, NOT A SECOND COPY OF
+     *   IT. That function already asks exactly this question — the live
+     *   consultation of a visit, branch-checked, disclosure logged — and two
+     *   implementations of "which record is current for this booking" is how one
+     *   of them eventually resumes a cancelled draft.
+     */
+    const resumed = await getEncounterForAppointment(ctx, appointmentId, options);
+    /*
+     * ⚠️ NOTHING TO RESUME MEANS THE CLASH WAS SOMETHING ELSE ENTIRELY — a
+     *   live amendment, a future constraint, a bug — and it becomes a 409 rather
+     *   than being rethrown raw. A bare `23505` from the driver adapter is
+     *   neither an `AppError` nor `P2002`, so rethrowing produces a 500 and a
+     *   stack carrying the constraint's key values.
+     *
+     *   ⚠️ BUT THE ORIGINAL IS LOGGED BEFORE IT IS REPLACED. The caller gets the
+     *     right status either way; the operator would otherwise lose the only
+     *     evidence of WHICH constraint fired, and be told to retry something
+     *     that will never succeed.
+     */
+    if (resumed === null) {
+      logger.error(
+        { err: error, appointmentId, organizationId: ctx.organizationId },
+        'encounter insert hit a unique violation with no live encounter to resume'
+      );
+      throw new ConflictError('That consultation could not be opened. Try again.');
+    }
+    return resumed;
+  }
+}
+
+/**
+ * ⚠️ A UNIQUE VIOLATION, HOWEVER PRISMA 7 HAPPENS TO WRAP IT. The pg driver
+ *   adapter does not always surface `P2002` — a raw `23505` arrives on the
+ *   driver error instead — and `clinical-taxonomy.service.ts` says the same
+ *   thing at more length. Reading both is what keeps this working across an
+ *   adapter change.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const code = (error as { code?: unknown }).code;
+  if (code === 'P2002' || code === '23505') return true;
+  const cause = (error as { cause?: unknown }).cause;
+  if (typeof cause === 'object' && cause !== null) {
+    const causeCode = (cause as { code?: unknown }).code;
+    return causeCode === 'P2002' || causeCode === '23505';
+  }
+  return false;
+}
+
+async function openEncounterOnce(
+  ctx: TenantContext,
+  input: OpenEncounterRequest,
+  options: EncounterRequestOptions
+): Promise<EncounterDetail> {
   return withTenant(ctx, async (tx) => {
     const subject = await subjectFromRequest(tx, ctx, input);
 
     if (subject.appointmentId !== null) {
-      const existing = await tx.encounter.findFirst({
-        where: {
-          appointmentId: subject.appointmentId,
-          deletedAt: null,
-          status: { in: ['DRAFT', 'FINALIZED'] },
-        },
-        select: DETAIL_SELECT,
-      });
+      const existing = await liveEncounterFor(tx, subject.appointmentId);
       if (existing) {
         await recordDataAccess(tx, ctx, {
           accessType: 'VIEW',
@@ -531,14 +622,7 @@ export async function getEncounterForAppointment(
   options: EncounterRequestOptions = {}
 ): Promise<EncounterDetail | null> {
   return withTenant(ctx, async (tx) => {
-    const row = await tx.encounter.findFirst({
-      where: {
-        appointmentId,
-        deletedAt: null,
-        status: { in: ['DRAFT', 'FINALIZED'] },
-      },
-      select: DETAIL_SELECT,
-    });
+    const row = await liveEncounterFor(tx, appointmentId);
     if (!row) return null;
     if (!ctx.branchIds.includes(row.branchId)) return null;
 
@@ -578,6 +662,25 @@ export async function saveEncounterDraft(
   encounterId: string,
   input: SaveEncounterDraftRequest
 ): Promise<EncounterSaveResponse> {
+  /*
+   * ⚠️ THE SHAPE IS CHECKED BEFORE THE TRANSACTION OPENS, AND THE MEANING AT
+   *   FINALIZATION (CE-8). A draft is allowed to be incomplete — that is what a
+   *   draft IS — but it is not allowed to be a document nothing can render, and
+   *   `data` is an open record on the wire by necessity, so this is the only
+   *   place between an autosave and the JSONB column.
+   *
+   *   ⚠️ OUTSIDE `withTenant` BECAUSE IT NEEDS NOTHING FROM IT. Serialising a
+   *     fifty-section payload inside the transaction would hold a pooled
+   *     connection open for the length of a check whose whole purpose is to
+   *     refuse that payload — the caller pays for the abuse twice.
+   */
+  for (const section of input.sections ?? []) {
+    const shape = documentProblems(section.key, section.data);
+    if (shape.length > 0) {
+      throw new ValidationError(shape.map((entry) => entry.problem).join('; '));
+    }
+  }
+
   return withTenant(ctx, async (tx) => {
     const row = await loadForWrite(tx, encounterId);
     assertBranchInScope(ctx, row.branchId);

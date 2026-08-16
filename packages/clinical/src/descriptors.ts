@@ -38,6 +38,7 @@ import type {
   Parsed,
 } from './types.js';
 import { CONSULTATION_FIELD_TYPES } from './types.js';
+import { DOCUMENT_LIMITS } from './validate.js';
 
 function fail<T>(problem: string): Parsed<T> {
   return { ok: false, problem };
@@ -163,7 +164,7 @@ function readOptionalNumber(
   source: Record<string, unknown>,
   key: string,
   where: string,
-  options: { integer?: boolean; min?: number } = {}
+  options: { integer?: boolean; min?: number; max?: number } = {}
 ): Parsed<number | undefined> {
   const raw = source[key];
   if (raw === undefined || raw === null) return { ok: true, value: undefined };
@@ -175,6 +176,9 @@ function readOptionalNumber(
   }
   if (options.min !== undefined && raw < options.min) {
     return fail(`${where}'s "${key}" is less than ${options.min}`);
+  }
+  if (options.max !== undefined && raw > options.max) {
+    return fail(`${where}'s "${key}" is more than ${options.max}`);
   }
   return { ok: true, value: raw };
 }
@@ -189,6 +193,17 @@ function readOptions(raw: unknown, where: string): Parsed<readonly FieldOption[]
    *   loading failure rather than a broken template.
    */
   if (raw.length === 0) return fail(`${where}'s "options" is empty`);
+  /*
+   * ⚠️ AND A CEILING, BECAUSE THE ANSWER HAS ONE (CE-8). A stored list answer is
+   *   bounded at `DOCUMENT_LIMITS.listEntries`, so a group offering more choices
+   *   than a clinician could ever legally tick is a template that publishes and
+   *   then cannot be filled in.
+   */
+  if (raw.length > DOCUMENT_LIMITS.listEntries) {
+    return fail(
+      `${where}'s "options" has more than ${String(DOCUMENT_LIMITS.listEntries)} choices in it`
+    );
+  }
 
   const seen = new Set<string>();
   const parsed: FieldOption[] = [];
@@ -322,7 +337,13 @@ export function parseFieldDescriptor(input: unknown, where: string): Parsed<Fiel
     return fail(`${where} has a "min" greater than its "max"`);
   }
 
-  const maxLength = readOptionalNumber(source, 'maxLength', where, { integer: true, min: 1 });
+  const maxLength = readOptionalNumber(source, 'maxLength', where, {
+    integer: true,
+    min: 1,
+    /* The stored answer's own ceiling. A field that permitted more would be a
+       form the autosave refuses — see DOCUMENT_LIMITS. */
+    max: DOCUMENT_LIMITS.textLength,
+  });
   if (!maxLength.ok) return fail(maxLength.problem);
   if (maxLength.value !== undefined) descriptor.maxLength = maxLength.value;
 
@@ -356,6 +377,16 @@ export function parseFieldDescriptors(
 ): Parsed<readonly FieldDescriptor[]> {
   if (!Array.isArray(input)) return fail(`${where}'s "fields" is not a list`);
   if (input.length === 0) return fail(`${where}'s "fields" is empty`);
+  /*
+   * ⚠️ AND A CEILING, FOR THE REASON `readOptions` HAS ONE (CE-8). A section of
+   *   250 fields writes a document the autosave refuses — at the keyboard of a
+   *   doctor who did not write the template. The author is told here instead.
+   */
+  if (input.length > DOCUMENT_LIMITS.fieldsPerSection) {
+    return fail(
+      `${where}'s "fields" has more than ${String(DOCUMENT_LIMITS.fieldsPerSection)} fields in it`
+    );
+  }
 
   const seen = new Set<string>();
   const fields: FieldDescriptor[] = [];

@@ -35,8 +35,7 @@ sources, 22 rules — read from CDSCO's own consolidated Drugs Rules, 1945 and t
 Pharmacy Act, 1948 on India Code, at maturity `AUTOMATED_TESTED`. Goods receipt
 and transfer now consult the engine while posting.
 
-**The Consultation Engine programme has also started, and CE-0 through CE-6 are
-done** — the clinical vocabulary, the treatment journey, the configuration layer,
+**The Consultation Engine programme is COMPLETE — CE-0 through CE-8** — the clinical vocabulary, the treatment journey, the configuration layer,
 the consultation itself and now its content. `@rcln/clinical` is the tested core;
 a template resolves from an appointment by walking the doctor's classification up
 to the patient's care context, most specific wins. Adding a specialty is meant to
@@ -51,8 +50,12 @@ the recall screen — and CE-6 added the chart: `visual_maps`, `visual_regions` 
 `clinical_findings`, with the 32-tooth FDI odontogram seeded and ONE generic
 renderer in `apps/web` that knows nothing about teeth. CE-7 then added the scalp
 and body charts and the dentistry and hair-and-scalp templates as SEED ROWS,
-which is the proof the renderer is generic. What is left is CE-8's hardening.
-Everything about that programme lives in
+which is the proof the renderer is generic. CE-8 then hardened it: a DATE is a
+calendar day and a DATETIME an ISO instant, a stored section document is bounded
+at autosave, the lost open race resumes the draft instead of returning a 409,
+the recall list's scan is bounded by a partial index, and every clinical route's
+permission gate is now audited off the Express stack rather than off a list
+somebody maintains. Everything about that programme lives in
 [`Consultation/`](Consultation/README.md).
 
 ⚠️ **NOTHING BLOCKS ON IT, AND THAT IS THE DESIGN.** One country has a pack, so
@@ -1036,8 +1039,15 @@ Its own programme, with its own tracker. Full detail in
       of the same engine, which was the phase's whole definition of done (CD-18).
       `db:rls:check` unchanged at **111**. The one piece of code was the region
       picker on a procedure that CE-6 deferred here.
-- [ ] **CE-8.** Hardening: validation, the permission audit, search performance,
-      error handling and both reviewer subagents.
+- [x] **CE-8 — hardening.** No endpoint, no permission code, no table. DATE and
+      DATETIME are validated as what they are (invariant 6 inside a JSONB
+      document); `documentProblems` bounds a stored section at AUTOSAVE, which is
+      the one engine rule that does not wait for the signature; the LOST
+      open-consultation race resumes the existing draft instead of 409-ing the
+      doctor; `authorize()` stamps its codes so `route-gates.test.ts` can audit
+      every clinical route; and one partial index bounds the recall list's scan,
+      confirmed with `EXPLAIN`. Plus the §40 journey, walked end to end in one
+      suite. `db:rls:check` unchanged at **111**.
 
 ### Consultation fees and doctor compensation
 

@@ -3,17 +3,17 @@
 Short by design. The reasoning lives in [DECISIONS.md](DECISIONS.md); the
 per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 
-| Phase | Scope                                | Status         |
-| ----- | ------------------------------------ | -------------- |
-| CE-0  | Repository analysis                  | ✅ complete    |
-| CE-1  | Clinical foundation                  | ✅ complete    |
-| CE-2  | Templates + config resolver          | ✅ complete    |
-| CE-3  | Encounter core + lifecycle           | ✅ complete    |
-| CE-4  | Clinical content sections            | ✅ complete    |
-| CE-5  | Visit history + episodes             | ✅ complete    |
-| CE-6  | Visual mapping engine + HUMAN_DENTAL | ✅ complete    |
-| CE-7  | HUMAN_SCALP/BODY + reference configs | ✅ complete    |
-| CE-8  | Hardening                            | ⬜ not started |
+| Phase | Scope                                | Status      |
+| ----- | ------------------------------------ | ----------- |
+| CE-0  | Repository analysis                  | ✅ complete |
+| CE-1  | Clinical foundation                  | ✅ complete |
+| CE-2  | Templates + config resolver          | ✅ complete |
+| CE-3  | Encounter core + lifecycle           | ✅ complete |
+| CE-4  | Clinical content sections            | ✅ complete |
+| CE-5  | Visit history + episodes             | ✅ complete |
+| CE-6  | Visual mapping engine + HUMAN_DENTAL | ✅ complete |
+| CE-7  | HUMAN_SCALP/BODY + reference configs | ✅ complete |
+| CE-8  | Hardening                            | ✅ complete |
 
 ## CE-1 — done
 
@@ -150,6 +150,27 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
       and no way to fill it in; this is that way. **No second renderer**
 - [x] Tests — 12 integration, in `reference-configurations.test.ts`: one doctor,
       reclassified three times, gets three different consultations
+
+## CE-8 — done
+
+- [x] Schema — **none.** One hand-written partial index for the recall list;
+      `db:rls:check` unchanged at **111**
+- [x] Validation — DATE is a calendar day, DATETIME is an ISO instant with a `Z`
+      (invariant 6), a repeated choice is refused, and `documentProblems` bounds
+      the stored document at AUTOSAVE rather than at signing
+- [x] Lifecycle — the LOST open race resumes the existing draft instead of
+      returning a 409; `liveEncounterFor` is the one answer to "which
+      consultation is live for this visit"
+- [x] Permissions — `authorize()` stamps its codes; `route-gates.test.ts` audits
+      all four clinical routers off the Express stack; `roles.test.ts` enumerates
+      every `clinical.*` code instead of restating five
+- [x] Search — a partial index over the outstanding recall predicates. `EXPLAIN`
+      confirms the planner uses it
+- [x] Web — `FieldRenderer` takes a required `timeZone`; `clinicInstantOf` /
+      `clinicInputValueOf` in `lib/format.ts`
+- [x] Tests — 20 clinical unit, 14 api unit, 18 integration (`§40`, one patient
+      end to end)
+- [x] Both reviewer subagents run
 
 ## Not done in CE-7, and deliberately
 

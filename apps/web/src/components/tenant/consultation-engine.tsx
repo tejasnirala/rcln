@@ -178,6 +178,7 @@ function regionChoices(
 
 export function ConsultationEngine({
   slug,
+  timeZone,
   appointmentId,
   encounter,
   canWrite,
@@ -185,6 +186,14 @@ export function ConsultationEngine({
   canAmend,
 }: {
   slug: string;
+  /**
+   * The branch's zone, for the DATETIME controls (CE-8).
+   *
+   * ⚠️ THE BRANCH'S, NOT THE BROWSER'S AND NOT THE CONTAINER'S. A DATETIME
+   *   answer is stored as an instant and typed as a wall clock, and the zone is
+   *   the only thing that connects the two — see `lib/format.ts`.
+   */
+  timeZone: string;
   /**
    * The visit this consultation belongs to.
    *
@@ -453,6 +462,7 @@ export function ConsultationEngine({
                 setSectionField={setSectionField}
                 readOnly={readOnly}
                 slug={slug}
+                timeZone={timeZone}
                 content={contentHandlers}
                 chartRegions={chartRegions}
               />
@@ -532,6 +542,7 @@ function SectionBody({
   setSectionField,
   readOnly,
   slug,
+  timeZone,
   content,
   chartRegions,
 }: {
@@ -541,6 +552,8 @@ function SectionBody({
   setSectionField: (sectionKey: string, fieldKey: string, value: FieldValue) => void;
   readOnly: boolean;
   slug: string;
+  /** The branch's zone, for the DATETIME controls. */
+  timeZone: string;
   /** The clinical content and the three verbs over it (CE-4). */
   content: ContentHandlers | null;
   /** Every place this consultation's charts offer. Empty when it has none. */
@@ -696,6 +709,7 @@ function SectionBody({
             field={field}
             sectionKey={section.key}
             slug={slug}
+            timeZone={timeZone}
             value={answers[field.key]}
             disabled={readOnly}
             {...(section.scopeIds[0] !== undefined ? { scopeId: section.scopeIds[0] } : {})}

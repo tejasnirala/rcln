@@ -46,7 +46,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Change` <sub>local</sub> | `({ change, temperatureUnit, }: { change: VitalsChange; tempe…)` | `apps/web/src/components/tenant/vitals-history.tsx:211` |  |
 | `ChannelRow` <sub>local</sub> | `({ slug, channel, label, destination, verified }: Channel & …)` | `apps/web/src/components/tenant/contact-verification.tsx:93` |  |
 | `Charge` <sub>local</sub> | `({ charge, currency, billing, }: { charge: ConsultationCharg…)` | `apps/web/src/components/tenant/appointment-billing-panel.tsx:204` |  |
-| `ChoiceGroup` <sub>local</sub> | `({ field, name, type, selected, disabled, onToggle, }: { fie…)` | `apps/web/src/components/tenant/field-renderer.tsx:225` |  |
+| `ChoiceGroup` <sub>local</sub> | `({ field, name, type, selected, disabled, onToggle, }: { fie…)` | `apps/web/src/components/tenant/field-renderer.tsx:261` |  |
 | `CHOICES` <sub>local</sub> | `: { outcome: Outcome; label: string; note: string; variant: 'primary' \| 'secondar…` | `apps/web/src/components/tenant/sandbox-checkout.tsx:23` |  |
 | `ClassificationPicker` | `({ specialties, defaultValue = [], label = 'Clinical classif…)` | `apps/web/src/components/tenant/classification-picker.tsx:61` |  |
 | `ClassificationSummary` <sub>local</sub> | `({ entry }: { entry: ClassificationEntry }): React.ReactNode` | `apps/web/src/components/tenant/classification-picker.tsx:306` |  |
@@ -59,7 +59,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `ConditionsPanel` <sub>local</sub> | `({ slug, patientId, conditions, canWrite, open, onToggle, }:…)` | `apps/web/src/components/tenant/patient-chart.tsx:442` |  |
 | `Confirm` <sub>local</sub> | `({ heading, body, confirmLabel, pending, reason, onCancel, o…)` | `apps/web/src/components/tenant/invoice-detail.tsx:585` |  |
 | `Confirmation` <sub>local</sub> | `({ slug, planPriceId, quote, quoteError, quoting, prorates, …)` | `apps/web/src/components/tenant/billing-screen.tsx:579` |  |
-| `ConsultationEngine` | `({ slug, appointmentId, encounter, canWrite, canFinalize, ca…)` | `apps/web/src/components/tenant/consultation-engine.tsx:179` |  |
+| `ConsultationEngine` | `({ slug, timeZone, appointmentId, encounter, canWrite, canFi…)` | `apps/web/src/components/tenant/consultation-engine.tsx:179` |  |
 | `ConsultationTemplateEditor` | `({ slug, template, shownVersionId, }: { slug: string; templa…)` | `apps/web/src/components/tenant/consultation-template-editor.tsx:51` |  |
 | `ConsultationTemplateList` | `({ slug, data, specialties, }: { slug: string; data: Consult…)` | `apps/web/src/components/tenant/consultation-template-list.tsx:30` |  |
 | `ContactsPanel` <sub>local</sub> | `({ patient }: { patient: PatientDetail })` | `apps/web/src/components/tenant/patient-chart.tsx:413` |  |
@@ -116,7 +116,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Fact` <sub>local</sub> | `({ label, value }: { label: string; value: string })` | `apps/web/src/components/tenant/product-panel.tsx:458` |  |
 | `FeeLine` <sub>local</sub> | `({ slug, branchId, doctorProfileId, visitType, }: { slug: st…)` | `apps/web/src/components/tenant/appointment-board.tsx:1464` |  |
 | `FeeScheduleGrid` | `({ slug, doctorProfileId, branches, initial, canEdit, }: { s…)` | `apps/web/src/components/tenant/fee-schedule-grid.tsx:66` |  |
-| `FieldRenderer` | `({ field, value, onChange, disabled, sectionKey, slug, scope…)` | `apps/web/src/components/tenant/field-renderer.tsx:50` |  |
+| `FieldRenderer` | `({ field, value, onChange, disabled, sectionKey, slug, timeZ…)` | `apps/web/src/components/tenant/field-renderer.tsx:61` |  |
 | `FindingDots` <sub>local</sub> | `({ x, y, count }: { x: number; y: number; count: number })` | `apps/web/src/components/tenant/visual-mapping.tsx:217` | One dot per finding, up to three, then a plus. |
 | `FindingRow` <sub>local</sub> | `({ finding, diagnoses, readOnly, onEdit, onRemove, }: { find…)` | `apps/web/src/components/tenant/visual-mapping.tsx:480` |  |
 | `FollowUpForm` | `({ slug, /** The visit being followed up — the API reads pat…)` | `apps/web/src/components/tenant/follow-up-form.tsx:45` |  |
@@ -281,12 +281,12 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `SCHEMES` <sub>local</sub> | `[ { value: 'GST', label: 'GST' }, { value: 'VAT', label: 'VAT' }, { value: 'SALES_TAX', l…` | `apps/web/src/components/tenant/tax-rate-card.tsx:741` |  |
 | `SearchForm` <sub>local</sub> | `({ action, pending, state, multiBranch, }: { action: (formDa…)` | `apps/web/src/components/tenant/patient-search.tsx:239` |  |
 | `Section` <sub>local</sub> | `({ title, note, children, }: { title: string; note?: string;…)` | `apps/web/src/components/tenant/doctor-create-form.tsx:575` |  |
-| `SectionBody` <sub>local</sub> | `({ section, draft, edit, setSectionField, readOnly, slug, co…)` | `apps/web/src/components/tenant/consultation-engine.tsx:528` |  |
+| `SectionBody` <sub>local</sub> | `({ section, draft, edit, setSectionField, readOnly, slug, ti…)` | `apps/web/src/components/tenant/consultation-engine.tsx:538` |  |
 | `SectionHeader` <sub>local</sub> | `({ title, blurb }: { title: string; blurb: string })` | `apps/web/src/components/tenant/regulatory-lists.tsx:88` |  |
 | `SendPanel` <sub>local</sub> | `({ slug, transferId, transfer, }: { slug: string; transferId…)` | `apps/web/src/components/tenant/transfer-detail.tsx:226` |  |
 | `SerialForm` | `({ slug, branches, products, batches, locations, moreLots }:…)` | `apps/web/src/components/tenant/serial-form.tsx:47` |  |
 | `SerialList` | `({ serials, meta, canManage, }: { serials: SerialListRespons…)` | `apps/web/src/components/tenant/serial-list.tsx:35` |  |
-| `ServerSelect` <sub>local</sub> | `({ field, name, value, disabled, slug, scopeId, onChange, }:…)` | `apps/web/src/components/tenant/field-renderer.tsx:286` |  |
+| `ServerSelect` <sub>local</sub> | `({ field, name, value, disabled, slug, scopeId, onChange, }:…)` | `apps/web/src/components/tenant/field-renderer.tsx:322` |  |
 | `SettingRow` <sub>local</sub> | `({ slug, setting, canEdit, }: { slug: string; setting: Setti…)` | `apps/web/src/components/tenant/clinic-settings.tsx:117` |  |
 | `SEVERITIES` <sub>local</sub> | `[ { value: 'MILD', label: 'Mild' }, { value: 'MODERATE', label: 'Moderate' }, { value: 'S…` | `apps/web/src/components/tenant/consultation-content.tsx:387` |  |
 | `SEVERITIES` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/patient-chart.tsx:44` |  |
@@ -378,9 +378,9 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `ageLabel` <sub>local</sub> | `(years: number): string` | `apps/web/src/components/tenant/patient-search.tsx:112` | Plain words for the age line under the date field. |
 | `amount` <sub>local</sub> | `(minor: number, currency: string): string` | `apps/web/src/components/tenant/billing-screen.tsx:32` |  |
 | `askedFor` <sub>local</sub> | `(row: FollowUpRecallEntry, timezone: string): string` | `apps/web/src/components/tenant/recall-list.tsx:58` | "in 15 days", "on 4 September" — whichever half the doctor actually gave. |
-| `asList` <sub>local</sub> | `(value: FieldValue): string[]` | `apps/web/src/components/tenant/field-renderer.tsx:48` |  |
+| `asList` <sub>local</sub> | `(value: FieldValue): string[]` | `apps/web/src/components/tenant/field-renderer.tsx:59` |  |
 | `asOptions` <sub>local</sub> | `(values: string[])` | `apps/web/src/components/tenant/product-panel.tsx:133` |  |
-| `asString` <sub>local</sub> | `(value: FieldValue): string` | `apps/web/src/components/tenant/field-renderer.tsx:45` |  |
+| `asString` <sub>local</sub> | `(value: FieldValue): string` | `apps/web/src/components/tenant/field-renderer.tsx:56` |  |
 | `boxFor` <sub>local</sub> | `(range: VitalRange): { type: 'number'; min: number; max: number; step: number; i…` | `apps/web/src/components/tenant/vitals-panel.tsx:563` |  |
 | `clinicNav` <sub>local</sub> | `(permissions: string[]): NavLink[]` | `apps/web/src/components/tenant/tenant-header.tsx:94` |  |
 | `clockTime` <sub>local</sub> | `(value: string): string` | `apps/web/src/components/tenant/doctor-profile.tsx:65` | 09:00, from the "09:00:00" the API sends. |
@@ -510,7 +510,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `STATUS_LABEL` <sub>local</sub> | `: Record<StockTransferDetail['status'], string>` | `apps/web/src/components/tenant/transfer-detail.tsx:37` |  |
 | `STATUS_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/transfer-list.tsx:38` | The words a storekeeper uses, not the column's. |
 | `STATUS_WORDS` <sub>local</sub> | `: Record<AppointmentStatusValue, string>` | `apps/web/src/components/tenant/appointment-board.tsx:84` |  |
-| `STATUS_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/consultation-engine.tsx:716` |  |
+| `STATUS_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/consultation-engine.tsx:730` |  |
 | `STATUS_WORDS` <sub>local</sub> | `: Record<DoctorDetail['status'], string>` | `apps/web/src/components/tenant/doctor-profile.tsx:58` |  |
 | `STATUS_WORDS` <sub>local</sub> | `: Record<DoctorDetail['status'], string>` | `apps/web/src/components/tenant/doctor-sections.tsx:83` |  |
 | `STATUS_WORDS` <sub>local</sub> | `: Record<ClinicTaxRegistrationSummary['status'], string>` | `apps/web/src/components/tenant/tax-rate-card.tsx:270` | The state in the words a clinic uses, never the tint alone (WCAG 1.4.1). |
@@ -553,7 +553,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Draft` <sub>local</sub> | `{ code, name, description, scopeLevel, permissionCodes }` | `apps/web/src/components/tenant/role-list.tsx:145` |  |
 | `EditableDiscount` <sub>local</sub> | `{ type, value }` | `apps/web/src/components/tenant/invoice-draft-editor.tsx:490` |  |
 | `EditableLine` <sub>local</sub> | `{ key, description, taxCategory, itemCode, quantity, unitPrice }` | `apps/web/src/components/tenant/invoice-draft-editor.tsx:480` |  |
-| `FieldRendererProps` | `{ field, value, onChange, disabled, sectionKey, slug, scopeId }` | `apps/web/src/components/tenant/field-renderer.tsx:32` |  |
+| `FieldRendererProps` | `{ field, value, onChange, disabled, sectionKey, slug, timeZone, scopeId }` | `apps/web/src/components/tenant/field-renderer.tsx:33` |  |
 | `FoldedEntry` <sub>local</sub> | `{ key, productName, productCode, lotNumber, expiresOn, unit, buckets }` | `apps/web/src/components/tenant/stock-overview.tsx:202` |  |
 | `HoursRow` <sub>local</sub> | `{ key, branchId, dayOfWeek, startTime, endTime, slotMinutes, maxPatients, validFrom }` | `apps/web/src/components/tenant/doctor-create-form.tsx:92` | One block of working hours, as the form holds it before it is serialised. |
 | `InvoiceDocumentFrameProps` | `{ src, invoiceNumber, pageHeightPx, className }` | `apps/web/src/components/tenant/invoice-document-frame.tsx:65` |  |
@@ -604,7 +604,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `BranchChoice` | `{ id: string; name: string }` | `apps/web/src/components/tenant/patient-search.tsx:32` |  |
 | `BranchOption` <sub>local</sub> | `MemberListResponse['branches'][number]` | `apps/web/src/components/tenant/member-list.tsx:30` |  |
 | `CataloguePermission` <sub>local</sub> | `PermissionCatalogue[number]` | `apps/web/src/components/tenant/role-list.tsx:26` |  |
-| `FieldValue` | `string \| number \| boolean \| string[] \| undefined` | `apps/web/src/components/tenant/field-renderer.tsx:30` | What one field's answer can be. Mirrors the shapes `validate.ts` accepts. |
+| `FieldValue` | `string \| number \| boolean \| string[] \| undefined` | `apps/web/src/components/tenant/field-renderer.tsx:31` | What one field's answer can be. Mirrors the shapes `validate.ts` accepts. |
 | `Method` <sub>local</sub> | `'password' \| 'code'` | `apps/web/src/components/tenant/login-form.tsx:11` |  |
 | `Mode` <sub>local</sub> | `{ kind: 'closed' } \| { kind: 'new' } \| { kind: 'edit'; id: string }` | `apps/web/src/components/tenant/vitals-panel.tsx:359` | Which form is on screen, if any. |
 | `Outcome` <sub>local</sub> | `'SUCCEED' \| 'DECLINE' \| 'ABANDON' \| 'STALL'` | `apps/web/src/components/tenant/sandbox-checkout.tsx:21` |  |

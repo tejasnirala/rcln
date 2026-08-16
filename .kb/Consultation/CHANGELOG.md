@@ -435,3 +435,162 @@ optional; a missing specialty code fatal.
 **Remaining.** CE-8 — hardening. Plus the standing three: the chart editor edits
 geometry as JSON, `IMAGE_MAP` has an enum member and no map, and nothing has
 been opened in a browser.
+
+---
+
+## CE-8 — Hardening · 2026-08-16
+
+**Implemented.** The last phase, and deliberately the smallest: validation
+tightened where it was permissive, a permission audit that reads the routers
+instead of a list, the recall list's scan bounded, and the whole journey walked
+end to end for the first time. No new endpoint, no new permission code, no new
+table.
+
+**Files.** `packages/clinical/src/validate.ts` · `encounter.service.ts` ·
+`auth.middleware.ts` · `apps/web/src/lib/format.ts` and the four files that
+thread a zone into the consultation · two new test files · one migration.
+
+**Schema.** No model, no column, no policy. One hand-written **partial index**,
+`encounter_follow_up_recommendations_outstanding`. `db:rls:check` unchanged at
+**111**.
+
+**Validation — three holes, closed.**
+
+- **A DATE was any string, and a DATETIME was any string.** `banana` and
+  `2026-02-31` both signed cleanly onto a clinical record, and — worse —
+  `datetime-local` writes `2026-08-16T14:30` with no zone in it, so a DATETIME
+  answer meant 14:30 wherever whoever read it next happened to be. A DATE is now
+  a real calendar day and a DATETIME is an ISO instant with a `Z` (invariant 6),
+  refused at signing with a sentence naming which.
+- **The same choice twice** in a MULTI_SELECT is refused rather than
+  deduplicated. Collapsing it silently would be the software editing what a
+  clinician wrote, after the fact.
+- **`documentProblems` — the shape of a stored document, checked at AUTOSAVE.**
+  `encounter_sections.data` is an open record on the wire by necessity, which
+  left an unbounded JSONB write behind a control that fires every few seconds in
+  the densest PHI table in the product. Scalars and lists of scalars only, 200
+  answers, 20 000 characters, 200 entries, 64 KB — bounds far above any real
+  consultation, and the one rule in this package that does not wait for the
+  signature, because what it refuses is not an incomplete answer but a document
+  nothing could ever render.
+
+**Lifecycle.** `openEncounter` was idempotent through a read and a partial
+unique index, and the LOST race — two tabs, one visit — reached the doctor as a
+**409 on the one screen they cannot proceed without**, for a consultation that
+exists and is theirs. It now re-reads and answers with it, outside the aborted
+transaction, re-checking branch scope and writing the disclosure row. Three
+callers now share `liveEncounterFor`, so "the live consultation of this visit"
+is asked once.
+
+**Permissions — an audit, not a list.** `authorize()` stamps its codes onto the
+handler it returns, and `tests/unit/route-gates.test.ts` walks the Express stack
+of all four clinical routers: every route gated, every GET behind
+`clinical.encounter.read`, every one of the 30 writes behind an authoring code,
+the chart's marks on `encounter.create` rather than `visual_map.manage`, and
+neither manage surface writing behind an encounter code. `roles.test.ts` now
+enumerates every `clinical.*` code rather than restating five of them — which
+immediately caught that `ENCOUNTER_AMEND` had never joined the list it belongs
+to.
+
+**Search performance.** The recall list's three outstanding windows filter and
+sort on a due date computed from two different shapes, and that expression
+cannot be indexed —`timezone(text, timestamptz)` is STABLE. So the SET it runs
+over is what shrinks: a partial index over the four predicates every outstanding
+window shares. Verified with `EXPLAIN`, not asserted: the planner uses it.
+
+**Frontend.** `FieldRenderer` takes a required `timeZone` and converts a
+DATETIME on both edges — the control speaks the branch's wall clock, the record
+stores the instant. `clinicInstantOf` and `clinicInputValueOf` join
+`lib/format.ts`, which is where "never format a date by hand" already lives.
+
+**Tests.** +20 clinical unit (**137**), +14 api unit (`route-gates`), +18
+integration (`consultation-journey`) — one patient walked from an open
+consultation through the content, the refused signature, the signature, the
+recall list, a booked and fulfilled follow-up, the previous-visit panel, the
+visit history, an amendment that re-links its own diagnosis rows, and both
+trails. It books the slot the availability engine offers rather than an
+invented instant, which is what made it a real flow rather than a passing test.
+
+**Verified — validation ran once, at the end, in CLAUDE.md's order.** Lint clean
+(the same two pre-existing `window.location.assign` warnings on other screens) ·
+`pnpm format` · typecheck green in clinical, permissions, api and web, per
+package · 139 clinical unit, 59 permissions unit, 1 173 api unit and
+integration, 378 isolation, all green, run in batches, and re-run after both
+review rounds · `db:rls:check` green at **111** · nothing opened in a browser.
+
+⚠️ `@rcln/billing`'s unit suite fails to start in the container —
+`Cannot find module '@prisma/client-runtime-utils'` from the generated client.
+**Pre-existing and unrelated**: confirmed by stashing this branch's work and
+reproducing it on the untouched tree.
+
+**Reviewed.** `security-reviewer`: no critical and no high. The tenancy, RLS,
+raw-SQL, secret and middleware-chain surfaces are clean, the open retry
+re-checks branch scope and audits, and stamping the codes onto a handler leaks
+nothing. Five findings fixed in the same session:
+
+- **The validator must not become the amplifier.** `documentProblems` reported
+  one problem per bad key with no cap, and the caller joined the lot into one
+  400 body AND one error log — a megabyte of one-character keys was a hundred
+  thousand problems. Capped at twenty and a sentence saying there are more.
+- **The shape check moved out of the transaction.** It needs nothing from `tx`,
+  and serialising fifty sections inside one held a pooled connection open for
+  the length of a check whose entire purpose is to refuse the payload.
+- **The lost race no longer rethrows a raw driver error.** A bare `23505` is
+  neither an `AppError` nor `P2002`, so a clash that was NOT this appointment's
+  produced a 500 and a stack carrying the constraint's key values. It is a 409,
+  which is what it was before CE-8.
+- **The retry's preconditions are written down.** It skips the cancelled-booking
+  and branch checks because `openEncounterOnce` has already made them in the
+  same call — load-bearing, and previously only true by accident of reading.
+- **A gate on a route nobody authenticated is not a gate**, and the audit could
+  not see that. It now asserts each router mounts
+  `requireTenant → authenticate → requireAuth` ahead of its first route.
+
+`code-reviewer`: no critical. Eight findings acted on:
+
+- **The bounds were on the wrong side of the door.** `descriptors.ts` capped a
+  field key at 64 and nothing else — so a template declaring 250 fields, or a
+  checkbox group with 300 choices, published cleanly and then failed at the
+  autosave, in front of a doctor who did not write it and cannot fix it. The
+  limits are now stated once as `DOCUMENT_LIMITS` and enforced at BOTH ends.
+  ⚠️ The byte ceiling is deliberately not mirrored: the worst-case size of a
+  template is the sum of every field's ceiling, and four unbounded TEXT fields
+  already exceed 64 KB on paper while being an ordinary form.
+- **`clinicInputValueOf` rendered a legacy zoneless value SHIFTED.** Per spec
+  `new Date('2026-08-16T14:30')` is browser-local rather than `NaN`, so the
+  guard never fired — and a doctor who re-saved would have written that shift
+  back as fact. It renders blank now, which is the honest reading of a string
+  that names no moment.
+- **The two consultation screens passed zones that meant different things** —
+  the booking's branch on one, the READER's on the other — so one record read as
+  two wall clocks in a multi-branch org. `timezoneOfBranch` resolves the
+  encounter's own branch, and both screens agree.
+- **The lost race logged nothing.** The original driver error was discarded
+  wholesale, so an operator lost the only evidence of which constraint fired
+  while the message told them to retry something that would never succeed.
+- **The retry re-implemented `getEncounterForAppointment`.** It calls it.
+- **The journey suite tolerated a 409 on the follow-up booking**, which left
+  `followUpAppointmentId` null and silently no-opped the previous-visit case and
+  half the visit-history case — three assertions green without running. The
+  suite owns its organization, branch and doctor, so the clash cannot happen;
+  the escape hatch is gone.
+- **`ROUTERS` was the maintained list the audit's own header disowns.** The
+  suite now reads `src/routes/v1/` from disk and fails until a new route file is
+  classified as audited-here or not-clinical.
+- **Two `authorize` gates on one route** would have left the second unaudited.
+  Now an error rather than a silent `find`.
+
+**Known, and deliberately not changed.** A DATETIME answer written before CE-8
+carries no zone, so amending a record that has one leaves the field blank and
+the amendment unsignable until it is re-entered. No seeded template declares a
+DATETIME field, so this reaches clinic-authored templates only — and the
+alternative, resolving a zoneless value through the branch zone at finalization,
+guesses at what a clinician meant and writes the guess into a signed record.
+Blank and re-entered is the honest outcome.
+
+**Decisions.** No new CD. Every change here is an existing decision enforced
+where it was not.
+
+**Remaining.** The consultation engine is complete. The standing three are
+unchanged: the chart editor edits geometry as JSON, `IMAGE_MAP` has an enum
+member and no map, and nothing has been opened in a browser.
