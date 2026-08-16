@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 106 |
+| relations | 113 |
 
 ## Columns
 
@@ -121,6 +121,13 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[]` |
 | `productCostAverages` | [`ProductCostAverage`](ProductCostAverage.md) | `productCostAverages ProductCostAverage[]` |
 | `productRegulatoryProfiles` | [`ProductRegulatoryProfile`](ProductRegulatoryProfile.md) | `productRegulatoryProfiles ProductRegulatoryProfile[]` |
+| `regulatoryDecisions` | [`RegulatoryDecision`](RegulatoryDecision.md) | `regulatoryDecisions RegulatoryDecision[]` |
+| `prescriptionFulfilments` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `prescriptionFulfilments PrescriptionFulfilment[]` |
+| `dispenses` | [`Dispense`](Dispense.md) | `dispenses Dispense[]` |
+| `dispenseLines` | [`DispenseLine`](DispenseLine.md) | `dispenseLines DispenseLine[]` |
+| `dispenseAllocations` | [`DispenseAllocation`](DispenseAllocation.md) | `dispenseAllocations DispenseAllocation[]` |
+| `dispenseReturns` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturns DispenseReturn[]` |
+| `dispenseReturnLines` | [`DispenseReturnLine`](DispenseReturnLine.md) | `dispenseReturnLines DispenseReturnLine[]` |
 | `clinicalMasterItems` | [`ClinicalMasterItem`](ClinicalMasterItem.md) | `clinicalMasterItems ClinicalMasterItem[]` |
 | `clinicalMasterCodings` | [`ClinicalMasterCoding`](ClinicalMasterCoding.md) | `clinicalMasterCodings ClinicalMasterCoding[]` |
 | `clinicalMasterScopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `clinicalMasterScopes ClinicalMasterScope[]` |
@@ -238,6 +245,13 @@ erDiagram
     Organization }o--o{ PurchaseReturnLine : relates
     Organization }o--o{ ProductCostAverage : relates
     Organization }o--o{ ProductRegulatoryProfile : relates
+    Organization }o--o{ RegulatoryDecision : relates
+    Organization }o--o{ PrescriptionFulfilment : relates
+    Organization }o--o{ Dispense : relates
+    Organization }o--o{ DispenseLine : relates
+    Organization }o--o{ DispenseAllocation : relates
+    Organization }o--o{ DispenseReturn : relates
+    Organization }o--o{ DispenseReturnLine : relates
     Organization }o--o{ ClinicalMasterItem : relates
     Organization }o--o{ ClinicalMasterCoding : relates
     Organization }o--o{ ClinicalMasterScope : relates

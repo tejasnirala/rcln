@@ -85,7 +85,24 @@ export type SequenceType =
    * ⚠️ ISSUED AT FINALIZATION, NOT AT OPEN, for the reason the four procurement
    *   counters give. A draft the doctor abandons must burn no number.
    */
-  | 'ENCOUNTER';
+  | 'ENCOUNTER'
+  /**
+   * Dispensing (PI-7). Per BRANCH, issued INSIDE the posting transaction, and it
+   * never resets.
+   *
+   * ⚠️ THE ENUM MEMBER HAS EXISTED SINCE PI-4 AND WAS UNUSED UNTIL NOW — adding
+   *   one to a Postgres enum is a migration, and that phase paid for it so this
+   *   one would not have to under live stock. This union is the half that was
+   *   missing.
+   *
+   * ⚠️ A DISPENSE HAS NO DRAFT, so "issued when the document leaves draft" — the
+   *   rule the four procurement counters follow — collapses here into "issued as
+   *   part of the one transaction that supplies". It is taken after every line
+   *   has been consulted and planned, so a regulatory refusal or a shortfall
+   *   burns no number: a gap in a dispensing series is a gap an inspector asks
+   *   about.
+   */
+  | 'DISPENSE';
 
 export interface IssueNumberSpec {
   type: SequenceType;

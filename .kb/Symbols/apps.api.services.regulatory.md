@@ -14,8 +14,8 @@ Files: `apps/api/src/services/regulatory/catalogue.service.ts` · `apps/api/src/
 | `blocks` | `(decision: RegulatoryDecisionResponse): boolean` | `apps/api/src/services/regulatory/enforcement.ts:79` |  |
 | `categoryPath` <sub>local</sub> | `(tx: TxClient, categoryId: string \| null): Promise<string[]>` | `apps/api/src/services/regulatory/evaluation.service.ts:62` |  |
 | `consultForStockMovement` | `(tx: TxClient, ctx: TenantContext, input: StockConsultation): Promise<void>` | `apps/api/src/services/regulatory/consult.ts:66` |  |
-| `evaluateFor` | `(ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:462` | The same question, for a caller that is not already in a transaction. |
-| `evaluateWithin` | `(tx: TxClient, ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:265` |  |
+| `evaluateFor` | `(ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:487` | The same question, for a caller that is not already in a transaction. |
+| `evaluateWithin` | `(tx: TxClient, ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:276` |  |
 | `getRulePack` | `(ctx: TenantContext, packId: string): Promise<RulePackListResponse['packs'][number]>` | `apps/api/src/services/regulatory/catalogue.service.ts:171` |  |
 | `isBlockingOutcome` | `(outcome: RegulatoryDecisionResponse['outcome']): outcome is BlockingOutcome` | `apps/api/src/services/regulatory/enforcement.ts:56` |  |
 | `isEnforceable` | `(decision: RegulatoryDecisionResponse): boolean` | `apps/api/src/services/regulatory/enforcement.ts:75` |  |
@@ -54,7 +54,7 @@ Files: `apps/api/src/services/regulatory/catalogue.service.ts` · `apps/api/src/
 | `CategoryAncestorRow` <sub>local</sub> | `{ id }` | `apps/api/src/services/regulatory/evaluation.service.ts:49` |  |
 | `JurisdictionRow` | `{ id, countryCode, regionCode, name, isActive, _count }` | `apps/api/src/services/regulatory/shared.ts:43` |  |
 | `ProfileRow` <sub>local</sub> | `{ id, jurisdictionId, registrationNumber, registrationStatus, classification, controlledSchedule, prescriptionRequirement, onlineSalePosition, dispensingNotes, effectiveFrom, effectiveTo, jurisdictio…` | `apps/api/src/services/regulatory/profile.service.ts:37` |  |
-| `RegulatoryActorInput` | `{ roleCodes, licenceTypes }` | `apps/api/src/services/regulatory/evaluation.service.ts:232` |  |
+| `RegulatoryActorInput` | `{ roleCodes, licenceTypes, isPrescriber }` | `apps/api/src/services/regulatory/evaluation.service.ts:232` |  |
 | `RulePackRow` | `{ id, jurisdictionId, authorityId, version, name, description, maturity, effectiveFrom, effectiveTo, lastReviewedAt, reviewedBy, reviewedAt, reviewNotes, jurisdiction, authority, _count }` | `apps/api/src/services/regulatory/shared.ts:128` |  |
 | `RuleRow` | `{ id, packId, ruleType, code, statement, status, appliesToProductType, appliesToCategoryId, appliesToClassification, appliesToTransactions, parameters, sourceId, version, effectiveFrom, effectiveTo, …` | `apps/api/src/services/regulatory/shared.ts:174` |  |
 | `SourceRow` | `{ id, jurisdictionId, authorityId, title, documentReference, sourceUrl, version, publishedOn, effectiveFrom, retrievedAt, reviewStatus, notes, jurisdiction, authority, _count }` | `apps/api/src/services/regulatory/shared.ts:89` |  |

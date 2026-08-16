@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-13 (PI-6 complete)
+**Last updated:** 2026-08-16 (PI-7 complete)
 
 ## Status vocabulary
 
@@ -34,25 +34,25 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 
 ## Phase roll-up
 
-| Phase     | Title                                                   | Status                    | Blocked by                                  |
-| --------- | ------------------------------------------------------- | ------------------------- | ------------------------------------------- |
-| PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                           |
-| PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                           |
-| PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                           |
-| PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                           |
-| PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                           |
-| PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                           |
-| PI-6      | India Rule Pack                                         | **COMPLETE** (2026-08-13) | —                                           |
-| PI-7      | Pharmacy Dispensing                                     | **BLOCKED**               | `prescriptions` (Phase 3) + PI-3 + PI-5     |
-| PI-8      | Billing & Tax Integration                               | PLANNED                   | PI-3 (counter-sale path); PI-7 for the rest |
-| PI-9      | Clinical Consumption                                    | **BLOCKED**               | `encounters`/`procedures` (Phase 3) + PI-3  |
-| PI-10     | Recall & Traceability                                   | PLANNED                   | PI-2, PI-4                                  |
-| PI-11     | Veterinary Enablement                                   | PLANNED                   | PI-1, PI-5                                  |
-| PI-12     | Online Pharmacy                                         | PLANNED                   | PI-7, PI-8                                  |
-| PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                        |
-| PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                        |
-| PI-23     | Identifier Resolution / Barcode                         | NOT_STARTED               | PI-1, PI-2                                  |
-| PI-24     | Global Hardening                                        | NOT_STARTED               | everything                                  |
+| Phase     | Title                                                   | Status                    | Blocked by                                 |
+| --------- | ------------------------------------------------------- | ------------------------- | ------------------------------------------ |
+| PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                          |
+| PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                          |
+| PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                          |
+| PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                          |
+| PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                          |
+| PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                          |
+| PI-6      | India Rule Pack                                         | **COMPLETE** (2026-08-13) | —                                          |
+| PI-7      | Pharmacy Dispensing                                     | **COMPLETE** (2026-08-16) | —                                          |
+| PI-8      | Billing & Tax Integration                               | PLANNED                   | **UNBLOCKED** — PI-7 landed                |
+| PI-9      | Clinical Consumption                                    | **BLOCKED**               | `encounters`/`procedures` (Phase 3) + PI-3 |
+| PI-10     | Recall & Traceability                                   | PLANNED                   | PI-2, PI-4                                 |
+| PI-11     | Veterinary Enablement                                   | PLANNED                   | PI-1, PI-5                                 |
+| PI-12     | Online Pharmacy                                         | PLANNED                   | PI-8                                       |
+| PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                       |
+| PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                       |
+| PI-23     | Identifier Resolution / Barcode                         | NOT_STARTED               | PI-1, PI-2                                 |
+| PI-24     | Global Hardening                                        | NOT_STARTED               | everything                                 |
 
 ---
 
@@ -627,3 +627,87 @@ snapshot, and can deadlock against locks the outer one holds.
   neither service is given the caller's permission codes.
 - Most of India's matrix cells are still `RESEARCH_REQUIRED`, each for a recorded
   reason. NDPS is the big one.
+
+---
+
+# PI-7 — Pharmacy Dispensing · COMPLETE (2026-08-16)
+
+**Dependencies:** PI-1..PI-5 + `encounter_prescriptions` (CE-4).
+**Branch:** `feat/pi-7-pharmacy-dispensing`.
+**Migration:** `20260825090000_pharmacy_dispensing` — 8 tables, 12 CHECKs, the
+append-only pair on the snapshot, and 14 RLS policies.
+
+| Task                                                              | Status                                                          |
+| ----------------------------------------------------------------- | --------------------------------------------------------------- |
+| PI-7.0 Close the two framework gaps PI-6 recorded                 | COMPLETE — KNOWN_ISSUES #3 and #4, closed in `@rcln/regulatory` |
+| PI-7.1 `regulatory_decisions` — the PI-ADR-008 snapshot           | COMPLETE — append-only, branch-scoped, first written here       |
+| PI-7.2 Dispensing schema + RLS + isolation cases                  | COMPLETE — 7 tenant tables, 13 isolation cases                  |
+| PI-7.3 `pharmacy.dispense.verify` and the role grant              | COMPLETE — `PHARMACIST` holds it beside `.create`               |
+| PI-7.4 Contracts — queue, prescription, supply, return, dashboard | COMPLETE — `packages/contracts/src/pharmacy.ts`                 |
+| PI-7.5 The queue, verification and the prescription read          | COMPLETE — every read logs one `data_access_logs` row           |
+| PI-7.6 The supply: FEFO, the law, the ledger, the number          | COMPLETE — one transaction, no draft                            |
+| PI-7.7 Returns, disposition and the counter sale                  | COMPLETE — quarantine is the default                            |
+| PI-7.8 Substitution — equivalents with the legal answer attached  | COMPLETE (read-only screen; supplying one is API-only)          |
+| PI-7.9 Screens — dashboard, queue, prescription, workspace, …     | COMPLETE — 7 screens                                            |
+| PI-7.10 Tests — unit, integration, isolation                      | COMPLETE — 12 unit · 24 integration · 13 isolation              |
+
+### Completion gate
+
+`DB` migration + RLS + isolation ✓ · `BE` every service through `withTenant` ✓ ·
+`API` contracts + routes + the standard chain ✓ · `FE` 7 screens ✓ · `VAL` Zod
+on every surface ✓ · `AUTHZ` four codes, one new ✓ · `AUDIT` `recordAudit` on
+every write and `recordDataAccess` on every read ✓ · `REG` the engine is asked
+inside the posting transaction and the answer is snapshotted ✓ · `TEST` ✓ ·
+`DOC` this directory ✓ · `REGRESS` lint, typecheck, 1 262 tests and
+`db:rls:check` at 118 tables, all green ✓.
+
+### What landed
+
+| Area     | What                                                                                                                                                                                                           |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema   | `dispenses`, `dispense_lines`, `dispense_allocations`, `dispense_returns`, `dispense_return_lines`, `prescription_fulfilments`, `regulatory_decisions`                                                         |
+| Engine   | `repeatsAuthorised` + `repeatsAuthorisedLimit` on the prescription; `isPrescriber` on the actor; `endorsedRepeatsPermitted` / `maxEndorsedRepeats` / `exemptWhenActorIsPrescriber` as rule parameters          |
+| India    | Both clauses now expressible — rule 65(11)(b)'s endorsed repeat and s. 42(1)'s own proviso. **Neither rule was weakened**; the parameters were added in the one window where no decision had ever cited a rule |
+| Services | `pharmacy/{shared,consult,queue,dispense,return,substitution,dashboard}.service.ts`                                                                                                                            |
+| Seam     | `planStockAllocationWithin(tx, …)` split out of `planStockAllocation`, for the reason `evaluateWithin` was split out of `evaluateFor`                                                                          |
+| Errors   | `RegulatoryRefusalError` — 422 with the rule's own sentence, never a 403                                                                                                                                       |
+| Screens  | Dashboard · queue · prescription · **dispensing workspace** · equivalents · dispensed list · dispense detail with returns · counter sale                                                                       |
+
+### The three things worth reading before changing any of it
+
+**A dispense has no draft.** The medicine leaves the shelf once, so the workspace
+assembles a plan (which writes nothing), a human confirms it, and ONE transaction
+writes the record, the ledger legs, the snapshot, the audit row and the queue
+state. The number is taken after every line has been consulted, so a refusal
+burns none — `leaves nothing behind, and burns no number` is the case.
+
+**The law is asked before the stock moves, and the answer is frozen.** Every
+supplied line carries a NOT NULL `regulatory_decision_id`; `regulatory_decisions`
+is append-only in two layers. Nothing re-evaluates a historical supply, ever.
+Enforcement is still gated at `PRODUCTION_ENABLED`, so today the decisions are
+recorded and reported and stop nothing — which is the correct state, not a
+disabled feature.
+
+**Invariant 7 is enforced at the router.** `route-gates.test.ts` now audits the
+pharmacy router and asserts no route on it carries a `clinical.*` code. Pharmacy
+writes `prescription_fulfilments` — its own state beside the consultation — and
+the fulfilment arithmetic is DERIVED from `dispense_lines` rather than stored on
+the clinical row.
+
+### What is open, and honestly so
+
+- **Nothing has been clicked in a browser.** The same item every phase has left.
+- **An endorsed repeat still refuses**, because `encounter_prescriptions` has no
+  field in which a prescriber can endorse one. The FRAMEWORK gap is closed and
+  the clinical one is not; the plug-in point is marked in `dispense.service.ts`.
+- **`licenceTypes` is always empty**, so a rule naming a professional
+  registration resolves `UNDETERMINED`. Latent: nothing enforces yet.
+- **`priorQuantityInPeriodBase` is never supplied**, so a `QUANTITY_LIMIT` with a
+  period resolves `UNDETERMINED` rather than counting. Latent for the same reason.
+- **Supplying a substitute is API-only.** The equivalents screen shows what the
+  law says; swapping the product is not wired into the workspace.
+- **The dashboard's "today" is a UTC day**, not the branch's. Counts only.
+- **No charge request.** Pharmacy owns no money and PI-8 is where a supply
+  reaches an invoice.
+
+**Completion date:** 2026-08-16 · **Next action:** PI-8.1

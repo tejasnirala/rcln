@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:252`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `visible` policy |
 | columns | 13 |
-| relations | 14 |
+| relations | 17 |
 
 ## Columns
 
@@ -48,6 +48,9 @@ Declared at `packages/db/prisma/schema/inventory.prisma:252`.
 | `purchaseOrderDeliveries` | [`PurchaseOrder`](PurchaseOrder.md) | `purchaseOrderDeliveries PurchaseOrder[] @relation("PurchaseOrderDeliverTo")` |
 | `goodsReceipts` | [`GoodsReceipt`](GoodsReceipt.md) | `goodsReceipts GoodsReceipt[] @relation("GoodsReceiptLocation")` |
 | `purchaseReturns` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturns PurchaseReturn[] @relation("PurchaseReturnLocation")` |
+| `dispenses` | [`Dispense`](Dispense.md) | `dispenses Dispense[] @relation("DispenseLocation")` |
+| `dispenseAllocations` | [`DispenseAllocation`](DispenseAllocation.md) | `dispenseAllocations DispenseAllocation[] @relation("DispenseAllocationLocation")` |
+| `dispenseReturns` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturns DispenseReturn[] @relation("DispenseReturnLocation")` |
 
 ## Indexes and constraints
 
@@ -73,4 +76,7 @@ erDiagram
     InventoryLocation }o--o{ PurchaseOrder : relates
     InventoryLocation }o--o{ GoodsReceipt : relates
     InventoryLocation }o--o{ PurchaseReturn : relates
+    InventoryLocation }o--o{ Dispense : relates
+    InventoryLocation }o--o{ DispenseAllocation : relates
+    InventoryLocation }o--o{ DispenseReturn : relates
 ```

@@ -243,6 +243,17 @@ export interface RegulatoryActorInput {
    */
   roleCodes: readonly string[];
   licenceTypes?: readonly string[];
+  /**
+   * Is this caller the prescriber of the prescription being dispensed? (PI-7.)
+   *
+   * ⚠️ DERIVED BY THE SERVICE FROM THE ENCOUNTER AND `ctx.userId`, NEVER SENT BY
+   *   A CLIENT, which is why it lives on this interface and not on
+   *   `EvaluateRegulatoryRequest`. It exempts nothing by itself: a rule has to
+   *   opt in with `exemptWhenActorIsPrescriber`, and several jurisdictions do —
+   *   India's Pharmacy Act s. 42(1) excludes a practitioner dispensing to their
+   *   own patients from the section outright.
+   */
+  isPrescriber?: boolean;
 }
 
 /**
@@ -367,6 +378,7 @@ export async function evaluateWithin(
     actor: {
       roleCodes: actor.roleCodes,
       ...(actor.licenceTypes ? { licenceTypes: actor.licenceTypes } : {}),
+      ...(actor.isPrescriber !== undefined ? { isPrescriber: actor.isPrescriber } : {}),
     },
     quantityBase: input.quantityBase,
     occurredAt,
@@ -382,6 +394,19 @@ export async function evaluateWithin(
             refillsUsed: input.prescription.refillsUsed,
             ...(input.prescription.prescriberClasses
               ? { prescriberClasses: input.prescription.prescriberClasses }
+              : {}),
+            /*
+             * ⚠️ ABSENT STAYS ABSENT, for the reason `ageYears` does. A repeat
+             *   endorsement nobody stated must not arrive as `false` either —
+             *   the refill rule distinguishes "the prescriber said nothing"
+             *   from "the prescriber said no", and only the first is the
+             *   default position rule 65(11)(a) describes.
+             */
+            ...(input.prescription.repeatsAuthorised !== undefined
+              ? { repeatsAuthorised: input.prescription.repeatsAuthorised }
+              : {}),
+            ...(input.prescription.repeatsAuthorisedLimit !== undefined
+              ? { repeatsAuthorisedLimit: input.prescription.repeatsAuthorisedLimit }
               : {}),
           },
         }

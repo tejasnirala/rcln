@@ -248,6 +248,22 @@ function evaluatePharmacistAuthority(
     });
   }
 
+  /*
+   * ⚠️ THE PROVISO IS TESTED BEFORE THE AUTHORITY, BECAUSE IT SAYS THE
+   *   PROHIBITION DOES NOT APPLY — not that this person satisfies it. India's
+   *   Pharmacy Act s. 42(1) excludes "the dispensing by a medical practitioner
+   *   of medicine for his own patients" from the section outright, and a clinic
+   *   where the doctor dispenses is the common shape in exactly the countries
+   *   that write such a proviso. Both halves must be true: the RULE has to opt
+   *   in, and the ACTOR has to actually be the prescriber of this prescription —
+   *   which the service derives from the encounter, never the client.
+   */
+  if (parsed.value.exemptWhenActorIsPrescriber === true && request.actor.isPrescriber === true) {
+    return permitted(
+      `${rule.code} does not apply to a prescriber dispensing to their own patient.`
+    );
+  }
+
   const roleOk = roles !== undefined && request.actor.roleCodes.some((r) => roles.includes(r));
   const licenceOk =
     licences !== undefined && (request.actor.licenceTypes ?? []).some((l) => licences.includes(l));
@@ -390,10 +406,52 @@ function evaluateRefillRule(rule: RegulatoryRule, request: RegulatoryRequest): R
 
   const allowed = parsed.value.refillsAllowed;
   if (allowed !== undefined && prescription.refillsUsed > allowed) {
-    return refused(
-      `${rule.statement} This prescription has already been dispensed ` +
-        `${String(prescription.refillsUsed)} times and allows ${String(allowed)} repeats.`
+    /*
+     * ⚠️ THE ENDORSEMENT IS AN EXCEPTION THE LAW ITSELF WRITES, AND IT IS READ
+     *   ONLY WHERE THE RULE OPTS IN (PI-7, KNOWN_ISSUES defect 3). India's rule
+     *   65(11) forbids a repeat "unless the prescriber has stated thereon that
+     *   it may be dispensed more than once", and then permits it as endorsed —
+     *   so `refillsAllowed: 0` was a correct reading that also refused the
+     *   legitimate case, because the framework could not carry the endorsement.
+     *
+     *   `repeatsAuthorised` is read off the PRESCRIPTION, not asserted by the
+     *   person dispensing. See `PresentedPrescription`.
+     */
+    const endorsed =
+      parsed.value.endorsedRepeatsPermitted === true && prescription.repeatsAuthorised === true;
+
+    if (!endorsed) {
+      return refused(
+        `${rule.statement} This prescription has already been dispensed ` +
+          `${String(prescription.refillsUsed)} times and allows ${String(allowed)} repeats.`
+      );
+    }
+
+    /*
+     * ⚠️ AN ENDORSEMENT WITH NO NUMBER, UNDER A RULE WITH NO CEILING, IS
+     *   `UNDETERMINED` AND THEREFORE REFUSES. "The prescriber allowed repeats"
+     *   without saying how many is a reason to ring the prescriber, not a
+     *   licence to dispense indefinitely — and treating silence as unlimited is
+     *   precisely the permissive default this engine is shaped against.
+     */
+    const limits = [prescription.repeatsAuthorisedLimit, parsed.value.maxEndorsedRepeats].filter(
+      (value): value is number => value !== undefined
     );
+    if (limits.length === 0) {
+      return undetermined(
+        `${rule.code}: the prescriber endorsed a repeat but did not state how many, and the ` +
+          'rules here set no limit of their own. Confirm the number of repeats with the prescriber.'
+      );
+    }
+
+    const endorsedLimit = Math.min(...limits);
+    if (prescription.refillsUsed > endorsedLimit) {
+      return refused(
+        `${rule.statement} This prescription has already been dispensed ` +
+          `${String(prescription.refillsUsed)} times and the prescriber endorsed ` +
+          `${String(endorsedLimit)} repeats.`
+      );
+    }
   }
 
   const validityDays = parsed.value.validityDays;

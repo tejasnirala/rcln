@@ -5,17 +5,15 @@ about this programme lives in this directory. Start here.
 
 ```text
 CURRENT PHASE:        PI-0 — Discovery & Architecture
-CURRENT STATUS:       COMPLETE (planning only; no production code written)
-LAST COMPLETED PHASE: PI-0
-CURRENT WORK:         none — awaiting approval of the plan
-NEXT PHASE:           PI-1 — Product Platform Core
-BLOCKERS:             none for PI-1..PI-6.
-                      PI-7 (Pharmacy dispensing) is HARD-BLOCKED on the
-                      `prescriptions` model, which does not exist yet and is
-                      owned by Phase 3 (Core clinical).
-                      PI-9 (Clinical consumption) is HARD-BLOCKED on
-                      `encounters` / `procedures`, which do not exist yet.
-LAST UPDATED:         2026-08-11
+CURRENT STATUS:       PI-0..PI-7 COMPLETE
+LAST COMPLETED PHASE: PI-7 — Pharmacy Dispensing
+CURRENT WORK:         none
+NEXT PHASE:           PI-8 — Billing & Tax Integration
+BLOCKERS:             none for PI-8, PI-10, PI-11.
+                      PI-9 (Clinical consumption) needs `procedures`; CE-4
+                      shipped `encounter_procedures`, so it is now a scoping
+                      question rather than a hard block.
+LAST UPDATED:         2026-08-16
 ```
 
 ---

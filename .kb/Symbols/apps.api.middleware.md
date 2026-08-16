@@ -24,7 +24,7 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 | `isPrismaKnownError` <sub>local</sub> | `(e: Error): e is Error & { code: string }` | `apps/api/src/middleware/error.middleware.ts:5` | Structural check for a Prisma known-request error. |
 | `lookupTenant` <sub>local</sub> | `(host: string): Promise<ResolvedTenant \| null>` | `apps/api/src/middleware/tenant.middleware.ts:70` |  |
 | `normaliseHost` <sub>local</sub> | `(hostHeader: string \| undefined): string \| null` | `apps/api/src/middleware/tenant.middleware.ts:30` | Strip the port and lowercase. `Alpha.LVH.me:3000` -> `alpha.lvh.me`. |
-| `notFoundHandler` | `(req: Request, res: Response): Response` | `apps/api/src/middleware/error.middleware.ts:128` | 404 Not Found handler Register AFTER all routes |
+| `notFoundHandler` | `(req: Request, res: Response): Response` | `apps/api/src/middleware/error.middleware.ts:138` | 404 Not Found handler Register AFTER all routes |
 | `requestedHost` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/middleware/tenant.middleware.ts:63` |  |
 | `requireAuth` | `(req: Request, _res: Response, next: NextFunction): void` | `apps/api/src/middleware/auth.middleware.ts:145` | 401 unless `authenticate` produced a caller. |
 | `requiredPermissionsOf` | `(handler: unknown): readonly PermissionCode[] \| null` | `apps/api/src/middleware/auth.middleware.ts:232` | The permission codes an `authorize(...)` handler was built with, if it is one. |

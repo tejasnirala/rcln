@@ -525,3 +525,101 @@ model ProductRegulatoryProfile {
   @@index([organizationId, jurisdictionId])
   @@map("product_regulatory_profiles")
 }
+
+// ---------------------------------------------------------------------------
+// The snapshot (PI-ADR-008) — written first by PI-7
+// ---------------------------------------------------------------------------
+
+/// What the engine answered, frozen at the moment somebody acted on it.
+enum RegulatoryDecisionOutcome {
+  PERMITTED
+  PERMITTED_WITH_CONDITIONS
+  REFUSED
+  UNDETERMINED
+}
+
+/// One evaluation, as it stood when a transaction relied on it.
+///
+/// ⚠️ THIS IS A SNAPSHOT AND NOT A CACHE. Nothing ever re-evaluates a row here
+///   and nothing may rewrite one. PI-ADR-008: re-running the engine over a
+///   two-year-old dispense must never be necessary and must never change what
+///   that dispense says — the same discipline the invoice engine applies to tax,
+///   for the same reason. A record somebody has already answered to an inspector
+///   for must not silently restate itself when a rule pack is superseded.
+///
+/// ⚠️ APPEND-ONLY, ENFORCED TWICE, exactly as `audit_logs` and `stock_ledger`
+///   are: `rcln_app` holds no UPDATE or DELETE on the table, and a trigger
+///   refuses both anyway. Either layer alone is one `GRANT` away from silence.
+///
+/// ⚠️ IT IS TENANT DATA, NOT PLATFORM DATA. The RULES are the law of a country
+///   and belong to the platform; this row records what happened in ONE clinic,
+///   at one counter, on one day, and is branch-scoped accordingly.
+///
+/// ⚠️ THE REASONS AND CONDITIONS ARE JSONB **DOCUMENTS**, WHICH IS THE PERMITTED
+///   HALF OF ADR-0006. They are not foreign keys and must never be dereferenced:
+///   `rule_codes` and the pack versions below are what the rules WERE CALLED at
+///   the time, not pointers to rows that may since have been superseded — which
+///   is the entire point of snapshotting them. Joining back to `regulatory_rules`
+///   from here would reintroduce the restatement this table exists to prevent.
+///
+/// NO PHI. A decision names a product, a jurisdiction, an outcome and some rule
+/// codes. Not the patient it was about — the DISPENSE knows who; the law does
+/// not need to.
+model RegulatoryDecision {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  productId   String                    @map("product_id") @db.Uuid
+  transaction RegulatoryTransactionType
+  outcome     RegulatoryDecisionOutcome
+
+  /// The jurisdiction the decision was made UNDER, as codes rather than as a FK
+  /// to `jurisdictions`: a snapshot that could be re-pointed is not one.
+  countryCode String  @map("country_code") @db.Char(2)
+  regionCode  String? @map("region_code") @db.VarChar(8)
+
+  /// The weakest maturity of any pack that contributed, and NULL when none did —
+  /// which is the ordinary state of an unconfigured jurisdiction, and the reason
+  /// the decision was `UNDETERMINED`. What the banner reads (PI-ADR-009).
+  lowestPackMaturity RulePackMaturity? @map("lowest_pack_maturity")
+  /// Was the platform allowed to ACT on this answer? See
+  /// `services/regulatory/enforcement.ts` — only `PRODUCTION_ENABLED` enforces,
+  /// so a refusal that did not stop the transaction is recorded as one that did
+  /// not, rather than looking retrospectively like a permission.
+  wasEnforced        Boolean           @default(false) @map("was_enforced")
+
+  /// The quantity asked about, in base units, and the instant asked about.
+  quantityBase Decimal  @map("quantity_base") @db.Decimal(18, 6)
+  evaluatedAt  DateTime @map("evaluated_at") @db.Timestamptz(6)
+
+  /// The pack ids and versions that contributed. A document (see the model note).
+  packVersions Json @map("pack_versions")
+  /// One entry per rule that had something to say, with its verbatim sentence.
+  reasons      Json
+  /// Obligations the transaction had to satisfy. ⚠️ An obligation, never a
+  /// warning — `PERMITTED_WITH_CONDITIONS` means the act is lawful ONLY if these
+  /// were done.
+  conditions   Json
+  /// The rule codes that did not permit, flattened out of `reasons` so a report
+  /// can group by them without parsing JSON.
+  ruleCodes    String[] @map("rule_codes")
+
+  actorUserId String @map("actor_user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  actor        User         @relation("RegulatoryDecisionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  dispenseLines   DispenseLine[]
+  dispenseReturns DispenseReturn[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, branchId, evaluatedAt(sort: Desc)])
+  @@index([organizationId, productId, evaluatedAt(sort: Desc)])
+  @@index([organizationId, outcome])
+  @@map("regulatory_decisions")
+}

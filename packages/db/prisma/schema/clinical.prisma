@@ -981,6 +981,11 @@ model Encounter {
   amendedBy       Encounter[]                 @relation("EncounterAmendment")
 
   sections        EncounterSection[]
+  /// Pharmacy's workflow state over this consultation's prescription (PI-7).
+  /// ⚠️ ONE WAY. The dispensary reads the clinical record and writes only its
+  ///   own rows beside it — invariant 7.
+  fulfilment      PrescriptionFulfilment?
+  dispenses       Dispense[]
   recommendations EncounterFollowUpRecommendation[]
   /// The clinical content (CE-4). Cascade on every one of them: a deleted
   /// consultation takes its own content with it, and all of this IS content.
@@ -1470,12 +1475,19 @@ model EncounterPrescription {
   encounter    Encounter    @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
   /// Restrict: a medicine somebody was prescribed is deactivated, never deleted.
   product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  /// What the dispensary actually supplied against this line (PI-7). The
+  /// fulfilment arithmetic lives here rather than in a column on this row.
+  dispenseLines DispenseLine[]
 
   @@index([organizationId, encounterId, displayOrder])
   /// PI-7's read: what is outstanding against this product, and what was
   /// prescribed at this branch.
   @@index([organizationId, productId])
   @@index([organizationId, branchId, createdAt])
+  /// Composite-FK target, added in PI-7 so a dispense line can cite the
+  /// prescribed line it answers without a bare id that could point at another
+  /// tenant's row (ADR-0004).
+  @@unique([organizationId, id])
   @@map("encounter_prescriptions")
 }
 

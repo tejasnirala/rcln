@@ -268,7 +268,8 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `PackagingLevelRow` | interface | `packages/inventory/src/units.ts:395` |
 | `parseQuantity` | fn | `packages/inventory/src/units.ts:148` |
 | `planAllocation` | fn | `packages/inventory/src/allocate.ts:180` |
-| `planStockAllocation` | fn | `apps/api/src/services/inventory/allocation.service.ts:41` |
+| `planStockAllocation` | fn | `apps/api/src/services/inventory/allocation.service.ts:219` |
+| `planStockAllocationWithin` | fn | `apps/api/src/services/inventory/allocation.service.ts:53` |
 | `positiveQuantity` | var | `packages/contracts/src/inventory.ts:164` |
 | `rational` | fn | `packages/inventory/src/units.ts:102` |
 | `Rational` | interface | `packages/inventory/src/units.ts:68` |

@@ -184,6 +184,31 @@ clinic.
 
 ---
 
+## PI-7 — Pharmacy
+
+| Table                      | Class         | Notes                                                                                                                                                                  |
+| -------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prescription_fulfilments` | BRANCH_SCOPED | One row per ENCOUNTER, created lazily. `status`, `verified_by_id`, `verified_at`. ⚠️ `NEW` is never stored — no row IS new                                             |
+| `dispenses`                | BRANCH_SCOPED | `dispense_number`, `kind`, `status`, `encounter_id?`, `patient_id?` ⚠️ PHI, `location_id`, `dispensed_by_id`, `dispensed_at`                                           |
+| `dispense_lines`           | CHILD         | `encounter_prescription_id?`, `product_id`, `substituted_for_product_id?`, quantities, `returned_quantity_base`, **`regulatory_decision_id` NOT NULL**                 |
+| `dispense_allocations`     | CHILD of line | Which lot the quantity came out of. Its own table because ONE line routinely spans two lots — the FEFO answer, and the recall index                                    |
+| `dispense_returns`         | BRANCH_SCOPED | `disposition` (`RESTOCKED` \| `QUARANTINED`), `location_id`, `reason`, `regulatory_decision_id?`                                                                       |
+| `dispense_return_lines`    | CHILD         | Cites the ALLOCATION, so stock goes back into the lot it came out of                                                                                                   |
+| `regulatory_decisions`     | BRANCH_SCOPED | The PI-ADR-008 snapshot, written first by this phase. Append-only: `REVOKE UPDATE, DELETE` + a trigger. `reasons`/`conditions`/`pack_versions` are JSONB **documents** |
+
+`NumberSequenceType.DISPENSE` — present since PI-4, first used here. Per branch,
+never resets, issued INSIDE the posting transaction after every line has been
+consulted, so a refusal burns no number.
+
+⚠️ **`regulatory_decisions` is the only regulatory table with an
+`organization_id`.** The law of a country is the same for everybody in it; a
+DECISION is what happened in one clinic at one counter on one day.
+
+⚠️ **No money column anywhere in this phase.** Pharmacy owns no rate (PI-ADR-005
+/ PI-ADR-006); the hand-off to billing is `charge_requests`, below, in PI-8.
+
+---
+
 ## PI-8 — Charge requests
 
 | Table             | Class               | Notes                                                                                                                                                       |

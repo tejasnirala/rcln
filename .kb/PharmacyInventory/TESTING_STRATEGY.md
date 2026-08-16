@@ -115,7 +115,7 @@ Behaviour, never country codes. See
 Regulatory tests are versioned **alongside** the pack. A pack version bump that
 does not update its tests is not a version bump.
 
-### PI-7 — Pharmacy
+### PI-7 — Pharmacy · WRITTEN (24 integration, 13 isolation, 12 unit)
 
 - Cannot dispense expired / recalled / quarantined stock, from any route
 - Cannot dispense without the code; cannot verify without the verify code
@@ -125,6 +125,11 @@ does not update its tests is not a version bump.
 - A rolled-back dispense leaves no ledger row and burns no number
 - A dispense read writes exactly one `data_access_logs` row per request
 - ⚠️ **No patient name or medicine name appears in `data_access_logs`**
+
+⚡ **All of the above are pinned, plus three the list did not ask for:** the FEFO
+split (the short-dated lot goes first and in full, which is the assertion a
+single-lot supply would have hidden), a draft consultation cannot be supplied
+against, and a return quarantines even when the clinic asked for a restock.
 
 ### PI-8 — Billing
 

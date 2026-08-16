@@ -26,5 +26,6 @@ export * from './products.js';
 export * from './inventory.js';
 export * from './procurement.js';
 export * from './regulatory.js';
+export * from './pharmacy.js';
 export * from './tax.js';
 export * from './locale.js';

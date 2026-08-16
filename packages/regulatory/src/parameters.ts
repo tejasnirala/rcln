@@ -123,6 +123,17 @@ export interface QuantityLimitParameters {
 export interface RefillRuleParameters {
   refillsAllowed: number | undefined;
   validityDays: number | undefined;
+  /**
+   * Does an endorsement BY THE PRESCRIBER lift `refillsAllowed`? (PI-7.)
+   *
+   * ⚠️ OPT-IN, AND ABSENT MEANS NO. A jurisdiction that says "not more than
+   *   once, full stop" and one that says "not more than once unless the
+   *   prescriber endorses it" are different laws, and defaulting to the second
+   *   would rewrite the first at every clinic in it.
+   */
+  endorsedRepeatsPermitted: boolean | undefined;
+  /** The jurisdiction's own ceiling on an endorsed repeat, where it states one. */
+  maxEndorsedRepeats: number | undefined;
 }
 
 export interface AgeRestrictionParameters {
@@ -154,6 +165,16 @@ export interface AuthorityParameters {
   permittedRoleCodes: readonly string[] | undefined;
   permittedLicenceTypes: readonly string[] | undefined;
   permittedPrescriberClasses: readonly string[] | undefined;
+  /**
+   * Does this authority rule stand aside when the person dispensing IS the
+   * prescriber? (PI-7, and only `PHARMACIST_AUTHORITY` reads it.)
+   *
+   * ⚠️ OPT-IN PER RULE, BECAUSE IT IS A PROVISO IN SOMEBODY'S STATUTE RATHER
+   *   THAN A GENERAL PRINCIPLE. India's Pharmacy Act s. 42(1) excludes "the
+   *   dispensing by a medical practitioner of medicine for his own patients";
+   *   a jurisdiction without such a proviso must keep refusing, so absent is no.
+   */
+  exemptWhenActorIsPrescriber: boolean | undefined;
 }
 
 export interface StorageRequirementParameters {
@@ -256,6 +277,8 @@ export function parseRefillRule(parameters: unknown): Parsed<RefillRuleParameter
   const parsed = all({
     refillsAllowed: readInteger(source.value, 'refillsAllowed'),
     validityDays: readInteger(source.value, 'validityDays'),
+    endorsedRepeatsPermitted: readBoolean(source.value, 'endorsedRepeatsPermitted'),
+    maxEndorsedRepeats: readInteger(source.value, 'maxEndorsedRepeats'),
   });
   if (!parsed.ok) return parsed;
   if (parsed.value.refillsAllowed === undefined && parsed.value.validityDays === undefined) {
@@ -342,6 +365,7 @@ export function parseAuthority(parameters: unknown): Parsed<AuthorityParameters>
     permittedRoleCodes: readStringArray(source.value, 'permittedRoleCodes'),
     permittedLicenceTypes: readStringArray(source.value, 'permittedLicenceTypes'),
     permittedPrescriberClasses: readStringArray(source.value, 'permittedPrescriberClasses'),
+    exemptWhenActorIsPrescriber: readBoolean(source.value, 'exemptWhenActorIsPrescriber'),
   });
   if (!parsed.ok) return parsed;
   if (

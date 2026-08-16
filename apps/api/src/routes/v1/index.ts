@@ -45,6 +45,7 @@ import {
   unitRoutes,
 } from './product-catalogue.routes.js';
 import regulatoryRoutes from './regulatory.routes.js';
+import pharmacyRoutes from './pharmacy.routes.js';
 import platformRoutes from './platform.routes.js';
 import publicRoutes from './public.routes.js';
 import roleRoutes from './roles.routes.js';
@@ -241,6 +242,21 @@ router.use('/procurement/cost-averages', costAverageRoutes);
 // Not PHI: the evaluation request carries an age and a subject type, never a
 // patient id.
 router.use('/regulatory', regulatoryRoutes);
+
+// THE COUNTER (PI-7) — the queue, the supply, returns, and the dashboard over
+// them. A workflow over product + inventory + regulatory that owns no quantity,
+// no rate and no clinical content.
+//
+// ⚠️ THE MOST PHI-DENSE SURFACE IN THE PRODUCT. Every read on it writes a
+//    `data_access_logs` row, one per request; the dashboard is the deliberate
+//    exception and returns counts that single out nobody.
+//
+// ⚠️ IT READS THE CLINICAL RECORD AND NEVER WRITES IT (invariant 7). What
+//    pharmacy writes is `prescription_fulfilments` — its own state beside a
+//    consultation — plus the dispensing records and their ledger legs.
+//
+// ⚠️ A REGULATORY REFUSAL IS A 422 WITH THE RULE'S OWN SENTENCE, NEVER A 403.
+router.use('/pharmacy', pharmacyRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather

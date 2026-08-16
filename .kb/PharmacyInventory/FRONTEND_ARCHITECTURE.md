@@ -101,7 +101,7 @@ Jurisdiction configuration · product regulatory profile editor · rule status a
 version viewer · source references. **Every screen carries the maturity banner**
 (PI-ADR-009): anything below `PRODUCTION_ENABLED` says so, plainly.
 
-### PI-7 — Pharmacy
+### PI-7 — Pharmacy · BUILT
 
 | Screen                   | Notes                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------ |
@@ -110,7 +110,22 @@ version viewer · source references. **Every screen carries the maturity banner*
 | Prescription detail      | Read-only clinical content. Pharmacy never edits a prescription.               |
 | **Dispensing workspace** | The most important screen in the programme. See below.                         |
 | Substitution             | Equivalent compositions in stock, with the regulatory answer attached to each. |
-| Returns / sales          |                                                                                |
+| Returns / sales          | The return lives on the dispense detail; the sale is its own screen.           |
+
+⚡ **What shipped, against that list:** the dashboard, the queue ("Waiting"), the
+prescription (read-only, with the two dispensary acts), the workspace, the
+equivalents screen, the dispensed list, the dispense detail with the return form,
+and the counter sale. The equivalents screen is READ-ONLY — supplying a
+substitute is supported by the API and is not wired into the workspace
+(KNOWN_ISSUES #11).
+
+⚡ **The signature of the workspace is the counter strip.** One strip per
+medicine, read left to right the way the job is done: what the prescriber wrote ·
+what is on the shelf, oldest lot first · how much is going out · what the law
+says. The expiry LEADS every lot row, which is FEFO made visible — the plan is
+either self-evidently right or visibly wrong, and the second case is the one that
+matters. A warning is never a dialog: it sits inside the strip it belongs to, so
+it cannot be dismissed without being read.
 
 The dispensing workspace shows, and only shows:
 

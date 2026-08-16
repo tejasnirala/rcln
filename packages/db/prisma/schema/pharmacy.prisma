@@ -1,0 +1,425 @@
+// ---------------------------------------------------------------------------
+// Pharmacy — dispensing (PI-7)
+//
+// ⚠️ PHARMACY OWNS NO QUANTITY, NO RATE AND NO CLINICAL CONTENT. It is a
+//   WORKFLOW over product + inventory + regulatory. Quantity lives in
+//   `stock_ledger` and is only ever moved by `recordMovement()` (PI-ADR-004);
+//   price and tax live in the invoice engine and are reached through a charge
+//   request in PI-8, never by inserting an invoice line here (PI-ADR-005/006);
+//   the clinical content of a prescription lives in `encounter_prescriptions`
+//   and is READ.
+//
+// ⚠️ INVARIANT 7: READING A PATIENT'S RECORD IS NOT WRITING IN IT. Nothing in
+//   this file writes a prescription, amends one, or carries a column that could
+//   be mistaken for one. `dispense_lines.encounter_prescription_id` is a
+//   foreign key INTO the clinical record and the arrow points one way. A
+//   pharmacist who needs a prescription changed asks the prescriber; that is a
+//   workflow, not a permission.
+//
+// ── WHY A DISPENSE HAS NO DRAFT STATE ────────────────────────────────────────
+// Every other document in this programme drafts, then posts: a purchase order
+// is written, checked and issued. A dispense does not, because the physical act
+// and the record are the same event — the medicine leaves the shelf and goes
+// into somebody's hand once, and a draft dispense would be stock that has left
+// the building with no ledger row saying so. So the workspace assembles a PLAN
+// (`inventory/allocation.service.ts`, which writes nothing), a human confirms
+// it, and ONE transaction writes the dispense, its allocations, its ledger legs
+// and its regulatory snapshot. A refusal at any point leaves nothing behind and
+// burns no number.
+//
+// The verification step that other documents get from a draft lives on
+// `prescription_fulfilments` instead, one step earlier and against the
+// PRESCRIPTION rather than against the supply.
+//
+// ── PHI ──────────────────────────────────────────────────────────────────────
+// ⚠️ THIS IS THE MOST PHI-DENSE TABLE GROUP IN THE PROGRAMME. "This person was
+//   given this medicine on this day" is a clinical fact about a named human,
+//   and three columns below are marked accordingly. Nothing here may be logged,
+//   cached in Redis, or put in a URL. `data_access_logs` records that a
+//   dispense was READ, with ids and counts — never a medicine name and never a
+//   patient name, because "dispensed methadone to patient X" in a
+//   compliance-readable table is itself a disclosure.
+// ---------------------------------------------------------------------------
+
+/// Where a prescription has got to in the dispensary — pharmacy's own state,
+/// beside a clinical record it may not touch.
+///
+/// ⚠️ `NEW` IS NEVER STORED. A prescription with no fulfilment row IS new; the
+///   row is created when somebody first acts on it. The member exists because
+///   the QUEUE renders it and a screen that has to special-case "no row" in
+///   three places will eventually forget one.
+enum PrescriptionFulfilmentStatus {
+  NEW
+  /// A pharmacist has read it and confirmed it is dispensable. Step [6] of the
+  /// flow in PHARMACY_ARCHITECTURE.md.
+  VERIFIED
+  PARTIALLY_DISPENSED
+  COMPLETED
+  /// The dispensary is not going to supply it — the patient went elsewhere, the
+  /// prescriber withdrew it. ⚠️ NOT a cancellation OF the prescription, which
+  /// is the prescriber's act and lives in the clinical record.
+  CANCELLED
+}
+
+/// Was there a prescription behind this supply?
+///
+/// ⚠️ THERE IS NO `is_otc` ANYWHERE IN THIS PROGRAMME, AND THIS ENUM IS NOT ONE
+///   IN DISGUISE. It records what HAPPENED — somebody presented a prescription,
+///   or somebody bought something over the counter. Whether the product MAY be
+///   supplied without a prescription is a per-jurisdiction question that only
+///   `@rcln/regulatory` answers, and the same product is over-the-counter in one
+///   country and prescription-only in the next.
+enum DispenseKind {
+  PRESCRIPTION
+  COUNTER_SALE
+}
+
+enum DispenseStatus {
+  DISPENSED
+  PARTIALLY_RETURNED
+  RETURNED
+}
+
+/// What happened to stock that came back.
+///
+/// ⚠️ THE DEFAULT IS `QUARANTINED` AND IT IS NOT A CONSERVATISM WE INVENTED.
+///   Many jurisdictions forbid restocking a dispensed medicine outright: once it
+///   has left the counter nobody can attest to how it was stored. Whether a
+///   return may go back to `AVAILABLE` is a regulatory and clinic-policy
+///   decision, so the engine is asked and the answer is recorded here.
+enum DispenseReturnDisposition {
+  RESTOCKED
+  QUARANTINED
+}
+
+/// Pharmacy's workflow state over one consultation's prescription.
+///
+/// ⚠️ ONE ROW PER ENCOUNTER, NOT PER PRESCRIBED LINE. "The prescription" that a
+///   patient carries to the counter is the whole medication list a consultation
+///   produced; a pharmacist verifies the sheet, not each drug in isolation.
+///   Per-line progress is derived from `dispense_lines`, which is where the
+///   quantities actually are — storing a dispensed-so-far column here as well
+///   would be a second answer to the same question, free to disagree.
+///
+/// ⚠️ IT IS CREATED LAZILY. A consultation that nobody dispenses against never
+///   grows one, so the queue reads encounters and left-joins this; see
+///   `queue.service.ts` for why that read is the shape it is.
+model PrescriptionFulfilment {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  /// ⚠️ THE BRANCH THAT IS DISPENSING, WHICH NEED NOT BE THE ONE THAT
+  ///   PRESCRIBED. A group's patient may take a prescription written at the main
+  ///   site to the satellite's dispensary, and the queue there has to show it.
+  branchId       String @map("branch_id") @db.Uuid
+
+  encounterId String @map("encounter_id") @db.Uuid
+
+  status PrescriptionFulfilmentStatus @default(VERIFIED)
+
+  verifiedById String?   @map("verified_by_id") @db.Uuid
+  verifiedAt   DateTime? @map("verified_at") @db.Timestamptz(6)
+  /// ⚠️ PHI. A pharmacist's note about this person's prescription — "rang the
+  ///   prescriber about the dose". Free text, and treated as clinical.
+  notes        String?   @db.Text
+
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter    @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+
+  verifiedBy  User? @relation("PrescriptionFulfilmentVerifiedBy", fields: [verifiedById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("PrescriptionFulfilmentCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  /// One dispensary state per consultation. ⚠️ Org-qualified, never bare — a
+  /// `@@unique([encounterId])` on a tenant table is the mistake CLAUDE.md names.
+  @@unique([organizationId, encounterId])
+  @@unique([organizationId, id])
+  /// The queue: what is outstanding at this counter, oldest first.
+  @@index([organizationId, branchId, status, createdAt])
+  @@map("prescription_fulfilments")
+}
+
+/// One supply of one or more products to one person, at one counter, at one
+/// moment. The record of an irreversible physical act.
+///
+/// ⚠️ APPEND-ONLY IN SPIRIT AND MUTABLE IN EXACTLY ONE COLUMN. `status` moves as
+///   returns come back, and nothing else on a posted dispense may be rewritten —
+///   there is no update path in the service and no draft to amend. A dispense
+///   made in error is corrected by a RETURN, which is another record, the same
+///   way an invoice is corrected by a credit note and never by an edit.
+model Dispense {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  /// Issued from `number_sequences` (`DISPENSE`, per branch, never resets) INSIDE
+  /// the posting transaction, so a refusal burns no number.
+  dispenseNumber String @map("dispense_number") @db.VarChar(64)
+
+  kind   DispenseKind
+  status DispenseStatus @default(DISPENSED)
+
+  /// The consultation whose prescription this supplies. NULL for a counter sale.
+  encounterId String? @map("encounter_id") @db.Uuid
+  /// ⚠️ PHI, AND NULLABLE FOR A REASON THAT IS NOT LAZINESS. A counter sale is
+  ///   frequently to somebody who is not a patient of this clinic and never
+  ///   becomes one; inventing a patient record to hold a paracetamol sale would
+  ///   put a named person in the clinical system because they bought something.
+  ///   Where a prescription is presented, this is NOT NULL — enforced by CHECK.
+  patientId   String? @map("patient_id") @db.Uuid
+
+  /// Which dispensing point it went out of. Branch-qualified.
+  locationId String @map("location_id") @db.Uuid
+
+  dispensedById String   @map("dispensed_by_id") @db.Uuid
+  /// ⚠️ WHEN IT WAS HANDED OVER. Distinct from `created_at`, and it is what every
+  ///   ledger leg carries as its `occurred_at`.
+  dispensedAt   DateTime @default(now()) @map("dispensed_at") @db.Timestamptz(6)
+
+  /// ⚠️ PHI. Anything the counter recorded about this supply.
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter?        @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Restrict)
+  /// Restrict, not Cascade: a person's dispensing history is a retention
+  /// obligation in most jurisdictions and outlives their being a current patient.
+  patient      Patient?          @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Restrict)
+  location     InventoryLocation @relation("DispenseLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  dispensedBy  User              @relation("DispenseDispensedBy", fields: [dispensedById], references: [id], onDelete: Restrict)
+
+  lines   DispenseLine[]
+  returns DispenseReturn[]
+
+  @@unique([organizationId, dispenseNumber])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, branchId, dispensedAt(sort: Desc)])
+  @@index([organizationId, encounterId])
+  /// "What has this person been given" — a PHI read, and the index that makes it
+  /// answerable in one scan.
+  @@index([organizationId, patientId, dispensedAt(sort: Desc)])
+  @@map("dispenses")
+}
+
+/// One product supplied on one dispense.
+model DispenseLine {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  dispenseId     String @map("dispense_id") @db.Uuid
+
+  lineNumber Int @map("line_number") @db.SmallInt
+
+  /// The prescribed line this answers. NULL on a counter sale, and NULL where a
+  /// pharmacist supplies something the prescription did not list — which is a
+  /// thing that happens and must be recordable as itself rather than forced into
+  /// a prescription line it does not belong to.
+  encounterPrescriptionId String? @map("encounter_prescription_id") @db.Uuid
+
+  /// What was actually handed over.
+  productId String @map("product_id") @db.Uuid
+  /// What the prescriber wrote, where that is a DIFFERENT product.
+  ///
+  /// ⚠️ TWO INDEPENDENT QUESTIONS, AND CONFLATING THEM IS THE CLASSIC ERROR OF
+  ///   THIS DOMAIN. "Is it equivalent?" is the composition triangle. "May I
+  ///   substitute it?" is `@rcln/regulatory`, per jurisdiction and sometimes per
+  ///   prescriber instruction. A product being equivalent does not make it
+  ///   substitutable, and the default in the absence of a rule is DO NOT
+  ///   (PI-ADR-007). This column records that a substitution was made; the
+  ///   decision snapshot below records that it was allowed.
+  substitutedForProductId String? @map("substituted_for_product_id") @db.Uuid
+  /// Why. ⚠️ CHECKed present whenever a substitution was made.
+  substitutionReason      String? @map("substitution_reason") @db.Text
+
+  /// What the person typed, and the unit they thought in.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+  /// The same amount in the product's base unit, converted through the one
+  /// `toBaseUnits` the ledger uses. ⚠️ Positive here; the ledger leg carries the
+  /// sign, and the sign is a property of `DISPENSING` rather than a choice.
+  quantityBase    Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  /// How much of this line has come back. Maintained by the return service and
+  /// CHECKed at or below `quantity_base`.
+  returnedQuantityBase Decimal @default(0) @map("returned_quantity_base") @db.Decimal(18, 6)
+
+  /// ⚠️ THE SNAPSHOT THAT PERMITTED THIS, AND IT IS NOT NULLABLE (PI-ADR-008).
+  ///   Every supplied line cites the decision made at the moment it was supplied.
+  ///   Re-running the engine over a two-year-old dispense must never be necessary
+  ///   and must never change what it says.
+  regulatoryDecisionId String @map("regulatory_decision_id") @db.Uuid
+
+  /// ⚠️ PHI. What goes on the label the patient reads — "one tablet twice a day
+  ///   after food". Copied from the prescription at the moment of supply, because
+  ///   the label is a statement about what was handed over and a later correction
+  ///   to the prescription does not change what the box says.
+  labelInstructions String? @map("label_instructions") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  dispense     Dispense      @relation(fields: [organizationId, dispenseId], references: [organizationId, id], onDelete: Cascade)
+  /// Plain FKs into possibly-platform rows — `product_visible`, `unit_visible`.
+  product      Product       @relation("DispenseLineProduct", fields: [productId], references: [id], onDelete: Restrict)
+  substitutedForProduct Product? @relation("DispenseLineSubstitutedFor", fields: [substitutedForProductId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure @relation("DispenseLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+
+  encounterPrescription EncounterPrescription? @relation(fields: [organizationId, encounterPrescriptionId], references: [organizationId, id], onDelete: Restrict)
+
+  regulatoryDecision RegulatoryDecision @relation(fields: [organizationId, regulatoryDecisionId], references: [organizationId, id], onDelete: Restrict)
+
+  allocations DispenseAllocation[]
+  returnLines DispenseReturnLine[]
+
+  @@unique([organizationId, dispenseId, lineNumber])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, dispenseId])
+  @@index([organizationId, productId])
+  /// "How much of this prescribed line has been supplied" — the fulfilment
+  /// arithmetic, and the reason PI-7 needed no column on the clinical record.
+  @@index([organizationId, encounterPrescriptionId])
+  @@map("dispense_lines")
+}
+
+/// Which physical lot the quantity on a line came out of.
+///
+/// ⚠️ ITS OWN TABLE RATHER THAN COLUMNS ON THE LINE, BECAUSE ONE LINE ROUTINELY
+///   SPANS TWO LOTS. Thirty tablets where the oldest lot has eighteen left is an
+///   ordinary FEFO outcome, and a `batch_id` on the line would force the
+///   pharmacist to key two lines for one prescribed medicine — which then reads
+///   as two supplies to every report and every fulfilment sum.
+model DispenseAllocation {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  dispenseLineId String @map("dispense_line_id") @db.Uuid
+
+  locationId String  @map("location_id") @db.Uuid
+  batchId    String? @map("batch_id") @db.Uuid
+  serialId   String? @map("serial_id") @db.Uuid
+
+  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  /// Did a human overrule the FEFO plan for this lot?
+  ///
+  /// ⚠️ RECORDED, NOT PREVENTED, AND THE REASON IS REQUIRED WHEN IT IS TRUE. A
+  ///   pharmacist has legitimate grounds to reach past the oldest lot — a
+  ///   damaged strip, a patient's own supply being matched — and an allocation
+  ///   that silently committed would leave "why did it give out the lot expiring
+  ///   next week instead of the one expiring tomorrow" unanswerable.
+  isOverride     Boolean @default(false) @map("is_override")
+  overrideReason String? @map("override_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  dispenseLine DispenseLine      @relation(fields: [organizationId, dispenseLineId], references: [organizationId, id], onDelete: Cascade)
+  /// Branch-qualified, exactly as the ledger's are: an allocation at branch A
+  /// citing a lot or a device at branch B is unrepresentable.
+  location     InventoryLocation @relation("DispenseAllocationLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  batch        Batch?            @relation("DispenseAllocationBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial       Serial?           @relation("DispenseAllocationSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  returnLines DispenseReturnLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, dispenseLineId])
+  /// Traceability: "which patients got this lot" is asked from the batch side,
+  /// and PI-10's recall walks exactly this index.
+  @@index([organizationId, batchId])
+  @@index([organizationId, serialId])
+  @@map("dispense_allocations")
+}
+
+/// Something came back.
+///
+/// ⚠️ A RETURN NEVER EDITS THE DISPENSE IT CITES. It is a `RETURN` ledger
+///   movement plus this record, the same discipline the invoice engine applies
+///   with a credit note — and financially it becomes one, in PI-8, through the
+///   existing engine rather than by touching an invoice here.
+model DispenseReturn {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+
+  dispenseId String @map("dispense_id") @db.Uuid
+
+  /// Where it goes back to. See `DispenseReturnDisposition` — quarantine is the
+  /// default and the engine is asked before anything is restocked.
+  disposition DispenseReturnDisposition @default(QUARANTINED)
+
+  /// Which shelf received it. Branch-qualified.
+  locationId String @map("location_id") @db.Uuid
+
+  /// ⚠️ PHI-adjacent: why a named person brought a medicine back.
+  reason String @db.Text
+
+  returnedAt   DateTime @default(now()) @map("returned_at") @db.Timestamptz(6)
+  receivedById String   @map("received_by_id") @db.Uuid
+
+  /// The decision that decided the disposition. Nullable, because a return of a
+  /// product with no regulatory profile in an unconfigured jurisdiction is the
+  /// ordinary case and `UNDETERMINED` there means "quarantine it", not "stop".
+  regulatoryDecisionId String? @map("regulatory_decision_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  dispense     Dispense            @relation(fields: [organizationId, dispenseId], references: [organizationId, id], onDelete: Restrict)
+  location     InventoryLocation   @relation("DispenseReturnLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  receivedBy   User                @relation("DispenseReturnReceivedBy", fields: [receivedById], references: [id], onDelete: Restrict)
+  regulatoryDecision RegulatoryDecision? @relation(fields: [organizationId, regulatoryDecisionId], references: [organizationId, id], onDelete: Restrict)
+
+  lines DispenseReturnLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, dispenseId])
+  @@index([organizationId, branchId, returnedAt(sort: Desc)])
+  @@map("dispense_returns")
+}
+
+/// One lot's worth of one line, coming back.
+model DispenseReturnLine {
+  id               String @id @default(uuid()) @db.Uuid
+  organizationId   String @map("organization_id") @db.Uuid
+  branchId         String @map("branch_id") @db.Uuid
+  dispenseReturnId String @map("dispense_return_id") @db.Uuid
+
+  dispenseLineId String @map("dispense_line_id") @db.Uuid
+  /// The allocation it came out of, so the lot it goes back INTO is the lot it
+  /// came OUT of rather than whichever one is oldest. ⚠️ Returning a lot to the
+  /// wrong bucket makes a recall miss the units it went looking for.
+  dispenseAllocationId String? @map("dispense_allocation_id") @db.Uuid
+
+  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  dispenseReturn DispenseReturn    @relation(fields: [organizationId, dispenseReturnId], references: [organizationId, id], onDelete: Cascade)
+  dispenseLine DispenseLine        @relation(fields: [organizationId, dispenseLineId], references: [organizationId, id], onDelete: Restrict)
+  dispenseAllocation DispenseAllocation? @relation(fields: [organizationId, dispenseAllocationId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, dispenseReturnId])
+  @@index([organizationId, dispenseLineId])
+  @@map("dispense_return_lines")
+}
