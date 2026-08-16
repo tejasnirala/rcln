@@ -143,6 +143,17 @@ model User {
    */
   rulePacksReviewed         RegulatoryRulePack[]              @relation("RulePackReviewer")
 
+  // -- Pharmacy dispensing (PI-7) --------------------------------------------
+  prescriptionsVerified     PrescriptionFulfilment[]          @relation("PrescriptionFulfilmentVerifiedBy")
+  prescriptionsCancelled    PrescriptionFulfilment[]          @relation("PrescriptionFulfilmentCancelledBy")
+  /// ⚠️ THE PERSON WHO HANDED IT OVER, AND THE RECORD OF WHO THAT WAS IS THE
+  ///   POINT. Several jurisdictions require the supply to be made BY a named
+  ///   registered pharmacist; a dispense attributed to nobody is one no
+  ///   inspection can follow.
+  dispensesMade             Dispense[]                        @relation("DispenseDispensedBy")
+  dispenseReturnsReceived   DispenseReturn[]                  @relation("DispenseReturnReceivedBy")
+  regulatoryDecisionsMade   RegulatoryDecision[]              @relation("RegulatoryDecisionActor")
+
   @@index([status])
   @@index([isPlatformAdmin])
   @@map("users")

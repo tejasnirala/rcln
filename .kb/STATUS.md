@@ -2,7 +2,7 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-08-14 · **Current phase:** 0 complete; 1 complete except
+**Last updated:** 2026-08-16 · **Current phase:** 0 complete; 1 complete except
 the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
 management, email/phone verification, org settings, super-admin impersonation,
 one unified shell, remembered scope and per-record history); **2 complete except
@@ -44,7 +44,7 @@ signs and amends — a finalized record is immutable, and a correction is a new 
 citing it that carries a COPY of its content. And it now holds that content as
 real rows: diagnoses, prescriptions, procedures, investigations, advice,
 referrals, attachments and a follow-up plan, each with a foreign key the database
-checks. **PI-7 and PI-9 are unblocked.** CE-5 added the read side — visit
+checks. **PI-7 has since shipped against them and PI-9 is unblocked.** CE-5 added the read side — visit
 history, the episode timeline, the read-only record, the previous-visit panel and
 the recall screen — and CE-6 added the chart: `visual_maps`, `visual_regions` and
 `clinical_findings`, with the 32-tooth FDI odontogram seeded and ONE generic
@@ -1013,8 +1013,8 @@ Its own programme, with its own tracker. Full detail in
       `db:rls:check` at **108**, including seven `*_visible` policies standing in
       for composite FKs that cannot be drawn into a platform-extensible parent.
       **No new permission codes**: recording a diagnosis IS writing up the
-      consultation. **PI-7 and PI-9 are unblocked** — `encounter_prescriptions`
-      and `encounter_procedures` exist.
+      consultation. **PI-7 shipped against `encounter_prescriptions`; PI-9 is
+      unblocked** — `encounter_procedures` exists.
 - [x] **CE-5 — visit history and episodes.** No schema at all: read surfaces
       over CE-1…CE-4's tables. `GET /patients/:id/visit-history`,
       `GET /clinical-episodes/:id`, `GET /appointments/:id/previous-visit`,
@@ -1542,7 +1542,15 @@ Strictly in this order; dispensing depends on batches existing.
       yet, and most of India's matrix cells are still `RESEARCH_REQUIRED` — NDPS
       above all. See `COUNTRY_SUPPORT_MATRIX.md` for what was deliberately not
       written
-- [ ] Dispensing with FEFO batch selection — PI-7, blocked on `prescriptions`
+- [x] Dispensing with FEFO batch selection — PI-7. The queue, pharmacist
+      verification, the supply, returns, counter sales and equivalents. Eight
+      tables including `regulatory_decisions`, PI-ADR-008's snapshot: every
+      supplied line cites the decision that permitted it, and nothing ever
+      re-evaluates a historical supply. ⚠️ A dispense has no draft — the record,
+      the ledger legs, the snapshot and the audit row are one transaction, and
+      the number is taken last so a refusal burns none. ⚠️ Enforcement is still
+      gated on a human sign-off, so a refusal is recorded and reported and stops
+      nothing. Pharmacy owns no money: billing is PI-8
 
 ### Phase 6 — Lab
 

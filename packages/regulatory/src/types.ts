@@ -164,6 +164,33 @@ export interface PresentedPrescription {
   refillsUsed: number;
   /** What the prescriber is registered as — `DOCTOR`, `DENTIST`, `VET`. */
   prescriberClasses?: readonly string[];
+  /**
+   * Did the prescriber state ON THE PRESCRIPTION that it may be dispensed more
+   * than once? (PI-7, closing KNOWN_ISSUES defect 3.)
+   *
+   * ⚠️ THIS IS A FACT ABOUT THE PAPER, NOT A PERMISSION THE PHARMACIST GRANTS
+   *   THEMSELVES. India's rule 65(11)(a) forbids a repeat "unless the prescriber
+   *   has stated thereon that it may be dispensed more than once", and (b) then
+   *   permits it as endorsed. Without this field the correct default —
+   *   `refillsAllowed: 0` — also refused the legitimate endorsed case, so the
+   *   rule was right and the framework could not express the exception.
+   *
+   * ⚠️ AND IT IS DELIBERATELY NOT ON THE HTTP CONTRACT AS SOMETHING A CLIENT
+   *   ASSERTS ABOUT ITSELF. The caller reads it off the prescription record; a
+   *   screen where the person dispensing ticks "the prescriber allowed repeats"
+   *   without the prescription saying so is the endorsement requirement removed
+   *   rather than modelled.
+   */
+  repeatsAuthorised?: boolean;
+  /**
+   * How many repeats the endorsement states, where it states a number.
+   *
+   * ⚠️ ABSENT IS NOT "AS MANY AS YOU LIKE". An endorsement with no number and a
+   *   rule with no cap resolves `UNDETERMINED` in `evaluateRefillRule`, which
+   *   refuses — "the prescriber allowed repeats but nobody can say how many" is
+   *   a reason to ask, not a reason to keep dispensing.
+   */
+  repeatsAuthorisedLimit?: number;
 }
 
 /** Who is standing at the counter, on our side of it. */
@@ -192,6 +219,24 @@ export interface RegulatoryActor {
   roleCodes: readonly string[];
   /** Professional registration numbers the actor holds, by type. */
   licenceTypes?: readonly string[];
+  /**
+   * Is this person the prescriber of the prescription being dispensed?
+   * (PI-7, closing KNOWN_ISSUES defect 4.)
+   *
+   * ⚠️ A NARROW FACT WITH A NARROW USE: several jurisdictions exempt a medical
+   *   practitioner dispensing to their OWN patients from the "registered
+   *   pharmacist only" prohibition — India's Pharmacy Act s. 42(1) says so in
+   *   the section itself. Without this the engine had no way to be told, and a
+   *   doctor-run clinic, which is the common shape in exactly those countries,
+   *   was refused by a rule that does not apply to it.
+   *
+   * ⚠️ IT EXEMPTS NOTHING BY ITSELF. A rule opts in with
+   *   `exemptWhenActorIsPrescriber`; where no rule says so, this field changes
+   *   no outcome. And it is derived by the SERVICE from the encounter's
+   *   prescriber and the caller's user id — never sent by a client, which would
+   *   make the exemption self-asserted.
+   */
+  isPrescriber?: boolean;
 }
 
 export interface RegulatoryPatient {

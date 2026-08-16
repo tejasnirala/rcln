@@ -577,6 +577,20 @@ export const evaluateRegulatoryRequest = z.object({
       issuedOn: effectiveDate,
       refillsUsed: z.number().int().min(0).default(0),
       prescriberClasses: z.array(z.string().trim().max(64)).max(20).optional(),
+      /**
+       * Did the prescriber state ON THE PRESCRIPTION that it may be dispensed
+       * more than once? (PI-7.)
+       *
+       * ⚠️ ON THIS ENDPOINT IT IS A HYPOTHESIS, BECAUSE THIS ENDPOINT ANSWERS A
+       *   QUESTION AND AUTHORISES NOTHING — "what would the rules say about an
+       *   endorsed repeat" is a legitimate thing to ask. On the DISPENSING path
+       *   the pharmacy service reads it off the prescription record and never
+       *   from a client, which is the difference between modelling the
+       *   endorsement requirement and removing it.
+       */
+      repeatsAuthorised: z.boolean().optional(),
+      /** How many repeats the endorsement states, where it states a number. */
+      repeatsAuthorisedLimit: z.number().int().min(0).max(99).optional(),
     })
     .optional(),
   patient: z

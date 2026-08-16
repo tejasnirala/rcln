@@ -31,6 +31,7 @@ import encounterRoutes from '../../src/routes/v1/encounters.routes.js';
 import clinicalRoutes from '../../src/routes/v1/clinical.routes.js';
 import consultationTemplateRoutes from '../../src/routes/v1/consultation-templates.routes.js';
 import visualMapRoutes from '../../src/routes/v1/visual-maps.routes.js';
+import pharmacyRoutes from '../../src/routes/v1/pharmacy.routes.js';
 
 /**
  * ⚠️ THIS SUITE TOUCHES NO DATABASE AND STILL HAS TO HANG UP.
@@ -106,6 +107,15 @@ const ROUTERS: { name: string; router: IRouter }[] = [
   { name: 'clinical', router: clinicalRoutes },
   { name: 'consultation-templates', router: consultationTemplateRoutes },
   { name: 'visual-maps', router: visualMapRoutes },
+  /*
+   * ⚠️ PHARMACY IS AUDITED HERE EVEN THOUGH IT AUTHORS NOTHING (PI-7), AND THAT
+   *   IS THE POINT. It READS the clinical record — the queue, a prescription, a
+   *   dispensing history — so it discloses exactly what the four above write, and
+   *   an ungated route on it would be the same disclosure with none of the
+   *   scrutiny. The case below it asserts the other half: that no route on this
+   *   router carries an AUTHORING code (invariant 7).
+   */
+  { name: 'pharmacy', router: pharmacyRoutes },
 ];
 
 /**
@@ -154,6 +164,7 @@ const NOT_CLINICAL: string[] = [
 ];
 
 const AUDITED_FILES: string[] = [
+  'pharmacy.routes.ts',
   'encounters.routes.ts',
   'clinical.routes.ts',
   'consultation-templates.routes.ts',
@@ -301,6 +312,48 @@ describe('configuring is not conducting', () => {
       for (const code of route.permissions ?? []) {
         expect(encounterCodes).not.toContain(code);
       }
+    }
+  });
+});
+
+/**
+ * ⚠️ INVARIANT 7 FROM THE OTHER SIDE (PI-7). The consultation surface is audited
+ *   above for authoring behind an authoring code; the dispensary is audited here
+ *   for authoring NOTHING. Pharmacy reads a prescription and writes only its own
+ *   rows beside it — a route on this router carrying
+ *   `clinical.encounter.create`, `.close`, `.amend` or `clinical.prescription.*`
+ *   would be the dispensary inside the clinical record, and it would look
+ *   entirely reasonable in a diff.
+ */
+describe('the dispensary reads the clinical record and never writes it', () => {
+  const routes = routesOf(pharmacyRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical authoring code on any route', () => {
+    const authoring = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(authoring).toEqual([]);
+  });
+
+  it('gates every write behind a pharmacy code', () => {
+    const writes = routes.filter((route) => route.method !== 'GET');
+    expect(writes.length).toBeGreaterThan(0);
+    for (const route of writes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^pharmacy\.dispense\./);
+    }
+  });
+
+  /** Reading is one code, so a clinic grants "may see the counter" once. */
+  it('reads behind the dispense read code, and nothing else', () => {
+    const reads = routes.filter((route) => route.method === 'GET');
+    expect(reads.length).toBeGreaterThan(0);
+    for (const route of reads) {
+      expect(route.permissions).toEqual([PERMISSIONS.DISPENSE_READ]);
     }
   });
 });

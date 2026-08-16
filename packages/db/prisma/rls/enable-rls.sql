@@ -380,7 +380,32 @@ DECLARE
     -- ⚠️ A COST AVERAGE IS BRANCH-SCOPED AND HOLDS A QUANTITY THAT IS NOT STOCK.
     --   `valued_quantity_base` is the denominator of an average, not what the
     --   branch holds; `stock_balances` is what the branch holds. See the model.
-    'product_cost_averages'
+    'product_cost_averages',
+    -- ---------------------------------------------------------------------
+    -- Pharmacy dispensing (PI-7). Seven tables, ONE tenancy class, and every
+    -- one of them is also in the branch array below — a supply happens at a
+    -- counter, and there is no org-wide member of this group the way
+    -- `suppliers` is one in procurement.
+    --
+    -- ⚠️ `regulatory_decisions` IS TENANT DATA AND IS THE ONLY REGULATORY TABLE
+    --   THAT IS. The jurisdictions, authorities, sources, packs and rules are
+    --   the LAW — identical for every clinic in a country, seeded by
+    --   `rcln_owner`, and carrying no organization_id to isolate on. A DECISION
+    --   is what happened in ONE clinic at ONE counter, so it isolates like any
+    --   other clinical record. Reading another tenant's decisions would disclose
+    --   which controlled products they dispense and how often.
+    --
+    -- ⚠️ AND IT IS APPEND-ONLY ON TOP OF RLS, enforced by a REVOKE and a trigger
+    --   in the migration, exactly as `stock_ledger` and `audit_logs` are.
+    --   Isolation stops another tenant reading it; append-only stops THIS tenant
+    --   rewriting what the law said after the fact (PI-ADR-008).
+    'prescription_fulfilments',
+    'dispenses',
+    'dispense_lines',
+    'dispense_allocations',
+    'dispense_returns',
+    'dispense_return_lines',
+    'regulatory_decisions'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -1303,7 +1328,19 @@ DECLARE
     'goods_receipt_lines',
     'purchase_returns',
     'purchase_return_lines',
-    'product_cost_averages'
+    'product_cost_averages',
+    -- Pharmacy (PI-7). ⚠️ ALL SEVEN, branch_id NOT NULL on every one, so the
+    --   `IS NULL` half of the predicate below is dead code for them and the
+    --   policy is absolute. That is the intent: a supply to a named patient is
+    --   the most sensitive row this platform holds, and a pharmacist scoped to
+    --   one site has no business reading another site's dispensing register.
+    'prescription_fulfilments',
+    'dispenses',
+    'dispense_lines',
+    'dispense_allocations',
+    'dispense_returns',
+    'dispense_return_lines',
+    'regulatory_decisions'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP

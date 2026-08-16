@@ -5,6 +5,82 @@ discussed.
 
 ---
 
+## 2026-08-16 — PI-7: the counter opens
+
+**Phase:** PI-7 · **Branch:** `feat/pi-7-pharmacy-dispensing` · **Result:**
+complete · **Tests:** +12 unit (`@rcln/regulatory`), +24 integration, +13
+isolation, +4 route-gate cases. Lint, typecheck and `db:rls:check` (118 tables)
+green.
+
+The highest-risk workflow in the programme, and the phase that has been blocked
+since PI-0. CE-4 shipped `encounter_prescriptions`, which unblocked it.
+
+### The two framework gaps were closed FIRST, and neither rule was weakened
+
+KNOWN_ISSUES #3 and #4 said this had to happen before dispensing was wired, and
+it did. `PresentedPrescription` gained `repeatsAuthorised` and
+`repeatsAuthorisedLimit`; `RegulatoryActor` gained `isPrescriber`; the rule
+parameters gained `endorsedRepeatsPermitted`, `maxEndorsedRepeats` and
+`exemptWhenActorIsPrescriber`. India's pack opts into both clauses — rule
+65(11)(b)'s endorsed repeat and s. 42(1)'s own proviso for a practitioner
+dispensing to their own patients.
+
+⚠️ **The India rule parameters were edited in place rather than superseded, and
+that is defensible in exactly one window — this one.** PI-ADR-008 forbids
+restating a rule a past decision cites, and no decision had ever cited one:
+`regulatory_decisions` did not exist until this phase created it, and nothing
+could dispense. The next change to those rules is a new version.
+
+⚠️ **An endorsement stating no number resolves `UNDETERMINED`, which refuses.**
+"The prescriber allowed repeats" without saying how many is a reason to ring the
+prescriber, not a licence to keep dispensing.
+
+### `regulatory_decisions` exists, and PI-ADR-008 is now literal
+
+Branch-scoped tenant data, append-only in two layers — `rcln_app` holds no UPDATE
+or DELETE and a trigger refuses both anyway — with the reasons, the conditions
+and the pack versions frozen as documents. Every supplied line carries a NOT NULL
+`regulatory_decision_id`, so a code path that forgot to ask the engine cannot
+compile, and nothing ever re-evaluates a historical supply.
+
+### A dispense has no draft, and that shapes everything
+
+The medicine leaves the shelf once. So the workspace assembles a plan (which
+writes nothing and holds nothing), a human confirms it, and ONE transaction
+writes the record, its allocations, a `DISPENSING` leg per lot through
+`recordMovementIn`, the snapshot, the audit row and the queue state. The number
+is taken after every line has been consulted and planned — a refusal burns none.
+
+`planStockAllocationWithin(tx, …)` was split out of `planStockAllocation` for the
+reason `evaluateWithin` was split out of `evaluateFor`: a second transaction
+cannot see the first's uncommitted work and can deadlock against its locks.
+
+### A regulatory refusal is a 422, never a 403
+
+New `RegulatoryRefusalError`. A 403 says "you may not do this" and sends a
+pharmacist to an administrator to fix a permission that was never wrong; a 422
+says "this supply is not lawful here today" and carries the rule's own sentence
+to read to the patient. Enforcement is still gated at `PRODUCTION_ENABLED`, so
+today every decision is recorded and reported and stops nothing.
+
+### Invariant 7, enforced by a test rather than by good intentions
+
+`route-gates.test.ts` now audits the pharmacy router and asserts that no route on
+it carries a `clinical.*` code. Pharmacy writes `prescription_fulfilments` — its
+own state beside the consultation — and the "how much is still outstanding"
+arithmetic is DERIVED from `dispense_lines`, so there is no progress column on
+the clinical row for anybody to write to.
+
+### What is open
+
+An endorsed repeat still refuses, because the CLINICAL record has nowhere to
+record the endorsement (#8). `licenceTypes` is still empty (#9).
+`priorQuantityInPeriodBase` is still not supplied (#10). Supplying a substitute
+is API-only (#11). The dashboard's "today" is a UTC day (#12). And nothing has
+been clicked in a browser.
+
+---
+
 ## 2026-08-13 — PI-5 reviews, and the four CRITICALs they found
 
 **Phase:** PI-5 · **Result:** every finding fixed · **Tests:** +16 unit, +2

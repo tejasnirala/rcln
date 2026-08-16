@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/clinical.prisma:863`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 29 |
-| relations | 23 |
+| relations | 25 |
 
 ## Columns
 
@@ -63,6 +63,8 @@ Declared at `packages/db/prisma/schema/clinical.prisma:863`.
 | `amends` | [`Encounter`](Encounter.md) | `amends Encounter? @relation("EncounterAmendment", fields: [organizationId, amendsEncounterId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)` |
 | `amendedBy` | [`Encounter`](Encounter.md) | `amendedBy Encounter[] @relation("EncounterAmendment")` |
 | `sections` | [`EncounterSection`](EncounterSection.md) | `sections EncounterSection[]` |
+| `fulfilment` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `fulfilment PrescriptionFulfilment?` |
+| `dispenses` | [`Dispense`](Dispense.md) | `dispenses Dispense[]` |
 | `recommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `recommendations EncounterFollowUpRecommendation[]` |
 | `symptoms` | [`EncounterSymptom`](EncounterSymptom.md) | `symptoms EncounterSymptom[]` |
 | `diagnoses` | [`EncounterDiagnosis`](EncounterDiagnosis.md) | `diagnoses EncounterDiagnosis[]` |
@@ -98,6 +100,8 @@ erDiagram
     Encounter }o--o{ User : relates
     Encounter }o--o{ Encounter : relates
     Encounter }o--o{ EncounterSection : relates
+    Encounter }o--o{ PrescriptionFulfilment : relates
+    Encounter }o--o{ Dispense : relates
     Encounter }o--o{ EncounterFollowUpRecommendation : relates
     Encounter }o--o{ EncounterSymptom : relates
     Encounter }o--o{ EncounterDiagnosis : relates

@@ -191,6 +191,18 @@ model Organization {
   // this one — is tenant data, platform-extensible like the rest of the
   // catalogue. See regulatory.prisma's header.
   productRegulatoryProfiles ProductRegulatoryProfile[]
+  /// The snapshot of every evaluation this clinic acted on (PI-7, PI-ADR-008).
+  /// Tenant data, unlike the five law tables above: it records what happened
+  /// HERE, not what the law says.
+  regulatoryDecisions       RegulatoryDecision[]
+
+  // -- Pharmacy dispensing (PI-7) ---------------------------------------------
+  prescriptionFulfilments PrescriptionFulfilment[]
+  dispenses               Dispense[]
+  dispenseLines           DispenseLine[]
+  dispenseAllocations     DispenseAllocation[]
+  dispenseReturns         DispenseReturn[]
+  dispenseReturnLines     DispenseReturnLine[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   clinicalMasterItems          ClinicalMasterItem[]
@@ -354,6 +366,18 @@ model Branch {
   purchaseReturns          PurchaseReturn[]
   purchaseReturnLines      PurchaseReturnLine[]
   productCostAverages      ProductCostAverage[]
+
+  // -- Pharmacy dispensing (PI-7) ---------------------------------------------
+  /// ⚠️ THE BRANCH THAT DISPENSED, WHICH NEED NOT BE THE ONE THAT PRESCRIBED. A
+  ///   group's patient may take a prescription written at the main site to the
+  ///   satellite's counter, and the supply happened where the counter is.
+  prescriptionFulfilments PrescriptionFulfilment[]
+  dispenses               Dispense[]
+  dispenseLines           DispenseLine[]
+  dispenseAllocations     DispenseAllocation[]
+  dispenseReturns         DispenseReturn[]
+  dispenseReturnLines     DispenseReturnLine[]
+  regulatoryDecisions     RegulatoryDecision[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   followUpRecommendations EncounterFollowUpRecommendation[]

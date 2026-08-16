@@ -241,17 +241,28 @@ const prescriptionRules: RuleSeed[] = scheduled.map((classification) => ({
  * Rule 65(11)(a) — "the prescription must not be dispensed more than once unless
  * the prescriber has stated thereon that it may be dispensed more than once."
  *
- * ⚠️ THIS ENCODES THE DEFAULT AND CANNOT YET ENCODE THE EXCEPTION, WHICH IS A
- *   FRAMEWORK GAP AND NOT A READING OF THE LAW. `refillsAllowed: 0` is the
- *   position where the prescriber has said nothing. Where the prescriber HAS
- *   endorsed a repeat, rule 65(11)(b) says it may be dispensed as endorsed — and
- *   `PresentedPrescription` has no field in which a caller could tell the engine
- *   that endorsement exists. So a legitimately endorsed repeat would be refused.
+ * `refillsAllowed: 0` is the position where the prescriber has said nothing.
+ * `endorsedRepeatsPermitted: true` is clause (b): where the prescriber HAS
+ * endorsed a repeat, it may be dispensed as endorsed.
  *
- *   Nothing dispenses today (PI-7 is blocked on `prescriptions`), so this is
- *   latent rather than live. It is recorded in KNOWN_ISSUES.md and must be
- *   closed in the FRAMEWORK — a field on the prescription — before PI-7 wires
- *   dispensing, never by weakening this rule.
+ * ⚠️ THE SECOND KEY WAS ADDED IN PI-7 AND THE RULE WAS NOT WEAKENED TO ADD IT.
+ *   PI-6 shipped this rule with the default alone, because
+ *   `PresentedPrescription` had no field in which a caller could state that an
+ *   endorsement exists — so the correct default also refused the legitimate
+ *   endorsed case (KNOWN_ISSUES defect 3). The gap was closed in the FRAMEWORK,
+ *   as that entry required: `repeatsAuthorised` is read off the prescription and
+ *   the engine reads this key only where the rule opts in.
+ *
+ * ⚠️ AND THE PARAMETERS WERE EDITED IN PLACE RATHER THAN SUPERSEDED, WHICH IS
+ *   ONLY DEFENSIBLE IN THIS ONE WINDOW. PI-ADR-008 forbids restating a rule a
+ *   past decision cites — and no decision has ever cited one, because
+ *   `regulatory_decisions` did not exist until this phase created it and nothing
+ *   could dispense. The next change to this rule is a new version.
+ *
+ * ⚠️ NO `maxEndorsedRepeats`. The Drugs Rules state no ceiling on an endorsed
+ *   repeat, and inventing one would be inventing law. An endorsement that does
+ *   not itself state a number therefore resolves `UNDETERMINED` — which refuses,
+ *   and tells the pharmacist to confirm the number with the prescriber.
  */
 const refillRules: RuleSeed[] = scheduled.map((classification) => ({
   code: `IN-REPEAT-${classification.replace('SCHEDULE_', 'SCH-')}`,
@@ -262,7 +273,7 @@ const refillRules: RuleSeed[] = scheduled.map((classification) => ({
   sourceKey: 'IN_DRUGS_RULES_1945',
   appliesToClassification: classification,
   appliesToTransactions: SUPPLY_TO_PATIENT,
-  parameters: { refillsAllowed: 0 },
+  parameters: { refillsAllowed: 0, endorsedRepeatsPermitted: true },
   citation: 'Drugs Rules, 1945, rule 65(11)(a)–(b)',
 }));
 
@@ -461,11 +472,15 @@ export const IN_RULES: RuleSeed[] = [
    *   that refuses an actual registered pharmacist for not holding one of our
    *   role codes, which is a statement about our software rather than the law.
    *
-   * ⚠️ THE SECTION 42 PROVISO IS NOT MODELLED — a medical practitioner
-   *   dispensing to their OWN patients is outside the prohibition, and the
-   *   engine has no way to be told that the actor is the prescriber. A clinic
-   *   where the doctor dispenses would see a refusal this rule should not
-   *   produce. Recorded in KNOWN_ISSUES.md as a framework gap for PI-7.
+   * ⚠️ THE SECTION 42 PROVISO IS MODELLED, AS OF PI-7, AND IT IS PART OF THE
+   *   SECTION RATHER THAN AN EXCEPTION TO IT: s. 42(1) does not apply to "the
+   *   dispensing by a medical practitioner of medicine for his own patients".
+   *   `exemptWhenActorIsPrescriber: true` is that clause, and it fires only when
+   *   the person dispensing IS the prescriber of the prescription in hand —
+   *   derived by the service from the encounter, never asserted by a client.
+   *   Without it, a doctor-run clinic (the common shape in India) was refused by
+   *   a rule that does not reach it. KNOWN_ISSUES defect 4, closed in the
+   *   framework as that entry required.
    */
   {
     code: 'IN-DISPENSER-REGISTERED-PHARMACIST',
@@ -475,7 +490,10 @@ export const IN_RULES: RuleSeed[] = [
       'prescription. Hand this to a registered pharmacist.',
     sourceKey: 'IN_PHARMACY_ACT_1948',
     appliesToTransactions: ['DISPENSE'],
-    parameters: { permittedLicenceTypes: ['REGISTERED_PHARMACIST'] },
+    parameters: {
+      permittedLicenceTypes: ['REGISTERED_PHARMACIST'],
+      exemptWhenActorIsPrescriber: true,
+    },
     citation: 'Pharmacy Act, 1948, s. 42(1) read with s. 2(i)',
   },
 

@@ -50,7 +50,8 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | `listSerials` | `(ctx: TenantContext, query: SerialQuery, options: CatalogueActionOptions): Promise<SerialListResponse>` | `apps/api/src/services/inventory/serial.service.ts:132` |  |
 | `listTransfers` | `(ctx: TenantContext, query: StockTransferQuery): Promise<StockTransferListResponse>` | `apps/api/src/services/inventory/transfer.service.ts:472` |  |
 | `lockTransferOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/inventory/transfer.service.ts:227` |  |
-| `planStockAllocation` | `(ctx: TenantContext, input: AllocationPlanRequest): Promise<AllocationPlanResponse>` | `apps/api/src/services/inventory/allocation.service.ts:41` |  |
+| `planStockAllocation` | `(ctx: TenantContext, input: AllocationPlanRequest): Promise<AllocationPlanResponse>` | `apps/api/src/services/inventory/allocation.service.ts:219` | The same plan, for a caller that is not already in a transaction. |
+| `planStockAllocationWithin` | `(tx: TxClient, ctx: TenantContext, input: AllocationPlanRequest): Promise<AllocationPlanResponse>` | `apps/api/src/services/inventory/allocation.service.ts:53` |  |
 | `receiveTransfer` | `(ctx: TenantContext, id: string, input: ReceiveStockTransferRequest, options: CatalogueActionOptions): Promise<StockTransferDetail>` | `apps/api/src/services/inventory/transfer.service.ts:1095` |  |
 | `recordMovement` | `(ctx: TenantContext, input: RecordMovementRequest, options: MovementOptions): Promise<RecordMovementResponse>` | `apps/api/src/services/inventory/movement.service.ts:77` |  |
 | `recordMovementIn` | `(tx: Parameters<typeof recordMovementInEngine>[0], ctx: TenantContext, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>` | `apps/api/src/services/inventory/movement.service.ts:52` | Record a movement inside a transaction the caller already holds. |

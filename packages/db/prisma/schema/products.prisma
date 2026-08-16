@@ -303,6 +303,9 @@ model UnitOfMeasure {
   purchaseOrderLines  PurchaseOrderLine[]       @relation("PurchaseOrderLineUnit")
   goodsReceiptLines   GoodsReceiptLine[]        @relation("GoodsReceiptLineUnit")
   purchaseReturnLines PurchaseReturnLine[]      @relation("PurchaseReturnLineUnit")
+  /// Pharmacy (PI-7). The unit the person at the counter thought in — twelve
+  /// tablets, one bottle — before conversion to the product's base unit.
+  dispenseLines       DispenseLine[]            @relation("DispenseLineUnit")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -707,6 +710,13 @@ model Product {
    * organization_id and hangs off `(organization_id, id)`. See regulatory.prisma.
    */
   regulatoryProfiles  ProductRegulatoryProfile[]
+  /// Pharmacy (PI-7). Plain FKs again, for the reason procurement's are: a
+  /// clinic dispenses PLATFORM products.
+  dispenseLines       DispenseLine[]             @relation("DispenseLineProduct")
+  /// The other side of a substitution — what the prescriber wrote, where
+  /// something else was handed over.
+  dispenseSubstitutions DispenseLine[]           @relation("DispenseLineSubstitutedFor")
+  regulatoryDecisions RegulatoryDecision[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   /// Which specialties this product is relevant to. ⚠️ RANKS, NEVER FILTERS —

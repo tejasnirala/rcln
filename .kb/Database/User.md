@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 55 |
+| relations | 60 |
 
 ## Columns
 
@@ -96,6 +96,11 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `purchaseReturnsSent` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsSent PurchaseReturn[] @relation("PurchaseReturnSentBy")` |
 | `purchaseReturnsCancelled` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsCancelled PurchaseReturn[] @relation("PurchaseReturnCancelledBy")` |
 | `rulePacksReviewed` | [`RegulatoryRulePack`](RegulatoryRulePack.md) | `rulePacksReviewed RegulatoryRulePack[] @relation("RulePackReviewer")` |
+| `prescriptionsVerified` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `prescriptionsVerified PrescriptionFulfilment[] @relation("PrescriptionFulfilmentVerifiedBy")` |
+| `prescriptionsCancelled` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `prescriptionsCancelled PrescriptionFulfilment[] @relation("PrescriptionFulfilmentCancelledBy")` |
+| `dispensesMade` | [`Dispense`](Dispense.md) | `dispensesMade Dispense[] @relation("DispenseDispensedBy")` |
+| `dispenseReturnsReceived` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturnsReceived DispenseReturn[] @relation("DispenseReturnReceivedBy")` |
+| `regulatoryDecisionsMade` | [`RegulatoryDecision`](RegulatoryDecision.md) | `regulatoryDecisionsMade RegulatoryDecision[] @relation("RegulatoryDecisionActor")` |
 
 ## Indexes and constraints
 
@@ -139,4 +144,8 @@ erDiagram
     User }o--o{ GoodsReceiptLine : relates
     User }o--o{ PurchaseReturn : relates
     User }o--o{ RegulatoryRulePack : relates
+    User }o--o{ PrescriptionFulfilment : relates
+    User }o--o{ Dispense : relates
+    User }o--o{ DispenseReturn : relates
+    User }o--o{ RegulatoryDecision : relates
 ```

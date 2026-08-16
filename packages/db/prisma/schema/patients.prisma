@@ -215,6 +215,10 @@ model Patient {
   followUpRecommendations EncounterFollowUpRecommendation[]
   /// This person's clinical record (CE-3). ⚠️ PHI.
   encounters              Encounter[]
+  /// What this person has been given at the counter (PI-7). ⚠️ PHI, and
+  /// `onDelete: Restrict` on the other side: a dispensing record is a retention
+  /// obligation in most jurisdictions and outlives their being a current patient.
+  dispenses               Dispense[]
 
   @@unique([organizationId, uhid])
   /// Composite-FK target. Registrations, appointments, encounters, invoices and

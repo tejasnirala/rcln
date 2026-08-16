@@ -34,7 +34,7 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `IN_AUTHORITIES` | `[ { code: 'CDSCO', name: 'Central Drugs Standard Control Organisation', websiteUrl: 'http…` | `packages/db/prisma/seed/data/regulatory-in.ts:110` |  |
 | `IN_CLASSIFICATIONS` | `{ scheduleH: 'SCHEDULE_H', scheduleH1: 'SCHEDULE_H1', scheduleX: 'SCHEDULE_X', } as const` | `packages/db/prisma/seed/data/regulatory-in.ts:198` |  |
 | `IN_PACK_EFFECTIVE_FROM` | `'2026-08-13'` | `packages/db/prisma/seed/data/regulatory-in.ts:79` |  |
-| `IN_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:292` |  |
+| `IN_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:303` |  |
 | `IN_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:133` |  |
 | `LOWER_Y` <sub>local</sub> | `150` | `packages/db/prisma/seed/data/visual-maps.ts:76` |  |
 | `MARGIN_X` <sub>local</sub> | `8` | `packages/db/prisma/seed/data/visual-maps.ts:73` |  |
@@ -65,9 +65,9 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `prescriptionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:226` |  |
-| `refillRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:256` |  |
+| `refillRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:267` |  |
 | `scheduled` <sub>local</sub> | `[ IN_CLASSIFICATIONS.scheduleH, IN_CLASSIFICATIONS.scheduleH1, IN_CLASSIFICATIONS.schedul…` | `packages/db/prisma/seed/data/regulatory-in.ts:207` |  |
-| `substitutionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:279` |  |
+| `substitutionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:290` |  |
 
 ## interface
 

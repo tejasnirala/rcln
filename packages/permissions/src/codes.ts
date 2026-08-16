@@ -331,6 +331,25 @@ export const PERMISSIONS = {
   MEDICINE_MANAGE: 'pharmacy.medicine.manage',
   DISPENSE_READ: 'pharmacy.dispense.read',
   DISPENSE_CREATE: 'pharmacy.dispense.create',
+  /*
+   * Confirming that a prescription is fit to dispense, BEFORE anything leaves
+   * the shelf (PI-7). Separate from `.create` on purpose, and the split is a
+   * clinical-safety control rather than an administrative one:
+   *
+   *   `.verify`  a professional reads the prescription and says it is sound —
+   *              the drug, the dose, the interaction, the patient.
+   *   `.create`  somebody takes the boxes off the shelf and hands them over.
+   *
+   * ⚠️ A CLINIC MAY GRANT BOTH TO ONE PERSON, AND THE DEFAULTS DO — a dispensary
+   *   with one pharmacist has nobody else, and pretending otherwise would make
+   *   the system unusable at the shape of clinic this platform mostly serves.
+   *   What the split buys is that a clinic which DOES separate the two can, by
+   *   cloning a role, and that the record says which person did which act.
+   *   Compare the requisition create/approve split in PI-4, which additionally
+   *   refuses self-approval in the service — this one deliberately does not: a
+   *   pharmacist verifying and then dispensing is the normal, lawful workflow.
+   */
+  DISPENSE_VERIFY: 'pharmacy.dispense.verify',
   DISPENSE_RETURN: 'pharmacy.dispense.return',
   SUPPLIER_MANAGE: 'pharmacy.supplier.manage',
   PURCHASE_ORDER_READ: 'pharmacy.purchase_order.read',

@@ -293,6 +293,11 @@ model InventoryLocation {
   purchaseOrderDeliveries PurchaseOrder[]    @relation("PurchaseOrderDeliverTo")
   goodsReceipts           GoodsReceipt[]     @relation("GoodsReceiptLocation")
   purchaseReturns         PurchaseReturn[]   @relation("PurchaseReturnLocation")
+  // PI-7. The counter a supply went out of, the shelf each allocated lot came
+  // off, and where a return was put back.
+  dispenses               Dispense[]           @relation("DispenseLocation")
+  dispenseAllocations     DispenseAllocation[] @relation("DispenseAllocationLocation")
+  dispenseReturns         DispenseReturn[]     @relation("DispenseReturnLocation")
 
   @@unique([organizationId, branchId, code])
   /// The composite-FK target every child below references.
@@ -458,6 +463,10 @@ model Batch {
   /// PI-4. The delivery that created this lot, and any of it that went back.
   goodsReceiptLines     GoodsReceiptLine[]   @relation("GoodsReceiptLineBatch")
   purchaseReturnLines   PurchaseReturnLine[] @relation("PurchaseReturnLineBatch")
+  /// PI-7. ⚠️ THE RECALL PATH. "Which supplies came out of this lot" is the
+  /// question a recall asks first, and this relation plus
+  /// `dispense_allocations(organization_id, batch_id)` is how it is answered.
+  dispenseAllocations   DispenseAllocation[] @relation("DispenseAllocationBatch")
 
   @@unique([organizationId, branchId, productId, lotNumber])
   @@unique([organizationId, id])
@@ -524,6 +533,8 @@ model Serial {
   /// PI-4. The delivery that first recorded this device, and its return.
   goodsReceiptLines   GoodsReceiptLine[]   @relation("GoodsReceiptLineSerial")
   purchaseReturnLines PurchaseReturnLine[] @relation("PurchaseReturnLineSerial")
+  /// PI-7. The supply that issued this device to somebody.
+  dispenseAllocations DispenseAllocation[] @relation("DispenseAllocationSerial")
 
   /// Serial numbers repeat across manufacturers, so the key is product-qualified
   /// as well as tenant-qualified.

@@ -12,7 +12,7 @@ Files: `packages/regulatory/jest.config.ts` · `packages/regulatory/src/decimal.
 | --- | --- | --- | --- |
 | `addDecimals` | `(a: string, b: string): string` | `packages/regulatory/src/decimal.ts:56` | Exact addition of two decimal strings, at the wider of the two scales. |
 | `all` <sub>local</sub> | `(readers: T): Parsed<{ [K in keyof T]: T[K] extends Parsed<infer V> ? V :…` | `packages/regulatory/src/parameters.ts:97` | Collects the first problem across several readers, or hands back the values. |
-| `applyQuantityLimit` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest, limits: QuantityLimitParameters): RuleVerdict` | `packages/regulatory/src/engine.ts:326` |  |
+| `applyQuantityLimit` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest, limits: QuantityLimitParameters): RuleVerdict` | `packages/regulatory/src/engine.ts:342` |  |
 | `asRecord` <sub>local</sub> | `(parameters: unknown): Parsed<Record<string, unknown>>` | `packages/regulatory/src/parameters.ts:32` |  |
 | `compareDecimals` | `(a: string, b: string): -1 \| 0 \| 1` | `packages/regulatory/src/decimal.ts:48` |  |
 | `condition` <sub>local</sub> | `(rule: RegulatoryRule, kind: RegulatoryCondition['kind'], detail: string, parameters?: Record<string, unknown>): RegulatoryCondition` | `packages/regulatory/src/engine.ts:105` |  |
@@ -20,21 +20,21 @@ Files: `packages/regulatory/jest.config.ts` · `packages/regulatory/src/decimal.
 | `coversProduct` | `(rule: RegulatoryRule, request: RegulatoryRequest): boolean` | `packages/regulatory/src/selection.ts:100` |  |
 | `coversTransaction` | `(rule: RegulatoryRule, request: RegulatoryRequest): boolean` | `packages/regulatory/src/selection.ts:82` | Empty means every transaction — see the schema comment. |
 | `daysBetween` <sub>local</sub> | `(from: Date, to: Date): number` | `packages/regulatory/src/engine.ts:121` | Whole days between two calendar days. Negative when `to` precedes `from`. |
-| `evaluate` | `(request: RegulatoryRequest): RegulatoryDecision` | `packages/regulatory/src/engine.ts:738` |  |
-| `evaluateAgeRestriction` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:413` |  |
-| `evaluateControlledSchedule` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:268` |  |
-| `evaluateImportRestriction` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:637` |  |
-| `evaluateObligation` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest, kind: RegulatoryCondition['kind']): RuleVerdict` | `packages/regulatory/src/engine.ts:600` |  |
-| `evaluateOnlineDispensing` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:491` |  |
+| `evaluate` | `(request: RegulatoryRequest): RegulatoryDecision` | `packages/regulatory/src/engine.ts:796` |  |
+| `evaluateAgeRestriction` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:471` |  |
+| `evaluateControlledSchedule` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:284` |  |
+| `evaluateImportRestriction` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:695` |  |
+| `evaluateObligation` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest, kind: RegulatoryCondition['kind']): RuleVerdict` | `packages/regulatory/src/engine.ts:658` |  |
+| `evaluateOnlineDispensing` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:549` |  |
 | `evaluatePharmacistAuthority` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:232` |  |
 | `evaluatePrescriberAuthority` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:193` |  |
 | `evaluatePrescriptionRequired` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:144` |  |
-| `evaluateQuantityLimit` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:307` |  |
-| `evaluateRefillRule` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:369` |  |
-| `evaluateRule` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:672` |  |
-| `evaluateStorageRequirement` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:529` |  |
-| `evaluateSubstitution` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:450` |  |
-| `evaluateTraceability` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:571` |  |
+| `evaluateQuantityLimit` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:323` |  |
+| `evaluateRefillRule` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:385` |  |
+| `evaluateRule` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:730` |  |
+| `evaluateStorageRequirement` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:587` |  |
+| `evaluateSubstitution` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:508` |  |
+| `evaluateTraceability` <sub>local</sub> | `(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict` | `packages/regulatory/src/engine.ts:629` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/regulatory/src/parameters.ts:28` |  |
 | `formatJurisdiction` | `(place: Jurisdiction): string` | `packages/regulatory/src/selection.ts:50` | `IN-KA` where a region is known, otherwise `IN`. Matches `@rcln/tax`. |
 | `isCodeSettableMaturity` | `(maturity: RulePackMaturity): boolean` | `packages/regulatory/src/types.ts:72` |  |
@@ -44,18 +44,18 @@ Files: `packages/regulatory/jest.config.ts` · `packages/regulatory/src/decimal.
 | `isSupplyToPatient` <sub>local</sub> | `(request: RegulatoryRequest): boolean` | `packages/regulatory/src/engine.ts:127` | Is this transaction one where a prescription is even a coherent question? |
 | `mostSpecific` | `(rules: readonly RegulatoryRule[]): RegulatoryRule[]` | `packages/regulatory/src/selection.ts:159` |  |
 | `needsClassificationButHasNone` | `(request: RegulatoryRequest): boolean` | `packages/regulatory/src/selection.ts:239` |  |
-| `parseAgeRestriction` | `(parameters: unknown): Parsed<AgeRestrictionParameters>` | `packages/regulatory/src/parameters.ts:267` |  |
-| `parseAuthority` | `(parameters: unknown): Parsed<AuthorityParameters>` | `packages/regulatory/src/parameters.ts:338` |  |
-| `parseControlledSchedule` | `(parameters: unknown): Parsed<ControlledScheduleParameters>` | `packages/regulatory/src/parameters.ts:281` |  |
-| `parseImportRestriction` | `(parameters: unknown): Parsed<ImportRestrictionParameters>` | `packages/regulatory/src/parameters.ts:434` |  |
-| `parseObligation` | `(parameters: unknown): Parsed<ObligationParameters>` | `packages/regulatory/src/parameters.ts:407` |  |
-| `parseOnlineDispensing` | `(parameters: unknown): Parsed<OnlineDispensingParameters>` | `packages/regulatory/src/parameters.ts:323` |  |
-| `parsePrescriptionRequired` | `(parameters: unknown): Parsed<PrescriptionRequiredParameters>` | `packages/regulatory/src/parameters.ts:208` |  |
-| `parseQuantityLimit` | `(parameters: unknown): Parsed<QuantityLimitParameters>` | `packages/regulatory/src/parameters.ts:225` |  |
-| `parseRefillRule` | `(parameters: unknown): Parsed<RefillRuleParameters>` | `packages/regulatory/src/parameters.ts:253` |  |
-| `parseStorageRequirement` | `(parameters: unknown): Parsed<StorageRequirementParameters>` | `packages/regulatory/src/parameters.ts:357` |  |
-| `parseSubstitution` | `(parameters: unknown): Parsed<SubstitutionParameters>` | `packages/regulatory/src/parameters.ts:307` |  |
-| `parseTraceability` | `(parameters: unknown): Parsed<TraceabilityParameters>` | `packages/regulatory/src/parameters.ts:376` |  |
+| `parseAgeRestriction` | `(parameters: unknown): Parsed<AgeRestrictionParameters>` | `packages/regulatory/src/parameters.ts:290` |  |
+| `parseAuthority` | `(parameters: unknown): Parsed<AuthorityParameters>` | `packages/regulatory/src/parameters.ts:361` |  |
+| `parseControlledSchedule` | `(parameters: unknown): Parsed<ControlledScheduleParameters>` | `packages/regulatory/src/parameters.ts:304` |  |
+| `parseImportRestriction` | `(parameters: unknown): Parsed<ImportRestrictionParameters>` | `packages/regulatory/src/parameters.ts:458` |  |
+| `parseObligation` | `(parameters: unknown): Parsed<ObligationParameters>` | `packages/regulatory/src/parameters.ts:431` |  |
+| `parseOnlineDispensing` | `(parameters: unknown): Parsed<OnlineDispensingParameters>` | `packages/regulatory/src/parameters.ts:346` |  |
+| `parsePrescriptionRequired` | `(parameters: unknown): Parsed<PrescriptionRequiredParameters>` | `packages/regulatory/src/parameters.ts:229` |  |
+| `parseQuantityLimit` | `(parameters: unknown): Parsed<QuantityLimitParameters>` | `packages/regulatory/src/parameters.ts:246` |  |
+| `parseRefillRule` | `(parameters: unknown): Parsed<RefillRuleParameters>` | `packages/regulatory/src/parameters.ts:274` |  |
+| `parseStorageRequirement` | `(parameters: unknown): Parsed<StorageRequirementParameters>` | `packages/regulatory/src/parameters.ts:381` |  |
+| `parseSubstitution` | `(parameters: unknown): Parsed<SubstitutionParameters>` | `packages/regulatory/src/parameters.ts:330` |  |
+| `parseTraceability` | `(parameters: unknown): Parsed<TraceabilityParameters>` | `packages/regulatory/src/parameters.ts:400` |  |
 | `permitted` <sub>local</sub> | `(message: string, conditions: RegulatoryCondition[]): RuleVerdict` | `packages/regulatory/src/engine.ts:78` |  |
 | `readBoolean` <sub>local</sub> | `(source: Record<string, unknown>, key: string): Parsed<boolean \| undefined>` | `packages/regulatory/src/parameters.ts:44` |  |
 | `readDecimal` <sub>local</sub> | `(source: Record<string, unknown>, key: string): Parsed<string \| undefined>` | `packages/regulatory/src/parameters.ts:61` | A quantity, kept as a STRING so it never touches a float. |
@@ -63,12 +63,12 @@ Files: `packages/regulatory/jest.config.ts` · `packages/regulatory/src/decimal.
 | `readString` <sub>local</sub> | `(source: Record<string, unknown>, key: string): Parsed<string \| undefined>` | `packages/regulatory/src/parameters.ts:89` |  |
 | `readStringArray` <sub>local</sub> | `(source: Record<string, unknown>, key: string): Parsed<readonly string[] \| undefined>` | `packages/regulatory/src/parameters.ts:77` |  |
 | `refused` <sub>local</sub> | `(message: string): RuleVerdict` | `packages/regulatory/src/engine.ts:84` |  |
-| `sayNothing` <sub>local</sub> | `(key: string, what: string): Parsed<T>` | `packages/regulatory/src/parameters.ts:204` | The essential key is missing. The rule says nothing, so it permits nothing. |
+| `sayNothing` <sub>local</sub> | `(key: string, what: string): Parsed<T>` | `packages/regulatory/src/parameters.ts:225` | The essential key is missing. The rule says nothing, so it permits nothing. |
 | `scaleOf` <sub>local</sub> | `(value: string): number` | `packages/regulatory/src/decimal.ts:77` |  |
 | `selectApplicableRules` | `(request: RegulatoryRequest): RegulatoryRule[]` | `packages/regulatory/src/selection.ts:187` |  |
 | `specificity` | `(rule: RegulatoryRule): number` | `packages/regulatory/src/selection.ts:132` |  |
 | `startOfCalendarDay` | `(value: Date): Date` | `packages/regulatory/src/selection.ts:45` |  |
-| `toReason` <sub>local</sub> | `(rule: RegulatoryRule, verdict: RuleVerdict): RegulatoryReason` | `packages/regulatory/src/engine.ts:709` |  |
+| `toReason` <sub>local</sub> | `(rule: RegulatoryRule, verdict: RuleVerdict): RegulatoryReason` | `packages/regulatory/src/engine.ts:767` |  |
 | `toScaledBigInt` <sub>local</sub> | `(value: string, scale?: number): bigint` | `packages/regulatory/src/decimal.ts:88` |  |
 | `undetermined` <sub>local</sub> | `(message: string): RuleVerdict` | `packages/regulatory/src/engine.ts:90` |  |
 | `unreadable` <sub>local</sub> | `(rule: RegulatoryRule, parsed: Parsed<unknown>): RuleVerdict` | `packages/regulatory/src/engine.ts:97` | A parameters document nobody can read is a rule nobody may rely on. |
@@ -94,30 +94,30 @@ Files: `packages/regulatory/jest.config.ts` · `packages/regulatory/src/decimal.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `AgeRestrictionParameters` | `{ minimumAgeYears, verificationRequired }` | `packages/regulatory/src/parameters.ts:128` |  |
-| `AuthorityParameters` | `{ permittedRoleCodes, permittedLicenceTypes, permittedPrescriberClasses }` | `packages/regulatory/src/parameters.ts:153` |  |
-| `ControlledScheduleParameters` | `{ scheduleName, registerRequired, witnessRequired, storageLocationKinds }` | `packages/regulatory/src/parameters.ts:133` |  |
-| `ImportRestrictionParameters` | `{ permitted, licenceRequired, licenceType }` | `packages/regulatory/src/parameters.ts:181` |  |
+| `AgeRestrictionParameters` | `{ minimumAgeYears, verificationRequired }` | `packages/regulatory/src/parameters.ts:139` |  |
+| `AuthorityParameters` | `{ permittedRoleCodes, permittedLicenceTypes, permittedPrescriberClasses, exemptWhenActorIsPrescriber }` | `packages/regulatory/src/parameters.ts:164` |  |
+| `ControlledScheduleParameters` | `{ scheduleName, registerRequired, witnessRequired, storageLocationKinds }` | `packages/regulatory/src/parameters.ts:144` |  |
+| `ImportRestrictionParameters` | `{ permitted, licenceRequired, licenceType }` | `packages/regulatory/src/parameters.ts:202` |  |
 | `Jurisdiction` | `{ countryCode, regionCode }` | `packages/regulatory/src/types.ts:106` |  |
-| `ObligationParameters` | `{ detail, fields, years, cadence, recipient, method, witnessRequired }` | `packages/regulatory/src/parameters.ts:170` |  |
-| `OnlineDispensingParameters` | `{ permitted, excludedClassifications, destinationCountryCodes }` | `packages/regulatory/src/parameters.ts:147` |  |
+| `ObligationParameters` | `{ detail, fields, years, cadence, recipient, method, witnessRequired }` | `packages/regulatory/src/parameters.ts:191` |  |
+| `OnlineDispensingParameters` | `{ permitted, excludedClassifications, destinationCountryCodes }` | `packages/regulatory/src/parameters.ts:158` |  |
 | `PrescriptionRequiredParameters` | `{ required, validityDays, prescriberClasses }` | `packages/regulatory/src/parameters.ts:111` |  |
-| `PresentedPrescription` | `{ presented, signedByQualifiedPrescriber, issuedOn, refillsUsed, prescriberClasses }` | `packages/regulatory/src/types.ts:159` | The prescription being presented, where one is. |
+| `PresentedPrescription` | `{ presented, signedByQualifiedPrescriber, issuedOn, refillsUsed, prescriberClasses, repeatsAuthorised, repeatsAuthorisedLimit }` | `packages/regulatory/src/types.ts:159` | The prescription being presented, where one is. |
 | `ProductRegulatoryProfile` | `{ id, jurisdiction, classification, controlledSchedule, prescriptionRequirement, registrationNumber, registrationStatus, onlineSalePosition, effectiveFrom, effectiveTo }` | `packages/regulatory/src/types.ts:145` | What a clinic asserts about this product here, from `product_regulatory_profiles`. |
 | `QuantityLimitParameters` | `{ maxPerTransactionBase, maxPerPeriodBase, periodDays }` | `packages/regulatory/src/parameters.ts:117` |  |
-| `RefillRuleParameters` | `{ refillsAllowed, validityDays }` | `packages/regulatory/src/parameters.ts:123` |  |
-| `RegulatoryActor` | `{ roleCodes, licenceTypes }` | `packages/regulatory/src/types.ts:170` | Who is standing at the counter, on our side of it. |
-| `RegulatoryCondition` | `{ kind, ruleId, ruleCode, detail, parameters }` | `packages/regulatory/src/types.ts:270` |  |
-| `RegulatoryDecision` | `{ outcome, conditions, reasons, packVersionIds, lowestPackMaturity }` | `packages/regulatory/src/types.ts:304` |  |
-| `RegulatoryPatient` | `{ ageYears, subjectType }` | `packages/regulatory/src/types.ts:197` |  |
-| `RegulatoryReason` | `{ ruleId, ruleCode, ruleType, packId, packVersion, outcome, message }` | `packages/regulatory/src/types.ts:292` | Why the engine answered the way it did. One per rule that had something to say. |
-| `RegulatoryRequest` | `{ jurisdiction, transaction, product, profile, rules, prescription, actor, patient, quantityBase, priorQuantityInPeriodBase, substitution, location, destination, traceability, occurredAt }` | `packages/regulatory/src/types.ts:210` |  |
+| `RefillRuleParameters` | `{ refillsAllowed, validityDays, endorsedRepeatsPermitted, maxEndorsedRepeats }` | `packages/regulatory/src/parameters.ts:123` |  |
+| `RegulatoryActor` | `{ roleCodes, licenceTypes, isPrescriber }` | `packages/regulatory/src/types.ts:197` | Who is standing at the counter, on our side of it. |
+| `RegulatoryCondition` | `{ kind, ruleId, ruleCode, detail, parameters }` | `packages/regulatory/src/types.ts:315` |  |
+| `RegulatoryDecision` | `{ outcome, conditions, reasons, packVersionIds, lowestPackMaturity }` | `packages/regulatory/src/types.ts:349` |  |
+| `RegulatoryPatient` | `{ ageYears, subjectType }` | `packages/regulatory/src/types.ts:242` |  |
+| `RegulatoryReason` | `{ ruleId, ruleCode, ruleType, packId, packVersion, outcome, message }` | `packages/regulatory/src/types.ts:337` | Why the engine answered the way it did. One per rule that had something to say. |
+| `RegulatoryRequest` | `{ jurisdiction, transaction, product, profile, rules, prescription, actor, patient, quantityBase, priorQuantityInPeriodBase, substitution, location, destination, traceability, occurredAt }` | `packages/regulatory/src/types.ts:255` |  |
 | `RegulatoryRule` | `{ id, packId, packVersion, packMaturity, jurisdiction, ruleType, code, statement, status, appliesToProductType, appliesToCategoryId, appliesToClassification, appliesToTransactions, parameters, source…` | `packages/regulatory/src/types.ts:119` |  |
 | `RuleVerdict` <sub>local</sub> | `{ outcome, message, conditions }` | `packages/regulatory/src/engine.ts:72` | One rule's answer. Exactly one per applicable rule, so the snapshot is total. |
-| `StorageRequirementParameters` | `{ locationKinds, controlledAccessRequired, detail }` | `packages/regulatory/src/parameters.ts:159` |  |
-| `SubstitutionParameters` | `{ permitted, requiresPrescriberConsent, requiresPatientConsent, excludedClassifications }` | `packages/regulatory/src/parameters.ts:140` |  |
-| `TraceabilityEvidence` | `{ gtin, lotNumber, expiresOn, serial }` | `packages/regulatory/src/types.ts:203` | What the caller can prove about the physical stock in front of it. |
-| `TraceabilityParameters` | `{ requiredIdentifiers }` | `packages/regulatory/src/parameters.ts:165` |  |
+| `StorageRequirementParameters` | `{ locationKinds, controlledAccessRequired, detail }` | `packages/regulatory/src/parameters.ts:180` |  |
+| `SubstitutionParameters` | `{ permitted, requiresPrescriberConsent, requiresPatientConsent, excludedClassifications }` | `packages/regulatory/src/parameters.ts:151` |  |
+| `TraceabilityEvidence` | `{ gtin, lotNumber, expiresOn, serial }` | `packages/regulatory/src/types.ts:248` | What the caller can prove about the physical stock in front of it. |
+| `TraceabilityParameters` | `{ requiredIdentifiers }` | `packages/regulatory/src/parameters.ts:186` |  |
 
 ## type
 
@@ -127,7 +127,7 @@ Files: `packages/regulatory/jest.config.ts` · `packages/regulatory/src/decimal.
 | `Parsed` | `{ ok: true; value: T } \| { ok: false; problem: string }` | `packages/regulatory/src/parameters.ts:26` |  |
 | `PrescriptionRequirement` | `'UNKNOWN' \| 'NOT_REQUIRED' \| 'PHARMACIST_ONLY' \| 'PRESCRIPTION_REQUIRED' \| 'CONTROLLED'` | `packages/regulatory/src/types.ts:92` | Mirrors `PrescriptionRequirement`. An assertion, never an authorization. |
 | `ProductType` | `\| 'MEDICINE' \| 'VACCINE' \| 'CONSUMABLE' \| 'SURGICAL_SUPPLY' \| 'MEDICAL_DEVICE' \| 'IMPLANT' \| 'DENTAL_MATERIAL' \| 'LAB_REAGENT' \| 'DIAGNOSTIC_KIT' \| 'VETERINARY…` | `packages/regulatory/src/types.ts:77` | Mirrors `ProductType`. Metadata — never an authorization (see products.prisma). |
-| `RegulatoryOutcome` | `'PERMITTED' \| 'PERMITTED_WITH_CONDITIONS' \| 'REFUSED' \| 'UNDETERMINED'` | `packages/regulatory/src/types.ts:258` |  |
+| `RegulatoryOutcome` | `'PERMITTED' \| 'PERMITTED_WITH_CONDITIONS' \| 'REFUSED' \| 'UNDETERMINED'` | `packages/regulatory/src/types.ts:303` |  |
 | `RegulatoryRuleStatus` | `'DRAFT' \| 'ACTIVE' \| 'SUPERSEDED' \| 'WITHDRAWN'` | `packages/regulatory/src/types.ts:39` | Mirrors `RegulatoryRuleStatus`. Only `ACTIVE` rules are evaluated. |
 | `RegulatoryRuleType` | `\| 'PRESCRIPTION_REQUIRED' \| 'PRESCRIBER_AUTHORITY' \| 'PHARMACIST_AUTHORITY' \| 'CONTROLLED_SCHEDULE' \| 'QUANTITY_LIMIT' \| 'REFILL_RULE' \| 'AGE_RESTRICTION' \| 'S…` | `packages/regulatory/src/types.ts:16` | Mirrors `RegulatoryRuleType`. |
 | `RegulatoryTransaction` | `'DISPENSE' \| 'COUNTER_SALE' \| 'ONLINE_DISPENSE' \| 'CONSUME' \| 'STOCK' \| 'TRANSFER' \| 'DISPOSE'` | `packages/regulatory/src/types.ts:35` | Mirrors `RegulatoryTransactionType`. What the caller is about to do. |

@@ -596,6 +596,23 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_REGULATORY_READ,
       P.PRODUCT_REGULATORY_MANAGE,
       P.DISPENSE_READ,
+      /*
+       * Verifying a prescription and supplying against it (PI-7). Both, on this
+       * role, because a dispensary with one pharmacist is the ordinary shape and
+       * a split that made single-pharmacist clinics unusable would be a control
+       * on paper only. See the codes file for what the split buys a clinic that
+       * does separate them.
+       *
+       * ⚠️ NO ROLE BUT THIS ONE STARTS WITH `.create`, INCLUDING DOCTOR — and
+       *   that is a default rather than a position on who may lawfully dispense.
+       *   Several jurisdictions expressly permit a practitioner to dispense to
+       *   their own patients (India's Pharmacy Act s. 42(1) says so in the
+       *   section itself, and the regulatory engine models the proviso). A
+       *   clinic where the doctor runs the dispensary grants these by cloning a
+       *   role or per membership; handing every DOCTOR the supply codes by
+       *   default would be this platform deciding a clinic's staffing for it.
+       */
+      P.DISPENSE_VERIFY,
       P.DISPENSE_CREATE,
       P.DISPENSE_RETURN,
       P.SUPPLIER_MANAGE,

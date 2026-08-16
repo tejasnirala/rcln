@@ -3,7 +3,7 @@
 The honest ledger for the Product Platform programme. Nothing is marked built
 until it is built, migrated, tested and wired to a screen.
 
-**Last updated:** 2026-08-13 · **Phase:** PI-0 through PI-5 complete
+**Last updated:** 2026-08-16 · **Phase:** PI-0 through PI-7 complete
 
 ⚠️ **THE REST OF THIS FILE DESCRIBES THE PRE-CODE STATE AND IS KEPT FOR THE AUDIT
 IT RECORDS, NOT AS A STATUS.** Its table of reusable infrastructure is still
@@ -112,7 +112,7 @@ the proposed additions and PI-ADR-011 for the `pharmacy.medicine.*` question.
 | Missing                                                                                                  | Consequence for this programme                                                                                                                                            |
 | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Every table in this programme** — products, inventory, batches, suppliers, POs, dispensing, regulatory | This is greenfield. Nothing to migrate, nothing to break.                                                                                                                 |
-| **`prescriptions`**                                                                                      | ⛔ **Hard-blocks PI-7 (pharmacy dispensing).** Owned by Phase 3 (Core clinical), which is mid-flight — station 1 stage 5 of 5 is pending and prescriptions come after it. |
+| **`prescriptions`**                                                                                      | ✅ **Resolved (CE-4).** It arrived as `encounter_prescriptions` — a consultation's medication lines rather than a document of its own — and PI-7 dispenses against those. |
 | **`encounters` / `procedures`**                                                                          | ⛔ **Hard-blocks PI-9 (clinical consumption).** Same owner. The consultation page is a route with a placeholder.                                                          |
 | Veterinary patient support                                                                               | `patients` is human-shaped. PI-11 adds it additively. Blocks nothing before then.                                                                                         |
 | Worker processors                                                                                        | Every BullMQ queue is registered; only stubs consume them. Expiry sweeps and reorder alerts need a real processor (PI-2 / PI-22).                                         |

@@ -109,18 +109,39 @@ POST   /v1/regulatory/evaluate               regulatory.read   (dry-run, for the
 Rule packs are **platform-managed**. Writing one is
 `platform.regulatory.manage` under the `(platform)` surface, not a tenant route.
 
-### Pharmacy (PI-7)
+### Pharmacy (PI-7) — BUILT
 
 ```
-GET    /v1/pharmacy/queue                    pharmacy.dispense.read
-GET    /v1/pharmacy/prescriptions/:id        pharmacy.dispense.read   ⚠ PHI read
-POST   /v1/pharmacy/prescriptions/:id/verify pharmacy.dispense.verify
-GET    /v1/pharmacy/dispenses                pharmacy.dispense.read
-POST   /v1/pharmacy/dispenses                pharmacy.dispense.create
-POST   /v1/pharmacy/dispenses/:id/return     pharmacy.dispense.return
-POST   /v1/pharmacy/sales                    pharmacy.dispense.create  (counter sale)
-GET    /v1/pharmacy/substitutions/:productId pharmacy.dispense.read
+GET    /v1/pharmacy/dashboard                     pharmacy.dispense.read
+GET    /v1/pharmacy/queue                         pharmacy.dispense.read   ⚠ PHI read
+GET    /v1/pharmacy/prescriptions/:encounterId    pharmacy.dispense.read   ⚠ PHI read
+POST   /v1/pharmacy/prescriptions/:id/verify      pharmacy.dispense.verify
+POST   /v1/pharmacy/prescriptions/:id/cancel      pharmacy.dispense.verify
+GET    /v1/pharmacy/substitutions/:productId      pharmacy.dispense.read
+GET    /v1/pharmacy/dispenses                     pharmacy.dispense.read   ⚠ PHI read
+GET    /v1/pharmacy/dispenses/:dispenseId         pharmacy.dispense.read   ⚠ PHI read
+POST   /v1/pharmacy/dispenses                     pharmacy.dispense.create
+POST   /v1/pharmacy/dispenses/:id/return          pharmacy.dispense.return
 ```
+
+⚠️ **THERE IS NO `POST /v1/pharmacy/sales`, AND THE SKETCH ABOVE USED TO SHOW
+ONE.** A counter sale comes through `POST /dispenses` with `kind: COUNTER_SALE`.
+It is the same act — stock leaves a counter, the law is consulted, the ledger
+moves — differing only in whether a prescription was presented, which is a FACT
+ABOUT THE SUPPLY and is what `kind` records. Two endpoints would be two code
+paths to keep in step, and the quieter one would be the one that stopped asking
+the engine.
+
+⚠️ **`/prescriptions/:id/cancel` STANDS THE DISPENSARY DOWN AND DOES NOT WITHDRAW
+THE PRESCRIPTION.** Withdrawing one is the prescriber's act, in the clinical
+record. There is no route on this surface that writes `encounter_prescriptions`,
+and `route-gates.test.ts` asserts no route here carries a `clinical.*` code.
+
+⚠️ **A REGULATORY REFUSAL IS A 422** carrying `{ outcome, ruleCodes, messages }`,
+where the messages are the rules' own sentences. The sketch in § Errors mentions
+`ruleId` and `packVersion`; the counter is deliberately not shown either
+(FRONTEND_ARCHITECTURE.md), and the full decision is snapshotted in
+`regulatory_decisions` whatever any screen renders.
 
 ### Consumption (PI-9)
 

@@ -705,3 +705,162 @@ describe('a rule that says nothing checkable', () => {
     expect(decision.outcome).toBe('REFUSED');
   });
 });
+
+/**
+ * The two framework gaps PI-6 recorded and PI-7 had to close before dispensing
+ * could be wired (KNOWN_ISSUES defects 3 and 4).
+ *
+ * ⚠️ BOTH ARE EXCEPTIONS THE LAW ITSELF WRITES, AND NEITHER IS A WEAKENING OF A
+ *   RULE. The default in each case stays exactly where it was — no repeat, and
+ *   pharmacists only — and what was added is the ability to EXPRESS the clause
+ *   that sits beside it. A pack that does not opt in sees no change at all, which
+ *   is what the first case in each block asserts.
+ */
+describe('an endorsed repeat', () => {
+  const refill = (over: Record<string, unknown> = {}): RegulatoryRule =>
+    rule({
+      ruleType: 'REFILL_RULE',
+      code: 'TL_REPEAT',
+      statement: 'This prescription may not be dispensed more than once unless it is endorsed.',
+      parameters: { refillsAllowed: 0, ...over },
+    });
+
+  it('is still refused where the rule does not offer the exception', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill()],
+        prescription: { ...validPrescription, refillsUsed: 1, repeatsAuthorised: true },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  it('is refused where the rule offers it and the prescriber did not endorse one', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: { ...validPrescription, refillsUsed: 1 },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  /**
+   * ⚠️ `UNDETERMINED`, WHICH REFUSES — AND NOT "AS MANY AS YOU LIKE". An
+   *   endorsement with no number, under a rule with no ceiling, is a reason to
+   *   ring the prescriber. Treating silence as unlimited is the permissive
+   *   default the whole engine is shaped against.
+   */
+  it('cannot be relied on where neither the endorsement nor the rule states a number', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: { ...validPrescription, refillsUsed: 1, repeatsAuthorised: true },
+      })
+    );
+
+    expect(decision.outcome).toBe('UNDETERMINED');
+  });
+
+  it('is permitted within the number the prescriber endorsed', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: {
+          ...validPrescription,
+          refillsUsed: 1,
+          repeatsAuthorised: true,
+          repeatsAuthorisedLimit: 2,
+        },
+      })
+    );
+
+    expect(decision.outcome).toBe('PERMITTED');
+  });
+
+  it('is refused once the endorsed number is used up', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: {
+          ...validPrescription,
+          refillsUsed: 3,
+          repeatsAuthorised: true,
+          repeatsAuthorisedLimit: 2,
+        },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  /** The jurisdiction's own ceiling wins over a more generous endorsement. */
+  it('is capped by the rule where the rule states a lower ceiling', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true, maxEndorsedRepeats: 1 })],
+        prescription: {
+          ...validPrescription,
+          refillsUsed: 2,
+          repeatsAuthorised: true,
+          repeatsAuthorisedLimit: 5,
+        },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+});
+
+describe('a prescriber dispensing to their own patient', () => {
+  const authority = (over: Record<string, unknown> = {}): RegulatoryRule =>
+    rule({
+      ruleType: 'PHARMACIST_AUTHORITY',
+      code: 'TL_DISPENSER',
+      statement: 'Only a registered pharmacist may dispense a medicine on a prescription.',
+      parameters: { permittedLicenceTypes: ['REGISTERED_PHARMACIST'], ...over },
+    });
+
+  it('is still refused where the rule writes no proviso', () => {
+    const decision = evaluate(
+      request({
+        rules: [authority()],
+        actor: { roleCodes: [], licenceTypes: [], isPrescriber: true },
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  it('is permitted where the rule writes one and the actor is the prescriber', () => {
+    const decision = evaluate(
+      request({
+        rules: [authority({ exemptWhenActorIsPrescriber: true })],
+        actor: { roleCodes: [], licenceTypes: [], isPrescriber: true },
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('PERMITTED');
+  });
+
+  /**
+   * ⚠️ THE PROVISO DOES NOTHING FOR ANYBODY ELSE, WHICH IS THE HALF THAT KEEPS IT
+   *   FROM BEING A HOLE. A receptionist holding no licence, under a rule that
+   *   exempts prescribers, is still refused.
+   */
+  it('does nothing for somebody who is not the prescriber', () => {
+    const decision = evaluate(
+      request({
+        rules: [authority({ exemptWhenActorIsPrescriber: true })],
+        actor: { roleCodes: [], licenceTypes: [], isPrescriber: false },
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+});

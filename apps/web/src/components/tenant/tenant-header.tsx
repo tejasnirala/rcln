@@ -194,6 +194,31 @@ function clinicNav(permissions: string[]): NavLink[] {
       ],
     },
     /*
+     * The counter (PI-7). The fourth tab of what is now a quartet: Catalogue says
+     * what a thing is, Stock says where it is, Buying says who we bought it from,
+     * and this is what happens when it leaves — into somebody's hand.
+     *
+     * ⚠️ "PHARMACY", AND NOT "DISPENSING" OR "COUNTER", WHICH IS THE OPPOSITE CALL
+     *   FROM STOCK-OVER-INVENTORY. Every other rename in this list swaps a schema
+     *   word for the clinic's word; here the clinic's word IS pharmacy — it is
+     *   painted over the door and printed on the rota — while "dispensing" is what
+     *   the domain calls the act.
+     *
+     * ⚠️ ANY OF THE FOUR CODES MAKES THE TAB WORTH OPENING, and the screens behind
+     *   it render only the half the caller holds. A technician who may supply but
+     *   not take returns belongs here as much as the pharmacist who does both.
+     */
+    {
+      href: '/pharmacy',
+      label: 'Pharmacy',
+      permission: [
+        'pharmacy.dispense.read',
+        'pharmacy.dispense.verify',
+        'pharmacy.dispense.create',
+        'pharmacy.dispense.return',
+      ],
+    },
+    /*
      * What the law allows to be done with the things in that catalogue (PI-5).
      *
      * ⚠️ "RULES", NOT "REGULATORY", the same choice as Stock over Inventory and

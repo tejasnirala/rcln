@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/products.prisma:270`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 10 |
-| relations | 13 |
+| relations | 14 |
 
 ## Columns
 
@@ -44,6 +44,7 @@ Declared at `packages/db/prisma/schema/products.prisma:270`.
 | `purchaseOrderLines` | [`PurchaseOrderLine`](PurchaseOrderLine.md) | `purchaseOrderLines PurchaseOrderLine[] @relation("PurchaseOrderLineUnit")` |
 | `goodsReceiptLines` | [`GoodsReceiptLine`](GoodsReceiptLine.md) | `goodsReceiptLines GoodsReceiptLine[] @relation("GoodsReceiptLineUnit")` |
 | `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[] @relation("PurchaseReturnLineUnit")` |
+| `dispenseLines` | [`DispenseLine`](DispenseLine.md) | `dispenseLines DispenseLine[] @relation("DispenseLineUnit")` |
 
 ## Indexes and constraints
 
@@ -67,4 +68,5 @@ erDiagram
     UnitOfMeasure }o--o{ PurchaseOrderLine : relates
     UnitOfMeasure }o--o{ GoodsReceiptLine : relates
     UnitOfMeasure }o--o{ PurchaseReturnLine : relates
+    UnitOfMeasure }o--o{ DispenseLine : relates
 ```
