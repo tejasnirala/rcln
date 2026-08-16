@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/procurement.prisma:1051`.
 | --- | --- |
 | table | `purchase_returns` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `org` policy |
+| RLS | `branch` policy |
 | columns | 22 |
 | relations | 9 |
 

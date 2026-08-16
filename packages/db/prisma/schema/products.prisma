@@ -283,26 +283,26 @@ model UnitOfMeasure {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization       Organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  conversionsFrom    UnitConversion[]        @relation("ConversionFromUnit")
-  conversionsTo      UnitConversion[]        @relation("ConversionToUnit")
-  baseForProducts    Product[]               @relation("ProductBaseUnit")
-  packagings         ProductPackaging[]
-  ingredientStrength CompositionIngredient[] @relation("IngredientStrengthUnit")
+  organization        Organization?             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversionsFrom     UnitConversion[]          @relation("ConversionFromUnit")
+  conversionsTo       UnitConversion[]          @relation("ConversionToUnit")
+  baseForProducts     Product[]                 @relation("ProductBaseUnit")
+  packagings          ProductPackaging[]
+  ingredientStrength  CompositionIngredient[]   @relation("IngredientStrengthUnit")
   /// The unit a movement was ENTERED in, kept beside the base-unit quantity.
-  stockLedgerEntries StockLedgerEntry[]
+  stockLedgerEntries  StockLedgerEntry[]
   /// The same, on a transfer line (PI-3).
-  transferLines      StockTransferLine[]     @relation("TransferLineUnit")
+  transferLines       StockTransferLine[]       @relation("TransferLineUnit")
   /// Procurement (PI-4). ⚠️ `supplierPackUnits` is a DIFFERENT kind of reference
   ///   from the four below it: those record the unit a quantity was ENTERED in,
   ///   while that one is the WORD a supplier uses for their pack — presentation
   ///   only, never arithmetic. The conversion lives in
   ///   `supplier_products.quantity_per_pack`. See that model.
-  supplierPackUnits  SupplierProduct[]         @relation("SupplierProductPackUnit")
-  requisitionLines   PurchaseRequisitionLine[] @relation("RequisitionLineUnit")
-  purchaseOrderLines PurchaseOrderLine[]       @relation("PurchaseOrderLineUnit")
-  goodsReceiptLines  GoodsReceiptLine[]        @relation("GoodsReceiptLineUnit")
-  purchaseReturnLines PurchaseReturnLine[]     @relation("PurchaseReturnLineUnit")
+  supplierPackUnits   SupplierProduct[]         @relation("SupplierProductPackUnit")
+  requisitionLines    PurchaseRequisitionLine[] @relation("RequisitionLineUnit")
+  purchaseOrderLines  PurchaseOrderLine[]       @relation("PurchaseOrderLineUnit")
+  goodsReceiptLines   GoodsReceiptLine[]        @relation("GoodsReceiptLineUnit")
+  purchaseReturnLines PurchaseReturnLine[]      @relation("PurchaseReturnLineUnit")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -380,15 +380,15 @@ model ProductCategory {
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  organization Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  parent       ProductCategory?  @relation("ProductCategoryParent", fields: [parentId], references: [id], onDelete: Restrict)
-  children     ProductCategory[] @relation("ProductCategoryParent")
-  products     Product[]
+  organization    Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent          ProductCategory?  @relation("ProductCategoryParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children        ProductCategory[] @relation("ProductCategoryParent")
+  products        Product[]
   /// Rules that speak about a whole category (PI-5). ⚠️ ONLY PLATFORM
   /// CATEGORIES MAY BE NAMED — `regulatory_rules` is read by every tenant and
   /// has no RLS policy, so a rule pointing at one clinic's private category
   /// would leak its name to all of them. A trigger in the migration refuses it.
-  regulatoryRules RegulatoryRule[] @relation("RegulatoryRuleCategory")
+  regulatoryRules RegulatoryRule[]  @relation("RegulatoryRuleCategory")
 
   @@unique([organizationId, code])
   @@unique([organizationId, id])
@@ -420,16 +420,16 @@ model Manufacturer {
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  products     Product[]
+  organization      Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products          Product[]
   /// A batch's manufacturer may differ from its product's — contract
   /// manufacture and repackaging. See inventory.prisma.
-  transferLines StockTransferLine[] @relation("TransferLineManufacturer")
+  transferLines     StockTransferLine[] @relation("TransferLineManufacturer")
   /// And on a goods receipt line, where a lot's manufacturer is first recorded
   /// (PI-4). Same reasoning: the pack says who made it, which is not always who
   /// the catalogue says makes it.
-  goodsReceiptLines GoodsReceiptLine[] @relation("GoodsReceiptLineManufacturer")
-  batches      Batch[]
+  goodsReceiptLines GoodsReceiptLine[]  @relation("GoodsReceiptLineManufacturer")
+  batches           Batch[]
 
   @@unique([organizationId, code])
   @@unique([organizationId, id])
@@ -551,26 +551,26 @@ model CompositionIngredient {
 /// -20.00 for a freezer. ⚠️ Not a float — a cold-chain excursion report that
 /// rounds is a report nobody can act on.
 model StorageRequirementProfile {
-  id                String            @id @default(uuid()) @db.Uuid
-  organizationId    String?           @map("organization_id") @db.Uuid
-  code              String            @db.VarChar(64)
-  name              String            @db.VarChar(255)
-  minTemperatureC   Decimal?          @map("min_temperature_c") @db.Decimal(5, 2)
-  maxTemperatureC   Decimal?          @map("max_temperature_c") @db.Decimal(5, 2)
-  minHumidityPct    Int?              @map("min_humidity_pct")
-  maxHumidityPct    Int?              @map("max_humidity_pct")
-  lightSensitivity  LightSensitivity  @default(NONE) @map("light_sensitivity")
+  id                       String           @id @default(uuid()) @db.Uuid
+  organizationId           String?          @map("organization_id") @db.Uuid
+  code                     String           @db.VarChar(64)
+  name                     String           @db.VarChar(255)
+  minTemperatureC          Decimal?         @map("min_temperature_c") @db.Decimal(5, 2)
+  maxTemperatureC          Decimal?         @map("max_temperature_c") @db.Decimal(5, 2)
+  minHumidityPct           Int?             @map("min_humidity_pct")
+  maxHumidityPct           Int?             @map("max_humidity_pct")
+  lightSensitivity         LightSensitivity @default(NONE) @map("light_sensitivity")
   /// A locked cabinet, a signed register. Descriptive here; PI-5 decides which
   /// products a jurisdiction REQUIRES it for.
-  requiresControlledAccess Boolean     @default(false) @map("requires_controlled_access")
+  requiresControlledAccess Boolean          @default(false) @map("requires_controlled_access")
   /// UN/GHS class where one applies — a cytotoxic or a flammable reagent.
-  hazardClass       String?           @map("hazard_class") @db.VarChar(64)
-  handlingNotes     String?           @map("handling_notes") @db.Text
-  isActive          Boolean           @default(true) @map("is_active")
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  hazardClass              String?          @map("hazard_class") @db.VarChar(64)
+  handlingNotes            String?          @map("handling_notes") @db.Text
+  isActive                 Boolean          @default(true) @map("is_active")
+  createdAt                DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   products     Product[]
   /// What a fridge or a cabinet can physically keep, so stock can be matched
   /// against the place it is being put. See inventory.prisma.
@@ -624,21 +624,21 @@ model Product {
   // -- inventory configuration (PI-1.8) --------------------------------------
   // The columns land here; the CHECK constraints that enforce them land with
   // the ledger in PI-2, because there is nothing to check them against yet.
-  trackingMode          TrackingMode @default(NONE) @map("tracking_mode")
+  trackingMode         TrackingMode @default(NONE) @map("tracking_mode")
   /// Orthogonal to `trackingMode` on purpose — see the enum.
-  isExpiryControlled    Boolean      @default(false) @map("is_expiry_controlled")
+  isExpiryControlled   Boolean      @default(false) @map("is_expiry_controlled")
   /// Shelf life from manufacture, when the clinic knows it and the supplier does
   /// not print it. A default for data entry, never a substitute for the batch's
   /// own `expires_on`.
-  defaultShelfLifeDays  Int?         @map("default_shelf_life_days")
+  defaultShelfLifeDays Int?         @map("default_shelf_life_days")
   /// Reorder defaults, in BASE UNITS. Per-branch overrides are PI-2's business;
   /// these are the product's own starting point.
-  reorderLevelBase      Decimal?     @map("reorder_level_base") @db.Decimal(18, 6)
-  reorderQuantityBase   Decimal?     @map("reorder_quantity_base") @db.Decimal(18, 6)
+  reorderLevelBase     Decimal?     @map("reorder_level_base") @db.Decimal(18, 6)
+  reorderQuantityBase  Decimal?     @map("reorder_quantity_base") @db.Decimal(18, 6)
   /// Whether this product is stocked at all. A consultation fee is a product to
   /// billing and never to inventory; false keeps it out of every stock screen
   /// without inventing a second catalogue.
-  isStockItem           Boolean      @default(true) @map("is_stock_item")
+  isStockItem          Boolean      @default(true) @map("is_stock_item")
 
   // -- allocation (PI-3.5) ----------------------------------------------------
   /// How this product is picked when several lots could satisfy a demand.
@@ -649,7 +649,7 @@ model Product {
   ///   An explicit `FEFO` is a decision somebody made, which a rule pack must
   ///   NOT quietly overturn. Collapsing the two would make "why did it pick that
   ///   lot" unanswerable in exactly the cases where it is asked.
-  allocationStrategy    AllocationStrategy? @map("allocation_strategy")
+  allocationStrategy AllocationStrategy? @map("allocation_strategy")
 
   /// Free-form document: external system codes, display labels per locale,
   /// supplier hints. ⚠️ A DOCUMENT, NEVER FOREIGN KEYS (ADR-0006).
@@ -658,39 +658,39 @@ model Product {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  organization    Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  /*
+  organization   Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /**
    * ⚠️ ALL FIVE OF THESE ARE PLAIN FKs AND NOT COMPOSITE ONES, AND THAT IS NOT
-   *   AN OVERSIGHT. A tenant product legitimately references a PLATFORM category,
-   *   manufacturer, composition, storage profile or unit — rows whose
-   *   organization_id is NULL, which a composite FK from a possibly-NOT-NULL
-   *   column cannot reference. Each therefore gets a RESTRICTIVE `*_visible`
-   *   policy in enable-rls.sql, which is the ENTIRE control on that side.
+   * AN OVERSIGHT. A tenant product legitimately references a PLATFORM category,
+   * manufacturer, composition, storage profile or unit — rows whose
+   * organization_id is NULL, which a composite FK from a possibly-NOT-NULL
+   * column cannot reference. Each therefore gets a RESTRICTIVE `*_visible`
+   * policy in enable-rls.sql, which is the ENTIRE control on that side.
    */
-  category        ProductCategory?           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  manufacturer    Manufacturer?              @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
-  composition     Composition?               @relation(fields: [compositionId], references: [id], onDelete: Restrict)
-  storageProfile  StorageRequirementProfile? @relation(fields: [storageProfileId], references: [id], onDelete: Restrict)
-  baseUnit        UnitOfMeasure              @relation("ProductBaseUnit", fields: [baseUnitId], references: [id], onDelete: Restrict)
+  category       ProductCategory?           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  manufacturer   Manufacturer?              @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+  composition    Composition?               @relation(fields: [compositionId], references: [id], onDelete: Restrict)
+  storageProfile StorageRequirementProfile? @relation(fields: [storageProfileId], references: [id], onDelete: Restrict)
+  baseUnit       UnitOfMeasure              @relation("ProductBaseUnit", fields: [baseUnitId], references: [id], onDelete: Restrict)
 
-  packagings         ProductPackaging[]
-  identifiers        ProductIdentifier[]
-  taxClassifications ProductTaxClassification[]
-  medicineDetail     MedicineDetail?
-  /*
+  packagings          ProductPackaging[]
+  identifiers         ProductIdentifier[]
+  taxClassifications  ProductTaxClassification[]
+  medicineDetail      MedicineDetail?
+  /**
    * Inventory (PI-2). ⚠️ Every one of these is a PLAIN FK from a NOT NULL
    * organization_id, and it cannot be composite: a clinic legitimately stocks a
    * PLATFORM product, whose organization_id is NULL. The RESTRICTIVE
    * `product_visible` policy on each child is the entire control on that side.
    * See inventory.prisma's header.
    */
-  batches            Batch[]
-  serials            Serial[]
-  stockLedgerEntries StockLedgerEntry[]
-  stockBalances      StockBalance[]
+  batches             Batch[]
+  serials             Serial[]
+  stockLedgerEntries  StockLedgerEntry[]
+  stockBalances       StockBalance[]
   // Movements (PI-3), same plain-FK reasoning as the four above.
-  transferLines      StockTransferLine[]
-  reservations       StockReservation[]
+  transferLines       StockTransferLine[]
+  reservations        StockReservation[]
   // Procurement (PI-4), same plain-FK reasoning again — a clinic buys, orders
   // and values PLATFORM products, so none of these can be composite and
   // `product_visible` is the control on every one of them.
@@ -700,13 +700,23 @@ model Product {
   goodsReceiptLines   GoodsReceiptLine[]
   purchaseReturnLines PurchaseReturnLine[]
   costAverages        ProductCostAverage[]
-  /*
+  /**
    * Regulatory (PI-5). Composite, unlike everything above it — a profile is a
    * platform-extensible CHILD of the product in the same shape as
    * `product_tax_classifications`, so it carries its own nullable
    * organization_id and hangs off `(organization_id, id)`. See regulatory.prisma.
    */
   regulatoryProfiles  ProductRegulatoryProfile[]
+
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  /// Which specialties this product is relevant to. ⚠️ RANKS, NEVER FILTERS —
+  /// a medicine belongs to no single specialty (§42.8).
+  clinicalScopes ProductClinicalScope[]
+  /// What was prescribed (CE-4). ⚠️ A PLAIN FK, because a platform medicine has
+  /// a NULL organization_id and the prescription's is NOT NULL — so
+  /// `encounter_prescriptions` needs `product_visible`, exactly as `batches`
+  /// does.
+  prescriptions  EncounterPrescription[]
 
   @@unique([organizationId, code])
   /// The composite-FK target every child in this file references.
@@ -739,21 +749,21 @@ model Product {
 ///   comes in strips of ten. Both exist because a supplier ships the same
 ///   product in strips of 10 and 15, and the unit table cannot hold both.
 model ProductPackaging {
-  id             String  @id @default(uuid()) @db.Uuid
-  organizationId String? @map("organization_id") @db.Uuid
-  productId      String  @map("product_id") @db.Uuid
+  id                String   @id @default(uuid()) @db.Uuid
+  organizationId    String?  @map("organization_id") @db.Uuid
+  productId         String   @map("product_id") @db.Uuid
   /// 0 = base. Unique per product, so the chain is total and unambiguous.
-  level          Int
-  unitId         String  @map("unit_id") @db.Uuid
+  level             Int
+  unitId            String   @map("unit_id") @db.Uuid
   /// How many of level-1 fit in one of these. Always 1 at level 0. > 0, CHECKed.
-  quantityOfChild Decimal @map("quantity_of_child") @db.Decimal(18, 6)
+  quantityOfChild   Decimal  @map("quantity_of_child") @db.Decimal(18, 6)
   /// The level a purchase order is written in by default.
-  isDefaultPurchase Boolean @default(false) @map("is_default_purchase")
+  isDefaultPurchase Boolean  @default(false) @map("is_default_purchase")
   /// The level a dispense or a sale is written in by default.
-  isDefaultSale     Boolean @default(false) @map("is_default_sale")
-  barcode           String? @db.VarChar(128)
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  isDefaultSale     Boolean  @default(false) @map("is_default_sale")
+  barcode           String?  @db.VarChar(128)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// Optional ONLY because Prisma refuses a required relation whose scalar
@@ -873,24 +883,24 @@ model ProductTaxClassification {
 ///   exist, and so the migration to PI-5 has somewhere to read from. Nothing may
 ///   gate a dispense on it — dispensing calls `evaluate()` or it does not ship.
 model MedicineDetail {
-  id             String               @id @default(uuid()) @db.Uuid
-  organizationId String?              @map("organization_id") @db.Uuid
-  productId      String               @map("product_id") @db.Uuid
-  dosageForm     DosageForm?          @map("dosage_form")
-  route          AdministrationRoute?
-  releaseType    ReleaseType?         @map("release_type")
+  id                             String               @id @default(uuid()) @db.Uuid
+  organizationId                 String?              @map("organization_id") @db.Uuid
+  productId                      String               @map("product_id") @db.Uuid
+  dosageForm                     DosageForm?          @map("dosage_form")
+  route                          AdministrationRoute?
+  releaseType                    ReleaseType?         @map("release_type")
   /// Drugs where a small change in blood concentration matters clinically —
   /// warfarin, levothyroxine, ciclosporin. Substitution guidance treats these
   /// differently in most jurisdictions; PI-5 decides HOW, this records WHICH.
-  isNarrowTherapeuticIndex Boolean     @default(false) @map("is_narrow_therapeutic_index")
+  isNarrowTherapeuticIndex       Boolean              @default(false) @map("is_narrow_therapeutic_index")
   /// What a clinic believes about prescription status, pending PI-5. See above.
-  prescriptionClassificationHint String? @map("prescription_classification_hint") @db.VarChar(64)
+  prescriptionClassificationHint String?              @map("prescription_classification_hint") @db.VarChar(64)
   /// Storage and handling text printed on a dispensing label.
-  labelInstructions String?            @map("label_instructions") @db.Text
+  labelInstructions              String?              @map("label_instructions") @db.Text
   /// Days a course of this normally runs. A data-entry default for prescribing.
-  defaultCourseDays Int?               @map("default_course_days")
-  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  defaultCourseDays              Int?                 @map("default_course_days")
+  createdAt                      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                      DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   /// Optional ONLY because Prisma refuses a required relation whose scalar

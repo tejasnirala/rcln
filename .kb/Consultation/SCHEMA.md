@@ -1,0 +1,319 @@
+# Consultation Engine — schema
+
+~22 new tables across CE-1…CE-6, plus five altered enums and three altered
+tables. Every table's tenancy class is stated, because in this codebase that is
+a security decision and not a modelling one.
+
+⚠️ **Every tenant table needs three things or it does not ship:** a policy in
+`packages/db/prisma/rls/enable-rls.sql`, that SQL appended to its generated
+migration, and a case in `apps/api/tests/integration/tenant-isolation/`.
+`db:rls:check` goes from **89** protected tables to roughly **108**.
+
+---
+
+## Tenancy classes in use
+
+| Class                   | Shape                                                     | Precedent      |
+| ----------------------- | --------------------------------------------------------- | -------------- |
+| **platform-extensible** | `organization_id` NULLABLE; read permissive, write strict | `specialties`  |
+| **org-scoped**          | `organization_id` NOT NULL, no branch                     | `patients`     |
+| **org + branch scoped** | both NOT NULL, in both RLS loops                          | `appointments` |
+
+⚠️ **Never copy the `files` policy for a platform-extensible table.** It permits
+a NULL `organization_id` in its `WITH CHECK`, which would let any clinic INSERT
+a platform-wide row visible to every tenant. Copy `specialties`.
+
+---
+
+## CE-1 — Foundation
+
+### `clinical_master_items` — platform-extensible
+
+The single clinical vocabulary table (CD-5).
+
+```text
+id, organization_id NULL, parent_id NULL, kind, code, name, description,
+display_order, metadata JSONB, is_active, created_at, updated_at, deleted_at
+
+kind: SYMPTOM | DIAGNOSIS | PROCEDURE | INVESTIGATION | ADVICE
+    | HISTORY_ITEM | FINDING_TYPE
+```
+
+- `@@unique([organizationId, kind, code])` — ⚠️ **rewritten NULLS NOT DISTINCT
+  in the migration**, or the platform rows are not unique among themselves.
+- `parent_id` `onDelete: Restrict` — SetNull silently promotes an entire subtree
+  to the root, exactly as `specialties` documents.
+- `@@index([parentId])` — descendant walks recurse on it; without the index the
+  CTE seq-scans once per level.
+- Trigram index on `lower(name)` for the search (§39), **hand-written** — Prisma
+  cannot express an expression index.
+
+### `clinical_master_codings` — platform-extensible
+
+```text
+id, organization_id NULL, item_id, system, code, display, is_primary
+```
+
+`system` is a **VARCHAR, not an enum** — same reasoning as
+`patients.national_id_type`: the accepted list grows per market, and as an enum
+that is a migration per coding system.
+
+`@@unique([organizationId, itemId, system, code])`, NULLS NOT DISTINCT.
+
+### `clinical_master_scopes` / `product_clinical_scopes` — platform-extensible
+
+`(item_id | product_id) × specialty_id`, plus `relevance` (SmallInt).
+
+⚠️ **These RANK, they never FILTER.** A `RESTRICTIVE specialty_visible` policy
+is needed on both, exactly as `doctor_specialties` has, because `specialty_id`
+points at a possibly-platform row and cannot be a composite FK.
+
+### `clinical_episodes` — org-scoped, PHI
+
+```text
+id, organization_id, patient_id, code, title, status, primary_specialty_id NULL,
+opened_on, closed_on NULL, opened_by, closed_by, notes, created_at, updated_at,
+deleted_at
+
+status: OPEN | CLOSED
+```
+
+**Org-scoped, NOT branch-scoped** — the same call `patients` makes. A journey
+that starts at the main branch and continues at the satellite is one journey.
+
+⚠️ `title` and `notes` are **PHI** and belong in `REDACTED_KEYS`.
+`@@unique([organizationId, id])` as the composite-FK target.
+
+### `animal_profiles` — org-scoped (CD-4)
+
+`patient_id` unique, `species`, `breed`, `sex`, `weight_kg`, `guardian_name`,
+`guardian_phone`. Thin on purpose.
+
+### `encounter_follow_up_recommendations` — org + branch scoped, PHI
+
+Table lands in CE-1; the UI fills it in CE-4. Full semantics in
+[FOLLOW_UP_ARCHITECTURE.md](FOLLOW_UP_ARCHITECTURE.md) §3.
+
+⚠️ **CHECK: exactly one of (`interval_value` + `interval_unit`) or
+`recommended_date`.** ⚠️ **Partial unique index on
+`fulfilled_by_appointment_id`** so one booking cannot fulfil two
+recommendations.
+
+### Altered
+
+```text
+appointments        + clinical_episode_id     NOT NULL after backfill
+patients            + subject_type            default HUMAN
+TaxonomyNodeType    + CARE_CONTEXT
+DataAccessResource  + CLINICAL_EPISODE, ENCOUNTER
+```
+
+⚠️ Backfill and `SET NOT NULL` in ONE migration. ⚠️ All four enums pre-exist, so
+`ALTER TYPE … ADD VALUE` applies and no CHECK may name a new member in the same
+migration (CD-9).
+
+---
+
+## CE-2 — Templates ✅ SHIPPED
+
+```text
+consultation_templates          platform-extensible
+  code, name, description, care_context_id, specialty_id NULL, is_active
+  @@unique([organizationId, code])              NULLS NOT DISTINCT
+  @@unique([organizationId, id])                composite-FK target
+  UNIQUE (org, care_context, specialty) WHERE is_active AND deleted_at IS NULL
+
+consultation_template_versions  platform-extensible
+  template_id, version, definition JSONB, status, published_at, published_by,
+  retired_at
+  @@unique([organizationId, templateId, version])  NULLS NOT DISTINCT
+  @@unique([organizationId, id])                   CE-3's encounters FK here
+  UNIQUE (org, template) WHERE status = 'DRAFT'
+  UNIQUE (org, template) WHERE status = 'PUBLISHED'
+  CHECK   the status/dates triple
+```
+
+⚠️ **`specialty_id` NULL IS THE CARE-CONTEXT DEFAULT** — the template a doctor
+with no classification resolves to, and the reason resolution never returns
+nothing. Every policy and index on this table has to permit it.
+
+⚠️ **ONE MIGRATION, AND NO ENUM SPLIT.** `ConsultationTemplateStatus` is a BRAND
+NEW type rather than an `ALTER TYPE … ADD VALUE`, so the CHECKs may name its
+members in the same transaction. That is the one place CD-9's trap does not bite.
+
+⚠️ **THE PARTIAL UNIQUE ON THE NODE IS WHAT MAKES RESOLUTION A DECISION.** Two
+active templates on one node both apply equally; the resolver's tie-break picks
+one, the other is configured, visible in the admin screen and inert, and the
+consultation that renders is perfectly reasonable and not the one the clinic
+meant. A clinic's own template beside the PLATFORM's is still legal — they differ
+in `organization_id`, and `resolveTemplate` prefers the clinic's.
+
+⚠️ **BOTH TAXONOMY POINTERS ARE PLAIN FKs** and need `specialty_visible`, because
+`specialties` allows a NULL organization_id and no composite FK is drawable.
+
+⚠️ **A COMPOSITE RELATION READS EMPTY FOR A PLATFORM ROW.** The versions FK is
+(organization_id, template_id); with a NULL organization_id Prisma's join is
+`organization_id = NULL`, which is NULL rather than true. Load versions by
+`template_id` and let RLS scope them — see the CE-2 changelog entry.
+
+⚠️ **`definition` holds section types, order, labels, field descriptors, map
+codes and SCOPE codes — never master-item ids** (CD-6, ADR-0006).
+
+⚠️ **A PUBLISHED version is immutable in every field.** `assertVersionIsDraft`
+guards all writers, including the dates — the lesson from PI-5's
+`assertPackIsOpen`.
+
+---
+
+## CE-3 — The encounter
+
+### `encounters` — org + branch scoped, PHI
+
+```text
+id, organization_id, branch_id, patient_id,
+appointment_id NULL,                    ← CD-1: a walk-in has no booking
+clinical_episode_id, doctor_profile_id,
+encounter_number,
+template_id, template_version_id, template_snapshot JSONB,   ← §29
+status, chief_complaint, chief_complaint_duration_value/_unit, onset,
+clinical_notes,
+started_at, finalized_at, finalized_by,
+amends_encounter_id NULL, amended_at,
+created_at, updated_at, deleted_at
+
+status: DRAFT | FINALIZED | AMENDED | CANCELLED
+```
+
+⚠️ **Partial unique index: at most one non-superseded encounter per
+appointment.** ⚠️ Every text column here is PHI.
+
+### `encounter_sections` — org + branch scoped, PHI
+
+`encounter_id`, `section_type`, `section_key`, `data` JSONB, `display_order`.
+
+Holds the dynamic answers for `HISTORY` and `EXAMINATION`. The first-class
+sections have their own tables and store nothing here.
+
+---
+
+## CE-4 — Clinical content ✅ SHIPPED
+
+All org + branch scoped, all PHI, all children of `encounters` carrying
+`organization_id` **and** `branch_id` themselves.
+
+⚠️ **THREE THINGS SHIFTED FROM THE PLAN BELOW, AND ALL THREE ARE RECORDED HERE
+RATHER THAN QUIETLY:**
+
+- ~~**`encounter_procedures.visual_region_id` IS NOT BUILT.**~~ Built in CE-6,
+  with the table it points at.
+- **`item_id` IS NOT NULL ON PROCEDURES AND INVESTIGATIONS.** The list below is
+  silent on it; the call is that a procedure is billed, consumed from stock
+  (PI-9) and reported on, so a free-text one is a line nothing downstream can
+  price or count. Symptoms, diagnoses and advice stay nullable, which is §6.
+- **`diagnosis_id` IS `Restrict`, NOT `SetNull`.** The composite includes
+  `organization_id`, which is NOT NULL, so Postgres cannot null half the pair —
+  the service unlinks the procedures before deleting the diagnosis.
+
+⚠️ **They carry both ids rather than inheriting through a parent predicate.**
+This is the call the invoice children made and the one
+`appointment_status_history` did not — an org-only inherited policy under a
+branch-scoped parent re-opens the branch boundary.
+
+```text
+encounter_symptoms        item_id NULL + custom_text, duration, severity,
+                          frequency, site, notes
+encounter_diagnoses       item_id NULL + custom_text, role (PRIMARY |
+                          SECONDARY | DIFFERENTIAL), certainty, notes
+encounter_procedures      item_id, diagnosis_id NULL, visual_region_id NULL,
+                          performed_on, status, notes
+encounter_prescriptions   product_id, strength, dose, dose_unit, route,
+                          frequency, frequency_unit, duration, duration_unit,
+                          food_relation, timing, quantity, start/end date,
+                          is_prn, instructions, notes
+encounter_investigations  item_id, reason, priority, instructions, status
+encounter_advice          item_id NULL + custom_text, is_edited
+encounter_referrals       specialty_id NULL, doctor_profile_id NULL,
+                          external_name, reason, urgency, notes
+encounter_attachments     encounter_id × stored_file_id, kind, caption
+```
+
+⚠️ **`item_id NULL + custom_text` on symptoms, diagnoses and advice is
+deliberate** — §6 wants a custom symptom, and forcing every free-text entry to
+create a master row pollutes the vocabulary with one clinic's typos.
+
+⚠️ **`encounter_prescriptions.product_id` is a plain FK into a possibly-platform
+row**, so it needs a `RESTRICTIVE product_visible` policy, exactly as `batches`
+does.
+
+---
+
+## CE-6 — Visual mapping ✅ SHIPPED
+
+⚠️ **TWO THINGS SHIFTED FROM THE PLAN BELOW, AND BOTH ARE RECORDED HERE RATHER
+THAN QUIETLY:**
+
+- **`clinical_findings.section_key` WAS ADDED.** The list below is silent on it,
+  and `VISUAL_MAPPING` is REPEATABLE — an ENT consultation charts a left ear and
+  a right ear, each its own section of one template. A finding that did not say
+  which section it belongs to would render on both.
+- **THE GEOMETRY LIVES ON THE REGION, NOT IN AN SVG FILE (CD-17).** `metadata`
+  carries each region's shape in the map's `view_box` coordinates, so `apps/web`
+  holds one generic renderer and CE-7's second map is a seed. `renderer` and
+  `asset_key` survive for the IMAGE_MAP case and nothing ships one; a CHECK
+  refuses a row whose renderer and asset disagree.
+
+```text
+visual_maps       platform-extensible
+  code, name, description, renderer (SVG | IMAGE_MAP), asset_key NULL,
+  care_context_id, specialty_id NULL, view_box, is_active
+  @@unique([organizationId, code])       NULLS NOT DISTINCT
+  CHECK view_box is four numbers · CHECK asset_key matches renderer
+
+visual_regions    platform-extensible
+  map_id, code, label, parent_id NULL, display_order, metadata JSONB
+  @@unique([organizationId, mapId, code])   NULLS NOT DISTINCT
+  TRIGGER a parent must be on the same map
+
+clinical_findings org + branch scoped, PHI
+  encounter_id, section_key, visual_region_id, finding_item_id,
+  diagnosis_id NULL, severity, notes, metadata JSONB, display_order
+  @@unique([org, encounter_id, section_key, visual_region_id, finding_item_id])
+
+encounter_procedures.visual_region_id   NULL — the CE-4 column, filled in here
+```
+
+⚠️ **No clinical data in the picture** (§22). A region says WHERE it is and WHAT
+it is called; every finding is a database row.
+
+⚠️ `visual_regions.code` is FDI for the dental map — `TOOTH_11` … `TOOTH_48`
+(CD-11).
+
+⚠️ **`finding_item_id` IS NOT NULL, unlike a symptom's or a diagnosis's item.**
+The region already says WHERE, so a mark with no coded word is one nobody can
+read back — and there is no free-text half to fall back on.
+
+⚠️ **`visual_region_id` AND `finding_item_id` ARE PLAIN FKs** into
+platform-extensible parents, so they need `region_visible` and `item_visible`.
+`encounter_procedures.visual_region_id` needs `region_visible` too. `map_id` is
+the one pointer that CAN be composite-FK'd — both sides allow a NULL
+organization_id — so it needs no policy.
+
+---
+
+## Migration sequencing
+
+The highest existing migration is `20260818090000`. Migrations replay in **name
+order** and this repo's are hand-dated ahead of the wall clock, so everything
+Prisma generates must be re-dated past it.
+
+| Order | Migration                     | Notes                                        |
+| ----- | ----------------------------- | -------------------------------------------- |
+| 1     | `…_clinical_enum_members`     | The four `ALTER TYPE … ADD VALUE`s alone     |
+| 2     | `…_clinical_masters`          | Items, codings, scopes + RLS                 |
+| 3     | `…_clinical_episodes`         | Table, column, **backfill, SET NOT NULL**    |
+| 4     | `…_follow_up_recommendations` | CHECK constraints may name the new enums now |
+| 5     | `…_consultation_templates`    | CE-2. One migration — the status enum is NEW |
+
+⚠️ **Migration 1 exists solely because of the enum trap** (CD-9): a CHECK naming
+a value added by `ALTER TYPE … ADD VALUE` cannot run in the same transaction as
+the addition.

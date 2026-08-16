@@ -250,49 +250,49 @@ enum StockReferenceType {
 /// Branch-scoped: `branch_id` is NOT NULL and the branch policy is therefore
 /// absolute. A storekeeper scoped to one site cannot read another site's shelves.
 model InventoryLocation {
-  id             String       @id @default(uuid()) @db.Uuid
-  organizationId String       @map("organization_id") @db.Uuid
-  branchId       String       @map("branch_id") @db.Uuid
-  kind           LocationKind
+  id                       String       @id @default(uuid()) @db.Uuid
+  organizationId           String       @map("organization_id") @db.Uuid
+  branchId                 String       @map("branch_id") @db.Uuid
+  kind                     LocationKind
   /// The clinic's own code. Unique per branch, not per organization — two sites
   /// both calling their fridge `FRIDGE-1` is the ordinary case.
-  code           String       @db.VarChar(64)
-  name           String       @db.VarChar(255)
+  code                     String       @db.VarChar(64)
+  name                     String       @db.VarChar(255)
   /// Whether stock may be dispensed or consumed directly FROM here. A central
   /// warehouse usually cannot; a main pharmacy always can. UI and PI-7 read it;
   /// ⚠️ it is not a permission.
-  isDispensingPoint Boolean   @default(false) @map("is_dispensing_point")
+  isDispensingPoint        Boolean      @default(false) @map("is_dispensing_point")
   /// A locked cabinet with a register. Descriptive here; PI-5 decides which
   /// products a jurisdiction REQUIRES it for.
-  requiresControlledAccess Boolean @default(false) @map("requires_controlled_access")
+  requiresControlledAccess Boolean      @default(false) @map("requires_controlled_access")
   /// What this place can physically keep — the fridge's own range. Matched
   /// against a product's `storage_profile_id` when stock is received, so a
   /// vaccine into an ambient shelf can be refused. A plain FK into a
   /// possibly-platform row, so it carries a RESTRICTIVE visibility policy.
-  storageProfileId String?    @map("storage_profile_id") @db.Uuid
-  isActive       Boolean      @default(true) @map("is_active")
-  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  storageProfileId         String?      @map("storage_profile_id") @db.Uuid
+  isActive                 Boolean      @default(true) @map("is_active")
+  createdAt                DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt                DateTime?    @map("deleted_at") @db.Timestamptz(6)
 
   organization   Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   branch         Branch                     @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
   storageProfile StorageRequirementProfile? @relation(fields: [storageProfileId], references: [id], onDelete: Restrict)
 
-  areas           StorageArea[]
-  serialsHere     Serial[]
-  balances        StockBalance[]
-  movementsFrom   StockLedgerEntry[] @relation("MovementFromLocation")
-  movementsTo     StockLedgerEntry[] @relation("MovementToLocation")
+  areas                   StorageArea[]
+  serialsHere             Serial[]
+  balances                StockBalance[]
+  movementsFrom           StockLedgerEntry[] @relation("MovementFromLocation")
+  movementsTo             StockLedgerEntry[] @relation("MovementToLocation")
   // PI-3. Both sides of a transfer and everything reserved on this shelf.
-  transfersFrom   StockTransfer[]    @relation("TransferFromLocation")
-  transfersTo     StockTransfer[]    @relation("TransferToLocation")
-  reservations    StockReservation[]
+  transfersFrom           StockTransfer[]    @relation("TransferFromLocation")
+  transfersTo             StockTransfer[]    @relation("TransferToLocation")
+  reservations            StockReservation[]
   // PI-4. Where a delivery lands, where a return leaves from, and where a
   // purchase order asked for it to be put.
-  purchaseOrderDeliveries PurchaseOrder[]   @relation("PurchaseOrderDeliverTo")
-  goodsReceipts           GoodsReceipt[]    @relation("GoodsReceiptLocation")
-  purchaseReturns         PurchaseReturn[]  @relation("PurchaseReturnLocation")
+  purchaseOrderDeliveries PurchaseOrder[]    @relation("PurchaseOrderDeliverTo")
+  goodsReceipts           GoodsReceipt[]     @relation("GoodsReceiptLocation")
+  purchaseReturns         PurchaseReturn[]   @relation("PurchaseReturnLocation")
 
   @@unique([organizationId, branchId, code])
   /// The composite-FK target every child below references.
@@ -425,19 +425,19 @@ model Batch {
   // arrive without notice. From today, allocation excludes RECALLED and
   // QUARANTINED stock, so a batch set to either by hand is immediately
   // un-dispensable even though no workflow exists yet.
-  quarantinedAt     DateTime? @map("quarantined_at") @db.Timestamptz(6)
-  quarantineReason  String?   @map("quarantine_reason") @db.Text
-  recalledAt        DateTime? @map("recalled_at") @db.Timestamptz(6)
+  quarantinedAt    DateTime? @map("quarantined_at") @db.Timestamptz(6)
+  quarantineReason String?   @map("quarantine_reason") @db.Text
+  recalledAt       DateTime? @map("recalled_at") @db.Timestamptz(6)
   /// The regulator's or manufacturer's own notice number, so a batch can be tied
   /// back to the announcement that caused it.
-  recallReference   String?   @map("recall_reference") @db.VarChar(128)
+  recallReference  String?   @map("recall_reference") @db.VarChar(128)
 
   /// When this lot physically arrived. The FEFO tie-break: two batches expiring
   /// the same day go out oldest-received first.
-  receivedAt     DateTime    @default(now()) @map("received_at") @db.Timestamptz(6)
-  notes          String?     @db.Text
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   branch       Branch        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
@@ -446,14 +446,14 @@ model Batch {
   product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
   manufacturer Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
 
-  serials   Serial[]
-  balances  StockBalance[]
-  movements StockLedgerEntry[]
+  serials               Serial[]
+  balances              StockBalance[]
+  movements             StockLedgerEntry[]
   /// PI-3. A lot appears on a transfer line as the SOURCE at the sending branch
   /// and as the DESTINATION at the receiving one — two rows, two branches, one
   /// manufacturer's lot number. See `StockTransferLine`.
-  transferLinesSent     StockTransferLine[] @relation("TransferLineSourceBatch")
-  transferLinesReceived StockTransferLine[] @relation("TransferLineDestinationBatch")
+  transferLinesSent     StockTransferLine[]  @relation("TransferLineSourceBatch")
+  transferLinesReceived StockTransferLine[]  @relation("TransferLineDestinationBatch")
   reservations          StockReservation[]
   /// PI-4. The delivery that created this lot, and any of it that went back.
   goodsReceiptLines     GoodsReceiptLine[]   @relation("GoodsReceiptLineBatch")
@@ -483,23 +483,23 @@ model Batch {
 /// and no lot is ordinary. `LOT_AND_SERIAL` requires both, and the ledger's
 /// tracking CHECK is what enforces that at the point it matters.
 model Serial {
-  id             String       @id @default(uuid()) @db.Uuid
-  organizationId String       @map("organization_id") @db.Uuid
-  branchId       String       @map("branch_id") @db.Uuid
-  productId      String       @map("product_id") @db.Uuid
-  batchId        String?      @map("batch_id") @db.Uuid
-  serialNumber   String       @map("serial_number") @db.VarChar(128)
-  status         SerialStatus @default(IN_STOCK)
+  id                String       @id @default(uuid()) @db.Uuid
+  organizationId    String       @map("organization_id") @db.Uuid
+  branchId          String       @map("branch_id") @db.Uuid
+  productId         String       @map("product_id") @db.Uuid
+  batchId           String?      @map("batch_id") @db.Uuid
+  serialNumber      String       @map("serial_number") @db.VarChar(128)
+  status            SerialStatus @default(IN_STOCK)
   /// Where it is right now. NULL once it has left the clinic.
-  currentLocationId String?   @map("current_location_id") @db.Uuid
+  currentLocationId String?      @map("current_location_id") @db.Uuid
   /// ⚠️ PHI. See the model comment.
-  assignedPatientId String?   @map("assigned_patient_id") @db.Uuid
-  assignedAt        DateTime? @map("assigned_at") @db.Timestamptz(6)
+  assignedPatientId String?      @map("assigned_patient_id") @db.Uuid
+  assignedAt        DateTime?    @map("assigned_at") @db.Timestamptz(6)
   /// A device's own expiry, where it has one distinct from its batch's.
-  expiresOn      DateTime?    @db.Date @map("expires_on")
-  notes          String?      @db.Text
-  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expiresOn         DateTime?    @map("expires_on") @db.Date
+  notes             String?      @db.Text
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   branch          Branch             @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
@@ -512,15 +512,15 @@ model Serial {
   currentLocation InventoryLocation? @relation(fields: [organizationId, branchId, currentLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
   assignedPatient Patient?           @relation(fields: [organizationId, assignedPatientId], references: [organizationId, id], onDelete: Restrict)
 
-  balances  StockBalance[]
-  movements StockLedgerEntry[]
+  balances            StockBalance[]
+  movements           StockLedgerEntry[]
   /// PI-3. ⚠️ A serial crossing a branch boundary MOVES — `branch_id` is updated
   /// at receipt rather than a second row being created, because a serial IS the
   /// physical device and two rows would be two devices. That update is the one
   /// place in the transfer flow that needs a caller scoped to both branches; see
   /// `receiveTransfer`.
-  transferLines StockTransferLine[] @relation("TransferLineSerial")
-  reservations  StockReservation[]
+  transferLines       StockTransferLine[]  @relation("TransferLineSerial")
+  reservations        StockReservation[]
   /// PI-4. The delivery that first recorded this device, and its return.
   goodsReceiptLines   GoodsReceiptLine[]   @relation("GoodsReceiptLineSerial")
   purchaseReturnLines PurchaseReturnLine[] @relation("PurchaseReturnLineSerial")
@@ -574,16 +574,16 @@ model StockLedgerEntry {
   organizationId String @map("organization_id") @db.Uuid
   branchId       String @map("branch_id") @db.Uuid
 
-  productId String  @map("product_id") @db.Uuid
-  batchId   String? @map("batch_id") @db.Uuid
-  serialId  String? @map("serial_id") @db.Uuid
+  productId    String       @map("product_id") @db.Uuid
+  batchId      String?      @map("batch_id") @db.Uuid
+  serialId     String?      @map("serial_id") @db.Uuid
   /// Snapshot of `products.tracking_mode`. See the model comment.
   trackingMode TrackingMode @map("tracking_mode")
 
   movementType StockMovementType @map("movement_type")
   /// SIGNED, in the product's base unit. ⚠️ The sign is derived from
   /// `movementType` and CHECKed; no caller ever chooses it. See the enum.
-  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+  quantityBase Decimal           @map("quantity_base") @db.Decimal(18, 6)
 
   /// What the user actually typed, and in what. Kept so a receipt of "2 boxes"
   /// still reads as "2 boxes" a year later, when the pack size has changed and
@@ -617,7 +617,7 @@ model StockLedgerEntry {
   /// Who did it. NOT NULL: a movement with no actor is a movement nobody can be
   /// asked about, and the expiry sweep supplies a real user rather than a
   /// fiction — see the processor.
-  actorUserId String @map("actor_user_id") @db.Uuid
+  actorUserId String   @map("actor_user_id") @db.Uuid
   /// When it HAPPENED, which is not always when it was recorded: a receipt
   /// entered on Monday for goods that arrived on Friday is ordinary.
   occurredAt  DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
@@ -630,14 +630,14 @@ model StockLedgerEntry {
   /// Plain FK into a possibly-platform row — `product_visible` policy.
   product      Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
   unit         UnitOfMeasure      @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  /*
+  /**
    * ⚠️ ALL FOUR COMPOSE ON `(organization_id, branch_id, …)`, NOT JUST THE
-   *   ORGANIZATION. The two-column form proves only that the lot, serial or
-   *   shelf belongs to this TENANT; a movement recorded at branch A citing a
-   *   shelf at branch B would satisfy it. `recordMovementIn` checks that in
-   *   code, and a rule enforced in one code path is a rule until somebody writes
-   *   a second one — which PI-3's transfers, PI-4's receipts and PI-7's
-   *   dispensing all are. Three columns makes it unrepresentable.
+   * ORGANIZATION. The two-column form proves only that the lot, serial or
+   * shelf belongs to this TENANT; a movement recorded at branch A citing a
+   * shelf at branch B would satisfy it. `recordMovementIn` checks that in
+   * code, and a rule enforced in one code path is a rule until somebody writes
+   * a second one — which PI-3's transfers, PI-4's receipts and PI-7's
+   * dispensing all are. Three columns makes it unrepresentable.
    */
   batch        Batch?             @relation(fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
   serial       Serial?            @relation(fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
@@ -919,9 +919,9 @@ model StockTransfer {
   /// storekeeper reads as a sequence.
   transferNumber String? @map("transfer_number") @db.VarChar(64)
 
-  fromBranchId   String @map("from_branch_id") @db.Uuid
-  toBranchId     String @map("to_branch_id") @db.Uuid
-  fromLocationId String @map("from_location_id") @db.Uuid
+  fromBranchId   String  @map("from_branch_id") @db.Uuid
+  toBranchId     String  @map("to_branch_id") @db.Uuid
+  fromLocationId String  @map("from_location_id") @db.Uuid
   /// Where it lands. Nullable until receipt: the sender proposes a shelf and the
   /// RECEIVER decides, because the sender does not know which fridge has room.
   toLocationId   String? @map("to_location_id") @db.Uuid
@@ -949,33 +949,33 @@ model StockTransfer {
 
   notes String? @db.Text
 
-  createdById  String    @map("created_by_id") @db.Uuid
-  dispatchedAt DateTime? @map("dispatched_at") @db.Timestamptz(6)
-  dispatchedById String? @map("dispatched_by_id") @db.Uuid
+  createdById        String    @map("created_by_id") @db.Uuid
+  dispatchedAt       DateTime? @map("dispatched_at") @db.Timestamptz(6)
+  dispatchedById     String?   @map("dispatched_by_id") @db.Uuid
   /// When the LAST line was received. A partially-received transfer has none.
-  receivedAt   DateTime? @map("received_at") @db.Timestamptz(6)
-  receivedById String?   @map("received_by_id") @db.Uuid
-  cancelledAt  DateTime? @map("cancelled_at") @db.Timestamptz(6)
-  cancelledById String?  @map("cancelled_by_id") @db.Uuid
+  receivedAt         DateTime? @map("received_at") @db.Timestamptz(6)
+  receivedById       String?   @map("received_by_id") @db.Uuid
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById      String?   @map("cancelled_by_id") @db.Uuid
   /// Why it was killed. CHECKed present whenever `cancelled_at` is — a transfer
   /// cancelled after dispatch has already moved stock twice and "why" is the
   /// only thing that makes the two compensating rows readable.
-  cancellationReason String? @map("cancellation_reason") @db.Text
+  cancellationReason String?   @map("cancellation_reason") @db.Text
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  /*
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /**
    * ⚠️ BOTH BRANCHES COMPOSE ON `(organization_id, id)`, AND THE LOCATIONS
-   *   COMPOSE ON THE BRANCH THEY BELONG TO — three columns, exactly as the
-   *   ledger's do. The two-column form would prove only that the shelf belongs
-   *   to this tenant, and a transfer FROM branch A citing a shelf at branch C is
-   *   precisely the row that makes stock leave a place it was never in.
+   * COMPOSE ON THE BRANCH THEY BELONG TO — three columns, exactly as the
+   * ledger's do. The two-column form would prove only that the shelf belongs
+   * to this tenant, and a transfer FROM branch A citing a shelf at branch C is
+   * precisely the row that makes stock leave a place it was never in.
    */
-  fromBranch   Branch            @relation("TransferFromBranch", fields: [organizationId, fromBranchId], references: [organizationId, id], onDelete: Cascade)
-  toBranch     Branch            @relation("TransferToBranch", fields: [organizationId, toBranchId], references: [organizationId, id], onDelete: Cascade)
-  fromLocation InventoryLocation @relation("TransferFromLocation", fields: [organizationId, fromBranchId, fromLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  fromBranch   Branch             @relation("TransferFromBranch", fields: [organizationId, fromBranchId], references: [organizationId, id], onDelete: Cascade)
+  toBranch     Branch             @relation("TransferToBranch", fields: [organizationId, toBranchId], references: [organizationId, id], onDelete: Cascade)
+  fromLocation InventoryLocation  @relation("TransferFromLocation", fields: [organizationId, fromBranchId, fromLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
   toLocation   InventoryLocation? @relation("TransferToLocation", fields: [organizationId, toBranchId, toLocationId], references: [organizationId, branchId, id], onDelete: Restrict)
 
   createdBy    User  @relation("TransferCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
@@ -1061,7 +1061,7 @@ model StockTransferLine {
   ///     as everywhere (PI-ADR-010).
   lotNumber      String?   @map("lot_number") @db.VarChar(128)
   manufacturedOn DateTime? @map("manufactured_on") @db.Date
-  expiresOn      DateTime? @db.Date @map("expires_on")
+  expiresOn      DateTime? @map("expires_on") @db.Date
   manufacturerId String?   @map("manufacturer_id") @db.Uuid
   unitCostBase   BigInt?   @map("unit_cost_base") @db.BigInt
   currency       String?   @db.Char(3)
@@ -1071,28 +1071,28 @@ model StockTransferLine {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  transfer     StockTransfer @relation(fields: [organizationId, transferId], references: [organizationId, id], onDelete: Cascade)
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transfer         StockTransfer @relation(fields: [organizationId, transferId], references: [organizationId, id], onDelete: Cascade)
   /// Plain FK into a possibly-platform row — `product_visible` policy, as on
   /// every other product reference in this file.
-  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
-  unit         UnitOfMeasure @relation("TransferLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  product          Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  unit             UnitOfMeasure @relation("TransferLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
   /// Plain FK into a possibly-platform row, like every other manufacturer
   /// reference in the programme — a `manufacturer_visible` policy is the control.
-  manufacturer Manufacturer? @relation("TransferLineManufacturer", fields: [manufacturerId], references: [id], onDelete: Restrict)
-  /*
+  manufacturer     Manufacturer? @relation("TransferLineManufacturer", fields: [manufacturerId], references: [id], onDelete: Restrict)
+  /**
    * ⚠️ THE TWO LOT REFERENCES ARE PLAIN `(organization_id, id)` COMPOSITES AND
-   *   NOT BRANCH-QUALIFIED ONES, WHICH IS THE OPPOSITE CALL FROM THE LEDGER'S —
-   *   because they deliberately point at DIFFERENT branches. `batch_id` is at
-   *   `transfer.from_branch_id` and `destination_batch_id` is at
-   *   `transfer.to_branch_id`, and this table has neither column to compose on.
-   *   The service checks both, and the ledger legs are where the branch-qualified
-   *   form actually bites: a lot cited on the wrong branch's leg is unrepresentable
-   *   there, which is the place it would do harm.
+   * NOT BRANCH-QUALIFIED ONES, WHICH IS THE OPPOSITE CALL FROM THE LEDGER'S —
+   * because they deliberately point at DIFFERENT branches. `batch_id` is at
+   * `transfer.from_branch_id` and `destination_batch_id` is at
+   * `transfer.to_branch_id`, and this table has neither column to compose on.
+   * The service checks both, and the ledger legs are where the branch-qualified
+   * form actually bites: a lot cited on the wrong branch's leg is unrepresentable
+   * there, which is the place it would do harm.
    */
-  batch            Batch?  @relation("TransferLineSourceBatch", fields: [organizationId, batchId], references: [organizationId, id], onDelete: Restrict)
-  destinationBatch Batch?  @relation("TransferLineDestinationBatch", fields: [organizationId, destinationBatchId], references: [organizationId, id], onDelete: Restrict)
-  serial           Serial? @relation("TransferLineSerial", fields: [organizationId, serialId], references: [organizationId, id], onDelete: Restrict)
+  batch            Batch?        @relation("TransferLineSourceBatch", fields: [organizationId, batchId], references: [organizationId, id], onDelete: Restrict)
+  destinationBatch Batch?        @relation("TransferLineDestinationBatch", fields: [organizationId, destinationBatchId], references: [organizationId, id], onDelete: Restrict)
+  serial           Serial?       @relation("TransferLineSerial", fields: [organizationId, serialId], references: [organizationId, id], onDelete: Restrict)
 
   /// One line per (product, lot, serial) on a transfer. Sending the same lot
   /// twice on one document is a mistake with two plausible readings — did they
@@ -1153,26 +1153,26 @@ model StockReservation {
   expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
   notes     String?  @db.Text
 
-  createdById String    @map("created_by_id") @db.Uuid
+  createdById  String    @map("created_by_id") @db.Uuid
   /// Set together with a terminal `status` — CHECKed, because a released
   /// reservation with no release time is one nobody can put on a timeline.
-  releasedAt  DateTime? @map("released_at") @db.Timestamptz(6)
+  releasedAt   DateTime? @map("released_at") @db.Timestamptz(6)
   /// NULL when the SWEEP released it. That is how a screen tells "the pharmacist
   /// gave it back" from "it timed out", and the two mean different things.
-  releasedById String?  @map("released_by_id") @db.Uuid
+  releasedById String?   @map("released_by_id") @db.Uuid
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
   /// Plain FK into a possibly-platform row — `product_visible` policy.
-  product      Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
   /// Branch-qualified, exactly as on the ledger: a reservation at branch A
   /// citing a lot or a shelf at branch B is unrepresentable.
-  batch    Batch?            @relation(fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
-  serial   Serial?           @relation(fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
-  location InventoryLocation @relation(fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  batch        Batch?            @relation(fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial       Serial?           @relation(fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+  location     InventoryLocation @relation(fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
 
   createdBy  User  @relation("ReservationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   releasedBy User? @relation("ReservationReleasedBy", fields: [releasedById], references: [id], onDelete: Restrict)

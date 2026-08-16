@@ -22,6 +22,8 @@ import type {
   DoctorScheduleDetail,
   DoctorSummary,
   DoctorSpecialtyDetail,
+  ReferralTarget,
+  ReferralTargetQuery,
   SpecialtyListResponse,
   UpdateDoctorQualificationRequest,
   UpdateDoctorRequest,
@@ -1138,4 +1140,68 @@ export async function effectiveSlotMinutes(
   });
 
   return asPositiveInt(settings.get(SLOT_MINUTES_KEY) ?? null, DEFAULT_SLOT_MINUTES);
+}
+
+/**
+ * Colleagues this patient can be referred to (CE-5, §37).
+ *
+ * ⚠️ THIS IS NOT `listDoctors`, AND THE DIFFERENCE IS AN ACCESS DECISION RATHER
+ *   THAN A QUERY OPTIMISATION. A DOCTOR deliberately does not hold
+ *   `doctor.directory.read` — the roster is a personnel list, and `roles.ts`
+ *   says so in as many words. But `encounter_referrals.doctor_profile_id` is a
+ *   destination the contract offers and a CHECK constraint accepts, so the
+ *   in-house referral has to be reachable from the screen that writes one.
+ *
+ *   What makes that safe is that this is a LOOKUP AND NOT AN ENUMERATION:
+ *
+ *     · `search` is REQUIRED, minimum two characters — there is no "list every
+ *       doctor" form of this call, which is the whole reason it can sit behind
+ *       a clinical code. You can confirm the colleague you already know; you
+ *       cannot ask who works here.
+ *     · The payload is a name and a primary specialty. No schedule, no contact
+ *       details, no registration number, no fees, no employment status — every
+ *       one of which `DoctorSummary` carries and the directory exists to serve.
+ *     · ACTIVE profiles only. Referring a patient to somebody who has left is
+ *       an instruction the patient cannot act on.
+ *
+ * ⚠️ AND IT IS NOT READ-AUDITED, WHICH IS CORRECT. A colleague's name is not
+ *   PHI — no patient is named or implied by the request or the response. The
+ *   referral that results IS audited, on the encounter, where the patient is.
+ */
+export async function searchReferralTargets(
+  ctx: TenantContext,
+  query: ReferralTargetQuery
+): Promise<ReferralTarget[]> {
+  return withTenant(ctx, async (tx) => {
+    const profiles = await tx.doctorProfile.findMany({
+      where: {
+        deletedAt: null,
+        status: 'ACTIVE',
+        /*
+         * ⚠️ `contains` WITH `mode: 'insensitive'`, NOT `$queryRaw`. The term is
+         *   a bind parameter either way, but the query builder removes the
+         *   question entirely — and this is a search box, which is where an
+         *   interpolated string would land first.
+         */
+        user: { fullName: { contains: query.search, mode: 'insensitive' } },
+      },
+      select: {
+        id: true,
+        user: { select: { fullName: true } },
+        specialties: {
+          where: { isPrimary: true, isActive: true },
+          select: { specialty: { select: { name: true } } },
+          take: 1,
+        },
+      },
+      orderBy: { user: { fullName: 'asc' } },
+      take: query.pageSize,
+    });
+
+    return profiles.map((profile) => ({
+      doctorProfileId: profile.id,
+      name: profile.user.fullName,
+      specialtyName: profile.specialties[0]?.specialty.name ?? null,
+    }));
+  });
 }

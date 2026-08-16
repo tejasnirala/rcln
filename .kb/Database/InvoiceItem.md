@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/invoicing.prisma:397`.
 | --- | --- |
 | table | `invoice_items` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `branch` policy |
+| RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 23 |
 | relations | 4 |
 

@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:485`.
 | --- | --- |
 | table | `serials` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `branch` policy |
+| RLS | `visible` policy |
 | columns | 14 |
 | relations | 12 |
 
@@ -26,7 +26,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:485`.
 | `currentLocationId` | `String?` | `currentLocationId String? @map("current_location_id") @db.Uuid` |
 | `assignedPatientId` | `String?` | `assignedPatientId String? @map("assigned_patient_id") @db.Uuid` |
 | `assignedAt` | `DateTime?` | `assignedAt DateTime? @map("assigned_at") @db.Timestamptz(6)` |
-| `expiresOn` | `DateTime?` | `expiresOn DateTime? @db.Date @map("expires_on")` |
+| `expiresOn` | `DateTime?` | `expiresOn DateTime? @map("expires_on") @db.Date` |
 | `notes` | `String?` | `notes String? @db.Text` |
 | `createdAt` | `DateTime` | `createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)` |
 | `updatedAt` | `DateTime` | `updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)` |

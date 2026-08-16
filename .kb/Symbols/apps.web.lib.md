@@ -24,8 +24,10 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `childrenOf` | `(tree: TaxonomyTree, id: string \| null): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:95` |  |
 | `clearSessionCookies` | `(): Promise<void>` | `apps/web/src/lib/session.ts:80` |  |
 | `clientAddress` <sub>local</sub> | `(): Promise<string \| undefined>` | `apps/web/src/lib/api.ts:85` |  |
+| `clinicInputValueOf` | `(iso: string, timeZone: string): string` | `apps/web/src/lib/format.ts:220` |  |
+| `clinicInstantOf` | `(local: string, timeZone: string): string \| undefined` | `apps/web/src/lib/format.ts:193` |  |
 | `cn` | `(inputs: ClassValue[]): string` | `apps/web/src/lib/cn.ts:9` | Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be overridden by its caller without specifici… |
-| `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:116` |  |
+| `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:122` |  |
 | `countryOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:160` |  |
 | `eachDay` | `(from: string, to: string): string[]` | `apps/web/src/lib/calendar-range.ts:109` |  |
 | `emptyToNull` | `(value: FormDataEntryValue \| null): string \| null` | `apps/web/src/lib/api.ts:271` |  |
@@ -35,7 +37,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `formatClinicDate` | `(value: string \| Date, timeZone: string): string` | `apps/web/src/lib/format.ts:120` | `9 Aug 2026`. |
 | `formatClinicDateTime` | `(value: string \| Date, timeZone: string, timeFormat: TimeFormat): string` | `apps/web/src/lib/format.ts:128` | `9 Aug 2026, 4:40 pm`. The full stamp, for a heading or an audit row. |
 | `formatClinicTime` | `(value: string \| Date, timeZone: string, timeFormat: TimeFormat): string` | `apps/web/src/lib/format.ts:101` |  |
-| `formatCount` | `(value: number): string` | `apps/web/src/lib/format.ts:142` |  |
+| `formatCount` | `(value: number): string` | `apps/web/src/lib/format.ts:234` |  |
 | `formatDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:41` | `25 Jul 2026`. For dense rows, tables and the period strip. |
 | `formatLongDate` | `(value: string \| Date): string` | `apps/web/src/lib/format.ts:49` | `25 July 2026`. For prose, where the month should not be abbreviated. |
 | `getAccessToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:86` |  |
@@ -51,13 +53,14 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:44` |  |
 | `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:40` |  |
 | `monthLabel` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:242` | "August 2026" — the heading over a month grid. |
+| `offsetMsAt` <sub>local</sub> | `(instant: Date, timeZone: string): number` | `apps/web/src/lib/format.ts:158` | How far the zone is from UTC AT THAT INSTANT — DST included, by construction. |
 | `parse` <sub>local</sub> | `(date: string): Date` | `apps/web/src/lib/calendar-range.ts:44` |  |
 | `pathTo` | `(tree: TaxonomyTree, id: string): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:76` |  |
 | `rangeFor` | `(view: BoardView, anchor: string): DateRange` | `apps/web/src/lib/calendar-range.ts:141` | The span a view covers around its anchor day. |
 | `rangeLabel` | `(view: BoardView, range: DateRange): string` | `apps/web/src/lib/calendar-range.ts:264` |  |
 | `readCookie` | `(jar: string, name: string): string \| undefined` | `apps/web/src/lib/theme.ts:192` | Read a cookie out of a `document.cookie` string. Empty when absent. |
 | `resolveAppearance` | `(appearance: Appearance, prefersDark: boolean): ResolvedAppearance` | `apps/web/src/lib/theme.ts:164` |  |
-| `searchNodes` | `(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:133` |  |
+| `searchNodes` | `(tree: TaxonomyTree, term: string, limit): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:139` |  |
 | `setSessionCookies` | `(session: AuthSession): Promise<void>` | `apps/web/src/lib/session.ts:54` |  |
 | `shiftDays` | `(date: string, days: number): string` | `apps/web/src/lib/calendar-range.ts:53` | `YYYY-MM-DD` shifted by whole days. |
 | `shiftMonths` | `(date: string, months: number): string` | `apps/web/src/lib/calendar-range.ts:67` |  |
@@ -65,10 +68,11 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `startOfMonth` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:93` |  |
 | `startOfWeek` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:87` |  |
 | `stepAnchor` | `(view: BoardView, anchor: string, direction: -1 \| 1): string` | `apps/web/src/lib/calendar-range.ts:153` | Where the arrows go: one day, one week or one month either side. |
-| `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:148` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
+| `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:154` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
 | `themeBootScript` | `(): string` | `apps/web/src/lib/theme.ts:242` |  |
-| `timeFormatOf` | `(slug: string): Promise<TimeFormat>` | `apps/web/src/lib/session.ts:215` |  |
+| `timeFormatOf` | `(slug: string): Promise<TimeFormat>` | `apps/web/src/lib/session.ts:244` |  |
 | `timezoneOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:187` |  |
+| `timezoneOfBranch` | `(slug: string, branchId: string): Promise<string>` | `apps/web/src/lib/session.ts:216` |  |
 | `toAccent` | `(value: string \| undefined): Accent` | `apps/web/src/lib/theme.ts:143` |  |
 | `toAppearance` | `(value: string \| undefined): Appearance` | `apps/web/src/lib/theme.ts:137` |  |
 | `toBoardView` | `(value: string \| undefined): BoardView` | `apps/web/src/lib/calendar-range.ts:40` | Anything else — a hand-edited URL, a missing parameter — is the day view. |
@@ -127,7 +131,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `baseCookie` | `{ httpOnly: true, // Lax, not Strict: Strict would drop the cookie on the cross-host redi…` | `apps/web/src/lib/session-cookie.ts:21` |  |
-| `getPlatformSession` | `cache(…)` | `apps/web/src/lib/session.ts:244` |  |
+| `getPlatformSession` | `cache(…)` | `apps/web/src/lib/session.ts:273` |  |
 | `getSession` | `cache(…)` | `apps/web/src/lib/session.ts:108` |  |
 | `listPlatformOrganizations` | `cache(…)` | `apps/web/src/lib/platform.ts:26` |  |
 

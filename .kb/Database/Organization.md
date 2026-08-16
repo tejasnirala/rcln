@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 84 |
+| relations | 106 |
 
 ## Columns
 
@@ -121,6 +121,28 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `purchaseReturnLines` | [`PurchaseReturnLine`](PurchaseReturnLine.md) | `purchaseReturnLines PurchaseReturnLine[]` |
 | `productCostAverages` | [`ProductCostAverage`](ProductCostAverage.md) | `productCostAverages ProductCostAverage[]` |
 | `productRegulatoryProfiles` | [`ProductRegulatoryProfile`](ProductRegulatoryProfile.md) | `productRegulatoryProfiles ProductRegulatoryProfile[]` |
+| `clinicalMasterItems` | [`ClinicalMasterItem`](ClinicalMasterItem.md) | `clinicalMasterItems ClinicalMasterItem[]` |
+| `clinicalMasterCodings` | [`ClinicalMasterCoding`](ClinicalMasterCoding.md) | `clinicalMasterCodings ClinicalMasterCoding[]` |
+| `clinicalMasterScopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `clinicalMasterScopes ClinicalMasterScope[]` |
+| `productClinicalScopes` | [`ProductClinicalScope`](ProductClinicalScope.md) | `productClinicalScopes ProductClinicalScope[]` |
+| `clinicalEpisodes` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisodes ClinicalEpisode[]` |
+| `animalProfiles` | [`AnimalProfile`](AnimalProfile.md) | `animalProfiles AnimalProfile[]` |
+| `followUpRecommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `followUpRecommendations EncounterFollowUpRecommendation[]` |
+| `consultationTemplates` | [`ConsultationTemplate`](ConsultationTemplate.md) | `consultationTemplates ConsultationTemplate[]` |
+| `consultationTemplateVersions` | [`ConsultationTemplateVersion`](ConsultationTemplateVersion.md) | `consultationTemplateVersions ConsultationTemplateVersion[]` |
+| `encounters` | [`Encounter`](Encounter.md) | `encounters Encounter[]` |
+| `encounterSections` | [`EncounterSection`](EncounterSection.md) | `encounterSections EncounterSection[]` |
+| `encounterSymptoms` | [`EncounterSymptom`](EncounterSymptom.md) | `encounterSymptoms EncounterSymptom[]` |
+| `encounterDiagnoses` | [`EncounterDiagnosis`](EncounterDiagnosis.md) | `encounterDiagnoses EncounterDiagnosis[]` |
+| `encounterProcedures` | [`EncounterProcedure`](EncounterProcedure.md) | `encounterProcedures EncounterProcedure[]` |
+| `encounterPrescriptions` | [`EncounterPrescription`](EncounterPrescription.md) | `encounterPrescriptions EncounterPrescription[]` |
+| `encounterInvestigations` | [`EncounterInvestigation`](EncounterInvestigation.md) | `encounterInvestigations EncounterInvestigation[]` |
+| `encounterAdvice` | [`EncounterAdvice`](EncounterAdvice.md) | `encounterAdvice EncounterAdvice[]` |
+| `encounterReferrals` | [`EncounterReferral`](EncounterReferral.md) | `encounterReferrals EncounterReferral[]` |
+| `encounterAttachments` | [`EncounterAttachment`](EncounterAttachment.md) | `encounterAttachments EncounterAttachment[]` |
+| `visualMaps` | [`VisualMap`](VisualMap.md) | `visualMaps VisualMap[]` |
+| `visualRegions` | [`VisualRegion`](VisualRegion.md) | `visualRegions VisualRegion[]` |
+| `clinicalFindings` | [`ClinicalFinding`](ClinicalFinding.md) | `clinicalFindings ClinicalFinding[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -216,4 +238,26 @@ erDiagram
     Organization }o--o{ PurchaseReturnLine : relates
     Organization }o--o{ ProductCostAverage : relates
     Organization }o--o{ ProductRegulatoryProfile : relates
+    Organization }o--o{ ClinicalMasterItem : relates
+    Organization }o--o{ ClinicalMasterCoding : relates
+    Organization }o--o{ ClinicalMasterScope : relates
+    Organization }o--o{ ProductClinicalScope : relates
+    Organization }o--o{ ClinicalEpisode : relates
+    Organization }o--o{ AnimalProfile : relates
+    Organization }o--o{ EncounterFollowUpRecommendation : relates
+    Organization }o--o{ ConsultationTemplate : relates
+    Organization }o--o{ ConsultationTemplateVersion : relates
+    Organization }o--o{ Encounter : relates
+    Organization }o--o{ EncounterSection : relates
+    Organization }o--o{ EncounterSymptom : relates
+    Organization }o--o{ EncounterDiagnosis : relates
+    Organization }o--o{ EncounterProcedure : relates
+    Organization }o--o{ EncounterPrescription : relates
+    Organization }o--o{ EncounterInvestigation : relates
+    Organization }o--o{ EncounterAdvice : relates
+    Organization }o--o{ EncounterReferral : relates
+    Organization }o--o{ EncounterAttachment : relates
+    Organization }o--o{ VisualMap : relates
+    Organization }o--o{ VisualRegion : relates
+    Organization }o--o{ ClinicalFinding : relates
 ```

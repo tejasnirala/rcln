@@ -133,6 +133,50 @@ const REDACTED_KEYS = new Set([
    */
   'notes',
   'cancellationReason',
+
+  /*
+   * The consultation's free text (CE-3). Every one of these is a clinical
+   * statement about a named person on the only entity that carries it:
+   * `clinicalNotes` is the doctor's narrative, `amendmentReason` says why a
+   * signed record was restated, and `cancelledReason` says why a consultation
+   * was abandoned. `chiefComplaint` is already above, from phase 3.
+   *
+   * ⚠️ `cancelledReason` AND `cancellationReason` ARE BOTH HERE BECAUSE BOTH
+   *   SPELLINGS EXIST IN THE SCHEMA — `invoices` uses one, `encounters` and
+   *   `encounter_follow_up_recommendations` the other. A deny-list matches the
+   *   key it is given and nothing near it, so the near-miss is the whole risk.
+   *
+   * The first layer is still the allow-list snapshot: the encounter service
+   * reports `hasChiefComplaint` / `hasClinicalNotes` rather than the text, and
+   * "the record was amended, and a reason was recorded" is the auditable fact.
+   */
+  'clinicalNotes',
+  'amendmentReason',
+  'cancelledReason',
+
+  /*
+   * The clinical CONTENT's free text (CE-4). Denser PHI than anything above:
+   * `customText` is a symptom or a diagnosis in the clinician's own words,
+   * `instructions` is how a named person is to take a medicine, `caption`
+   * describes a clinical photograph, and `reason` says why somebody was
+   * referred or recalled.
+   *
+   * ⚠️ A BARE `reason` IS DELIBERATELY NOT HERE, and that is the same call this
+   *   list already makes about `email` and `phone`. `encounter_referrals.reason`
+   *   and `encounter_follow_up_recommendations.reason` are PHI — but so is the
+   *   column name on `membership_status_history`, where "suspended pending an
+   *   HR review" IS the audit record and `member.service.ts` passes it
+   *   deliberately. Blanket-redacting by key name would gut that trail to
+   *   protect a clinical column that the content service's allow-list snapshot
+   *   never passes anyway.
+   *
+   * The first layer is unchanged and is where this is actually enforced: the
+   * content service reports `hasReason` and WHICH clinical term was recorded —
+   * an id, meaningless without the chart — and never what was typed beside it.
+   */
+  'customText',
+  'instructions',
+  'caption',
 ]);
 
 const REDACTED = '[redacted]';

@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/procurement.prisma:1225`.
 | --- | --- |
 | table | `product_cost_averages` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `visible` policy |
+| RLS | `branch` policy |
 | columns | 11 |
 | relations | 3 |
 

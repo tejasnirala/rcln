@@ -29,6 +29,9 @@ describe('patient invoices', () => {
   const INV_DOC_A = 'dddddddd-9999-4999-8999-0000000000a1';
   const INV_DOC_B = 'dddddddd-9999-4999-8999-0000000000b1';
   /** The visits the seeded invoices bill for — the new composite FK's target. */
+  /** One journey per tenant — see the fixture note. */
+  const INV_EPISODE_A = 'dddddddd-eeee-4eee-8eee-0000000000a1';
+  const INV_EPISODE_B = 'dddddddd-eeee-4eee-8eee-0000000000b1';
   const INV_APT_A = 'dddddddd-aaaa-4aaa-8aaa-0000000000a1';
   const INV_APT_B2 = 'dddddddd-aaaa-4aaa-8aaa-0000000000b2';
   const INV_A = 'dddddddd-2222-4222-8222-0000000000a1';
@@ -94,13 +97,28 @@ describe('patient invoices', () => {
        ON CONFLICT DO NOTHING`,
       [INV_DOC_A, ORG_A, INV_DOC_USER_A, INV_DOC_B, ORG_B, INV_DOC_USER_B]
     );
+    /*
+     * ⚠️ AN EPISODE PER TENANT FIRST. `appointments.clinical_episode_id` is NOT
+     *   NULL since CE-1, so a raw fixture insert has to open a journey before it
+     *   can book. An episode of one is the ordinary case, which is what these
+     *   are — nothing in this file is about journeys.
+     */
+    await owner.query(
+      `INSERT INTO clinical_episodes
+         (id, organization_id, patient_id, code, opened_on, updated_at)
+       VALUES ($1, $2, $3, 'INVEPA0001', DATE '2027-07-01', now()),
+              ($4, $5, $6, 'INVEPB0001', DATE '2027-07-01', now())
+       ON CONFLICT DO NOTHING`,
+      [INV_EPISODE_A, ORG_A, INV_PATIENT_A, INV_EPISODE_B, ORG_B, INV_PATIENT_B]
+    );
     await owner.query(
       `INSERT INTO appointments
          (id, organization_id, branch_id, patient_id, patient_registration_id,
-          doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'INVA000001',
+          doctor_profile_id, clinical_episode_id, appointment_number,
+          scheduled_start, scheduled_end, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $13, 'INVA000001',
                '2027-07-01T04:00:00Z', '2027-07-01T04:15:00Z', now()),
-              ($7, $8, $9, $10, $11, $12, 'INVB000001',
+              ($7, $8, $9, $10, $11, $12, $14, 'INVB000001',
                '2027-07-01T05:00:00Z', '2027-07-01T05:15:00Z', now())
        ON CONFLICT DO NOTHING`,
       [
@@ -116,6 +134,8 @@ describe('patient invoices', () => {
         INV_PATIENT_B,
         INV_REG_B2,
         INV_DOC_B,
+        INV_EPISODE_A,
+        INV_EPISODE_B,
       ]
     );
 

@@ -17,6 +17,16 @@ import { z } from 'zod';
 import { uuid } from './common.js';
 
 export const taxonomyNodeType = z.enum([
+  /**
+   * The true root — Human, Veterinary (CE-1).
+   *
+   * ⚠️ FIRST IN THE LIST BECAUSE THE LIST IS READ TOP-DOWN BY THE CASCADING
+   *   SELECTOR, not because anything depends on the order. The tree's shape is
+   *   `parentId` and only `parentId`; this enum labels a node, it does not place
+   *   one. Never assigned to a doctor — a clinician practises a specialty, not a
+   *   kingdom of patient.
+   */
+  'CARE_CONTEXT',
   'DOMAIN',
   'DEPARTMENT',
   'SPECIALTY',

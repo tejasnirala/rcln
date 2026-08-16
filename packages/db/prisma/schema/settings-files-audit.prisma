@@ -97,6 +97,17 @@ enum DocumentType {
   /// meaning of every row in this table before the invoice engine existed, and
   /// therefore the default.
   UPLOAD
+  /// A file that belongs to a consultation (CE-4) — a clinical photograph, a
+  /// report the patient brought, a signed consent.
+  ///
+  /// ⚠️ ITS OWN MEMBER RATHER THAN `UPLOAD`, AND THE REASON IS DISCLOSURE. A
+  ///   clinical attachment is PHI about one named person; an UPLOAD is a logo
+  ///   or a letterhead. They are retained differently, they are exported
+  ///   differently in a subject-access request, and a sweep that cleans up
+  ///   orphaned uploads must be able to tell them apart. The clinical meaning
+  ///   of the file — photograph, scan, consent — is
+  ///   `EncounterAttachmentKind`, which is a question only the chart asks.
+  CLINICAL_ATTACHMENT
 }
 
 /// Whether the bytes are actually there yet.
@@ -172,9 +183,13 @@ model StoredFile {
   uploadedAt      DateTime       @default(now()) @map("uploaded_at") @db.Timestamptz(6)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(6)
 
-  organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  uploader         User?             @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
-  invoiceDocuments InvoiceDocument[]
+  organization         Organization?         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader             User?                 @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+  invoiceDocuments     InvoiceDocument[]
+  /// Files attached to a consultation (CE-4). Composite-FK'd from the other
+  /// side, which refuses a platform file — correct here, because a clinical
+  /// photograph is never one.
+  encounterAttachments EncounterAttachment[]
 
   /// The composite-FK target (ADR-0004) so a document can be referenced from a
   /// tenant table without the reference being able to cross tenants.
@@ -251,6 +266,18 @@ enum DataAccessResource {
   ///   review is more useful when that question is distinguishable from a
   ///   clinician reading a chart. Same reasoning that keeps `VITALS` apart.
   INVENTORY_SERIAL
+  /// A consultation: what the doctor concluded, prescribed and advised (CE-3).
+  ///
+  /// ⚠️ THE DENSEST DISCLOSURE IN THE PRODUCT, and kept apart from
+  ///   `MEDICAL_HISTORY` for the reason `VITALS` is: history is what the patient
+  ///   brought with them, an encounter is what THIS clinician wrote down. A
+  ///   disclosure review asking "who read Mrs Rao's diagnosis" wants an answer
+  ///   that is not buried among chart-summary reads.
+  ENCOUNTER
+  /// A treatment journey (CE-1). Reading one discloses that a named person is
+  /// under ongoing treatment, and its title usually says what for — which is a
+  /// diagnosis by another name, and is why this is not folded into `APPOINTMENT`.
+  CLINICAL_EPISODE
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

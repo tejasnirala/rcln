@@ -42,6 +42,17 @@ export type SequenceType =
   | 'APPOINTMENT'
   | 'QUEUE_TOKEN'
   | 'EMPLOYEE'
+  /**
+   * Treatment journeys (CE-1).
+   *
+   * ⚠️ THE ONLY COUNTER HERE THAT IS PER ORGANIZATION RATHER THAN PER BRANCH,
+   *   and it never resets. An episode follows the PATIENT, who is org-wide
+   *   (ADR-0016): a journey that starts at the main branch and continues at the
+   *   satellite is one journey, so a per-branch counter would either issue two
+   *   codes for it or have to pick a branch arbitrarily. `openEpisode` passes no
+   *   `branchId` for exactly that reason.
+   */
+  | 'CLINICAL_EPISODE'
   /** Patient invoice serials. Built by `invoice-number.service.ts`, never here. */
   | 'INVOICE'
   /**
@@ -64,7 +75,17 @@ export type SequenceType =
   | 'PURCHASE_REQUISITION'
   | 'PURCHASE_ORDER'
   | 'GOODS_RECEIPT'
-  | 'PURCHASE_RETURN';
+  | 'PURCHASE_RETURN'
+  /**
+   * Consultations (CE-3). Per BRANCH — the opposite shape from
+   * `CLINICAL_EPISODE` above, and deliberately: a journey follows the patient
+   * across a hospital group, a consultation happened at ONE site, and the number
+   * is printed on the prescription that site hands over.
+   *
+   * ⚠️ ISSUED AT FINALIZATION, NOT AT OPEN, for the reason the four procurement
+   *   counters give. A draft the doctor abandons must burn no number.
+   */
+  | 'ENCOUNTER';
 
 export interface IssueNumberSpec {
   type: SequenceType;

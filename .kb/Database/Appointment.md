@@ -9,8 +9,8 @@ Declared at `packages/db/prisma/schema/scheduling.prisma:80`.
 | table | `appointments` |
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
-| columns | 24 |
-| relations | 13 |
+| columns | 25 |
+| relations | 17 |
 
 ## Columns
 
@@ -29,6 +29,7 @@ Declared at `packages/db/prisma/schema/scheduling.prisma:80`.
 | `source` | `AppointmentSource` | `source AppointmentSource @default(FRONT_DESK)` |
 | `status` | `AppointmentStatus` | `status AppointmentStatus @default(BOOKED)` |
 | `parentAppointmentId` | `String?` | `parentAppointmentId String? @map("parent_appointment_id") @db.Uuid` |
+| `clinicalEpisodeId` | `String` | `clinicalEpisodeId String @map("clinical_episode_id") @db.Uuid` |
 | `reason` | `String?` | `reason String? @db.Text` |
 | `checkedInAt` | `DateTime?` | `checkedInAt DateTime? @map("checked_in_at") @db.Timestamptz(6)` |
 | `startedAt` | `DateTime?` | `startedAt DateTime? @map("started_at") @db.Timestamptz(6)` |
@@ -58,6 +59,10 @@ Declared at `packages/db/prisma/schema/scheduling.prisma:80`.
 | `reschedules` | [`AppointmentReschedule`](AppointmentReschedule.md) | `reschedules AppointmentReschedule[]` |
 | `parent` | [`Appointment`](Appointment.md) | `parent Appointment? @relation("AppointmentFollowUp", fields: [organizationId, parentAppointmentId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)` |
 | `followUps` | [`Appointment`](Appointment.md) | `followUps Appointment[] @relation("AppointmentFollowUp")` |
+| `clinicalEpisode` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisode ClinicalEpisode @relation(fields: [organizationId, clinicalEpisodeId], references: [organizationId, id], onDelete: Restrict)` |
+| `recommendationsMade` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `recommendationsMade EncounterFollowUpRecommendation[] @relation("RecommendationSource")` |
+| `recommendationsFulfilled` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `recommendationsFulfilled EncounterFollowUpRecommendation[] @relation("RecommendationFulfilment")` |
+| `encounters` | [`Encounter`](Encounter.md) | `encounters Encounter[]` |
 
 ## Indexes and constraints
 
@@ -67,6 +72,7 @@ Declared at `packages/db/prisma/schema/scheduling.prisma:80`.
 - `@@index([organizationId, doctorProfileId, scheduledStart])`
 - `@@index([organizationId, patientId, scheduledStart])`
 - `@@index([organizationId, parentAppointmentId])`
+- `@@index([organizationId, clinicalEpisodeId, scheduledStart])`
 
 ## Neighbourhood
 
@@ -83,4 +89,7 @@ erDiagram
     Appointment }o--o{ Invoice : relates
     Appointment }o--o{ AppointmentReschedule : relates
     Appointment }o--o{ Appointment : relates
+    Appointment }o--o{ ClinicalEpisode : relates
+    Appointment }o--o{ EncounterFollowUpRecommendation : relates
+    Appointment }o--o{ Encounter : relates
 ```

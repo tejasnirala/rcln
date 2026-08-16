@@ -28,9 +28,16 @@ function permissionsOf(code: SystemRoleCode): string[] {
 }
 
 describe('writing up a consultation is a clinician-only act', () => {
+  /*
+   * ⚠️ `ENCOUNTER_AMEND` IS ONE OF THESE, AND IT ARRIVED AFTER THIS LIST DID.
+   *   CE-3 added it to `CLINICAL_AUTHORING` in roles.ts and not to the list here,
+   *   which is the exact shape of the omission this file exists to catch — the
+   *   audit below now derives the set instead of restating it.
+   */
   const authoring = [
     P.ENCOUNTER_CREATE,
     P.ENCOUNTER_CLOSE,
+    P.ENCOUNTER_AMEND,
     P.PRESCRIPTION_CREATE,
     P.PRESCRIPTION_SIGN,
   ];
@@ -53,10 +60,9 @@ describe('writing up a consultation is a clinician-only act', () => {
     }
   );
 
-  it('DOCTOR is the only system role that may author one', () => {
+  it.each(authoring)('DOCTOR is the only system role that holds %s', (code) => {
     const authors = SYSTEM_ROLE_DEFINITIONS.filter(
-      (role) =>
-        role.code !== SYSTEM_ROLES.SUPER_ADMIN && role.permissions.includes(P.ENCOUNTER_CREATE)
+      (role) => role.code !== SYSTEM_ROLES.SUPER_ADMIN && role.permissions.includes(code)
     ).map((role) => role.code);
 
     expect(authors).toEqual([SYSTEM_ROLES.DOCTOR]);
@@ -71,6 +77,81 @@ describe('writing up a consultation is a clinician-only act', () => {
   it('SUPER_ADMIN is the deliberate exception', () => {
     expect(permissionsOf(SYSTEM_ROLES.SUPER_ADMIN)).toContain(P.ENCOUNTER_CREATE);
   });
+});
+
+/**
+ * The audit CE-8 owes: EVERY `clinical.*` code, not the ones somebody remembered
+ * to list.
+ *
+ * ⚠️ THE FAILURE MODE IS A CODE THAT NOBODY CLASSIFIED. ORG_OWNER and ORG_ADMIN
+ *   are "everything except", so a new clinical code joins them the moment it is
+ *   declared; DOCTOR is an explicit list, so the same code joins DOCTOR never.
+ *   Both defaults are silent, and one of them is an access-control bug. This
+ *   enumerates the codes rather than restating them, so a code added tomorrow is
+ *   in the test the day it is added and has to be put somewhere on purpose.
+ */
+describe('every clinical code is deliberately placed', () => {
+  const clinicalCodes = Object.values(PERMISSIONS).filter((code) => code.startsWith('clinical.'));
+
+  /** Authoring the record, per `CLINICAL_AUTHORING` in roles.ts. */
+  const authoringCodes: string[] = [
+    P.ENCOUNTER_CREATE,
+    P.ENCOUNTER_CLOSE,
+    P.ENCOUNTER_AMEND,
+    P.PRESCRIPTION_CREATE,
+    P.PRESCRIPTION_SIGN,
+  ];
+
+  /**
+   * ⚠️ TAKING AN OBSERVATION IS NOT AUTHORING THE RECORD, AND IT IS THE ONE
+   *   CLINICAL CODE A DOCTOR IS DENIED (invariant 7). It belongs to whoever holds
+   *   the cuff — the front desk and the nurse. ORG_OWNER keeps it, because
+   *   "everything except AUTHORING" is what that role means and taking a blood
+   *   pressure is not writing up a consultation.
+   */
+  const bedsideCodes: string[] = [P.VITALS_RECORD];
+
+  it('names them all', () => {
+    /* A guard on the guard: an empty filter would make every case below pass. */
+    expect(clinicalCodes.length).toBeGreaterThanOrEqual(11);
+  });
+
+  it.each(clinicalCodes)('%s is held by exactly the roles that should hold it', (code) => {
+    const owner = permissionsOf(SYSTEM_ROLES.ORG_OWNER);
+    const doctor = permissionsOf(SYSTEM_ROLES.DOCTOR);
+
+    if (authoringCodes.includes(code)) {
+      expect(owner).not.toContain(code);
+      expect(doctor).toContain(code);
+      return;
+    }
+    if (bedsideCodes.includes(code)) {
+      expect(owner).toContain(code);
+      expect(doctor).not.toContain(code);
+      expect(permissionsOf(SYSTEM_ROLES.RECEPTIONIST)).toContain(code);
+      return;
+    }
+    /*
+     * Everything else is a read of the record or a configuration of the product
+     * — both of which the clinic's owner may do by definition.
+     */
+    expect(owner).toContain(code);
+  });
+
+  /**
+   * ⚠️ CONFIGURING A CONSULTATION IS NOT CONDUCTING ONE (CD-7, CE-2, CE-6). A
+   *   doctor draws ON a chart with `clinical.encounter.create`; saying what the
+   *   chart IS, or what the form is, is an administrative act. Granting either to
+   *   DOCTOR by default would let one clinician silently rewrite the form every
+   *   other clinician in the practice fills in.
+   */
+  it.each([P.CLINICAL_TEMPLATE_MANAGE, P.CLINICAL_VISUAL_MAP_MANAGE, P.CLINICAL_MASTER_MANAGE])(
+    'DOCTOR does not hold %s',
+    (code) => {
+      expect(permissionsOf(SYSTEM_ROLES.DOCTOR)).not.toContain(code);
+      expect(permissionsOf(SYSTEM_ROLES.ORG_ADMIN)).toContain(code);
+    }
+  );
 });
 
 describe('vitals: reading an observation is not taking one', () => {

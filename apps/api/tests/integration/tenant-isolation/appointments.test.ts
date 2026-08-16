@@ -44,6 +44,14 @@ describe('appointments', () => {
   const APT_DOC_USER_B = 'ffffffff-3333-4333-8333-0000000000b1';
   const APT_DOC_A = 'ffffffff-4444-4444-8444-0000000000a1';
   const APT_DOC_B = 'ffffffff-4444-4444-8444-0000000000b1';
+  /*
+   * Every appointment belongs to exactly one treatment journey (CE-1), and
+   * `clinical_episode_id` is NOT NULL — so the fixture has to open one per
+   * tenant before it can insert a booking. An episode of one is the ordinary
+   * case, which is what these are.
+   */
+  const APT_EPISODE_A = 'ffffffff-6666-4666-8666-0000000000a1';
+  const APT_EPISODE_B2 = 'ffffffff-6666-4666-8666-0000000000b2';
   const APT_A = 'ffffffff-5555-4555-8555-0000000000a1';
   /** Booked at B2, so a reader scoped to B1 must not see it. */
   const APT_B2 = 'ffffffff-5555-4555-8555-0000000000b2';
@@ -99,12 +107,21 @@ describe('appointments', () => {
       [APT_DOC_A, ORG_A, APT_DOC_USER_A, APT_DOC_B, ORG_B, APT_DOC_USER_B]
     );
     await owner.query(
+      `INSERT INTO clinical_episodes
+         (id, organization_id, patient_id, code, opened_on, updated_at)
+       VALUES ($1, $2, $3, 'ISOEPA0001', DATE '2027-06-01', now()),
+              ($4, $5, $6, 'ISOEPB0001', DATE '2027-06-01', now())
+       ON CONFLICT DO NOTHING`,
+      [APT_EPISODE_A, ORG_A, APT_PATIENT_A, APT_EPISODE_B2, ORG_B, APT_PATIENT_B]
+    );
+    await owner.query(
       `INSERT INTO appointments
          (id, organization_id, branch_id, patient_id, patient_registration_id,
-          doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'ISOA000001',
+          doctor_profile_id, clinical_episode_id, appointment_number,
+          scheduled_start, scheduled_end, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $13, 'ISOA000001',
                '2027-06-01T04:00:00Z', '2027-06-01T04:15:00Z', now()),
-              ($7, $8, $9, $10, $11, $12, 'ISOB000001',
+              ($7, $8, $9, $10, $11, $12, $14, 'ISOB000001',
                '2027-06-01T05:00:00Z', '2027-06-01T05:15:00Z', now())
        ON CONFLICT DO NOTHING`,
       [
@@ -120,6 +137,8 @@ describe('appointments', () => {
         APT_PATIENT_B,
         APT_REG_B2,
         APT_DOC_B,
+        APT_EPISODE_A,
+        APT_EPISODE_B2,
       ]
     );
     await owner.query(
@@ -179,16 +198,29 @@ describe('appointments', () => {
     expect(found).toBe(1);
   });
 
+  /*
+   * ⚠️ `clinical_episode_id` IS SUPPLIED, AND SUPPLYING IT IS THE POINT.
+   *
+   *   The column is NOT NULL since CE-1, so an INSERT that omits it is rejected
+   *   by the not-null constraint BEFORE Postgres ever evaluates a policy — the
+   *   test would still go red-to-green and would have stopped proving anything
+   *   about the branch boundary. That is the quiet way an isolation test rots
+   *   into a schema test.
+   *
+   *   Passing a legitimate episode belonging to ORG_A puts the row back in the
+   *   state where the ONLY thing wrong with it is the branch.
+   */
   it('rejects booking into another clinic’s branch', async () => {
     await expect(
       asTenantAtBranches(ORG_A, [BRANCH_A, BRANCH_B1], () =>
         app.query(
           `INSERT INTO appointments
              (id, organization_id, branch_id, patient_id, patient_registration_id,
-              doctor_profile_id, appointment_number, scheduled_start, scheduled_end, updated_at)
-           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'SNEAK00001',
+              doctor_profile_id, clinical_episode_id, appointment_number,
+              scheduled_start, scheduled_end, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'SNEAK00001',
                    '2027-06-02T04:00:00Z', '2027-06-02T04:15:00Z', now())`,
-          [ORG_A, BRANCH_B1, APT_PATIENT_A, APT_REG_A, APT_DOC_A]
+          [ORG_A, BRANCH_B1, APT_PATIENT_A, APT_REG_A, APT_DOC_A, APT_EPISODE_A]
         )
       )
     ).rejects.toThrow(/row-level security|foreign key/i);

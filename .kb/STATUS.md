@@ -35,6 +35,29 @@ sources, 22 rules — read from CDSCO's own consolidated Drugs Rules, 1945 and t
 Pharmacy Act, 1948 on India Code, at maturity `AUTOMATED_TESTED`. Goods receipt
 and transfer now consult the engine while posting.
 
+**The Consultation Engine programme is COMPLETE — CE-0 through CE-8** — the clinical vocabulary, the treatment journey, the configuration layer,
+the consultation itself and now its content. `@rcln/clinical` is the tested core;
+a template resolves from an appointment by walking the doctor's classification up
+to the patient's care context, most specific wins. Adding a specialty is meant to
+cost a configuration row and never a screen. A consultation opens, autosaves,
+signs and amends — a finalized record is immutable, and a correction is a new row
+citing it that carries a COPY of its content. And it now holds that content as
+real rows: diagnoses, prescriptions, procedures, investigations, advice,
+referrals, attachments and a follow-up plan, each with a foreign key the database
+checks. **PI-7 and PI-9 are unblocked.** CE-5 added the read side — visit
+history, the episode timeline, the read-only record, the previous-visit panel and
+the recall screen — and CE-6 added the chart: `visual_maps`, `visual_regions` and
+`clinical_findings`, with the 32-tooth FDI odontogram seeded and ONE generic
+renderer in `apps/web` that knows nothing about teeth. CE-7 then added the scalp
+and body charts and the dentistry and hair-and-scalp templates as SEED ROWS,
+which is the proof the renderer is generic. CE-8 then hardened it: a DATE is a
+calendar day and a DATETIME an ISO instant, a stored section document is bounded
+at autosave, the lost open race resumes the draft instead of returning a 409,
+the recall list's scan is bounded by a partial index, and every clinical route's
+permission gate is now audited off the Express stack rather than off a list
+somebody maintains. Everything about that programme lives in
+[`Consultation/`](Consultation/README.md).
+
 ⚠️ **NOTHING BLOCKS ON IT, AND THAT IS THE DESIGN.** One country has a pack, so
 every evaluation elsewhere answers `UNDETERMINED` — which refuses — and a call
 site that threw on a non-permission would stop every clinic outside India from
@@ -42,8 +65,8 @@ receiving stock. Enforcement is gated on `PRODUCTION_ENABLED`, which only a name
 human may set. India's sources are `UNVERIFIED` and no qualified person has read
 the pack, so nothing here claims compliance with anything.
 
-`db:rls:check` is green at **89** protected tables and **1310 API tests pass
-across 61 suites**.
+`db:rls:check` is green at **111** protected tables and **1507 API tests pass
+across 73 suites** (1314 integration + 193 unit).
 
 **Both reviewer passes have run and been acted on** for PI-3 and PI-4. See
 § Phase 5 and `.kb/PharmacyInventory/NEXT_SESSION.md`.
@@ -955,7 +978,76 @@ divided by a resolved slot duration, minus what is already booked.
       needed them and they are what checks a patient in)
 - [ ] Prescriptions + masters (symptoms, diagnoses, procedures). The follow-up
       chain is in place and nothing yet carries a prescription along it
-- [ ] `clinical_form_templates` — the extension point for per-specialty forms
+- [x] The extension point for per-specialty forms — shipped as CE-2's
+      `consultation_templates`, not as `clinical_form_templates`. See below.
+
+### Consultation engine (CE)
+
+Its own programme, with its own tracker. Full detail in
+[`Consultation/`](Consultation/README.md) — the phases in
+[MASTER_PLAN](Consultation/MASTER_PLAN.md), the reasoning in
+[DECISIONS](Consultation/DECISIONS.md), the per-phase report in
+[CHANGELOG](Consultation/CHANGELOG.md).
+
+- [x] **CE-1 — clinical foundation.** `clinical_master_items` (one table, a
+      `kind` discriminator) with codings and scopes that RANK and never FILTER;
+      `clinical_episodes` and `appointments.clinical_episode_id` with the
+      backfill; the follow-up recommendation table; `/clinical-data` and
+      `/clinical-episodes`; the `/clinical-terms` screen.
+- [x] **CE-2 — templates and the configuration resolver.**
+      `consultation_templates` + `_versions`, `@rcln/clinical` (74 unit tests),
+      `GET /appointments/:id/consultation-config`, `clinical.template.manage`,
+      the `/consultation-templates` admin surface, and a published GENERAL
+      template per care context so a clinic can consult on day one.
+- [x] **CE-3 — the encounter and its lifecycle.** `encounters` +
+      `encounter_sections`; DRAFT → FINALIZED → AMENDED/CANCELLED with the
+      amendment as a NEW ROW; `clinical.encounter.amend`; the debounced autosave
+      Server Action; `validate.ts` in `@rcln/clinical` (89 unit tests); the
+      `ConsultationEngine` and `FieldRenderer` on the visit screen. The
+      configuration is frozen onto the encounter when it opens, so a record
+      renders through the form it was written on for ever.
+- [x] **CE-4 — the clinical content sections.** Eight tables — symptoms,
+      diagnoses, procedures, prescriptions, investigations, advice, referrals,
+      attachments — all org + branch scoped and all PHI, plus the follow-up
+      recommendation's writer and the recall-list endpoint (CD-13).
+      `db:rls:check` at **108**, including seven `*_visible` policies standing in
+      for composite FKs that cannot be drawn into a platform-extensible parent.
+      **No new permission codes**: recording a diagnosis IS writing up the
+      consultation. **PI-7 and PI-9 are unblocked** — `encounter_prescriptions`
+      and `encounter_procedures` exist.
+- [x] **CE-5 — visit history and episodes.** No schema at all: read surfaces
+      over CE-1…CE-4's tables. `GET /patients/:id/visit-history`,
+      `GET /clinical-episodes/:id`, `GET /appointments/:id/previous-visit`,
+      `GET /doctors/referral-targets`; the `/recall` screen and the follow-up
+      booking form. **No new permission codes** — two disclosure classes over one
+      journey (CD-14), and the referral lookup reuses an authoring code (CD-15).
+- [x] **CE-6 — the visual mapping engine and `HUMAN_DENTAL`.** `visual_maps` and
+      `visual_regions` (platform-extensible, no PHI) and `clinical_findings`
+      (org + branch scoped, PHI), plus the `encounter_procedures.visual_region_id`
+      column CE-4 deferred. `db:rls:check` at **111**.
+      `clinical.visual_map.manage` configures a chart; drawing on one is
+      `clinical.encounter.create`, because a finding IS writing up the
+      consultation (CD-7). **The geometry is data on the regions (CD-17)** — one
+      generic renderer in `apps/web`, no tooth in it, so CE-7's second map is a
+      seed rather than a screen. `PENDING_SECTIONS` is now empty: every section
+      type has a component over a real table.
+- [x] **CE-7 — the reference configurations.** `HUMAN_SCALP` and `HUMAN_BODY`,
+      and the `DENTAL_HUMAN` and `HAIR_SCALP_HUMAN` templates that cite them —
+      all four **seed rows**. No model, no migration, no route, no contract, no
+      permission and no second renderer: one doctor reclassified between `DEN`,
+      `TRICHOLOGY` and nothing gets three genuinely different consultations out
+      of the same engine, which was the phase's whole definition of done (CD-18).
+      `db:rls:check` unchanged at **111**. The one piece of code was the region
+      picker on a procedure that CE-6 deferred here.
+- [x] **CE-8 — hardening.** No endpoint, no permission code, no table. DATE and
+      DATETIME are validated as what they are (invariant 6 inside a JSONB
+      document); `documentProblems` bounds a stored section at AUTOSAVE, which is
+      the one engine rule that does not wait for the signature; the LOST
+      open-consultation race resumes the existing draft instead of 409-ing the
+      doctor; `authorize()` stamps its codes so `route-gates.test.ts` can audit
+      every clinical route; and one partial index bounds the recall list's scan,
+      confirmed with `EXPLAIN`. Plus the §40 journey, walked end to end in one
+      suite. `db:rls:check` unchanged at **111**.
 
 ### Consultation fees and doctor compensation
 

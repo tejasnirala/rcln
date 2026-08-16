@@ -50,13 +50,13 @@ Where a thing IS and how much of it there is. The other half of the product cata
 
 | model | RLS |
 | --- | --- |
-| [`InventoryLocation`](../Database/InventoryLocation.md) | branch |
-| [`StorageArea`](../Database/StorageArea.md) | branch |
-| [`StorageBin`](../Database/StorageBin.md) | branch |
-| [`Batch`](../Database/Batch.md) | branch |
-| [`Serial`](../Database/Serial.md) | branch |
-| [`StockLedgerEntry`](../Database/StockLedgerEntry.md) | branch |
-| [`StockBalance`](../Database/StockBalance.md) | branch |
+| [`InventoryLocation`](../Database/InventoryLocation.md) | visible |
+| [`StorageArea`](../Database/StorageArea.md) | org |
+| [`StorageBin`](../Database/StorageBin.md) | org |
+| [`Batch`](../Database/Batch.md) | visible |
+| [`Serial`](../Database/Serial.md) | visible |
+| [`StockLedgerEntry`](../Database/StockLedgerEntry.md) | visible |
+| [`StockBalance`](../Database/StockBalance.md) | visible |
 
 ## Permissions
 

@@ -107,7 +107,9 @@ export function BillingScreen({
   return (
     <div className="space-y-12">
       <header>
-        <h1 className="font-display text-title text-ink">Billing</h1>
+        <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">
+          Billing
+        </h1>
         <p className="text-muted mt-2 max-w-2xl text-[0.9375rem] leading-relaxed">
           What this clinic is on, what it costs, and every invoice rcln has issued.
         </p>

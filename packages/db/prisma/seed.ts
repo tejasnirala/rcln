@@ -13,6 +13,9 @@
  *   seed/designations.ts        job titles
  *   seed/role-designations.ts   which title fits which role
  *   seed/clinical-masters.ts    specialties + qualifications (data in seed/data/)
+ *   seed/consultation-templates.ts the default consultation per care context,
+ *                               plus the two reference configurations (CE-7)
+ *   seed/visual-maps.ts         the charts a consultation draws on
  *   seed/product-masters.ts     units, conversions, categories, storage profiles
  *   seed/tax-rule-defaults.ts   starting-point tax rates per country
  *   seed/regulatory-packs.ts    jurisdictions, authorities, sources, rule packs
@@ -21,6 +24,8 @@
  */
 import { prisma } from './seed/client.js';
 import { seedClinicalMasters } from './seed/clinical-masters.js';
+import { seedClinicalVocabulary } from './seed/clinical-vocabulary.js';
+import { seedConsultationTemplates } from './seed/consultation-templates.js';
 import { seedDesignations } from './seed/designations.js';
 import { seedPermissions } from './seed/permissions.js';
 import { seedPlans } from './seed/plans.js';
@@ -31,6 +36,7 @@ import { seedSettingDefinitions } from './seed/setting-definitions.js';
 import { seedSuperAdmin } from './seed/super-admin.js';
 import { seedSystemRoles } from './seed/system-roles.js';
 import { seedTaxRuleDefaults } from './seed/tax-rule-defaults.js';
+import { seedVisualMaps } from './seed/visual-maps.js';
 
 /**
  * ⚠️ THE ORDER IS LOAD-BEARING IN TWO PLACES, AND NOWHERE ELSE.
@@ -48,6 +54,18 @@ async function main(): Promise<void> {
   // After both roles and designations exist — it pairs them by code.
   await seedRoleDesignations();
   await seedClinicalMasters();
+  /* After the taxonomy: the vocabulary's scopes resolve specialty codes to ids,
+     so the nodes have to exist first. */
+  await seedClinicalVocabulary();
+  /* After the taxonomy too: a template belongs to a CARE_CONTEXT root, and a
+     care context with no published template means a consultation cannot be
+     opened for a patient of that kind at all. */
+  await seedConsultationTemplates();
+  /* After the taxonomy too: a chart belongs to a CARE_CONTEXT root and names
+     the node it is especially for. Independent of the templates — a template
+     cites a map by CODE (CD-6), never by id, so neither has to exist for the
+     other to be written. */
+  await seedVisualMaps();
   // Structural only — units, categories and storage bands. No medicine data:
   // see seed/data/product-masters.ts for why, and why no agent may add any.
   await seedProductMasters();

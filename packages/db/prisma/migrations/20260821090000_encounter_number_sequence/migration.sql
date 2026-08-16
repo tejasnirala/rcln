@@ -1,0 +1,21 @@
+-- ===========================================================================
+-- CE-3 · 1 of 2 — the encounter counter.
+--
+-- ⚠️ ITS OWN MIGRATION, FOR THE REASON CE-1'S MIGRATIONS 1 AND 5 WERE (CD-9).
+--   `NumberSequenceType` already exists, so this is `ALTER TYPE … ADD VALUE`
+--   and NOTHING IN THE SAME TRANSACTION MAY USE THE NEW MEMBER. Migration 2
+--   creates `encounters` and its CHECK constraints; none of them names this
+--   value, but a later phase's would, and splitting now costs one file and
+--   removes the trap for good.
+--
+-- ⚠️ PER BRANCH AND NEVER RESETS — the opposite shape from `CLINICAL_EPISODE`,
+--   which is per organization. A journey follows the patient across a hospital
+--   group; a consultation happened at ONE site, and its number is printed on
+--   the prescription that site hands over.
+--
+--   It is issued at FINALIZATION and never at create, the rule the four
+--   procurement counters follow: an abandoned draft must burn no number,
+--   because a gap in this series is a question an auditor will ask.
+-- ===========================================================================
+
+ALTER TYPE "NumberSequenceType" ADD VALUE 'ENCOUNTER';

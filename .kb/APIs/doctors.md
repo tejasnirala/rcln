@@ -8,38 +8,39 @@ Source: `apps/api/src/routes/v1/doctors.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/doctors.routes.ts:94` |
-| GET | `/masters` | `authorize(PERMISSIONS.DOCTOR_READ)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:115` |
-| GET | `/` | `authorize(PERMISSIONS.DOCTOR_DIRECTORY_READ)` → `validate(doctorListQuery)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:141` |
-| GET | `/me` | `authorize(PERMISSIONS.DOCTOR_READ)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:175` |
-| GET | `/:doctorId` | `authorize(PERMISSIONS.DOCTOR_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:190` |
-| POST | `/` | `authorize(PERMISSIONS.DOCTOR_CREATE)` → `validate(createDoctorRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:217` |
-| PATCH | `/:doctorId` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(doctorParams)` → `validate(updateDoctorRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:266` |
-| DELETE | `/:doctorId` | `authorize(PERMISSIONS.DOCTOR_ARCHIVE)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:289` |
-| POST | `/:doctorId/qualifications` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(doctorParams)` → `validate(doctorQualificationRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:302` |
-| PATCH | `/:doctorId/qualifications/:rowId` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(qualificationParams)` → `validate(updateDoctorQualificationRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:323` |
-| DELETE | `/:doctorId/qualifications/:rowId` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(qualificationParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:341` |
-| PUT | `/:doctorId/branch-settings` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(doctorParams)` → `validate(doctorBranchSettingRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:354` |
-| GET | `/:doctorId/compensation` | `authorize(PERMISSIONS.DOCTOR_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:388` |
-| PUT | `/:doctorId/compensation` | `authorize(PERMISSIONS.DOCTOR_COMPENSATION_MANAGE)` → `validate(doctorParams)` → `validate(setDoctorCompensationRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:410` |
-| GET | `/:doctorId/fees` | `authorize(PERMISSIONS.FEE_SCHEDULE_READ)` → `validate(doctorParams)` → `validate(feeScheduleQuery)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:445` |
-| PUT | `/:doctorId/fees` | `authorize(PERMISSIONS.FEE_SCHEDULE_MANAGE)` → `validate(doctorParams)` → `validate(setFeeScheduleRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:463` |
-| GET | `/:doctorId/schedules` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:482` |
-| POST | `/:doctorId/schedules` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_MANAGE)` → `validate(doctorParams)` → `validate(doctorScheduleRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:492` |
-| DELETE | `/:doctorId/schedules/:scheduleId` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_MANAGE)` → `validate(scheduleParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:509` |
-| GET | `/:doctorId/exceptions` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:522` |
-| POST | `/:doctorId/exceptions` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_REQUEST)` → `validate(doctorParams)` → `validate(doctorScheduleExceptionRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:536` |
-| POST | `/:doctorId/exceptions/:exceptionId/decision` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_APPROVE)` → `validate(exceptionParams)` → `validate(decideScheduleExceptionRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:554` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/doctors.routes.ts:97` |
+| GET | `/masters` | `authorize(PERMISSIONS.DOCTOR_READ)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:118` |
+| GET | `/` | `authorize(PERMISSIONS.DOCTOR_DIRECTORY_READ)` → `validate(doctorListQuery)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:144` |
+| GET | `/referral-targets` | `authorize(PERMISSIONS.ENCOUNTER_CREATE)` → `validate(referralTargetQuery)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:193` |
+| GET | `/me` | `authorize(PERMISSIONS.DOCTOR_READ)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:212` |
+| GET | `/:doctorId` | `authorize(PERMISSIONS.DOCTOR_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:227` |
+| POST | `/` | `authorize(PERMISSIONS.DOCTOR_CREATE)` → `validate(createDoctorRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:254` |
+| PATCH | `/:doctorId` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(doctorParams)` → `validate(updateDoctorRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:303` |
+| DELETE | `/:doctorId` | `authorize(PERMISSIONS.DOCTOR_ARCHIVE)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:326` |
+| POST | `/:doctorId/qualifications` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(doctorParams)` → `validate(doctorQualificationRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:339` |
+| PATCH | `/:doctorId/qualifications/:rowId` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(qualificationParams)` → `validate(updateDoctorQualificationRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:360` |
+| DELETE | `/:doctorId/qualifications/:rowId` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(qualificationParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:378` |
+| PUT | `/:doctorId/branch-settings` | `authorize(PERMISSIONS.DOCTOR_UPDATE)` → `validate(doctorParams)` → `validate(doctorBranchSettingRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:391` |
+| GET | `/:doctorId/compensation` | `authorize(PERMISSIONS.DOCTOR_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:425` |
+| PUT | `/:doctorId/compensation` | `authorize(PERMISSIONS.DOCTOR_COMPENSATION_MANAGE)` → `validate(doctorParams)` → `validate(setDoctorCompensationRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:447` |
+| GET | `/:doctorId/fees` | `authorize(PERMISSIONS.FEE_SCHEDULE_READ)` → `validate(doctorParams)` → `validate(feeScheduleQuery)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:482` |
+| PUT | `/:doctorId/fees` | `authorize(PERMISSIONS.FEE_SCHEDULE_MANAGE)` → `validate(doctorParams)` → `validate(setFeeScheduleRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:500` |
+| GET | `/:doctorId/schedules` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:519` |
+| POST | `/:doctorId/schedules` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_MANAGE)` → `validate(doctorParams)` → `validate(doctorScheduleRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:529` |
+| DELETE | `/:doctorId/schedules/:scheduleId` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_MANAGE)` → `validate(scheduleParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:546` |
+| GET | `/:doctorId/exceptions` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_READ)` → `validate(doctorParams)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:559` |
+| POST | `/:doctorId/exceptions` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_REQUEST)` → `validate(doctorParams)` → `validate(doctorScheduleExceptionRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:573` |
+| POST | `/:doctorId/exceptions/:exceptionId/decision` | `authorize(PERMISSIONS.DOCTOR_SCHEDULE_APPROVE)` → `validate(exceptionParams)` → `validate(decideScheduleExceptionRequest)` → `<inline>` | `apps/api/src/routes/v1/doctors.routes.ts:591` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `doctorParams` | `apps/api/src/routes/v1/doctors.routes.ts:96` |
+| `doctorParams` | `apps/api/src/routes/v1/doctors.routes.ts:99` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`CreateDoctorRequest` · `DecideScheduleExceptionRequest` · `DoctorBranchSettingRequest` · `DoctorListQuery` · `DoctorQualificationRequest` · `DoctorScheduleExceptionRequest` · `DoctorScheduleRequest` · `FeeScheduleQuery` · `SetDoctorCompensationRequest` · `SetFeeScheduleRequest` · `UpdateDoctorQualificationRequest` · `UpdateDoctorRequest` · `createDoctorRequest` · `decideScheduleExceptionRequest` · `doctorBranchSettingRequest` · `doctorListQuery` · `doctorQualificationRequest` · `doctorScheduleExceptionRequest` · `doctorScheduleRequest` · `feeScheduleQuery` · `setDoctorCompensationRequest` · `setFeeScheduleRequest` · `updateDoctorQualificationRequest` · `updateDoctorRequest`
+`CreateDoctorRequest` · `DecideScheduleExceptionRequest` · `DoctorBranchSettingRequest` · `DoctorListQuery` · `DoctorQualificationRequest` · `DoctorScheduleExceptionRequest` · `DoctorScheduleRequest` · `FeeScheduleQuery` · `ReferralTargetQuery` · `SetDoctorCompensationRequest` · `SetFeeScheduleRequest` · `UpdateDoctorQualificationRequest` · `UpdateDoctorRequest` · `createDoctorRequest` · `decideScheduleExceptionRequest` · `doctorBranchSettingRequest` · `doctorListQuery` · `doctorQualificationRequest` · `doctorScheduleExceptionRequest` · `doctorScheduleRequest` · `feeScheduleQuery` · `referralTargetQuery` · `setDoctorCompensationRequest` · `setFeeScheduleRequest` · `updateDoctorQualificationRequest` · `updateDoctorRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

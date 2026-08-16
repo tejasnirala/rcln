@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:394`.
 | --- | --- |
 | table | `batches` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `branch` policy |
+| RLS | `visible` policy |
 | columns | 20 |
 | relations | 12 |
 

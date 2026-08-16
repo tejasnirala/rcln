@@ -5,6 +5,10 @@ import billingRoutes from './billing.routes.js';
 import appointmentRoutes from './appointments.routes.js';
 import branchRoutes from './branches.routes.js';
 import clinicalTaxonomyRoutes from './clinical-taxonomy.routes.js';
+import clinicalRoutes from './clinical.routes.js';
+import consultationTemplateRoutes from './consultation-templates.routes.js';
+import visualMapRoutes from './visual-maps.routes.js';
+import encounterRoutes from './encounters.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
 import invoiceRoutes from './invoices.routes.js';
@@ -81,6 +85,49 @@ router.use('/doctors', doctorRoutes);
 // that first needed it. Reads sit behind DOCTOR_READ so every screen showing a
 // doctor can render their specialty name; curation is DOCTOR_MASTER_MANAGE.
 router.use('/clinical-taxonomy', clinicalTaxonomyRoutes);
+/*
+ * Mounted at the ROOT rather than under a prefix, because it serves two
+ * unrelated paths — `/clinical-data` (the vocabulary) and `/clinical-episodes`
+ * (a patient's treatment journeys). Folding them under one prefix would put a
+ * dictionary and PHI behind the same-looking URL, and the brief names both
+ * paths as they are (§32).
+ */
+router.use('/', clinicalRoutes);
+
+/*
+ * The consultation CONFIGURATION (CE-2) — which sections a consultation has, in
+ * what order, over which vocabulary.
+ *
+ * ⚠️ ITS OWN SURFACE, AND BEHIND ITS OWN CODE. `clinical.template.manage` gates
+ *   the whole surface in both directions, unlike the vocabulary above: nobody
+ *   needs the template list except the person configuring it. A doctor reads the
+ *   RESOLVED configuration from `GET /appointments/:id/consultation-config`,
+ *   behind `clinical.encounter.read`, which they already hold.
+ */
+router.use('/consultation-templates', consultationTemplateRoutes);
+
+/*
+ * The charts a consultation draws ON (CE-6). Same posture as the templates
+ * above and for the same reason: a map names no patient, and nobody needs the
+ * map list except the person configuring one — a doctor gets the chart already
+ * resolved onto the consultation.
+ *
+ * ⚠️ AND ITS OWN CODE RATHER THAN `clinical.template.manage`. A template says
+ *   WHICH chart appears; this says what the chart IS, and a clinic may
+ *   reasonably separate the two.
+ */
+router.use('/visual-maps', visualMapRoutes);
+
+/*
+ * The consultation ITSELF (CE-3) — what the doctor recorded, not what the form
+ * looks like.
+ *
+ * ⚠️ THE OPPOSITE PHI POSTURE FROM THE TEMPLATES ABOVE. Every response here is a
+ *   clinical statement about a named person: every read writes a
+ *   `data_access_logs` row, and each verb sits behind its own code, with the
+ *   authoring set held by DOCTOR alone among the system roles (invariant 7).
+ */
+router.use('/encounters', encounterRoutes);
 
 // Job titles. Its own surface rather than a path under /members, which would be
 // swallowed by /members/:membershipId.

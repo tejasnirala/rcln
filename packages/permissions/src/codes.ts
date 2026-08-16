@@ -208,6 +208,22 @@ export const PERMISSIONS = {
   ENCOUNTER_CREATE: 'clinical.encounter.create',
   ENCOUNTER_CLOSE: 'clinical.encounter.close',
   /**
+   * Correct a consultation that has already been finalized (CE-3, CD-2).
+   *
+   * ⚠️ AMENDING IS NOT EDITING, AND THIS CODE UNLOCKS NOTHING IN PLACE. A
+   *   finalized record is immutable; an amendment is a NEW encounter that cites
+   *   the one it corrects, states a reason, and is signed in its own right. What
+   *   this code permits is starting that second record — which is why it sits in
+   *   `CLINICAL_AUTHORING` with the other three and is stripped from ORG_OWNER
+   *   and ORG_ADMIN by name.
+   *
+   *   Its own code rather than part of `ENCOUNTER_CREATE` because a clinic may
+   *   reasonably let a junior clinician write up a first consultation and not
+   *   let them restate a signed one. Splitting it costs one row in the matrix
+   *   and makes that a decision the clinic can take.
+   */
+  ENCOUNTER_AMEND: 'clinical.encounter.amend',
+  /**
    * See the observations taken for a visit, and their correction history.
    *
    * ⚠️ SPLIT FROM `VITALS_RECORD` BECAUSE THE DOCTOR IS A READER HERE. This code
@@ -231,6 +247,41 @@ export const PERMISSIONS = {
   PRESCRIPTION_CREATE: 'clinical.prescription.create',
   PRESCRIPTION_SIGN: 'clinical.prescription.sign',
   CLINICAL_MASTER_MANAGE: 'clinical.master.manage',
+  /**
+   * Author the consultation CONFIGURATION: which sections a consultation has,
+   * in what order, labelled how, over which vocabulary (CE-2).
+   *
+   * ⚠️ CONFIGURING A CONSULTATION IS NOT CONDUCTING ONE, AND THAT IS WHY THIS IS
+   *   ITS OWN CODE RATHER THAN PART OF `CLINICAL_MASTER_MANAGE` OR OF THE
+   *   AUTHORING SET. A template names no patient — it is administration, and it
+   *   belongs with whoever sets the clinic up. A DOCTOR does not hold it and
+   *   does not need it: they READ the resolved configuration behind
+   *   `clinical.encounter.read`, which they already have, and changing what
+   *   every colleague's consultation looks like is not an act of practising.
+   *
+   *   It is deliberately NOT excluded from ORG_OWNER and ORG_ADMIN the way
+   *   `CLINICAL_AUTHORING` is: those roles are exactly who configures a clinic.
+   */
+  CLINICAL_TEMPLATE_MANAGE: 'clinical.template.manage',
+  /**
+   * Author the CHARTS a consultation draws on: the odontogram, the scalp map,
+   * the body diagram, and the regions that make one up (CE-6).
+   *
+   * ⚠️ ITS OWN CODE, AND BESIDE `CLINICAL_TEMPLATE_MANAGE` RATHER THAN INSIDE
+   *   IT. A template says WHICH chart a consultation shows; this says what the
+   *   chart IS. They are configured by the same kind of person and are still
+   *   two decisions — a clinic may reasonably let somebody rearrange the
+   *   sections of its dentistry consultation without letting them redraw the
+   *   tooth numbering every record in the practice is written against.
+   *
+   * ⚠️ AND IT IS NOT AN AUTHORING CODE. Drawing ON a chart is
+   *   `clinical.encounter.create` and nothing else (CD-7) — recording a finding
+   *   IS writing up the consultation. This code touches no patient data at all,
+   *   which is why it is deliberately NOT excluded from ORG_OWNER and ORG_ADMIN
+   *   the way `CLINICAL_AUTHORING` is: those roles are exactly who configures a
+   *   clinic, and a DOCTOR neither holds it nor needs it.
+   */
+  CLINICAL_VISUAL_MAP_MANAGE: 'clinical.visual_map.manage',
 
   // -- lab -------------------------------------------------------------------
   LAB_ORDER_READ: 'lab.order.read',

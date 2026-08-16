@@ -113,6 +113,19 @@ function clinicNav(permissions: string[]): NavLink[] {
     // is the screen the front desk actually works from all day.
     { href: '/appointments', label: 'Appointments', permission: ['appointment.read'] },
     /*
+     * ⚠️ `appointment.read`, THE SAME CODE AS THE BOARD, AND NOT A CLINICAL ONE
+     *   (CE-5). The recall list is worked by the front desk: somebody rings the
+     *   patient and books them in. The desk holds no clinical code at all, so
+     *   gating this behind `clinical.encounter.read` would offer the tab only to
+     *   the people who do not do the job. Advising a follow-up IS clinical and
+     *   happens in the consultation — invariant 7, applied to a chase rather
+     *   than to a chart.
+     *
+     * Sits directly after Appointments because it is the same desk's second
+     * screen: the board is today, and this is who should have been on it.
+     */
+    { href: '/recall', label: 'Recall', permission: ['appointment.read'] },
+    /*
      * ⚠️ "INVOICES", NOT "BILLING" — THE TAB BELOW IS ALREADY CALLED BILLING AND
      *   IS A DIFFERENT DOCUMENT ENTIRELY. That one is rcln billing the CLINIC
      *   for its subscription; this one is the clinic billing a PATIENT. Two
@@ -190,6 +203,42 @@ function clinicNav(permissions: string[]): NavLink[] {
      *   Catalogue, which is why there is no manage code in this list.
      */
     { href: '/regulatory/jurisdictions', label: 'Rules', permission: ['regulatory.rule.read'] },
+    /*
+     * The clinical vocabulary. Sits after Rules rather than beside Patients
+     * because it is a SETTINGS surface — nobody opens it during a clinic. Read
+     * behind `appointment.read` for the reason the route file gives: every
+     * clinical picker needs these names, so gating the dictionary behind the
+     * permission to EDIT it shows a receptionist blanks.
+     */
+    {
+      href: '/clinical-terms',
+      label: 'Clinical terms',
+      permission: ['appointment.read'],
+    },
+    /*
+     * What a consultation is MADE OF, as opposed to the words it is written in
+     * (CE-2). Its own entry rather than a panel on Clinical terms, because the
+     * two answer different questions and are held by different people: anyone
+     * who can read an appointment reads the vocabulary, and only
+     * `clinical.template.manage` configures the consultation.
+     */
+    {
+      href: '/consultation-templates',
+      label: 'Consultations',
+      permission: ['clinical.template.manage'],
+    },
+    /*
+     * The pictures those consultations draw ON (CE-6). Its own entry rather than
+     * a panel on Consultations, because the two are held by different codes on
+     * purpose: a clinic may let somebody rearrange the sections of its dentistry
+     * form without letting them redraw the tooth numbering every record in the
+     * practice is written against.
+     */
+    {
+      href: '/visual-maps',
+      label: 'Charts',
+      permission: ['clinical.visual_map.manage'],
+    },
     /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the

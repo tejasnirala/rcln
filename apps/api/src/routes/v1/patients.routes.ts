@@ -10,6 +10,7 @@ import {
   registerPatientAtBranchRequest,
   searchPatientQuery,
   updatePatientRequest,
+  visitHistoryQuery,
   type CreatePatientRequest,
   type PatientAddressRequest,
   type PatientAllergyRequest,
@@ -19,6 +20,7 @@ import {
   type RegisterPatientAtBranchRequest,
   type SearchPatientQuery,
   type UpdatePatientRequest,
+  type VisitHistoryQuery,
 } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import {
@@ -55,6 +57,7 @@ import {
   stopMedication,
   updateCondition,
 } from '../../services/patient/patient-history.service.js';
+import { getVisitHistory } from '../../services/clinical/visit-history.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 /**
@@ -329,6 +332,50 @@ router.delete(
       meta(req, '/:patientId/contacts/:contactId')
     );
     sendSuccess(res, null, 'Contact removed');
+  }
+);
+
+// --- visit history (CE-5) --------------------------------------------------
+
+/**
+ * Every treatment journey this patient has been on, and what was concluded at
+ * each visit (§18).
+ *
+ * ⚠️ `clinical.encounter.read`, NOT `appointment.read` AND NOT
+ *   `patient.medical_history.read`, AND BOTH HALVES OF THAT MATTER (CD-14).
+ *
+ *   Not `appointment.read`, because this response carries DIAGNOSES. The front
+ *   desk works `GET /clinical-episodes/:id` next door, which answers when
+ *   somebody came in and never what was found — a list of diagnoses is a chart
+ *   however it is paginated, and widening the episode endpoint would have handed
+ *   the desk the chart through the booking screen.
+ *
+ *   Not `patient.medical_history.read` either, which is a DIFFERENT record: the
+ *   allergies, conditions and long-term medications that are true of the person
+ *   between visits. This is the sequence of consultations. A doctor holds both;
+ *   they are not the same disclosure and they are not the same permission.
+ *
+ * ⚠️ IT WRITES A `data_access_logs` ROW under `ENCOUNTER`. This is the most
+ *   concentrated PHI read on the platform — one person's entire clinical past —
+ *   and the trail is the intended cost of it.
+ */
+router.get(
+  '/:patientId/visit-history',
+  authorize(PERMISSIONS.ENCOUNTER_READ),
+  validate(patientParams, 'params'),
+  validate(visitHistoryQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { patientId } = req.params as z.infer<typeof patientParams>;
+    const query = req.query as unknown as VisitHistoryQuery;
+    sendSuccess(
+      res,
+      await getVisitHistory(
+        tenantContextFrom(req),
+        patientId,
+        query,
+        meta(req, '/:patientId/visit-history')
+      )
+    );
   }
 );
 

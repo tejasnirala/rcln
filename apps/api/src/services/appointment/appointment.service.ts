@@ -38,6 +38,7 @@ import type {
 } from '@rcln/contracts';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
+import { resolveEpisodeForBooking } from '../clinical/episode.service.js';
 import { recordDataAccess } from '../audit/data-access.service.js';
 import { resolveFee } from '../fees/fee-schedule.service.js';
 import { liveInvoicesFor } from '../invoicing/appointment-billing.service.js';
@@ -169,6 +170,10 @@ const APPOINTMENT_SELECT = {
   startedAt: true,
   completedAt: true,
   parentAppointmentId: true,
+  /* The journey. An id and, through the relation, its code — the detail screen
+     links to the timeline and the day board ignores both. */
+  clinicalEpisodeId: true,
+  clinicalEpisode: { select: { code: true } },
   /*
    * ⚠️ NEITHER `parent` NOR `followUps` IS SELECTED HERE, for two reasons that
    *   happen to agree. This select feeds the day board, where a nested relation
@@ -802,6 +807,23 @@ export async function createAppointment(
 
       const registration = await ensureRegistration(tx, ctx, input.patientId, input.branchId);
 
+      /*
+       * Which treatment journey this visit belongs to (CE-1).
+       *
+       * ⚠️ ABSENT MEANS A NEW JOURNEY, NOT "THE PATIENT'S MOST RECENT OPEN ONE".
+       *   See `resolveEpisodeForBooking` — the tempting fallback is a diagnosis
+       *   made by a default value.
+       *
+       * Before `issueNumber`, because opening an episode takes its own counter
+       * lock and holding two of them at once is how two counters deadlock
+       * against each other under concurrent booking.
+       */
+      const clinicalEpisodeId = await resolveEpisodeForBooking(tx, ctx, {
+        patientId: input.patientId,
+        branchId: input.branchId,
+        clinicalEpisodeId: input.clinicalEpisodeId,
+      });
+
       /* The price, decided now and frozen onto the row. See `freezeFee`. */
       const bookedFee = await freezeFee(tx, {
         doctorProfileId: input.doctorProfileId,
@@ -828,6 +850,7 @@ export async function createAppointment(
           patientId: input.patientId,
           patientRegistrationId: registration.id,
           doctorProfileId: input.doctorProfileId,
+          clinicalEpisodeId,
           appointmentNumber: number.formatted,
           scheduledStart: startsAt,
           scheduledEnd: endsAt,
@@ -1279,6 +1302,8 @@ export async function createFollowUp(
     durationMinutes?: number | undefined;
     doctorProfileId?: string | undefined;
     reason?: string | undefined;
+    /** The recommendation this booking satisfies (CD-13, CE-4). */
+    fulfilsRecommendationId?: string | undefined;
   },
   options: AppointmentActionOptions = {}
 ): Promise<AppointmentDetail> {
@@ -1293,6 +1318,7 @@ export async function createFollowUp(
           branchId: true,
           patientId: true,
           doctorProfileId: true,
+          clinicalEpisodeId: true,
           patient: { select: { status: true } },
         },
       });
@@ -1341,6 +1367,18 @@ export async function createFollowUp(
           patientRegistrationId: registration.id,
           doctorProfileId,
           parentAppointmentId: parent.id,
+          /*
+           * ⚠️ INHERITED FROM THE PARENT WITHOUT ANYBODY BEING ASKED, and this
+           *   is the one place that is right. A follow-up IS by definition a
+           *   continuation of the visit it follows, so the journey is not a
+           *   decision anyone at the desk has to make — the same reasoning that
+           *   makes the patient and the branch inherited rather than accepted.
+           *
+           *   That gives the chain and the journey their separate jobs:
+           *     parentAppointmentId  A -> B -> C   the immediate predecessor
+           *     clinicalEpisodeId    A, B, C       the whole journey
+           */
+          clinicalEpisodeId: parent.clinicalEpisodeId,
           appointmentNumber: number.formatted,
           scheduledStart: startsAt,
           scheduledEnd: endsAt,
@@ -1354,6 +1392,21 @@ export async function createFollowUp(
       });
 
       await recordTransition(tx, ctx, created.id, null, 'BOOKED');
+
+      /*
+       * ⚠️ FULFILMENT IS THE LAST THING AND IS OPTIONAL IN BOTH DIRECTIONS
+       *   (CD-13). A patient may book a follow-up nobody recommended, and a
+       *   recommendation may never be booked at all — the second is the entire
+       *   recall list. Neither is an error.
+       *
+       * ⚠️ AND IT IS THE ONE WRITE TO A RECOMMENDATION THAT REACHES A FINALIZED
+       *   CONSULTATION, deliberately. Booking happens days later, at the desk;
+       *   it is a fact about the recommendation's FATE and not an edit to the
+       *   clinical record. Nothing the doctor wrote changes.
+       */
+      if (input.fulfilsRecommendationId !== undefined) {
+        await fulfilRecommendation(tx, input.fulfilsRecommendationId, created.id, parent.patientId);
+      }
 
       await recordAudit(tx, ctx, {
         action: 'CREATE',
@@ -1373,6 +1426,59 @@ export async function createFollowUp(
     if (isOverlapViolation(err)) throw slotTakenError();
     throw err;
   }
+}
+
+/**
+ * Mark a recommendation as satisfied by this booking (CD-13).
+ *
+ * ⚠️ THE PATIENT CHECK IS NOT PARANOIA. Both ids arrive from one form, and a
+ *   recall list that does not re-filter when the patient changes would record
+ *   one person's booking as the answer to another person's recall — and then
+ *   both are wrong: one patient is chased who has come, and one is not chased
+ *   who has not.
+ *
+ * ⚠️ ONE-TO-ONE, BY PARTIAL UNIQUE INDEX. `fulfilled_by_appointment_id` is
+ *   unique where it is not null, so one appointment cannot satisfy two
+ *   recommendations — the index is the guarantee and this read is only what
+ *   turns its violation into a sentence.
+ *
+ * ⚠️ AND IT REFUSES RATHER THAN IGNORING. A desk that ticked "this fulfils the
+ *   recall" and got a silent no-op would leave the patient on the list and
+ *   nobody looking for the reason.
+ */
+async function fulfilRecommendation(
+  tx: TxClient,
+  recommendationId: string,
+  appointmentId: string,
+  patientId: string
+): Promise<void> {
+  const recommendation = await tx.encounterFollowUpRecommendation.findFirst({
+    where: { id: recommendationId, deletedAt: null },
+    select: {
+      id: true,
+      patientId: true,
+      cancelledAt: true,
+      fulfilledByAppointmentId: true,
+    },
+  });
+  if (!recommendation) throw new NotFoundError('Follow-up recommendation');
+  if (recommendation.patientId !== patientId) {
+    throw new NotFoundError('Follow-up recommendation');
+  }
+  if (recommendation.cancelledAt !== null) {
+    throw new ConflictError('That follow-up recommendation was cancelled.');
+  }
+  /* Idempotent when it is the SAME booking; a different one is a real clash. */
+  if (recommendation.fulfilledByAppointmentId !== null) {
+    if (recommendation.fulfilledByAppointmentId === appointmentId) return;
+    throw new ConflictError('That follow-up has already been booked.');
+  }
+
+  await tx.encounterFollowUpRecommendation.update({
+    where: { id: recommendation.id },
+    data: { fulfilledByAppointmentId: appointmentId, fulfilledAt: new Date() },
+    select: { id: true },
+  });
 }
 
 /**
@@ -1546,6 +1652,8 @@ function detailOf(
     mrn: row.registration.mrn,
     statusHistory,
     parentAppointmentId: row.parentAppointmentId,
+    clinicalEpisodeId: row.clinicalEpisodeId,
+    clinicalEpisodeCode: row.clinicalEpisode.code,
     /*
      * The id is always on the row; the NUMBER needs a second read, so a write's
      * response reports the link without it. Only `getAppointment` pays for it,

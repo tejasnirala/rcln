@@ -92,6 +92,7 @@ export function PatientChart({
   canCreate,
   canWriteHistory,
   canReadAudit,
+  canReadVisitHistory,
 }: {
   slug: string;
   patient: PatientDetail;
@@ -102,6 +103,8 @@ export function PatientChart({
   canCreate: boolean;
   canWriteHistory: boolean;
   canReadAudit: boolean;
+  /** `clinical.encounter.read` — the consultations, which is a wider read. */
+  canReadVisitHistory: boolean;
 }) {
   const [panel, setPanel] = useState<
     'none' | 'edit' | 'branch' | 'allergy' | 'condition' | 'medicine'
@@ -151,6 +154,30 @@ export function PatientChart({
           >
             Register at another clinic
           </Button>
+        ) : null}
+        {/*
+          ⚠️ A LINK RATHER THAN A PANEL, AND THAT IS AN AUDIT DECISION (CE-5).
+            The visit history is the most concentrated PHI read on the platform —
+            every journey, every visit, every diagnosis — and reading it writes a
+            `data_access_logs` row. Rendering it inline would mean every
+            receptionist opening a record to check a telephone number logged a
+            read of the whole clinical history, which buries the reads that
+            matter under the ones that do not.
+
+          ⚠️ AND IT IS BEHIND `clinical.encounter.read`, NOT
+            `patient.medical_history.read`. The panels below are a DIFFERENT
+            record: allergies, conditions and long-term medications, which are
+            true of the person between visits. This is the sequence of
+            consultations. A doctor holds both; holding one has never implied
+            the other.
+        */}
+        {canReadVisitHistory ? (
+          <Link
+            href={`/patients/${patient.id}/visit-history`}
+            className="border-rule bg-card text-ink hover:bg-drape-tint/40 active:bg-drape-tint/70 inline-flex items-center justify-center rounded-md border px-5 py-3 text-[0.9375rem] font-medium transition-colors"
+          >
+            Visit history
+          </Link>
         ) : null}
         {canReadAudit ? (
           <RecordHistory

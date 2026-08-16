@@ -10,7 +10,13 @@ import { countryOf, getAccessToken, getSession, timeFormatOf } from '@/lib/sessi
 import { Alert } from '@/components/ui/alert';
 import { VitalsPanel } from '@/components/tenant/vitals-panel';
 import { AppointmentBillingPanel } from '@/components/tenant/appointment-billing-panel';
+import { ConsultationEngine } from '@/components/tenant/consultation-engine';
+import { FollowUpForm } from '@/components/tenant/follow-up-form';
+import { PreviousVisitSummary } from '@/components/tenant/previous-visit-summary';
+import { VisitCancel } from '@/components/tenant/visit-cancel';
+import { todayIn } from '@/lib/calendar-range';
 import { loadAppointmentBilling, loadVitals } from '../actions';
+import { loadConsultation, loadPreviousVisit, openConsultation } from '../consultation-actions';
 
 export const metadata: Metadata = {
   /**
@@ -143,8 +149,58 @@ export default async function ConsultationPage({
    *   would read as "this visit has not been billed", which is a claim rather
    *   than a silence.
    */
+  const canBook = permissions.includes(PERMISSIONS.APPOINTMENT_CREATE);
+
+  /*
+   * ⚠️ OFFERED RIGHT UP TO "SEEN", INCLUDING WHILE THE PATIENT IS WITH THE
+   *   DOCTOR. `TRANSITIONS` allows `IN_PROGRESS -> CANCELLED`, and that is the
+   *   case this control exists for: opening the consultation is what sets
+   *   IN_PROGRESS, so the person who needs to call the visit off is on THIS page
+   *   and the day board's button was two navigations away.
+   *
+   *   The three terminal states have no outgoing edge — a completed, cancelled
+   *   or missed booking is not cancellable, and the API refuses it. This mirrors
+   *   the board's own `finished` check rather than inventing a second rule.
+   */
+  const visitFinished =
+    visit.status === 'COMPLETED' || visit.status === 'CANCELLED' || visit.status === 'NO_SHOW';
+  const canCancelVisit = permissions.includes(PERMISSIONS.APPOINTMENT_CANCEL) && !visitFinished;
+
   const canReadBilling = permissions.includes(PERMISSIONS.INVOICE_READ);
   const billing = canReadBilling ? await loadAppointmentBilling(slug, appointmentId) : null;
+
+  /*
+   * ⚠️ THE AUTHOR OPENS, THE READER READS, AND THE TWO ARE DIFFERENT CALLS
+   *   (CE-3). `openConsultation` creates the draft if there is none, which is an
+   *   act of authorship and is safe from a render only because the endpoint is
+   *   idempotent — a second call returns the same draft rather than a second
+   *   record of one visit. A reader gets `loadConsultation`, which creates
+   *   nothing and answers null when nothing has been written up.
+   */
+  const opened = canConsult
+    ? await openConsultation(slug, appointmentId)
+    : canReadEncounter
+      ? ({ ok: true, encounter: await loadConsultation(slug, appointmentId) } as const)
+      : null;
+
+  /*
+   * What happened last time (CE-5, §37).
+   *
+   * ⚠️ ONLY FOR A CALLER WHO MAY READ A CONSULTATION, and for the reason the
+   *   vitals call above gives: fetching it regardless and rendering nothing on a
+   *   403 would read as "this patient has never been seen before", which is a
+   *   claim rather than a silence.
+   *
+   * ⚠️ IT WRITES A `data_access_logs` ROW OF ITS OWN. This page now discloses two
+   *   consultations — the one being written and the one before it — and the trail
+   *   says so.
+   */
+  const previous = canReadEncounter ? await loadPreviousVisit(slug, appointmentId) : null;
+
+  const consultation = opened === null ? null : opened.ok ? opened.encounter : null;
+  /* The API's sentence — usually "no published template applies", which names a
+     thing somebody can go and fix. */
+  const consultationProblem = opened !== null && !opened.ok ? opened.message : null;
 
   return (
     <div>
@@ -231,6 +287,10 @@ export default async function ConsultationPage({
         </section>
       ) : null}
 
+      {previous === null ? null : (
+        <PreviousVisitSummary previous={previous} timeFormat={timeFormat} />
+      )}
+
       {visit.reason !== null ? (
         <section className="border-rule bg-card mt-4 rounded-lg border p-5">
           <h2 className="eyebrow text-drape">Reason given</h2>
@@ -272,36 +332,76 @@ export default async function ConsultationPage({
       )}
 
       {/*
-       * ⚠️ TWO AUDIENCES, ONE SECTION, AND THE COPY IS NOT THE CONTROL. Anyone
-       *   with `clinical.encounter.read` sees this — an administrator has every
-       *   reason to read what was concluded. Only `clinical.encounter.create`
-       *   will get the form when it is built, and saying so on screen is what
-       *   stops a reader waiting for an editor that is never going to appear.
+       * ⚠️ TWO AUDIENCES, ONE SECTION, AND THE PERMISSION IS THE CONTROL. Anyone
+       *   with `clinical.encounter.read` sees the consultation — an administrator
+       *   has every reason to read what was concluded. Only
+       *   `clinical.encounter.create` gets the form; everyone else gets the same
+       *   sections, read-only. The API is the gate either way: a reader who
+       *   forged the request still fails `authorize`.
        *
-       *   When the specialty form lands it goes inside this branch, gated on
-       *   `canConsult`, with the written-up consultation rendered read-only for
-       *   everyone else. The API is the gate either way: a reader who forged the
-       *   request still fails `authorize`.
+       * ⚠️ THE DRAFT IS OPENED FROM THE AUTHOR'S PATH ONLY, and only because the
+       *   endpoint is idempotent — a second call returns the SAME draft rather
+       *   than a second record of one visit, which is what makes it safe to issue
+       *   during a render that can happen more than once. A reader must not open
+       *   one: "the doctor started a consultation" would then be a fact created
+       *   by an administrator looking at the booking.
        */}
       {canReadEncounter ? (
-        <section className="border-rule bg-card mt-4 rounded-lg border border-dashed p-5">
-          <h2 className="eyebrow text-drape">Diagnosis and prescription</h2>
-          <p className="text-muted mt-3 text-[0.9375rem]">
-            This is where the consultation is written up. The form is specific to {visit.doctorName}
-            ’s specialty and has not been designed yet — it is the next piece of work on this
-            screen.
-          </p>
-          {canConsult ? (
-            <p className="text-muted mt-2 text-[0.8125rem]">
-              When a follow-up is booked from this visit it will carry the prescription forward and
-              add to it, rather than replacing what was written here.
+        consultation === null ? (
+          <section className="border-rule bg-card mt-4 rounded-lg border border-dashed p-5">
+            <h2 className="eyebrow text-drape">Consultation</h2>
+            <p className="text-muted mt-3 text-[0.9375rem]">
+              {canConsult
+                ? (consultationProblem ??
+                  'This consultation could not be opened. Check that a consultation template is published for this care context.')
+                : 'Nothing has been written up for this visit yet. The consulting doctor opens the consultation.'}
             </p>
-          ) : (
-            <p className="text-muted mt-2 text-[0.8125rem]">
-              You can read a consultation here, but not write one. Diagnoses and prescriptions are
-              entered by the consulting doctor.
-            </p>
-          )}
+          </section>
+        ) : (
+          <ConsultationEngine
+            slug={slug}
+            /* The BOOKING's own zone, which an org-wide reader may not share. */
+            timeZone={visit.timezone}
+            appointmentId={appointmentId}
+            encounter={consultation}
+            canWrite={canConsult}
+            canFinalize={permissions.includes(PERMISSIONS.ENCOUNTER_CLOSE)}
+            canAmend={permissions.includes(PERMISSIONS.ENCOUNTER_AMEND)}
+          />
+        )
+      ) : null}
+
+      {/*
+        Book the next visit in the same chain (CE-5).
+
+        ⚠️ `appointment.create`, WHICH THE DOCTOR AND THE FRONT DESK BOTH HOLD.
+          Booking is not authorship — the doctor books the review at the end of
+          the consultation and the desk books it off the recall list weeks later,
+          and both go through this same endpoint against this appointment.
+
+        ⚠️ IT DOES NOT SEND `fulfilsRecommendationId` HERE, DELIBERATELY. This
+          booking is made at the visit that is being written up, so the
+          recommendation it would tick off is the one being recorded right now —
+          which does not exist yet, and which the doctor may still change. The
+          recall list is where a recommendation is fulfilled, because that is
+          where one exists to fulfil.
+      */}
+      {canCancelVisit ? <VisitCancel slug={slug} appointmentId={appointmentId} /> : null}
+
+      {canBook ? (
+        <section className="border-rule bg-card mt-4 rounded-lg border p-5">
+          <h2 className="eyebrow text-drape">Book a follow-up</h2>
+          <FollowUpForm
+            slug={slug}
+            sourceAppointmentId={appointmentId}
+            branchId={visit.branchId}
+            doctorProfileId={visit.doctorProfileId}
+            doctorName={visit.doctorName}
+            timezone={visit.timezone}
+            timeFormat={timeFormat}
+            /* ⚠️ TODAY IN THE BOOKING'S OWN ZONE, not the container's UTC. */
+            today={todayIn(visit.timezone)}
+          />
         </section>
       ) : null}
     </div>

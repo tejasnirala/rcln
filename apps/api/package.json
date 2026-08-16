@@ -24,6 +24,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
     "@rcln/billing": "workspace:*",
+    "@rcln/clinical": "workspace:*",
     "@rcln/contracts": "workspace:*",
     "@rcln/db": "workspace:*",
     "@rcln/documents": "workspace:*",

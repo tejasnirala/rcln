@@ -57,78 +57,91 @@ model User {
   updatedAt                  DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt                  DateTime?  @map("deleted_at") @db.Timestamptz(6)
 
-  identities                UserIdentity[]
-  sessions                  Session[]
-  authTokens                AuthToken[]
-  memberships               Membership[]
-  ownedOrganizations        Organization[]             @relation("OrganizationOwner")
+  identities               UserIdentity[]
+  sessions                 Session[]
+  authTokens               AuthToken[]
+  memberships              Membership[]
+  ownedOrganizations       Organization[]        @relation("OrganizationOwner")
   // SetNull, and safe as a single-column FK on a nullable column: forgetting a
   // preference is the correct outcome when the clinic it named is gone.
-  lastPlatformOrganization  Organization?              @relation("PlatformAdminLastOrganization", fields: [lastPlatformOrganizationId], references: [id], onDelete: SetNull)
-  invitationsSent           Invitation[]               @relation("InvitedBy")
-  auditLogs                 AuditLog[]
-  dataAccessLogs            DataAccessLog[]
-  uploadedFiles             StoredFile[]
-  doctorProfiles            DoctorProfile[]
+  lastPlatformOrganization Organization?         @relation("PlatformAdminLastOrganization", fields: [lastPlatformOrganizationId], references: [id], onDelete: SetNull)
+  invitationsSent          Invitation[]          @relation("InvitedBy")
+  auditLogs                AuditLog[]
+  dataAccessLogs           DataAccessLog[]
+  uploadedFiles            StoredFile[]
+  doctorProfiles           DoctorProfile[]
   /// The portal login for a patient record. Optional on both sides — most
   /// patients never sign up.
-  patientRecords            Patient[]
-  patientRegistrations      PatientRegistration[]      @relation("PatientRegisteredBy")
-  allergiesNoted            PatientAllergy[]           @relation("AllergyNotedBy")
-  conditionsNoted           PatientCondition[]         @relation("ConditionNotedBy")
-  medicationsNoted          PatientMedication[]        @relation("MedicationNotedBy")
-  appointmentsBooked        Appointment[]              @relation("AppointmentBookedBy")
-  appointmentsCancelled     Appointment[]              @relation("AppointmentCancelledBy")
-  appointmentStatusChanges  AppointmentStatusHistory[] @relation("AppointmentStatusChangedBy")
-  vitalsRecorded            AppointmentVital[]         @relation("VitalRecordedBy")
-  vitalsAmended             AppointmentVital[]         @relation("VitalSupersededBy")
-  invoicesCreated           Invoice[]                  @relation("InvoiceCreatedBy")
-  invoicesIssued            Invoice[]                  @relation("InvoiceIssuedBy")
-  invoicesCancelled         Invoice[]                  @relation("InvoiceCancelledBy")
-  invoiceDocumentsGenerated InvoiceDocument[]          @relation("InvoiceDocumentGeneratedBy")
+  patientRecords           Patient[]
+  patientRegistrations     PatientRegistration[] @relation("PatientRegisteredBy")
+  allergiesNoted           PatientAllergy[]      @relation("AllergyNotedBy")
+  conditionsNoted          PatientCondition[]    @relation("ConditionNotedBy")
+  medicationsNoted         PatientMedication[]   @relation("MedicationNotedBy")
+  appointmentsBooked       Appointment[]         @relation("AppointmentBookedBy")
+  appointmentsCancelled    Appointment[]         @relation("AppointmentCancelledBy")
+
+  // -- Clinical consultation engine (CE-1) ------------------------------------
+  episodesOpened            ClinicalEpisode[]                 @relation("EpisodeOpenedBy")
+  episodesClosed            ClinicalEpisode[]                 @relation("EpisodeClosedBy")
+  recommendationsCancelled  EncounterFollowUpRecommendation[] @relation("RecommendationCancelledBy")
+  /// Who put a configuration live (CE-2). SetNull — they may leave, the
+  /// configuration stays.
+  templateVersionsPublished ConsultationTemplateVersion[]     @relation("TemplateVersionPublishedBy")
+  /// Who signed a clinical record (CE-3). ⚠️ Restrict, NOT SetNull, and the only
+  /// `*_by` relation in this block with that shape: who finalized a consultation
+  /// is part of the consultation, and a user row that could be deleted out from
+  /// under it would leave an unsigned record.
+  encountersFinalized       Encounter[]                       @relation("EncounterFinalizedBy")
+  encountersCancelled       Encounter[]                       @relation("EncounterCancelledBy")
+  appointmentStatusChanges  AppointmentStatusHistory[]        @relation("AppointmentStatusChangedBy")
+  vitalsRecorded            AppointmentVital[]                @relation("VitalRecordedBy")
+  vitalsAmended             AppointmentVital[]                @relation("VitalSupersededBy")
+  invoicesCreated           Invoice[]                         @relation("InvoiceCreatedBy")
+  invoicesIssued            Invoice[]                         @relation("InvoiceIssuedBy")
+  invoicesCancelled         Invoice[]                         @relation("InvoiceCancelledBy")
+  invoiceDocumentsGenerated InvoiceDocument[]                 @relation("InvoiceDocumentGeneratedBy")
   /// Every stock movement they made. `onDelete: Restrict` on that side: a
   /// movement with no actor is a movement nobody can be asked about.
   stockMovements            StockLedgerEntry[]
   /// The PI-3 documents. `onDelete: Restrict` throughout, for the same reason:
   /// a transfer nobody dispatched and a reservation nobody made are documents
   /// with no one to ask.
-  transfersCreated          StockTransfer[]            @relation("TransferCreatedBy")
-  transfersDispatched       StockTransfer[]            @relation("TransferDispatchedBy")
-  transfersReceived         StockTransfer[]            @relation("TransferReceivedBy")
-  transfersCancelled        StockTransfer[]            @relation("TransferCancelledBy")
-  reservationsCreated       StockReservation[]         @relation("ReservationCreatedBy")
-  reservationsReleased      StockReservation[]         @relation("ReservationReleasedBy")
+  transfersCreated          StockTransfer[]                   @relation("TransferCreatedBy")
+  transfersDispatched       StockTransfer[]                   @relation("TransferDispatchedBy")
+  transfersReceived         StockTransfer[]                   @relation("TransferReceivedBy")
+  transfersCancelled        StockTransfer[]                   @relation("TransferCancelledBy")
+  reservationsCreated       StockReservation[]                @relation("ReservationCreatedBy")
+  reservationsReleased      StockReservation[]                @relation("ReservationReleasedBy")
   // Procurement (PI-4). Every state change on every document names who made it.
   // ⚠️ `requisitionsCreated` and `requisitionsApproved` are the pair that MUST
   //   stay distinguishable: a requisition whose approver is its creator is
   //   refused by a CHECK constraint, which is the segregation-of-duty control the
   //   two permission codes exist for. See PurchaseRequisition.
-  requisitionsCreated       PurchaseRequisition[]      @relation("RequisitionCreatedBy")
-  requisitionsSubmitted     PurchaseRequisition[]      @relation("RequisitionSubmittedBy")
-  requisitionsApproved      PurchaseRequisition[]      @relation("RequisitionApprovedBy")
-  requisitionsRejected      PurchaseRequisition[]      @relation("RequisitionRejectedBy")
-  requisitionsCancelled     PurchaseRequisition[]      @relation("RequisitionCancelledBy")
-  purchaseOrdersCreated     PurchaseOrder[]            @relation("PurchaseOrderCreatedBy")
-  purchaseOrdersIssued      PurchaseOrder[]            @relation("PurchaseOrderIssuedBy")
-  purchaseOrdersClosed      PurchaseOrder[]            @relation("PurchaseOrderClosedBy")
-  purchaseOrdersCancelled   PurchaseOrder[]            @relation("PurchaseOrderCancelledBy")
-  goodsReceiptsCreated      GoodsReceipt[]             @relation("GoodsReceiptCreatedBy")
-  goodsReceiptsPosted       GoodsReceipt[]             @relation("GoodsReceiptPostedBy")
-  goodsReceiptsCancelled    GoodsReceipt[]             @relation("GoodsReceiptCancelledBy")
-  qualityDecisions          GoodsReceiptLine[]         @relation("GoodsReceiptLineQualityDecidedBy")
-  purchaseReturnsCreated    PurchaseReturn[]           @relation("PurchaseReturnCreatedBy")
-  purchaseReturnsSent       PurchaseReturn[]           @relation("PurchaseReturnSentBy")
-  purchaseReturnsCancelled  PurchaseReturn[]           @relation("PurchaseReturnCancelledBy")
-  /*
+  requisitionsCreated       PurchaseRequisition[]             @relation("RequisitionCreatedBy")
+  requisitionsSubmitted     PurchaseRequisition[]             @relation("RequisitionSubmittedBy")
+  requisitionsApproved      PurchaseRequisition[]             @relation("RequisitionApprovedBy")
+  requisitionsRejected      PurchaseRequisition[]             @relation("RequisitionRejectedBy")
+  requisitionsCancelled     PurchaseRequisition[]             @relation("RequisitionCancelledBy")
+  purchaseOrdersCreated     PurchaseOrder[]                   @relation("PurchaseOrderCreatedBy")
+  purchaseOrdersIssued      PurchaseOrder[]                   @relation("PurchaseOrderIssuedBy")
+  purchaseOrdersClosed      PurchaseOrder[]                   @relation("PurchaseOrderClosedBy")
+  purchaseOrdersCancelled   PurchaseOrder[]                   @relation("PurchaseOrderCancelledBy")
+  goodsReceiptsCreated      GoodsReceipt[]                    @relation("GoodsReceiptCreatedBy")
+  goodsReceiptsPosted       GoodsReceipt[]                    @relation("GoodsReceiptPostedBy")
+  goodsReceiptsCancelled    GoodsReceipt[]                    @relation("GoodsReceiptCancelledBy")
+  qualityDecisions          GoodsReceiptLine[]                @relation("GoodsReceiptLineQualityDecidedBy")
+  purchaseReturnsCreated    PurchaseReturn[]                  @relation("PurchaseReturnCreatedBy")
+  purchaseReturnsSent       PurchaseReturn[]                  @relation("PurchaseReturnSentBy")
+  purchaseReturnsCancelled  PurchaseReturn[]                  @relation("PurchaseReturnCancelledBy")
+  /**
    * Who pressed the button on a rule pack's sign-off (PI-5).
-   *
    * ⚠️ NOT THE SAME QUESTION AS `regulatory_rule_packs.reviewed_by`, WHICH IS A
-   *   NAME. The qualified person who reviewed a jurisdiction's rules — counsel,
-   *   a retained consultant, a registered pharmacist — is often not a user of
-   *   this system, and the account that recorded their decision is not the
-   *   person who made it. An audit of a regulatory sign-off asks both.
+   * NAME. The qualified person who reviewed a jurisdiction's rules — counsel,
+   * a retained consultant, a registered pharmacist — is often not a user of
+   * this system, and the account that recorded their decision is not the
+   * person who made it. An audit of a regulatory sign-off asks both.
    */
-  rulePacksReviewed         RegulatoryRulePack[]       @relation("RulePackReviewer")
+  rulePacksReviewed         RegulatoryRulePack[]              @relation("RulePackReviewer")
 
   @@index([status])
   @@index([isPlatformAdmin])

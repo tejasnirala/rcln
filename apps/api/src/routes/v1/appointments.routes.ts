@@ -54,6 +54,9 @@ import {
   updateAppointment,
   type AppointmentActionOptions,
 } from '../../services/appointment/appointment.service.js';
+import { getConsultationConfig } from '../../services/clinical/consultation-config.service.js';
+import { getEncounterForAppointment } from '../../services/clinical/encounter.service.js';
+import { getPreviousVisit } from '../../services/clinical/visit-history.service.js';
 import {
   amendVitals,
   deleteVitals,
@@ -420,6 +423,13 @@ router.delete(
  * `appointment.create` — it is a booking, and it consumes a slot like any other.
  * The patient and the branch come off the parent rather than the body, so this
  * cannot be used to book for somebody else while looking like a continuation.
+ *
+ * ⚠️ IT MAY ALSO FULFIL A RECOMMENDATION (CD-13, CE-4), AND IT IS STILL
+ *   `appointment.create` AND NOT A CLINICAL CODE. Ticking "this is the recall
+ *   the doctor asked for" is a fact about a BOOKING, recorded by whoever takes
+ *   it — the front desk, on the telephone, weeks after the visit. The desk
+ *   holds no clinical code at all, and requiring one here would mean the
+ *   recall list could be worked only by clinicians.
  */
 router.post(
   '/:appointmentId/follow-up',
@@ -470,6 +480,107 @@ router.post(
       meta(req, '/:appointmentId/consultation')
     );
     sendSuccess(res, appointment);
+  }
+);
+
+/**
+ * What this consultation is made of — the resolved configuration (CE-2).
+ *
+ * ⚠️ A GET, AND IT MUTATES NOTHING. That is the whole difference between it and
+ *   `POST /:id/consultation` above, which moves a CHECKED_IN booking to
+ *   IN_PROGRESS. The screen reads its configuration before the doctor has
+ *   decided to start, so this must be safe for every cache and prefetch between
+ *   here and the browser.
+ *
+ * ⚠️ BEHIND `clinical.encounter.read`, NOT `clinical.template.manage`. The
+ *   doctor about to consult holds the first and not the second — configuring a
+ *   consultation is not conducting one. An administrator reading a consultation
+ *   for oversight resolves the same configuration, which is what makes the
+ *   record render for them at all.
+ *
+ * ⚠️ NO `data_access_logs` ROW, AND THAT IS A DECISION. This response discloses
+ *   section labels, field descriptors and which vocabulary to rank — no clinical
+ *   content whatever about the person in the chair. The reads that DO disclose
+ *   one patient are audited; burying them under a row per screen open is the
+ *   same mistake as auditing the day board. See the service header.
+ */
+router.get(
+  '/:appointmentId/consultation-config',
+  authorize(PERMISSIONS.ENCOUNTER_READ),
+  validate(appointmentParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { appointmentId } = req.params as z.infer<typeof appointmentParams>;
+    sendSuccess(res, await getConsultationConfig(tenantContextFrom(req), appointmentId));
+  }
+);
+
+/**
+ * The consultation recorded at this visit, if there is one (CE-3).
+ *
+ * ⚠️ A GET THAT CREATES NOTHING, AND THAT IS WHY IT EXISTS BESIDE
+ *   `POST /v1/encounters`. Opening a draft is an act of AUTHORSHIP: an
+ *   administrator arriving to read a booking must not thereby make "the doctor
+ *   started a consultation" true. So the reader's path is this route behind
+ *   `clinical.encounter.read`, and it answers `null` when nothing has been
+ *   written up.
+ *
+ * ⚠️ IT DOES WRITE A `data_access_logs` ROW, unlike `consultation-config` above.
+ *   The difference is the payload: a configuration names nobody, and this
+ *   carries what the doctor wrote about one named patient.
+ */
+router.get(
+  '/:appointmentId/encounter',
+  authorize(PERMISSIONS.ENCOUNTER_READ),
+  validate(appointmentParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { appointmentId } = req.params as z.infer<typeof appointmentParams>;
+    sendSuccess(
+      res,
+      await getEncounterForAppointment(tenantContextFrom(req), appointmentId, {
+        ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
+        ...(req.get('user-agent') !== undefined
+          ? { userAgent: req.get('user-agent') as string }
+          : {}),
+        route: 'GET /v1/appointments/:appointmentId/encounter',
+      })
+    );
+  }
+);
+
+/**
+ * What happened LAST time (CE-5, §37).
+ *
+ * ⚠️ THE PANEL THE DOCTOR READS WHILE WRITING THIS CONSULTATION, which is why it
+ *   carries the previous visit's whole content rather than a summary: seeing the
+ *   dose prescribed last time must not mean leaving the record being written.
+ *   It is one visit, so the payload is bounded.
+ *
+ * ⚠️ THE RESPONSE SAYS HOW IT WAS FOUND, AND THE SCREEN MUST NOT FLATTEN THAT.
+ *   `PARENT_APPOINTMENT` is a fact the database enforces; `SAME_EPISODE` is a
+ *   strong inference; `MOST_RECENT` is a convenience. Rendering all three with
+ *   one sentence would tell a doctor that an unrelated visit is what this
+ *   follow-up follows — a clinical claim nothing here has a basis for.
+ *
+ * ⚠️ `clinical.encounter.read` AND A `data_access_logs` ROW, for the same reason
+ *   the route above has both: this is another consultation's clinical content,
+ *   read from this booking's screen.
+ */
+router.get(
+  '/:appointmentId/previous-visit',
+  authorize(PERMISSIONS.ENCOUNTER_READ),
+  validate(appointmentParams, 'params'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { appointmentId } = req.params as z.infer<typeof appointmentParams>;
+    sendSuccess(
+      res,
+      await getPreviousVisit(tenantContextFrom(req), appointmentId, {
+        ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
+        ...(req.get('user-agent') !== undefined
+          ? { userAgent: req.get('user-agent') as string }
+          : {}),
+        route: 'GET /v1/appointments/:appointmentId/previous-visit',
+      })
+    );
   }
 );
 

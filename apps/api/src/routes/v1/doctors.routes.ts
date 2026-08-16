@@ -9,6 +9,7 @@ import {
   doctorScheduleExceptionRequest,
   doctorScheduleRequest,
   feeScheduleQuery,
+  referralTargetQuery,
   setDoctorCompensationRequest,
   setFeeScheduleRequest,
   updateDoctorQualificationRequest,
@@ -23,6 +24,7 @@ import {
   type DoctorQualificationRequest,
   type DoctorScheduleExceptionRequest,
   type DoctorScheduleRequest,
+  type ReferralTargetQuery,
   type UpdateDoctorQualificationRequest,
   type UpdateDoctorRequest,
 } from '@rcln/contracts';
@@ -45,6 +47,7 @@ import {
   listDoctors,
   listMasters,
   removeQualification,
+  searchReferralTargets,
   setBranchSetting,
   updateDoctor,
   updateQualification,
@@ -160,6 +163,40 @@ router.get(
         await callerHasPermission(req, PERMISSIONS.DOCTOR_SCHEDULE_READ)
       ),
     });
+  }
+);
+
+/**
+ * Colleagues this patient can be referred to (CE-5, §37).
+ *
+ * ⚠️ MUST STAY ABOVE `/:doctorId`, for the reason `/me` below records: Express
+ *   matches in declaration order, and underneath it `referral-targets` is parsed
+ *   as a doctor id and fails uuid validation.
+ *
+ * ⚠️ `clinical.encounter.create`, NOT `doctor.directory.read`, AND THAT IS THE
+ *   WHOLE POINT OF THIS ROUTE EXISTING SEPARATELY FROM `GET /` ABOVE. A DOCTOR
+ *   deliberately does not hold the directory code — the roster is a personnel
+ *   list. But `encounter_referrals.doctor_profile_id` is a destination the
+ *   contract offers and a CHECK accepts, so the person writing the consultation
+ *   has to be able to reach it, and only the person writing one can.
+ *
+ *   What keeps that from re-opening the door the directory code closes is that
+ *   this is a LOOKUP, NOT AN ENUMERATION: `search` is required with a two-
+ *   character minimum, so there is no form of this call that answers "who works
+ *   here". The payload is a name and a specialty — no schedule, no contact, no
+ *   registration number, no fees, no employment status. See the service.
+ *
+ * ⚠️ NOT READ-AUDITED, deliberately. No patient is named or implied by either
+ *   half of this exchange; the referral it results in IS audited, on the
+ *   encounter, where the patient is.
+ */
+router.get(
+  '/referral-targets',
+  authorize(PERMISSIONS.ENCOUNTER_CREATE),
+  validate(referralTargetQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as ReferralTargetQuery;
+    sendSuccess(res, { targets: await searchReferralTargets(tenantContextFrom(req), query) });
   }
 );
 

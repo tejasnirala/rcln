@@ -178,14 +178,40 @@ afterAll(async () => {
 });
 
 describe('reading the tree', () => {
-  it('serves the clinical domains as roots, to every clinic alike', async () => {
+  /**
+   * ⚠️ THE ROOTS ARE CARE CONTEXTS SINCE CE-1, NOT DOMAINS (CD-3).
+   *
+   *   Human and Veterinary were inserted ABOVE the seven domains, because the
+   *   consultation engine resolves a template by walking a doctor's
+   *   classification up to its care context — veterinary dermatology and human
+   *   dermatology want different forms, different vocabulary and different
+   *   anatomical maps, and are otherwise indistinguishable in this tree.
+   *
+   *   This test changing is the POINT of that enum being a LABEL rather than a
+   *   depth: inserting a level cost a `parent_id` update and this assertion, and
+   *   nothing else in the traversal code moved. `doctor_specialties` points at
+   *   leaves and never noticed.
+   */
+  it('serves the care contexts as roots, to every clinic alike', async () => {
     const res = await A.get('');
+
+    expect(res.status).toBe(200);
+    const codes = res.body.data.nodes.map((n: { code: string }) => n.code);
+    expect(codes).toEqual(expect.arrayContaining(['HUMAN', 'VET']));
+    expect(res.body.data.nodes.every((n: { type: string }) => n.type === 'CARE_CONTEXT')).toBe(
+      true
+    );
+    expect(res.body.data.nodes.every((n: { parentId: null }) => n.parentId === null)).toBe(true);
+  });
+
+  it('serves the clinical domains one level down, under Human', async () => {
+    const human = await platformId('HUMAN');
+    const res = await A.get(`/${human}/children`);
 
     expect(res.status).toBe(200);
     const codes = res.body.data.nodes.map((n: { code: string }) => n.code);
     expect(codes).toEqual(expect.arrayContaining(['MED', 'DEN', 'MBH', 'ALH', 'DGN', 'REH']));
     expect(res.body.data.nodes.every((n: { type: string }) => n.type === 'DOMAIN')).toBe(true);
-    expect(res.body.data.nodes.every((n: { parentId: null }) => n.parentId === null)).toBe(true);
   });
 
   it('reports hasChildren so a selector need not probe every node', async () => {
@@ -232,24 +258,39 @@ describe('reading the tree', () => {
   it('walks ancestors to arbitrary depth, root first, excluding the node itself', async () => {
     const deep = await A.get(`/${platform['STRUCTURAL_HEART_DISEASE']}/ancestors`);
     expect(deep.status).toBe(200);
+    /* ⚠️ 'Human' leads every chain since CE-1 (CD-3) — the care context is the
+       root, and the domain is one level down. */
     expect(deep.body.data.ancestors.map((n: { name: string }) => n.name)).toEqual([
+      'Human',
       'Medical',
       'Cardiology',
       'Interventional Cardiology',
     ]);
     expect(deep.body.data.node.name).toBe('Structural Heart Disease');
-    expect(deep.body.data.node.depth).toBe(3);
+    expect(deep.body.data.node.depth).toBe(4);
 
     const shallow = await A.get(`/${platform['ENDODONTICS']}/ancestors`);
-    expect(shallow.body.data.ancestors.map((n: { name: string }) => n.name)).toEqual(['Dental']);
-    expect(shallow.body.data.node.depth).toBe(1);
+    expect(shallow.body.data.ancestors.map((n: { name: string }) => n.name)).toEqual([
+      'Human',
+      'Dental',
+    ]);
+    expect(shallow.body.data.node.depth).toBe(2);
   });
 
-  it('returns an empty ancestor chain for a domain', async () => {
-    const res = await A.get(`/${platform['MED']}/ancestors`);
+  /**
+   * ⚠️ THE EMPTY CHAIN BELONGS TO A CARE CONTEXT NOW, NOT TO A DOMAIN (CD-3).
+   *   A domain sits one level down and its chain is `['Human']`. Both are
+   *   asserted, so a future change that flattens the tree fails here rather
+   *   than quietly making the second case look like the first.
+   */
+  it('returns an empty ancestor chain for a care context, and one entry for a domain', async () => {
+    const context = await A.get(`/${await platformId('HUMAN')}/ancestors`);
+    expect(context.body.data.ancestors).toEqual([]);
+    expect(context.body.data.node.depth).toBe(0);
 
-    expect(res.body.data.ancestors).toEqual([]);
-    expect(res.body.data.node.depth).toBe(0);
+    const res = await A.get(`/${platform['MED']}/ancestors`);
+    expect(res.body.data.ancestors.map((n: { name: string }) => n.name)).toEqual(['Human']);
+    expect(res.body.data.node.depth).toBe(1);
   });
 
   /**
@@ -272,8 +313,8 @@ describe('reading the tree', () => {
     const viaChildren = await A.get(`/${platform['CARDIOLOGY']}/children`);
     const viaTree = await A.get(`/${platform['MED']}/tree`);
 
-    // MED -> CARDIOLOGY -> INTERVENTIONAL_CARDIOLOGY
-    const expected = 2;
+    // HUMAN -> MED -> CARDIOLOGY -> INTERVENTIONAL_CARDIOLOGY
+    const expected = 3;
 
     expect(viaAncestors.body.data.node.depth).toBe(expected);
     expect(viaSearch.body.data.nodes.find((n: { id: string }) => n.id === target).depth).toBe(
@@ -286,10 +327,17 @@ describe('reading the tree', () => {
     const cardiology = viaTree.body.data.children.find(
       (c: { code: string }) => c.code === 'CARDIOLOGY'
     );
-    expect(cardiology.depth).toBe(1);
+    expect(cardiology.depth).toBe(2);
     expect(cardiology.children.find((c: { id: string }) => c.id === target).depth).toBe(expected);
-    // The subtree root reports its own absolute depth, not zero.
-    expect(viaTree.body.data.depth).toBe(0);
+    /*
+     * The subtree root reports its own ABSOLUTE depth, not zero.
+     *
+     * ⚠️ THIS ASSERTION GOT STRONGER WITH CE-1. `MED` used to be a root, so the
+     *   correct answer was 0 — indistinguishable from the hardcoded `0 AS depth`
+     *   bug this whole test exists to guard against. Now that a care context
+     *   sits above it, the correct answer is 1 and the bug would be caught.
+     */
+    expect(viaTree.body.data.depth).toBe(1);
   });
 
   it('answers 404, never 403, for an id that does not exist', async () => {
@@ -357,9 +405,10 @@ describe('curating the catalogue', () => {
     const res = await A.get(`/${ownNodeId}/ancestors`);
 
     expect(res.body.data.node.isOwn).toBe(true);
-    // MED -> CARDIOLOGY -> here. The create response must agree.
-    expect(res.body.data.node.depth).toBe(2);
+    // HUMAN -> MED -> CARDIOLOGY -> here. The create response must agree.
+    expect(res.body.data.node.depth).toBe(3);
     expect(res.body.data.ancestors.map((n: { name: string }) => n.name)).toEqual([
+      'Human',
       'Medical',
       'Cardiology',
     ]);
@@ -382,14 +431,14 @@ describe('curating the catalogue', () => {
     expect(res.status).toBe(201);
     expect(res.body.data.isOwn).toBe(true);
     // MED -> CARDIOLOGY -> INTERVENTIONAL_CARDIOLOGY -> here.
-    expect(res.body.data.depth).toBe(3);
+    expect(res.body.data.depth).toBe(4);
   });
 
   it('reports a real depth on the UPDATE response too', async () => {
     const res = await A.patch(`/${ownNodeId}`, { description: 'Platelet-rich plasma.' });
 
     expect(res.status).toBe(200);
-    expect(res.body.data.depth).toBe(2);
+    expect(res.body.data.depth).toBe(3);
   });
 
   /**
@@ -623,11 +672,15 @@ describe('doctor filtering by classification subtree', () => {
 
     expect(classification.name).toBe('Structural Heart Disease');
     expect(classification.ancestors.map((a: { name: string }) => a.name)).toEqual([
+      'Human',
       'Medical',
       'Cardiology',
       'Interventional Cardiology',
     ]);
+    /* ⚠️ The chain now starts at a CARE_CONTEXT (CD-3). The types are asserted
+       as well as the names, so flattening the tree cannot pass this quietly. */
     expect(classification.ancestors.map((a: { type: string }) => a.type)).toEqual([
+      'CARE_CONTEXT',
       'DOMAIN',
       'DEPARTMENT',
       'SUB_SPECIALTY',
@@ -640,7 +693,12 @@ describe('doctor filtering by classification subtree', () => {
     expect(Number(stored.rows[0]?.count)).toBe(1);
   });
 
-  it('gives a domain-level classification an empty ancestor chain', async () => {
+  /**
+   * ⚠️ RENAMED WITH CE-1. A specialty directly under a DOMAIN no longer has a
+   *   one-entry chain — the care context above it makes two. The test still
+   *   covers what it was for: a SHALLOW classification, walked to the top.
+   */
+  it('walks a shallow classification all the way to its care context', async () => {
     const doctors = await A.doctorsGet('');
     const doctorId = doctors.body.data.doctors[0].id;
 
@@ -649,7 +707,7 @@ describe('doctor filtering by classification subtree', () => {
       primarySpecialtyId: platform['GENERAL_MEDICINE'],
     });
     expect(updated.body.data.specialties[0].ancestors.map((a: { code: string }) => a.code)).toEqual(
-      ['MED']
+      ['HUMAN', 'MED']
     );
 
     // Put it back for the tests that follow.

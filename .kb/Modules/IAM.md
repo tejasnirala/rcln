@@ -98,7 +98,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | --- | --- | --- |
 | `AccessContext` | interface | `packages/permissions/src/resolver.ts:37` |
 | `accessibleBranchIds` | fn | `packages/permissions/src/resolver.ts:141` |
-| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:573` |
+| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:624` |
 | `assertBranchAssignable` | fn | `apps/api/src/services/iam/guards.ts:127` |
 | `assertGrantable` | fn | `apps/api/src/services/iam/guards.ts:90` |
 | `assignRole` | fn | `apps/api/src/services/iam/member.service.ts:323` |
@@ -123,10 +123,10 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | `MemberActionOptions` | interface | `apps/api/src/services/iam/member.service.ts:67` |
 | `MemberList` | component | `apps/web/src/components/tenant/member-list.tsx:153` |
 | `Module` | type | `packages/permissions/src/codes.ts:30` |
-| `moduleOf` | fn | `packages/permissions/src/codes.ts:576` |
+| `moduleOf` | fn | `packages/permissions/src/codes.ts:627` |
 | `MODULES` | const | `packages/permissions/src/codes.ts:10` |
 | `OverrideEffect` | type | `packages/permissions/src/resolver.ts:18` |
-| `PermissionCode` | type | `packages/permissions/src/codes.ts:571` |
+| `PermissionCode` | type | `packages/permissions/src/codes.ts:622` |
 | `PermissionOverride` | interface | `packages/permissions/src/resolver.ts:30` |
 | `PERMISSIONS` | const | `packages/permissions/src/codes.ts:32` |
 | `revokeRole` | fn | `apps/api/src/services/iam/member.service.ts:426` |
@@ -137,7 +137,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | `setMemberStatus` | fn | `apps/api/src/services/iam/member.service.ts:718` |
 | `setOverride` | fn | `apps/api/src/services/iam/member.service.ts:494` |
 | `setRolePairings` | fn | `apps/api/src/services/iam/designation.service.ts:347` |
-| `SYSTEM_ROLE_DEFINITIONS` | const | `packages/permissions/src/roles.ts:111` |
+| `SYSTEM_ROLE_DEFINITIONS` | const | `packages/permissions/src/roles.ts:112` |
 | `SYSTEM_ROLES` | const | `packages/permissions/src/roles.ts:8` |
 | `SystemRoleCode` | type | `packages/permissions/src/roles.ts:23` |
 | `SystemRoleDefinition` | interface | `packages/permissions/src/roles.ts:27` |

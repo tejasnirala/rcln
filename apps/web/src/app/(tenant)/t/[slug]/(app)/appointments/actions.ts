@@ -427,6 +427,13 @@ export async function deleteBooking(slug: string, appointmentId: string): Promis
  * Only the time comes from this form. The patient and the branch are read off
  * the parent by the API and cannot be sent from here — which is what stops a
  * follow-up quietly becoming a booking for somebody else.
+ *
+ * ⚠️ IT MAY ALSO TICK OFF A RECOMMENDATION (CD-13, CE-4). `fulfilsRecommendationId`
+ *   says "this booking is the recall the doctor asked for", which is what takes
+ *   the patient off the recall list. It is optional in both directions and
+ *   neither absence is an error: a patient may book a follow-up nobody
+ *   recommended, and a recommendation may never be booked at all — the second
+ *   is the entire point of the list.
  */
 export async function bookFollowUp(
   slug: string,
@@ -440,6 +447,9 @@ export async function bookFollowUp(
       ? { doctorProfileId: text(formData, 'doctorProfileId') }
       : {}),
     ...(text(formData, 'reason') ? { reason: text(formData, 'reason') } : {}),
+    ...(text(formData, 'fulfilsRecommendationId')
+      ? { fulfilsRecommendationId: text(formData, 'fulfilsRecommendationId') }
+      : {}),
   });
 
   if (!parsed.success) {

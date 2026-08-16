@@ -25,7 +25,7 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 | model | RLS |
 | --- | --- |
 | [`StoredFile`](../Database/StoredFile.md) | explicit |
-| [`InvoiceDocument`](../Database/InvoiceDocument.md) | branch |
+| [`InvoiceDocument`](../Database/InvoiceDocument.md) | — |
 
 ## Source files
 

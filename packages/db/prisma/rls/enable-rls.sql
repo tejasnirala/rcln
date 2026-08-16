@@ -184,6 +184,80 @@ DECLARE
     -- member of both loops instead of a hand-written parent predicate. Contrast
     -- `appointment_status_history`, which has neither and pays for it below.
     'appointment_vitals',
+    -- ---------------------------------------------------------------------
+    -- The consultation engine (CE-1).
+    --
+    -- ⚠️ `clinical_episodes` IS ORG-SCOPED AND DELIBERATELY NOT BRANCH-SCOPED,
+    --   the same call `patients` makes and for the same reason. A person who
+    --   starts treatment at the main branch and continues at the satellite has
+    --   ONE treatment journey; a branch-scoped episode would split it in two
+    --   and hide the second half from the first branch, which is a clinician
+    --   reading half a history. ADR-0016.
+    --
+    --   `animal_profiles` follows `patients` for the identical reason: the
+    --   record follows the subject into whichever branch it walks into.
+    'clinical_episodes',
+    'animal_profiles',
+    -- ⚠️ THE RECOMMENDATION IS THE EXCEPTION AND IS IN BOTH LOOPS. Advice is
+    --   given AT a place, and `reason` is clinical free text about a named
+    --   person, so it carries its own organization_id AND branch_id rather
+    --   than inheriting the org half through its appointment — the call the
+    --   invoice children made and the one `appointment_status_history` did
+    --   not. See the note against the invoice tables above.
+    'encounter_follow_up_recommendations',
+    -- ---------------------------------------------------------------------
+    -- The clinical record itself (CE-3). BOTH ARE IN BOTH LOOPS.
+    --
+    -- ⚠️ THE OPPOSITE CALL FROM `clinical_episodes` IMMEDIATELY ABOVE, AND
+    --   DELIBERATELY. The JOURNEY follows the person across a hospital group;
+    --   the VISIT belongs to the place it happened at. `branch_id` is NOT NULL
+    --   on both tables, so the branch policy is absolute — a doctor scoped to
+    --   one site cannot read what another site wrote about a patient, and every
+    --   text column on both is PHI.
+    --
+    --   `encounter_sections` carries its own organization_id AND branch_id
+    --   rather than inheriting through its encounter: a child of a branch-scoped
+    --   parent that inherits only the org half is exactly the hole
+    --   `appointment_status_history` had to restate by hand.
+    'encounters',
+    'encounter_sections',
+    -- ---------------------------------------------------------------------
+    -- The clinical CONTENT (CE-4). ALL EIGHT are in both loops, for exactly
+    -- the reasons the two tables above are.
+    --
+    -- ⚠️ EACH CARRIES ITS OWN organization_id AND branch_id rather than
+    --   inheriting through its encounter. A child of a branch-scoped parent
+    --   that inherits only the org half is the hole
+    --   `appointment_status_history` had to restate by hand — the org policy
+    --   passes and the branch boundary is simply not there. The composite FK
+    --   to (organization_id, encounter_id) is what stops the two columns
+    --   disagreeing with the consultation they belong to.
+    --
+    -- ⚠️ AND THE DENSEST PHI IN THE PRODUCT IS HERE, not on `encounters`.
+    --   What a named person was diagnosed with, prescribed and referred for
+    --   is answerable by primary key on these eight tables.
+    'encounter_symptoms',
+    'encounter_diagnoses',
+    'encounter_procedures',
+    'encounter_prescriptions',
+    'encounter_investigations',
+    'encounter_advice',
+    'encounter_referrals',
+    'encounter_attachments',
+    -- ---------------------------------------------------------------------
+    -- What was found on a chart (CE-6). IN BOTH LOOPS, for exactly the reasons
+    -- the eight tables above are.
+    --
+    -- ⚠️ IT HANGS OFF AN ENCOUNTER, SO IT INHERITS THE BRANCH HALF AND THE
+    --   CE-5 HAZARD DOES NOT RECUR. `visit-history` nests a BRANCH-scoped
+    --   child under an ORG-scoped parent and had to say so; a finding's parent
+    --   is the consultation, which belongs to the place it happened at. It
+    --   still carries its own organization_id AND branch_id rather than
+    --   inheriting either — see the note above.
+    --
+    -- ⚠️ AND IT IS PHI. "Caries on tooth 36" is a clinical statement about a
+    --   named person, answerable by primary key.
+    'clinical_findings',
     -- Patient invoicing. ALL FOUR are also in the branch_scoped array below,
     -- and the children are here rather than in the parent_scoped loop for a
     -- specific reason: that loop's predicate asks the ORGANIZATION question
@@ -426,7 +500,55 @@ DECLARE
     --   catalogue tables above: a platform profile is a starting point every
     --   clinic reads, and a clinic's own row overrides nothing and belongs to
     --   it. The composite FK to `products` does the rest.
-    'product_regulatory_profiles'
+    'product_regulatory_profiles',
+    -- ---------------------------------------------------------------------
+    -- The clinical vocabulary (CE-1). "Tooth pain", "Dental caries" and "Root
+    -- canal treatment" are WORDS — every clinic needs the same few hundred on
+    -- the day it opens, and shipping them as platform rows is what lets a
+    -- dentist record a first consultation without inventing a vocabulary
+    -- first. The same argument `stock_reason_codes` makes, and the same
+    -- read-permissive / write-strict policy plus `platform_rows_immutable`.
+    --
+    -- ⚠️ THE TWO SCOPE TABLES POINT AT `specialties`, WHICH IS ITSELF
+    --   PLATFORM-EXTENSIBLE, so `specialty_id` cannot be composite-FK'd and
+    --   gets a RESTRICTIVE `specialty_visible` policy below — exactly as
+    --   `doctor_specialties` does. `product_clinical_scopes` needs
+    --   `product_visible` for the same reason on its other parent.
+    'clinical_master_items',
+    'clinical_master_codings',
+    'clinical_master_scopes',
+    'product_clinical_scopes',
+    -- ---------------------------------------------------------------------
+    -- Consultation templates (CE-2). The same class and the same argument: a
+    -- clinic must be able to conduct a consultation on the day it opens, so
+    -- the platform ships a GENERAL template per care context and a clinic
+    -- writes its own beside it. Invariant 5's "versioned form templates" —
+    -- JSONB as a document, never as a foreign key (CD-6).
+    --
+    -- ⚠️ `consultation_templates` POINTS AT `specialties` TWICE and neither
+    --   pointer can be composite-FK'd, so it needs `specialty_visible` below
+    --   over BOTH columns — and `specialty_id` is nullable, because NULL is
+    --   the care-context default.
+    'consultation_templates',
+    'consultation_template_versions',
+    -- ---------------------------------------------------------------------
+    -- The charts a clinician draws ON (CE-6). Same class and same argument as
+    -- the vocabulary: the 32 teeth of the FDI notation are the same 32 teeth
+    -- in every dental practice on the platform, so the platform ships them and
+    -- a clinic adds its own beside them. A map is a picture of a BODY, not a
+    -- fact about a clinic.
+    --
+    -- ⚠️ `visual_maps` POINTS AT `specialties` TWICE and neither pointer can be
+    --   composite-FK'd, so it needs `specialty_visible` below over BOTH
+    --   columns — exactly as `consultation_templates` does, and `specialty_id`
+    --   is nullable for the same reason.
+    --
+    -- ⚠️ `visual_regions` NEEDS NO EXTRA POLICY. Its only pointer at a
+    --   platform-extensible parent is `map_id`, and THAT one CAN be
+    --   composite-FK'd — both sides allow a NULL organization_id — so the
+    --   foreign key does the work the RESTRICTIVE policies do elsewhere.
+    'visual_maps',
+    'visual_regions'
   ];
 BEGIN
   FOREACH t IN ARRAY platform_extensible LOOP
@@ -504,6 +626,341 @@ CREATE POLICY specialty_visible ON doctor_specialties AS RESTRICTIVE
   WITH CHECK (EXISTS (
     SELECT 1 FROM specialties s
     WHERE s.id = doctor_specialties.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
+-- The clinical scope tables (CE-1) point at `specialties` the same way
+-- `doctor_specialties` does, and need the same restrictive predicate for the
+-- same reason: `specialty_id` is a PLAIN FK because a specialty may be a
+-- platform row with no organization_id to compose with, so tenant_isolation
+-- constrains the ITEM/PRODUCT side and says nothing at all about the SPECIALTY
+-- side. Without this a tenant could scope its own diagnosis to ANOTHER TENANT'S
+-- private specialty and read that specialty's name back out of the join.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS specialty_visible ON clinical_master_scopes;
+CREATE POLICY specialty_visible ON clinical_master_scopes AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = clinical_master_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = clinical_master_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS specialty_visible ON product_clinical_scopes;
+CREATE POLICY specialty_visible ON product_clinical_scopes AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = product_clinical_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = product_clinical_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
+-- `product_clinical_scopes` has a SECOND platform-extensible parent. Its
+-- composite FK to products(organization_id, id) is not checked at all under
+-- MATCH SIMPLE when organization_id is NULL, which is exactly the platform case.
+DROP POLICY IF EXISTS product_visible ON product_clinical_scopes;
+CREATE POLICY product_visible ON product_clinical_scopes AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = product_clinical_scopes.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = product_clinical_scopes.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+-- `clinical_episodes.primary_specialty_id` is nullable and points at the same
+-- platform-extensible table. NULL is permitted — most episodes never name one.
+DROP POLICY IF EXISTS specialty_visible ON clinical_episodes;
+CREATE POLICY specialty_visible ON clinical_episodes AS RESTRICTIVE
+  USING (
+    primary_specialty_id IS NULL OR EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = clinical_episodes.primary_specialty_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+  )
+  WITH CHECK (
+    primary_specialty_id IS NULL OR EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = clinical_episodes.primary_specialty_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+  );
+
+-- `consultation_templates` (CE-2) cites the taxonomy TWICE — the care context it
+-- belongs to, and the node it is attached to. Neither can be composite-FK'd, for
+-- the reason above, so both are checked here.
+--
+-- ⚠️ A NULL `specialty_id` MUST PASS. It is the care-context default — the one
+--   template that always resolves, and the reason a doctor with no
+--   classification at all still gets a consultation (Scenario 3). A policy that
+--   required a node here would make that row unwritable and unreadable, and the
+--   symptom would be "no template applies" for every unclassified doctor.
+DROP POLICY IF EXISTS specialty_visible ON consultation_templates;
+CREATE POLICY specialty_visible ON consultation_templates AS RESTRICTIVE
+  USING (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = consultation_templates.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      consultation_templates.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = consultation_templates.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = consultation_templates.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      consultation_templates.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = consultation_templates.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- `encounters` CITES A TEMPLATE AND A VERSION THAT MAY BE PLATFORM ROWS (CE-3).
+--
+-- ⚠️ THIS POLICY IS WHAT STANDS IN FOR THE COMPOSITE FK, WHICH IS IMPOSSIBLE
+--   HERE. A composite (organization_id, template_id) reference would make a
+--   PLATFORM template uncitable: `encounters.organization_id` is NOT NULL, both
+--   columns are therefore non-null, and the FK would demand a template row
+--   belonging to the clinic — while the platform's GENERAL template is exactly
+--   what a doctor with no classification resolves to. The constraint would
+--   refuse the most ordinary consultation on the platform.
+--
+--   So the pointers are plain FKs, and this restriction is the tenancy check:
+--   without it a clinic could cite ANOTHER TENANT'S private template and read
+--   its name and its whole definition back out of the join. Same shape as
+--   `specialty_visible` above and `product_visible` on `batches`.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS template_visible ON encounters;
+CREATE POLICY template_visible ON encounters AS RESTRICTIVE
+  USING (
+    EXISTS (
+      SELECT 1 FROM consultation_templates t
+      WHERE t.id = encounters.template_id
+        AND (t.organization_id IS NULL OR t.organization_id = app_current_org())
+    )
+    AND EXISTS (
+      SELECT 1 FROM consultation_template_versions v
+      WHERE v.id = encounters.template_version_id
+        AND (v.organization_id IS NULL OR v.organization_id = app_current_org())
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM consultation_templates t
+      WHERE t.id = encounters.template_id
+        AND (t.organization_id IS NULL OR t.organization_id = app_current_org())
+    )
+    AND EXISTS (
+      SELECT 1 FROM consultation_template_versions v
+      WHERE v.id = encounters.template_version_id
+        AND (v.organization_id IS NULL OR v.organization_id = app_current_org())
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- THE CLINICAL CONTENT CITES WORDS, PRODUCTS AND SPECIALTIES THAT MAY BE
+-- PLATFORM ROWS (CE-4), AND NONE OF THOSE POINTERS CAN BE COMPOSITE-FK'D.
+--
+-- ⚠️ SAME ARGUMENT AS `template_visible` DIRECTLY ABOVE, three more times.
+--   `clinical_master_items`, `products` and `specialties` all allow a NULL
+--   organization_id so the platform can ship a catalogue every clinic sees;
+--   these rows' organization_id is NOT NULL, so a composite reference would
+--   demand a parent belonging to the clinic and would refuse the entire
+--   platform catalogue.
+--
+--   Without these restrictions a clinic cites ANOTHER TENANT'S private
+--   diagnosis, medicine or specialty and reads its name straight back out of
+--   the join — a competitor's clinical vocabulary and formulary, disclosed one
+--   selector at a time.
+--
+-- ⚠️ `encounter_referrals.doctor_profile_id` HAS NO POLICY AND NEEDS NONE. A
+--   doctor profile is always org-scoped, so the composite FK CAN be drawn
+--   there and is — which is precisely why these policies exist only where it
+--   cannot.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  t text;
+  cites_an_item text[] := ARRAY[
+    'encounter_symptoms',
+    'encounter_diagnoses',
+    'encounter_procedures',
+    'encounter_investigations',
+    'encounter_advice'
+  ];
+BEGIN
+  FOREACH t IN ARRAY cites_an_item LOOP
+    EXECUTE format('DROP POLICY IF EXISTS item_visible ON %I', t);
+    -- `item_id IS NULL OR …` because three of the five allow a typed entry
+    -- with no coded word at all (§6). On the two where the column is NOT NULL
+    -- the left half is dead code, as it is in `designation_visible` below.
+    EXECUTE format($f$
+      CREATE POLICY item_visible ON %I AS RESTRICTIVE
+        USING (item_id IS NULL OR EXISTS (
+          SELECT 1 FROM clinical_master_items i
+          WHERE i.id = %I.item_id
+            AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+        ))
+        WITH CHECK (item_id IS NULL OR EXISTS (
+          SELECT 1 FROM clinical_master_items i
+          WHERE i.id = %I.item_id
+            AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+        ))
+    $f$, t, t, t);
+  END LOOP;
+END
+$$;
+
+-- ---------------------------------------------------------------------------
+-- The chart's findings cite a WORD and a REGION, and neither can be
+-- composite-FK'd (CE-6).
+--
+-- ⚠️ WRITTEN OUT RATHER THAN ADDED TO THE LOOP ABOVE, because the column is
+--   `finding_item_id` and not `item_id`. It is named for what it holds — a
+--   FINDING_TYPE, which is not a diagnosis — and a loop over a column name is
+--   not worth renaming a column for.
+--
+-- ⚠️ AND BOTH ARE NOT NULL HERE, so neither `IS NULL OR` half ever fires. They
+--   are written anyway, in the shape every other policy in this file uses: a
+--   policy that reads differently from its neighbours is one somebody has to
+--   stop and check.
+DROP POLICY IF EXISTS item_visible ON clinical_findings;
+CREATE POLICY item_visible ON clinical_findings AS RESTRICTIVE
+  USING (finding_item_id IS NULL OR EXISTS (
+    SELECT 1 FROM clinical_master_items i
+    WHERE i.id = clinical_findings.finding_item_id
+      AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+  ))
+  WITH CHECK (finding_item_id IS NULL OR EXISTS (
+    SELECT 1 FROM clinical_master_items i
+    WHERE i.id = clinical_findings.finding_item_id
+      AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
+-- WHERE ON THE CHART. `visual_regions` is platform-extensible, so a region may
+-- have no organization_id to compose with and both pointers at it are plain
+-- FKs. Without these a clinic files a finding — or a procedure — against
+-- ANOTHER TENANT'S private region and reads its label back out of the join.
+--
+-- ⚠️ TWO TABLES, TWO POLICIES, AND ONE COLUMN IS NULLABLE. A finding is always
+--   somewhere; most procedures are nowhere on a chart at all.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS region_visible ON clinical_findings;
+CREATE POLICY region_visible ON clinical_findings AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = clinical_findings.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = clinical_findings.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS region_visible ON encounter_procedures;
+CREATE POLICY region_visible ON encounter_procedures AS RESTRICTIVE
+  USING (visual_region_id IS NULL OR EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = encounter_procedures.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ))
+  WITH CHECK (visual_region_id IS NULL OR EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = encounter_procedures.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ));
+
+-- The map's two taxonomy pointers. Identical shape and reasoning to
+-- `specialty_visible` on `consultation_templates`, including the nullable half:
+-- NULL means the map is offered across the whole care context.
+DROP POLICY IF EXISTS specialty_visible ON visual_maps;
+CREATE POLICY specialty_visible ON visual_maps AS RESTRICTIVE
+  USING (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = visual_maps.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      visual_maps.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = visual_maps.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = visual_maps.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      visual_maps.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = visual_maps.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
+    )
+  );
+
+-- What was prescribed. Exactly the shape `batches` has, and named the same.
+DROP POLICY IF EXISTS product_visible ON encounter_prescriptions;
+CREATE POLICY product_visible ON encounter_prescriptions AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = encounter_prescriptions.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = encounter_prescriptions.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+-- Who the patient was sent to. Nullable — a referral to a named colleague or
+-- to somebody outside the organization names no specialty at all.
+DROP POLICY IF EXISTS specialty_visible ON encounter_referrals;
+CREATE POLICY specialty_visible ON encounter_referrals AS RESTRICTIVE
+  USING (specialty_id IS NULL OR EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = encounter_referrals.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (specialty_id IS NULL OR EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = encounter_referrals.specialty_id
       AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
   ));
 
@@ -766,6 +1223,31 @@ DECLARE
     'appointment_vitals',
     -- Same shape, same reasoning, and the reason text is PHI.
     'appointment_reschedules',
+    -- What the doctor asked the patient to come back FOR (CE-1). branch_id is
+    -- NOT NULL and copied from the appointment, so this is absolute like
+    -- `appointment_vitals` — and it has to be, because `reason` says why a named
+    -- person is being recalled.
+    'encounter_follow_up_recommendations',
+    -- The consultation and its descriptor answers (CE-3). branch_id is NOT NULL
+    -- on both and copied from the appointment (or from the acting membership,
+    -- for a walk-in), so this is absolute — see the org_scoped note above.
+    'encounters',
+    'encounter_sections',
+    -- The clinical content (CE-4). branch_id is NOT NULL on all eight and is
+    -- copied from the encounter, so this policy is absolute: a doctor scoped
+    -- to one site cannot read what another site prescribed, concluded or
+    -- ordered for a patient, even by guessing a primary key.
+    'encounter_symptoms',
+    'encounter_diagnoses',
+    'encounter_procedures',
+    'encounter_prescriptions',
+    'encounter_investigations',
+    'encounter_advice',
+    'encounter_referrals',
+    'encounter_attachments',
+    -- The chart's findings (CE-6). branch_id is NOT NULL and is copied from
+    -- the encounter, so this policy is absolute in the same way.
+    'clinical_findings',
     -- ⚠️ THE ONLY TABLE HERE WHOSE NULL BRANCH IS MEANINGFUL RATHER THAN
     -- TOLERATED. Everywhere else in this array branch_id is NOT NULL and the
     -- `branch_id IS NULL OR ...` predicate never fires; here NULL is how the
