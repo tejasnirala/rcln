@@ -204,9 +204,8 @@ All org + branch scoped, all PHI, all children of `encounters` carrying
 ⚠️ **THREE THINGS SHIFTED FROM THE PLAN BELOW, AND ALL THREE ARE RECORDED HERE
 RATHER THAN QUIETLY:**
 
-- **`encounter_procedures.visual_region_id` IS NOT BUILT.** It would be a foreign
-  key into `visual_regions`, which lands in CE-6. The column arrives with the
-  table it points at.
+- ~~**`encounter_procedures.visual_region_id` IS NOT BUILT.**~~ Built in CE-6,
+  with the table it points at.
 - **`item_id` IS NOT NULL ON PROCEDURES AND INVESTIGATIONS.** The list below is
   silent on it; the call is that a procedure is billed, consumed from stock
   (PI-9) and reported on, so a free-text one is a line nothing downstream can
@@ -248,27 +247,56 @@ does.
 
 ---
 
-## CE-6 — Visual mapping
+## CE-6 — Visual mapping ✅ SHIPPED
+
+⚠️ **TWO THINGS SHIFTED FROM THE PLAN BELOW, AND BOTH ARE RECORDED HERE RATHER
+THAN QUIETLY:**
+
+- **`clinical_findings.section_key` WAS ADDED.** The list below is silent on it,
+  and `VISUAL_MAPPING` is REPEATABLE — an ENT consultation charts a left ear and
+  a right ear, each its own section of one template. A finding that did not say
+  which section it belongs to would render on both.
+- **THE GEOMETRY LIVES ON THE REGION, NOT IN AN SVG FILE (CD-17).** `metadata`
+  carries each region's shape in the map's `view_box` coordinates, so `apps/web`
+  holds one generic renderer and CE-7's second map is a seed. `renderer` and
+  `asset_key` survive for the IMAGE_MAP case and nothing ships one; a CHECK
+  refuses a row whose renderer and asset disagree.
 
 ```text
 visual_maps       platform-extensible
-  code, name, renderer (SVG | IMAGE_MAP), asset_key, care_context_id,
-  specialty_id NULL, view_box
+  code, name, description, renderer (SVG | IMAGE_MAP), asset_key NULL,
+  care_context_id, specialty_id NULL, view_box, is_active
+  @@unique([organizationId, code])       NULLS NOT DISTINCT
+  CHECK view_box is four numbers · CHECK asset_key matches renderer
 
 visual_regions    platform-extensible
   map_id, code, label, parent_id NULL, display_order, metadata JSONB
   @@unique([organizationId, mapId, code])   NULLS NOT DISTINCT
+  TRIGGER a parent must be on the same map
 
 clinical_findings org + branch scoped, PHI
-  encounter_id, visual_region_id, finding_item_id, diagnosis_id NULL,
-  severity, notes, metadata JSONB
+  encounter_id, section_key, visual_region_id, finding_item_id,
+  diagnosis_id NULL, severity, notes, metadata JSONB, display_order
+  @@unique([org, encounter_id, section_key, visual_region_id, finding_item_id])
+
+encounter_procedures.visual_region_id   NULL — the CE-4 column, filled in here
 ```
 
-⚠️ **No clinical data in the SVG** (§22). The asset carries semantic region ids
-(`tooth-36`) and nothing else; every finding is a database row.
+⚠️ **No clinical data in the picture** (§22). A region says WHERE it is and WHAT
+it is called; every finding is a database row.
 
 ⚠️ `visual_regions.code` is FDI for the dental map — `TOOTH_11` … `TOOTH_48`
 (CD-11).
+
+⚠️ **`finding_item_id` IS NOT NULL, unlike a symptom's or a diagnosis's item.**
+The region already says WHERE, so a mark with no coded word is one nobody can
+read back — and there is no free-text half to fall back on.
+
+⚠️ **`visual_region_id` AND `finding_item_id` ARE PLAIN FKs** into
+platform-extensible parents, so they need `region_visible` and `item_visible`.
+`encounter_procedures.visual_region_id` needs `region_visible` too. `map_id` is
+the one pointer that CAN be composite-FK'd — both sides allow a NULL
+organization_id — so it needs no policy.
 
 ---
 

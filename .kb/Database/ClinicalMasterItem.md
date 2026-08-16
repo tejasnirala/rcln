@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/clinical.prisma:158`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 13 |
-| relations | 10 |
+| relations | 11 |
 
 ## Columns
 
@@ -44,6 +44,7 @@ Declared at `packages/db/prisma/schema/clinical.prisma:158`.
 | `procedureUses` | [`EncounterProcedure`](EncounterProcedure.md) | `procedureUses EncounterProcedure[] @relation("ProcedureItem")` |
 | `investigationUses` | [`EncounterInvestigation`](EncounterInvestigation.md) | `investigationUses EncounterInvestigation[] @relation("InvestigationItem")` |
 | `adviceUses` | [`EncounterAdvice`](EncounterAdvice.md) | `adviceUses EncounterAdvice[] @relation("AdviceItem")` |
+| `findingUses` | [`ClinicalFinding`](ClinicalFinding.md) | `findingUses ClinicalFinding[] @relation("FindingItem")` |
 
 ## Indexes and constraints
 
@@ -65,4 +66,5 @@ erDiagram
     ClinicalMasterItem }o--o{ EncounterProcedure : relates
     ClinicalMasterItem }o--o{ EncounterInvestigation : relates
     ClinicalMasterItem }o--o{ EncounterAdvice : relates
+    ClinicalMasterItem }o--o{ ClinicalFinding : relates
 ```

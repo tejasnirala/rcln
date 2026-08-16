@@ -200,6 +200,10 @@ model ClinicalMasterItem {
   procedureUses     EncounterProcedure[]     @relation("ProcedureItem")
   investigationUses EncounterInvestigation[] @relation("InvestigationItem")
   adviceUses        EncounterAdvice[]        @relation("AdviceItem")
+  /// What a chart says with this word (CE-6). `FINDING_TYPE` items only in
+  /// practice — the kind is not enforced by the FK, and the selector is what
+  /// makes it true.
+  findingUses       ClinicalFinding[]        @relation("FindingItem")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -988,6 +992,8 @@ model Encounter {
   advice          EncounterAdvice[]
   referrals       EncounterReferral[]
   attachments     EncounterAttachment[]
+  /// What was found on a chart at this consultation (CE-6).
+  findings        ClinicalFinding[]
 
   @@unique([organizationId, branchId, encounterNumber])
   /// Composite-FK target for every CE-4 child, the sections below and the
@@ -1319,6 +1325,8 @@ model EncounterDiagnosis {
   encounter    Encounter            @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
   item         ClinicalMasterItem?  @relation("DiagnosisItem", fields: [itemId], references: [id], onDelete: Restrict)
   procedures   EncounterProcedure[]
+  /// The marks on the chart this diagnosis explains (CE-6).
+  findings     ClinicalFinding[]
 
   /// Composite-FK target for `encounter_procedures.diagnosis_id` (ADR-0004).
   @@unique([organizationId, id])
@@ -1344,10 +1352,18 @@ model EncounterProcedure {
   branchId       String @map("branch_id") @db.Uuid
   encounterId    String @map("encounter_id") @db.Uuid
 
-  itemId      String? @map("item_id") @db.Uuid
+  itemId         String? @map("item_id") @db.Uuid
   /// What it treats. NULL is ordinary — not every procedure answers a diagnosis
   /// recorded at the same visit.
-  diagnosisId String? @map("diagnosis_id") @db.Uuid
+  diagnosisId    String? @map("diagnosis_id") @db.Uuid
+  /// WHERE it was done — the tooth, the quadrant, the scalp zone (CE-6).
+  ///
+  /// ⚠️ A PLAIN FK, NOT COMPOSITE, so it needs a RESTRICTIVE `region_visible`
+  ///   policy: a platform region has no organization_id to compose with, and
+  ///   this row's is NOT NULL. Same shape as `item_id` immediately above.
+  ///
+  /// NULL is ordinary — most procedures are not done at a place on a chart.
+  visualRegionId String? @map("visual_region_id") @db.Uuid
 
   /// A DATE, not an instant: "when was this done" is a calendar question the
   /// clinic answers in its own timezone. ⚠️ Compare with `startOfCalendarDay`.
@@ -1373,10 +1389,10 @@ model EncounterProcedure {
   ///   first, in the service, which is the honest order anyway: what was done
   ///   stays on the record and only the link goes.
   diagnosis    EncounterDiagnosis? @relation(fields: [organizationId, diagnosisId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  /// Restrict: a region a procedure cites is deactivated with its map, never
+  /// deleted out from under the record.
+  region       VisualRegion?       @relation("ProcedureRegion", fields: [visualRegionId], references: [id], onDelete: Restrict)
 
-  /// ⚠️ CE-6 ADDS `visual_region_id` HERE, and deliberately not now: the column
-  ///   would be a foreign key into a table that does not exist. SCHEMA.md lists
-  ///   it against this model for that phase.
   @@index([organizationId, encounterId, displayOrder])
   /// PI-9 reads this: what procedures were performed, and therefore what stock
   /// they consumed.
@@ -1614,4 +1630,246 @@ model EncounterAttachment {
   @@unique([organizationId, encounterId, storedFileId])
   @@index([organizationId, encounterId, displayOrder])
   @@map("encounter_attachments")
+}
+
+// -----------------------------------------------------------------------------
+// VISUAL MAPPING (CE-6)
+//
+// The chart a clinician draws ON: an odontogram, a scalp map, a body diagram.
+// Two configuration tables and one PHI table, and the line between them is the
+// same one the templates draw.
+//
+//   visual_maps / visual_regions   PLATFORM-EXTENSIBLE. A map is a picture of a
+//     BODY, not a fact about a clinic — the 32 teeth of the FDI notation are the
+//     same 32 teeth in every dental practice on the platform, so the platform
+//     ships them and a clinic adds its own beside them.
+//
+//   clinical_findings              ORG + BRANCH SCOPED, PHI. "Caries on tooth
+//     36" is a statement about a named person at a place.
+//
+// ⚠️ NO CLINICAL DATA IN THE ASSET (§22). The map says where the regions ARE and
+//   what they are CALLED. What was found on one is a row in `clinical_findings`,
+//   never a colour baked into a drawing — a chart that carried its own findings
+//   could not be queried, reported on, audited, or amended.
+//
+// ⚠️ AND THE GEOMETRY IS THE REGION'S, NOT AN SVG FILE'S (CD-17). `metadata`
+//   carries each region's shape in the map's own `view_box` coordinates, so
+//   `apps/web` holds ONE generic renderer and a new map is a set of ROWS. The
+//   alternative — one hand-drawn component per map — is exactly the
+//   `HairConsultation.tsx` that CE-7's definition of done forbids. It is a
+//   DOCUMENT and not foreign keys, so ADR-0006 is untouched.
+// -----------------------------------------------------------------------------
+
+/// How a map is drawn.
+///
+/// ⚠️ AN ENUM WITH TWO MEMBERS RATHER THAN A BOOLEAN, because the third is
+///   foreseeable — a photograph a clinician pins findings onto is neither of
+///   these. A `is_svg Boolean` would have to be migrated the day it arrives.
+enum VisualMapRenderer {
+  /// Regions are vector shapes, drawn from their own geometry. The only
+  /// renderer CE-6 ships a map for.
+  SVG
+  /// Regions are hotspots over a raster asset named by `asset_key`.
+  IMAGE_MAP
+}
+
+/// One chart: what it is a picture of, and how big its coordinate space is.
+///
+/// ⚠️ PLATFORM-EXTENSIBLE WITH `specialties`' POLICY, NOT `files`'. Reproducing
+///   the NULL-permissive WITH CHECK would let any clinic publish a
+///   PLATFORM-WIDE map — visible to every other tenant, writable by anyone
+///   holding `clinical.visual_map.manage`.
+///
+/// NO PHI. A map names no patient.
+model VisualMap {
+  id             String            @id @default(uuid()) @db.Uuid
+  /// NULL = platform row, visible to every tenant.
+  organizationId String?           @map("organization_id") @db.Uuid
+  /// ⚠️ FLAT, NOT A PATH — `HUMAN_DENTAL`, never `HUMAN-DEN-ADULT`. It is what
+  ///   a template names in its `mapCode` (CD-6), so it is also the one string
+  ///   that must stay stable: renaming it orphans every template citing it.
+  code           String            @db.VarChar(64)
+  name           String            @db.VarChar(160)
+  description    String?           @db.Text
+  renderer       VisualMapRenderer @default(SVG)
+  /// The raster asset an IMAGE_MAP is drawn over. NULL for an SVG map, which
+  /// draws its regions and nothing else.
+  assetKey       String?           @map("asset_key") @db.VarChar(120)
+
+  /// The `CARE_CONTEXT` root this map belongs to (CD-3). A human dental chart
+  /// and a veterinary one are different pictures of different mouths.
+  careContextId String  @map("care_context_id") @db.Uuid
+  /// The node it is especially for, anywhere below the care context. NULL means
+  /// the map is offered across the care context — a body diagram is nobody's
+  /// specialty in particular.
+  specialtyId   String? @map("specialty_id") @db.Uuid
+
+  /// The SVG coordinate space every region's geometry is expressed in.
+  /// `"0 0 640 320"` — four numbers, validated by `@rcln/clinical`.
+  ///
+  /// ⚠️ ON THE MAP AND NOT ON THE REGION. One coordinate space per picture is
+  ///   what makes the regions comparable; a per-region box would mean thirty-two
+  ///   teeth that cannot be laid out beside one another.
+  viewBox String @map("view_box") @db.VarChar(64)
+
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// ⚠️ PLAIN FKs, NOT COMPOSITE, and they therefore need a RESTRICTIVE
+  ///   `specialty_visible` policy — `specialties` allows a NULL organization_id,
+  ///   so a composite FK cannot be drawn and the row could otherwise cite
+  ///   another tenant's private node and read its name back out of the join.
+  ///   Exactly the shape `consultation_templates` has.
+  careContext  Specialty      @relation("VisualMapCareContext", fields: [careContextId], references: [id], onDelete: Restrict)
+  specialty    Specialty?     @relation("VisualMapSpecialty", fields: [specialtyId], references: [id], onDelete: Restrict)
+  regions      VisualRegion[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
+  /// maps are not unique among themselves.
+  @@unique([organizationId, code])
+  /// Composite-FK target for the regions, so a tenant can never bolt its own
+  /// region onto a PLATFORM map (ADR-0004).
+  @@unique([organizationId, id])
+  @@index([organizationId, careContextId, isActive])
+  @@index([organizationId, specialtyId])
+  @@map("visual_maps")
+}
+
+/// One place on a map: a tooth, a quadrant, a scalp zone.
+///
+/// ⚠️ `code` IS FDI FOR THE DENTAL MAP — `TOOTH_11` … `TOOTH_48` (CD-11). Not an
+///   index, and not a display notation. Universal and Palmer are RENDERINGS of
+///   the same stored codes, which is exactly what an index would have made
+///   impossible.
+///
+/// ⚠️ `parent_id` GROUPS AND DOES NOT NEST GEOMETRY. A quadrant is a region with
+///   no geometry of its own whose children are the eight teeth in it — that is
+///   what lets a screen offer "upper right" without inventing a second table,
+///   and what `regionsOf` in `@rcln/clinical` reads.
+///
+/// NO PHI.
+model VisualRegion {
+  id             String  @id @default(uuid()) @db.Uuid
+  /// Mirrors the parent map's. NULL for a region of a platform map.
+  organizationId String? @map("organization_id") @db.Uuid
+  mapId          String  @map("map_id") @db.Uuid
+  code           String  @db.VarChar(64)
+  label          String  @db.VarChar(160)
+  /// A grouping region — a quadrant, an arch, a side. NULL for a top-level one.
+  ///
+  /// ⚠️ `onDelete: Restrict`, NOT SetNull, for the reason the taxonomy records:
+  ///   SetNull "succeeds" at deleting a group and silently promotes its whole
+  ///   subtree to the top level.
+  parentId       String? @map("parent_id") @db.Uuid
+  displayOrder   Int     @default(0) @map("display_order")
+
+  /// The region's shape, in the map's `view_box` coordinates.
+  ///
+  /// ⚠️ PARSED BY `@rcln/clinical`'s `regions.ts` BEFORE ANYTHING DRAWS IT, and
+  ///   a document that is PRESENT and malformed is an ERROR rather than a
+  ///   region quietly missing from the chart. ABSENT is legal and means "this
+  ///   region groups and is not drawn" — that distinction is the whole of the
+  ///   PI-5 lesson, and both cases are unit-tested.
+  ///
+  /// ⚠️ A DOCUMENT, NEVER FOREIGN KEYS (ADR-0006). Geometry is not an id.
+  metadata Json? @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite-FK'd so a tenant cannot bolt its own region onto a PLATFORM map.
+  /// Optional ONLY because Prisma refuses a required relation whose scalar
+  /// fields include a nullable one; the row always has a map.
+  map          VisualMap?           @relation(fields: [organizationId, mapId], references: [organizationId, id], onDelete: Cascade)
+  parent       VisualRegion?        @relation("VisualRegionParent", fields: [parentId], references: [id], onDelete: Restrict)
+  children     VisualRegion[]       @relation("VisualRegionParent")
+  /// What consultations have said about this place. `onDelete: Restrict` on both
+  /// is why a map is deactivated rather than deleted.
+  findings     ClinicalFinding[]
+  /// Which tooth the root canal was done on (CE-4's column, filled in here).
+  procedures   EncounterProcedure[] @relation("ProcedureRegion")
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration.
+  @@unique([organizationId, mapId, code])
+  /// Composite-FK target for nothing yet — `clinical_findings.organization_id`
+  /// is NOT NULL and a platform region's is NULL, so that pointer is a plain FK
+  /// with a `region_visible` policy instead. Kept for the shape every other
+  /// platform-extensible parent in this file has.
+  @@unique([organizationId, id])
+  @@index([organizationId, mapId, displayOrder])
+  /// Group walks recurse on `parent_id` — without this the recursive CTE
+  /// seq-scans once per level.
+  @@index([parentId])
+  @@map("visual_regions")
+}
+
+/// What the clinician found, on which region, at which visit.
+///
+/// ⚠️ ORG + BRANCH SCOPED AND PHI, LIKE THE EIGHT CE-4 TABLES AND FOR THE SAME
+///   REASONS. It carries its own `organization_id` AND `branch_id` rather than
+///   inheriting the org half through its encounter: a child of a branch-scoped
+///   parent that inherits only the org half is the hole
+///   `appointment_status_history` had to restate by hand.
+///
+/// ⚠️ A FINDING IS NOT A DIAGNOSIS. "Caries" is what the dentist SEES on tooth
+///   36; "Dental caries" is what it MEANS, and `diagnosis_id` is the optional
+///   link between them. Collapsing the two would make the chart claim a
+///   diagnosis nobody has committed to yet.
+///
+/// ⚠️ `section_key` IS HERE BECAUSE `VISUAL_MAPPING` IS REPEATABLE. An ENT
+///   consultation charts a left ear and a right ear; each is its own section of
+///   the same template, and a finding that did not say which section it belongs
+///   to would render on both.
+model ClinicalFinding {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  encounterId    String @map("encounter_id") @db.Uuid
+  /// The `TemplateSection.key` of the VISUAL_MAPPING section this was drawn on.
+  sectionKey     String @map("section_key") @db.VarChar(64)
+
+  /// Where on the map. A plain FK — a platform region has no organization_id to
+  /// compose with — so it needs a RESTRICTIVE `region_visible` policy.
+  visualRegionId String  @map("visual_region_id") @db.Uuid
+  /// What was found: a `FINDING_TYPE` word. ⚠️ NOT NULL, unlike a symptom's or a
+  /// diagnosis's item — a mark on a chart with no name is a mark nobody can read
+  /// back, and there is no free-text half to fall back on because the region
+  /// already says WHERE.
+  findingItemId  String  @map("finding_item_id") @db.Uuid
+  /// What it was taken to mean, if the consultation committed to one.
+  ///
+  /// ⚠️ Restrict, AND SetNull IS NOT AVAILABLE — the composite includes
+  ///   `organization_id`, which is NOT NULL, so Postgres cannot null the pair.
+  ///   The service unlinks the findings before deleting the diagnosis, exactly
+  ///   as it already does for procedures.
+  diagnosisId    String? @map("diagnosis_id") @db.Uuid
+
+  severity     ClinicalSeverity?
+  /// ⚠️ PHI.
+  notes        String?           @db.Text
+  /// Per-finding qualifiers a map wants and no column should own — which
+  /// surfaces of a tooth, which grade of mobility. ⚠️ A DOCUMENT, NOT IDS.
+  metadata     Json?             @db.JsonB
+  displayOrder Int               @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch              @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter           @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Cascade)
+  region       VisualRegion        @relation(fields: [visualRegionId], references: [id], onDelete: Restrict)
+  item         ClinicalMasterItem  @relation("FindingItem", fields: [findingItemId], references: [id], onDelete: Restrict)
+  diagnosis    EncounterDiagnosis? @relation(fields: [organizationId, diagnosisId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+
+  /// The same word twice on the same region of the same chart is a double
+  /// click, not a second finding.
+  @@unique([organizationId, encounterId, sectionKey, visualRegionId, findingItemId])
+  @@index([organizationId, encounterId, displayOrder])
+  @@index([organizationId, visualRegionId])
+  @@map("clinical_findings")
 }

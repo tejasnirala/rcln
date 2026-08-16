@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/procurement.prisma:686`.
 | --- | --- |
 | table | `purchase_order_lines` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `visible` policy |
+| RLS | `branch` policy |
 | columns | 21 |
 | relations | 7 |
 

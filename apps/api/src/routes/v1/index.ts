@@ -7,6 +7,7 @@ import branchRoutes from './branches.routes.js';
 import clinicalTaxonomyRoutes from './clinical-taxonomy.routes.js';
 import clinicalRoutes from './clinical.routes.js';
 import consultationTemplateRoutes from './consultation-templates.routes.js';
+import visualMapRoutes from './visual-maps.routes.js';
 import encounterRoutes from './encounters.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
@@ -104,6 +105,18 @@ router.use('/', clinicalRoutes);
  *   behind `clinical.encounter.read`, which they already hold.
  */
 router.use('/consultation-templates', consultationTemplateRoutes);
+
+/*
+ * The charts a consultation draws ON (CE-6). Same posture as the templates
+ * above and for the same reason: a map names no patient, and nobody needs the
+ * map list except the person configuring one — a doctor gets the chart already
+ * resolved onto the consultation.
+ *
+ * ⚠️ AND ITS OWN CODE RATHER THAN `clinical.template.manage`. A template says
+ *   WHICH chart appears; this says what the chart IS, and a clinic may
+ *   reasonably separate the two.
+ */
+router.use('/visual-maps', visualMapRoutes);
 
 /*
  * The consultation ITSELF (CE-3) — what the doctor recorded, not what the form

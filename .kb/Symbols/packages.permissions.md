@@ -18,7 +18,7 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 | `effectivePermissions` | `(ctx: AccessContext, now): PermissionCode[]` | `packages/permissions/src/resolver.ts:101` |  |
 | `isActive` <sub>local</sub> | `(a: RoleAssignment, now: Date): boolean` | `packages/permissions/src/resolver.ts:55` |  |
 | `maintainsPlatformLaw` <sub>local</sub> | `(p: PermissionCode): boolean` | `packages/permissions/src/roles.ts:110` |  |
-| `moduleOf` | `(code: PermissionCode): string` | `packages/permissions/src/codes.ts:608` | Split `pharmacy.dispense.create` into its module for grouping in the UI. |
+| `moduleOf` | `(code: PermissionCode): string` | `packages/permissions/src/codes.ts:627` | Split `pharmacy.dispense.create` into its module for grouping in the UI. |
 | `scopeApplies` <sub>local</sub> | `(assignmentBranchId: string \| null, targetBranchId: string \| null): boolean` | `packages/permissions/src/resolver.ts:47` |  |
 | `signsOffRulePacks` <sub>local</sub> | `(p: PermissionCode): boolean` | `packages/permissions/src/roles.ts:90` |  |
 
@@ -26,7 +26,7 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ALL_PERMISSIONS` | `Object.values(PERMISSIONS) as PermissionCode[]` | `packages/permissions/src/codes.ts:605` |  |
+| `ALL_PERMISSIONS` | `Object.values(PERMISSIONS) as PermissionCode[]` | `packages/permissions/src/codes.ts:624` |  |
 | `CLINICAL_AUTHORING` <sub>local</sub> | `: PermissionCode[]` | `packages/permissions/src/roles.ts:57` |  |
 | `MODULES` | `[ 'platform', 'organization', 'branch', 'iam', 'doctor', 'patient', 'appointment', 'clini…` | `packages/permissions/src/codes.ts:10` |  |
 | `P` <sub>local</sub> | `PERMISSIONS` | `packages/permissions/src/roles.ts:35` |  |
@@ -56,6 +56,6 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 | --- | --- | --- | --- |
 | `Module` | `(typeof MODULES)[number]` | `packages/permissions/src/codes.ts:30` |  |
 | `OverrideEffect` | `'GRANT' \| 'DENY'` | `packages/permissions/src/resolver.ts:18` |  |
-| `PermissionCode` | `(typeof PERMISSIONS)[keyof typeof PERMISSIONS]` | `packages/permissions/src/codes.ts:603` |  |
+| `PermissionCode` | `(typeof PERMISSIONS)[keyof typeof PERMISSIONS]` | `packages/permissions/src/codes.ts:622` |  |
 | `RoleScopeLevel` | `'PLATFORM' \| 'ORGANIZATION' \| 'BRANCH'` | `packages/permissions/src/roles.ts:25` |  |
 | `SystemRoleCode` | `(typeof SYSTEM_ROLES)[keyof typeof SYSTEM_ROLES]` | `packages/permissions/src/roles.ts:23` |  |

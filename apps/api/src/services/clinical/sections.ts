@@ -19,9 +19,19 @@
  * Nothing here runs. It exists entirely to be compiled.
  */
 import type { ConsultationSectionType } from '@rcln/clinical';
+import type { ClinicalSeverityValue, FindingSeverityValue } from '@rcln/contracts';
 import type { ConsultationSectionType as DbConsultationSectionType } from '@rcln/db';
 
 type Assert<T extends true> = T;
 type Equal<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 export type SectionTypesAgree = Assert<Equal<ConsultationSectionType, DbConsultationSectionType>>;
+
+/**
+ * ⚠️ AND THE SAME TRAP, ONE TABLE OVER (CE-6). `findingSeverity` in
+ *   `visual-mapping.ts` restates `clinicalSeverity` rather than importing it,
+ *   because `encounter-content.ts` imports the finding shapes and a Zod module
+ *   cycle fails at RUNTIME. Restating is the right call and the drift it
+ *   invites is the wrong outcome, so the two lists are asserted equal here.
+ */
+export type FindingSeverityAgrees = Assert<Equal<ClinicalSeverityValue, FindingSeverityValue>>;

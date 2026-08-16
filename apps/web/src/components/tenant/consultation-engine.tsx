@@ -23,6 +23,7 @@ import {
   ReferralSection,
   SymptomsSection,
 } from '@/components/tenant/consultation-content';
+import { VisualMappingSection } from '@/components/tenant/visual-mapping';
 import {
   addContentRow,
   amendConsultation,
@@ -129,16 +130,14 @@ const ONSETS = [
  *   space assumes the configuration is broken; a line saying what the section is
  *   and when it arrives is the honest answer.
  *
- * ⚠️ CE-4 EMPTIED THIS OF EVERYTHING BUT ONE ENTRY, AND THAT IS HOW IT SHRINKS.
- *   The nine clinical content sections now have real editors over real tables.
- *   VISUAL_MAPPING is the last one left: `visual_maps` and `clinical_findings`
- *   land in CE-6, and until then a template that configured a chart has nothing
- *   to draw. Deleting an entry as each component lands is the intended
- *   mechanism, not a chore.
+ * ⚠️ CE-6 EMPTIED IT. Every member of `ConsultationSectionType` now has a real
+ *   component over a real table — `VISUAL_MAPPING` was the last entry, and
+ *   `clinical_findings` is what closed it. The table stays because deleting an
+ *   entry as each component lands is the intended mechanism, and because the
+ *   fallback below is what a section type added to the engine and forgotten here
+ *   should render: a sentence, rather than a blank space that reads as broken.
  */
-const PENDING_SECTIONS: Record<string, string> = {
-  VISUAL_MAPPING: 'The chart arrives with the visual mapping engine.',
-};
+const PENDING_SECTIONS: Record<string, string> = {};
 
 export function ConsultationEngine({
   slug,
@@ -579,6 +578,21 @@ function SectionBody({
     };
 
     switch (section.type) {
+      /*
+       * ⚠️ THE ONLY SECTION THAT NEEDS ITS OWN KEY (CE-6). VISUAL_MAPPING
+       *   repeats — an ENT consultation charts a left ear and a right ear — so a
+       *   finding hangs off the SECTION rather than off the encounter alone, and
+       *   two charts on one template would otherwise show each other's marks.
+       */
+      case 'VISUAL_MAPPING':
+        return (
+          <VisualMappingSection
+            {...shared}
+            sectionKey={section.key}
+            {...(section.map !== undefined ? { map: section.map } : {})}
+            {...(section.mapCode !== undefined ? { mapCode: section.mapCode } : {})}
+          />
+        );
       case 'SYMPTOMS':
         return <SymptomsSection {...shared} />;
       case 'DIAGNOSIS':

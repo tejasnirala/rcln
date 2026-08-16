@@ -4,7 +4,14 @@
 
 > DATA ONLY — the reference clinical vocabulary.
 
-Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/specialties.ts`
+Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/specialties.ts` · `packages/db/prisma/seed/data/visual-maps.ts`
+
+## fn
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `arch` <sub>local</sub> | `(rightQuadrant: number, leftQuadrant: number, y: number): VisualRegionSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:81` |  |
+| `toothAt` <sub>local</sub> | `(column: number, y: number): Record<string, unknown>` | `packages/db/prisma/seed/data/visual-maps.ts:67` | `column` runs 0…15 left to right across the page. |
 
 ## const
 
@@ -19,12 +26,21 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `IN_PACK_EFFECTIVE_FROM` | `'2026-08-13'` | `packages/db/prisma/seed/data/regulatory-in.ts:79` |  |
 | `IN_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:292` |  |
 | `IN_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:133` |  |
+| `LOWER_Y` <sub>local</sub> | `150` | `packages/db/prisma/seed/data/visual-maps.ts:64` |  |
+| `MARGIN_X` <sub>local</sub> | `8` | `packages/db/prisma/seed/data/visual-maps.ts:61` |  |
+| `MIDLINE_GAP` <sub>local</sub> | `12` | `packages/db/prisma/seed/data/visual-maps.ts:62` |  |
+| `QUADRANTS` <sub>local</sub> | `: VisualRegionSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:113` |  |
 | `QUALIFICATIONS` | `: { code: string; name: string }[]` | `packages/db/prisma/seed/data/qualifications.ts:34` |  |
 | `SPECIALTIES` | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed/data/specialties.ts:57` |  |
 | `STORAGE_PROFILES` | `: SeedStorageProfile[]` | `packages/db/prisma/seed/data/product-masters.ts:213` |  |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-in.ts:205` | Every transaction in which a product reaches a patient, whatever the channel. |
+| `TOOTH_HEIGHT` <sub>local</sub> | `60` | `packages/db/prisma/seed/data/visual-maps.ts:59` |  |
+| `TOOTH_PITCH` <sub>local</sub> | `38` | `packages/db/prisma/seed/data/visual-maps.ts:60` |  |
+| `TOOTH_WIDTH` <sub>local</sub> | `34` | `packages/db/prisma/seed/data/visual-maps.ts:58` | Tooth box: 34 wide, 38 apart, with 12 more across the midline. |
 | `UNIT_CONVERSIONS` | `: SeedConversion[]` | `packages/db/prisma/seed/data/product-masters.ts:118` |  |
 | `UNITS` | `: SeedUnit[]` | `packages/db/prisma/seed/data/product-masters.ts:40` |  |
+| `UPPER_Y` <sub>local</sub> | `40` | `packages/db/prisma/seed/data/visual-maps.ts:63` |  |
+| `VISUAL_MAPS` | `: VisualMapSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:120` |  |
 
 ## var
 
@@ -47,3 +63,5 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `SeedStorageProfile` | `{ code, name, minTemperatureC, maxTemperatureC, minHumidityPct, maxHumidityPct, lightSensitivity, requiresControlledAccess, hazardClass, handlingNotes }` | `packages/db/prisma/seed/data/product-masters.ts:192` |  |
 | `SeedUnit` | `{ code, name, symbol, unitClass, isBase }` | `packages/db/prisma/seed/data/product-masters.ts:23` |  |
 | `SourceSeed` | `{ key, authorityCode, title, documentReference, sourceUrl, version, publishedOn, reviewStatus, notes }` | `packages/db/prisma/seed/data/regulatory-in.ts:81` |  |
+| `VisualMapSeed` | `{ code, name, description, careContextCode, specialtyCode, viewBox, regions }` | `packages/db/prisma/seed/data/visual-maps.ts:46` |  |
+| `VisualRegionSeed` | `{ code, label, parentCode, metadata }` | `packages/db/prisma/seed/data/visual-maps.ts:38` |  |

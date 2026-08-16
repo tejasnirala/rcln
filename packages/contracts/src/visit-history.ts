@@ -66,6 +66,8 @@ export const encounterVisitSummary = z.object({
   procedureCount: z.number().int(),
   referralCount: z.number().int(),
   attachmentCount: z.number().int(),
+  /** How many marks were made on a chart at this visit (CE-6). */
+  findingCount: z.number().int(),
   /** The record this one corrects, and the record that corrected this one. */
   amendsEncounterId: uuid.nullable(),
   amendedAt: z.iso.datetime().nullable(),

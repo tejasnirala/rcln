@@ -114,6 +114,9 @@ const ENCOUNTER_SUMMARY_SELECT = {
       procedures: true,
       referrals: true,
       attachments: true,
+      /* What was drawn on a chart at this visit (CE-6). A count, not the
+         findings: a timeline row has space for a number. */
+      findings: true,
     },
   },
 } satisfies Prisma.EncounterSelect;
@@ -152,6 +155,7 @@ function toEncounterSummary(row: EncounterSummaryRow): EncounterVisitSummary {
     procedureCount: row._count.procedures,
     referralCount: row._count.referrals,
     attachmentCount: row._count.attachments,
+    findingCount: row._count.findings,
     amendsEncounterId: row.amendsEncounterId,
     amendedAt: row.amendedAt?.toISOString() ?? null,
     followUpDueOn: recommendation === undefined ? null : dueOn(recommendation),

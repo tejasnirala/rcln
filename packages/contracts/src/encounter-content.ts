@@ -40,6 +40,13 @@ import { decimalString } from './products.js';
  *   compiler catches — and, worse, would let the two drift.
  */
 import { followUpIntervalUnit, followUpType } from './clinical.js';
+/*
+ * ⚠️ ONE-WAY, AND `visual-mapping.ts` MAY NEVER IMPORT BACK. It restates
+ *   `clinicalSeverity` as `findingSeverity` rather than importing this file for
+ *   exactly that reason, and the two are asserted equal by a type-level check
+ *   in `services/clinical/sections.ts`.
+ */
+import { clinicalFinding, findingRegionRef } from './visual-mapping.js';
 
 // ---------------------------------------------------------------------------
 // The enums, mirroring the Postgres types
@@ -269,6 +276,8 @@ export const createEncounterProcedureRequest = z.object({
   itemId: uuid,
   /** What it treats. Optional — not every procedure answers a diagnosis. */
   diagnosisId: uuid.nullish(),
+  /** Where on the chart it was done (CE-6). Most procedures are nowhere. */
+  visualRegionId: uuid.nullish(),
   /** ⚠️ A DATE, not an instant: "when was this done" is a calendar question. */
   performedOn: calendarDate.nullish(),
   status: encounterProcedureStatus.optional(),
@@ -279,6 +288,7 @@ export type CreateEncounterProcedureRequest = z.infer<typeof createEncounterProc
 
 export const updateEncounterProcedureRequest = z.object({
   diagnosisId: uuid.nullish(),
+  visualRegionId: uuid.nullish(),
   performedOn: calendarDate.nullish(),
   status: encounterProcedureStatus.optional(),
   notes: z.string().trim().max(4000).nullish(),
@@ -290,6 +300,14 @@ export const encounterProcedure = z.object({
   id: uuid,
   item: clinicalTermRef.nullable(),
   diagnosisId: uuid.nullable(),
+  /**
+   * WHERE it was done — the tooth, the quadrant, the scalp zone (CE-6).
+   *
+   * ⚠️ THE REGION AND NOT JUST ITS ID, because the procedure list renders "Root
+   *   canal — 36" and a second lookup per row to turn an id into a tooth number
+   *   is a query the chart already answered.
+   */
+  region: findingRegionRef.nullable(),
   performedOn: calendarDate.nullable(),
   status: encounterProcedureStatus,
   notes: z.string().nullable(),
@@ -753,6 +771,16 @@ export const encounterContent = z.object({
   advice: z.array(encounterAdvice),
   referrals: z.array(encounterReferral),
   attachments: z.array(encounterAttachment),
+  /**
+   * What was found on a chart (CE-6). ⚠️ PHI.
+   *
+   * ⚠️ ONE FLAT LIST ACROSS EVERY VISUAL_MAPPING SECTION, NOT A LIST PER MAP.
+   *   The section type is repeatable — a left ear and a right ear are two
+   *   sections of one template — so each finding carries its own `sectionKey`
+   *   and the screen filters. A nested shape would make the wire format depend
+   *   on the template, which is the one thing a contract may not do.
+   */
+  findings: z.array(clinicalFinding),
   /** At most one. `null` means the doctor has not said either way yet. */
   followUp: followUpRecommendation.nullable(),
 });

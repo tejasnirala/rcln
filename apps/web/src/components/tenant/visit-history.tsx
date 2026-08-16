@@ -289,6 +289,9 @@ function countsFor(encounter: NonNullable<VisitHistoryVisit['encounter']>): stri
     [encounter.procedureCount, 'procedure', 'procedures'],
     [encounter.referralCount, 'referral', 'referrals'],
     [encounter.attachmentCount, 'attachment', 'attachments'],
+    /* What was marked on a chart (CE-6). Last, because it is the one a reader
+       skims past unless there IS one. */
+    [encounter.findingCount, 'finding', 'findings'],
   ];
   return pairs
     .filter(([count]) => count > 0)

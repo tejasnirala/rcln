@@ -28,7 +28,7 @@ Stores, retrieves and RENDERS every document the platform holds. One provider in
 | model | RLS |
 | --- | --- |
 | [`StoredFile`](../Database/StoredFile.md) | explicit |
-| [`InvoiceDocument`](../Database/InvoiceDocument.md) | branch |
+| [`InvoiceDocument`](../Database/InvoiceDocument.md) | — |
 
 ## Source files
 

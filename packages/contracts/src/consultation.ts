@@ -24,6 +24,8 @@
  *   problem into a 400. Nothing else in the product reads the raw document.
  */
 import { z } from 'zod';
+/* ⚠️ ONE-WAY. `visual-mapping.ts` imports nothing from here. */
+import { visualMapDetail } from './visual-mapping.js';
 import { uuid } from './common.js';
 
 /**
@@ -220,8 +222,22 @@ export const consultationSectionConfig = z.object({
    *   makes the vocabulary worse.
    */
   scopeIds: z.array(uuid),
-  /** VISUAL_MAPPING only. The map is drawn in CE-6; this is its code. */
+  /** VISUAL_MAPPING only. The code of the chart this section draws (CD-6). */
   mapCode: z.string().optional(),
+  /**
+   * VISUAL_MAPPING only — the chart itself, already resolved from `mapCode`
+   * (CE-6).
+   *
+   * ⚠️ RESOLVED HERE FOR THE REASON `scopeIds` IS: the browser decides nothing
+   *   (§33), and a screen that had to fetch a map by code would be a second
+   *   round trip and a second place that knows how a code becomes a picture.
+   *
+   * ⚠️ ABSENT WHEN THE CODE MATCHES NO MAP, AND THAT IS NOT AN ERROR HERE. A
+   *   template citing a map the clinic later deactivated must still open — the
+   *   section says so on screen rather than refusing the whole consultation.
+   *   Finalization is where a required chart with nothing on it is refused.
+   */
+  map: visualMapDetail.optional(),
 });
 export type ConsultationSectionConfig = z.infer<typeof consultationSectionConfig>;
 

@@ -217,6 +217,12 @@ model Organization {
   encounterAdvice              EncounterAdvice[]
   encounterReferrals           EncounterReferral[]
   encounterAttachments         EncounterAttachment[]
+  // Visual mapping (CE-6). The two map tables are platform-extensible — a chart
+  // is a picture of a body, not a fact about a clinic — and the findings are
+  // PHI in the same class as the eight tables above.
+  visualMaps                   VisualMap[]
+  visualRegions                VisualRegion[]
+  clinicalFindings             ClinicalFinding[]
   lastForPlatformAdmins        User[]                            @relation("PlatformAdminLastOrganization")
 
   @@unique([id, slug])
@@ -365,6 +371,9 @@ model Branch {
   encounterAdvice         EncounterAdvice[]
   encounterReferrals      EncounterReferral[]
   encounterAttachments    EncounterAttachment[]
+  /// What was found on a chart here (CE-6). Carries its own `branch_id` for the
+  /// reason the eight above do.
+  clinicalFindings        ClinicalFinding[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

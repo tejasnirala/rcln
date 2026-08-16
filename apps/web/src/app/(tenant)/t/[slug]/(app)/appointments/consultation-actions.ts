@@ -246,14 +246,14 @@ export async function searchClinicalTerms(
  * ⚠️ AND THE RESPONSE IS THE WHOLE CONTENT RATHER THAN THE ROW THAT CHANGED,
  *   because one of these writes legitimately changes a row in a DIFFERENT list:
  *   removing a diagnosis unlinks every procedure citing it. A per-row response
- *   would leave the screen reconciling eight lists by hand and getting that one
+ *   would leave the screen reconciling nine lists by hand and getting that one
  *   case wrong.
  */
 
 export type ContentResult =
   { ok: true; content: EncounterContent } | { ok: false; message: string };
 
-/** The eight collections, spelled as the API paths spell them. */
+/** The nine collections, spelled as the API paths spell them. */
 export type ContentCollection =
   | 'symptoms'
   | 'diagnoses'
@@ -262,12 +262,15 @@ export type ContentCollection =
   | 'investigations'
   | 'advice'
   | 'referrals'
-  | 'attachments';
+  | 'attachments'
+  /* The chart's marks (CE-6). It joins the same three verbs because it IS the
+     same act — recording a finding is writing up the consultation (CD-7). */
+  | 'findings';
 
 /**
  * Add a row.
  *
- * ⚠️ ONE ACTION OVER A COLLECTION NAME RATHER THAN EIGHT NEAR-IDENTICAL ONES.
+ * ⚠️ ONE ACTION OVER A COLLECTION NAME RATHER THAN NINE NEAR-IDENTICAL ONES.
  *   The collection is a closed union the compiler checks, and the body is
  *   whatever that collection's contract accepts — the API validates it, which
  *   is where a request is validated in this codebase. Eight copies of this

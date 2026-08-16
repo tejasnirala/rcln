@@ -79,8 +79,14 @@ export interface ContentSectionProps {
 // Shared furniture
 // ---------------------------------------------------------------------------
 
-/** One recorded row: what it says, the controls that qualify it, and a remove. */
-function Row({
+/**
+ * One recorded row: what it says, the controls that qualify it, and a remove.
+ *
+ * ⚠️ EXPORTED FOR THE CHART (CE-6), WHICH IS A TENTH SECTION OVER THE SAME
+ *   SHAPE. A second copy of these five controls in `visual-mapping.tsx` would
+ *   be five places for a finding's row to stop looking like a diagnosis's.
+ */
+export function Row({
   title,
   subtitle,
   onRemove,
@@ -121,7 +127,7 @@ function Row({
  *   no diagnosis was recorded, which is a clinical fact, rather than wonder
  *   whether the screen failed to load one.
  */
-function Empty({ what }: { what: string }) {
+export function Empty({ what }: { what: string }) {
   return <p className="text-muted text-[0.9375rem]">Nothing {what} recorded.</p>;
 }
 
@@ -139,7 +145,7 @@ function Empty({ what }: { what: string }) {
  *   the list ends up showing the results for a prefix of what is in the box —
  *   the bug `ServerSelect` in `field-renderer.tsx` records.
  */
-function TermPicker({
+export function TermPicker({
   label,
   hint,
   placeholder,
@@ -266,7 +272,7 @@ function useCommitOnBlur<T>(initial: T, commit: (value: T) => void) {
 }
 
 /** A short text box on a recorded row. */
-function RowText({
+export function RowText({
   label,
   value,
   disabled,
@@ -304,7 +310,7 @@ function RowText({
 }
 
 /** A dropdown on a recorded row. Commits immediately — a pick IS the decision. */
-function RowSelect({
+export function RowSelect({
   label,
   value,
   options,

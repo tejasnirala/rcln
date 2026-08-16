@@ -309,3 +309,68 @@ was one CE-3 test that had never stated a follow-up plan.
 
 **Remaining.** CE-5…CE-8. The recall list has an endpoint and no screen, and the
 follow-up booking form still does not exist in `apps/web` at all.
+
+---
+
+## CE-6 — the visual mapping engine and `HUMAN_DENTAL`
+
+**Branch:** `feat/consultation-engine` · **Validation ran once, at the end**, in
+CLAUDE.md's order: everything written, then lint + format, then typecheck only,
+then the tests. Nothing has been opened in a browser.
+
+**Shipped.** Three tables — `visual_maps` and `visual_regions`
+(platform-extensible, no PHI) and `clinical_findings` (org + branch scoped, PHI)
+— plus the `encounter_procedures.visual_region_id` column CE-4 deferred until
+the table it points at existed. One migration; `VisualMapRenderer` is a NEW type,
+so CD-9's enum trap does not apply. `db:rls:check` green at **111** (was 108).
+
+`regions.ts` in `@rcln/clinical` is the geometry grammar (CD-17): **117 unit
+tests**, up from 92. `visual-map.service.ts` is the admin surface behind
+`clinical.visual_map.manage`; findings are the ninth collection on the CE-4
+route table, behind `clinical.encounter.create`, because drawing on a chart IS
+writing up the consultation (CD-7). The seed ships the 32-tooth FDI odontogram
+with its four quadrants. `VisualMapChart` in `apps/web` is one generic renderer
+with no tooth in it, and `PENDING_SECTIONS` is now empty — every member of
+`ConsultationSectionType` has a component over a real table.
+
+**25 integration tests + 14 isolation tests.**
+
+### What this phase actually learned
+
+⚠️ **`VISUAL_MAPPING` WAS SILENTLY SIGNABLE, AND CLOSING IT WAS THE POINT OF THE
+PHASE.** `countFor` had a `default: return 1` — "there is something there" —
+because the section was required-able with no table behind it. A template that
+required a chart could be finalized with nothing drawn on it, and nothing said
+so. `countFor` is now exhaustive over `ConsultationSectionType` with no
+permissive default, so a section type added to the engine and forgotten here is a
+type error rather than a signable blank.
+
+⚠️ **A COMPOSITE RELATION IS INVISIBLE TO PRISMA'S `_count` ON A PLATFORM ROW.**
+`visual_regions.map` joins on `(organization_id, map_id)`, and on a platform row
+both sides are NULL — so the count Prisma writes is `NULL = NULL`, which is never
+true. The odontogram reported **0 regions** to every clinic while its detail page
+listed all 36. Counted by `map_id` alone instead. This is the CE-2 trap in its
+third disguise; `master.service.ts` already loads its codings the same way.
+
+⚠️ **`prisma migrate dev` WANTED TO DROP NOT NULL FROM TWO CE-4 COLUMNS.**
+`encounter_procedures.item_id` and `encounter_investigations.item_id` are NOT
+NULL because CE-4's migration said so; Prisma believes them nullable only because
+a required relation may not include a nullable scalar. Both generated lines were
+deleted by hand. Left in, they would have quietly made a free-text procedure
+representable — the exact decision SCHEMA.md records CE-4 taking.
+
+⚠️ **THE PI-5 LESSON HAS A NEW SHAPE HERE, AND IT IS THE ABSENT/EMPTY PAIR
+AGAIN.** Geometry that is ABSENT means "this region groups and is not drawn" — a
+quadrant is a real region with eight children and no shape. Geometry that is
+PRESENT and empty is a REJECTED row, because `{}` is what a half-written import
+produces and reading it as "no geometry" drops a tooth off a chart with no
+message anywhere. Both are unit-tested and both are integration-tested.
+
+⚠️ **A NEW WORKSPACE DEPENDENCY: `apps/web` NOW USES `@rcln/clinical`.** Called
+out because CLAUDE.md requires it. The alternative was a second geometry parser
+in the browser, which is precisely the "two grammars that drift" failure the
+package exists to prevent — and the web already imports the engine's TYPES
+through `@rcln/contracts`, so this is the same boundary, honestly drawn.
+
+**Remaining.** CE-7 and CE-8. The chart editor edits geometry as JSON; no
+template ships with a chart on it; `IMAGE_MAP` has an enum member and no map.

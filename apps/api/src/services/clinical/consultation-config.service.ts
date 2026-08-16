@@ -41,6 +41,7 @@
  */
 import { withTenant, type TenantContext, type TxClient } from '@rcln/db';
 import {
+  mapCodesOf,
   resolveTemplate,
   visibleSections,
   type FieldDescriptor,
@@ -54,6 +55,7 @@ import type {
 } from '@rcln/contracts';
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
 import { parseStoredDefinition } from './definition.js';
+import { mapsForCodes } from './visual-map.service.js';
 
 /**
  * Which care-context ROOT a subject belongs under.
@@ -233,17 +235,35 @@ export async function sectionConfigs(
     ...new Set(codes.flatMap((code) => idsByCode.get(code) ?? [])),
   ];
 
-  return visibleSections(definition.sections).map((section) => ({
-    type: section.type,
-    key: section.key,
-    label: section.label,
-    order: section.order,
-    required: section.required,
-    ...(section.fields !== undefined ? { fields: section.fields.map(toFieldConfig) } : {}),
-    /* The section's own scopes if it names any, otherwise the template's. */
-    scopeIds: idsFor(section.scopes ?? definition.scopes),
-    ...(section.mapCode !== undefined ? { mapCode: section.mapCode } : {}),
-  }));
+  /*
+   * ⚠️ THE CHARTS ARE RESOLVED HERE FOR THE SAME REASON THE SCOPES ARE (CE-6).
+   *   A definition names a map by CODE and never by id (CD-6), and the browser
+   *   decides nothing (§33) — so the code becomes a picture on the server, once,
+   *   rather than in a second round trip from a screen that would then have to
+   *   know how.
+   *
+   * ⚠️ AND A CODE THAT MATCHES NO ACTIVE MAP RESOLVES TO NOTHING RATHER THAN AN
+   *   ERROR. A template citing a chart the clinic later deactivated must still
+   *   open with a patient in the chair; the section says so on screen, and
+   *   finalization is where a REQUIRED chart with nothing on it is refused.
+   */
+  const maps = await mapsForCodes(tx, mapCodesOf(definition));
+
+  return visibleSections(definition.sections).map((section) => {
+    const map = section.mapCode === undefined ? undefined : maps.get(section.mapCode);
+    return {
+      type: section.type,
+      key: section.key,
+      label: section.label,
+      order: section.order,
+      required: section.required,
+      ...(section.fields !== undefined ? { fields: section.fields.map(toFieldConfig) } : {}),
+      /* The section's own scopes if it names any, otherwise the template's. */
+      scopeIds: idsFor(section.scopes ?? definition.scopes),
+      ...(section.mapCode !== undefined ? { mapCode: section.mapCode } : {}),
+      ...(map !== undefined ? { map } : {}),
+    };
+  });
 }
 
 /** Who is being seen, and by whom. Everything resolution needs and no more. */

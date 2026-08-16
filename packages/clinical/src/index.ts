@@ -25,3 +25,4 @@ export * from './descriptors.js';
 export * from './definition.js';
 export * from './resolve.js';
 export * from './validate.js';
+export * from './regions.js';
