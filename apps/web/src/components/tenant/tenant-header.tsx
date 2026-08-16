@@ -228,6 +228,18 @@ function clinicNav(permissions: string[]): NavLink[] {
       permission: ['clinical.template.manage'],
     },
     /*
+     * The pictures those consultations draw ON (CE-6). Its own entry rather than
+     * a panel on Consultations, because the two are held by different codes on
+     * purpose: a clinic may let somebody rearrange the sections of its dentistry
+     * form without letting them redraw the tooth numbering every record in the
+     * practice is written against.
+     */
+    {
+      href: '/visual-maps',
+      label: 'Charts',
+      permission: ['clinical.visual_map.manage'],
+    },
+    /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
      * the Clinic screen, because `settings.organization.read` is not the
      * permission that guards it: a clock format is a preference and a tax rate

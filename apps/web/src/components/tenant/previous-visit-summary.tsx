@@ -112,6 +112,33 @@ export function PreviousVisitSummary({
           </Block>
         )}
 
+        {/*
+          What was marked on a chart last time (CE-6).
+
+          ⚠️ AS WORDS AND NOT AS A PICTURE. The panel sits beside the
+          consultation being written and its job is "what did we find on 36 last
+          time" — a second odontogram here would compete with the live one for
+          the reader's eye and for the width of the column. The chart itself is
+          one click away on the record.
+        */}
+        {content.findings.length === 0 ? null : (
+          <Block label="Found on the chart">
+            <ul className="space-y-1">
+              {content.findings.map((row) => (
+                <li key={row.id} className="text-[0.9375rem]">
+                  {row.region.label} — {row.item.name}
+                  {row.severity === null ? null : (
+                    <span className="text-muted text-[0.8125rem]">
+                      {' '}
+                      · {row.severity.toLowerCase()}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Block>
+        )}
+
         {content.prescriptions.length === 0 ? null : (
           <Block label="Prescribed">
             <ul className="space-y-1">

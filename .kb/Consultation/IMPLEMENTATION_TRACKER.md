@@ -11,7 +11,7 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 | CE-3  | Encounter core + lifecycle           | ✅ complete    |
 | CE-4  | Clinical content sections            | ✅ complete    |
 | CE-5  | Visit history + episodes             | ✅ complete    |
-| CE-6  | Visual mapping engine + HUMAN_DENTAL | ⬜ not started |
+| CE-6  | Visual mapping engine + HUMAN_DENTAL | ✅ complete    |
 | CE-7  | HUMAN_SCALP/BODY + reference configs | ⬜ not started |
 | CE-8  | Hardening                            | ⬜ not started |
 
@@ -106,6 +106,52 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
       booking form, and the referral specialty + colleague pickers
 - [x] Tests — 17 integration + 5 isolation
 
+## CE-6 — done
+
+- [x] Schema — 3 models, 1 enum, plus `encounter_procedures.visual_region_id`.
+      One migration: the enum is NEW, so CD-9's trap does not apply
+- [x] RLS — `db:rls:check` green at **111** (was 108). Both map tables in the
+      platform-extensible loop with `platform_rows_immutable`; `clinical_findings`
+      in BOTH scoped loops; `region_visible` × 2, `item_visible`,
+      `specialty_visible`. Plus a CHECK on `view_box`, a CHECK pairing
+      `renderer` with `asset_key`, and a trigger refusing a cross-map parent
+- [x] Contracts — `visual-mapping.ts` (a new file: `consultation.ts` and
+      `encounter-content.ts` both import it, and a Zod cycle fails at runtime).
+      `metadata` stays `unknown` on the wire; the geometry grammar has one home
+- [x] Permissions — `clinical.visual_map.manage`. Configuring a chart is not
+      drawing on one: findings are `clinical.encounter.create` (CD-7)
+- [x] Engine — `regions.ts` in `packages/clinical` (CD-17). **117 unit tests**
+      (was 92)
+- [x] Services — `visual-map.service.ts`; findings as the ninth collection in
+      `encounter-content.service.ts`; `mapsForCodes` resolves a template's
+      `mapCode` in `sectionConfigs`; `findingCount` on the visit summary
+- [x] Routes — `/visual-maps/*`, plus `…/encounters/:id/findings` on the CE-4
+      collection table
+- [x] Seed — `HUMAN_DENTAL`: 32 FDI teeth and 4 quadrants, parsed before writing
+- [x] Web — `VisualMappingSection` + `VisualMapChart` (one generic renderer, no
+      tooth in it), `/visual-maps` admin + nav, findings on the previous-visit
+      panel and the visit history. **`PENDING_SECTIONS` is now empty**
+- [x] Tests — 25 integration + 14 isolation + 25 unit
+
+## Not done in CE-6, and deliberately
+
+- **The chart editor edits geometry as JSON.** A drag-and-drop designer is a
+  real product and is not this phase; what CE-6 owes is that a clinic CAN
+  configure a chart without a deploy, and that the engine refuses a document
+  that says nothing checkable. The preview is what makes the JSON legible.
+- **No template ships with a chart on it.** `HUMAN_DENTAL` exists and the
+  seeded GENERAL templates do not cite it — the dentistry template is CE-7's,
+  and §41 keeps the seeded data small. A clinic wires the two together today by
+  putting `mapCode` in its own template.
+- **`IMAGE_MAP` has a renderer enum member and no map.** The columns and the
+  CHECK are there; nothing ships a raster chart, and the web renderer draws
+  `SVG` only.
+- **`encounter_procedures.visual_region_id` has an API and no picker.** The
+  column, the contract and the service accept it; the procedure editor does not
+  offer a region yet. The chart is where a region is chosen, and wiring the two
+  lists together is a screen decision CE-7 is better placed to make.
+- **Nothing has been opened in a browser.** Same item CE-6 inherits from CE-5.
+
 ## Not done in CE-5, and deliberately
 
 - **The walk-in still has an API and no screen.** `POST /encounters` takes a
@@ -154,8 +200,7 @@ per-phase report lives in [CHANGELOG.md](CHANGELOG.md).
 
 - **Nothing renders a consultation yet.** The resolver answers what the screen
   should be; `ConsultationEngine` and the section components are CE-3.
-- **`mapCode` is carried and not resolved.** `visual_maps` lands in CE-6; until
-  then a VISUAL_MAPPING section validates and has nothing to draw.
+- ~~**`mapCode` is carried and not resolved.**~~ Closed by CE-6.
 - **Nothing has been opened in a browser.** Same item CE-2 inherits from CE-1.
 
 ## Not done in CE-1, and deliberately

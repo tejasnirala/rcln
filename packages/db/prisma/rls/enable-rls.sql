@@ -244,6 +244,20 @@ DECLARE
     'encounter_advice',
     'encounter_referrals',
     'encounter_attachments',
+    -- ---------------------------------------------------------------------
+    -- What was found on a chart (CE-6). IN BOTH LOOPS, for exactly the reasons
+    -- the eight tables above are.
+    --
+    -- ⚠️ IT HANGS OFF AN ENCOUNTER, SO IT INHERITS THE BRANCH HALF AND THE
+    --   CE-5 HAZARD DOES NOT RECUR. `visit-history` nests a BRANCH-scoped
+    --   child under an ORG-scoped parent and had to say so; a finding's parent
+    --   is the consultation, which belongs to the place it happened at. It
+    --   still carries its own organization_id AND branch_id rather than
+    --   inheriting either — see the note above.
+    --
+    -- ⚠️ AND IT IS PHI. "Caries on tooth 36" is a clinical statement about a
+    --   named person, answerable by primary key.
+    'clinical_findings',
     -- Patient invoicing. ALL FOUR are also in the branch_scoped array below,
     -- and the children are here rather than in the parent_scoped loop for a
     -- specific reason: that loop's predicate asks the ORGANIZATION question
@@ -516,7 +530,25 @@ DECLARE
     --   over BOTH columns — and `specialty_id` is nullable, because NULL is
     --   the care-context default.
     'consultation_templates',
-    'consultation_template_versions'
+    'consultation_template_versions',
+    -- ---------------------------------------------------------------------
+    -- The charts a clinician draws ON (CE-6). Same class and same argument as
+    -- the vocabulary: the 32 teeth of the FDI notation are the same 32 teeth
+    -- in every dental practice on the platform, so the platform ships them and
+    -- a clinic adds its own beside them. A map is a picture of a BODY, not a
+    -- fact about a clinic.
+    --
+    -- ⚠️ `visual_maps` POINTS AT `specialties` TWICE and neither pointer can be
+    --   composite-FK'd, so it needs `specialty_visible` below over BOTH
+    --   columns — exactly as `consultation_templates` does, and `specialty_id`
+    --   is nullable for the same reason.
+    --
+    -- ⚠️ `visual_regions` NEEDS NO EXTRA POLICY. Its only pointer at a
+    --   platform-extensible parent is `map_id`, and THAT one CAN be
+    --   composite-FK'd — both sides allow a NULL organization_id — so the
+    --   foreign key does the work the RESTRICTIVE policies do elsewhere.
+    'visual_maps',
+    'visual_regions'
   ];
 BEGIN
   FOREACH t IN ARRAY platform_extensible LOOP
@@ -805,6 +837,103 @@ BEGIN
   END LOOP;
 END
 $$;
+
+-- ---------------------------------------------------------------------------
+-- The chart's findings cite a WORD and a REGION, and neither can be
+-- composite-FK'd (CE-6).
+--
+-- ⚠️ WRITTEN OUT RATHER THAN ADDED TO THE LOOP ABOVE, because the column is
+--   `finding_item_id` and not `item_id`. It is named for what it holds — a
+--   FINDING_TYPE, which is not a diagnosis — and a loop over a column name is
+--   not worth renaming a column for.
+--
+-- ⚠️ AND BOTH ARE NOT NULL HERE, so neither `IS NULL OR` half ever fires. They
+--   are written anyway, in the shape every other policy in this file uses: a
+--   policy that reads differently from its neighbours is one somebody has to
+--   stop and check.
+DROP POLICY IF EXISTS item_visible ON clinical_findings;
+CREATE POLICY item_visible ON clinical_findings AS RESTRICTIVE
+  USING (finding_item_id IS NULL OR EXISTS (
+    SELECT 1 FROM clinical_master_items i
+    WHERE i.id = clinical_findings.finding_item_id
+      AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+  ))
+  WITH CHECK (finding_item_id IS NULL OR EXISTS (
+    SELECT 1 FROM clinical_master_items i
+    WHERE i.id = clinical_findings.finding_item_id
+      AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
+-- WHERE ON THE CHART. `visual_regions` is platform-extensible, so a region may
+-- have no organization_id to compose with and both pointers at it are plain
+-- FKs. Without these a clinic files a finding — or a procedure — against
+-- ANOTHER TENANT'S private region and reads its label back out of the join.
+--
+-- ⚠️ TWO TABLES, TWO POLICIES, AND ONE COLUMN IS NULLABLE. A finding is always
+--   somewhere; most procedures are nowhere on a chart at all.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS region_visible ON clinical_findings;
+CREATE POLICY region_visible ON clinical_findings AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = clinical_findings.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = clinical_findings.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS region_visible ON encounter_procedures;
+CREATE POLICY region_visible ON encounter_procedures AS RESTRICTIVE
+  USING (visual_region_id IS NULL OR EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = encounter_procedures.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ))
+  WITH CHECK (visual_region_id IS NULL OR EXISTS (
+    SELECT 1 FROM visual_regions r
+    WHERE r.id = encounter_procedures.visual_region_id
+      AND (r.organization_id IS NULL OR r.organization_id = app_current_org())
+  ));
+
+-- The map's two taxonomy pointers. Identical shape and reasoning to
+-- `specialty_visible` on `consultation_templates`, including the nullable half:
+-- NULL means the map is offered across the whole care context.
+DROP POLICY IF EXISTS specialty_visible ON visual_maps;
+CREATE POLICY specialty_visible ON visual_maps AS RESTRICTIVE
+  USING (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = visual_maps.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      visual_maps.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = visual_maps.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM specialties s
+      WHERE s.id = visual_maps.care_context_id
+        AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+    )
+    AND (
+      visual_maps.specialty_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM specialties s
+        WHERE s.id = visual_maps.specialty_id
+          AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+      )
+    )
+  );
 
 -- What was prescribed. Exactly the shape `batches` has, and named the same.
 DROP POLICY IF EXISTS product_visible ON encounter_prescriptions;
@@ -1116,6 +1245,9 @@ DECLARE
     'encounter_advice',
     'encounter_referrals',
     'encounter_attachments',
+    -- The chart's findings (CE-6). branch_id is NOT NULL and is copied from
+    -- the encounter, so this policy is absolute in the same way.
+    'clinical_findings',
     -- ⚠️ THE ONLY TABLE HERE WHOSE NULL BRANCH IS MEANINGFUL RATHER THAN
     -- TOLERATED. Everywhere else in this array branch_id is NOT NULL and the
     -- `branch_id IS NULL OR ...` predicate never fires; here NULL is how the

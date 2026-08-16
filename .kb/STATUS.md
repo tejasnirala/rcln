@@ -35,7 +35,7 @@ sources, 22 rules — read from CDSCO's own consolidated Drugs Rules, 1945 and t
 Pharmacy Act, 1948 on India Code, at maturity `AUTOMATED_TESTED`. Goods receipt
 and transfer now consult the engine while posting.
 
-**The Consultation Engine programme has also started, and CE-0 through CE-4 are
+**The Consultation Engine programme has also started, and CE-0 through CE-6 are
 done** — the clinical vocabulary, the treatment journey, the configuration layer,
 the consultation itself and now its content. `@rcln/clinical` is the tested core;
 a template resolves from an appointment by walking the doctor's classification up
@@ -45,8 +45,12 @@ signs and amends — a finalized record is immutable, and a correction is a new 
 citing it that carries a COPY of its content. And it now holds that content as
 real rows: diagnoses, prescriptions, procedures, investigations, advice,
 referrals, attachments and a follow-up plan, each with a foreign key the database
-checks. **PI-7 and PI-9 are unblocked.** What is left is the READ side — visit
-history and the recall screen (CE-5) — and the visual map (CE-6).
+checks. **PI-7 and PI-9 are unblocked.** CE-5 added the read side — visit
+history, the episode timeline, the read-only record, the previous-visit panel and
+the recall screen — and CE-6 added the chart: `visual_maps`, `visual_regions` and
+`clinical_findings`, with the 32-tooth FDI odontogram seeded and ONE generic
+renderer in `apps/web` that knows nothing about teeth. What is left is CE-7's
+reference configurations and CE-8's hardening.
 Everything about that programme lives in
 [`Consultation/`](Consultation/README.md).
 
@@ -57,8 +61,8 @@ receiving stock. Enforcement is gated on `PRODUCTION_ENABLED`, which only a name
 human may set. India's sources are `UNVERIFIED` and no qualified person has read
 the pack, so nothing here claims compliance with anything.
 
-`db:rls:check` is green at **89** protected tables and **1310 API tests pass
-across 61 suites**.
+`db:rls:check` is green at **111** protected tables and **1507 API tests pass
+across 73 suites** (1314 integration + 193 unit).
 
 **Both reviewer passes have run and been acted on** for PI-3 and PI-4. See
 § Phase 5 and `.kb/PharmacyInventory/NEXT_SESSION.md`.
@@ -1007,8 +1011,25 @@ Its own programme, with its own tracker. Full detail in
       **No new permission codes**: recording a diagnosis IS writing up the
       consultation. **PI-7 and PI-9 are unblocked** — `encounter_prescriptions`
       and `encounter_procedures` exist.
-- [ ] **CE-5…CE-8.** Visit history and the recall screen, the visual mapping
-      engine, the reference configurations, hardening.
+- [x] **CE-5 — visit history and episodes.** No schema at all: read surfaces
+      over CE-1…CE-4's tables. `GET /patients/:id/visit-history`,
+      `GET /clinical-episodes/:id`, `GET /appointments/:id/previous-visit`,
+      `GET /doctors/referral-targets`; the `/recall` screen and the follow-up
+      booking form. **No new permission codes** — two disclosure classes over one
+      journey (CD-14), and the referral lookup reuses an authoring code (CD-15).
+- [x] **CE-6 — the visual mapping engine and `HUMAN_DENTAL`.** `visual_maps` and
+      `visual_regions` (platform-extensible, no PHI) and `clinical_findings`
+      (org + branch scoped, PHI), plus the `encounter_procedures.visual_region_id`
+      column CE-4 deferred. `db:rls:check` at **111**.
+      `clinical.visual_map.manage` configures a chart; drawing on one is
+      `clinical.encounter.create`, because a finding IS writing up the
+      consultation (CD-7). **The geometry is data on the regions (CD-17)** — one
+      generic renderer in `apps/web`, no tooth in it, so CE-7's second map is a
+      seed rather than a screen. `PENDING_SECTIONS` is now empty: every section
+      type has a component over a real table.
+- [ ] **CE-7, CE-8.** The reference configurations — `HUMAN_SCALP`,
+      `HUMAN_BODY` and the dentistry and hair-and-scalp templates — then
+      hardening.
 
 ### Consultation fees and doctor compensation
 

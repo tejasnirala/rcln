@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/doctors.prisma:137`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `platform_extensible` policy |
 | columns | 13 |
-| relations | 10 |
+| relations | 12 |
 
 ## Columns
 
@@ -43,6 +43,8 @@ Declared at `packages/db/prisma/schema/doctors.prisma:137`.
 | `clinicalEpisodes` | [`ClinicalEpisode`](ClinicalEpisode.md) | `clinicalEpisodes ClinicalEpisode[]` |
 | `templateCareContexts` | [`ConsultationTemplate`](ConsultationTemplate.md) | `templateCareContexts ConsultationTemplate[] @relation("TemplateCareContext")` |
 | `templateSpecialties` | [`ConsultationTemplate`](ConsultationTemplate.md) | `templateSpecialties ConsultationTemplate[] @relation("TemplateSpecialty")` |
+| `visualMapContexts` | [`VisualMap`](VisualMap.md) | `visualMapContexts VisualMap[] @relation("VisualMapCareContext")` |
+| `visualMapSpecialties` | [`VisualMap`](VisualMap.md) | `visualMapSpecialties VisualMap[] @relation("VisualMapSpecialty")` |
 | `referrals` | [`EncounterReferral`](EncounterReferral.md) | `referrals EncounterReferral[] @relation("ReferralSpecialty")` |
 
 ## Indexes and constraints
@@ -63,5 +65,6 @@ erDiagram
     Specialty }o--o{ ProductClinicalScope : relates
     Specialty }o--o{ ClinicalEpisode : relates
     Specialty }o--o{ ConsultationTemplate : relates
+    Specialty }o--o{ VisualMap : relates
     Specialty }o--o{ EncounterReferral : relates
 ```

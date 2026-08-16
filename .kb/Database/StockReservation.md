@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:1130`.
 | --- | --- |
 | table | `stock_reservations` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `visible` policy |
+| RLS | `branch` policy |
 | columns | 18 |
 | relations | 8 |
 

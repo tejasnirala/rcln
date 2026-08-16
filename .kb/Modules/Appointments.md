@@ -99,7 +99,7 @@ Booking, and the availability engine behind it. PHI: a patient, a doctor and a r
 
 | name | kind | at |
 | --- | --- | --- |
-| `addContentRow` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:276` |
+| `addContentRow` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:279` |
 | `amendConsultation` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:158` |
 | `amendVitals` | fn | `apps/api/src/services/appointment/vitals.service.ts:438` |
 | `AppointmentActionOptions` | interface | `apps/api/src/services/appointment/appointment.service.ts:54` |
@@ -136,7 +136,7 @@ Booking, and the availability engine behind it. PHI: a patient, a doctor and a r
 | `loadAvailability` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:93` |
 | `loadConsultation` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:80` |
 | `loadDay` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:138` |
-| `loadPreviousVisit` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:394` |
+| `loadPreviousVisit` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:397` |
 | `loadVitals` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:511` |
 | `loadVitalsRevisions` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:498` |
 | `loadWorkingDays` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:123` |
@@ -155,17 +155,17 @@ Booking, and the availability engine behind it. PHI: a patient, a doctor and a r
 | `raiseAppointmentInvoice` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:758` |
 | `recordVitals` | fn | `apps/api/src/services/appointment/vitals.service.ts:216` |
 | `registerAndPick` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:222` |
-| `removeContentRow` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:311` |
+| `removeContentRow` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:314` |
 | `rescheduleAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:921` |
 | `saveConsultation` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:97` |
 | `saveVitals` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:649` |
 | `searchClinicalTerms` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:215` |
-| `searchPrescribableProducts` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:364` |
-| `searchReferralDoctors` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:439` |
-| `searchReferralSpecialties` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:413` |
-| `setFollowUp` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:335` |
+| `searchPrescribableProducts` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:367` |
+| `searchReferralDoctors` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:442` |
+| `searchReferralSpecialties` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:416` |
+| `setFollowUp` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:338` |
 | `SlotGrid` | component | `apps/web/src/components/tenant/appointment-board.tsx:1539` |
 | `transitionAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:1120` |
 | `updateAppointment` | fn | `apps/api/src/services/appointment/appointment.service.ts:1053` |
-| `updateContentRow` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:294` |
+| `updateContentRow` | fn | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:297` |
 | `VitalsState` | type | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:482` |

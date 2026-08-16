@@ -56,10 +56,10 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 
 | model | RLS |
 | --- | --- |
-| [`Invoice`](../Database/Invoice.md) | branch |
-| [`InvoiceItem`](../Database/InvoiceItem.md) | branch |
-| [`InvoiceTax`](../Database/InvoiceTax.md) | branch |
-| [`InvoiceDocument`](../Database/InvoiceDocument.md) | branch |
+| [`Invoice`](../Database/Invoice.md) | — |
+| [`InvoiceItem`](../Database/InvoiceItem.md) | — |
+| [`InvoiceTax`](../Database/InvoiceTax.md) | — |
+| [`InvoiceDocument`](../Database/InvoiceDocument.md) | — |
 
 ## Permissions
 

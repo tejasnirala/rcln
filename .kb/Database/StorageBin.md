@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:348`.
 | --- | --- |
 | table | `storage_bins` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `branch` policy |
+| RLS | `org` policy |
 | columns | 9 |
 | relations | 3 |
 

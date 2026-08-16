@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:572`.
 | --- | --- |
 | table | `stock_ledger` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `branch` policy |
+| RLS | `visible` policy |
 | columns | 24 |
 | relations | 9 |
 

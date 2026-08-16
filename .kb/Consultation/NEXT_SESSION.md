@@ -2,52 +2,50 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-15 · **By:** session CE-5 · **Branch:**
-`feat/ce-5-visit-history`
+**Written:** 2026-08-16 · **By:** session CE-6 · **Branch:**
+`feat/consultation-engine`
 
 ---
 
 ## Where we are
 
-**CE-0 through CE-5 are complete and verified.** Everything CE-1…CE-4 stores can
-now be read back: a patient's whole visit history, one journey's timeline, a
-signed consultation on its own page, and the previous visit as a panel inside
-the one being written. The recall list has a screen, the follow-up booking form
-exists and sends `fulfilsRecommendationId`, and referrals reach all three
-destinations.
+**CE-0 through CE-6 are complete and verified.** Every member of
+`ConsultationSectionType` now has a component over a real table —
+`PENDING_SECTIONS` in `consultation-engine.tsx` is an empty object. A clinician
+can mark a finding on a tooth, link it to a diagnosis, sign the record, and see
+the marks again on the previous-visit panel and counted on the visit history.
 
-**CE-5 changed no schema.** No migration, no new RLS policy; `db:rls:check` is
-green at **108**, unchanged. Validation ran once, at the end, in CLAUDE.md's
-order. Nothing has been opened in a browser.
+**CE-6 added three tables.** `db:rls:check` is green at **111** (was 108).
+Validation ran once, at the end, in CLAUDE.md's order. Nothing has been opened in
+a browser.
 
 ## The five things to know before typing
 
-1. **CE-5 ADDED NO TABLE AND STILL ADDED AN ISOLATION HAZARD.** The visit
-   history nests a BRANCH-scoped child (`encounters`) under an ORG-scoped parent
-   (`clinical_episodes`) — the only place in the codebase where "the parent is
-   visible" and "the child is visible" answer differently. A reader at B1
-   legitimately sees a journey whose consultations all happened at B2 and must
-   see none of them. `tenant-isolation/visit-history.test.ts` is that case.
-   **CE-6's `clinical_findings` hangs off an encounter, so it inherits the
-   branch half and this shape does not recur — but check it does not.**
+1. **THE ENGINE IS GENERIC AND CE-7 IS THE PHASE THAT PROVES IT.** `apps/web`
+   has ONE chart renderer, `VisualMapChart`, and there is no tooth in it — the
+   geometry is data on `visual_regions.metadata` (CD-17). `HUMAN_SCALP` and
+   `HUMAN_BODY` should therefore be **rows in `seed/data/visual-maps.ts` and
+   nothing else**. If CE-7 finds itself writing a second renderer, stop: that is
+   the failure mode this design exists to prevent, and its definition of done is
+   "no `HairConsultation.tsx` exists, and none was needed".
 
-2. **TWO DISCLOSURE CLASSES OVER ONE JOURNEY, AND TWO ENDPOINTS (CD-14).**
-   `GET /clinical-episodes/:id` is `appointment.read` and carries no diagnosis;
-   `GET /patients/:id/visit-history` is `clinical.encounter.read` and does.
-   Widening the first is how the front desk would get the chart through the
-   booking screen. **Anything CE-6 adds to a journey view has to pick a side.**
+2. **NO TEMPLATE SHIPS WITH A CHART ON IT YET.** `HUMAN_DENTAL` exists and the
+   seeded `GENERAL_HUMAN` does not cite it. CE-7's dentistry and hair-and-scalp
+   templates are what join the two, with `mapCode` in the definition — a CODE,
+   never an id (CD-6). §41 keeps the seeded data small; think before adding a
+   third map.
 
-3. **THE REFERRAL LOOKUP IS A LOOKUP, NOT A ROSTER (CD-15).**
-   `GET /doctors/referral-targets` sits behind `clinical.encounter.create`
-   because `search` is REQUIRED with a two-character minimum — there is no form
-   of it that answers "who works here". A DOCTOR still does not hold
-   `doctor.directory.read`. **Do not add a list-all mode to it.**
+3. **A COMPOSITE RELATION IS INVISIBLE TO PRISMA'S `_count` ON A PLATFORM ROW.**
+   `NULL = NULL` is never true, so a relation count over `(organization_id, …)`
+   returns 0 for every platform row. It cost CE-6 a test; `master.service.ts`
+   and `visual-map.service.ts` both count by the child column alone. **Expect
+   this again** the moment CE-7 wants "how many templates cite this map".
 
-4. **`dueOn` NOW HAS TWO IMPLEMENTATIONS AND THEY MUST CHANGE TOGETHER.** The
-   TypeScript one is exported from `encounter-content.service.ts`; its twin is
-   `DUE_DATE` in `recall.service.ts`, written as SQL because the recall list
-   FILTERS on it and cannot load every outstanding recommendation to do so. Both
-   are commented as each other's twin.
+4. **`countFor` IN `encounter.service.ts` IS NOW EXHAUSTIVE AND MUST STAY THAT
+   WAY.** It has no `default:` branch. A section type added to
+   `ConsultationSectionType` without a case here is a TYPE ERROR — which is the
+   whole point, because the permissive default it replaced made a required chart
+   signable with nothing on it.
 
 5. **`pnpm typecheck` and `pnpm test` both OOM the api container.** Run per
    package, or per batch of ~12 integration files with
@@ -56,44 +54,45 @@ order. Nothing has been opened in a browser.
    not.
 
    ⚠️ **And a fixture that finalizes an encounter must fill in what the seeded
-   template requires** — a chief complaint AND a follow-up plan — or finalize
-   400s, the encounter stays a DRAFT, and every "previous visit" assertion
-   passes vacuously against a null.
+   template requires** — a chief complaint AND a follow-up plan, and now a
+   finding if the template requires a chart.
 
 ## Next task
 
-**CE-6 — the visual mapping engine and `HUMAN_DENTAL`.** The last section type
-with no editor: `PENDING_SECTIONS` in `consultation-engine.tsx` is down to
-`VISUAL_MAPPING` alone.
+**CE-7 — `HUMAN_SCALP` / `HUMAN_BODY` and the reference configurations.** The
+phase that proves the engine is generic: dentistry and hair & scalp templates,
+both maps, all four driven by configuration.
 
-What CE-5 hands it:
+What CE-6 hands it:
 
-| From CE-5                  | What CE-6 does with it                                |
-| -------------------------- | ----------------------------------------------------- |
-| `/consultations/:id`       | a finding renders on the read-only record for free    |
-| `encounterVisitSummary`    | add a finding count beside the other five             |
-| `PreviousVisitSummary`     | last visit's findings belong in the panel             |
-| the isolation file's shape | copy it for `clinical_findings`, which needs a policy |
+| From CE-6                  | What CE-7 does with it                               |
+| -------------------------- | ---------------------------------------------------- |
+| `VisualMapChart`           | draws the scalp map for free — do not write a second |
+| `seed/data/visual-maps.ts` | add two entries; the writer is already idempotent    |
+| `mapCode` on a section     | the dentistry template cites `HUMAN_DENTAL`          |
+| `/visual-maps` admin       | a clinic can already draw its own chart              |
 
 ## Do not
 
+- Do not write a second chart renderer, a `DentalChart`, or any component that
+  knows what a tooth is (§23, CD-17). If a map cannot be expressed as regions
+  with geometry, say so before writing code around it.
+- Do not put an id inside `visual_regions.metadata`. `parseRegionGeometry`
+  refuses an unknown key, so one cannot be smuggled in — keep it that way.
+- Do not read a stored `definition` without `parseStoredDefinition`, or a
+  region's geometry without `parseRegionGeometry`.
+- Do not make a broken chart refuse a consultation. A `mapCode` matching no
+  active map resolves to nothing and the section says so on screen; refusing
+  would make a configuration mistake somebody else made stop a doctor with a
+  patient in the chair. Finalization is where a REQUIRED empty chart is refused.
+- Do not add a specialty check to any component in `apps/web` (§33).
 - Do not widen `GET /clinical-episodes/:id` to carry clinical content (CD-14).
-  The desk holds `appointment.read` and that endpoint is theirs.
 - Do not add a "list every doctor" form to `/doctors/referral-targets` (CD-15).
-- Do not build a time from a `datetime-local`. `FollowUpForm` books against the
-  availability engine's slots because that control hands back a wall clock with
-  no zone, and the GiST no-overlap constraint needs an exact instant anyway.
-- Do not present the previous visit without saying how it was found (CD-16).
-  `PARENT_APPOINTMENT` is a fact; `MOST_RECENT` is a convenience.
-- Do not edit a finalized encounter, or add an endpoint that could. CE-5's read
-  surfaces are read-only because of the storage model, not because a screen
-  hides a button.
-- Do not read `definition` or `template_snapshot` without `parseStoredDefinition`.
 - Do not autosave with `revalidatePath`, and the content writers do not
   revalidate either, for the same caret reason.
-- Do not add a specialty check to any component in `apps/web` (§33).
-- Do not put master-item ids inside `encounter_sections.data` (CD-6, ADR-0006).
-- ⚠️ **`VISUAL_MAPPING` still falls through `countFor`'s default in
-  `missingRequiredContent` and returns 1.** Delete that branch when
-  `clinical_findings` lands, or a template requiring the section will finalize
-  with nothing drawn on it.
+- Do not edit a finalized encounter, or add an endpoint that could.
+- ⚠️ **Do not let `prisma migrate dev` drop NOT NULL from
+  `encounter_procedures.item_id` or `encounter_investigations.item_id`.** It
+  wants to on every run — Prisma believes them nullable because a required
+  relation may not include a nullable scalar. Delete those lines by hand from
+  any generated migration, as CE-6's did.

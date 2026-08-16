@@ -34,6 +34,7 @@ import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcl
 import {
   requiredContentSections,
   validateEncounter,
+  type ConsultationSectionType,
   type SectionAnswers,
   type TemplateDefinition,
 } from '@rcln/clinical';
@@ -657,12 +658,13 @@ export async function saveEncounterDraft(
  *   in eight tables and that package holds no Prisma client and never will
  *   (CD-10). The rule itself is stated in exactly one place — the template.
  *
- * ⚠️ AN UNRECOGNISED FIRST-CLASS SECTION IS SKIPPED RATHER THAN REFUSED, and
- *   this is the one permissive branch in the finalization path. VISUAL_MAPPING
- *   is required-able today and has no table until CE-6; refusing would make
- *   every consultation under a template that marked it required unsignable, for
- *   a feature that does not exist yet. The section still renders a line saying
- *   so, which is the honest thing for a clinician to see.
+ * ⚠️ CE-6 CLOSED THE ONE PERMISSIVE BRANCH THIS FUNCTION HAD. `VISUAL_MAPPING`
+ *   used to fall through `countFor`'s default and answer 1 — "there is
+ *   something there" — because it was required-able with no table behind it.
+ *   `clinical_findings` exists now, so it is counted like every other list, and
+ *   `countFor` is exhaustive over the section types rather than defaulting. A
+ *   template that requires a chart can no longer be signed with nothing drawn
+ *   on it.
  */
 async function missingRequiredContent(
   tx: TxClient,
@@ -694,8 +696,22 @@ async function missingRequiredContent(
   return problems;
 }
 
-/** How many rows one first-class section has. `null` = no table yet (CE-6). */
-async function countFor(tx: TxClient, type: string, encounterId: string): Promise<number> {
+/**
+ * How many rows one first-class section has.
+ *
+ * ⚠️ EXHAUSTIVE OVER `ConsultationSectionType`, WITH NO PERMISSIVE DEFAULT. The
+ *   four members that answer 1 do so because they are not lists at all —
+ *   CHIEF_COMPLAINT and CLINICAL_NOTES are columns the caller checked directly,
+ *   and HISTORY and EXAMINATION are descriptor-driven and never reach here
+ *   (`requiredContentSections` filters them out). A `default:` returning 1 would
+ *   make a section type added to the engine and forgotten here silently
+ *   signable — which is exactly what VISUAL_MAPPING was until this phase.
+ */
+async function countFor(
+  tx: TxClient,
+  type: ConsultationSectionType,
+  encounterId: string
+): Promise<number> {
   const where = { encounterId };
   switch (type) {
     case 'SYMPTOMS':
@@ -718,8 +734,14 @@ async function countFor(tx: TxClient, type: string, encounterId: string): Promis
       return tx.encounterFollowUpRecommendation.count({
         where: { encounterId, deletedAt: null },
       });
-    /* VISUAL_MAPPING — `clinical_findings` lands in CE-6. See the note above. */
-    default:
+    case 'VISUAL_MAPPING':
+      return tx.clinicalFinding.count({ where });
+    /* Not lists. See the note above — the caller checks the two columns itself,
+       and the two descriptor-driven types never arrive here. */
+    case 'CHIEF_COMPLAINT':
+    case 'CLINICAL_NOTES':
+    case 'HISTORY':
+    case 'EXAMINATION':
       return 1;
   }
 }

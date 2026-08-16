@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:913`.
 | --- | --- |
 | table | `stock_transfers` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | **MISSING — this is a tenant-isolation defect** |
+| RLS | `org` policy |
 | columns | 21 |
 | relations | 10 |
 

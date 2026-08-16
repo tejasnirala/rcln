@@ -182,6 +182,8 @@ model Specialty {
   /// template that must always resolve.
   templateCareContexts ConsultationTemplate[] @relation("TemplateCareContext")
   templateSpecialties  ConsultationTemplate[] @relation("TemplateSpecialty")
+  visualMapContexts    VisualMap[]            @relation("VisualMapCareContext")
+  visualMapSpecialties VisualMap[]            @relation("VisualMapSpecialty")
   /// "Send them to a cardiologist" (CE-4). A plain FK, so `encounter_referrals`
   /// needs `specialty_visible` — see that model.
   referrals            EncounterReferral[]    @relation("ReferralSpecialty")

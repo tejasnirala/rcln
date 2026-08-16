@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 103 |
+| relations | 106 |
 
 ## Columns
 
@@ -140,6 +140,9 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `encounterAdvice` | [`EncounterAdvice`](EncounterAdvice.md) | `encounterAdvice EncounterAdvice[]` |
 | `encounterReferrals` | [`EncounterReferral`](EncounterReferral.md) | `encounterReferrals EncounterReferral[]` |
 | `encounterAttachments` | [`EncounterAttachment`](EncounterAttachment.md) | `encounterAttachments EncounterAttachment[]` |
+| `visualMaps` | [`VisualMap`](VisualMap.md) | `visualMaps VisualMap[]` |
+| `visualRegions` | [`VisualRegion`](VisualRegion.md) | `visualRegions VisualRegion[]` |
+| `clinicalFindings` | [`ClinicalFinding`](ClinicalFinding.md) | `clinicalFindings ClinicalFinding[]` |
 | `lastForPlatformAdmins` | [`User`](User.md) | `lastForPlatformAdmins User[] @relation("PlatformAdminLastOrganization")` |
 
 ## Indexes and constraints
@@ -254,4 +257,7 @@ erDiagram
     Organization }o--o{ EncounterAdvice : relates
     Organization }o--o{ EncounterReferral : relates
     Organization }o--o{ EncounterAttachment : relates
+    Organization }o--o{ VisualMap : relates
+    Organization }o--o{ VisualRegion : relates
+    Organization }o--o{ ClinicalFinding : relates
 ```

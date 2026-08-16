@@ -4,7 +4,7 @@
 
 > Parsing a whole `consultation_template_versions.definition`.
 
-Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.ts` · `packages/clinical/src/descriptors.ts` · `packages/clinical/src/index.ts` · `packages/clinical/src/registry.ts` · `packages/clinical/src/resolve.ts` · `packages/clinical/src/types.ts` · `packages/clinical/src/validate.ts`
+Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.ts` · `packages/clinical/src/descriptors.ts` · `packages/clinical/src/index.ts` · `packages/clinical/src/regions.ts` · `packages/clinical/src/registry.ts` · `packages/clinical/src/resolve.ts` · `packages/clinical/src/types.ts` · `packages/clinical/src/validate.ts`
 
 ## fn
 
@@ -12,25 +12,37 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | --- | --- | --- | --- |
 | `asRecord` <sub>local</sub> | `(value: unknown, what: string): Parsed<Record<string, unknown>>` | `packages/clinical/src/definition.ts:45` |  |
 | `asRecord` <sub>local</sub> | `(value: unknown, what: string): Parsed<Record<string, unknown>>` | `packages/clinical/src/descriptors.ts:46` |  |
+| `asRecord` <sub>local</sub> | `(value: unknown, what: string): Parsed<Record<string, unknown>>` | `packages/clinical/src/regions.ts:40` |  |
 | `capabilityOf` | `(type: ConsultationSectionType): SectionCapability` | `packages/clinical/src/registry.ts:201` |  |
+| `drawableRegions` | `(map: VisualMapDocument): readonly MapRegion[]` | `packages/clinical/src/regions.ts:409` |  |
 | `encounterProblems` | `(definition: TemplateDefinition, answers: readonly SectionAnswers[]): readonly ValidationProblem[]` | `packages/clinical/src/validate.ts:179` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/definition.ts:37` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/descriptors.ts:42` |  |
+| `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/regions.ts:36` |  |
 | `isBlank` <sub>local</sub> | `(value: unknown): boolean` | `packages/clinical/src/validate.ts:49` |  |
 | `isSectionType` | `(value: unknown): value is ConsultationSectionType` | `packages/clinical/src/registry.ts:189` | Is this string a section type the engine has a component for? |
+| `labelAnchorOf` | `(region: MapRegion): LabelAnchor \| null` | `packages/clinical/src/regions.ts:441` |  |
 | `mapCodesOf` | `(definition: TemplateDefinition): readonly string[]` | `packages/clinical/src/definition.ts:311` | Every visual-map code the definition names, once. Resolved to rows in CE-6. |
 | `optionProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:88` |  |
+| `ordered` <sub>local</sub> | `(regions: readonly MapRegion[]): readonly MapRegion[]` | `packages/clinical/src/regions.ts:391` |  |
 | `parseFieldDescriptor` | `(input: unknown, where: string): Parsed<FieldDescriptor>` | `packages/clinical/src/descriptors.ts:232` |  |
 | `parseFieldDescriptors` | `(input: unknown, where: string): Parsed<readonly FieldDescriptor[]>` | `packages/clinical/src/descriptors.ts:353` |  |
+| `parseRegionGeometry` | `(metadata: unknown, where: string): Parsed<RegionGeometry \| null>` | `packages/clinical/src/regions.ts:252` | A region's `metadata`, as geometry. ⚠️ ABSENT IS LEGAL AND MALFORMED IS NOT. See the header — a quadrant has no shape and that is a statement; `{ "shape": {} }… |
 | `parseSection` <sub>local</sub> | `(input: unknown, index: number): Parsed<TemplateSection>` | `packages/clinical/src/definition.ts:85` |  |
+| `parseShape` <sub>local</sub> | `(source: Record<string, unknown>, where: string): Parsed<RegionShape>` | `packages/clinical/src/regions.ts:189` |  |
 | `parseTemplateDefinition` | `(input: unknown): Parsed<TemplateDefinition>` | `packages/clinical/src/definition.ts:215` |  |
+| `parseViewBox` | `(value: unknown): Parsed<ViewBox>` | `packages/clinical/src/regions.ts:172` |  |
+| `parseVisualMap` | `(input: { code: string; viewBox: unknown; regions: readonly …): Parsed<VisualMapDocument>` | `packages/clinical/src/regions.ts:330` |  |
 | `rangeProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:100` |  |
 | `readCodeList` <sub>local</sub> | `(raw: unknown, where: string, key: string): Parsed<readonly string[]>` | `packages/clinical/src/definition.ts:64` |  |
+| `readNumber` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string): Parsed<number>` | `packages/clinical/src/regions.ts:145` |  |
 | `readOptionalNumber` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string, options: { integer?: boolean; min?: number }): Parsed<number \| undefined>` | `packages/clinical/src/descriptors.ts:162` |  |
+| `readOptionalNumber` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string): Parsed<number \| undefined>` | `packages/clinical/src/regions.ts:153` |  |
 | `readOptionalString` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string, max: number): Parsed<string \| undefined>` | `packages/clinical/src/descriptors.ts:133` |  |
 | `readOptions` <sub>local</sub> | `(raw: unknown, where: string): Parsed<readonly FieldOption[]>` | `packages/clinical/src/descriptors.ts:182` |  |
 | `readRequiredBoolean` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string): Parsed<boolean>` | `packages/clinical/src/descriptors.ts:147` | ⚠️ MANDATORY, AND THE ERROR SAYS SO. See the file header — this single decision is why the package exists. |
 | `readRequiredString` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string, max: number): Parsed<string>` | `packages/clinical/src/descriptors.ts:118` |  |
+| `regionGroups` | `(map: VisualMapDocument): readonly RegionGroup[]` | `packages/clinical/src/regions.ts:420` |  |
 | `requiredContentSections` | `(definition: TemplateDefinition): readonly TemplateSection[]` | `packages/clinical/src/validate.ts:251` |  |
 | `resolveTemplate` | `(request: ResolutionRequest): Parsed<TemplateResolution>` | `packages/clinical/src/resolve.ts:105` |  |
 | `scopeCodesOf` | `(definition: TemplateDefinition): readonly string[]` | `packages/clinical/src/definition.ts:302` |  |
@@ -51,6 +63,8 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `ESSENTIAL_KEY` <sub>local</sub> | `: Readonly<Record<ConsultationFieldType, string \| null>>` | `packages/clinical/src/descriptors.ts:102` | The key a type is MEANINGLESS without. `null` = the type is complete on its own, which is a statement rather than an omission. |
 | `KEY_PATTERN` <sub>local</sub> | `/^[a-z][a-z0-9_]*$/` | `packages/clinical/src/definition.ts:41` |  |
 | `KEY_PATTERN` <sub>local</sub> | `/^[a-z][a-z0-9_]*$/` | `packages/clinical/src/descriptors.ts:59` |  |
+| `PATH_PATTERN` <sub>local</sub> | `/^[MmLlHhVvCcSsQqTtAaZz0-9,.\s+-]+$/` | `packages/clinical/src/regions.ts:143` |  |
+| `REGION_SHAPE_KINDS` | `: readonly RegionShapeKind[]` | `packages/clinical/src/regions.ts:70` |  |
 | `REGISTRY` <sub>local</sub> | `: Readonly<Record<ConsultationSectionType, SectionCapability>>` | `packages/clinical/src/registry.ts:50` |  |
 | `SECTION_KEYS` <sub>local</sub> | `: readonly string[]` | `packages/clinical/src/definition.ts:52` |  |
 | `TYPE_KEYS` <sub>local</sub> | `: Readonly<Record<ConsultationFieldType, readonly string[]>>` | `packages/clinical/src/descriptors.ts:79` |  |
@@ -66,16 +80,26 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `CircleShape` | `{ kind, cx, cy, r }` | `packages/clinical/src/regions.ts:83` |  |
 | `FieldDescriptor` | `{ key, type, label, required, hint, placeholder, options, unit, precision, min, max, maxLength, masterKind, source }` | `packages/clinical/src/types.ts:130` |  |
 | `FieldOption` | `{ value, label }` | `packages/clinical/src/types.ts:116` | One choice in a SELECT, MULTI_SELECT, RADIO_GROUP or CHECKBOX_GROUP. |
+| `LabelAnchor` | `{ x, y }` | `packages/clinical/src/regions.ts:108` | Where a region's label sits, if the map says. Defaults to the shape's centre. |
+| `MapRegion` | `{ id, code, label, parentId, displayOrder, geometry }` | `packages/clinical/src/regions.ts:120` | One region of a map, after parsing. |
+| `PathShape` | `{ kind, d }` | `packages/clinical/src/regions.ts:100` |  |
+| `RectShape` | `{ kind, x, y, width, height, radius }` | `packages/clinical/src/regions.ts:73` | A rounded rectangle. The odontogram's tooth. |
+| `RegionGeometry` | `{ shape, label }` | `packages/clinical/src/regions.ts:114` | A region's geometry document, parsed. |
+| `RegionGroup` | `{ region, children }` | `packages/clinical/src/regions.ts:138` | A region and the regions grouped under it. One level, which is all any map has. |
 | `ResolutionRequest` | `{ taxonomyPath, candidates }` | `packages/clinical/src/resolve.ts:73` |  |
 | `SectionAnswers` | `{ key, data }` | `packages/clinical/src/validate.ts:37` | One section's answers, as they come off `encounter_sections`. |
 | `SectionCapability` | `{ descriptorDriven, repeatable, vocabulary, requiresMap, defaultOrder, defaultLabel }` | `packages/clinical/src/registry.ts:35` |  |
+| `StoredRegion` | `{ id, code, label, parentId, displayOrder, metadata }` | `packages/clinical/src/regions.ts:311` | One region as the database hands it over, before parsing. |
 | `TemplateCandidate` | `{ templateId, code, specialtyId, isOwn, publishedVersion }` | `packages/clinical/src/resolve.ts:36` | One template the caller found, already narrowed to the right care context. |
 | `TemplateDefinition` | `{ schemaVersion, scopes, sections }` | `packages/clinical/src/types.ts:183` |  |
 | `TemplateResolution` | `{ templateId, code, versionId, version, definition, matchedSpecialtyId, matchedDepth }` | `packages/clinical/src/resolve.ts:57` |  |
 | `TemplateSection` | `{ type, key, label, order, visible, required, fields, scopes, mapCode }` | `packages/clinical/src/types.ts:155` | A section of a resolved template, after parsing. |
 | `ValidationProblem` | `{ sectionKey, fieldKey, problem }` | `packages/clinical/src/validate.ts:43` | Everything wrong with a consultation, not merely the first thing. |
+| `ViewBox` | `{ minX, minY, width, height }` | `packages/clinical/src/regions.ts:54` |  |
+| `VisualMapDocument` | `{ code, viewBox, regions }` | `packages/clinical/src/regions.ts:131` | A whole chart, after parsing: its space and its places. |
 
 ## type
 
@@ -85,3 +109,5 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `ConsultationFieldType` | `\| 'TEXT' \| 'TEXTAREA' \| 'NUMBER' \| 'SELECT' \| 'MULTI_SELECT' \| 'RADIO_GROUP' \| 'CHECKBOX_GROUP' \| 'BOOLEAN' \| 'DATE' \| 'DATETIME' \| 'MEASUREMENT' \| 'SEARCH_SEL…` | `packages/clinical/src/types.ts:84` | What `FieldRenderer` can render, and therefore what a descriptor may claim to be. A field type the renderer has no component for is a rejected descriptor. |
 | `ConsultationSectionType` | `\| 'CHIEF_COMPLAINT' \| 'SYMPTOMS' \| 'HISTORY' \| 'EXAMINATION' \| 'VISUAL_MAPPING' \| 'DIAGNOSIS' \| 'PROCEDURE' \| 'PRESCRIPTION' \| 'INVESTIGATION' \| 'ADVICE' \| 'RE…` | `packages/clinical/src/types.ts:37` |  |
 | `Parsed` | `{ readonly ok: true; readonly value: T } \| { readonly ok: false; readonly problem: string }` | `packages/clinical/src/types.ts:203` |  |
+| `RegionShape` | `RectShape \| CircleShape \| PathShape` | `packages/clinical/src/regions.ts:105` |  |
+| `RegionShapeKind` | `'RECT' \| 'CIRCLE' \| 'PATH'` | `packages/clinical/src/regions.ts:68` |  |

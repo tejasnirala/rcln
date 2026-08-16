@@ -4,7 +4,7 @@
 
 > Appointments — PHI, by a route nobody expects it on.
 
-Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v1/audit.routes.ts` · `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/billing.routes.ts` · `apps/api/src/routes/v1/branches.routes.ts` · `apps/api/src/routes/v1/clinical-taxonomy.routes.ts` · `apps/api/src/routes/v1/clinical.routes.ts` · `apps/api/src/routes/v1/consultation-templates.routes.ts` · `apps/api/src/routes/v1/designations.routes.ts` · `apps/api/src/routes/v1/doctors.routes.ts` · `apps/api/src/routes/v1/encounters.routes.ts` · `apps/api/src/routes/v1/fees.routes.ts` · `apps/api/src/routes/v1/health.routes.ts` · `apps/api/src/routes/v1/index.ts` · `apps/api/src/routes/v1/inventory.routes.ts` · `apps/api/src/routes/v1/invitations.routes.ts` · `apps/api/src/routes/v1/invoices.routes.ts` · `apps/api/src/routes/v1/members.routes.ts` · `apps/api/src/routes/v1/organization.routes.ts` · `apps/api/src/routes/v1/patients.routes.ts` · `apps/api/src/routes/v1/platform.routes.ts` · `apps/api/src/routes/v1/procurement.routes.ts` · `apps/api/src/routes/v1/product-catalogue.routes.ts` · `apps/api/src/routes/v1/products.routes.ts` · `apps/api/src/routes/v1/public.routes.ts` · `apps/api/src/routes/v1/regulatory.routes.ts` · `apps/api/src/routes/v1/roles.routes.ts` · `apps/api/src/routes/v1/tax.routes.ts` · `apps/api/src/routes/v1/webhooks.routes.ts`
+Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v1/audit.routes.ts` · `apps/api/src/routes/v1/auth.routes.ts` · `apps/api/src/routes/v1/billing.routes.ts` · `apps/api/src/routes/v1/branches.routes.ts` · `apps/api/src/routes/v1/clinical-taxonomy.routes.ts` · `apps/api/src/routes/v1/clinical.routes.ts` · `apps/api/src/routes/v1/consultation-templates.routes.ts` · `apps/api/src/routes/v1/designations.routes.ts` · `apps/api/src/routes/v1/doctors.routes.ts` · `apps/api/src/routes/v1/encounters.routes.ts` · `apps/api/src/routes/v1/fees.routes.ts` · `apps/api/src/routes/v1/health.routes.ts` · `apps/api/src/routes/v1/index.ts` · `apps/api/src/routes/v1/inventory.routes.ts` · `apps/api/src/routes/v1/invitations.routes.ts` · `apps/api/src/routes/v1/invoices.routes.ts` · `apps/api/src/routes/v1/members.routes.ts` · `apps/api/src/routes/v1/organization.routes.ts` · `apps/api/src/routes/v1/patients.routes.ts` · `apps/api/src/routes/v1/platform.routes.ts` · `apps/api/src/routes/v1/procurement.routes.ts` · `apps/api/src/routes/v1/product-catalogue.routes.ts` · `apps/api/src/routes/v1/products.routes.ts` · `apps/api/src/routes/v1/public.routes.ts` · `apps/api/src/routes/v1/regulatory.routes.ts` · `apps/api/src/routes/v1/roles.routes.ts` · `apps/api/src/routes/v1/tax.routes.ts` · `apps/api/src/routes/v1/visual-maps.routes.ts` · `apps/api/src/routes/v1/webhooks.routes.ts`
 
 ## fn
 
@@ -27,6 +27,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/product-catalogue.routes.ts:96` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/products.routes.ts:109` |  |
 | `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/roles.routes.ts:44` |  |
+| `auditMeta` <sub>local</sub> | `(req: Request): { ipAddress?: string; userAgent?: string }` | `apps/api/src/routes/v1/visual-maps.routes.ts:68` |  |
 | `authorizeHistory` <sub>local</sub> | `(): RequestHandler` | `apps/api/src/routes/v1/audit.routes.ts:96` |  |
 | `countryCodeFor` <sub>local</sub> | `(req: Request): Promise<string \| null>` | `apps/api/src/routes/v1/billing.routes.ts:341` |  |
 | `guarded` <sub>local</sub> | `(): IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:178` | Applied to each router below. Extracted so one cannot be missed. |
@@ -35,7 +36,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `handle` <sub>local</sub> | `(fn: (req: Request, res: Response) => Promise<void>): (req: Request, res: Response) => Promise<void>` | `apps/api/src/routes/v1/billing.routes.ts:126` | Every handler goes through this, so the mapping above cannot be forgotten. |
 | `invitedOrganizationId` <sub>local</sub> | `(req: Request, res: Response): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:258` |  |
 | `meta` <sub>local</sub> | `(req: Request, pattern: string): AppointmentActionOptions` | `apps/api/src/routes/v1/appointments.routes.ts:104` |  |
-| `meta` <sub>local</sub> | `(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }` | `apps/api/src/routes/v1/encounters.routes.ts:110` |  |
+| `meta` <sub>local</sub> | `(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }` | `apps/api/src/routes/v1/encounters.routes.ts:115` |  |
 | `meta` <sub>local</sub> | `(req: Request): FeeActionOptions` | `apps/api/src/routes/v1/fees.routes.ts:58` |  |
 | `meta` <sub>local</sub> | `(req: Request, pattern: string): InvoiceActionOptions` | `apps/api/src/routes/v1/invoices.routes.ts:99` | Request metadata for the disclosure trail. `route` is the PATTERN composed with the mount point — `/v1/invoices/:invoiceId`, never the resolved URL. |
 | `meta` <sub>local</sub> | `(req: Request, pattern: string): PatientActionOptions` | `apps/api/src/routes/v1/patients.routes.ts:122` | Request metadata for both trails. `route` is `req.route?.path` composed with the mount point — the PATTERN, so `/v1/patients/:patientId`, never the resolved UR… |
@@ -64,7 +65,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `demoRequestQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/platform.routes.ts:280` |  |
 | `doctorParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/doctors.routes.ts:99` |  |
 | `duplicateProbeRequest` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/patients.routes.ts:98` | The duplicate probe. A GET would put a phone number in the access log. |
-| `encounterParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/encounters.routes.ts:108` |  |
+| `encounterParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/encounters.routes.ts:113` |  |
 | `endRuleBody` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/tax.routes.ts:264` |  |
 | `episodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical.routes.ts:88` |  |
 | `intentParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/billing.routes.ts:54` |  |
@@ -74,6 +75,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `listQuery` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/product-catalogue.routes.ts:102` | Every one of these masters takes the same list query. |
 | `locationParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/inventory.routes.ts:190` |  |
 | `mandateParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/billing.routes.ts:182` |  |
+| `mapParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/visual-maps.routes.ts:65` |  |
 | `memberParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/members.routes.ts:59` |  |
 | `nodeParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/clinical-taxonomy.routes.ts:68` |  |
 | `orderParams` <sub>local</sub> | `z.object(…)` | `apps/api/src/routes/v1/procurement.routes.ts:535` |  |
@@ -114,7 +116,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | --- | --- | --- | --- |
 | `ADJUST` <sub>local</sub> | `PERMISSIONS.STOCK_ADJUST` | `apps/api/src/routes/v1/inventory.routes.ts:167` |  |
 | `BATCH_MANAGE` <sub>local</sub> | `PERMISSIONS.BATCH_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:166` |  |
-| `COLLECTIONS` <sub>local</sub> | `[ { path: 'symptoms', create: createEncounterSymptomRequest, update: updateEncounterSympt…` | `apps/api/src/routes/v1/encounters.routes.ts:296` |  |
+| `COLLECTIONS` <sub>local</sub> | `[ { path: 'symptoms', create: createEncounterSymptomRequest, update: updateEncounterSympt…` | `apps/api/src/routes/v1/encounters.routes.ts:301` |  |
 | `DEDUPE_WINDOW_MS` <sub>local</sub> | `24 * 60 * 60 * 1000` | `apps/api/src/routes/v1/public.routes.ts:46` | One clinic re-submitting inside this window is the same lead, not a new one. |
 | `HISTORY_ALSO_READABLE_BY` <sub>local</sub> | `: Record<string, PermissionCode>` | `apps/api/src/routes/v1/audit.routes.ts:78` |  |
 | `LOCATION_MANAGE` <sub>local</sub> | `PERMISSIONS.INVENTORY_LOCATION_MANAGE` | `apps/api/src/routes/v1/inventory.routes.ts:165` |  |
@@ -161,6 +163,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `purchaseReturnRoutes` | `: IRouter` | `apps/api/src/routes/v1/procurement.routes.ts:738` |  |
 | `qualificationParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:102` |  |
 | `rawBody` <sub>local</sub> | `express.raw(…)` | `apps/api/src/routes/v1/webhooks.routes.ts:45` |  |
+| `regionParams` <sub>local</sub> | `mapParams.extend(…)` | `apps/api/src/routes/v1/visual-maps.routes.ts:66` |  |
 | `requisitionRoutes` | `: IRouter` | `apps/api/src/routes/v1/procurement.routes.ts:414` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/appointments.routes.ts:98` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/audit.routes.ts:42` |  |
@@ -172,10 +175,10 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/consultation-templates.routes.ts:61` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/designations.routes.ts:37` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/doctors.routes.ts:95` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/encounters.routes.ts:104` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/encounters.routes.ts:109` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/fees.routes.ts:54` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/health.routes.ts:7` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:51` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/index.ts:52` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/invitations.routes.ts:43` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/invoices.routes.ts:87` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/members.routes.ts:55` |  |
@@ -187,8 +190,9 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/regulatory.routes.ts:77` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/roles.routes.ts:38` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/tax.routes.ts:70` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/visual-maps.routes.ts:61` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/v1/webhooks.routes.ts:37` |  |
-| `rowParams` <sub>local</sub> | `encounterParams.extend(…)` | `apps/api/src/routes/v1/encounters.routes.ts:283` |  |
+| `rowParams` <sub>local</sub> | `encounterParams.extend(…)` | `apps/api/src/routes/v1/encounters.routes.ts:288` |  |
 | `scheduleParams` <sub>local</sub> | `doctorParams.extend(…)` | `apps/api/src/routes/v1/doctors.routes.ts:100` |  |
 | `serialRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:353` |  |
 | `stockRoutes` | `: IRouter` | `apps/api/src/routes/v1/inventory.routes.ts:429` |  |

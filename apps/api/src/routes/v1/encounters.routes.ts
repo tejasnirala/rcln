@@ -30,6 +30,7 @@ import { z } from 'zod';
 import {
   amendEncounterRequest,
   cancelEncounterRequest,
+  createClinicalFindingRequest,
   createEncounterAdviceRequest,
   createEncounterAttachmentRequest,
   createEncounterDiagnosisRequest,
@@ -48,6 +49,7 @@ import {
   updateEncounterPrescriptionRequest,
   updateEncounterProcedureRequest,
   updateEncounterReferralRequest,
+  updateClinicalFindingRequest,
   updateEncounterSymptomRequest,
   type AmendEncounterRequest,
   type CancelEncounterRequest,
@@ -76,6 +78,7 @@ import {
   addAdvice,
   addAttachment,
   addDiagnosis,
+  addFinding,
   addInvestigation,
   addPrescription,
   addProcedure,
@@ -84,6 +87,7 @@ import {
   removeAdvice,
   removeAttachment,
   removeDiagnosis,
+  removeFinding,
   removeInvestigation,
   removePrescription,
   removeProcedure,
@@ -93,6 +97,7 @@ import {
   updateAdvice,
   updateAttachment,
   updateDiagnosis,
+  updateFinding,
   updateInvestigation,
   updatePrescription,
   updateProcedure,
@@ -260,7 +265,7 @@ router.post(
 // ---------------------------------------------------------------------------
 
 /**
- * Eight collections and one singleton, all under the consultation they belong
+ * Nine collections and one singleton, all under the consultation they belong
  * to.
  *
  * ⚠️ NO NEW PERMISSION CODES, AND THAT IS CD-7. Recording a diagnosis IS
@@ -357,6 +362,24 @@ const COLLECTIONS = [
     add: addAttachment,
     edit: updateAttachment,
     remove: removeAttachment,
+  },
+  /*
+   * The chart's marks (CE-6), and the ninth member of a table written for
+   * eight. It joins here rather than getting three handlers of its own for the
+   * reason the table exists: `clinical.encounter.create` gates it, the whole
+   * content comes back, and nothing about it is special enough to restate.
+   *
+   * ⚠️ AND IT IS `ENCOUNTER_CREATE`, NOT `CLINICAL_VISUAL_MAP_MANAGE`. Drawing
+   *   ON a chart is writing up the consultation (CD-7); the manage code says
+   *   what the chart IS, and a DOCTOR holds neither it nor a need for it.
+   */
+  {
+    path: 'findings',
+    create: createClinicalFindingRequest,
+    update: updateClinicalFindingRequest,
+    add: addFinding,
+    edit: updateFinding,
+    remove: removeFinding,
   },
 ] as const;
 

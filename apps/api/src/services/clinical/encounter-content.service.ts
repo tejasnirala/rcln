@@ -36,9 +36,12 @@
  *   invoice children were: an org-only inherited policy under a branch-scoped
  *   parent re-opens the branch boundary.
  */
-import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcln/db';
+/* `Prisma` as a VALUE, for `DbNull` — clearing a JSONB column is a SQL NULL and
+   Prisma makes you say which kind of null you mean (CE-6). */
+import { Prisma, withTenant, type TenantContext, type TxClient } from '@rcln/db';
 import type {
   CancelFollowUpRecommendationRequest,
+  CreateClinicalFindingRequest,
   CreateEncounterAdviceRequest,
   CreateEncounterAttachmentRequest,
   CreateEncounterDiagnosisRequest,
@@ -56,6 +59,7 @@ import type {
   UpdateEncounterPrescriptionRequest,
   UpdateEncounterProcedureRequest,
   UpdateEncounterReferralRequest,
+  UpdateClinicalFindingRequest,
   UpdateEncounterSymptomRequest,
 } from '@rcln/contracts';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
@@ -104,6 +108,9 @@ const DIAGNOSIS_SELECT = {
   item: TERM_SELECT,
 } as const;
 
+/** Where on a chart, as the list needs to render it (CE-6). */
+const REGION_SELECT = { select: { id: true, code: true, label: true } } as const;
+
 const PROCEDURE_SELECT = {
   id: true,
   diagnosisId: true,
@@ -111,6 +118,26 @@ const PROCEDURE_SELECT = {
   status: true,
   notes: true,
   displayOrder: true,
+  item: TERM_SELECT,
+  region: REGION_SELECT,
+} as const;
+
+/**
+ * ⚠️ THE REGION AND THE WORD ARE BOTH SELECTED, NOT JOINED THROUGH A COMPOSITE
+ *   RELATION. Both are PLAIN FKs — a composite one would refuse the platform's
+ *   charts and the platform's vocabulary — so both are ordinary single-column
+ *   joins Prisma can follow, and RLS plus `region_visible` / `item_visible` is
+ *   what scopes the row.
+ */
+const FINDING_SELECT = {
+  id: true,
+  sectionKey: true,
+  diagnosisId: true,
+  severity: true,
+  notes: true,
+  metadata: true,
+  displayOrder: true,
+  region: REGION_SELECT,
   item: TERM_SELECT,
 } as const;
 
@@ -304,6 +331,7 @@ export async function encounterContentOf(
     advice,
     referrals,
     attachments,
+    findings,
     followUp,
   ] = await Promise.all([
     tx.encounterSymptom.findMany({ where, select: SYMPTOM_SELECT, orderBy: byOrder() }),
@@ -322,6 +350,7 @@ export async function encounterContentOf(
     tx.encounterAdvice.findMany({ where, select: ADVICE_SELECT, orderBy: byOrder() }),
     tx.encounterReferral.findMany({ where, select: REFERRAL_SELECT, orderBy: byOrder() }),
     tx.encounterAttachment.findMany({ where, select: ATTACHMENT_SELECT, orderBy: byOrder() }),
+    tx.clinicalFinding.findMany({ where, select: FINDING_SELECT, orderBy: byOrder() }),
     /*
      * ⚠️ THE ONE THAT IS NOT A LIST. A consultation states its follow-up plan
      *   once; `deletedAt` is checked because a superseded plan is soft-deleted
@@ -360,6 +389,7 @@ export async function encounterContentOf(
       id: row.id,
       item: row.item,
       diagnosisId: row.diagnosisId,
+      region: row.region,
       performedOn: isoDate(row.performedOn),
       status: row.status,
       notes: row.notes,
@@ -423,6 +453,17 @@ export async function encounterContentOf(
       mimeType: row.storedFile?.mimeType ?? '',
       /* ⚠️ A BigInt does not survive JSON. Files are megabytes, not exabytes. */
       sizeBytes: Number(row.storedFile?.sizeBytes ?? 0n),
+      displayOrder: row.displayOrder,
+    })),
+    findings: findings.map((row) => ({
+      id: row.id,
+      sectionKey: row.sectionKey,
+      region: row.region,
+      item: row.item,
+      diagnosisId: row.diagnosisId,
+      severity: row.severity,
+      notes: row.notes,
+      metadata: row.metadata ?? null,
       displayOrder: row.displayOrder,
     })),
     followUp: followUp === null ? null : toRecommendation(followUp),
@@ -823,7 +864,16 @@ export async function removeDiagnosis(
     });
     if (!existing) throw new NotFoundError('Diagnosis');
 
+    /* ⚠️ BOTH CHILDREN, AND THE SECOND ONE IS CE-6's. `diagnosis_id` is
+       `Restrict` on procedures AND on findings — the composite includes
+       `organization_id`, which is NOT NULL, so Postgres cannot null half the
+       pair. Unlinking here is the honest order anyway: what was found and what
+       was done stay on the record, and only the link goes. */
     await tx.encounterProcedure.updateMany({
+      where: { encounterId: parent.id, diagnosisId: existing.id },
+      data: { diagnosisId: null },
+    });
+    await tx.clinicalFinding.updateMany({
       where: { encounterId: parent.id, diagnosisId: existing.id },
       data: { diagnosisId: null },
     });
@@ -866,6 +916,29 @@ async function assertDiagnosisIsOurs(
   if (!found) throw new NotFoundError('Diagnosis');
 }
 
+/**
+ * ⚠️ THE REGION MUST BE VISIBLE, AND RLS IS WHAT DECIDES THAT — the read below
+ *   runs under `tenant_isolation`, so another tenant's private region simply is
+ *   not there and answers 404. The `region_visible` policy would refuse the
+ *   INSERT anyway; this is what turns that into a sentence.
+ *
+ * ⚠️ IT DOES NOT CHECK WHICH MAP THE REGION IS ON. A template may configure two
+ *   charts and a procedure is not tied to a section, so "on this consultation's
+ *   chart" is not a question with one answer. The region is what is recorded,
+ *   and the region names its own map.
+ */
+async function assertRegionIsVisible(
+  tx: TxClient,
+  regionId: string | null | undefined
+): Promise<void> {
+  if (regionId == null) return;
+  const found = await tx.visualRegion.findFirst({
+    where: { id: regionId },
+    select: { id: true },
+  });
+  if (!found) throw new NotFoundError('Region');
+}
+
 export async function addProcedure(
   ctx: TenantContext,
   encounterId: string,
@@ -875,6 +948,7 @@ export async function addProcedure(
   return withTenant(ctx, async (tx) => {
     const parent = await draftParent(tx, ctx, encounterId);
     await assertDiagnosisIsOurs(tx, parent.id, input.diagnosisId);
+    await assertRegionIsVisible(tx, input.visualRegionId);
     const displayOrder = await nextOrder(
       tx.encounterProcedure.count({ where: { encounterId: parent.id } }),
       input.displayOrder
@@ -885,6 +959,7 @@ export async function addProcedure(
         ...ownership(ctx, parent),
         itemId: input.itemId,
         ...(input.diagnosisId != null ? { diagnosisId: input.diagnosisId } : {}),
+        ...(input.visualRegionId != null ? { visualRegionId: input.visualRegionId } : {}),
         ...(input.performedOn != null ? { performedOn: toDate(input.performedOn) as Date } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.notes != null ? { notes: input.notes } : {}),
@@ -922,11 +997,12 @@ export async function updateProcedure(
     });
     if (!existing) throw new NotFoundError('Procedure');
     await assertDiagnosisIsOurs(tx, parent.id, input.diagnosisId);
+    await assertRegionIsVisible(tx, input.visualRegionId);
 
     await tx.encounterProcedure.update({
       where: { id: existing.id },
       data: {
-        ...assign(input, ['diagnosisId', 'status', 'notes', 'displayOrder']),
+        ...assign(input, ['diagnosisId', 'visualRegionId', 'status', 'notes', 'displayOrder']),
         ...(input.performedOn !== undefined
           ? { performedOn: toDate(input.performedOn) ?? null }
           : {}),
@@ -1665,6 +1741,160 @@ export async function removeAttachment(
 }
 
 // ---------------------------------------------------------------------------
+// Findings on a chart (CE-6)
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ NO NEW PERMISSION CODE, AND THAT IS CD-7 AGAIN. Recording a finding IS
+ *   writing up the consultation — the same act adding a diagnosis is.
+ *   `clinical.visual_map.manage` is about what the CHART is, not about drawing
+ *   on one, and a DOCTOR holds it neither way.
+ *
+ * ⚠️ THE SECTION KEY IS NOT CHECKED AGAINST THE ENCOUNTER'S SNAPSHOT HERE, AND
+ *   THAT IS DELIBERATE. A key naming no VISUAL_MAPPING section would render
+ *   nowhere — but the check belongs at FINALIZATION, where every other claim
+ *   the content makes about the template is checked at once and a doctor is
+ *   told all of them together. Refusing mid-consultation would also make an
+ *   amendment's copy fail against a template edited in between, which is
+ *   exactly what a frozen snapshot exists to prevent.
+ */
+export async function addFinding(
+  ctx: TenantContext,
+  encounterId: string,
+  input: CreateClinicalFindingRequest,
+  options: ContentRequestOptions = {}
+): Promise<EncounterContent> {
+  return withTenant(ctx, async (tx) => {
+    const parent = await draftParent(tx, ctx, encounterId);
+    await assertDiagnosisIsOurs(tx, parent.id, input.diagnosisId);
+    await assertRegionIsVisible(tx, input.visualRegionId);
+
+    const displayOrder = await nextOrder(
+      tx.clinicalFinding.count({ where: { encounterId: parent.id } }),
+      input.displayOrder
+    );
+
+    /*
+     * ⚠️ THE DUPLICATE IS CAUGHT HERE AND GUARANTEED BY THE UNIQUE INDEX. The
+     *   same word on the same region of the same chart is a double click, not a
+     *   second finding — and told as a sentence rather than as a constraint
+     *   name, because a clinician who sees the latter tries again.
+     */
+    const clash = await tx.clinicalFinding.findFirst({
+      where: {
+        encounterId: parent.id,
+        sectionKey: input.sectionKey,
+        visualRegionId: input.visualRegionId,
+        findingItemId: input.findingItemId,
+      },
+      select: { id: true },
+    });
+    if (clash !== null) {
+      throw new ConflictError('That is already recorded on this region of the chart.');
+    }
+
+    const created = await tx.clinicalFinding.create({
+      data: {
+        ...ownership(ctx, parent),
+        sectionKey: input.sectionKey,
+        visualRegionId: input.visualRegionId,
+        findingItemId: input.findingItemId,
+        ...(input.diagnosisId != null ? { diagnosisId: input.diagnosisId } : {}),
+        ...(input.severity != null ? { severity: input.severity } : {}),
+        ...(input.notes != null ? { notes: input.notes } : {}),
+        ...(input.metadata != null ? { metadata: input.metadata as Prisma.InputJsonValue } : {}),
+        displayOrder,
+      },
+      select: { id: true, findingItemId: true },
+    });
+
+    await auditContent(
+      tx,
+      ctx,
+      parent,
+      'CREATE',
+      'clinical_finding',
+      created.id,
+      /* ⚠️ THE WORD'S ID AND NOTHING ELSE. Which region it was on is as
+         clinical as the finding itself — see `contentSnapshot`. */
+      { id: created.id, kind: 'FINDING', itemId: created.findingItemId },
+      options
+    );
+    return encounterContentOf(tx, parent.id);
+  });
+}
+
+export async function updateFinding(
+  ctx: TenantContext,
+  encounterId: string,
+  findingId: string,
+  input: UpdateClinicalFindingRequest,
+  options: ContentRequestOptions = {}
+): Promise<EncounterContent> {
+  return withTenant(ctx, async (tx) => {
+    const parent = await draftParent(tx, ctx, encounterId);
+    const existing = await tx.clinicalFinding.findFirst({
+      where: { id: findingId, encounterId: parent.id },
+      select: { id: true, findingItemId: true },
+    });
+    if (!existing) throw new NotFoundError('Finding');
+    await assertDiagnosisIsOurs(tx, parent.id, input.diagnosisId);
+
+    await tx.clinicalFinding.update({
+      where: { id: existing.id },
+      data: {
+        ...assign(input, ['diagnosisId', 'severity', 'notes', 'displayOrder']),
+        ...(input.metadata !== undefined
+          ? { metadata: (input.metadata as Prisma.InputJsonValue | null) ?? Prisma.DbNull }
+          : {}),
+      },
+      select: { id: true },
+    });
+
+    await auditContent(
+      tx,
+      ctx,
+      parent,
+      'UPDATE',
+      'clinical_finding',
+      existing.id,
+      { id: existing.id, kind: 'FINDING', itemId: existing.findingItemId },
+      options
+    );
+    return encounterContentOf(tx, parent.id);
+  });
+}
+
+export async function removeFinding(
+  ctx: TenantContext,
+  encounterId: string,
+  findingId: string,
+  options: ContentRequestOptions = {}
+): Promise<EncounterContent> {
+  return withTenant(ctx, async (tx) => {
+    const parent = await draftParent(tx, ctx, encounterId);
+    const existing = await tx.clinicalFinding.findFirst({
+      where: { id: findingId, encounterId: parent.id },
+      select: { id: true, findingItemId: true },
+    });
+    if (!existing) throw new NotFoundError('Finding');
+
+    await tx.clinicalFinding.delete({ where: { id: existing.id } });
+    await auditContent(
+      tx,
+      ctx,
+      parent,
+      'DELETE',
+      'clinical_finding',
+      existing.id,
+      { id: existing.id, kind: 'FINDING', itemId: existing.findingItemId },
+      options
+    );
+    return encounterContentOf(tx, parent.id);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // The follow-up recommendation (CD-13)
 // ---------------------------------------------------------------------------
 
@@ -1904,6 +2134,7 @@ export async function copyContentToAmendment(
         itemId: row.itemId,
         diagnosisId:
           row.diagnosisId === null ? null : (newDiagnosisId.get(row.diagnosisId) ?? null),
+        visualRegionId: row.visualRegionId,
         performedOn: row.performedOn,
         status: row.status,
         notes: row.notes,
@@ -2016,6 +2247,35 @@ export async function copyContentToAmendment(
         storedFileId: row.storedFileId,
         kind: row.kind,
         caption: row.caption,
+        displayOrder: row.displayOrder,
+      },
+      select: { id: true },
+    });
+  }
+
+  /*
+   * ⚠️ THE FINDINGS ARE REMAPPED THE SAME WAY THE PROCEDURES ARE (CE-6).
+   *   `diagnosis_id` is a real foreign key into a row this function has just
+   *   RE-CREATED, so copying the old id would leave a finding on the amendment
+   *   citing a diagnosis on the ORIGINAL — a link across two records that both
+   *   claim to be the truth about one visit.
+   */
+  const findings = await tx.clinicalFinding.findMany({
+    where: { encounterId: from.id },
+    orderBy: byOrder(),
+  });
+  for (const row of findings) {
+    await tx.clinicalFinding.create({
+      data: {
+        ...own,
+        sectionKey: row.sectionKey,
+        visualRegionId: row.visualRegionId,
+        findingItemId: row.findingItemId,
+        diagnosisId:
+          row.diagnosisId === null ? null : (newDiagnosisId.get(row.diagnosisId) ?? null),
+        severity: row.severity,
+        notes: row.notes,
+        metadata: row.metadata ?? Prisma.DbNull,
         displayOrder: row.displayOrder,
       },
       select: { id: true },

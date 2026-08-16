@@ -263,6 +263,25 @@ export const PERMISSIONS = {
    *   `CLINICAL_AUTHORING` is: those roles are exactly who configures a clinic.
    */
   CLINICAL_TEMPLATE_MANAGE: 'clinical.template.manage',
+  /**
+   * Author the CHARTS a consultation draws on: the odontogram, the scalp map,
+   * the body diagram, and the regions that make one up (CE-6).
+   *
+   * ⚠️ ITS OWN CODE, AND BESIDE `CLINICAL_TEMPLATE_MANAGE` RATHER THAN INSIDE
+   *   IT. A template says WHICH chart a consultation shows; this says what the
+   *   chart IS. They are configured by the same kind of person and are still
+   *   two decisions — a clinic may reasonably let somebody rearrange the
+   *   sections of its dentistry consultation without letting them redraw the
+   *   tooth numbering every record in the practice is written against.
+   *
+   * ⚠️ AND IT IS NOT AN AUTHORING CODE. Drawing ON a chart is
+   *   `clinical.encounter.create` and nothing else (CD-7) — recording a finding
+   *   IS writing up the consultation. This code touches no patient data at all,
+   *   which is why it is deliberately NOT excluded from ORG_OWNER and ORG_ADMIN
+   *   the way `CLINICAL_AUTHORING` is: those roles are exactly who configures a
+   *   clinic, and a DOCTOR neither holds it nor needs it.
+   */
+  CLINICAL_VISUAL_MAP_MANAGE: 'clinical.visual_map.manage',
 
   // -- lab -------------------------------------------------------------------
   LAB_ORDER_READ: 'lab.order.read',

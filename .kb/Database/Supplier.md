@@ -8,7 +8,7 @@ Declared at `packages/db/prisma/schema/procurement.prisma:194`.
 | --- | --- |
 | table | `suppliers` |
 | tenant-scoped | yes — has `organizationId` |
-| RLS | `org` policy |
+| RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 23 |
 | relations | 7 |
 

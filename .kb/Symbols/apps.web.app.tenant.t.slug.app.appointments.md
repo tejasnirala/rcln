@@ -38,25 +38,25 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts` · `ap
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addContentRow` | `(slug: string, encounterId: string, collection: ContentCollection, body: Record<string, unknown>): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:276` |  |
+| `addContentRow` | `(slug: string, encounterId: string, collection: ContentCollection, body: Record<string, unknown>): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:279` |  |
 | `amendConsultation` | `(slug: string, appointmentId: string, encounterId: string, reason: string): Promise<{ ok: true } \| { ok: false; message: string }>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:158` | Correct a signed record by starting a new one that cites it (CD-2). |
 | `cancelConsultation` | `(slug: string, appointmentId: string, encounterId: string, reason: string \| undefined): Promise<{ ok: true } \| { ok: false; message: string }>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:180` | Abandon a draft. Recorded, never deleted. |
 | `finalizeConsultation` | `(slug: string, appointmentId: string, encounterId: string): Promise<{ ok: true } \| { ok: false; message: string }>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:131` | Sign the record. ⚠️ REVALIDATES, BECAUSE THIS ENDS THE INTERACTION. The page comes back with the consultation read-only and the day board reflects a visit that… |
 | `forTemperatureBox` <sub>local</sub> | `(errors: Record<string, string[]>): Record<string, string[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:538` | `temperatureC` (the contract's field) -> `temperature` (the form's box). |
 | `loadConsultation` | `(slug: string, appointmentId: string): Promise<EncounterDetail \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:80` |  |
-| `loadPreviousVisit` | `(slug: string, appointmentId: string): Promise<PreviousVisitResponse['previous']>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:394` |  |
+| `loadPreviousVisit` | `(slug: string, appointmentId: string): Promise<PreviousVisitResponse['previous']>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:397` |  |
 | `measurement` <sub>local</sub> | `(formData: FormData, key: string): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:530` |  |
 | `openConsultation` | `(slug: string, appointmentId: string): Promise<{ ok: true; encounter: EncounterDetail } \| { ok: fa…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:54` |  |
 | `readingFrom` <sub>local</sub> | `(slug: string, formData: FormData): Promise<{ ok: true; body: RecordVitalsRequest } \| { ok: fal…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:552` |  |
-| `removeContentRow` | `(slug: string, encounterId: string, collection: ContentCollection, rowId: string): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:311` |  |
+| `removeContentRow` | `(slug: string, encounterId: string, collection: ContentCollection, rowId: string): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:314` |  |
 | `saveConsultation` | `(slug: string, encounterId: string, patch: SaveEncounterDraftRequest): Promise<ConsultationState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:97` | The debounced save. ⚠️ RETURNS THE REVISION AND REVALIDATES NOTHING. See the file header — this is the one write in the app that deliberately leaves the page a… |
 | `searchClinicalTerms` | `(slug: string, kind: string, term: string, specialtyId: string \| undefined): Promise<{ id: string; name: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:215` |  |
-| `searchPrescribableProducts` | `(slug: string, term: string): Promise<{ id: string; name: string; code: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:364` |  |
-| `searchReferralDoctors` | `(slug: string, term: string): Promise<{ id: string; name: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:439` |  |
-| `searchReferralSpecialties` | `(slug: string, term: string): Promise<{ id: string; name: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:413` |  |
-| `setFollowUp` | `(slug: string, encounterId: string, body: SetFollowUpRecommendationRequest): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:335` |  |
+| `searchPrescribableProducts` | `(slug: string, term: string): Promise<{ id: string; name: string; code: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:367` |  |
+| `searchReferralDoctors` | `(slug: string, term: string): Promise<{ id: string; name: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:442` |  |
+| `searchReferralSpecialties` | `(slug: string, term: string): Promise<{ id: string; name: string }[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:416` |  |
+| `setFollowUp` | `(slug: string, encounterId: string, body: SetFollowUpRecommendationRequest): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:338` |  |
 | `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:83` |  |
-| `updateContentRow` | `(slug: string, encounterId: string, collection: ContentCollection, rowId: string, body: Record<string, unknown>): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:294` |  |
+| `updateContentRow` | `(slug: string, encounterId: string, collection: ContentCollection, rowId: string, body: Record<string, unknown>): Promise<ContentResult>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:297` |  |
 
 ## const
 
@@ -76,7 +76,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts` · `ap
 | --- | --- | --- | --- |
 | `BookingState` | `{ status: 'idle' \| 'error' \| 'booked'; message?: string; fieldErrors?: Record<string, string[]>; /** The number to read back to the patient, once there is one.…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:49` |  |
 | `ConsultationState` | `{ status: 'idle' \| 'saving' \| 'saved' \| 'error'; message?: string; /** When the last successful save landed, for the "Saved at…" line. */ savedAt?: string; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:40` |  |
-| `ContentCollection` | `\| 'symptoms' \| 'diagnoses' \| 'procedures' \| 'prescriptions' \| 'investigations' \| 'advice' \| 'referrals' \| 'attachments'` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:257` | The eight collections, spelled as the API paths spell them. |
+| `ContentCollection` | `\| 'symptoms' \| 'diagnoses' \| 'procedures' \| 'prescriptions' \| 'investigations' \| 'advice' \| 'referrals' \| 'attachments' /* The chart's marks (CE-6). It joins t…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:257` | The nine collections, spelled as the API paths spell them. |
 | `ContentResult` | `{ ok: true; content: EncounterContent } \| { ok: false; message: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:253` |  |
 | `LookupState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the "nobody matched" panel can offer to register them. */…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:57` |  |
 | `QuickRegisterState` | `{ status: 'idle' \| 'error' \| 'created'; message?: string; fieldErrors?: Record<string, string[]>; /** The record just created, ready to be booked without a sec…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:66` | The outcome of registering a walk-in from inside the booking panel. |

@@ -336,3 +336,41 @@ for the first two.
 ⚠️ **`FINALIZED` or `AMENDED` only, and never the visit being asked about.** A
 draft is what somebody is in the middle of writing, and the current visit is not
 its own history.
+
+---
+
+## CD-17 — A map's geometry is DATA on its regions, not a drawing in the code
+
+`visual_regions.metadata` carries each region's shape in the map's own
+`view_box` coordinates, parsed by `@rcln/clinical`'s `regions.ts`. `apps/web`
+holds ONE generic renderer, `VisualMapChart`, and knows nothing about teeth.
+
+**Why not one hand-drawn SVG component per chart.** That is
+`HairConsultation.tsx` wearing a different name, and CE-7's definition of done
+forbids it in as many words: adding the scalp map must cost a configuration row,
+not a screen. With the geometry in the rows, CE-7 is a seed.
+
+**Why this is not "JSON controls the frontend" either.** The shape grammar is a
+closed set — `RECT`, `CIRCLE`, `PATH` — with one renderer branch per member. A
+document naming `polygon` is a REJECTED row, not a region that silently fails to
+draw. Same line the section registry draws.
+
+⚠️ **§22 is untouched.** The picture still carries no clinical data: a region
+says WHERE it is and WHAT it is called, and every mark on it is a
+`clinical_findings` row. A chart that carried its own findings could not be
+queried, reported on, audited or amended.
+
+⚠️ **And ADR-0006 is untouched.** Geometry is a DOCUMENT. There is no id inside
+it — `parseRegionGeometry` refuses any key it does not know, so one could not be
+smuggled in.
+
+⚠️ **ABSENT geometry is legal; PRESENT and malformed is an ERROR.** A quadrant
+groups eight teeth and has no shape of its own. `{}` is what a half-written
+import produces, and reading it as "no geometry" would drop a tooth off a chart
+with no message anywhere — the clinician sees the gap and assumes the patient has
+no tooth there. Both cases are unit-tested, which is the PI-5 lesson stated once
+more.
+
+`renderer` and `asset_key` survive on `visual_maps` for the IMAGE_MAP case — a
+photograph a clinician pins findings onto. CE-6 ships no map that uses them, and
+a CHECK constraint refuses a row whose renderer and asset disagree.
