@@ -2,7 +2,18 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-17 · **By:** session PI-8 (Billing & Tax Integration)
+**Written:** 2026-08-17 · **By:** session PI-8.11 (hardening) — supersedes the
+PI-8 session's note below wherever the two disagree.
+
+⚠️ **THE REVIEW GATE HAS LANDED.** `/code-review` ran over the whole PI-7 + PI-8
+diff (`main...HEAD`, 247 files). **1 CRITICAL, 3 HIGH, 2 MEDIUM, 5 WARNING** —
+all fixed, with 9 regression tests. See IMPLEMENTATION_TRACKER.md § PI-8.11.
+Nothing is waiting on a review any more.
+
+⚠️ **AND PI-9 IS UNBLOCKED.** `encounters` and `encounter_procedures` have existed
+since the consultation engine merged (`066a79c`); `EncounterProcedure` even
+carries an index annotated "PI-9 reads this". The roll-up row saying otherwise was
+stale — STATUS.md had already said so at line 47.
 
 ---
 
@@ -78,6 +89,9 @@ entirely different problems.
 
 ## Where to start
 
+**⚠️ SUPERSEDED — THE REVIEWS HAVE BEEN RUN. Kept for the risk list, which is
+still where a reader should look first.** The original text follows.
+
 **⚠️ RUN THE REVIEWS FIRST. PI-8 IS BUILT AND NOT REVIEWED.** `/code-review` and
 `security-reviewer` over the whole diff. This one touches the schema, tenancy,
 auth, permissions, patient data, billing and raw SQL, so CLAUDE.md makes the
@@ -96,8 +110,9 @@ Point a reviewer at these first, because they are where the phase took its risks
   never be able to throw. Every configuration gap is a nullable column.
 - The two new `*_visible` policy pairs, and the two closed on `dispense_lines`.
 
-**Then** PI-10 (Recall) or PI-12 (Online Pharmacy), which PI-8 unblocks. PI-9 is
-still blocked on `encounters`/`procedures`.
+**Then PI-9 (Clinical Consumption)**, which is unblocked and is the phase that
+gives `InventoryChargeRequest` its missing writer. PI-10 (Recall) and PI-12
+(Online Pharmacy) are also open.
 
 Two things this session deliberately did not take:
 

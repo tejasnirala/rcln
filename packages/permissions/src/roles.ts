@@ -65,6 +65,41 @@ const CLINICAL_AUTHORING: PermissionCode[] = [
 const authorsClinicalNotes = (p: PermissionCode): boolean => CLINICAL_AUTHORING.includes(p);
 
 /**
+ * Attesting, as a professional, that a clinical instruction is sound.
+ *
+ * ⚠️ A THIRD "EXCEPT" LIST RATHER THAN A LINE IN `CLINICAL_AUTHORING`, because
+ *   this is not authoring. `pharmacy.dispense.verify` writes no clinical record —
+ *   it writes `prescription_fulfilments`, pharmacy's own row beside the
+ *   consultation, which is exactly what keeps invariant 7 true at the router. So
+ *   it does not belong on a list whose name and ADR are about who may write in
+ *   the chart.
+ *
+ * ⚠️ IT IS EXCLUDED FOR THE SAME STRUCTURAL REASON THOUGH: ORG_OWNER and
+ *   ORG_ADMIN are built as `ALL_PERMISSIONS.filter(...)`, so a code that is
+ *   nobody's by intention joins them silently unless it is named here.
+ *
+ * `codes.ts` defines `.verify` as "a professional reads the prescription and says
+ * it is sound — the drug, the dose, the interaction, the patient". That is
+ * clinical judgement by its own definition, and `verifyPrescription` checks the
+ * permission code and nothing else: no licence lookup, no `regulatoryActorWithin`
+ * — the licence check happens at DISPENSE time, not here. Left on the default
+ * "everything except" roles, a non-clinician owner could be recorded in
+ * `prescription_fulfilments.verified_by_id` as the professional who confirmed a
+ * controlled-substance prescription was safe, and the workspace would then treat
+ * it as cleared for supply.
+ *
+ * ⚠️ `.create` STAYING WHERE IT IS, IS NOT AN ARGUMENT FOR KEEPING `.verify`.
+ *   Handing boxes over and judging that they should be handed over are two acts,
+ *   and splitting them is the entire reason there are two codes — see PHARMACIST,
+ *   which holds both because a single-pharmacist dispensary is the ordinary shape.
+ *   A clinic whose owner IS the pharmacist grants it by cloning a role or per
+ *   membership, which is the same door every other clinical code uses.
+ */
+const PROFESSIONAL_ATTESTATION: PermissionCode[] = [P.DISPENSE_VERIFY];
+
+const attestsProfessionally = (p: PermissionCode): boolean => PROFESSIONAL_ATTESTATION.includes(p);
+
+/**
  * Signing off a jurisdiction's rule pack. NOT held by anybody, by default.
  *
  * ⚠️ NAMED HERE FOR THE SAME REASON `CLINICAL_AUTHORING` IS: ORG_OWNER and
@@ -124,12 +159,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'ORGANIZATION',
     /*
      * Everything except platform-level permissions, authoring a consultation,
-     * and signing off a regulatory rule pack.
+     * verifying a prescription as a professional, and signing off a regulatory
+     * rule pack.
      */
     permissions: ALL_PERMISSIONS.filter(
       (p) =>
         !p.startsWith('platform.') &&
         !authorsClinicalNotes(p) &&
+        !attestsProfessionally(p) &&
         !signsOffRulePacks(p) &&
         !maintainsPlatformLaw(p)
     ),
@@ -143,6 +180,7 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       (p) =>
         !p.startsWith('platform.') &&
         !authorsClinicalNotes(p) &&
+        !attestsProfessionally(p) &&
         !signsOffRulePacks(p) &&
         !maintainsPlatformLaw(p) &&
         p !== P.ORG_BILLING_MANAGE &&

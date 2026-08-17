@@ -137,7 +137,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | `setMemberStatus` | fn | `apps/api/src/services/iam/member.service.ts:718` |
 | `setOverride` | fn | `apps/api/src/services/iam/member.service.ts:494` |
 | `setRolePairings` | fn | `apps/api/src/services/iam/designation.service.ts:347` |
-| `SYSTEM_ROLE_DEFINITIONS` | const | `packages/permissions/src/roles.ts:112` |
+| `SYSTEM_ROLE_DEFINITIONS` | const | `packages/permissions/src/roles.ts:147` |
 | `SYSTEM_ROLES` | const | `packages/permissions/src/roles.ts:8` |
 | `SystemRoleCode` | type | `packages/permissions/src/roles.ts:23` |
 | `SystemRoleDefinition` | interface | `packages/permissions/src/roles.ts:27` |

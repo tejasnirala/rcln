@@ -49,6 +49,7 @@ Files: `apps/api/src/routes/v1/appointments.routes.ts` · `apps/api/src/routes/v
 | `providerEnvironment` <sub>local</sub> | `(providerName: string): string \| null` | `apps/api/src/routes/v1/webhooks.routes.ts:85` |  |
 | `readMeta` <sub>local</sub> | `(req: Request, route: string): { ipAddress?: string; userAgent?: string; route: string }` | `apps/api/src/routes/v1/clinical.routes.ts:95` | ⚠️ `route` IS THE MATCHED PATTERN, NEVER `req.originalUrl`. A URL carries its query string, and a search term is a disclosure. |
 | `refererHost` <sub>local</sub> | `(req: Request): string \| undefined` | `apps/api/src/routes/v1/public.routes.ts:54` | The referring site, host only. Never the full URL: a referrer's path and query can carry anything the other site put there, and this column is not the place to… |
+| `requirePriceCodeToOverride` <sub>local</sub> | `(req, res, next)` | `apps/api/src/routes/v1/charging.routes.ts:188` |  |
 | `slugOf` <sub>local</sub> | `(req: Request): string` | `apps/api/src/routes/v1/billing.routes.ts:90` |  |
 | `targetOrganizationId` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/routes/v1/auth.routes.ts:89` | The tenant this request is signing in to, or null on the apex/admin host. |
 | `toCustomer` <sub>local</sub> | `(customer: CreateInvoiceRequest['customer']): { name: string; phone: string \| null; email: string \| null;…` | `apps/api/src/routes/v1/invoices.routes.ts:174` |  |

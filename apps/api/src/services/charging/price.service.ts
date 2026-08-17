@@ -42,6 +42,38 @@ import { assertBranchInScope } from '../pharmacy/shared.js';
 import { loadUnitGraph } from '../product/unit.service.js';
 import { auditMeta, type ChargingActionOptions } from './policy.service.js';
 
+/**
+ * Refuse a write to the ORGANIZATION-WIDE row from a branch-scoped caller.
+ *
+ * ⚠️ RLS CANNOT DO THIS ONE, AND THE REASON IS THE SAME THING THAT MAKES THE
+ *   POLICY CORRECT. `branch_isolation` on `product_prices` is
+ *   `branch_id IS NULL OR branch_id = ANY(app_branch_scope())`, and the nullable
+ *   half is deliberately live: the org default is the row every branch inherits,
+ *   so every branch must be able to READ it. But `WITH CHECK` runs the same
+ *   predicate, so the policy that correctly lets one site read the default also
+ *   lets it overwrite and delete the default — changing what every OTHER branch
+ *   bills, from a session scoped to one of them.
+ *
+ * ⚠️ THERE IS NO `isOrgWide` ON `TenantContext`, SO THE QUESTION IS ANSWERED
+ *   FROM THE SCOPE ITSELF. An org-wide grant (`membership_roles.branch_id IS
+ *   NULL`) resolves to EVERY branch id in the organization; a branch-scoped one
+ *   resolves to a subset. So "does this caller speak for the organization" is
+ *   exactly "does their scope cover every branch", which is one count.
+ *
+ *   Deleted branches are excluded on both sides: a soft-deleted branch is not in
+ *   anybody's scope and must not make an org-wide admin look branch-scoped.
+ */
+async function assertOrganizationWideScope(tx: TxClient, ctx: TenantContext): Promise<void> {
+  const branches = await tx.branch.count({
+    where: { organizationId: ctx.organizationId, deletedAt: null },
+  });
+  if (ctx.branchIds.length < branches) {
+    throw new ValidationError(
+      'A clinic-wide price is the default every branch inherits, so setting or removing it takes clinic-wide access. Set a price for your own branch instead.'
+    );
+  }
+}
+
 export interface ResolvedProductPrice {
   /** What one of `unitId` costs. */
   unitPrice: Money;
@@ -232,6 +264,7 @@ export async function upsertProductPrice(
   return withTenant(ctx, async (tx) => {
     const branchId = input.branchId ?? null;
     if (branchId !== null) assertBranchInScope(ctx, branchId);
+    else await assertOrganizationWideScope(tx, ctx);
 
     const product = await tx.product.findFirst({
       where: { id: input.productId, deletedAt: null },
@@ -313,8 +346,18 @@ export async function deleteProductPrice(
      *
      *   The read path is safe either way — inheriting the default is the point.
      *   It is the WRITE that has to be the organization's.
+     *
+     * ⚠️ AND UNTIL THE PI-8 REVIEW THIS COMMENT DESCRIBED CODE THAT DID NOT EXIST.
+     *   It said the org-wide row "is covered by nothing, so it is checked here"
+     *   above a line reading `if (before.branchId !== null) assertBranchInScope(…)`
+     *   — which checks the BRANCH row and skips the org-wide one, the exact
+     *   inverse of the paragraph above it. The reasoning was right; the branch it
+     *   was attached to was not. Recorded rather than quietly corrected, because
+     *   a comment that documents an intention as though it were an implementation
+     *   is the failure mode PI-7 wrote up and this is the same one again.
      */
     if (before.branchId !== null) assertBranchInScope(ctx, before.branchId);
+    else await assertOrganizationWideScope(tx, ctx);
 
     await tx.productPrice.update({
       where: { id: priceId },

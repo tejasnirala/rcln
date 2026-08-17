@@ -685,6 +685,90 @@ describe('a prescription that is not current', () => {
   });
 });
 
+/**
+ * ⚠️ SUPPLYING SOMETHING ELSE IS A SUBSTITUTION WHETHER OR NOT THE CALLER SAYS SO
+ *   (PI-8 review, CRITICAL). Every substitution control in the programme hangs off
+ *   `substitutedForProductId`: the contract refines the mandatory reason only when
+ *   it is set, and `consultForSupply` is told `substitution: { isSubstitution: true }`
+ *   only when it is set. So a line citing prescription line P (for product A) while
+ *   supplying product B, with the field simply OMITTED, used to sail through — every
+ *   `SUBSTITUTION_RESTRICTION` rule sat out, the frozen decision recorded a PERMITTED
+ *   supply for a question nobody asked, the stored row read
+ *   `substituted_for_product_id = NULL` (asserting B is what the prescriber wrote),
+ *   and `refreshFulfilment` closed the prescription because it sums by prescription
+ *   line without looking at the product.
+ *
+ *   The web workspace always sent the field. The workspace is not the boundary.
+ */
+describe('supplying a different product from the one prescribed', () => {
+  let other: string;
+
+  beforeAll(async () => {
+    const row = await owner.query<{ id: string }>(
+      `INSERT INTO products
+         (id, organization_id, type, status, code, name, base_unit_id, tracking_mode,
+          is_expiry_controlled, is_stock_item, updated_at)
+       VALUES (gen_random_uuid(), $1, 'MEDICINE', 'ACTIVE', 'PHR-MED-ALT', 'Phr Medicine Alt', $2,
+               'LOT_BATCH', true, true, now())
+       RETURNING id`,
+      [org.organizationId, baseUnit]
+    );
+    other = row.rows[0]?.id ?? '';
+  });
+
+  it('refuses a swap that does not declare itself', async () => {
+    await expect(
+      createDispense(ctx, {
+        branchId: org.branchId,
+        locationId: counter,
+        kind: 'PRESCRIPTION',
+        encounterId,
+        lines: [
+          {
+            encounterPrescriptionId: prescriptionLineId,
+            productId: other,
+            quantity: '1',
+            unitId: baseUnit,
+          },
+        ],
+      } as never)
+    ).rejects.toThrow(/record it as a substitution/i);
+  });
+
+  /*
+   * The other half: a declared substitution has to name the product on the line it
+   * cites. Pointing it at some third product would put a name on the clinical record
+   * that was never prescribed, and would ask the engine about the wrong swap.
+   */
+  it('refuses a substitution that names a product the prescription does not', async () => {
+    await expect(
+      createDispense(ctx, {
+        branchId: org.branchId,
+        locationId: counter,
+        kind: 'PRESCRIPTION',
+        encounterId,
+        /*
+         * The supplied product IS the prescribed one, so this is not a swap at
+         * all — but it claims to have been substituted for a product the line
+         * never named. Caught here rather than by the contract, whose only
+         * refinement on this field is that a product is not substituted for
+         * itself.
+         */
+        lines: [
+          {
+            encounterPrescriptionId: prescriptionLineId,
+            productId: medicine,
+            substitutedForProductId: other,
+            substitutionReason: 'out of stock',
+            quantity: '1',
+            unitId: baseUnit,
+          },
+        ],
+      } as never)
+    ).rejects.toThrow(/actually prescribed/i);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Returns
 // ---------------------------------------------------------------------------

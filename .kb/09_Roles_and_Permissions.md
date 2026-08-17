@@ -14,8 +14,8 @@ a tenant clones one into an org-scoped role instead.
 | code | name | scope | permissions | description |
 | --- | --- | --- | --- | --- |
 | `SUPER_ADMIN` | Super Admin | PLATFORM | 126 / 126 | Platform operator. Seeded directly into the database, never created via the UI. |
-| `ORG_OWNER` | Organization Owner | ORGANIZATION | 111 / 126 | Registered the clinic. Full control including subscription and billing. |
-| `ORG_ADMIN` | Organization Admin | ORGANIZATION | 107 / 126 | Manages every branch, but cannot change the subscription or delete the org. |
+| `ORG_OWNER` | Organization Owner | ORGANIZATION | 110 / 126 | Registered the clinic. Full control including subscription and billing. |
+| `ORG_ADMIN` | Organization Admin | ORGANIZATION | 106 / 126 | Manages every branch, but cannot change the subscription or delete the org. |
 | `BRANCH_ADMIN` | Branch Admin | BRANCH | 77 / 126 | Runs one or more branches. Which branches is decided per assignment in membership_roles, not here. |
 | `DOCTOR` | Doctor | BRANCH | 34 / 126 | Consults patients. Scoped to the branches they practise at. |
 | `NURSE` | Nurse | BRANCH | 17 / 126 | Records vitals, assists the encounter, manages the queue. |
@@ -180,7 +180,7 @@ a tenant clones one into an org-scoped role instead.
 | `pharmacy.dispense.create` | Y | Y | Y |  |  |  |  |  |  | Y |  |  |
 | `pharmacy.dispense.read` | Y | Y | Y | Y |  |  |  |  |  | Y |  |  |
 | `pharmacy.dispense.return` | Y | Y | Y |  |  |  |  |  |  | Y |  |  |
-| `pharmacy.dispense.verify` | Y | Y | Y |  |  |  |  |  |  | Y |  |  |
+| `pharmacy.dispense.verify` | Y |  |  |  |  |  |  |  |  | Y |  |  |
 | `pharmacy.goods_receipt.manage` | Y | Y | Y | Y |  |  |  |  |  | Y |  |  |
 | `pharmacy.medicine.manage` | Y | Y | Y | Y |  |  |  |  |  | Y |  |  |
 | `pharmacy.medicine.read` | Y | Y | Y | Y | Y |  |  |  |  | Y |  |  |

@@ -63,9 +63,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `allocationStrategy` | `z.enum(…)` | `packages/contracts/src/inventory.ts:923` |  |
 | `amendEncounterRequest` | `z.object(…)` | `packages/contracts/src/encounters.ts:160` | Correct a finalized record by starting a new one that cites it (CD-2). ⚠️ THE REASON IS REQUIRED. "The record changed and nobody said why" is exactly the failu… |
 | `apiError` | `z.object(…)` | `packages/contracts/src/common.ts:157` |  |
-| `appointmentBilling` | `z.object(…)` | `packages/contracts/src/invoices.ts:600` |  |
-| `appointmentBillingBlockedReason` | `z.enum(…)` | `packages/contracts/src/invoices.ts:567` |  |
-| `appointmentInvoiceLink` | `z.object(…)` | `packages/contracts/src/invoices.ts:509` |  |
+| `appointmentBilling` | `z.object(…)` | `packages/contracts/src/invoices.ts:624` |  |
+| `appointmentBillingBlockedReason` | `z.enum(…)` | `packages/contracts/src/invoices.ts:591` |  |
+| `appointmentInvoiceLink` | `z.object(…)` | `packages/contracts/src/invoices.ts:533` |  |
 | `appointmentListResponse` | `z.object(…)` | `packages/contracts/src/appointments.ts:786` |  |
 | `appointmentSource` | `z.enum(…)` | `packages/contracts/src/appointments.ts:44` |  |
 | `appointmentStatus` | `z.enum(…)` | `packages/contracts/src/appointments.ts:26` |  |
@@ -139,8 +139,8 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `compositionIngredientDetail` | `z.object(…)` | `packages/contracts/src/products.ts:386` |  |
 | `compositionIngredientRequest` | `z.object(…)` | `packages/contracts/src/products.ts:358` |  |
 | `compositionSummary` | `z.object(…)` | `packages/contracts/src/products.ts:397` |  |
-| `consultationCharge` | `z.object(…)` | `packages/contracts/src/invoices.ts:575` | What the rate card proposes to charge for one visit. |
-| `consultationChargeBasis` | `z.enum(…)` | `packages/contracts/src/invoices.ts:538` |  |
+| `consultationCharge` | `z.object(…)` | `packages/contracts/src/invoices.ts:599` | What the rate card proposes to charge for one visit. |
+| `consultationChargeBasis` | `z.enum(…)` | `packages/contracts/src/invoices.ts:562` |  |
 | `consultationConfigResponse` | `z.object(…)` | `packages/contracts/src/consultation.ts:254` |  |
 | `consultationFieldConfig` | `z.object(…)` | `packages/contracts/src/consultation.ts:189` |  |
 | `consultationFieldType` | `z.enum(…)` | `packages/contracts/src/consultation.ts:66` | Mirrors `ConsultationFieldType` in `@rcln/clinical`. A closed set. |
@@ -151,9 +151,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `consultationTemplateQuery` | `z.object(…)` | `packages/contracts/src/consultation.ts:87` |  |
 | `consultationTemplateStatus` | `z.enum(…)` | `packages/contracts/src/consultation.ts:43` |  |
 | `consultationTemplateVersionSummary` | `z.object(…)` | `packages/contracts/src/consultation.ts:121` |  |
-| `consultationUnpricedReason` | `z.enum(…)` | `packages/contracts/src/invoices.ts:555` |  |
+| `consultationUnpricedReason` | `z.enum(…)` | `packages/contracts/src/invoices.ts:579` |  |
 | `createActiveIngredientRequest` | `z.object(…)` | `packages/contracts/src/products.ts:323` |  |
-| `createAppointmentInvoiceRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:650` |  |
+| `createAppointmentInvoiceRequest` | `z.object(…)` | `packages/contracts/src/invoices.ts:674` |  |
 | `createAppointmentRequest` | `z.object(…)` | `packages/contracts/src/appointments.ts:134` |  |
 | `createBatchRequest` | `z.object(…)` | `packages/contracts/src/inventory.ts:342` |  |
 | `createBranchRequest` | `z.object(…)` | `packages/contracts/src/tenancy.ts:162` |  |
@@ -174,7 +174,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `createEncounterProcedureRequest` | `z.object(…)` | `packages/contracts/src/encounter-content.ts:275` |  |
 | `createGoodsReceiptRequest` | `z.object(…)` | `packages/contracts/src/procurement.ts:677` |  |
 | `createInventoryLocationRequest` | `z.object(…)` | `packages/contracts/src/inventory.ts:229` |  |
-| `createInvoiceFromChargesRequest` | `z.object(…)` | `packages/contracts/src/charging.ts:346` |  |
+| `createInvoiceFromChargesRequest` | `z.object(…)` | `packages/contracts/src/charging.ts:355` |  |
 | `createJurisdictionRequest` | `z.object(…)` | `packages/contracts/src/regulatory.ts:182` |  |
 | `createManufacturerRequest` | `z.object(…)` | `packages/contracts/src/products.ts:294` |  |
 | `createProductCategoryRequest` | `z.object(…)` | `packages/contracts/src/products.ts:243` |  |
@@ -643,7 +643,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `goodsReceiptLineRequest` | `z .object({ productId: uuid, /** The order line this satisf…` | `packages/contracts/src/procurement.ts:647` |  |
 | `inventoryLocationDetail` | `inventoryLocationSummary.extend(…)` | `packages/contracts/src/inventory.ts:302` |  |
 | `listChargeRequestsQuery` | `z .object({ page: z.coerce.number().int().min(1).default(1)…` | `packages/contracts/src/charging.ts:256` |  |
-| `listInvoicesQuery` | `z .object({ page: z.coerce.number().int().min(1).default(1)…` | `packages/contracts/src/invoices.ts:313` |  |
+| `listInvoicesQuery` | `z .object({ page: z.coerce.number().int().min(1).default(1)…` | `packages/contracts/src/invoices.ts:337` |  |
 | `mapCode` <sub>local</sub> | `z .string() .trim() .regex(/^[A-Z][A-Z0-9_]*$/, 'a code is …` | `packages/contracts/src/visual-mapping.ts:43` |  |
 | `maritalStatusValues` | `[ 'SINGLE', 'MARRIED', 'WIDOWED', 'DIVORCED', 'SEPARATED', 'UNKNOWN', ] as const` | `packages/contracts/src/patients.ts:54` |  |
 | `medicineDetail` | `medicineDetailRequest.extend(…)` | `packages/contracts/src/products.ts:798` |  |
@@ -742,7 +742,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CancelSubscriptionResponse` | `{ status, endsAt }` | `packages/contracts/src/billing.ts:367` |  |
 | `ChargePolicyRuleDetail` | `{ id, scope, productId, productName, productCategoryId, productCategoryName, productType, policy, note, updatedAt }` | `packages/contracts/src/charging.ts:102` |  |
 | `ChargePolicyRuleListResponse` | `{ items, total, page, limit }` | `packages/contracts/src/charging.ts:124` |  |
-| `ChargeQueueSummary` | `{ branchId, pending, needsAttention, suppressed, invoiced, estimatedValueMinor, currency }` | `packages/contracts/src/charging.ts:372` |  |
+| `ChargeQueueSummary` | `{ branchId, pending, needsAttention, suppressed, invoiced, estimatedValueMinor, currency }` | `packages/contracts/src/charging.ts:381` |  |
 | `ChargeRequestListResponse` | `{ items, total, page, limit }` | `packages/contracts/src/charging.ts:288` |  |
 | `ChargeRequestSummary` | `{ id, branchId, sourceType, kind, status, productId, productName, patientId, patientName, occurredAt, quantity, unitId, unitSymbol, quantityBase, policy, policyScope, policyRuleId, description, unitP…` | `packages/contracts/src/charging.ts:214` |  |
 | `CheckoutResponse` | `{ intentId, customer, redirectUrl, embedded, purchase, status, amountMinor, currency, invoiceId }` | `packages/contracts/src/billing.ts:263` |  |
@@ -751,13 +751,13 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CountryInfo` | `{ code, name, currency, timezones, regions, tax, dial, labels, postal, taxId, temperatureUnit }` | `packages/contracts/src/locale.ts:169` |  |
 | `DialFormat` | `{ code, minDigits, maxDigits, example }` | `packages/contracts/src/locale.ts:96` |  |
 | `EmbeddedCheckout` | `{ provider, publicKey, token }` | `packages/contracts/src/billing.ts:216` |  |
-| `InvoiceDetail` | `{ appointmentId, customerPhone, customerEmail, customerAddress, customerTaxId, issuerTaxId, issuerLegalName, placeOfSupply, taxTreatment, subtotalMinor, lineDiscountTotalMinor, invoiceDiscountTotalMi…` | `packages/contracts/src/invoices.ts:447` |  |
-| `InvoiceDocumentState` | `{ status, documentId, fileName, sizeBytes, generatedAt }` | `packages/contracts/src/invoices.ts:439` |  |
-| `InvoiceItemDetail` | `{ id, lineNumber, description, taxCategory, itemCode, quantity, unitPriceMinor, grossMinor, discountMinor, apportionedDiscountMinor, taxableMinor, taxMinor, lineTotalMinor, taxTreatment, taxReason, t…` | `packages/contracts/src/invoices.ts:407` |  |
+| `InvoiceDetail` | `{ appointmentId, customerPhone, customerEmail, customerAddress, customerTaxId, issuerTaxId, issuerLegalName, placeOfSupply, taxTreatment, subtotalMinor, lineDiscountTotalMinor, invoiceDiscountTotalMi…` | `packages/contracts/src/invoices.ts:471` |  |
+| `InvoiceDocumentState` | `{ status, documentId, fileName, sizeBytes, generatedAt }` | `packages/contracts/src/invoices.ts:463` |  |
+| `InvoiceItemDetail` | `{ id, lineNumber, description, taxCategory, itemCode, quantity, unitPriceMinor, grossMinor, discountMinor, apportionedDiscountMinor, taxableMinor, taxMinor, lineTotalMinor, taxTreatment, taxReason, t…` | `packages/contracts/src/invoices.ts:431` |  |
 | `InvoiceLineSummary` | `{ kind, description, amountMinor }` | `packages/contracts/src/billing.ts:171` |  |
-| `InvoiceListItem` | `{ id, invoiceNumber, kind, creditedInvoiceId, status, sourceType, branchId, patientId, customerName, currency, grandTotalMinor, amountPaidMinor, balanceDueMinor, suppliedAt, issuedAt, dueDate, create…` | `packages/contracts/src/invoices.ts:366` | One row of the list. Enough to render a line; never enough to be the bill. |
+| `InvoiceListItem` | `{ id, invoiceNumber, kind, creditedInvoiceId, status, sourceType, branchId, patientId, customerName, currency, grandTotalMinor, amountPaidMinor, balanceDueMinor, suppliedAt, issuedAt, dueDate, create…` | `packages/contracts/src/invoices.ts:390` | One row of the list. Enough to render a line; never enough to be the bill. |
 | `InvoiceSummary` | `{ id, invoiceNumber, status, currency, totalMinor, amountPaidMinor, periodStart, periodEnd, issuedAt, paidAt, dueDate, lines }` | `packages/contracts/src/billing.ts:178` |  |
-| `InvoiceTaxLine` | `{ name, jurisdiction, rateBps, taxableMinor, amountMinor }` | `packages/contracts/src/invoices.ts:390` |  |
+| `InvoiceTaxLine` | `{ name, jurisdiction, rateBps, taxableMinor, amountMinor }` | `packages/contracts/src/invoices.ts:414` |  |
 | `MandateSetupResponse` | `{ mandateId, redirectUrl }` | `packages/contracts/src/billing.ts:322` |  |
 | `MandateStatusResponse` | `{ mandateId, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }` | `packages/contracts/src/billing.ts:335` |  |
 | `MandateSummary` | `{ id, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }` | `packages/contracts/src/billing.ts:125` |  |
@@ -799,10 +799,10 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `AllocationStrategy` | `z.infer<typeof allocationStrategy>` | `packages/contracts/src/inventory.ts:1315` |  |
 | `AmendEncounterRequest` | `z.infer<typeof amendEncounterRequest>` | `packages/contracts/src/encounters.ts:163` |  |
 | `ApiError` | `z.infer<typeof apiError>` | `packages/contracts/src/common.ts:165` |  |
-| `AppointmentBilling` | `z.infer<typeof appointmentBilling>` | `packages/contracts/src/invoices.ts:637` |  |
-| `AppointmentBillingBlockedReason` | `z.infer<typeof appointmentBillingBlockedReason>` | `packages/contracts/src/invoices.ts:572` |  |
+| `AppointmentBilling` | `z.infer<typeof appointmentBilling>` | `packages/contracts/src/invoices.ts:661` |  |
+| `AppointmentBillingBlockedReason` | `z.infer<typeof appointmentBillingBlockedReason>` | `packages/contracts/src/invoices.ts:596` |  |
 | `AppointmentDetail` | `z.infer<typeof appointmentDetail>` | `packages/contracts/src/appointments.ts:809` |  |
-| `AppointmentInvoiceLink` | `z.infer<typeof appointmentInvoiceLink>` | `packages/contracts/src/invoices.ts:520` |  |
+| `AppointmentInvoiceLink` | `z.infer<typeof appointmentInvoiceLink>` | `packages/contracts/src/invoices.ts:544` |  |
 | `AppointmentListQuery` | `z.infer<typeof appointmentListQuery>` | `packages/contracts/src/appointments.ts:811` |  |
 | `AppointmentListResponse` | `z.infer<typeof appointmentListResponse>` | `packages/contracts/src/appointments.ts:810` |  |
 | `AppointmentSourceValue` | `z.infer<typeof appointmentSource>` | `packages/contracts/src/appointments.ts:798` |  |
@@ -874,8 +874,8 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CompositionIngredientDetail` | `z.infer<typeof compositionIngredientDetail>` | `packages/contracts/src/products.ts:879` |  |
 | `CompositionIngredientRequest` | `z.infer<typeof compositionIngredientRequest>` | `packages/contracts/src/products.ts:876` |  |
 | `CompositionSummary` | `z.infer<typeof compositionSummary>` | `packages/contracts/src/products.ts:880` |  |
-| `ConsultationCharge` | `z.infer<typeof consultationCharge>` | `packages/contracts/src/invoices.ts:589` |  |
-| `ConsultationChargeBasis` | `z.infer<typeof consultationChargeBasis>` | `packages/contracts/src/invoices.ts:539` |  |
+| `ConsultationCharge` | `z.infer<typeof consultationCharge>` | `packages/contracts/src/invoices.ts:613` |  |
+| `ConsultationChargeBasis` | `z.infer<typeof consultationChargeBasis>` | `packages/contracts/src/invoices.ts:563` |  |
 | `ConsultationConfigResponse` | `z.infer<typeof consultationConfigResponse>` | `packages/contracts/src/consultation.ts:280` |  |
 | `ConsultationFieldConfig` | `z.infer<typeof consultationFieldConfig>` | `packages/contracts/src/consultation.ts:205` |  |
 | `ConsultationFieldTypeValue` | `z.infer<typeof consultationFieldType>` | `packages/contracts/src/consultation.ts:81` |  |
@@ -887,10 +887,10 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `ConsultationTemplateQuery` | `z.infer<typeof consultationTemplateQuery>` | `packages/contracts/src/consultation.ts:94` |  |
 | `ConsultationTemplateStatusValue` | `z.infer<typeof consultationTemplateStatus>` | `packages/contracts/src/consultation.ts:44` |  |
 | `ConsultationTemplateVersionSummary` | `z.infer<typeof consultationTemplateVersionSummary>` | `packages/contracts/src/consultation.ts:131` |  |
-| `ConsultationUnpricedReason` | `z.infer<typeof consultationUnpricedReason>` | `packages/contracts/src/invoices.ts:556` |  |
+| `ConsultationUnpricedReason` | `z.infer<typeof consultationUnpricedReason>` | `packages/contracts/src/invoices.ts:580` |  |
 | `CoverageMode` | `(typeof COVERAGE_MODES)[number]` | `packages/contracts/src/tax.ts:150` |  |
 | `CreateActiveIngredientRequest` | `z.infer<typeof createActiveIngredientRequest>` | `packages/contracts/src/products.ts:872` |  |
-| `CreateAppointmentInvoiceRequest` | `z.infer<typeof createAppointmentInvoiceRequest>` | `packages/contracts/src/invoices.ts:665` |  |
+| `CreateAppointmentInvoiceRequest` | `z.infer<typeof createAppointmentInvoiceRequest>` | `packages/contracts/src/invoices.ts:689` |  |
 | `CreateAppointmentRequest` | `z.infer<typeof createAppointmentRequest>` | `packages/contracts/src/appointments.ts:812` |  |
 | `CreateBatchRequest` | `z.infer<typeof createBatchRequest>` | `packages/contracts/src/inventory.ts:864` |  |
 | `CreateBranchRequest` | `z.infer<typeof createBranchRequest>` | `packages/contracts/src/tenancy.ts:967` |  |
@@ -902,7 +902,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CreateClinicTaxRuleRequest` | `z.infer<typeof createClinicTaxRuleRequest>` | `packages/contracts/src/tax.ts:251` |  |
 | `CreateCompositionRequest` | `z.infer<typeof createCompositionRequest>` | `packages/contracts/src/products.ts:877` |  |
 | `CreateConsultationTemplateRequest` | `z.infer<typeof createConsultationTemplateRequest>` | `packages/contracts/src/consultation.ts:110` |  |
-| `CreateCreditNoteRequest` | `z.infer<typeof createCreditNoteRequest>` | `packages/contracts/src/invoices.ts:296` |  |
+| `CreateCreditNoteRequest` | `z.infer<typeof createCreditNoteRequest>` | `packages/contracts/src/invoices.ts:320` |  |
 | `CreateDesignationRequest` | `z.infer<typeof createDesignationRequest>` | `packages/contracts/src/tenancy.ts:970` |  |
 | `CreateDispenseRequest` | `z.infer<typeof createDispenseRequest>` | `packages/contracts/src/pharmacy.ts:623` |  |
 | `CreateDispenseReturnRequest` | `z.infer<typeof createDispenseReturnRequest>` | `packages/contracts/src/pharmacy.ts:631` |  |
@@ -917,7 +917,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CreateEncounterSymptomRequest` | `z.infer<typeof createEncounterSymptomRequest>` | `packages/contracts/src/encounter-content.ts:192` |  |
 | `CreateGoodsReceiptRequest` | `z.infer<typeof createGoodsReceiptRequest>` | `packages/contracts/src/procurement.ts:1072` |  |
 | `CreateInventoryLocationRequest` | `z.infer<typeof createInventoryLocationRequest>` | `packages/contracts/src/inventory.ts:854` |  |
-| `CreateInvoiceFromChargesRequest` | `z.infer<typeof createInvoiceFromChargesRequest>` | `packages/contracts/src/charging.ts:362` |  |
+| `CreateInvoiceFromChargesRequest` | `z.infer<typeof createInvoiceFromChargesRequest>` | `packages/contracts/src/charging.ts:371` |  |
 | `CreateInvoiceRequest` | `z.infer<typeof createInvoiceRequest>` | `packages/contracts/src/invoices.ts:199` |  |
 | `CreateJurisdictionRequest` | `z.infer<typeof createJurisdictionRequest>` | `packages/contracts/src/regulatory.ts:685` |  |
 | `CreateManufacturerRequest` | `z.infer<typeof createManufacturerRequest>` | `packages/contracts/src/products.ts:868` |  |
@@ -949,7 +949,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CreateVisualMapRequest` | `z.infer<typeof createVisualMapRequest>` | `packages/contracts/src/visual-mapping.ts:147` |  |
 | `CreateVisualRegionRequest` | `z.infer<typeof createVisualRegionRequest>` | `packages/contracts/src/visual-mapping.ts:170` |  |
 | `CreditNoteLineRequest` | `z.infer<typeof creditNoteLineRequest>` | `packages/contracts/src/invoices.ts:283` |  |
-| `DecideChargeRequest` | `z.infer<typeof decideChargeRequest>` | `packages/contracts/src/charging.ts:329` |  |
+| `DecideChargeRequest` | `z.infer<typeof decideChargeRequest>` | `packages/contracts/src/charging.ts:338` |  |
 | `DecideGoodsReceiptQualityRequest` | `z.infer<typeof decideGoodsReceiptQualityRequest>` | `packages/contracts/src/procurement.ts:1075` |  |
 | `DecideScheduleExceptionRequest` | `z.infer<typeof decideScheduleExceptionRequest>` | `packages/contracts/src/doctors.ts:590` |  |
 | `DemoRequestInput` | `z.infer<typeof demoRequestInput>` | `packages/contracts/src/marketing.ts:46` |  |
@@ -1068,7 +1068,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `ListChargePolicyRulesQuery` | `z.infer<typeof listChargePolicyRulesQuery>` | `packages/contracts/src/charging.ts:122` |  |
 | `ListChargeRequestsQuery` | `z.infer<typeof listChargeRequestsQuery>` | `packages/contracts/src/charging.ts:286` |  |
 | `ListClinicTaxRulesQuery` | `z.infer<typeof listClinicTaxRulesQuery>` | `packages/contracts/src/tax.ts:388` |  |
-| `ListInvoicesQuery` | `z.infer<typeof listInvoicesQuery>` | `packages/contracts/src/invoices.ts:359` |  |
+| `ListInvoicesQuery` | `z.infer<typeof listInvoicesQuery>` | `packages/contracts/src/invoices.ts:383` |  |
 | `ListProductPricesQuery` | `z.infer<typeof listProductPricesQuery>` | `packages/contracts/src/charging.ts:194` |  |
 | `LocationKind` | `z.infer<typeof locationKind>` | `packages/contracts/src/inventory.ts:846` |  |
 | `LoginRequest` | `z.infer<typeof loginRequest>` | `packages/contracts/src/auth.ts:320` |  |

@@ -18,7 +18,7 @@
  * ⚠️ FINANCIALLY THIS DOES NOTHING, DELIBERATELY. A credit note is the invoice
  *   engine's, through a charge request, in PI-8. Nothing here touches money.
  */
-import { Prisma, withTenant, type TenantContext } from '@rcln/db';
+import { Prisma, withTenant, type TenantContext, type TxClient } from '@rcln/db';
 import type { CreateDispenseReturnRequest, DispenseReturnDetail } from '@rcln/contracts';
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
@@ -114,6 +114,25 @@ export async function createDispenseReturn(
         );
       }
       seen.add(line.dispenseLineId);
+
+      /*
+       * ⚠️ THE ROW IS LOCKED BEFORE IT IS MEASURED, BECAUSE THE CEILING IS A
+       *   READ-THEN-WRITE. `outstanding` is computed below from the stored
+       *   `returned_quantity_base` and applied as an `increment`, so two returns
+       *   against one line that both start before either commits BOTH read the
+       *   same untouched figure, both pass the check, and both increment — ten
+       *   supplied become twenty returned. The `seen` set above closes the
+       *   within-request half of this; the lock closes the across-request half.
+       *
+       *   The CHECK constraint (`returned_quantity_base <= quantity_base`) does
+       *   stop the corruption, so this was never a data defect. What it was is a
+       *   Postgres 23514 reaching `errorHandler`, which narrows
+       *   `PrismaClientKnownRequestError` by `code` and has no case for a CHECK
+       *   violation — so the loser got a 500 saying the system broke instead of
+       *   the ValidationError written twenty lines below saying that stock
+       *   already came back. Same lock idiom as `lockChargeRequest`.
+       */
+      await lockDispenseLine(tx, line.dispenseLineId);
 
       const dispenseLine = await tx.dispenseLine.findFirst({
         where: {
@@ -389,4 +408,21 @@ export async function getDispenseReturn(
       })),
     };
   });
+}
+
+/**
+ * Take the row lock the return ceiling is measured under.
+ *
+ * ⚠️ `FOR UPDATE` ON THE LINE, TAKEN INSIDE THE POSTING TRANSACTION, so it is
+ *   released by COMMIT without anybody remembering to — and RLS applies to it, so
+ *   a lock on another tenant's id locks nothing and the read that follows 404s,
+ *   which is the answer every other path in this service gives. Lines are locked
+ *   in the request's own `ordered` sequence, which `createDispenseReturn` sorts,
+ *   so two concurrent returns naming the same pair of lines cannot take them in
+ *   opposite orders and deadlock.
+ */
+async function lockDispenseLine(tx: TxClient, dispenseLineId: string): Promise<void> {
+  await tx.$queryRaw`
+    SELECT id FROM dispense_lines WHERE id = ${dispenseLineId}::uuid FOR UPDATE
+  `;
 }

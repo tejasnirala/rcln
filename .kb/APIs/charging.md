@@ -11,15 +11,15 @@ Source: `apps/api/src/routes/v1/charging.routes.ts`
 | USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/charging.routes.ts:101` |
 | GET | `/requests` | `authorize(CHARGE_READ)` → `validate(listChargeRequestsQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:131` |
 | GET | `/requests/summary` | `authorize(CHARGE_READ)` → `validate(summaryQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:154` |
-| POST | `/requests/:id/decide` | `authorize(CHARGE_MANAGE)` → `validate(idParams)` → `validate(decideChargeRequestSchema)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:171` |
-| GET | `/policies` | `authorize(CHARGE_READ)` → `validate(listChargePolicyRulesQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:203` |
-| GET | `/policies/resolve` | `authorize(CHARGE_READ)` → `validate(resolveChargePolicyQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:217` |
-| POST | `/policies` | `authorize(POLICY_MANAGE)` → `validate(createChargePolicyRuleRequest)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:227` |
-| PATCH | `/policies/:id` | `authorize(POLICY_MANAGE)` → `validate(idParams)` → `validate(updateChargePolicyRuleRequest)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:246` |
-| DELETE | `/policies/:id` | `authorize(POLICY_MANAGE)` → `validate(idParams)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:267` |
-| GET | `/prices` | `authorize(PRICE_READ)` → `validate(listProductPricesQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:292` |
-| PUT | `/prices` | `authorize(PRICE_MANAGE)` → `validate(upsertProductPriceRequest)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:302` |
-| DELETE | `/prices/:id` | `authorize(PRICE_MANAGE)` → `validate(idParams)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:320` |
+| POST | `/requests/:id/decide` | `authorize(CHARGE_MANAGE)` → `validate(idParams)` → `validate(decideChargeRequestSchema)` → `requirePriceCodeToOverride` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:204` |
+| GET | `/policies` | `authorize(CHARGE_READ)` → `validate(listChargePolicyRulesQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:237` |
+| GET | `/policies/resolve` | `authorize(CHARGE_READ)` → `validate(resolveChargePolicyQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:251` |
+| POST | `/policies` | `authorize(POLICY_MANAGE)` → `validate(createChargePolicyRuleRequest)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:261` |
+| PATCH | `/policies/:id` | `authorize(POLICY_MANAGE)` → `validate(idParams)` → `validate(updateChargePolicyRuleRequest)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:280` |
+| DELETE | `/policies/:id` | `authorize(POLICY_MANAGE)` → `validate(idParams)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:301` |
+| GET | `/prices` | `authorize(PRICE_READ)` → `validate(listProductPricesQuery)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:326` |
+| PUT | `/prices` | `authorize(PRICE_MANAGE)` → `validate(upsertProductPriceRequest)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:336` |
+| DELETE | `/prices/:id` | `authorize(PRICE_MANAGE)` → `validate(idParams)` → `<inline>` | `apps/api/src/routes/v1/charging.routes.ts:354` |
 
 ## Schemas declared here
 

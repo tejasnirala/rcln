@@ -56,14 +56,51 @@ import type { RegulatoryActorInput } from './evaluation.service.js';
  *   `organization_id` of its own and is protected through `memberships`; a
  *   licence held at another clinic on the same platform cannot come back here.
  */
+function startOfUtcDay(on: Date): Date {
+  return new Date(Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate(), 0, 0, 0, 0));
+}
+
+/**
+ * Midnight of `on`'s calendar day AT THE BRANCH, as an instant.
+ *
+ * `expires_on` and `issued_on` are `date` columns, so what is compared against
+ * them is a day boundary rather than a moment — but WHICH day depends on where
+ * the counter is, which is the whole of invariant 6.
+ */
+async function startOfBranchDay(tx: TxClient, branchId: string, on: Date): Promise<Date> {
+  const rows = await tx.$queryRaw<{ start_of_day: Date }[]>`
+    SELECT (date_trunc('day', ${on}::timestamptz AT TIME ZONE b.timezone)
+              AT TIME ZONE b.timezone) AS start_of_day
+      FROM branches b
+     WHERE b.id = ${branchId}::uuid
+  `;
+  return rows[0]?.start_of_day ?? startOfUtcDay(on);
+}
+
 export async function licenceTypesFor(
   tx: TxClient,
   ctx: TenantContext,
-  on: Date
+  on: Date,
+  branchId?: string
 ): Promise<string[]> {
-  const day = new Date(
-    Date.UTC(on.getUTCFullYear(), on.getUTCMonth(), on.getUTCDate(), 0, 0, 0, 0)
-  );
+  /*
+   * ⚠️ THE CALENDAR DAY IS THE CLINIC'S, NOT THE CONTAINER'S (invariant 6). This
+   *   used to be `Date.UTC(on.getUTCFullYear(), …)`, which is the container's
+   *   zone wearing a UTC label — and `issued_on` / `expires_on` are DATES in a
+   *   council's own reckoning, as `access-control.prisma` says in the model
+   *   comment. For an IST clinic every supply between 00:00 and 05:30 local falls
+   *   on the PREVIOUS UTC day, so a licence that expired yesterday was still
+   *   honoured through that window, in the direction this domain may never fail
+   *   in: a rule satisfied by a registration that had lapsed.
+   *
+   *   Resolved in SQL from `branches.timezone`, the way `dashboard.service.ts` and
+   *   `inventory_branches_with_expired_stock` do it, never in Node.
+   *
+   * ⚠️ UTC IS THE FALLBACK WHEN NO BRANCH IS NAMED, which is what the caller that
+   *   cannot name one gets. It is the previous behaviour, so it is no worse; it is
+   *   not correct, and the parameter exists so a caller can be correct.
+   */
+  const day = branchId ? await startOfBranchDay(tx, branchId, on) : startOfUtcDay(on);
 
   const rows = await tx.membershipProfessionalRegistration.findMany({
     where: {
@@ -104,13 +141,19 @@ export async function regulatoryActorWithin(
   input: {
     roleCodes: readonly string[];
     occurredAt: Date;
+    /**
+     * Where the act happened — the counter, the receiving bay. Decides whose
+     * calendar day a registration's validity is measured in (invariant 6).
+     * Omitted falls back to UTC, which is the old behaviour and is not correct.
+     */
+    branchId?: string;
     /** Derived by the caller from the encounter, never accepted from a client. */
     isPrescriber?: boolean;
   }
 ): Promise<RegulatoryActorInput> {
   return {
     roleCodes: input.roleCodes,
-    licenceTypes: await licenceTypesFor(tx, ctx, input.occurredAt),
+    licenceTypes: await licenceTypesFor(tx, ctx, input.occurredAt, input.branchId),
     ...(input.isPrescriber !== undefined ? { isPrescriber: input.isPrescriber } : {}),
   };
 }

@@ -101,6 +101,7 @@ export async function consultForStockMovement(
     await regulatoryActorWithin(tx, ctx, {
       roleCodes: input.roleCodes ?? [],
       occurredAt: input.occurredAt,
+      branchId: input.branchId,
     })
   );
 

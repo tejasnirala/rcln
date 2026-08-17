@@ -41,7 +41,7 @@
  *   a CATALOGUE ROW; no patient appears in either request or response. Filing
  *   disclosure rows for them would bury the rows that are disclosures.
  */
-import { Router, type IRouter, type Request, type Response } from 'express';
+import { Router, type IRouter, type Request, type RequestHandler, type Response } from 'express';
 import { z } from 'zod';
 import {
   createChargePolicyRuleRequest,
@@ -161,6 +161,39 @@ router.get(
   }
 );
 
+/*
+ * ⚠️ OVERRIDING THE PRICE IS A PRICING ACT AND IS GATED AS ONE (PI-8 review).
+ *   `decideChargeRequest` accepts an optional `unitPriceMinor` that is written
+ *   verbatim onto the charge and taken verbatim into the invoice line, and it
+ *   used to sit behind `CHARGE_MANAGE` alone. The contract argued that was safe
+ *   because "RECEPTIONIST and BRANCH_ADMIN hold both this code and
+ *   `billing.invoice.create`, so it confers no authority they lack" — true of the
+ *   DEFAULT roles, and `roles.ts`'s own header says the defaults are "a default,
+ *   not a ceiling". A clinic that clones a charge-reviewer role with
+ *   `CHARGE_REQUEST_MANAGE` and no `INVOICE_CREATE` — the obvious
+ *   separation-of-duties shape, and the one `codes.ts`'s blast-radius argument
+ *   actively encourages — handed that person the power to re-price any charge to
+ *   1 paisa. Unlike `SUPPRESS`, a nominal `BILL` needs no reason, so it is
+ *   auditable after the fact and preventable by nothing.
+ *
+ *   So the price half asks for the price code IN ADDITION, and only when a price
+ *   is actually being overridden: deciding a charge on the resolved price stays
+ *   exactly as cheap as it was. This is the router header's own three-blast-radii
+ *   argument applied to the one field that crossed between two of them.
+ *
+ * ⚠️ IT RUNS AFTER `validate`, because it reads the parsed body. Gating on an
+ *   unvalidated `req.body` would let a non-object or a string body decide which
+ *   permission is checked.
+ */
+const requirePriceCodeToOverride: RequestHandler = (req, res, next) => {
+  const body = req.body as DecideChargeRequest;
+  if (body.decision === 'BILL' && body.unitPriceMinor !== undefined) {
+    authorize(PRICE_MANAGE)(req, res, next);
+    return;
+  }
+  next();
+};
+
 /**
  * A human's answer to a charge the policy would not decide.
  *
@@ -173,6 +206,7 @@ router.post(
   authorize(CHARGE_MANAGE),
   validate(idParams, 'params'),
   validate(decideChargeRequestSchema),
+  requirePriceCodeToOverride,
   async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params as z.infer<typeof idParams>;
     const body = req.body as DecideChargeRequest;

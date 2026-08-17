@@ -540,9 +540,23 @@ function toSummary(row: SummaryRow): ChargeRequestSummary {
      *   line; this is `unit_price × quantity` so the desk can see roughly what
      *   it is about to raise. A screen that presented it as the total would
      *   disagree with the invoice by the discount.
+     *
+     * ⚠️ INDICATIVE IS NOT AN EXEMPTION FROM DECIMAL. This was
+     *   `Math.round(unitPriceMinor * Number(row.quantity.toString()))` — the
+     *   `.toNumber()` route through IEEE-754 that `money.ts` says never to take —
+     *   while `getChargeQueueSummary` in this same file summed the same figures in
+     *   `Prisma.Decimal` with an explicit ROUND_HALF_UP. So the queue HEADER and
+     *   the queue ROWS computed one quantity two ways and could disagree by a
+     *   minor unit on the same screen. The rule is unconditional and the correct
+     *   form was already here to copy.
      */
     estimatedTotalMinor:
-      unitPriceMinor === null ? null : Math.round(unitPriceMinor * Number(row.quantity.toString())),
+      row.unitPrice === null
+        ? null
+        : toMoney(
+            row.unitPrice.times(row.quantity).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
+            row.currency
+          ).amountMinor,
     invoiceId: row.invoiceId,
     invoiceNumber: row.invoice?.invoiceNumber ?? null,
     suppressedReason: row.suppressedReason,

@@ -594,6 +594,48 @@ export async function createDispense(
         );
       }
 
+      /*
+       * ⚠️ SUPPLYING SOMETHING OTHER THAN WHAT WAS PRESCRIBED *IS* A SUBSTITUTION,
+       *   AND THE CLIENT DOES NOT GET TO DECIDE WHETHER TO CALL IT ONE. Without
+       *   this, a line could cite prescription line P (for product A) while
+       *   supplying product B and simply omit `substitutedForProductId` — and
+       *   because BOTH contract refinements are conditioned on that field being
+       *   set, omitting it skipped the mandatory reason AND the self-substitution
+       *   check. Worse, the engine is told a substitution happened only by
+       *   `...(line.substitutedForProductId ? { substitution: … } : {})` below, so
+       *   every `SUBSTITUTION_RESTRICTION` rule sat out and the frozen decision on
+       *   `dispense_lines.regulatory_decision_id` recorded a PERMITTED supply for a
+       *   question nobody asked. The stored row then read
+       *   `substituted_for_product_id = NULL`, which asserts B is what the
+       *   prescriber wrote, and `refreshFulfilment` closed the prescription off
+       *   because it sums by prescription line without looking at the product.
+       *
+       *   The declaration is derived from the two products disagreeing, never
+       *   trusted. The web workspace always sent the field — but the workspace is
+       *   not the boundary, and this is the one place that can tell.
+       */
+      if (prescriptionLine) {
+        if (line.productId !== prescriptionLine.productId && !line.substitutedForProductId) {
+          throw new ValidationError(
+            'This line supplies a different product from the one prescribed. Record it as a substitution, with the reason, so the law is asked the substitution question.'
+          );
+        }
+        /*
+         * Both directions: a declared substitution must name the product on the
+         * line it cites — which refuses an undeclared swap AND a claimed one that
+         * points at some third product, whose only effect would be to put a name
+         * on the record that was never prescribed.
+         */
+        if (
+          line.substitutedForProductId &&
+          line.substitutedForProductId !== prescriptionLine.productId
+        ) {
+          throw new ValidationError(
+            'A substitution has to name the product that was actually prescribed on the line it cites.'
+          );
+        }
+      }
+
       const quantityBase = await toBaseUnits(
         tx,
         movementDeps,
