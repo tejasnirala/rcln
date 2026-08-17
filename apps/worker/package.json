@@ -30,7 +30,7 @@
     "@rcln/queue": "workspace:*",
     "@rcln/storage": "workspace:*",
     "@rcln/tax": "workspace:*",
-    "bullmq": "^5.61.0",
+    "bullmq": "^6.1.0",
     "dotenv": "^17.2.3",
     "ioredis": "^5.9.0",
     "pino": "^10.3.1",
