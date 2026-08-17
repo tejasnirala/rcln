@@ -16,12 +16,13 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `cancelInvoice` | `(slug: string, invoiceId: string, reason: string): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:214` |  |
-| `issueInvoice` | `(slug: string, invoiceId: string): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:177` |  |
-| `loadInvoice` | `(slug: string, invoiceId: string): Promise<InvoiceDetail \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:87` | One invoice, with its lines, its tax summary and the state of its PDF. |
-| `loadInvoices` | `(slug: string, query: Record<string, string>): Promise<InvoicePage \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:63` |  |
-| `saveDraft` | `(slug: string, invoiceId: string, input: UpdateInvoiceRequest): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:122` |  |
-| `voidInvoice` | `(slug: string, invoiceId: string, reason: string): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:244` |  |
+| `cancelInvoice` | `(slug: string, invoiceId: string, reason: string): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:215` |  |
+| `creditInvoice` | `(slug: string, invoiceId: string, reason: string, lines: { invoiceItemId: string; quantity?: string \| undefin…): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:294` |  |
+| `issueInvoice` | `(slug: string, invoiceId: string): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:178` |  |
+| `loadInvoice` | `(slug: string, invoiceId: string): Promise<InvoiceDetail \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:88` | One invoice, with its lines, its tax summary and the state of its PDF. |
+| `loadInvoices` | `(slug: string, query: Record<string, string>): Promise<InvoicePage \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:64` |  |
+| `saveDraft` | `(slug: string, invoiceId: string, input: UpdateInvoiceRequest): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:123` |  |
+| `voidInvoice` | `(slug: string, invoiceId: string, reason: string): Promise<InvoiceFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:245` |  |
 
 ## var
 
@@ -33,10 +34,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `InvoicePage` | `{ invoices, pagination }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:44` |  |
+| `InvoicePage` | `{ invoices, pagination }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:45` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `InvoiceFormState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; fieldErrors?: Record<string, string[]>; /** The number the document was given, once issuing has given it…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:32` | The outcome of anything that changes an invoice. One shape for every write. |
+| `InvoiceFormState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; fieldErrors?: Record<string, string[]>; /** The number the document was given, once issuing has given it…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:33` | The outcome of anything that changes an invoice. One shape for every write. |

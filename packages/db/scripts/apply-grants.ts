@@ -40,6 +40,23 @@ const APPEND_ONLY = [
   // above are: a quantity somebody can rewrite afterwards is evidence of nothing.
   'stock_ledger',
   'stock_balances',
+  /*
+   * The regulatory decision snapshot (PI-7, PI-ADR-008).
+   *
+   * ⚠️ ADDED IN PI-8 BECAUSE ITS MIGRATION'S `REVOKE` WAS BEING UNDONE BY EVERY
+   *   RESET — the exact failure the NO_EXECUTE note below already describes for
+   *   functions, and the reason this list exists rather than each migration
+   *   revoking for itself. `20260825090000_pharmacy_dispensing` revokes UPDATE
+   *   and DELETE; `ALTER DEFAULT PRIVILEGES` then re-grants them on the next
+   *   `db:reset`, and the isolation case that checks for it only fails AFTER a
+   *   reset — which is why PI-7 shipped green.
+   *
+   *   A trigger refuses both anyway, so this is the second layer rather than the
+   *   only one. That is the point: a decision a clinic can rewrite after the fact
+   *   is worth nothing as evidence to an inspector, and neither layer alone
+   *   survives a stray GRANT or a dropped trigger.
+   */
+  'regulatory_decisions',
 ];
 
 /**

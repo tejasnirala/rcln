@@ -11,6 +11,7 @@ import visualMapRoutes from './visual-maps.routes.js';
 import encounterRoutes from './encounters.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
+import chargingRoutes from './charging.routes.js';
 import invoiceRoutes from './invoices.routes.js';
 import taxRoutes from './tax.routes.js';
 import invitationRoutes from './invitations.routes.js';
@@ -300,6 +301,25 @@ router.use('/tax', taxRoutes);
 // which is a bill that already exists. This is what every future bill will say,
 // and it is quoted at the front desk before a patient has agreed to anything.
 router.use('/fee-schedule', feeRoutes);
+
+// The seam between what was SUPPLIED and what is BILLED (PI-8). A charge request
+// is the structured hand-off a dispense writes in its own transaction; the charge
+// POLICY is the clinic's standing answer to "is this billed at all?"; the price
+// list is what a product sells for.
+//
+// ⚠️ NOT UNDER /invoices AND NOT UNDER /pharmacy, DELIBERATELY. It is not
+//    /invoices because nothing here is a document — a charge request has no
+//    number, no tax figure and no lifecycle a patient ever sees, and raising the
+//    invoice FROM these charges lives on the invoice router where the invoice
+//    permissions gate it. It is not /pharmacy because PI-ADR-005 says the charge
+//    seam is shared: PI-9's clinical consumption writes the same table from the
+//    other side, and a pharmacist should not hold a pharmacy code to see what a
+//    procedure consumed.
+//
+// PHI: the queue names a patient beside a medicine, so its read logs. The policy
+// and price routes name a catalogue row and nobody, so they do not. See the
+// header of charging.routes.ts.
+router.use('/charging', chargingRoutes);
 
 // A record's own history, for any record in this clinic. Read-only, and the only
 // way rows leave `audit_logs` — which is append-only at the database, not merely

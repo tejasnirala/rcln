@@ -1033,6 +1033,12 @@ export async function postGoodsReceipt(
         occurredAt: existing.receivedAt,
         documentType: 'GOODS_RECEIPT',
         documentId: existing.id,
+        /*
+         * ⚠️ THE CALLER, WHICH THIS CONSULT USED TO BE TOLD NOTHING ABOUT (PI-8,
+         *   KNOWN_ISSUES #5). Their professional registrations are added by
+         *   `regulatoryActorWithin` inside the consult, as at `receivedAt`.
+         */
+        roleCodes: options.roleCodes ?? [],
       });
 
       const batchId = await findOrCreateBatch(tx, ctx, existing.branchId, line);

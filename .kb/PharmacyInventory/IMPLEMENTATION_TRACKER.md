@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-16 (PI-7 complete)
+**Last updated:** 2026-08-16 (PI-8 complete)
 
 ## Status vocabulary
 
@@ -44,11 +44,11 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                          |
 | PI-6      | India Rule Pack                                         | **COMPLETE** (2026-08-13) | —                                          |
 | PI-7      | Pharmacy Dispensing                                     | **COMPLETE** (2026-08-16) | —                                          |
-| PI-8      | Billing & Tax Integration                               | PLANNED                   | **UNBLOCKED** — PI-7 landed                |
+| PI-8      | Billing & Tax Integration                               | **COMPLETE** (2026-08-17) | reviews deferred to the next session       |
 | PI-9      | Clinical Consumption                                    | **BLOCKED**               | `encounters`/`procedures` (Phase 3) + PI-3 |
 | PI-10     | Recall & Traceability                                   | PLANNED                   | PI-2, PI-4                                 |
 | PI-11     | Veterinary Enablement                                   | PLANNED                   | PI-1, PI-5                                 |
-| PI-12     | Online Pharmacy                                         | PLANNED                   | PI-8                                       |
+| PI-12     | Online Pharmacy                                         | PLANNED                   | **UNBLOCKED** — PI-8 landed                |
 | PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                       |
 | PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                       |
 | PI-23     | Identifier Resolution / Barcode                         | NOT_STARTED               | PI-1, PI-2                                 |
@@ -651,6 +651,122 @@ append-only pair on the snapshot, and 14 RLS policies.
 | PI-7.9 Screens — dashboard, queue, prescription, workspace, …     | COMPLETE — 7 screens                                            |
 | PI-7.10 Tests — unit, integration, isolation                      | COMPLETE — 12 unit · 24 integration · 13 isolation              |
 
+### The gap that was found after the phase was first called done
+
+⚠️ **A PRICE COULD NOT BE SET FROM ANY SCREEN, AND THE CODE COMMENTED AS THOUGH
+IT COULD.** `saveProductPriceAction` was written and wired to nothing;
+`product-price-list.tsx` listed and deleted; the product panel had no pricing
+tab. So `PUT /v1/charging/prices` was reachable only by API, every charge request
+came out with a NULL `unit_price`, and the charge queue's gap rail lit up on
+every row with no control anywhere that closed it. The whole phase was unusable
+end to end from a browser.
+
+Worse than the omission: `product-price-list.tsx`'s header ASSERTED that a price
+is set from the product screen — "that is where somebody already has the item,
+its base unit and its packaging in front of them" — as though the control
+existed. The reasoning was right and is the shape that was built; what was wrong
+was a comment describing code nobody had written.
+
+**Closed:** a `Price` tab on the product panel, before `Tax`, with a unit picker
+whose options the API validates against the product's own conversion graph. The
+empty state says out loud that an unpriced product still dispenses and simply
+never reaches an invoice, because that consequence is otherwise invisible until
+month end.
+
+Recorded rather than quietly fixed, because the failure mode — a comment that
+documents an intention as though it were an implementation — is worth being able
+to recognise again.
+
+### Three more gaps closed in the same pass
+
+- **Per-line crediting reached the screen.** The invoice detail could only
+  reverse a whole bill; the API took a per-line set from the start. A partial
+  return is the ordinary case, so the credit dialog now carries a line picker
+  seeded with the full invoice.
+- **KNOWN_ISSUES #1** — `stock_transfer_lines` rendered in a nondeterministic
+  order. `createMany` gives every line of one document the same `created_at`, so
+  `orderBy: { createdAt: 'asc' }` is not a total order. The entry asked for the
+  `{ id: 'asc' }` tie-break "in the next session that touches transfers"; PI-8
+  touched `transfer.service.ts`, so it was taken.
+- **KNOWN_ISSUES #12** — the pharmacy dashboard counted "today" as a UTC day.
+  Now `date_trunc('day', now() AT TIME ZONE b.timezone)`, resolved in SQL from
+  `branches.timezone` the way `inventory_branches_with_expired_stock` does it.
+  Invariant 6.
+
+### The reviews, and the finding worth remembering
+
+Both reviewers ran. **Three CRITICALs, two HIGHs and about a dozen smaller, all
+fixed** — the detail is in [CHANGELOG.md](CHANGELOG.md).
+
+⚠️ **THE ONE TO REMEMBER: PI-8'S OWN SUBSTITUTION UI WIDENED A HOLE PI-8 HAD LEFT
+OPEN.** This phase went in specifically to close the KI-3 class on
+`dispense_lines` and closed `product_id` — while `substituted_for_product_id`,
+the column immediately below it, is a second plain FK into `products`, taken
+straight from the client, unvalidated, and joined for its name onto the dispense
+detail screen. Then PI-8.12 added the picker that makes it reachable from a
+browser. The model comment says "plain FK**s**", plural, describing a policy set
+that covered one of them.
+
+The other four: a credit note refunded GROSS where the patient paid NET, and its
+ceiling compared three different bases; `createCreditNote` skipped the visibility
+check every other invoice mutation makes; `raiseChargeRequestsWithin` could throw
+and block a pharmacist mid-supply, which is the one thing its header promises it
+cannot do; and a substituted line sent a quantity in the prescribed product's
+base unit paired with the substitute's unit id.
+
+### ⚠️ WHAT WAS DELIBERATELY NOT TAKEN (superseded — see above)
+
+**This section is kept for the reasoning, not the status.** Hardening is now
+done. `/code-review` and
+`security-reviewer` have NOT been run — the owner is running both manually. This
+diff touches the schema, tenancy, auth, permissions, patient data, billing and
+raw SQL, so CLAUDE.md makes the security review mandatory before merge. It is not
+a formality: PI-1's review found two CRITICALs, PI-3's three and PI-5's four, and
+in each case they were one class of mistake repeated.
+
+Point a reviewer at these first, because they are where this phase took its
+risks: `lockCharges`' ordered `FOR UPDATE` (the PI-3 read-then-write class),
+`assertWithinRemaining`'s deliberately loose ceiling, `raiseChargeRequestsWithin`
+running inside the dispense transaction, and the two new `*_visible` policy
+pairs.
+
+### KNOWN_ISSUES #10 and #11, closed in a second pass
+
+**#10 — the quantity window, turned into a lookup.** The window a
+`QUANTITY_LIMIT` measures over is `periodDays` on the RULE, so a caller cannot
+know it until after evaluation, and the engine is pure by design (PI-ADR-007) so
+it cannot look the history up itself. `EvaluationSupplements.priorQuantityInPeriod`
+inverts the direction: `evaluateWithin` selects the applicable rules with the
+engine's own `selectApplicableRules`, reads the window off them, and calls back
+into the caller who knows who the supply is for. The engine still holds no Prisma
+client.
+
+⚠️ **Two rules with different windows still resolve `UNDETERMINED`, deliberately.**
+`RegulatoryRequest` carries ONE `priorQuantityInPeriodBase`. The longer window
+over-counts for the shorter rule and refuses lawful supplies; the shorter one
+UNDER-counts for the longer rule and PERMITS what the law forbids, which is the
+direction this domain may never fail in. So it refuses, exactly as before, and
+the single-window case — every real pack — is now answered.
+
+⚠️ **A counter sale with no patient also stays `UNDETERMINED`.** There is no
+history to sum, and reading that as zero would let anyone take the limit again on
+every visit, which is the pattern a quantity limit exists to stop.
+
+**#11 — supplying a substitute.** The workspace gained a "Hand over" picker per
+line, fed by equivalents fetched on the SERVER alongside the plans, each option
+labelled with what the engine said about substituting THAT product HERE — in the
+option text, because a badge beside a dropdown is a badge nobody reads — plus a
+required reason and the narrow-therapeutic-index warning.
+
+⚠️ **THE LOAD-BEARING PART IS THAT A SUBSTITUTED LINE SENDS NO ALLOCATIONS.** The
+lots on that screen were planned for the PRESCRIBED product and are meaningless
+for the substitute; omitting them is the contract's own "you plan it", so the
+server runs `planStockAllocationWithin` against the product actually being
+supplied. Sending the prescribed product's lots would take stock off the wrong
+shelf while recording the substitute's name — invisible from the screen that
+caused it, and pinned by a test. `substitutionCandidate` gained `baseUnitId` for
+the same class of reason.
+
 ### Completion gate
 
 `DB` migration + RLS + isolation ✓ · `BE` every service through `withTenant` ✓ ·
@@ -710,4 +826,125 @@ the clinical row.
 - **No charge request.** Pharmacy owns no money and PI-8 is where a supply
   reaches an invoice.
 
-**Completion date:** 2026-08-16 · **Next action:** PI-8.1
+**Completion date:** 2026-08-16 · **Next action:** PI-8.1 — done, see below
+
+---
+
+# PI-8 — Billing & Tax Integration · COMPLETE (2026-08-17)
+
+**Dependencies:** PI-1..PI-7. **Branch:** `feat/pi-8-billing-tax-integration`.
+**Migration:** `20260901090000_billing_tax_integration` — 4 tables, 10 CHECKs,
+2 partial uniques, 13 RLS policies and the credit-note columns on `invoices`.
+
+| Task                                                            | Status                                                                |
+| --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| PI-8.0 Close the three PI-7 leftovers                           | COMPLETE — KNOWN_ISSUES #5, #8 and #9                                 |
+| PI-8.1 `charge_requests` — the structured hand-off              | COMPLETE — written in the dispense's own transaction                  |
+| PI-8.2 Charge-policy resolution, with the answer snapshotted    | COMPLETE — 3 of the 8 tiers; the rest name entities that do not exist |
+| PI-8.3 `product_prices` — what a clinic sells for               | COMPLETE — branch override beats org default, priced per unit         |
+| PI-8.4 Wire `InvoiceSourceType.PHARMACY` end to end             | COMPLETE — `POST /v1/invoices/from-charges`                           |
+| PI-8.5 Wire `.INVENTORY`                                        | ENGINE COMPLETE, no writer — PI-9's consumption is the caller         |
+| PI-8.6 Product → jurisdiction → `tax_category` resolution       | COMPLETE — through `resolveTaxCategory`, no tax logic written         |
+| PI-8.7 **The credit-note engine**                               | COMPLETE — an `invoices` row with its own `CRN-` series               |
+| PI-8.8 Returns: cancel an unbilled charge, credit a billed one  | COMPLETE                                                              |
+| PI-8.9 Screens — the charge queue, prices, policy, credit notes | COMPLETE — 3 screens plus the invoice detail                          |
+| PI-8.10 Tests — unit, integration, isolation                    | COMPLETE — 16 unit · 25 integration · 13 isolation                    |
+
+### Completion gate
+
+`DB` migration + RLS + isolation ✓ · `BE` every service through `withTenant` ✓ ·
+`API` contracts + routes + the standard chain ✓ · `FE` 4 screens + the Price tab
+✓ · `VAL` Zod on every surface ✓ · `AUTHZ` three new codes ✓ · `AUDIT`
+`recordAudit` on every write, `recordDataAccess` on the queue read ✓ · `REG` n/a
+— charging is a commercial decision, not a legal one; the law was consulted at
+the supply · `TEST` ✓ · `DOC` this directory ✓ · `REGRESS` lint, typecheck,
+**227 unit · 404 isolation · 1 015 integration** and `db:rls:check` at 121
+tables, all green ✓. **227 unit · 631 unit+isolation · 1 026 integration.**
+
+### The four decisions PI-8 was required to make
+
+**1. A credit note is an `invoices` row with a different `kind`, not a parallel
+set of tables.** The alternative duplicates the line arithmetic, the
+apportionment, the per-line tax snapshot, the document join and — the part that
+decides it — `invoices_lifecycle_guard`, the trigger that freezes an issued
+document's every money column. A credit note has exactly the same immutability
+requirement, so it gets exactly the same trigger by being the same table. What
+the law actually requires is a separate consecutive SERIES, and that is a period
+key: `CRN-2026-PHA-MAIN-000001`. One table, two series.
+
+**2. The precedence chain is three tiers, not eight.**
+BILLING_INTEGRATION.md lists eight, five of which name a `procedure` or a
+`payer`. Procedures are PI-9, blocked on `encounters`; there is no payer-contract
+model anywhere. `CONTRACT_DEFINED` and `JURISDICTION_CONFIGURED` are real enum
+members that resolve to a human decision, exactly as `OPTIONAL` does — kept
+distinct because the REASON the desk is being asked differs, and because it is
+their call sites that change when the engines land.
+
+**3. ⚠️ THE LINK BACK IS `invoice_id`, NOT `invoice_item_id`, WHICH CORRECTS THE
+DESIGN DOCUMENT.** BILLING_INTEGRATION.md says "`charge_requests.invoice_item_id`
+is the only link back". `finalizeInvoice` re-prices a draft from its stored
+inputs, and it does that by DELETING every `invoice_items` row and writing them
+again — so an item id changes at least once between the draft being raised and
+the document being issued. Measured, not reasoned about: the first version had
+the FK and finalisation raised
+`charge_requests_organization_id_invoice_item_id_fkey`. The invoice id is stable
+for the life of the document and is what every question is actually about.
+
+**4. A charge request is written in the supply's transaction and can never stop
+it.** Those two requirements are in tension and are resolved in one direction:
+every configuration gap is a NULLABLE COLUMN rather than an error. No price →
+`unit_price IS NULL`. No tax classification → `tax_category IS NULL`. Both show
+on the charge-review screen; the invoice engine refuses to ISSUE an unrated line
+anyway, which is the right place for that refusal because by then nobody is
+standing at a counter waiting.
+
+### What landed
+
+| Area        | What                                                                                                                                                        |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | `charge_policy_rules`, `product_prices`, `charge_requests`, `membership_professional_registrations`; `invoices.kind` + `.credited_invoice_id`               |
+| Clinical    | `encounter_prescriptions.repeats_authorised` + `.repeats_authorised_limit` — the endorsement the engine has been able to read since PI-7 and nothing wrote  |
+| RLS         | `db:rls:check` green at **121** (was 118). ⚠️ Two tenancy classes: `charge_policy_rules` is org-only; `product_prices.branch_id` is NULLABLE and live       |
+| Permissions | `billing.charge_request.read` / `.manage`, `billing.charge_policy.manage`. Pricing reuses `billing.fee_schedule.manage`; credit notes use the seeded code   |
+| Contracts   | `packages/contracts/src/charging.ts`; `invoiceKind`, the credit-note request and `creditNotes` on `InvoiceDetail`                                           |
+| Services    | `services/charging/{policy,price,charge-request}.service.ts` · `services/invoicing/{charge-billing,credit-note}.service.ts` · `regulatory/actor.service.ts` |
+| Routes      | `/v1/charging/{requests,policies,prices}` · `POST /v1/invoices/from-charges` · `POST /v1/invoices/:id/credit-notes`                                         |
+| Web         | `/charges` (queue, prices, policy) plus the credit-note action and the credited panel on the invoice detail; a "Charges" nav entry                          |
+
+### Three gaps this phase found in earlier work and closed
+
+1. **`dispense_lines` had no `product_visible` or `unit_visible` policy** — the
+   KI-3 class, on the most PHI-dense table in the programme.
+   `encounter_prescriptions` has carried one since CE-4 for the same plain FK
+   into the same platform-extensible table, which is what makes PI-7's omission
+   an oversight rather than a decision.
+2. **`regulatory_decisions`' append-only REVOKE was undone by every reset.** The
+   migration revokes UPDATE and DELETE; `ALTER DEFAULT PRIVILEGES` re-grants them
+   on the next `db:reset`, and the isolation case that checks for it only fails
+   AFTER a reset — which is why PI-7 shipped green. Now restated in
+   `grant-app.sql`, where every other append-only table already was.
+3. **`tests/.../inventory.test.ts` was not idempotent against a crashed run**, so
+   a suite that died early left a `users` row behind and every later run failed
+   on `users_email_key` with an error about a duplicate email.
+
+### What is open, and honestly so
+
+- **Nothing has been clicked in a browser.** The same item every phase has left,
+  now across three more screens.
+- **`INVENTORY` charge requests have no writer.** The engine handles them; the
+  caller is PI-9's clinical consumption, which is blocked on `encounters`.
+- **`CONTRACT_DEFINED` and `JURISDICTION_CONFIGURED` stop at a human**, because
+  neither engine exists. Recorded as accepted debt.
+- **The category tier walks no ancestry.** A rule on "Antibiotics" does not reach
+  a product filed under its child "Penicillins" — stated in the resolver, because
+  the opposite is the natural assumption.
+- **A credit note moves no money.** There is still no patient-payments table, so
+  `amount_paid` is always zero and the refund itself is unimplemented. That is
+  `voidInvoice`'s honest boundary moved one step forward, not papered over.
+- **The invoice-detail credit action reverses the whole bill.** The API takes a
+  per-line set; choosing quantities off a frozen document belongs to the returns
+  flow, which knows what actually came back.
+
+**Next action:** PI-8.11 hardening — `/code-review` and `security-reviewer`, run
+manually. Neither PI-10 nor PI-12 should start before the security review of this
+diff lands.

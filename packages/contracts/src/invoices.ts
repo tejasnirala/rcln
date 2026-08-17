@@ -42,6 +42,18 @@ export const invoiceSourceType = z.enum([
 ]);
 export type InvoiceSourceTypeValue = z.infer<typeof invoiceSourceType>;
 
+/**
+ * A charge, or a reversal of one (PI-8).
+ *
+ * ⚠️ A CREDIT NOTE IS THE SAME SHAPE AS AN INVOICE ON THE WIRE, AND THE CLIENT
+ *   MUST READ THIS FIELD BEFORE IT ADDS ANYTHING UP. Every money field on a
+ *   credit note is POSITIVE — the kind carries the sign — so a total that sums
+ *   `grandTotalMinor` across a list without splitting on this is a balance that
+ *   grows when a patient is refunded. What is owed is Σ INVOICE − Σ CREDIT_NOTE.
+ */
+export const invoiceKind = z.enum(['INVOICE', 'CREDIT_NOTE']);
+export type InvoiceKindValue = z.infer<typeof invoiceKind>;
+
 export const invoiceStatus = z.enum([
   'DRAFT',
   'FINALIZING',
@@ -237,6 +249,53 @@ export const voidInvoiceRequest = z.object({
 export type VoidInvoiceRequest = z.infer<typeof voidInvoiceRequest>;
 
 /**
+ * Raise a credit note against an issued invoice (PI-8).
+ *
+ * ⚠️ THE LINES ARE THE INVOICE'S OWN, CITED BY ID, AND NOT FREE-TYPED. A credit
+ *   note whose lines the caller composes could credit a description and a price
+ *   that never appeared on the document it reverses — which is how a correction
+ *   becomes an unexplainable second document rather than a reversal of the
+ *   first. Each entry names an `invoice_items` row and how much of it comes off.
+ *
+ * ⚠️ AND IT IS RE-PRICED, NOT COPIED. The tax on a credited line is computed by
+ *   the same engine against the ORIGINAL invoice's `suppliedAt`, so a note
+ *   raised in June for a March supply reverses March's rate — which is the whole
+ *   reason the credit exists as a document rather than as an edit. Copying the
+ *   stored tax figures would look identical until a rate changed, and would then
+ *   be wrong in the direction of the clinic keeping the difference.
+ */
+export const creditNoteLineRequest = z.object({
+  /** A line on the invoice being credited. */
+  invoiceItemId: uuid,
+  /**
+   * How much of that line to reverse, in the SAME unit the line is priced in.
+   * Omitted credits the whole line, which is the common case.
+   *
+   * ⚠️ A DECIMAL STRING, NEVER A NUMBER, for the reason every quantity in this
+   *   repository is one: `0.1 + 0.2` is not `0.3` and a quantity that arrives
+   *   as a double has already lost the argument.
+   */
+  quantity: z
+    .string()
+    .regex(/^\d+(\.\d{1,3})?$/, 'expected a positive quantity with at most 3 decimal places')
+    .optional(),
+});
+export type CreditNoteLineRequest = z.infer<typeof creditNoteLineRequest>;
+
+export const createCreditNoteRequest = z.object({
+  /**
+   * ⚠️ REQUIRED, AND NOT FOR TIDINESS. A credit note reduces a tax liability the
+   *   clinic has already reported; "why" is the only part of it that is not
+   *   derivable from the rows, and it is what an auditor asks first. Same
+   *   argument `voidInvoiceRequest.reason` makes.
+   */
+  reason: z.string().min(1).max(500),
+  /** Empty credits the whole invoice — every line, in full. */
+  lines: z.array(creditNoteLineRequest).max(200).default([]),
+});
+export type CreateCreditNoteRequest = z.infer<typeof createCreditNoteRequest>;
+
+/**
  * The list.
  *
  * ⚠️ THERE IS NO FREE-TEXT SEARCH PARAMETER, AND ITS ABSENCE IS DELIBERATE. The
@@ -260,6 +319,18 @@ export const listInvoicesQuery = z
     appointmentId: uuid.optional(),
     status: invoiceStatus.optional(),
     sourceType: invoiceSourceType.optional(),
+    /**
+     * Charges, reversals, or both.
+     *
+     * ⚠️ OMITTED RETURNS BOTH, WHICH IS THE ONLY SAFE DEFAULT. Defaulting to
+     *   `INVOICE` would hide every credit note from every existing caller and
+     *   from the ledger the accountant reconciles — a reversal that does not
+     *   appear anywhere is worse than one that appears in an unexpected list.
+     *   The screens that mean one or the other say so.
+     */
+    kind: invoiceKind.optional(),
+    /** Every credit note raised against one invoice. */
+    creditedInvoiceId: uuid.optional(),
     /**
      * A fragment of the invoice number, matched anywhere in it and without
      * regard to case: `787` finds `INV-2026-APP-MAIN-000787`.
@@ -296,6 +367,10 @@ export interface InvoiceListItem {
   id: string;
   /** Null while DRAFT — a draft has no number, by construction. */
   invoiceNumber: string | null;
+  /** ⚠️ Read this before summing anything. See `invoiceKind`. */
+  kind: InvoiceKindValue;
+  /** The invoice this one reverses. Non-null iff `kind` is `CREDIT_NOTE`. */
+  creditedInvoiceId: string | null;
   status: InvoiceStatusValue;
   sourceType: InvoiceSourceTypeValue;
   branchId: string;
@@ -405,6 +480,18 @@ export interface InvoiceDetail extends InvoiceListItem {
   issuable: boolean;
   /** Why not, when it is not. Empty otherwise. */
   unissuableReasons: string[];
+  /**
+   * The credit notes raised against this invoice (PI-8). Empty on a credit note
+   * itself — a note is never credited, it is the credit.
+   *
+   * ⚠️ `creditedTotalMinor` IS WHAT THE ENGINE CHECKS A NEW NOTE AGAINST, and it
+   *   counts only notes that still stand. A cancelled draft note and a voided
+   *   one both reverse nothing, so both are excluded — the same `LIVE_STATUSES`
+   *   definition `appointment-billing.service.ts` uses for "already billed?",
+   *   and for the same reason.
+   */
+  creditNotes: AppointmentInvoiceLink[];
+  creditedTotalMinor: number;
 }
 
 // ---------------------------------------------------------------------------

@@ -111,6 +111,7 @@ export async function listSubstitutionCandidates(
       select: {
         id: true,
         name: true,
+        baseUnitId: true,
         baseUnit: { select: { symbol: true } },
         manufacturer: { select: { name: true } },
         medicineDetail: { select: { isNarrowTherapeuticIndex: true } },
@@ -169,6 +170,9 @@ export async function listSubstitutionCandidates(
         strength: strength
           ? `${strength.strength.toString()} ${strength.strengthUnit.symbol}`
           : null,
+        /* The id as well as the symbol — see the contract. A supply of this
+           product states ITS unit, not the prescribed one's. */
+        baseUnitId: product.baseUnitId,
         baseUnitSymbol: product.baseUnit.symbol,
         availableQuantityBase: available.toString(),
         coversRequirement: required === null ? true : available.gte(required),

@@ -2,7 +2,7 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-16 · **By:** session PI-7 (Pharmacy Dispensing)
+**Written:** 2026-08-17 · **By:** session PI-8 (Billing & Tax Integration)
 
 ---
 
@@ -22,86 +22,104 @@ Full orientation: [README.md](README.md).
 **PI-0** Discovery. **PI-1** Product platform core (PR #30). **PI-2** Inventory
 foundation (PR #31). **PI-3** Movements (PR #32). **PI-4** Procurement (PR #33).
 **PI-5** Regulatory framework (PR #34). **PI-6** India rule pack (PR #35).
-**PI-7** Pharmacy dispensing — this session, on
-`feat/pi-7-pharmacy-dispensing`. Not pushed, not reviewed.
+**PI-7** Pharmacy dispensing. **PI-8** Billing & tax integration —
+`feat/pi-8-billing-tax-integration`, **COMPLETE**. ⚠️ Not committed and **not
+reviewed**: the owner is running `/code-review` and `security-reviewer` manually.
+Nothing else should start until that lands.
 
 ---
 
 ## What was changed in this session
 
-| Area        | What landed                                                                                                                               |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework   | KNOWN_ISSUES **#3 and #4 closed in `@rcln/regulatory`** — the endorsed repeat and the prescriber proviso. Neither India rule was weakened |
-| Schema      | 8 tables: the six dispensing ones, `prescription_fulfilments`, and **`regulatory_decisions`** — PI-ADR-008's snapshot, first written here |
-| Migration   | `20260825090000_pharmacy_dispensing` — 12 CHECKs, the append-only pair on the snapshot, 14 policies                                       |
-| RLS         | `db:rls:check` green at **118** (was 111)                                                                                                 |
-| Permissions | **`pharmacy.dispense.verify`** is new; `PHARMACIST` holds it beside `.create`                                                             |
-| Services    | `pharmacy/{shared,consult,queue,dispense,return,substitution,dashboard}.service.ts`                                                       |
-| Seam        | `planStockAllocationWithin(tx, …)` split out, the way `evaluateWithin` was                                                                |
-| Errors      | `RegulatoryRefusalError` — 422, with the rule's own sentence                                                                              |
-| Screens     | 7, under `/pharmacy`. The workspace is the one that matters                                                                               |
+| Area        | What landed                                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Leftovers   | **KNOWN_ISSUES #5, #8 and #9 all closed**, as the last session said they had to be before any pack is signed off                                                                                        |
+| Schema      | `charge_policy_rules`, `product_prices`, `charge_requests`, `membership_professional_registrations`; `invoices.kind` + `.credited_invoice_id`; the endorsed-repeat columns on `encounter_prescriptions` |
+| Migration   | `20260901090000_billing_tax_integration` — 10 CHECKs, 2 partial uniques, 13 policies                                                                                                                    |
+| RLS         | `db:rls:check` green at **121** (was 118)                                                                                                                                                               |
+| Permissions | `billing.charge_request.read` / `.manage` and `billing.charge_policy.manage` are new. Pricing reuses `billing.fee_schedule.manage`                                                                      |
+| Engine      | **The credit-note engine** — an `invoices` row with `kind: CREDIT_NOTE` and its own `CRN-` series. `billing.credit_note.issue` is finally reachable                                                     |
+| Services    | `services/charging/*` · `services/invoicing/{charge-billing,credit-note}.service.ts` · `regulatory/actor.service.ts`                                                                                    |
+| Screens     | 3, under `/charges`, plus the credit-note action on the invoice detail. The charge queue is the one that matters                                                                                        |
 
 ---
 
 ## Decisions taken this session that a later phase must not undo
 
-**1. A dispense has no draft.** The physical act and the record are one event.
-Everything — record, allocations, ledger legs, snapshot, audit, queue state — is
-one transaction, and the number is taken last so a refusal burns none.
+**1. A credit note is an `invoices` row, not a parallel set of tables.** It has
+exactly the invoice's immutability requirement, so it gets exactly the invoice's
+`invoices_lifecycle_guard` by being the same table. What the law requires is a
+separate SERIES, and that is a period key.
 
-**2. Every supplied line carries a NOT NULL `regulatory_decision_id`.** A code
-path that forgets to ask the engine cannot compile. Nothing re-evaluates a
-historical supply, and `regulatory_decisions` is append-only in two layers.
+**2. ⚠️ THE LINK BACK IS `charge_requests.invoice_id`, NOT `invoice_item_id`,
+AND BILLING_INTEGRATION.md IS WRONG ABOUT THIS.** `finalizeInvoice` re-prices by
+DELETING every `invoice_items` row and rewriting it, so an item id changes
+between the draft and the document. The first version had the FK and finalisation
+raised on it.
 
-**3. The India rule parameters were edited in place, once, in the only window
-where that was defensible** — before any decision could cite a rule. The next
-change to those rules is a new version with `SUPERSEDED` on the old one.
+**3. A charge request is written in the supply's transaction and can never stop
+it.** Every configuration gap is a NULLABLE COLUMN, never an exception. A
+pharmacist is not blocked because an accountant has not filled in a grid.
 
-**4. A counter sale is `kind: COUNTER_SALE` on `POST /dispenses`,** not a
-`/sales` route. Two endpoints would be two code paths, and the quieter one is the
-one that stops asking the engine.
+**4. The policy and the price are SNAPSHOTTED on the charge request.** Nothing
+re-resolves at invoice time. A clinic that raised its prices on Monday must not
+restate Friday's supplies, and `does not restate an existing charge when the
+policy changes` is the test that pins it.
 
-**5. A return quarantines unless the clinic asks AND the engine does not
-object.** "No rule objected" is not "a regulator says a returned medicine may be
-resold".
+**5. `CONTRACT_DEFINED` and `JURISDICTION_CONFIGURED` stop at a human**, because
+neither engine exists. They are distinct enum members rather than aliases of
+`OPTIONAL` because it is their call sites that change when one lands.
 
-**6. Pharmacy writes no column on the clinical record.** Fulfilment progress is
-DERIVED from `dispense_lines`. `route-gates.test.ts` asserts no route on the
-pharmacy router carries a `clinical.*` code.
+**6. A suppressed charge still gets a row, with a reason.** "We decided not to
+charge for this" and "we forgot" are identical in a revenue figure and are
+entirely different problems.
 
 ---
 
 ## Where to start
 
-**PI-8 — Billing & Tax Integration.** It is unblocked in both directions now: the
-counter-sale path and the prescription path both produce supplies that nobody
-bills. `charge_requests` + charge-policy resolution + wiring
-`InvoiceSourceType.PHARMACY`, with the tax resolved through `@rcln/tax` and
-nowhere else. A consumed glove produces no invoice line; an implant does.
+**⚠️ RUN THE REVIEWS FIRST. PI-8 IS BUILT AND NOT REVIEWED.** `/code-review` and
+`security-reviewer` over the whole diff. This one touches the schema, tenancy,
+auth, permissions, patient data, billing and raw SQL, so CLAUDE.md makes the
+security review mandatory before merge — and it is not a formality: PI-1's review
+found two CRITICALs, PI-3's three and PI-5's four, each time one class of mistake
+repeated.
 
-Before that, two smaller things that are cheap now and expensive later:
+Point a reviewer at these first, because they are where the phase took its risks:
 
-- **KNOWN_ISSUES #8** — a nullable `repeats_authorised` on
-  `encounter_prescriptions`, so a lawful endorsed repeat stops being refused. The
-  framework already reads it; the clinical side has nowhere to write it.
-- **KNOWN_ISSUES #9 and #5 together** — plumb the caller's effective permission
-  codes and professional registrations into every consult. Both must land before
-  any pack reaches `PRODUCTION_ENABLED`, because that is the day the engine
-  starts refusing on what it was told.
+- `lockCharges` — an ordered `FOR UPDATE` over a set, guarding an application
+  invariant no unique index can express. The PI-3 read-then-write class.
+- `assertWithinRemaining` — the credit ceiling is checked BEFORE the note is
+  priced, so it is deliberately generous by whatever discount the invoice
+  carried. The per-line quantity check is what actually stops over-crediting.
+- `raiseChargeRequestsWithin` — runs inside the dispense's transaction and must
+  never be able to throw. Every configuration gap is a nullable column.
+- The two new `*_visible` policy pairs, and the two closed on `dispense_lines`.
+
+**Then** PI-10 (Recall) or PI-12 (Online Pharmacy), which PI-8 unblocks. PI-9 is
+still blocked on `encounters`/`procedures`.
+
+Two things this session deliberately did not take:
+
+- **`INVENTORY` charge requests have no writer.** The engine handles them and the
+  isolation suite covers them; the caller is PI-9's clinical consumption.
+- **A credit note moves no money.** There is still no `patient_payments` table,
+  so `amount_paid` is always zero and `billing.refund.process` remains
+  unreachable. That is the next real gap in the billing story.
 
 ---
 
-## Files worth reading before touching pharmacy
+## Files worth reading before touching charging
 
-|                                                                |                                                                     |
-| -------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `apps/api/src/services/pharmacy/dispense.service.ts`           | The seven steps, and why step 4 comes before step 5                 |
-| `apps/api/src/services/pharmacy/consult.ts`                    | How a supply asks the law, and what it does with the answer         |
-| `apps/api/src/services/pharmacy/shared.ts`                     | The snapshot, and the fulfilment arithmetic that is derived         |
-| `packages/db/prisma/schema/pharmacy.prisma`                    | Why there is no draft, and where the PHI is                         |
-| `packages/db/prisma/migrations/20260825090000_…dispensing/`    | The CHECKs, the append-only pair, and the two lines deleted by hand |
-| `apps/api/tests/integration/pharmacy.test.ts`                  | The refusals, the FEFO split, and the burned-number case            |
-| `apps/api/tests/integration/tenant-isolation/pharmacy.test.ts` | The sibling-branch case, which is the one that matters              |
+|                                                                |                                                                        |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `apps/api/src/services/charging/charge-request.service.ts`     | The two requirements in tension, and how they are reconciled           |
+| `apps/api/src/services/charging/policy.service.ts`             | The precedence chain — the only place it is written down               |
+| `apps/api/src/services/invoicing/credit-note.service.ts`       | Why a credit note is an invoice row, and the four things it refuses    |
+| `apps/api/src/services/invoicing/charge-billing.service.ts`    | Why it composes nothing, and the `invoice_item_id` correction          |
+| `packages/db/prisma/schema/charging.prisma`                    | The two tenancy classes, and why the item id is not the link           |
+| `apps/api/tests/integration/charging.test.ts`                  | The glove and the implant, the snapshot case, the credit-note refusals |
+| `apps/api/tests/integration/tenant-isolation/charging.test.ts` | The nullable branch predicate, in BOTH directions                      |
 
 ---
 
@@ -110,45 +128,64 @@ Before that, two smaller things that are cheap now and expensive later:
 The full list is [KNOWN_ISSUES.md](KNOWN_ISSUES.md). The ones this session
 created or inherited:
 
-**1. Nothing has been clicked in a browser.** Seven more screens, same as every
+**1. Nothing has been clicked in a browser.** Three more screens, same as every
 phase before it.
 
-**2. `pnpm typecheck` and `pnpm test` still OOM the api container** when turbo
-runs them together. Run by package, and the api integration suite by path in
-groups of roughly nine. Unchanged since PI-4.
+**2. `pnpm test` still OOMs the api container** when turbo runs everything
+together. Run unit, then tenant-isolation, then the integration files in groups
+of roughly a dozen. ⚠️ **Add `--forceExit`** — jest holds open handles and a
+piped run otherwise hangs after the results are printed. Unchanged since PI-4.
 
-**3. An endorsed repeat still refuses** (#8) — the framework can express it and
-the clinical record cannot record it.
+**3. ⚠️ `prisma migrate reset` IS NOT `pnpm db:reset`, AND USING THE RAW COMMAND
+COST THIS SESSION AN HOUR.** The package script is
+`migrate reset && apply-grants && seed`. The raw command skips both, and the
+symptom is every tenant-isolation suite failing with `relation "audit_logs" does
+not exist` — because `rcln_app` has no grants, not because anything is missing.
 
-**4. `licenceTypes` is always empty** (#9) and **`priorQuantityInPeriodBase` is
-never supplied** (#10). Both latent; both must be closed before a pack is signed
-off.
+**4. `CONTRACT_DEFINED` and `JURISDICTION_CONFIGURED` resolve to a human.**
+Accepted debt, recorded.
 
-**5. Supplying a substitute is API-only** (#11). The equivalents screen is
-read-only.
+**5. The charge-policy category tier walks no ancestry.** Stated in the resolver,
+because the opposite is the natural assumption.
 
-**6. The pharmacy dashboard counts "today" in UTC** (#12).
+**5a. A `QUANTITY_LIMIT` still resolves `UNDETERMINED` in two cases**, and both
+are deliberate: two applicable rules with DIFFERENT windows (one scalar cannot
+serve two periods, and guessing either way is wrong in one direction), and a
+counter sale with no patient (no history to sum; zero would let anyone take the
+limit again every visit). Everything else is now counted — see
+`tests/integration/quantity-limit.test.ts`.
 
-**7. `regulatory.pack.approve` is still held by nobody**, which is correct
+**5b. The prior-quantity sum is bounded by the caller's BRANCH SCOPE.** RLS makes
+it so: `dispenses.branch_isolation` is RESTRICTIVE, so a pharmacist scoped to one
+site sums only that site and under-counts a patient collecting from two branches
+of one clinic. Fixing it means widening a tenant context, which is not a trade
+worth making for this; recorded in `priorQuantitySupplied`.
+
+**6. `regulatory.pack.approve` is still held by nobody**, which is correct
 (OD-5). Until somebody holds it, no decision anywhere enforces.
 
 ---
 
 ## Tests
 
-|                        |                                                                                                                                                    |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Currently passing**  | 219 api unit · 79 `@rcln/regulatory` · **391 isolation across 22 files** · 1 062 integration across 43 files. Lint and typecheck green; RLS at 118 |
-| **Currently failing**  | None.                                                                                                                                              |
-| **Migrations pending** | None. One applied this session                                                                                                                     |
+|                        |                                                                                                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Currently passing**  | **631 api unit + isolation across 35 files** · **1 026 integration across 47 files** · 79 `@rcln/regulatory` · 35 `@rcln/invoicing`. Lint and typecheck green across all 45 tasks; RLS at 121 |
+| **Currently failing**  | None.                                                                                                                                                                                         |
+| **Migrations pending** | None. One applied this session                                                                                                                                                                |
 
 ⚠️ **THE SUITE CANNOT BE RUN IN ONE GO.** Run unit, then tenant-isolation, then
-the integration files in groups.
+the integration files in groups, all with `--forceExit`.
 
 ⚠️ **The process traps from PI-1 onwards all still apply.** Migrations replay in
 NAME order and this repository's are hand-dated ahead of the wall clock.
 `prisma migrate diff` wants `--from-config-datasource --to-schema ./prisma/schema
---script`, prints a dotenv banner to STDOUT that has to be stripped — **and in
-this repository it also wants to DROP two NOT NULLs that CE-4 added by hand.**
-Delete those two statements from anything it generates; the header of PI-7's
-migration says so too.
+--script`, prints a dotenv banner to STDOUT that has to be stripped — **and it
+still wants to DROP the two NOT NULLs CE-4 added by hand.** Delete those two
+statements from anything it generates; PI-7's and PI-8's migration headers both
+say so.
+
+⚠️ **Prisma emits `@@unique` as a unique INDEX, not a table constraint.** A
+`NULLS NOT DISTINCT` rewrite therefore needs `DROP INDEX` + `CREATE UNIQUE INDEX`,
+not `ALTER TABLE ... DROP CONSTRAINT`, which raises 42704. Keep the index NAME
+identical or every future `migrate diff` proposes renaming it back.

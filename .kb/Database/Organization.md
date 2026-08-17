@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 113 |
+| relations | 116 |
 
 ## Columns
 
@@ -128,6 +128,9 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `dispenseAllocations` | [`DispenseAllocation`](DispenseAllocation.md) | `dispenseAllocations DispenseAllocation[]` |
 | `dispenseReturns` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturns DispenseReturn[]` |
 | `dispenseReturnLines` | [`DispenseReturnLine`](DispenseReturnLine.md) | `dispenseReturnLines DispenseReturnLine[]` |
+| `chargePolicyRules` | [`ChargePolicyRule`](ChargePolicyRule.md) | `chargePolicyRules ChargePolicyRule[]` |
+| `productPrices` | [`ProductPrice`](ProductPrice.md) | `productPrices ProductPrice[]` |
+| `chargeRequests` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequests ChargeRequest[]` |
 | `clinicalMasterItems` | [`ClinicalMasterItem`](ClinicalMasterItem.md) | `clinicalMasterItems ClinicalMasterItem[]` |
 | `clinicalMasterCodings` | [`ClinicalMasterCoding`](ClinicalMasterCoding.md) | `clinicalMasterCodings ClinicalMasterCoding[]` |
 | `clinicalMasterScopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `clinicalMasterScopes ClinicalMasterScope[]` |
@@ -252,6 +255,9 @@ erDiagram
     Organization }o--o{ DispenseAllocation : relates
     Organization }o--o{ DispenseReturn : relates
     Organization }o--o{ DispenseReturnLine : relates
+    Organization }o--o{ ChargePolicyRule : relates
+    Organization }o--o{ ProductPrice : relates
+    Organization }o--o{ ChargeRequest : relates
     Organization }o--o{ ClinicalMasterItem : relates
     Organization }o--o{ ClinicalMasterCoding : relates
     Organization }o--o{ ClinicalMasterScope : relates

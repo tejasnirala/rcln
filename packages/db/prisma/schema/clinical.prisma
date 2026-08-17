@@ -1458,6 +1458,28 @@ model EncounterPrescription {
   startDate DateTime? @map("start_date") @db.Date
   endDate   DateTime? @map("end_date") @db.Date
 
+  /// ⚠️ THE PRESCRIBER'S ENDORSEMENT THAT THIS MAY BE DISPENSED MORE THAN ONCE
+  ///   (PI-8, closing KNOWN_ISSUES #8). Several jurisdictions let a prescriber
+  ///   write a repeat on the face of the prescription — India's Drugs Rules
+  ///   r. 65(11)(b) is the one this repository has rules for — and
+  ///   `@rcln/regulatory` has been able to READ that fact since PI-7 while
+  ///   nothing could WRITE it. A lawful endorsed repeat was therefore refused,
+  ///   in the safe direction, by the clinical record having nowhere to say so.
+  ///
+  /// ⚠️ THREE STATES, AND NULL IS NOT `false`. NULL is "the prescriber did not
+  ///   address repeats", which is the ordinary case and the one the engine
+  ///   treats as no endorsement. `false` is "the prescriber wrote that this may
+  ///   NOT be repeated", which is a positive instruction. Collapsing them would
+  ///   make every prescription ever written an explicit refusal of a repeat, and
+  ///   would make the column unable to say the one thing it exists to say.
+  repeatsAuthorised      Boolean? @map("repeats_authorised")
+  /// How many repeats. ⚠️ NULL ALONGSIDE `repeatsAuthorised = true` RESOLVES
+  ///   `UNDETERMINED`, WHICH REFUSES, and that is deliberate rather than a gap:
+  ///   an endorsement stating no number is not an unlimited one. The engine's
+  ///   own note says so and PI-7's tests pin it. CHECKed to be present only with
+  ///   a true endorsement, and positive.
+  repeatsAuthorisedLimit Int?     @map("repeats_authorised_limit") @db.SmallInt
+
   /// "As needed". ⚠️ NOT the same as a NULL frequency: PRN says the patient
   ///   decides when, a NULL says the doctor did not write it down.
   isPrn        Boolean @default(false) @map("is_prn")

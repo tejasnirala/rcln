@@ -68,6 +68,8 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 ## Source files
 
 - `apps/api/src/services/invoicing/appointment-billing.service.ts`
+- `apps/api/src/services/invoicing/charge-billing.service.ts`
+- `apps/api/src/services/invoicing/credit-note.service.ts`
 - `apps/api/src/services/invoicing/invoice-lifecycle.service.ts`
 - `apps/api/src/services/invoicing/invoice-number.service.ts`
 - `apps/api/src/services/invoicing/invoice-visibility.ts`
@@ -123,9 +125,9 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | --- | --- | --- |
 | `apportion` | fn | `packages/invoicing/src/discount.ts:84` |
 | `auditOptions` | fn | `apps/api/src/services/invoicing/invoice.service.ts:81` |
-| `branchInstant` | fn | `apps/api/src/services/invoicing/invoice.service.ts:691` |
-| `cancelDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:562` |
-| `cancelInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:494` |
+| `branchInstant` | fn | `apps/api/src/services/invoicing/invoice.service.ts:731` |
+| `cancelDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:608` |
+| `cancelInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:534` |
 | `canSeePractitioner` | fn | `apps/api/src/services/invoicing/invoice-visibility.ts:188` |
 | `canSeeSource` | fn | `apps/api/src/services/invoicing/invoice-visibility.ts:211` |
 | `chromeStylesheet` | fn | `packages/documents/src/chrome/styles.ts:146` |
@@ -133,12 +135,14 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `closeBrowser` | fn | `apps/worker/src/documents/browser.ts:143` |
 | `configureDocumentStore` | fn | `packages/documents/src/store/runtime.ts:57` |
 | `CONTENT_WIDTH_MM` | const | `packages/documents/src/chrome/styles.ts:56` |
-| `createDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:146` |
-| `CreateDraftInvoiceInput` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:75` |
+| `createCreditNote` | fn | `apps/api/src/services/invoicing/credit-note.service.ts:139` |
+| `createDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:169` |
+| `CreateDraftInvoiceInput` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:87` |
 | `createFormatter` | fn | `packages/documents/src/invoice/format.ts:92` |
-| `createInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:401` |
+| `createInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:441` |
 | `createInvoiceForAppointment` | fn | `apps/api/src/services/invoicing/appointment-billing.service.ts:555` |
-| `CreateInvoiceServiceInput` | interface | `apps/api/src/services/invoicing/invoice.service.ts:392` |
+| `createInvoiceFromCharges` | fn | `apps/api/src/services/invoicing/charge-billing.service.ts:95` |
+| `CreateInvoiceServiceInput` | interface | `apps/api/src/services/invoicing/invoice.service.ts:432` |
 | `createRenderContext` | fn | `apps/worker/src/documents/browser.ts:114` |
 | `discountAmount` | fn | `packages/invoicing/src/discount.ts:41` |
 | `DiscountInput` | type | `packages/invoicing/src/types.ts:29` |
@@ -154,9 +158,9 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `DocumentType` | type | `packages/documents/src/store/document.service.ts:59` |
 | `DraftInvoiceInput` | interface | `apps/api/src/services/invoicing/pricing.service.ts:33` |
 | `DraftLineInput` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:62` |
-| `FinalizedInvoice` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:417` |
-| `finalizeInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:444` |
-| `FinalizeInvoiceInput` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:122` |
+| `FinalizedInvoice` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:461` |
+| `finalizeInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:488` |
+| `FinalizeInvoiceInput` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:145` |
 | `fontFaceCss` | fn | `packages/documents/src/fonts.ts:63` |
 | `FOOTER_BAND` | const | `packages/documents/src/chrome/styles.ts:115` |
 | `FOOTER_TEMPLATE_ID` | const | `packages/documents/src/chrome/template.tsx:57` |
@@ -167,8 +171,8 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `getBrowser` | fn | `apps/worker/src/documents/browser.ts:86` |
 | `getDocument` | fn | `packages/documents/src/store/document.service.ts:268` |
 | `getDocumentUrl` | fn | `packages/documents/src/store/document.service.ts:249` |
-| `getInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:320` |
-| `getInvoiceDocumentData` | fn | `apps/api/src/services/invoicing/invoice.service.ts:372` |
+| `getInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:360` |
+| `getInvoiceDocumentData` | fn | `apps/api/src/services/invoicing/invoice.service.ts:412` |
 | `getStorageProvider` | fn | `packages/documents/src/store/runtime.ts:76` |
 | `HEADER_BAND` | const | `packages/documents/src/chrome/styles.ts:113` |
 | `HEADER_TEMPLATE_ID` | const | `packages/documents/src/chrome/template.tsx:56` |
@@ -177,8 +181,8 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `INVOICE_TEMPLATE_KEY` | const | `packages/documents/src/invoice/render.tsx:43` |
 | `INVOICE_TEMPLATE_VERSION` | const | `packages/documents/src/invoice/render.tsx:55` |
 | `InvoiceActionOptions` | interface | `apps/api/src/services/invoicing/invoice.service.ts:64` |
-| `InvoiceAuditOptions` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:693` |
-| `invoiceCurrency` | fn | `apps/api/src/services/invoicing/invoice.service.ts:603` |
+| `InvoiceAuditOptions` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:739` |
+| `invoiceCurrency` | fn | `apps/api/src/services/invoicing/invoice.service.ts:643` |
 | `InvoiceDocument` | component | `packages/documents/src/invoice/document.tsx:71` |
 | `InvoiceDocumentCustomer` | interface | `packages/documents/src/invoice/types.ts:84` |
 | `InvoiceDocumentData` | interface | `packages/documents/src/invoice/types.ts:191` |
@@ -191,9 +195,10 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `InvoiceDocumentTaxSummaryRow` | interface | `packages/documents/src/invoice/types.ts:160` |
 | `InvoiceDocumentTotals` | interface | `packages/documents/src/invoice/types.ts:178` |
 | `InvoiceFormatter` | interface | `packages/documents/src/invoice/format.ts:77` |
+| `InvoiceKind` | type | `apps/api/src/services/invoicing/invoice-number.service.ts:87` |
 | `InvoiceLineInput` | interface | `packages/invoicing/src/types.ts:37` |
-| `InvoiceListResult` | interface | `apps/api/src/services/invoicing/invoice.service.ts:178` |
-| `InvoiceNumberSpec` | interface | `apps/api/src/services/invoicing/invoice-number.service.ts:79` |
+| `InvoiceListResult` | interface | `apps/api/src/services/invoicing/invoice.service.ts:208` |
+| `InvoiceNumberSpec` | interface | `apps/api/src/services/invoicing/invoice-number.service.ts:100` |
 | `InvoicePricingError` | class | `packages/invoicing/src/errors.ts:16` |
 | `InvoicePricingInput` | interface | `packages/invoicing/src/types.ts:53` |
 | `InvoiceSourceType` | type | `apps/api/src/services/invoicing/invoice-number.service.ts:66` |
@@ -201,13 +206,13 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `InvoiceTaxTreatment` | type | `packages/documents/src/invoice/types.ts:42` |
 | `InvoiceVisibility` | interface | `apps/api/src/services/invoicing/invoice-visibility.ts:74` |
 | `issueInvoice` | fn | `apps/api/src/services/invoicing/issue-invoice.ts:37` |
-| `issueInvoiceById` | fn | `apps/api/src/services/invoicing/invoice.service.ts:475` |
-| `issueInvoiceNumber` | fn | `apps/api/src/services/invoicing/invoice-number.service.ts:97` |
+| `issueInvoiceById` | fn | `apps/api/src/services/invoicing/invoice.service.ts:515` |
+| `issueInvoiceNumber` | fn | `apps/api/src/services/invoicing/invoice-number.service.ts:123` |
 | `ITEM_TABLES` | const | `packages/documents/src/invoice/items.tsx:403` |
 | `ItemTable` | type | `packages/documents/src/invoice/items.tsx:49` |
 | `itemTableFor` | fn | `packages/documents/src/invoice/items.tsx:413` |
 | `ItemTableProps` | interface | `packages/documents/src/invoice/items.tsx:44` |
-| `listInvoices` | fn | `apps/api/src/services/invoicing/invoice.service.ts:195` |
+| `listInvoices` | fn | `apps/api/src/services/invoicing/invoice.service.ts:225` |
 | `liveInvoicesFor` | fn | `apps/api/src/services/invoicing/appointment-billing.service.ts:158` |
 | `loadInvoiceDocumentData` | fn | `packages/documents/src/data/invoice-document.data.ts:57` |
 | `loadTaxContext` | fn | `apps/api/src/services/invoicing/tax.service.ts:64` |
@@ -216,13 +221,13 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `MAX_DISCOUNT_BPS` | const | `packages/invoicing/src/discount.ts:29` |
 | `MONO_400_LATIN` | const | `packages/documents/src/fonts.generated.ts:25` |
 | `MONO_400_LATIN_EXT` | const | `packages/documents/src/fonts.generated.ts:28` |
-| `organizationCurrency` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1124` |
+| `organizationCurrency` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1176` |
 | `PAGE` | const | `packages/documents/src/chrome/styles.ts:58` |
 | `PageFooter` | component | `packages/documents/src/chrome/page-chrome.tsx:123` |
 | `PageHeader` | component | `packages/documents/src/chrome/page-chrome.tsx:34` |
 | `pageRule` | fn | `packages/documents/src/chrome/styles.ts:125` |
 | `parseQuantity` | fn | `packages/invoicing/src/quantity.ts:27` |
-| `periodFor` | fn | `apps/api/src/services/invoicing/invoice-number.service.ts:123` |
+| `periodFor` | fn | `apps/api/src/services/invoicing/invoice-number.service.ts:159` |
 | `pharmacyInvoice` | fn | `packages/documents/src/invoice/samples.ts:495` |
 | `practitionerProfileFor` | fn | `apps/api/src/services/invoicing/invoice-visibility.ts:235` |
 | `PricedDraftInvoice` | interface | `apps/api/src/services/invoicing/pricing.service.ts:70` |
@@ -233,13 +238,13 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `priceInvoice` | fn | `packages/invoicing/src/pricing.ts:75` |
 | `QUANTITY_SCALE` | const | `packages/invoicing/src/quantity.ts:21` |
 | `readDocument` | fn | `packages/documents/src/store/document.service.ts:194` |
-| `readInvoiceDetail` | fn | `apps/api/src/services/invoicing/invoice.service.ts:345` |
-| `recordInvoicePrint` | fn | `apps/api/src/services/invoicing/invoice.service.ts:615` |
+| `readInvoiceDetail` | fn | `apps/api/src/services/invoicing/invoice.service.ts:385` |
+| `recordInvoicePrint` | fn | `apps/api/src/services/invoicing/invoice.service.ts:655` |
 | `renderInvoiceHtml` | fn | `packages/documents/src/invoice/render.tsx:69` |
 | `RenderInvoiceOptions` | interface | `packages/documents/src/invoice/render.tsx:57` |
 | `renderInvoicePdf` | fn | `apps/worker/src/documents/invoice-pdf.job.ts:54` |
 | `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:35` |
-| `repriceDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:355` |
+| `repriceDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:398` |
 | `requestInvoicePdf` | fn | `apps/api/src/services/invoicing/issue-invoice.ts:67` |
 | `resetDocumentStoreForTesting` | fn | `packages/documents/src/store/runtime.ts:99` |
 | `resolveInvoiceVisibility` | fn | `apps/api/src/services/invoicing/invoice-visibility.ts:125` |
@@ -258,10 +263,10 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `toMoney` | fn | `apps/api/src/services/invoicing/money.ts:39` |
 | `unregisteredInvoice` | var | `packages/documents/src/invoice/samples.ts:169` |
 | `unsupportedCodepoints` | fn | `packages/documents/src/fonts.ts:89` |
-| `updateDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:287` |
-| `UpdateDraftInvoiceInput` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:262` |
-| `updateInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:435` |
-| `UpdateInvoiceServiceInput` | interface | `apps/api/src/services/invoicing/invoice.service.ts:427` |
-| `voidInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:620` |
-| `voidIssuedInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:508` |
+| `updateDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:329` |
+| `UpdateDraftInvoiceInput` | interface | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:304` |
+| `updateInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:475` |
+| `UpdateInvoiceServiceInput` | interface | `apps/api/src/services/invoicing/invoice.service.ts:467` |
+| `voidInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:666` |
+| `voidIssuedInvoice` | fn | `apps/api/src/services/invoicing/invoice.service.ts:548` |
 | `yenInvoice` | var | `packages/documents/src/invoice/samples.ts:251` |

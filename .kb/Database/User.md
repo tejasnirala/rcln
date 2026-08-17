@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 60 |
+| relations | 63 |
 
 ## Columns
 
@@ -101,6 +101,9 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `dispensesMade` | [`Dispense`](Dispense.md) | `dispensesMade Dispense[] @relation("DispenseDispensedBy")` |
 | `dispenseReturnsReceived` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturnsReceived DispenseReturn[] @relation("DispenseReturnReceivedBy")` |
 | `regulatoryDecisionsMade` | [`RegulatoryDecision`](RegulatoryDecision.md) | `regulatoryDecisionsMade RegulatoryDecision[] @relation("RegulatoryDecisionActor")` |
+| `chargeRequestsDecided` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequestsDecided ChargeRequest[] @relation("ChargeRequestDecidedBy")` |
+| `chargePolicyRulesUpdated` | [`ChargePolicyRule`](ChargePolicyRule.md) | `chargePolicyRulesUpdated ChargePolicyRule[] @relation("ChargePolicyRuleUpdatedBy")` |
+| `productPricesUpdated` | [`ProductPrice`](ProductPrice.md) | `productPricesUpdated ProductPrice[] @relation("ProductPriceUpdatedBy")` |
 
 ## Indexes and constraints
 
@@ -148,4 +151,7 @@ erDiagram
     User }o--o{ Dispense : relates
     User }o--o{ DispenseReturn : relates
     User }o--o{ RegulatoryDecision : relates
+    User }o--o{ ChargeRequest : relates
+    User }o--o{ ChargePolicyRule : relates
+    User }o--o{ ProductPrice : relates
 ```

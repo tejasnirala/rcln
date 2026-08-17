@@ -4,6 +4,7 @@ import type {
   AllocationPlanResponse,
   InventoryLocationListResponse,
   PharmacyPrescriptionDetail,
+  SubstitutionResponse,
 } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@/lib/session';
@@ -31,6 +32,18 @@ export const metadata: Metadata = { title: 'Dispensing' };
  * ⚠️ ONE REQUEST PER LINE, IN PARALLEL. A prescription is a handful of medicines,
  *   not a page of them, and the alternative — a bulk endpoint — would be a second
  *   allocator to keep in step with the one that posts.
+ *
+ * ⚠️ THE EQUIVALENTS ARE FETCHED HERE TOO, ON THE SERVER, RATHER THAN LAZILY FROM
+ *   THE BROWSER (PI-8, closing KNOWN_ISSUES #11). Each candidate carries a
+ *   REGULATORY DECISION — whether the law permits substituting it, here, today —
+ *   and a control that offered a swap before that answer arrived would let
+ *   somebody pick a product the engine is about to refuse. Loading them with the
+ *   plans means the swap and its legal answer appear together or not at all.
+ *
+ *   A refusal is swallowed per line: `pharmacy.dispense.read` gates this endpoint
+ *   too, so a caller who reaches the workspace always holds it, but a line whose
+ *   product has no composition simply has no equivalents and must not take the
+ *   page down.
  */
 export default async function DispenseWorkspacePage({
   params,
@@ -65,27 +78,53 @@ export default async function DispenseWorkspacePage({
 
   const detail = prescription.data;
 
-  const [locations, ...plans] = await Promise.all([
+  const [locations, plans, substitutions] = await Promise.all([
     api<InventoryLocationListResponse>(
       `/api/v1/inventory-locations?branchId=${detail.branchId}&limit=100`,
       { slug, accessToken }
     ),
-    ...detail.items.map(async (item) => {
-      if (!item.isStockItem || Number(item.availableQuantityBase) <= 0) {
-        return { encounterPrescriptionId: item.id, plan: null };
-      }
-      const plan = await api<AllocationPlanResponse>('/api/v1/stock/allocations/plan', {
-        method: 'POST',
-        slug,
-        accessToken,
-        body: {
-          branchId: detail.branchId,
-          productId: item.productId,
-          quantity: item.availableQuantityBase,
-        },
-      });
-      return { encounterPrescriptionId: item.id, plan: plan.data ?? null };
-    }),
+    Promise.all(
+      detail.items.map(async (item) => {
+        if (!item.isStockItem || Number(item.availableQuantityBase) <= 0) {
+          return { encounterPrescriptionId: item.id, plan: null };
+        }
+        const plan = await api<AllocationPlanResponse>('/api/v1/stock/allocations/plan', {
+          method: 'POST',
+          slug,
+          accessToken,
+          body: {
+            branchId: detail.branchId,
+            productId: item.productId,
+            quantity: item.availableQuantityBase,
+          },
+        });
+        return { encounterPrescriptionId: item.id, plan: plan.data ?? null };
+      })
+    ),
+    Promise.all(
+      detail.items.map(async (item) => {
+        /*
+         * ⚠️ GATED ON THE SAME CONDITION AS THE PLAN FAN-OUT ABOVE, WHICH IT WAS
+         *   NOT. It fired for every item including fully-dispensed ones, passing
+         *   `quantityBase=0` — which the endpoint's own validation rejects, and
+         *   the `?? []` fallback then makes a real failure indistinguishable from
+         *   "no equivalents". It also doubled the request count on a long
+         *   prescription against an API with a rate limiter in the chain.
+         */
+        if (!item.isStockItem || Number(item.outstandingQuantityBase ?? '0') <= 0) {
+          return { encounterPrescriptionId: item.id, candidates: [] };
+        }
+        const candidates = await api<SubstitutionResponse>(
+          `/api/v1/pharmacy/prescriptions/${encounterId}/substitutions/${item.productId}` +
+            `?branchId=${detail.branchId}&quantityBase=${item.outstandingQuantityBase ?? '0'}`,
+          { slug, accessToken }
+        );
+        return {
+          encounterPrescriptionId: item.id,
+          candidates: candidates.ok ? (candidates.data?.candidates ?? []) : [],
+        };
+      })
+    ),
   ]);
 
   const dispensingPoints = (locations.data?.locations ?? []).filter(
@@ -106,6 +145,7 @@ export default async function DispenseWorkspacePage({
       slug={slug}
       prescription={detail}
       plans={plans}
+      substitutions={substitutions}
       locations={dispensingPoints}
       canDispense={access.canDispense}
     />

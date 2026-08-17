@@ -8,6 +8,7 @@ import type {
   DispenseLineRequest,
   InventoryLocationSummary,
   PharmacyPrescriptionDetail,
+  SubstitutionCandidate,
 } from '@rcln/contracts';
 import { Alert } from '@/components/ui/alert';
 import { cn } from '@/lib/cn';
@@ -55,11 +56,19 @@ interface LinePlan {
   plan: AllocationPlanResponse | null;
 }
 
+/** The equivalents for one prescribed line, each with the law's answer attached. */
+interface LineSubstitutions {
+  encounterPrescriptionId: string;
+  candidates: SubstitutionCandidate[];
+}
+
 interface Props {
   slug: string;
   prescription: PharmacyPrescriptionDetail;
   /** Every candidate lot for each line, oldest-first, from the FEFO planner. */
   plans: LinePlan[];
+  /** What else has the same composition, per line, with the decision attached. */
+  substitutions: LineSubstitutions[];
   locations: InventoryLocationSummary[];
   canDispense: boolean;
 }
@@ -83,6 +92,17 @@ interface DraftLine {
   item: PharmacyPrescriptionDetail['items'][number];
   include: boolean;
   lots: DraftLot[];
+  /**
+   * The product actually being handed over, when it is not the one prescribed
+   * (PI-8, closing KNOWN_ISSUES #11).
+   *
+   * ⚠️ NULL IS "SUPPLY WHAT WAS PRESCRIBED", NOT "UNDECIDED". The overwhelming
+   *   majority of lines are never substituted and must not be made to look like a
+   *   decision somebody skipped.
+   */
+  substituteProductId: string | null;
+  /** ⚠️ REQUIRED WHENEVER A SUBSTITUTE IS CHOSEN — CHECKed in the database. */
+  substitutionReason: string;
 }
 
 function lotKey(lot: {
@@ -91,6 +111,65 @@ function lotKey(lot: {
   serialId: string | null;
 }): string {
   return `${lot.locationId}|${lot.batchId ?? '-'}|${lot.serialId ?? '-'}`;
+}
+
+/**
+ * Add decimal quantity strings without going through a float.
+ *
+ * ⚠️ SIX PLACES, BECAUSE THAT IS `stock_ledger`'s SCALE. Fixed-point on the
+ *   integer of the scaled value, so nothing ever becomes a double.
+ */
+function sumQuantities(values: readonly string[]): string {
+  const SCALE = 1_000_000;
+  const total = values.reduce((sum, value) => sum + Math.round(Number(value) * SCALE), 0);
+  return (total / SCALE).toFixed(6).replace(/\.?0+$/, '');
+}
+
+/** One chosen lot, in the shape the request wants. */
+function toAllocation(lot: DraftLot) {
+  return {
+    locationId: lot.locationId,
+    batchId: lot.batchId,
+    serialId: lot.serialId,
+    quantityBase: lot.quantity,
+    isOverride: lot.quantity !== lot.plannedQuantityBase,
+    overrideReason: lot.overrideReason.trim() === '' ? null : lot.overrideReason.trim(),
+  };
+}
+
+/**
+ * How one substitute reads in the picker.
+ *
+ * ⚠️ THE LAW'S ANSWER IS IN THE LABEL, NOT BESIDE IT. A pharmacist scanning a
+ *   dropdown reads the option text and nothing else, so "may not be substituted
+ *   here" has to be part of that text — a badge next to it is a badge somebody
+ *   does not look at. The wording is about SUBSTITUTION and never about
+ *   equivalence: two products sharing a composition is chemistry, and whether one
+ *   may stand in for the other is jurisdiction.
+ *
+ * ⚠️ AND THE STOCK POSITION IS THERE TOO, because a substitute that cannot cover
+ *   what is outstanding turns one supply into two and is usually not what
+ *   somebody wants.
+ */
+function substituteLabel(candidate: SubstitutionCandidate): string {
+  const parts = [candidate.productName];
+  if (candidate.strength) parts.push(candidate.strength);
+  if (candidate.manufacturerName) parts.push(candidate.manufacturerName);
+
+  const stock = candidate.coversRequirement
+    ? `${candidate.availableQuantityBase} ${candidate.baseUnitSymbol} on hand`
+    : `only ${candidate.availableQuantityBase} ${candidate.baseUnitSymbol} on hand`;
+
+  const legal =
+    candidate.decision.outcome === 'PERMITTED'
+      ? null
+      : candidate.decision.outcome === 'PERMITTED_WITH_CONDITIONS'
+        ? 'conditions apply'
+        : candidate.decision.outcome === 'REFUSED'
+          ? 'may not be substituted here'
+          : 'the rules give no answer here';
+
+  return [parts.join(' · '), stock, legal].filter(Boolean).join(' — ');
 }
 
 function buildDraft(prescription: PharmacyPrescriptionDetail, plans: LinePlan[]): DraftLine[] {
@@ -130,11 +209,20 @@ function buildDraft(prescription: PharmacyPrescriptionDetail, plans: LinePlan[])
       include:
         item.isStockItem && Number(outstanding) > 0 && lots.some((lot) => lot.quantity !== ''),
       lots,
+      substituteProductId: null,
+      substitutionReason: '',
     };
   });
 }
 
-export function DispensingWorkspace({ slug, prescription, plans, locations, canDispense }: Props) {
+export function DispensingWorkspace({
+  slug,
+  prescription,
+  plans,
+  substitutions,
+  locations,
+  canDispense,
+}: Props) {
   const router = useRouter();
   const [lines, setLines] = useState<DraftLine[]>(() => buildDraft(prescription, plans));
   const [locationId, setLocationId] = useState(locations[0]?.id ?? '');
@@ -151,38 +239,128 @@ export function DispensingWorkspace({ slug, prescription, plans, locations, canD
     IDLE_FORM
   );
 
+  /**
+   * The equivalents offered for one prescribed line. Empty when there are none.
+   *
+   * ⚠️ ONLY CANDIDATES MEASURED IN THE SAME BASE UNIT AS THE PRESCRIBED LINE, AND
+   *   THIS FILTER IS A CORRECTNESS FIX RATHER THAN A TIDINESS ONE. The quantity
+   *   this screen sends for a substituted line is
+   *   `item.outstandingQuantityBase`, which is denominated in the PRESCRIBED
+   *   product's base unit. Offer a candidate measured in millilitres against a
+   *   line outstanding in tablets and the server is asked to dispense "30" of the
+   *   substitute — thirty millilitres, planned and posted, with nothing anywhere
+   *   raising an error.
+   *
+   *   Converting instead would be worse: the two products' base units are
+   *   frequently different CLASSES, which is not a conversion at all, and even
+   *   where it is, silently restating a dose is not a thing a dispensing screen
+   *   may do. A pharmacist swapping to a different presentation has to re-key the
+   *   quantity, which means a different flow than this control.
+   */
+  const candidatesFor = (encounterPrescriptionId: string): SubstitutionCandidate[] => {
+    const item = prescription.items.find((entry) => entry.id === encounterPrescriptionId);
+    return (
+      substitutions
+        .find((entry) => entry.encounterPrescriptionId === encounterPrescriptionId)
+        ?.candidates.filter((candidate) => candidate.baseUnitId === item?.baseUnitId) ?? []
+    );
+  };
+
+  /** The candidate a line has actually been switched to, if any. */
+  const substituteOf = (line: DraftLine): SubstitutionCandidate | undefined =>
+    line.substituteProductId === null
+      ? undefined
+      : candidatesFor(line.item.id).find(
+          (candidate) => candidate.productId === line.substituteProductId
+        );
+
   const payload: DispenseLineRequest[] = useMemo(
     () =>
       lines
         .filter((line) => line.include)
         .map((line) => {
           const chosen = line.lots.filter((lot) => Number(lot.quantity) > 0);
-          const total = chosen.reduce((sum, lot) => sum + Number(lot.quantity), 0);
+          /*
+           * ⚠️ SUMMED AS A DECIMAL STRING, NOT AS FLOATS. `quantity_base` is
+           *   `Decimal(18,6)`; `0.1 + 0.2` is `0.30000000000000004` and a
+           *   liquid dispensed in millilitres hits that on an ordinary split
+           *   across two lots. Tablets are integers, which is why this was
+           *   latent rather than visible.
+           */
+          const total = sumQuantities(chosen.map((lot) => lot.quantity));
+          const substituted = line.substituteProductId !== null;
+
           return {
             encounterPrescriptionId: line.item.id,
-            productId: line.item.productId,
-            quantity: String(total),
+            /* What is actually handed over. The prescribed product unless swapped. */
+            productId: line.substituteProductId ?? line.item.productId,
+            /*
+             * ⚠️ ON A SUBSTITUTION THE QUANTITY IS WHAT IS OUTSTANDING, NOT THE
+             *   SUM OF THE LOTS. The lots on screen were planned for the
+             *   PRESCRIBED product and are meaningless for the substitute — see
+             *   `allocations` below.
+             */
+            quantity: substituted ? (line.item.outstandingQuantityBase ?? '0') : total,
             /*
              * ⚠️ THE PRODUCT'S BASE UNIT, BECAUSE THAT IS THE UNIT THIS SCREEN
              *   COUNTS IN. A workspace that offered a pack-size dropdown would be
              *   converting twice — once here and once on the server — and the two
              *   would disagree the first time a packaging level changed.
+             *
+             * ⚠️ AND ON A SUBSTITUTION IT IS THE SUBSTITUTE'S BASE UNIT, WHICH IS
+             *   WHY THE CANDIDATE CARRIES ONE. Sending the prescribed product's
+             *   unit for a different product is a conversion against the wrong
+             *   graph — the ledger would refuse it, but only after the engine had
+             *   been asked about a quantity nobody meant.
              */
-            unitId: line.item.baseUnitId,
-            allocations: chosen.map((lot) => ({
-              locationId: lot.locationId,
-              batchId: lot.batchId,
-              serialId: lot.serialId,
-              quantityBase: lot.quantity,
-              isOverride: lot.quantity !== lot.plannedQuantityBase,
-              overrideReason: lot.overrideReason.trim() === '' ? null : lot.overrideReason.trim(),
-            })),
+            /*
+             * ⚠️ THE SAME UNIT EITHER WAY, BECAUSE `candidatesFor` ONLY OFFERS
+             *   CANDIDATES THAT SHARE THE PRESCRIBED LINE'S BASE UNIT. The
+             *   substitute's own id is sent rather than the prescribed one's
+             *   because they are different rows for the same unit, and a request
+             *   should say which product's unit it means; the fallback is
+             *   therefore provably equivalent rather than a fail-open guess.
+             */
+            unitId: substituteOf(line)?.baseUnitId ?? line.item.baseUnitId,
+            ...(substituted
+              ? {
+                  substitutedForProductId: line.item.productId,
+                  substitutionReason: line.substitutionReason.trim(),
+                }
+              : {}),
+            /*
+             * ⚠️ A SUBSTITUTED LINE SENDS NO ALLOCATIONS, AND THAT IS THE WHOLE
+             *   REASON THIS CONTROL IS SAFE TO OFFER. The lots on screen were
+             *   planned for the product the prescriber wrote; the substitute has
+             *   its own lots, its own expiries and its own FEFO order. Omitting
+             *   `allocations` is the contract's own "you plan it" — the server
+             *   runs `planStockAllocationWithin` inside the posting transaction,
+             *   against the product actually being supplied. Sending the
+             *   prescribed product's lots for a different product would take
+             *   stock off the wrong shelf.
+             */
+            ...(substituted ? {} : { allocations: chosen.map(toAllocation) }),
           } satisfies DispenseLineRequest;
         }),
-    [lines]
+    /*
+     * ⚠️ `substitutions` IS A DEPENDENCY, reached through `substituteOf`. It is a
+     *   server-rendered prop that cannot change without a remount today, so the
+     *   omission was benign — and a stale closure over a prop is the shape of bug
+     *   that stops being benign the moment somebody adds a refresh.
+     */
+    [lines, substitutions]
   );
 
   const nothingToSupply = payload.length === 0;
+  /*
+   * ⚠️ A SUBSTITUTION WITH NO REASON IS REFUSED BY THE DATABASE, so the button is
+   *   disabled rather than letting somebody press it and read a CHECK constraint.
+   *   The contract refines the same rule; this is the courtesy in front of both.
+   */
+  const missingSubstitutionReason = lines.some(
+    (line) =>
+      line.include && line.substituteProductId !== null && line.substitutionReason.trim() === ''
+  );
 
   const setLot = (lineIndex: number, key: string, patch: Partial<DraftLot>): void => {
     setLines((current) =>
@@ -265,7 +443,8 @@ export function DispensingWorkspace({ slug, prescription, plans, locations, canD
       <ol className="space-y-4">
         {lines.map((line, lineIndex) => {
           const outstanding = line.item.outstandingQuantityBase;
-          const supplying = line.lots.reduce((sum, lot) => sum + Number(lot.quantity || 0), 0);
+          /* Displayed, and summed the same exact way the payload is. */
+          const supplying = sumQuantities(line.lots.map((lot) => lot.quantity || '0'));
 
           return (
             <li
@@ -341,6 +520,108 @@ export function DispensingWorkspace({ slug, prescription, plans, locations, canD
                   </div>
                 </dl>
               </div>
+
+              {/*
+                ⚠️ THE SWAP, AND IT CARRIES THE LAW'S ANSWER WITH IT (PI-8,
+                  closing KNOWN_ISSUES #11). Every option is labelled with what
+                  `@rcln/regulatory` said about substituting THAT product HERE —
+                  never with the word "equivalent" alone. Two products sharing a
+                  composition is a fact about chemistry; whether one may stand in
+                  for the other is a fact about the jurisdiction, the prescriber's
+                  instruction and the drug's therapeutic index, and a picker that
+                  offered the first as though it answered the second would put a
+                  clinical claim on screen that nothing had checked.
+
+                ⚠️ AND IT IS RENDERED ONLY WHERE THERE IS SOMETHING TO OFFER. A
+                  control that is always present and almost always empty trains
+                  people to ignore it.
+              */}
+              {line.item.isStockItem && candidatesFor(line.item.id).length > 0 ? (
+                <div className="border-rule bg-paper border-b p-4">
+                  <Select
+                    label="Hand over"
+                    name={`substitute-${line.item.id}`}
+                    value={line.substituteProductId ?? ''}
+                    options={[
+                      {
+                        value: '',
+                        label: `${line.item.productName} — as prescribed`,
+                      },
+                      ...candidatesFor(line.item.id).map((candidate) => ({
+                        value: candidate.productId,
+                        label: substituteLabel(candidate),
+                      })),
+                    ]}
+                    onChange={(event) =>
+                      setLines((current) =>
+                        current.map((entry, index) =>
+                          index === lineIndex
+                            ? {
+                                ...entry,
+                                substituteProductId:
+                                  event.target.value === '' ? null : event.target.value,
+                                /* Clearing the swap clears the reason it needed. */
+                                substitutionReason:
+                                  event.target.value === '' ? '' : entry.substitutionReason,
+                              }
+                            : entry
+                        )
+                      )
+                    }
+                  />
+
+                  {line.substituteProductId ? (
+                    <div className="mt-3 space-y-3">
+                      {/*
+                        The chosen candidate's own decision, verbatim. The server
+                        asks the engine again inside the posting transaction, so
+                        this is a warning and never an authorisation.
+                      */}
+                      {(substituteOf(line)?.decision.messages ?? []).length > 0 ? (
+                        <Alert tone="warning">
+                          <ul className="list-disc space-y-1 pl-5">
+                            {substituteOf(line)?.decision.messages.map((message) => (
+                              <li key={message}>{message}</li>
+                            ))}
+                          </ul>
+                        </Alert>
+                      ) : null}
+
+                      {substituteOf(line)?.isNarrowTherapeuticIndex ? (
+                        <Alert tone="error">
+                          Small differences in blood level matter for this medicine. Substituting it
+                          is a clinical decision — check with the prescriber before you do.
+                        </Alert>
+                      ) : null}
+
+                      <Input
+                        label="Why this instead"
+                        name={`substitution-reason-${line.item.id}`}
+                        value={line.substitutionReason}
+                        onChange={(event) =>
+                          setLines((current) =>
+                            current.map((entry, index) =>
+                              index === lineIndex
+                                ? { ...entry, substitutionReason: event.target.value }
+                                : entry
+                            )
+                          )
+                        }
+                        placeholder="Prescribed brand out of stock"
+                        hint="Required. It goes on the record beside the supply."
+                        {...(line.include && line.substitutionReason.trim() === ''
+                          ? { errors: ['Say why a different product is being handed over.'] }
+                          : {})}
+                      />
+
+                      <p className="text-muted text-[0.8125rem]">
+                        The lots below are the prescribed product’s. Because you are handing over
+                        something else, the counter will pick its lots by expiry when you confirm.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               {!line.item.isStockItem ? (
                 <p className="text-muted p-4 text-[0.875rem]">
@@ -421,7 +702,10 @@ export function DispensingWorkspace({ slug, prescription, plans, locations, canD
             ? 'Nothing is selected to hand over yet.'
             : `Handing over ${payload.length} ${payload.length === 1 ? 'medicine' : 'medicines'}.`}
         </p>
-        <Button type="submit" disabled={!canDispense || nothingToSupply || pending}>
+        <Button
+          type="submit"
+          disabled={!canDispense || nothingToSupply || missingSubstitutionReason || pending}
+        >
           {pending ? 'Dispensing…' : 'Dispense'}
         </Button>
       </div>

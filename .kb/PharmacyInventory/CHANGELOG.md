@@ -5,6 +5,250 @@ discussed.
 
 ---
 
+## 2026-08-17 — PI-8: the counter's takings
+
+**Phase:** PI-8 · **Branch:** `feat/pi-8-billing-tax-integration` · **Result:**
+complete, **not reviewed** · **Tests:** +16 unit, +25 integration, +13 isolation,
++1 route-gate case. Lint, typecheck (45 tasks) and `db:rls:check` (121 tables)
+green. ⚠️ `/code-review` and `security-reviewer` deferred to the owner.
+
+The seam between what leaves the shelf and what a patient owes. PI-7 shipped
+supplies that nobody billed; this bills them, and reverses them when they come
+back.
+
+### The three PI-7 leftovers were closed FIRST
+
+NEXT_SESSION.md said #5, #8 and #9 all had to land before any pack reaches
+`PRODUCTION_ENABLED`, because that is the day the regulatory engine starts
+refusing on what it was told. All three are closed:
+
+- **#9** — `membership_professional_registrations` hangs off `memberships`, and
+  `regulatory/actor.service.ts` reads it into `RegulatoryActor.licenceTypes` AS
+  AT THE MOMENT OF THE ACT. Status `ACTIVE` **and** an unexpired date, so a
+  lapsed licence stops counting on the day it lapsed rather than on the day
+  somebody updates the row.
+- **#5** — `CatalogueActionOptions` gained `roleCodes`, and the two endpoints
+  that actually consult the engine resolve them through an `actorMeta()` helper.
+  The other twenty-seven stay on the synchronous `auditMeta` and pay nothing.
+- **#8** — `encounter_prescriptions` gained a nullable `repeats_authorised` and
+  `repeats_authorised_limit`. ⚠️ NULL is deliberately not `false`: silence is not
+  a prescriber refusing a repeat, and a `true` with no limit still resolves
+  `UNDETERMINED`, which refuses.
+
+### The credit-note engine, which `voidInvoice` recorded as a deliberate gap
+
+Phase 5 wrote: "no table, no number series, no `CREDIT_NOTE` source type… it is
+also unreachable in a useful sense today". PI-8 gave it something to design
+against — a dispensing return is money coming off a bill that has already been
+handed over, at every pharmacy every day.
+
+⚠️ **A credit note is an `invoices` row with `kind: CREDIT_NOTE`, not a parallel
+set of tables.** The alternative duplicates the line arithmetic, the
+apportionment, the per-line tax snapshot, the document join and — the part that
+decides it — `invoices_lifecycle_guard`, which freezes an issued document's every
+money column against an allow-list. A credit note has exactly that requirement,
+so it gets exactly that trigger by being the same table. What the law actually
+requires is a separate consecutive SERIES, and that is a period key:
+`CRN-2026-PHA-MAIN-000001`. One table, two series.
+
+It refuses four things: crediting what was never issued, crediting more than was
+charged (summed across every LIVE note, not per note), crediting a line that is
+not on the invoice, and crediting a credit note. It moves no money — there is
+still no patient-payments table — which is `voidInvoice`'s honest boundary moved
+one step forward rather than papered over.
+
+### ⚠️ THE DESIGN DOCUMENT WAS WRONG ABOUT THE LINK BACK, AND THE DATABASE SAID SO
+
+BILLING_INTEGRATION.md: "`charge_requests.invoice_item_id` is the only link
+back". It cannot be. `finalizeInvoice` re-prices a draft from its stored inputs,
+and `repriceLoadedDraft` does that by DELETING every `invoice_items` row and
+writing them again — so an item id changes at least once between the draft being
+raised and the document being issued. Any FK onto it either blocks finalisation
+(`Restrict`) or silently detaches at the moment it matters.
+
+Measured, not reasoned about: the first version had the FK, and finalisation
+raised `charge_requests_organization_id_invoice_item_id_fkey`. The column is now
+`invoice_id`, which is stable for the life of the document and is what every
+question is actually about.
+
+### The two requirements in tension, and how they are reconciled
+
+A charge request must be written in the SAME transaction as its dispense — one
+that could commit independently will, on the day the dispense rolls back, and the
+clinic bills for medicine that never left the shelf. And it must NEVER be able to
+stop that dispense — a pharmacist handing somebody their medicine cannot be
+blocked because an accountant has not filled in a grid.
+
+Resolved in one direction: every configuration gap is a NULLABLE COLUMN rather
+than an error. No price → `unit_price IS NULL`. No tax classification →
+`tax_category IS NULL`. Both are shown on the charge-review screen; the invoice
+engine refuses to ISSUE an unrated line anyway, which is the right place for that
+refusal because by then nobody is standing at a counter.
+
+### Three gaps in earlier phases, found by this work and closed
+
+1. **`dispense_lines` had no `product_visible` or `unit_visible` policy** — KI-3,
+   on the most PHI-dense table in the programme. `encounter_prescriptions` has
+   carried one since CE-4 for the identical plain FK, which makes it an oversight
+   rather than a decision. A clinic could attach another clinic's private product
+   to its own dispense line and read the name back through the join.
+2. **`regulatory_decisions`' append-only REVOKE was undone by every reset.** The
+   migration revokes; `ALTER DEFAULT PRIVILEGES` re-grants on the next
+   `db:reset`, and the isolation case only fails AFTER one — which is why PI-7
+   shipped green. Now restated in `grant-app.sql`, where every other append-only
+   table already was.
+3. **PI-2's inventory isolation fixture was not idempotent against a crash**, so
+   any run that died early poisoned every later run with a `users_email_key`
+   violation that said nothing about the real failure.
+
+### The gap the phase had to be asked about twice
+
+⚠️ **THE FIRST PASS SHIPPED A COMMENT DESCRIBING CODE NOBODY HAD WRITTEN, AND
+CALLED THE PHASE COMPLETE.** `product-price-list.tsx` asserted that a price is
+set from the PRODUCT screen — "that is where somebody already has the item, its
+base unit and its packaging in front of them" — and no such control existed.
+`saveProductPriceAction` was written and wired to nothing. The consequence was
+not cosmetic: every charge request came out with a NULL `unit_price`, the charge
+queue's gap rail lit up on every row, and `createInvoiceFromCharges` refused with
+_"has no price. Set one on the price list"_ — pointing at a screen that could not
+do it. The whole phase was unusable end to end from a browser.
+
+The reasoning in the comment was right and is exactly what got built: a `Price`
+tab on the product panel, before `Tax`, with a unit picker the API validates
+against the product's own conversion graph. What was wrong was documenting an
+intention in the present tense.
+
+Three more went with it: per-line crediting reached the invoice screen (the API
+had taken a line set from the start, and a partial return is the ordinary case);
+KNOWN_ISSUES #1's nondeterministic transfer line order, taken because this
+session touched `transfer.service.ts`, which is what the entry asked for; and
+#12's UTC "today" on the pharmacy dashboard, now `date_trunc` over
+`branches.timezone` in SQL.
+
+And the linter caught the fix's own first version: `useEffect(() =>
+setAdding(false), [state.status])` is a cascading render, and
+`react-hooks/set-state-in-effect` is right about it. Comparing against the
+previous value DURING render is React's documented pattern and commits nothing in
+between.
+
+### #10 and #11, closed in a third pass
+
+**#10 — the quantity window travels BACKWARDS, from the rules to the caller.**
+The entry's mitigation said "one query" and understated it: `periodDays` lives on
+the RULE, so nobody can know the window before evaluating, and the engine is pure
+(PI-ADR-007) so it cannot look the history up itself.
+`EvaluationSupplements.priorQuantityInPeriod(windowDays)` inverts it —
+`evaluateWithin` selects the applicable rules with the engine's own
+`selectApplicableRules`, reads the window off them, and calls back into
+`consultForSupply`, which is the only party that knows who the supply is for. The
+engine still holds no Prisma client.
+
+⚠️ **Two windows still refuse, and that is the design rather than a shortfall.**
+`RegulatoryRequest` carries ONE scalar. The longer window over-counts for the
+shorter rule and refuses lawful supplies; the shorter UNDER-counts for the longer
+rule and PERMITS what the law forbids. Only one of those is survivable, so
+neither is chosen and the engine says `UNDETERMINED`. A sale with no patient
+refuses for the same reason: zero would let anyone take the limit again on every
+visit, which is the pattern the rule exists to stop.
+
+**#11 — the substitute swap, and the one line that makes it safe.** The workspace
+gained a "Hand over" picker fed by equivalents fetched on the SERVER with the
+plans, each option carrying what the engine said about substituting THAT product
+HERE — in the option text, because a badge beside a dropdown is a badge nobody
+reads.
+
+⚠️ **A SUBSTITUTED LINE SENDS NO ALLOCATIONS.** The lots on that screen were
+planned for the PRESCRIBED product and are meaningless for the substitute;
+omitting them is the contract's own "you plan it", so the server runs
+`planStockAllocationWithin` against the product actually being supplied. Sending
+the prescribed product's lots would take stock off the wrong shelf while
+recording the substitute's name — invisible from the screen that caused it, which
+is why it has a test rather than a comment. `substitutionCandidate` gained
+`baseUnitId` for the same class of reason: a quantity in the prescribed product's
+unit converts against the wrong graph.
+
+### What the reviews found, and what each turned out to be
+
+Both reviewers ran over the whole diff. Three CRITICALs, two HIGHs, and a dozen
+smaller. All fixed.
+
+⚠️ **THE ONE WORTH REMEMBERING: PI-8's OWN SUBSTITUTION UI WIDENED A HOLE PI-8
+HAD LEFT OPEN.** This phase went in specifically to close the KI-3 class on
+`dispense_lines` and closed `product_id` — while `substituted_for_product_id`,
+the column immediately below it, is a SECOND plain FK into `products`, is
+accepted straight from the client, is written with no validation, and is joined
+for its name onto the dispense detail screen. Then #11 added the picker that
+makes it reachable from a browser. The model comment even says "plain FK**s**",
+plural, describing a policy set that covered one of them. Closed, along with
+`regulatory_decisions.product_id`, both with isolation cases.
+
+**A credit note refunded GROSS where the patient had paid NET.**
+`ORIGINAL_SELECT` never read the discount columns, so crediting a discounted
+invoice in full issued a statutory document owing more than the clinic had ever
+taken. And the ceiling that was supposed to catch it compared three different
+bases in one subtraction — pre-tax gross against tax-inclusive `grand_total` —
+which refused legitimate credits where the discount exceeded the tax and let
+over-crediting through where it did not. The security review's exploit was two
+API calls, no race: credit a sliver, then credit everything, ~10.7% overshoot at
+12% GST. The ceiling now runs AFTER pricing, so both sides are `grand_total`.
+
+**`createCreditNote` skipped `loadVisible`.** A holder of
+`billing.credit_note.issue` could reverse any invoice in the organization,
+including sources and practitioners their read visibility excludes — the write
+committed and only the read-back on the way out 404'd.
+
+**`raiseChargeRequestsWithin` could throw and block a pharmacist mid-supply** —
+the one thing the file's header promises it cannot do. Deactivating a unit of
+measure that a live price row is denominated in made every subsequent dispense of
+that product throw inside the posting transaction. It degrades to the unpriced
+case instead.
+
+**A substituted line sent a quantity in the PRESCRIBED product's base unit
+paired with the SUBSTITUTE's unit id.** Thirty tablets became thirty millilitres,
+planned and posted, with nothing raising an error. Candidates are now filtered to
+matching base units — converting would be worse, because silently restating a
+dose is not something a dispensing screen may do.
+
+**And `needsAttention` clobbered an explicit `status` filter** via object-literal
+last-key-wins, directly underneath a comment arguing carefully for AND-ing over
+OR-ing. The same trap `resolveTaxCategory` documents at length about repeated
+`OR:` keys, one phase later and in the other direction.
+
+Plus: medicine names interpolated into error messages that `errorHandler` logs
+verbatim; the currency read fresh instead of frozen; a missing `canSeeSource`; a
+branch-scoped member able to delete the clinic-wide default price; orphaned
+REVERSAL charges; float money; `as number` casts standing in for `!`; an ungated
+2N+1 fan-out.
+
+### The two left open in the first pass, closed in a second
+
+**Per-line crediting is now cumulative.** `invoice_items.credited_invoice_item_id`
+links a note's line to the line it reverses, so the cap can sum across earlier
+notes. ⚠️ It is carried through `StagedLine` and rewritten on every reprice —
+finalisation always re-prices, and a column set once at creation is NULL by the
+time the note is a document. That is exactly what killed
+`charge_requests.invoice_item_id`, and a test asserts the link survives.
+
+**The charge loop is five queries regardless of line count.** It was five PER
+LINE, inside the transaction holding every batch and serial lock a supply takes.
+Each batch resolver is the SAME function the single-product path uses, with the
+singular delegating — a second copy of the tax precedence rule is how PI-1's
+`NULLS LAST` CRITICAL comes back.
+
+### The process trap worth writing down
+
+⚠️ **`prisma migrate reset` IS NOT `pnpm db:reset`.** The package script is
+`migrate reset && apply-grants && seed`; the raw command skips both. The symptom
+is every tenant-isolation suite failing with `relation "audit_logs" does not
+exist`, which reads as a broken migration and is actually `rcln_app` holding no
+grants at all.
+
+⚠️ **Prisma emits `@@unique` as a unique INDEX, not a table constraint**, so a
+`NULLS NOT DISTINCT` rewrite needs `DROP INDEX` + `CREATE UNIQUE INDEX` and not
+`ALTER TABLE … DROP CONSTRAINT`, which raises 42704.
+
+---
+
 ## 2026-08-16 — PI-7: the counter opens
 
 **Phase:** PI-7 · **Branch:** `feat/pi-7-pharmacy-dispensing` · **Result:**

@@ -9,7 +9,7 @@ Declared at `packages/db/prisma/schema/clinical.prisma:1421`.
 | table | `encounter_prescriptions` |
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
-| columns | 24 |
+| columns | 26 |
 | relations | 5 |
 
 ## Columns
@@ -34,6 +34,8 @@ Declared at `packages/db/prisma/schema/clinical.prisma:1421`.
 | `quantity` | `Decimal?` | `quantity Decimal? @db.Decimal(12, 3)` |
 | `startDate` | `DateTime?` | `startDate DateTime? @map("start_date") @db.Date` |
 | `endDate` | `DateTime?` | `endDate DateTime? @map("end_date") @db.Date` |
+| `repeatsAuthorised` | `Boolean?` | `repeatsAuthorised Boolean? @map("repeats_authorised")` |
+| `repeatsAuthorisedLimit` | `Int?` | `repeatsAuthorisedLimit Int? @map("repeats_authorised_limit") @db.SmallInt` |
 | `isPrn` | `Boolean` | `isPrn Boolean @default(false) @map("is_prn")` |
 | `instructions` | `String?` | `instructions String? @db.Text` |
 | `notes` | `String?` | `notes String? @db.Text` |

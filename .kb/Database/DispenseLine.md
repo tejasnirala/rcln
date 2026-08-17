@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/pharmacy.prisma:214`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `org` policy |
 | columns | 17 |
-| relations | 10 |
+| relations | 11 |
 
 ## Columns
 
@@ -48,6 +48,7 @@ Declared at `packages/db/prisma/schema/pharmacy.prisma:214`.
 | `regulatoryDecision` | [`RegulatoryDecision`](RegulatoryDecision.md) | `regulatoryDecision RegulatoryDecision @relation(fields: [organizationId, regulatoryDecisionId], references: [organizationId, id], onDelete: Restrict)` |
 | `allocations` | [`DispenseAllocation`](DispenseAllocation.md) | `allocations DispenseAllocation[]` |
 | `returnLines` | [`DispenseReturnLine`](DispenseReturnLine.md) | `returnLines DispenseReturnLine[]` |
+| `chargeRequests` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequests ChargeRequest[]` |
 
 ## Indexes and constraints
 
@@ -71,4 +72,5 @@ erDiagram
     DispenseLine }o--o{ RegulatoryDecision : relates
     DispenseLine }o--o{ DispenseAllocation : relates
     DispenseLine }o--o{ DispenseReturnLine : relates
+    DispenseLine }o--o{ ChargeRequest : relates
 ```

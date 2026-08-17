@@ -219,6 +219,10 @@ model Patient {
   /// `onDelete: Restrict` on the other side: a dispensing record is a retention
   /// obligation in most jurisdictions and outlives their being a current patient.
   dispenses               Dispense[]
+  /// What this person is being billed for (PI-8). ⚠️ PHI, and `Restrict` on the
+  /// other side for the reason `dispenses` is: a billing record is a retention
+  /// obligation too.
+  chargeRequests          ChargeRequest[]
 
   @@unique([organizationId, uhid])
   /// Composite-FK target. Registrations, appointments, encounters, invoices and

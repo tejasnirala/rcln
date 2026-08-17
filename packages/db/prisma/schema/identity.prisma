@@ -154,6 +154,14 @@ model User {
   dispenseReturnsReceived   DispenseReturn[]                  @relation("DispenseReturnReceivedBy")
   regulatoryDecisionsMade   RegulatoryDecision[]              @relation("RegulatoryDecisionActor")
 
+  // -- Charging (PI-8) --------------------------------------------------------
+  /// ⚠️ WHO DECIDED TO BILL, OR NOT TO. An `OPTIONAL` charge policy hands the
+  ///   question to a human, and "somebody chose not to charge for this" with no
+  ///   name against it is indistinguishable from the system having missed it.
+  chargeRequestsDecided     ChargeRequest[]                   @relation("ChargeRequestDecidedBy")
+  chargePolicyRulesUpdated  ChargePolicyRule[]                @relation("ChargePolicyRuleUpdatedBy")
+  productPricesUpdated      ProductPrice[]                    @relation("ProductPriceUpdatedBy")
+
   @@index([status])
   @@index([isPlatformAdmin])
   @@map("users")

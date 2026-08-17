@@ -18,15 +18,18 @@
  *   at the same moment, as the write that acts on it — which is why it takes a
  *   `tx` and why `evaluateWithin` exists at all.
  *
- * ⚠️ THE ACTOR IS EMPTY ON A STOCK MOVEMENT, AND THAT IS A KNOWN LIMITATION
- *   RATHER THAN AN OVERSIGHT. Neither the receipt nor the transfer service is
- *   given the caller's permission codes — they take a `CatalogueActionOptions`
- *   carrying an IP and a user agent and nothing else — so a
- *   `PHARMACIST_AUTHORITY` or `IMPORT_RESTRICTION` rule aimed at `STOCK` would
- *   see an actor holding nothing and refuse. No pack has such a rule today and
- *   nothing enforces, so this is latent; it is recorded in KNOWN_ISSUES.md, and
- *   the fix is to plumb the caller's effective permissions down to these
- *   services rather than to guess at them here.
+ * ⚠️ THE ACTOR USED TO BE EMPTY HERE, AND PI-8 FIXED IT (KNOWN_ISSUES #5, #9).
+ *   Neither the receipt nor the transfer service was given the caller's
+ *   permission codes, so a `PHARMACIST_AUTHORITY` or `IMPORT_RESTRICTION` rule
+ *   aimed at `STOCK` saw an actor holding nothing and refused. Both now take
+ *   `roleCodes` down from their routes, and `regulatoryActorWithin` adds the
+ *   caller's professional registrations as at the moment of the movement.
+ *
+ *   ⚠️ `roleCodes` IS STILL OPTIONAL ON THE INPUT AND DEFAULTS TO EMPTY, WHICH IS
+ *     THE SAFE DIRECTION AND NOT A HOLE LEFT OPEN. An actor holding nothing
+ *     satisfies no rule that names anything, so a call site that forgets to pass
+ *     them refuses rather than permits. The worker's sweeps have no human caller
+ *     at all and are the reason the field cannot simply be required.
  *
  * NO PHI. A stock movement references no patient, and the summary logged below
  * carries ids and rule codes only.
@@ -35,6 +38,7 @@ import type { TenantContext, TxClient } from '@rcln/db';
 import { logger } from '../../utils/logger.js';
 import { ValidationError } from '../../utils/errors.js';
 import { evaluateWithin } from './evaluation.service.js';
+import { regulatoryActorWithin } from './actor.service.js';
 import { blocks, isBlockingOutcome, summarise } from './enforcement.js';
 
 export interface StockConsultation {
@@ -54,6 +58,15 @@ export interface StockConsultation {
   /** For the log line, so an operator can find the document. Never rendered. */
   documentType: string;
   documentId: string;
+  /**
+   * The caller's effective permission codes for the branch being acted on.
+   *
+   * ⚠️ PERMISSION CODES, NEVER ROLE NAMES — see `RegulatoryActorInput`. Resolved
+   *   at the route, because `TenantContext` carries no permissions by design.
+   *   Absent means an actor holding nothing, which refuses any rule naming
+   *   something; see the file header.
+   */
+  roleCodes?: readonly string[];
 }
 
 /**
@@ -79,8 +92,16 @@ export async function consultForStockMovement(
       occurredAt: input.occurredAt.toISOString(),
       ...(input.locationId ? { locationId: input.locationId } : {}),
     } as never,
-    // See the file header: the caller's permissions do not reach this far.
-    { roleCodes: [] }
+    /*
+     * ⚠️ THE CALLER, AS THE RULES JUDGE THEM — their effective permissions and
+     *   the professional registrations they held ON THE DAY OF THE MOVEMENT, not
+     *   today. A receipt keyed in on Monday for a Friday delivery is judged
+     *   against Friday, exactly as the rules themselves are.
+     */
+    await regulatoryActorWithin(tx, ctx, {
+      roleCodes: input.roleCodes ?? [],
+      occurredAt: input.occurredAt,
+    })
   );
 
   if (!isBlockingOutcome(decision.outcome)) return;

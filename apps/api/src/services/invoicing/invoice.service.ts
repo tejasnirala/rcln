@@ -92,6 +92,9 @@ export function auditOptions(options: InvoiceActionOptions): InvoiceAuditOptions
 const LIST_SELECT = {
   id: true,
   invoiceNumber: true,
+  /* PI-8: a charge or a reversal. ⚠️ Every money field is positive on both. */
+  kind: true,
+  creditedInvoiceId: true,
   status: true,
   sourceType: true,
   branchId: true,
@@ -132,6 +135,33 @@ const DETAIL_SELECT = {
   cancellationReason: true,
   cancelledAt: true,
   voidedAt: true,
+  /*
+   * The credit notes raised against this invoice (PI-8).
+   *
+   * ⚠️ ONLY THE ONES THAT STILL STAND. A cancelled draft note and a voided one
+   *   both reverse nothing, so including them would show a patient a bill as
+   *   credited when the credit had itself been undone — and would make the
+   *   `creditedTotalMinor` the credit-note engine checks against too large,
+   *   permanently blocking a clinic that voided a mistaken note from raising the
+   *   right one. The same LIVE-status argument `appointment-billing.service.ts`
+   *   makes about "is this visit already billed?".
+   */
+  creditNotes: {
+    where: {
+      deletedAt: null,
+      status: { in: ['DRAFT', 'FINALIZING', 'ISSUED', 'PARTIALLY_PAID', 'PAID'] },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      status: true,
+      currency: true,
+      grandTotal: true,
+      amountPaid: true,
+      issuedAt: true,
+    },
+  },
   items: {
     orderBy: { lineNumber: 'asc' },
     select: {
@@ -248,6 +278,16 @@ export async function listInvoices(
       ...(query.patientId ? { patientId: query.patientId } : {}),
       ...(query.appointmentId ? { appointmentId: query.appointmentId } : {}),
       ...(query.status ? { status: query.status } : {}),
+      /*
+       * PI-8. ⚠️ OMITTED RETURNS BOTH KINDS, WHICH IS THE ONLY SAFE DEFAULT —
+       *   defaulting to `INVOICE` would hide every credit note from the ledger
+       *   an accountant reconciles, and a reversal nobody can find is worse than
+       *   one in an unexpected list. The screens that mean one or the other say
+       *   so. Both are subject to the same source and practitioner scoping
+       *   above, because a credit note discloses exactly what its invoice does.
+       */
+      ...(query.kind ? { kind: query.kind } : {}),
+      ...(query.creditedInvoiceId ? { creditedInvoiceId: query.creditedInvoiceId } : {}),
       /*
        * ⚠️ A FRAGMENT, MATCHED ANYWHERE IN THE NUMBER AND WITHOUT CASE. Typing
        *   `787` finds `INV-2026-APP-MAIN-000787`, which is what somebody reading
@@ -758,6 +798,8 @@ function toListItem(row: ListRow): InvoiceListItem {
   return {
     id: row.id,
     invoiceNumber: row.invoiceNumber,
+    kind: row.kind,
+    creditedInvoiceId: row.creditedInvoiceId,
     status: row.status,
     sourceType: row.sourceType,
     branchId: row.branchId,
@@ -818,6 +860,31 @@ function toDetail(
     document: documentState(document),
     issuable: unissuableReasons.length === 0,
     unissuableReasons,
+    creditNotes: row.creditNotes.map((note) => {
+      const grandTotalMinor = minor(note.grandTotal, note.currency);
+      const amountPaidMinor = minor(note.amountPaid, note.currency);
+      return {
+        invoiceId: note.id,
+        invoiceNumber: note.invoiceNumber,
+        status: note.status,
+        currency: note.currency,
+        grandTotalMinor,
+        amountPaidMinor,
+        /* Derived, never stored — a third number that can disagree with two. */
+        balanceDueMinor: grandTotalMinor - amountPaidMinor,
+        issuedAt: note.issuedAt?.toISOString() ?? null,
+      };
+    }),
+    /*
+     * ⚠️ SUMMED IN MINOR UNITS, NOT BY ADDING `Decimal`s AND CONVERTING ONCE. The
+     *   conversion rounds, and rounding a sum is not the same as summing rounded
+     *   parts — the difference is up to (n−1) minor units, which is exactly the
+     *   argument `invoices.tax_total` makes about per-line rounding.
+     */
+    creditedTotalMinor: row.creditNotes.reduce(
+      (sum, note) => sum + minor(note.grandTotal, note.currency),
+      0
+    ),
   };
 }
 

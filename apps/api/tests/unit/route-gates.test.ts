@@ -144,6 +144,15 @@ const NOT_CLINICAL: string[] = [
   'audit.routes.ts',
   'billing.routes.ts',
   'branches.routes.ts',
+  /*
+   * ⚠️ CHARGING TOUCHES THE CLINICAL RECORD ONLY THROUGH A PRICE (PI-8), WHICH IS
+   *   WHY IT IS HERE AND NOT IN `AUDITED_FILES`. A charge request names a patient
+   *   and a medicine, so its READ is a disclosure and logs like one — but the
+   *   router authors nothing clinical and carries no `clinical.*` code, which is
+   *   the property that list exists to police. It is audited by
+   *   `tests/integration/charging.test.ts` and by the charging isolation suite.
+   */
+  'charging.routes.ts',
   'clinical-taxonomy.routes.ts',
   'designations.routes.ts',
   'doctors.routes.ts',

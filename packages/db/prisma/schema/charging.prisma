@@ -1,0 +1,433 @@
+// ---------------------------------------------------------------------------
+// Charging — the seam between what happened and what is billed (PI-8)
+//
+// ⚠️ THIS PROGRAMME IMPLEMENTS NO INVOICING, AND NOTHING IN THIS FILE HOLDS A
+//   TAX FIGURE. rcln already has an invoice engine, a tax engine and a document
+//   engine, all working end to end for appointment invoicing. Pharmacy and
+//   inventory HAND WORK TO THEM. A charge request is the structured hand-off:
+//   what was supplied, to whom, at which counter, at what moment, under which
+//   charge policy, at which price and in which tax category. Everything after
+//   that — apportionment, tax lines, totals, numbering, the PDF — is
+//   `services/invoicing` and `@rcln/tax`, unchanged.
+//
+//   `charge_requests.invoice_id` is the only link back, and it is written BY
+//   invoicing. Nothing in this programme inserts an `invoice_item`. (The design
+//   document says `invoice_item_id`; see the column for why an item id cannot be
+//   the link.)
+//
+// ── WHY A CHARGE REQUEST IS A ROW AND NOT A FUNCTION CALL ────────────────────
+// The obvious shape is for `createDispense` to call `createInvoiceFor…` at the
+// end of its transaction. It is wrong in three ways, and PI-ADR-005 is the ADR:
+//
+//   1. NOT EVERYTHING SUPPLIED IS BILLED. A consumed glove produces no invoice
+//      line; an implant does. That decision is the CHARGE POLICY, it is a
+//      clinic's commercial position, and it has to be recorded as having been
+//      made — including when it decided not to bill.
+//   2. SOME OF IT IS A HUMAN'S DECISION. `OPTIONAL` means somebody at the desk
+//      decides, and a decision nobody can see before it reaches a patient's bill
+//      is not a decision anybody made.
+//   3. THE BILL IS NOT ALWAYS RAISED AT THE COUNTER. Three supplies across a
+//      morning are frequently one invoice, and an inpatient's are one at
+//      discharge. A per-supply invoice call cannot express that; a queue of
+//      requests can.
+//
+// ── PHI ──────────────────────────────────────────────────────────────────────
+// A charge request names a patient and a medicine — the same fact
+// `dispense_lines` carries, and treated the same way. `description` is
+// PHI-capable free text (it becomes an invoice line a patient reads). Ids only
+// in logs and in Redis; nothing here in a URL.
+// ---------------------------------------------------------------------------
+
+/// Should this reach a bill at all?
+///
+/// ⚠️ SEPARATE FROM CONSUMPTION, WHICH IS THE WHOLE POINT (PI-ADR-005). "It left
+///   the shelf" and "somebody owes for it" are two facts, and a system that
+///   derives the second from the first bills for gauze.
+enum ChargePolicy {
+  /// Consumed, never charged — gloves, disinfectant, the swab.
+  NEVER_BILL
+  /// Consumed, and its cost is already inside a procedure or consultation fee —
+  /// the anaesthetic, the suture on a sutured wound. ⚠️ NOT the same as
+  /// `NEVER_BILL`: the clinic IS recovering the cost, through another line, and
+  /// a costing report must be able to tell the two apart.
+  INCLUDED_IN_SERVICE
+  /// Its own invoice line — a dispensed medicine, an implant.
+  SEPARATELY_BILLABLE
+  /// A human decides, at the charge-review step. The request sits `PENDING`
+  /// until they do, and no invoice may be raised from it before then.
+  OPTIONAL
+  /// The payer contract decides.
+  ///
+  /// ⚠️ THERE IS NO CONTRACT ENGINE, AND THIS RESOLVES TO A HUMAN DECISION
+  ///   EXACTLY AS `OPTIONAL` DOES — see the note on `ChargeRequestStatus`. It is
+  ///   a distinct member rather than an alias because the REASON the desk is
+  ///   being asked is different, and the day a contract engine lands it is this
+  ///   member's call sites that change and not `OPTIONAL`'s. Recorded as
+  ///   accepted debt in KNOWN_ISSUES.
+  CONTRACT_DEFINED
+  /// The regulatory or tax configuration decides. Same treatment and the same
+  /// reason as `CONTRACT_DEFINED`.
+  JURISDICTION_CONFIGURED
+}
+
+/// Which tier of the precedence chain produced the policy on a charge request.
+///
+/// ⚠️ SNAPSHOTTED ON THE REQUEST BESIDE THE POLICY ITSELF, so an old bill can
+///   still explain itself after the rules have been edited. "Why was this
+///   billed?" is answered by the row, never by re-resolving — the resolution
+///   would run against today's table and today's table is not what decided.
+enum ChargePolicyScope {
+  /// A rule naming this exact product.
+  PRODUCT
+  /// A rule naming a category this product is in.
+  PRODUCT_CATEGORY
+  /// A rule naming this product's type.
+  PRODUCT_TYPE
+  /// No rule matched. `SEPARATELY_BILLABLE` for a medicine or a vaccine,
+  /// `NEVER_BILL` for everything else — see `defaultChargePolicy`.
+  DEFAULT
+}
+
+/// Where a charge request is.
+///
+/// ```text
+///   PENDING ──▶ INVOICED
+///      │
+///      ├──▶ SUPPRESSED    (policy said no, or a human said no)
+///      └──▶ CANCELLED     (the supply it cites was reversed before billing)
+/// ```
+///
+/// ⚠️ `SUPPRESSED` IS A TERMINAL SUCCESS, NOT A FAILURE. A glove that produced no
+///   invoice line reached exactly the state it should, and the row exists so the
+///   clinic can prove the decision was taken rather than missed.
+enum ChargeRequestStatus {
+  /// Waiting to be billed, or waiting for a human where the policy asked for
+  /// one. ⚠️ The only state from which an invoice may be raised.
+  PENDING
+  /// Deliberately not billed. Carries the reason.
+  SUPPRESSED
+  /// On an invoice. `invoice_id` is set, and it is written by
+  /// `services/invoicing`.
+  INVOICED
+  /// The supply behind it was undone before it reached a bill.
+  CANCELLED
+}
+
+/// What kind of movement this request is the money side of.
+///
+/// ⚠️ A REVERSAL IS NOT A NEGATIVE SUPPLY. Its quantity is POSITIVE and its
+///   direction is in this column, for the reason `stock_ledger` keeps the sign
+///   out of the quantity: a negative number in a money column is one missing
+///   minus sign away from a credit that charges.
+enum ChargeRequestKind {
+  /// Something was supplied. The ordinary case.
+  SUPPLY
+  /// Something came back. Reduces what is owed — by cancelling the original
+  /// request where it was never billed, and by a CREDIT NOTE where it was.
+  REVERSAL
+}
+
+/// A clinic's standing answer to "is this billed?".
+///
+/// ⚠️ NOT EFFECTIVE-DATED, DELIBERATELY, AND THE SNAPSHOT IS WHY. A charge
+///   request records the policy AND the tier that produced it at the moment of
+///   supply, so history is answerable from the request rather than from this
+///   table's past. Effective dating here would be a second history of the same
+///   fact, free to disagree with the first.
+///
+/// ⚠️ THE PRECEDENCE CHAIN IS SHORTER THAN BILLING_INTEGRATION.md's. That
+///   document lists eight tiers, five of which name a `procedure` or a `payer`.
+///   Neither entity exists: procedures are PI-9, blocked on `encounters`, and
+///   there is no payer-contract model anywhere in this repository. The three
+///   expressible tiers are built; the rest arrive with the entities they name,
+///   and `ChargePolicyScope` is where the new members go. Guessing at the shape
+///   of a rule against a table that does not exist is the mistake PI-5 records
+///   about `regulatory_decisions`.
+model ChargePolicyRule {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  /// ⚠️ EXACTLY ONE OF THE THREE IS SET, BY CHECK. A rule that named both a
+  ///   product and a type would have two places in the precedence chain and the
+  ///   resolver would have to pick one, which is a coin toss dressed as a rule.
+  ///
+  /// Plain FKs into platform-extensible tables, so both get a RESTRICTIVE
+  /// `*_visible` policy — without them a clinic attaches another clinic's
+  /// private product to its own rule and reads the name back through the join
+  /// on the charge-policy screen (KI-3).
+  productId         String?      @map("product_id") @db.Uuid
+  productCategoryId String?      @map("product_category_id") @db.Uuid
+  productType       ProductType? @map("product_type")
+
+  policy ChargePolicy
+
+  /// Why the clinic decided this. Not PHI — it is about a catalogue row.
+  note String? @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Restrict on both: a rule that has decided a bill outlives the screen that
+  /// made it. A product is deactivated, never deleted.
+  product         Product?         @relation("ChargePolicyRuleProduct", fields: [productId], references: [id], onDelete: Restrict)
+  productCategory ProductCategory? @relation("ChargePolicyRuleCategory", fields: [productCategoryId], references: [id], onDelete: Restrict)
+  updater         User?            @relation("ChargePolicyRuleUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  /// The charge requests this rule decided. `Restrict` on the other side — see
+  /// `ChargeRequest.policyRuleId`.
+  chargeRequests  ChargeRequest[]
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration. Every scoping column is nullable,
+  ///   and a plain unique does not constrain NULLs — without it a clinic holds
+  ///   two different answers for one product and the planner decides which one a
+  ///   patient is charged under.
+  @@unique([organizationId, productId, productCategoryId, productType])
+  @@unique([organizationId, id])
+  /// The resolver's read: every candidate rule for one product, in one index.
+  @@index([organizationId, productId])
+  @@index([organizationId, productCategoryId])
+  @@index([organizationId, productType])
+  @@map("charge_policy_rules")
+}
+
+/// What a clinic SELLS a product for.
+///
+/// ⚠️ A SELLING PRICE IS NOT AN INVENTORY COST, AND NEITHER IS DERIVED FROM THE
+///   OTHER (PI-ADR-010). `product_cost_averages` is what the clinic paid;
+///   this is what it charges. A margin percentage that turned one into the other
+///   would make every purchase price change silently restate the shelf price,
+///   which is a commercial decision no procurement clerk should be able to take
+///   by keying in a delivery.
+///
+/// ⚠️ THE SAME SHAPE AS `fee_schedule_entries`, DELIBERATELY, AND GATED BY THE
+///   SAME PERMISSION. `billing.fee_schedule.manage` already means "may set what
+///   this clinic charges", which is exactly this. A second pricing precedence
+///   rule with its own permission code is how a screen quotes one number and the
+///   bill states another.
+///
+/// Precedence: branch override beats the organization default. The payer-contract
+/// and manual-override tiers BILLING_INTEGRATION.md names are, respectively, an
+/// engine that does not exist and the cashier editing the draft — which the
+/// invoice engine already supports and this table therefore does not.
+model ProductPrice {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @map("organization_id") @db.Uuid
+  /// NULL = the organization's default, which every branch inherits.
+  branchId       String? @map("branch_id") @db.Uuid
+
+  /// Plain FK into a platform-extensible table — see `product_visible`.
+  productId String @map("product_id") @db.Uuid
+
+  /// ⚠️ THE UNIT THE PRICE IS PER, AND IT IS NOT NECESSARILY THE BASE UNIT. A
+  ///   clinic prices a strip, not a tablet, and an invoice line reading
+  ///   "2 × ₹45.00" has to mean two of whatever the patient was handed. The
+  ///   charge request converts the base quantity into THIS unit through the one
+  ///   conversion graph the ledger uses, and stores the result as the invoice
+  ///   line's quantity.
+  unitId String @map("unit_id") @db.Uuid
+
+  /// ⚠️ Decimal, never a float, and never minor units in an integer column here:
+  ///   this is a stored money value and matches `invoice_items.unit_price`
+  ///   exactly, which is what lets the two be compared without a conversion.
+  amount   Decimal @db.Decimal(14, 2)
+  /// ISO 4217. Denormalised from the organization so a price row can be read
+  /// without a second query, and CHECKed against nothing — a clinic that changes
+  /// its currency has a bigger problem than this column.
+  currency String  @default("INR") @db.Char(3)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch?      @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  product      Product      @relation("ProductPriceProduct", fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure @relation("ProductPriceUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  updater      User?        @relation("ProductPriceUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  /// ⚠️ NULLS NOT DISTINCT in the migration, for the reason
+  ///   `fee_schedule_entries` needs it: `branch_id` is nullable and one clinic
+  ///   may hold exactly one organization-wide price per product per currency.
+  @@unique([organizationId, productId, branchId, currency])
+  @@unique([organizationId, id])
+  /// The resolver's read: both candidate rows for one product, in one index.
+  @@index([organizationId, productId])
+  @@map("product_prices")
+}
+
+/// One thing that happened, offered to billing.
+///
+/// ⚠️ IT IS WRITTEN IN THE SAME TRANSACTION AS THE SUPPLY THAT CAUSED IT. A
+///   charge request that can commit independently of its dispense is one that
+///   will, on the day the dispense rolls back — and the clinic bills for
+///   medicine that never left the shelf. Same discipline as the ledger legs and
+///   the regulatory snapshot, and for the same reason.
+///
+/// ⚠️ AND ITS FAILURE MUST NEVER STOP THE SUPPLY. That is a tension with the
+///   line above and it is resolved in one direction: raising the request is
+///   arithmetic over rows already read, so it does not fail for reasons a
+///   pharmacist could hit. Where a price or a tax category is MISSING the
+///   request is still written, `unit_price` or `tax_category` is NULL, and the
+///   gap is visible on the charge-review screen. A missing price is a
+///   configuration gap, never a reason to refuse to hand somebody their
+///   medicine.
+model ChargeRequest {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  /// The counter it happened at. The place of supply, the number series and the
+  /// RLS boundary — the same three things it is on an invoice.
+  branchId       String @map("branch_id") @db.Uuid
+
+  /// Which invoice source this becomes. ⚠️ CHECKed to `PHARMACY` or `INVENTORY`
+  ///   — those are the two this programme hands over, and an `APPOINTMENT`
+  ///   charge request would be a second door into a path
+  ///   `appointment-billing.service.ts` already owns.
+  sourceType InvoiceSourceType   @map("source_type")
+  kind       ChargeRequestKind   @default(SUPPLY)
+  status     ChargeRequestStatus @default(PENDING)
+
+  /// ⚠️ ONE TYPED REFERENCE PER SOURCE, NEVER A POLYMORPHIC `source_id`. Exactly
+  ///   the argument `invoices` makes in its own header: a loose uuid cannot be
+  ///   foreign-keyed, and the composite `(organization_id, id)` reference is what
+  ///   makes a cross-tenant link unrepresentable (ADR-0004).
+  ///
+  ///   `dispense_line_id` is set on a pharmacy SUPPLY;
+  ///   `dispense_return_line_id` on a pharmacy REVERSAL. An `INVENTORY` request
+  ///   carries neither yet — clinical consumption is PI-9 and its table does not
+  ///   exist, so the column arrives in the migration that creates it, exactly as
+  ///   `invoices` says.
+  dispenseLineId       String? @map("dispense_line_id") @db.Uuid
+  dispenseReturnLineId String? @map("dispense_return_line_id") @db.Uuid
+
+  /// What was supplied. Plain FKs into platform-extensible tables.
+  productId String @map("product_id") @db.Uuid
+  /// ⚠️ PHI, AND NULLABLE FOR THE REASON `dispenses.patient_id` IS. A counter
+  ///   sale is frequently to somebody who is not a patient here.
+  patientId String? @map("patient_id") @db.Uuid
+
+  /// ⚠️ WHEN THE SUPPLY HAPPENED, WHICH IS NOT WHEN IT IS BILLED. It becomes the
+  ///   invoice's `supplied_at`, so it selects the effective-dated tax rule and
+  ///   the registration: a bill raised in April for a March supply is taxed as
+  ///   March was. Copied from `dispenses.dispensed_at`, never `now()`.
+  occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)
+
+  /// ⚠️ THE QUANTITY IN BASE UNITS AND THE QUANTITY ON THE BILL ARE DIFFERENT
+  ///   NUMBERS AT DIFFERENT SCALES, AND BOTH ARE STORED.
+  ///   `quantity_base` is `Decimal(18,6)` and reconciles against `stock_ledger`.
+  ///   `quantity` is `Decimal(14,3)` in `unit_id` and is what
+  ///   `invoice_items.quantity` will hold — a coarser, human-facing number ("2
+  ///   strips") on a frozen column of an issued document. The conversion happens
+  ///   here, once, and is deliberate; BILLING_INTEGRATION.md § Invoice
+  ///   construction is the note.
+  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+  quantity     Decimal @db.Decimal(14, 3)
+  /// The unit `quantity` and `unit_price` are both expressed in.
+  unitId       String  @map("unit_id") @db.Uuid
+
+  /// ⚠️ EVERY FIELD FROM HERE TO `tax_category` IS A SNAPSHOT TAKEN AT SUPPLY.
+  ///   The policy table and the price table are both live and both editable, and
+  ///   an old bill that re-resolved itself would restate a document somebody has
+  ///   already been handed. What was true at supply is what stays on the row —
+  ///   the same rule every tax field on `invoices` follows.
+  policy      ChargePolicy
+  policyScope ChargePolicyScope @map("policy_scope")
+  /// Which rule produced it, where one did. NULL on `DEFAULT`.
+  ///
+  /// ⚠️ `Restrict`, AND `SetNull` IS NOT AVAILABLE HERE — the same trap
+  ///   `Membership.lastBranchId` documents. The FK is composite, so SetNull
+  ///   would null EVERY referencing column including `organization_id`, which is
+  ///   NOT NULL, and the delete would fail at runtime with a constraint
+  ///   violation rather than doing what it says. `charge_policy_rules` is
+  ///   soft-deleted for exactly this reason: a rule that has decided a bill is
+  ///   retired with `deleted_at`, never removed.
+  policyRuleId String? @map("policy_rule_id") @db.Uuid
+
+  /// What the patient should see on the line. ⚠️ PHI-capable: it names a
+  /// medicine, and it becomes `invoice_items.description` verbatim.
+  description String @db.VarChar(255)
+
+  /// ⚠️ NULL IS A VISIBLE CONFIGURATION GAP AND NEVER A DEFAULT — the same rule
+  ///   `resolveTaxCategory` follows. A NULL price means the clinic has not
+  ///   priced this product; a NULL category propagates to `UNRATED` and the
+  ///   invoice engine refuses to issue. Both are shown on the charge-review
+  ///   screen as something to fix, and NEITHER is guessed at. A guessed rate
+  ///   collects money nobody owed; a guessed price bills a number nobody chose.
+  unitPrice   Decimal? @map("unit_price") @db.Decimal(14, 2)
+  currency    String   @default("INR") @db.Char(3)
+  /// The exact-match key into `tax_rules`. NOT the printed HSN.
+  taxCategory String?  @map("tax_category") @db.VarChar(64)
+  /// The printed HSN/SAC. Presentation only — see `invoice_items`.
+  itemCode    String?  @map("item_code") @db.VarChar(32)
+
+  /// ⚠️ WRITTEN BY `services/invoicing`, NEVER BY THIS PROGRAMME. The only link
+  ///   back, and the direction of the arrow is the whole seam.
+  ///
+  /// ⚠️ THE INVOICE AND **NOT** THE INVOICE ITEM, WHICH CORRECTS
+  ///   BILLING_INTEGRATION.md's SKETCH. That document says
+  ///   "`charge_requests.invoice_item_id` is the only link back", and an item id
+  ///   turns out to be unhelpable: `finalizeInvoice` RE-PRICES a draft from its
+  ///   stored inputs, and `repriceLoadedDraft` does that by DELETING every
+  ///   `invoice_items` row and writing them again. So an item's id changes at
+  ///   least once between the draft being raised and the document being issued —
+  ///   and any FK onto it either blocks finalisation outright (`Restrict`, which
+  ///   is what happened) or silently detaches the link at the moment it starts to
+  ///   matter.
+  ///
+  ///   `invoice_id` is stable for the life of the document, is what every
+  ///   question anybody asks is actually about ("which bill did this supply
+  ///   reach?"), and — because a charge produces exactly one line and the invoice
+  ///   is composed in charge order — the line is recoverable by position where
+  ///   anyone ever needs it. Recorded here rather than fixed in the document,
+  ///   because the document describes the intent correctly and only the column
+  ///   was wrong.
+  invoiceId String? @map("invoice_id") @db.Uuid
+
+  /// Why it was suppressed, where it was. Required by CHECK on `SUPPRESSED`:
+  /// "we did not bill this" with no reason is indistinguishable from a bug.
+  suppressedReason String? @map("suppressed_reason") @db.Text
+  /// Who took the decision, where a human did. NULL where the policy decided.
+  decidedById      String?   @map("decided_by_id") @db.Uuid
+  decidedAt        DateTime? @map("decided_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Cascade: a charge request has no life apart from the supply it cites, and
+  /// nothing may delete a posted dispense line anyway.
+  dispenseLine       DispenseLine?       @relation(fields: [organizationId, dispenseLineId], references: [organizationId, id], onDelete: Cascade)
+  dispenseReturnLine DispenseReturnLine? @relation(fields: [organizationId, dispenseReturnLineId], references: [organizationId, id], onDelete: Cascade)
+  product            Product             @relation("ChargeRequestProduct", fields: [productId], references: [id], onDelete: Restrict)
+  unit               UnitOfMeasure       @relation("ChargeRequestUnit", fields: [unitId], references: [id], onDelete: Restrict)
+  /// Restrict, like `dispenses.patient`: a person's billing history is a
+  /// retention obligation and outlives their being a current patient.
+  patient            Patient?            @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Restrict)
+  policyRule         ChargePolicyRule?   @relation(fields: [organizationId, policyRuleId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  /// Restrict: an invoice that billed this cannot be hard-deleted out from under
+  /// it. An issued invoice is VOIDed, never deleted, and a draft that is
+  /// cancelled releases its requests back to `PENDING` explicitly.
+  invoice            Invoice?            @relation(fields: [organizationId, invoiceId], references: [organizationId, id], onDelete: Restrict)
+  decidedBy          User?               @relation("ChargeRequestDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, id])
+  /// ⚠️ ONE CHARGE REQUEST PER SUPPLIED LINE, AND THIS IS THE IDEMPOTENCY
+  ///   GUARANTEE RATHER THAN A TIDINESS ONE. NULLS NOT DISTINCT is deliberately
+  ///   NOT applied: an `INVENTORY` request carries no dispense line and a clinic
+  ///   has many of those. It is a PARTIAL unique in the migration, `WHERE
+  ///   dispense_line_id IS NOT NULL`, which Prisma cannot express — the same
+  ///   treatment `invoice_documents_current_per_type_key` gets.
+  @@index([organizationId, dispenseLineId])
+  @@index([organizationId, dispenseReturnLineId])
+  /// The charge-review screen: what is outstanding at this counter, oldest
+  /// first. The one query that renders it.
+  @@index([organizationId, branchId, status, occurredAt])
+  /// "What does this patient owe for?" — and the reversal's lookup of the
+  /// request its original supply raised.
+  @@index([organizationId, patientId, occurredAt])
+  @@index([organizationId, invoiceId])
+  @@map("charge_requests")
+}

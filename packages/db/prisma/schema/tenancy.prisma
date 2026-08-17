@@ -204,6 +204,11 @@ model Organization {
   dispenseReturns         DispenseReturn[]
   dispenseReturnLines     DispenseReturnLine[]
 
+  // -- Charging (PI-8) --------------------------------------------------------
+  chargePolicyRules       ChargePolicyRule[]
+  productPrices           ProductPrice[]
+  chargeRequests          ChargeRequest[]
+
   // -- Clinical consultation engine (CE-1) ------------------------------------
   clinicalMasterItems          ClinicalMasterItem[]
   clinicalMasterCodings        ClinicalMasterCoding[]
@@ -378,6 +383,16 @@ model Branch {
   dispenseReturns         DispenseReturn[]
   dispenseReturnLines     DispenseReturnLine[]
   regulatoryDecisions     RegulatoryDecision[]
+
+  // -- Charging (PI-8) --------------------------------------------------------
+  /// ⚠️ `charge_policy_rules` IS **NOT** HERE. A clinic's answer to "is this
+  ///   billed?" is a commercial position of the ORGANIZATION, exactly as
+  ///   `suppliers` is — a three-site group does not decide separately at each
+  ///   site that gloves are not chargeable. `product_prices` IS branch-scoped,
+  ///   because a price legitimately differs between a city clinic and a
+  ///   suburban one, and its `branch_id` is NULLABLE for the org-wide default.
+  productPrices           ProductPrice[]
+  chargeRequests          ChargeRequest[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   followUpRecommendations EncounterFollowUpRecommendation[]

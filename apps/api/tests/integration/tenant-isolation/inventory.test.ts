@@ -458,6 +458,15 @@ describe('inventory', () => {
      *   `listLedger` already performs and returns as `actorName`.
      */
     it('refuses a movement naming somebody who does not work at this clinic', async () => {
+      /*
+       * ⚠️ CLEARED FIRST, BECAUSE THE DELETE AT THE END OF THIS CASE ONLY RUNS
+       *   WHEN THE ASSERTION PASSES. A run that dies earlier in the file — a
+       *   missing grant, a half-applied migration — leaves this row behind, and
+       *   every subsequent run then fails on `users_email_key` with an error
+       *   about a duplicate email that says nothing about what actually broke.
+       *   Cost a session once; the fixture is now idempotent against a crash.
+       */
+      await owner.query(`DELETE FROM users WHERE email = 'inv-outsider@example.test'`);
       const { rows } = await owner.query<{ id: string }>(
         `INSERT INTO users (id, full_name, email, updated_at)
          VALUES (gen_random_uuid(), 'Outsider', 'inv-outsider@example.test', now())

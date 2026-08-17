@@ -23,6 +23,7 @@ import type { CreateDispenseReturnRequest, DispenseReturnDetail } from '@rcln/co
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { recordMovementIn } from '../inventory/movement.service.js';
+import { reverseChargeForReturnWithin } from '../charging/charge-request.service.js';
 import { consultForReturn } from './consult.js';
 import { auditMeta, q, refreshFulfilment, resolveDispensingLocation } from './shared.js';
 import { loadDispenseForReturn, refreshDispenseStatus } from './dispense.service.js';
@@ -205,8 +206,16 @@ export async function createDispenseReturn(
       });
     }
 
+    /* Collected so the reversal charges can cite the return lines by id (PI-8). */
+    const reversals: {
+      dispenseReturnLineId: string;
+      originalDispenseLineId: string;
+      productId: string;
+      quantityBase: string;
+    }[] = [];
+
     for (const line of planned) {
-      await tx.dispenseReturnLine.create({
+      const returnLine = await tx.dispenseReturnLine.create({
         data: {
           organizationId: ctx.organizationId,
           branchId: dispense.branchId,
@@ -215,6 +224,14 @@ export async function createDispenseReturn(
           dispenseAllocationId: line.allocationId,
           quantityBase: line.quantity,
         },
+        select: { id: true },
+      });
+
+      reversals.push({
+        dispenseReturnLineId: returnLine.id,
+        originalDispenseLineId: line.dispenseLineId,
+        productId: line.productId,
+        quantityBase: q(line.quantity),
       });
 
       await tx.dispenseLine.update({
@@ -263,6 +280,30 @@ export async function createDispenseReturn(
     });
 
     await refreshDispenseStatus(tx, dispense.id);
+
+    /*
+     * ⚠️ THE MONEY SIDE OF THE RETURN (PI-8), AFTER `refreshDispenseStatus` AND
+     *   AFTER THE `returned_quantity_base` INCREMENTS ABOVE — WHICH IS THE
+     *   ORDERING THAT MAKES IT CORRECT. `reverseChargeForReturnWithin` decides
+     *   whether the original charge is cancelled by comparing the line's RUNNING
+     *   returned total against what was supplied, and reading that before the
+     *   increment would see the previous state: a return that completes a line
+     *   would look partial, and the charge for stock now entirely back on the
+     *   shelf would stay on the queue for somebody to bill.
+     *
+     * ⚠️ IT NEVER EDITS AN ISSUED INVOICE. Where the original charge has not
+     *   reached a bill it is CANCELLED — nothing was owed, so nothing is
+     *   credited. Where it has, the reversal stays PENDING and becomes a CREDIT
+     *   NOTE through `services/invoicing/credit-note.service.ts`, because the
+     *   lifecycle guard refuses an edit and because an issued invoice may have
+     *   been claimed against insurance.
+     */
+    await reverseChargeForReturnWithin(tx, ctx, {
+      branchId: dispense.branchId,
+      patientId: dispense.patientId,
+      occurredAt: returnedAt,
+      lines: reversals,
+    });
 
     const encounter = await tx.dispense.findUnique({
       where: { id: dispense.id },

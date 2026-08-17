@@ -291,6 +291,20 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        *   whoever can fix a typo in a bio must not thereby read the payroll.
        */
       P.FEE_SCHEDULE_READ,
+      /*
+       * The charge queue at this site (PI-8), and the decisions on it. A branch
+       * administrator reconciling the day's takings has to see the supplies that
+       * did NOT reach a bill as well as the ones that did — a suppressed charge
+       * and a missed one look identical in the revenue figure and are entirely
+       * different problems.
+       *
+       * ⚠️ NO CHARGE_POLICY_MANAGE, mirroring FEE_SCHEDULE_MANAGE and
+       *   BILLING_TAX_MANAGE immediately above. A per-branch override of what is
+       *   chargeable is how two branches under one registration start billing
+       *   the same supply differently.
+       */
+      P.CHARGE_REQUEST_READ,
+      P.CHARGE_REQUEST_MANAGE,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,
@@ -494,6 +508,21 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.FEE_SCHEDULE_READ,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
+      /*
+       * The charge queue, and the decisions on it (PI-8). This desk is where a
+       * patient is billed for what the dispensary handed them, so it both READS
+       * what is outstanding and ANSWERS the charges whose policy is `OPTIONAL` —
+       * "is the dressing on this bill?" is a question asked at the till with the
+       * patient standing there, and routing it to an accountant means they wait
+       * or leave unbilled.
+       *
+       * ⚠️ NOT CHARGE_POLICY_MANAGE. Deciding this one charge is the front
+       *   desk's; deciding that dressings are never billed anywhere, at any
+       *   branch, for every future supply is the organization's. See the codes
+       *   file for the blast-radius argument.
+       */
+      P.CHARGE_REQUEST_READ,
+      P.CHARGE_REQUEST_MANAGE,
       P.PAYMENT_COLLECT,
       P.REPORT_DASHBOARD,
       P.SETTINGS_USER_WRITE,
@@ -615,6 +644,22 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.DISPENSE_VERIFY,
       P.DISPENSE_CREATE,
       P.DISPENSE_RETURN,
+      /*
+       * ⚠️ READ, AND POINTEDLY NOT MANAGE (PI-8). A pharmacist must be able to
+       *   see that the medicine they handed over reached the charge queue — a
+       *   supply that silently produced no charge request is invisible until the
+       *   month-end figures are short, and they are the only person who knows it
+       *   left the shelf. Whether it is BILLED is somebody else's decision, and
+       *   a dispensary that could suppress its own charges is a dispensary that
+       *   can give stock away with no second pair of eyes.
+       *
+       * This is also what puts pharmacy invoices in their view at all:
+       * `invoice-visibility.ts` derives the visible SOURCES from the modules a
+       * caller works in, and `pharmacy.dispense.read` is what says PHARMACY is
+       * theirs. That was already true before PI-8 and is why no invoice code is
+       * granted here either.
+       */
+      P.CHARGE_REQUEST_READ,
       P.SUPPLIER_MANAGE,
       P.PURCHASE_ORDER_READ,
       P.PURCHASE_ORDER_MANAGE,
@@ -714,6 +759,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * organization takes it; see FEE_SCHEDULE_MANAGE.
        */
       P.FEE_SCHEDULE_READ,
+      /*
+       * Charging, in full (PI-8) — the one role besides the two "everything
+       * except" ones that sets the POLICY as well as answering the queue.
+       * "Which products are billable at all?" is the same kind of decision as
+       * the tax card immediately above: organization-wide, commercially
+       * consequential, and taken once rather than per counter.
+       */
+      P.CHARGE_REQUEST_READ,
+      P.CHARGE_REQUEST_MANAGE,
+      P.CHARGE_POLICY_MANAGE,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,

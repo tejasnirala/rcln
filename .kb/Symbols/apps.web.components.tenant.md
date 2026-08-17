@@ -4,7 +4,7 @@
 
 > Correcting a count (PI-3.1).
 
-Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/components/tenant/appointment-billing-panel.tsx` · `apps/web/src/components/tenant/appointment-board.tsx` · `apps/web/src/components/tenant/billing-screen.tsx` · `apps/web/src/components/tenant/branch-list.tsx` · `apps/web/src/components/tenant/branch-switcher.tsx` · `apps/web/src/components/tenant/classification-picker.tsx` · `apps/web/src/components/tenant/clinic-settings.tsx` · `apps/web/src/components/tenant/clinical-term-list.tsx` · `apps/web/src/components/tenant/consultation-content.tsx` · `apps/web/src/components/tenant/consultation-engine.tsx` · `apps/web/src/components/tenant/consultation-template-editor.tsx` · `apps/web/src/components/tenant/consultation-template-list.tsx` · `apps/web/src/components/tenant/contact-verification.tsx` · `apps/web/src/components/tenant/cost-average-list.tsx` · `apps/web/src/components/tenant/counter-sale-form.tsx` · `apps/web/src/components/tenant/dispense-detail.tsx` · `apps/web/src/components/tenant/dispense-list.tsx` · `apps/web/src/components/tenant/dispensing-workspace.tsx` · `apps/web/src/components/tenant/doctor-create-form.tsx` · `apps/web/src/components/tenant/doctor-list.tsx` · `apps/web/src/components/tenant/doctor-panel.tsx` · `apps/web/src/components/tenant/doctor-pay-panel.tsx` · `apps/web/src/components/tenant/doctor-profile.tsx` · `apps/web/src/components/tenant/doctor-sections.tsx` · `apps/web/src/components/tenant/fee-schedule-grid.tsx` · `apps/web/src/components/tenant/field-renderer.tsx` · `apps/web/src/components/tenant/follow-up-form.tsx` · `apps/web/src/components/tenant/goods-receipt-form.tsx` · `apps/web/src/components/tenant/goods-receipt-list.tsx` · `apps/web/src/components/tenant/goods-receipt-panel.tsx` · `apps/web/src/components/tenant/invitation-list.tsx` · `apps/web/src/components/tenant/invoice-detail.tsx` · `apps/web/src/components/tenant/invoice-document-frame.tsx` · `apps/web/src/components/tenant/invoice-draft-editor.tsx` · `apps/web/src/components/tenant/invoice-list.tsx` · `apps/web/src/components/tenant/join-form.tsx` · `apps/web/src/components/tenant/joined-redirect.tsx` · `apps/web/src/components/tenant/location-form.tsx` · `apps/web/src/components/tenant/location-list.tsx` · `apps/web/src/components/tenant/login-form.tsx` · `apps/web/src/components/tenant/lot-form.tsx` · `apps/web/src/components/tenant/lot-list.tsx` · `apps/web/src/components/tenant/maturity-rail.tsx` · `apps/web/src/components/tenant/member-list.tsx` · `apps/web/src/components/tenant/national-id-input.tsx` · `apps/web/src/components/tenant/patient-chart.tsx` · `apps/web/src/components/tenant/patient-search.tsx` · `apps/web/src/components/tenant/payment-return.tsx` · `apps/web/src/components/tenant/period-strip.tsx` · `apps/web/src/components/tenant/pharmacy-dashboard.tsx` · `apps/web/src/components/tenant/pharmacy-nav.tsx` · `apps/web/src/components/tenant/pharmacy-prescription.tsx` · `apps/web/src/components/tenant/prescription-queue.tsx` · `apps/web/src/components/tenant/previous-visit-summary.tsx` · `apps/web/src/components/tenant/price-book-list.tsx` · `apps/web/src/components/tenant/procurement-nav.tsx` · `apps/web/src/components/tenant/product-create-form.tsx` · `apps/web/src/components/tenant/product-list.tsx` · `apps/web/src/components/tenant/product-panel.tsx` · `apps/web/src/components/tenant/purchase-order-form.tsx` · `apps/web/src/components/tenant/purchase-order-list.tsx` · `apps/web/src/components/tenant/purchase-order-panel.tsx` · `apps/web/src/components/tenant/purchase-return-form.tsx` · `apps/web/src/components/tenant/purchase-return-list.tsx` · `apps/web/src/components/tenant/purchase-return-panel.tsx` · `apps/web/src/components/tenant/recall-list.tsx` · `apps/web/src/components/tenant/record-history.tsx` · `apps/web/src/components/tenant/regulatory-lists.tsx` · `apps/web/src/components/tenant/regulatory-nav.tsx` · `apps/web/src/components/tenant/requisition-form.tsx` · `apps/web/src/components/tenant/requisition-list.tsx` · `apps/web/src/components/tenant/requisition-panel.tsx` · `apps/web/src/components/tenant/reservation-list.tsx` · `apps/web/src/components/tenant/role-list.tsx` · `apps/web/src/components/tenant/role-titles.tsx` · `apps/web/src/components/tenant/rule-pack-detail.tsx` · `apps/web/src/components/tenant/sandbox-checkout.tsx` · `apps/web/src/components/tenant/serial-form.tsx` · `apps/web/src/components/tenant/serial-list.tsx` · `apps/web/src/components/tenant/stock-ledger-view.tsx` · `apps/web/src/components/tenant/stock-nav.tsx` · `apps/web/src/components/tenant/stock-overview.tsx` · `apps/web/src/components/tenant/stock-status.tsx` · `apps/web/src/components/tenant/substitution-panel.tsx` · `apps/web/src/components/tenant/supplier-form.tsx` · `apps/web/src/components/tenant/supplier-list.tsx` · `apps/web/src/components/tenant/supplier-panel.tsx` · `apps/web/src/components/tenant/tax-rate-card.tsx` · `apps/web/src/components/tenant/tenant-header.tsx` · `apps/web/src/components/tenant/transfer-detail.tsx` · `apps/web/src/components/tenant/transfer-form.tsx` · `apps/web/src/components/tenant/transfer-list.tsx` · `apps/web/src/components/tenant/verify-prompt.tsx` · `apps/web/src/components/tenant/visit-cancel.tsx` · `apps/web/src/components/tenant/visit-history.tsx` · `apps/web/src/components/tenant/visual-map-editor.tsx` · `apps/web/src/components/tenant/visual-map-list.tsx` · `apps/web/src/components/tenant/visual-mapping.tsx` · `apps/web/src/components/tenant/vitals-history.tsx` · `apps/web/src/components/tenant/vitals-panel.tsx` · `apps/web/src/components/tenant/working-day-picker.tsx`
+Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/components/tenant/appointment-billing-panel.tsx` · `apps/web/src/components/tenant/appointment-board.tsx` · `apps/web/src/components/tenant/billing-screen.tsx` · `apps/web/src/components/tenant/branch-list.tsx` · `apps/web/src/components/tenant/branch-switcher.tsx` · `apps/web/src/components/tenant/charge-policy-list.tsx` · `apps/web/src/components/tenant/charge-queue.tsx` · `apps/web/src/components/tenant/charges-nav.tsx` · `apps/web/src/components/tenant/classification-picker.tsx` · `apps/web/src/components/tenant/clinic-settings.tsx` · `apps/web/src/components/tenant/clinical-term-list.tsx` · `apps/web/src/components/tenant/consultation-content.tsx` · `apps/web/src/components/tenant/consultation-engine.tsx` · `apps/web/src/components/tenant/consultation-template-editor.tsx` · `apps/web/src/components/tenant/consultation-template-list.tsx` · `apps/web/src/components/tenant/contact-verification.tsx` · `apps/web/src/components/tenant/cost-average-list.tsx` · `apps/web/src/components/tenant/counter-sale-form.tsx` · `apps/web/src/components/tenant/dispense-detail.tsx` · `apps/web/src/components/tenant/dispense-list.tsx` · `apps/web/src/components/tenant/dispensing-workspace.tsx` · `apps/web/src/components/tenant/doctor-create-form.tsx` · `apps/web/src/components/tenant/doctor-list.tsx` · `apps/web/src/components/tenant/doctor-panel.tsx` · `apps/web/src/components/tenant/doctor-pay-panel.tsx` · `apps/web/src/components/tenant/doctor-profile.tsx` · `apps/web/src/components/tenant/doctor-sections.tsx` · `apps/web/src/components/tenant/fee-schedule-grid.tsx` · `apps/web/src/components/tenant/field-renderer.tsx` · `apps/web/src/components/tenant/follow-up-form.tsx` · `apps/web/src/components/tenant/goods-receipt-form.tsx` · `apps/web/src/components/tenant/goods-receipt-list.tsx` · `apps/web/src/components/tenant/goods-receipt-panel.tsx` · `apps/web/src/components/tenant/invitation-list.tsx` · `apps/web/src/components/tenant/invoice-detail.tsx` · `apps/web/src/components/tenant/invoice-document-frame.tsx` · `apps/web/src/components/tenant/invoice-draft-editor.tsx` · `apps/web/src/components/tenant/invoice-list.tsx` · `apps/web/src/components/tenant/join-form.tsx` · `apps/web/src/components/tenant/joined-redirect.tsx` · `apps/web/src/components/tenant/location-form.tsx` · `apps/web/src/components/tenant/location-list.tsx` · `apps/web/src/components/tenant/login-form.tsx` · `apps/web/src/components/tenant/lot-form.tsx` · `apps/web/src/components/tenant/lot-list.tsx` · `apps/web/src/components/tenant/maturity-rail.tsx` · `apps/web/src/components/tenant/member-list.tsx` · `apps/web/src/components/tenant/national-id-input.tsx` · `apps/web/src/components/tenant/patient-chart.tsx` · `apps/web/src/components/tenant/patient-search.tsx` · `apps/web/src/components/tenant/payment-return.tsx` · `apps/web/src/components/tenant/period-strip.tsx` · `apps/web/src/components/tenant/pharmacy-dashboard.tsx` · `apps/web/src/components/tenant/pharmacy-nav.tsx` · `apps/web/src/components/tenant/pharmacy-prescription.tsx` · `apps/web/src/components/tenant/prescription-queue.tsx` · `apps/web/src/components/tenant/previous-visit-summary.tsx` · `apps/web/src/components/tenant/price-book-list.tsx` · `apps/web/src/components/tenant/procurement-nav.tsx` · `apps/web/src/components/tenant/product-create-form.tsx` · `apps/web/src/components/tenant/product-list.tsx` · `apps/web/src/components/tenant/product-panel.tsx` · `apps/web/src/components/tenant/product-price-list.tsx` · `apps/web/src/components/tenant/purchase-order-form.tsx` · `apps/web/src/components/tenant/purchase-order-list.tsx` · `apps/web/src/components/tenant/purchase-order-panel.tsx` · `apps/web/src/components/tenant/purchase-return-form.tsx` · `apps/web/src/components/tenant/purchase-return-list.tsx` · `apps/web/src/components/tenant/purchase-return-panel.tsx` · `apps/web/src/components/tenant/recall-list.tsx` · `apps/web/src/components/tenant/record-history.tsx` · `apps/web/src/components/tenant/regulatory-lists.tsx` · `apps/web/src/components/tenant/regulatory-nav.tsx` · `apps/web/src/components/tenant/requisition-form.tsx` · `apps/web/src/components/tenant/requisition-list.tsx` · `apps/web/src/components/tenant/requisition-panel.tsx` · `apps/web/src/components/tenant/reservation-list.tsx` · `apps/web/src/components/tenant/role-list.tsx` · `apps/web/src/components/tenant/role-titles.tsx` · `apps/web/src/components/tenant/rule-pack-detail.tsx` · `apps/web/src/components/tenant/sandbox-checkout.tsx` · `apps/web/src/components/tenant/serial-form.tsx` · `apps/web/src/components/tenant/serial-list.tsx` · `apps/web/src/components/tenant/stock-ledger-view.tsx` · `apps/web/src/components/tenant/stock-nav.tsx` · `apps/web/src/components/tenant/stock-overview.tsx` · `apps/web/src/components/tenant/stock-status.tsx` · `apps/web/src/components/tenant/substitution-panel.tsx` · `apps/web/src/components/tenant/supplier-form.tsx` · `apps/web/src/components/tenant/supplier-list.tsx` · `apps/web/src/components/tenant/supplier-panel.tsx` · `apps/web/src/components/tenant/tax-rate-card.tsx` · `apps/web/src/components/tenant/tenant-header.tsx` · `apps/web/src/components/tenant/transfer-detail.tsx` · `apps/web/src/components/tenant/transfer-form.tsx` · `apps/web/src/components/tenant/transfer-list.tsx` · `apps/web/src/components/tenant/verify-prompt.tsx` · `apps/web/src/components/tenant/visit-cancel.tsx` · `apps/web/src/components/tenant/visit-history.tsx` · `apps/web/src/components/tenant/visual-map-editor.tsx` · `apps/web/src/components/tenant/visual-map-list.tsx` · `apps/web/src/components/tenant/visual-mapping.tsx` · `apps/web/src/components/tenant/vitals-history.tsx` · `apps/web/src/components/tenant/vitals-panel.tsx` · `apps/web/src/components/tenant/working-day-picker.tsx`
 
 ## component
 
@@ -46,6 +46,10 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Change` <sub>local</sub> | `({ change, temperatureUnit, }: { change: VitalsChange; tempe…)` | `apps/web/src/components/tenant/vitals-history.tsx:211` |  |
 | `ChannelRow` <sub>local</sub> | `({ slug, channel, label, destination, verified }: Channel & …)` | `apps/web/src/components/tenant/contact-verification.tsx:93` |  |
 | `Charge` <sub>local</sub> | `({ charge, currency, billing, }: { charge: ConsultationCharg…)` | `apps/web/src/components/tenant/appointment-billing-panel.tsx:204` |  |
+| `ChargePolicyList` | `({ slug, rules, canManage }: Props)` | `apps/web/src/components/tenant/charge-policy-list.tsx:89` |  |
+| `ChargeQueue` | `({ slug, charges, meta, summary, branches, canDecide, canBil…)` | `apps/web/src/components/tenant/charge-queue.tsx:91` |  |
+| `ChargeRow` <sub>local</sub> | `({ slug, charge, checked, selectable, onToggle, canDecide, }…)` | `apps/web/src/components/tenant/charge-queue.tsx:379` |  |
+| `ChargesNav` | `()` | `apps/web/src/components/tenant/charges-nav.tsx:33` |  |
 | `ChoiceGroup` <sub>local</sub> | `({ field, name, type, selected, disabled, onToggle, }: { fie…)` | `apps/web/src/components/tenant/field-renderer.tsx:261` |  |
 | `CHOICES` <sub>local</sub> | `: { outcome: Outcome; label: string; note: string; variant: 'primary' \| 'secondar…` | `apps/web/src/components/tenant/sandbox-checkout.tsx:23` |  |
 | `ClassificationPicker` | `({ specialties, defaultValue = [], label = 'Clinical classif…)` | `apps/web/src/components/tenant/classification-picker.tsx:61` |  |
@@ -57,7 +61,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Column` <sub>local</sub> | `({ nodes, openId, alreadyChosen, tree, onOpen, onChoose, }: …)` | `apps/web/src/components/tenant/classification-picker.tsx:441` |  |
 | `ConditionForm` <sub>local</sub> | `({ slug, patientId }: { slug: string; patientId: string })` | `apps/web/src/components/tenant/patient-chart.tsx:723` |  |
 | `ConditionsPanel` <sub>local</sub> | `({ slug, patientId, conditions, canWrite, open, onToggle, }:…)` | `apps/web/src/components/tenant/patient-chart.tsx:442` |  |
-| `Confirm` <sub>local</sub> | `({ heading, body, confirmLabel, pending, reason, onCancel, o…)` | `apps/web/src/components/tenant/invoice-detail.tsx:585` |  |
+| `Confirm` <sub>local</sub> | `({ heading, body, confirmLabel, pending, reason, extra, onCa…)` | `apps/web/src/components/tenant/invoice-detail.tsx:768` |  |
 | `Confirmation` <sub>local</sub> | `({ slug, planPriceId, quote, quoteError, quoting, prorates, …)` | `apps/web/src/components/tenant/billing-screen.tsx:579` |  |
 | `ConsultationEngine` | `({ slug, timeZone, appointmentId, encounter, canWrite, canFi…)` | `apps/web/src/components/tenant/consultation-engine.tsx:179` |  |
 | `ConsultationTemplateEditor` | `({ slug, template, shownVersionId, }: { slug: string; templa…)` | `apps/web/src/components/tenant/consultation-template-editor.tsx:51` |  |
@@ -84,11 +88,11 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Detail` <sub>local</sub> | `({ label, value }: { label: string; value: string \| null })` | `apps/web/src/components/tenant/requisition-panel.tsx:198` |  |
 | `Detail` <sub>local</sub> | `({ label, value }: { label: string; value: string \| null })` | `apps/web/src/components/tenant/supplier-panel.tsx:449` |  |
 | `DetailsForm` <sub>local</sub> | `({ slug, member, designations, }: { slug: string; member: Me…)` | `apps/web/src/components/tenant/member-list.tsx:593` |  |
-| `DetailsTab` <sub>local</sub> | `({ product, editable, pending, onSave, }: { product: Product…)` | `apps/web/src/components/tenant/product-panel.tsx:378` |  |
+| `DetailsTab` <sub>local</sub> | `({ product, editable, pending, onSave, }: { product: Product…)` | `apps/web/src/components/tenant/product-panel.tsx:431` |  |
 | `DiagnosisSection` | `(props: ContentSectionProps)` | `apps/web/src/components/tenant/consultation-content.tsx:516` |  |
 | `DispenseDetail` | `({ slug, dispense, timezone, timeFormat, canTakeReturns }: P…)` | `apps/web/src/components/tenant/dispense-detail.tsx:41` |  |
 | `DispenseList` | `({ dispenses, meta, branches }: Props)` | `apps/web/src/components/tenant/dispense-list.tsx:45` |  |
-| `DispensingWorkspace` | `({ slug, prescription, plans, locations, canDispense }: Props)` | `apps/web/src/components/tenant/dispensing-workspace.tsx:137` |  |
+| `DispensingWorkspace` | `({ slug, prescription, plans, substitutions, locations, canD…)` | `apps/web/src/components/tenant/dispensing-workspace.tsx:218` |  |
 | `DoctorAboutPanel` | `({ slug, doctor, canEdit, }: { slug: string; doctor: DoctorD…)` | `apps/web/src/components/tenant/doctor-sections.tsx:332` |  |
 | `DoctorCreateForm` | `({ slug, candidates, specialties, qualifications, branches, …)` | `apps/web/src/components/tenant/doctor-create-form.tsx:117` |  |
 | `DoctorFilter` <sub>local</sub> | `({ doctors, selectedId, onSelect, }: { doctors: DoctorSummar…)` | `apps/web/src/components/tenant/appointment-board.tsx:458` |  |
@@ -101,7 +105,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `DoctorQualificationsPanel` | `({ slug, doctor, qualifications, canEdit, }: { slug: string;…)` | `apps/web/src/components/tenant/doctor-sections.tsx:505` |  |
 | `DoctorRow` <sub>local</sub> | `({ doctor, canReadSchedules, }: { doctor: DoctorSummary; can…)` | `apps/web/src/components/tenant/doctor-list.tsx:396` |  |
 | `DoctorSpecialtiesPanel` | `({ slug, doctor, specialties, canEdit, }: { slug: string; do…)` | `apps/web/src/components/tenant/doctor-sections.tsx:398` |  |
-| `DownloadButton` <sub>local</sub> | `({ invoiceId, state, }: { invoiceId: string; state: InvoiceD…)` | `apps/web/src/components/tenant/invoice-detail.tsx:529` |  |
+| `DownloadButton` <sub>local</sub> | `({ invoiceId, state, }: { invoiceId: string; state: InvoiceD…)` | `apps/web/src/components/tenant/invoice-detail.tsx:712` |  |
 | `EditForm` <sub>local</sub> | `({ slug, branch, onDone, }: { slug: string; branch: BranchDe…)` | `apps/web/src/components/tenant/branch-list.tsx:457` |  |
 | `EditForm` <sub>local</sub> | `({ slug, patient }: { slug: string; patient: PatientDetail })` | `apps/web/src/components/tenant/patient-chart.tsx:623` |  |
 | `EditForm` <sub>local</sub> | `({ slug, role, permissions, grantable, onDone, }: { slug: st…)` | `apps/web/src/components/tenant/role-list.tsx:495` |  |
@@ -114,10 +118,10 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `EmptyLedger` <sub>local</sub> | `({ filtered }: { filtered: boolean })` | `apps/web/src/components/tenant/invoice-list.tsx:467` |  |
 | `EndingControls` <sub>local</sub> | `({ slug, subscription, }: { slug: string; subscription: Subs…)` | `apps/web/src/components/tenant/billing-screen.tsx:317` |  |
 | `Entry` <sub>local</sub> | `({ entry, timezone, timeFormat, }: { entry: AuditEntry; time…)` | `apps/web/src/components/tenant/record-history.tsx:229` |  |
-| `EquivalentsTab` <sub>local</sub> | `({ products }: { products: ProductSummary[] })` | `apps/web/src/components/tenant/product-panel.tsx:983` |  |
+| `EquivalentsTab` <sub>local</sub> | `({ products }: { products: ProductSummary[] })` | `apps/web/src/components/tenant/product-panel.tsx:1036` |  |
 | `ExceptionForm` <sub>local</sub> | `({ slug, member, branches, grantableCodes, canAssignOrgWide,…)` | `apps/web/src/components/tenant/member-list.tsx:505` |  |
-| `Fact` <sub>local</sub> | `({ label, value, mono }: { label: string; value: string; mon…)` | `apps/web/src/components/tenant/invoice-detail.tsx:507` |  |
-| `Fact` <sub>local</sub> | `({ label, value }: { label: string; value: string })` | `apps/web/src/components/tenant/product-panel.tsx:458` |  |
+| `Fact` <sub>local</sub> | `({ label, value, mono }: { label: string; value: string; mon…)` | `apps/web/src/components/tenant/invoice-detail.tsx:690` |  |
+| `Fact` <sub>local</sub> | `({ label, value }: { label: string; value: string })` | `apps/web/src/components/tenant/product-panel.tsx:511` |  |
 | `FeeLine` <sub>local</sub> | `({ slug, branchId, doctorProfileId, visitType, }: { slug: st…)` | `apps/web/src/components/tenant/appointment-board.tsx:1464` |  |
 | `FeeScheduleGrid` | `({ slug, doctorProfileId, branches, initial, canEdit, }: { s…)` | `apps/web/src/components/tenant/fee-schedule-grid.tsx:66` |  |
 | `FieldRenderer` | `({ field, value, onChange, disabled, sectionKey, slug, timeZ…)` | `apps/web/src/components/tenant/field-renderer.tsx:61` |  |
@@ -133,7 +137,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Handoff` <sub>local</sub> | `({ state }: { state: BillingFormState })` | `apps/web/src/components/tenant/billing-screen.tsx:885` | Pay without leaving the page, when the server hands back a widget instead of a URL. The sibling of `useRedirectOnAction` — one of the two fires, never both. |
 | `HistoryDialog` | `({ ref, label, children, }: { ref: React.RefObject<HTMLDialo…)` | `apps/web/src/components/tenant/record-history.tsx:117` |  |
 | `HoursForm` <sub>local</sub> | `({ slug, branch }: { slug: string; branch: BranchDetail })` | `apps/web/src/components/tenant/branch-list.tsx:594` |  |
-| `IdentifiersTab` <sub>local</sub> | `({ product, editable, pending, onAdd, onExpire, }: { product…)` | `apps/web/src/components/tenant/product-panel.tsx:611` |  |
+| `IdentifiersTab` <sub>local</sub> | `({ product, editable, pending, onAdd, onExpire, }: { product…)` | `apps/web/src/components/tenant/product-panel.tsx:664` |  |
 | `IdentityStrip` <sub>local</sub> | `({ patient }: { patient: PatientDetail })` | `apps/web/src/components/tenant/patient-chart.tsx:293` |  |
 | `IDLE` <sub>local</sub> | `: BillingFormState` | `apps/web/src/components/tenant/billing-screen.tsx:30` |  |
 | `IDLE` <sub>local</sub> | `: BranchFormState` | `apps/web/src/components/tenant/branch-list.tsx:18` |  |
@@ -157,7 +161,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `InvitationCard` <sub>local</sub> | `({ slug, invitation }: { slug: string; invitation: Invitatio…)` | `apps/web/src/components/tenant/invitation-list.tsx:163` |  |
 | `InvitationList` | `({ slug, roles, branches, designations, canAddDesignation, i…)` | `apps/web/src/components/tenant/invitation-list.tsx:78` |  |
 | `InviteForm` <sub>local</sub> | `({ slug, roles, branches, designations, canAddDesignation, o…)` | `apps/web/src/components/tenant/invitation-list.tsx:269` |  |
-| `InvoiceDetailScreen` | `({ slug, invoice, branchName, timezone, document, canEdit, c…)` | `apps/web/src/components/tenant/invoice-detail.tsx:38` |  |
+| `InvoiceDetailScreen` | `({ slug, invoice, branchName, timezone, document, canEdit, c…)` | `apps/web/src/components/tenant/invoice-detail.tsx:39` |  |
 | `InvoiceDocumentFrame` | `({ src, invoiceNumber, pageHeightPx = A4_HEIGHT_PX, classNam…)` | `apps/web/src/components/tenant/invoice-document-frame.tsx:91` |  |
 | `InvoiceDraftEditor` | `({ slug, invoice, timezone, onDone, }: { slug: string; invoi…)` | `apps/web/src/components/tenant/invoice-draft-editor.tsx:37` |  |
 | `InvoiceHistory` <sub>local</sub> | `({ invoices }: { invoices: BillingOverviewResponse['invoices…)` | `apps/web/src/components/tenant/billing-screen.tsx:752` |  |
@@ -181,7 +185,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `MaturityRail` | `({ maturity, reviewedBy, reviewedAt, timezone, }: { maturity…)` | `apps/web/src/components/tenant/maturity-rail.tsx:40` |  |
 | `MedicationForm` <sub>local</sub> | `({ slug, patientId }: { slug: string; patientId: string })` | `apps/web/src/components/tenant/patient-chart.tsx:753` |  |
 | `MedicationsPanel` <sub>local</sub> | `({ slug, patientId, medications, canWrite, open, onToggle, }…)` | `apps/web/src/components/tenant/patient-chart.tsx:505` |  |
-| `MedicineTab` <sub>local</sub> | `({ medicine, editable, pending, onSave, }: { medicine: Medic…)` | `apps/web/src/components/tenant/product-panel.tsx:886` |  |
+| `MedicineTab` <sub>local</sub> | `({ medicine, editable, pending, onSave, }: { medicine: Medic…)` | `apps/web/src/components/tenant/product-panel.tsx:939` |  |
 | `MemberCard` <sub>local</sub> | `({ slug, member, roles, branches, designations, grantableCod…)` | `apps/web/src/components/tenant/member-list.tsx:239` |  |
 | `MemberList` | `({ slug, members, roles, branches, designations, grantableCo…)` | `apps/web/src/components/tenant/member-list.tsx:153` |  |
 | `ModuleStrip` <sub>local</sub> | `({ role }: { role: RoleDetail })` | `apps/web/src/components/tenant/role-list.tsx:52` |  |
@@ -193,7 +197,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `OrganizationForm` <sub>local</sub> | `({ slug, organization, canEdit, }: { slug: string; organizat…)` | `apps/web/src/components/tenant/clinic-settings.tsx:280` |  |
 | `Outcome` <sub>local</sub> | `({ state }: { state: BillingFormState })` | `apps/web/src/components/tenant/billing-screen.tsx:868` |  |
 | `OwnRuleRow` <sub>local</sub> | `({ slug, rule, canManage, canReadHistory, pending, onEnd, }:…)` | `apps/web/src/components/tenant/tax-rate-card.tsx:647` |  |
-| `PackagingTab` <sub>local</sub> | `({ product, units, editable, pending, onSave, }: { product: …)` | `apps/web/src/components/tenant/product-panel.tsx:469` |  |
+| `PackagingTab` <sub>local</sub> | `({ product, units, editable, pending, onSave, }: { product: …)` | `apps/web/src/components/tenant/product-panel.tsx:522` |  |
 | `Pager` <sub>local</sub> | `({ pagination, onGo }: { pagination: ApiPagination; onGo: (p…)` | `apps/web/src/components/tenant/invoice-list.tsx:499` |  |
 | `Pager` <sub>local</sub> | `({ meta, onPage, }: { meta: { page: number; totalPages: numb…)` | `apps/web/src/components/tenant/regulatory-lists.tsx:54` |  |
 | `Panel` <sub>local</sub> | `({ title, children }: { title: string; children: React.React…)` | `apps/web/src/components/tenant/payment-return.tsx:130` |  |
@@ -210,19 +214,25 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `PharmacyNav` | `()` | `apps/web/src/components/tenant/pharmacy-nav.tsx:30` |  |
 | `PharmacyPrescription` | `({ slug, prescription, canVerify, canDispense }: Props)` | `apps/web/src/components/tenant/pharmacy-prescription.tsx:46` |  |
 | `PlanPicker` <sub>local</sub> | `({ slug, plans, subscription, currency, canManage, }: { slug…)` | `apps/web/src/components/tenant/billing-screen.tsx:415` |  |
+| `POLICIES` <sub>local</sub> | `[ { value: 'SEPARATELY_BILLABLE', label: 'Billed as its own line' }, { value: 'NEVER_BILL…` | `apps/web/src/components/tenant/charge-policy-list.tsx:33` |  |
+| `PolicyRow` <sub>local</sub> | `({ slug, rule, canManage, }: { slug: string; rule: ChargePol…)` | `apps/web/src/components/tenant/charge-policy-list.tsx:229` |  |
 | `PrescriptionQueue` | `({ items, meta, branches }: Props)` | `apps/web/src/components/tenant/prescription-queue.tsx:50` |  |
 | `PrescriptionSection` | `(props: ContentSectionProps)` | `apps/web/src/components/tenant/consultation-content.tsx:790` |  |
 | `PreviousVisitSummary` | `({ previous, timeFormat, }: { previous: PreviousVisit; timeF…)` | `apps/web/src/components/tenant/previous-visit-summary.tsx:62` |  |
 | `PriceBookList` | `({ supplierProducts, meta, suppliers }: Props)` | `apps/web/src/components/tenant/price-book-list.tsx:26` |  |
+| `PriceRow` <sub>local</sub> | `({ slug, productId, price, editable, }: { slug: string; prod…)` | `apps/web/src/components/tenant/product-panel.tsx:1504` |  |
+| `PriceRow` <sub>local</sub> | `({ slug, price, canManage, }: { slug: string; price: Product…)` | `apps/web/src/components/tenant/product-price-list.tsx:118` |  |
+| `PriceTab` <sub>local</sub> | `({ slug, product, units, prices, branches, editable, }: { sl…)` | `apps/web/src/components/tenant/product-panel.tsx:1366` |  |
 | `PRIORITIES` <sub>local</sub> | `[ { value: 'ROUTINE', label: 'Routine' }, { value: 'URGENT', label: 'Urgent' }, { value: …` | `apps/web/src/components/tenant/consultation-content.tsx:991` |  |
 | `ProcedureSection` | `(props: ContentSectionProps & { /** * The places this consul…)` | `apps/web/src/components/tenant/consultation-content.tsx:602` |  |
 | `ProcurementNav` | `()` | `apps/web/src/components/tenant/procurement-nav.tsx:40` |  |
 | `ProductCreateForm` | `({ slug, units, categories, manufacturers, storageProfiles, …)` | `apps/web/src/components/tenant/product-create-form.tsx:71` |  |
 | `ProductList` | `({ products, meta, categories, manufacturers, canManage }: P…)` | `apps/web/src/components/tenant/product-list.tsx:85` |  |
-| `ProductPanel` | `({ slug, product, equivalents, medicine, units, canManage, c…)` | `apps/web/src/components/tenant/product-panel.tsx:154` |  |
+| `ProductPanel` | `({ slug, product, equivalents, medicine, units, canManage, c…)` | `apps/web/src/components/tenant/product-panel.tsx:185` |  |
+| `ProductPriceList` | `({ slug, prices, branches, canManage }: Props)` | `apps/web/src/components/tenant/product-price-list.tsx:42` |  |
 | `PROFICIENCIES` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/classification-picker.tsx:45` |  |
 | `Provenance` <sub>local</sub> | `({ setting }: { setting: SettingItem })` | `apps/web/src/components/tenant/clinic-settings.tsx:86` |  |
-| `Provenance` <sub>local</sub> | `({ invoice, timezone }: { invoice: InvoiceDetail; timezone: …)` | `apps/web/src/components/tenant/invoice-detail.tsx:452` |  |
+| `Provenance` <sub>local</sub> | `({ invoice, timezone }: { invoice: InvoiceDetail; timezone: …)` | `apps/web/src/components/tenant/invoice-detail.tsx:635` |  |
 | `PurchaseOrderForm` | `({ slug, branches, suppliers, products, locations, priceBook…)` | `apps/web/src/components/tenant/purchase-order-form.tsx:57` |  |
 | `PurchaseOrderList` | `({ purchaseOrders, meta, branches, suppliers, canManage }: P…)` | `apps/web/src/components/tenant/purchase-order-list.tsx:46` |  |
 | `PurchaseOrderPanel` | `({ slug, order, canManage, canReceive }: Props)` | `apps/web/src/components/tenant/purchase-order-panel.tsx:41` |  |
@@ -253,7 +263,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `RegistrationRow` <sub>local</sub> | `({ slug, registration, branches, canManage, canReadHistory, …)` | `apps/web/src/components/tenant/tax-rate-card.tsx:276` |  |
 | `RegistrationsPanel` <sub>local</sub> | `({ patient }: { patient: PatientDetail })` | `apps/web/src/components/tenant/patient-chart.tsx:392` |  |
 | `RegulatoryNav` | `()` | `apps/web/src/components/tenant/regulatory-nav.tsx:33` |  |
-| `RegulatoryTab` <sub>local</sub> | `({ profiles, jurisdictions, clinicToday, editable, pending, …)` | `apps/web/src/components/tenant/product-panel.tsx:1039` |  |
+| `RegulatoryTab` <sub>local</sub> | `({ profiles, jurisdictions, clinicToday, editable, pending, …)` | `apps/web/src/components/tenant/product-panel.tsx:1092` |  |
 | `RELATIONS` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/patient-search.tsx:116` |  |
 | `ReleaseButton` <sub>local</sub> | `({ slug, reservationId }: { slug: string; reservationId: str…)` | `apps/web/src/components/tenant/reservation-list.tsx:243` |  |
 | `RemoveButton` <sub>local</sub> | `({ slug, branch }: { slug: string; branch: BranchDetail })` | `apps/web/src/components/tenant/branch-list.tsx:555` |  |
@@ -274,7 +284,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `RoleList` | `({ slug, roles, permissions, grantableCodes, canReadHistory,…)` | `apps/web/src/components/tenant/role-list.tsx:174` |  |
 | `RoleTitles` | `({ slug, roles }: { slug: string; roles: RolePairings[] })` | `apps/web/src/components/tenant/role-titles.tsx:21` |  |
 | `ROUTES` <sub>local</sub> | `[ { value: 'ORAL', label: 'By mouth' }, { value: 'TOPICAL', label: 'On the skin' }, { val…` | `apps/web/src/components/tenant/consultation-content.tsx:760` |  |
-| `ROUTES` <sub>local</sub> | `[ '', 'ORAL', 'SUBLINGUAL', 'BUCCAL', 'INTRAVENOUS', 'INTRAMUSCULAR', 'SUBCUTANEOUS', 'IN…` | `apps/web/src/components/tenant/product-panel.tsx:103` |  |
+| `ROUTES` <sub>local</sub> | `[ '', 'ORAL', 'SUBLINGUAL', 'BUCCAL', 'INTRAVENOUS', 'INTRAMUSCULAR', 'SUBCUTANEOUS', 'IN…` | `apps/web/src/components/tenant/product-panel.tsx:119` |  |
 | `Row` | `({ title, subtitle, onRemove, readOnly, children, }: { title…)` | `apps/web/src/components/tenant/consultation-content.tsx:89` |  |
 | `Row` <sub>local</sub> | `({ label, children }: { label: string; children: React.React…)` | `apps/web/src/components/tenant/transfer-detail.tsx:210` |  |
 | `RowDate` <sub>local</sub> | `({ label, value, disabled, onCommit, }: { label: string; val…)` | `apps/web/src/components/tenant/consultation-content.tsx:730` | A calendar date on a recorded row. ⚠️ `YYYY-MM-DD`, never a locale format. |
@@ -305,17 +315,19 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `SourceList` | `({ sources, meta, timezone, }: { sources: RegulatorySourceLi…)` | `apps/web/src/components/tenant/regulatory-lists.tsx:290` |  |
 | `SOURCES` <sub>local</sub> | `[ { value: 'ALL', label: 'Everything' }, { value: 'OWN', label: 'Added by us' }, { value:…` | `apps/web/src/components/tenant/product-list.tsx:60` |  |
 | `SpanListing` <sub>local</sub> | `({ slug, timezone, timeFormat, view, appointments, status, t…)` | `apps/web/src/components/tenant/appointment-board.tsx:636` |  |
+| `Stat` <sub>local</sub> | `({ label, value, tone = 'plain', }: { label: string; value: …)` | `apps/web/src/components/tenant/charge-queue.tsx:354` |  |
 | `StateChip` <sub>local</sub> | `({ verified }: { verified: boolean })` | `apps/web/src/components/tenant/contact-verification.tsx:191` |  |
 | `StatusChip` <sub>local</sub> | `({ branch }: { branch: BranchDetail })` | `apps/web/src/components/tenant/branch-list.tsx:193` |  |
 | `StatusChip` <sub>local</sub> | `({ status }: { status: InvitationSummary['status'] })` | `apps/web/src/components/tenant/invitation-list.tsx:51` |  |
 | `StatusChip` <sub>local</sub> | `({ status }: { status: MemberDetail['status'] })` | `apps/web/src/components/tenant/member-list.tsx:38` |  |
+| `STATUSES` <sub>local</sub> | `[ { value: 'PENDING', label: 'Waiting' }, { value: 'INVOICED', label: 'Billed' }, { value…` | `apps/web/src/components/tenant/charge-queue.tsx:44` |  |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Any state' }, { value: 'DISPENSED', label: 'Handed over' }, { valu…` | `apps/web/src/components/tenant/dispense-list.tsx:26` |  |
 | `STATUSES` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/doctor-sections.tsx:52` |  |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Any status' }, { value: 'DRAFT', label: 'Draft' }, { value: 'POSTE…` | `apps/web/src/components/tenant/goods-receipt-list.tsx:19` |  |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Any status' }, { value: 'ACTIVE', label: 'Active' }, { value: 'QUA…` | `apps/web/src/components/tenant/lot-list.tsx:26` |  |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Anything not finished' }, { value: 'NEW', label: 'Not looked at' }…` | `apps/web/src/components/tenant/prescription-queue.tsx:27` |  |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Any status' }, { value: 'DRAFT', label: 'Draft' }, { value: 'ACTIV…` | `apps/web/src/components/tenant/product-list.tsx:52` |  |
-| `STATUSES` <sub>local</sub> | `[ { value: 'DRAFT', label: 'Draft' }, { value: 'ACTIVE', label: 'Active' }, { value: 'DIS…` | `apps/web/src/components/tenant/product-panel.tsx:70` |  |
+| `STATUSES` <sub>local</sub> | `[ { value: 'DRAFT', label: 'Draft' }, { value: 'ACTIVE', label: 'Active' }, { value: 'DIS…` | `apps/web/src/components/tenant/product-panel.tsx:86` |  |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Any status' }, { value: 'DRAFT', label: 'Draft' }, { value: 'ISSUE…` | `apps/web/src/components/tenant/purchase-order-list.tsx:19` |  |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Any status' }, { value: 'DRAFT', label: 'Draft' }, { value: 'SENT'…` | `apps/web/src/components/tenant/purchase-return-list.tsx:12` | What has gone back to a supplier, and what is waiting to. |
 | `STATUSES` <sub>local</sub> | `[ { value: '', label: 'Any status' }, { value: 'DRAFT', label: 'Draft' }, { value: 'SUBMI…` | `apps/web/src/components/tenant/requisition-list.tsx:20` |  |
@@ -333,20 +345,22 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `SupplierPanel` | `({ slug, supplier, priceBook, products, units, canManage, mo…)` | `apps/web/src/components/tenant/supplier-panel.tsx:55` |  |
 | `SuspendButton` <sub>local</sub> | `({ slug, member }: { slug: string; member: MemberDetail })` | `apps/web/src/components/tenant/member-list.tsx:721` |  |
 | `SymptomsSection` | `(props: ContentSectionProps)` | `apps/web/src/components/tenant/consultation-content.tsx:399` |  |
+| `TABS` <sub>local</sub> | `[ { href: '/charges', label: 'Waiting', exact: true }, { href: '/charges/prices', label: …` | `apps/web/src/components/tenant/charges-nav.tsx:27` |  |
 | `TABS` <sub>local</sub> | `[ { href: '/pharmacy', label: 'Counter', exact: true }, { href: '/pharmacy/queue', label:…` | `apps/web/src/components/tenant/pharmacy-nav.tsx:23` |  |
 | `TABS` <sub>local</sub> | `[ { href: '/procurement/suppliers', label: 'Suppliers' }, { href: '/procurement/price-boo…` | `apps/web/src/components/tenant/procurement-nav.tsx:30` |  |
 | `TABS` <sub>local</sub> | `: { status: FollowUpRecallStatusValue; label: string; blurb: string }[]` | `apps/web/src/components/tenant/recall-list.tsx:35` | The five windows, in the order the desk works them. |
 | `TABS` <sub>local</sub> | `[ { href: '/regulatory/jurisdictions', label: 'Places' }, { href: '/regulatory/authoritie…` | `apps/web/src/components/tenant/regulatory-nav.tsx:26` |  |
 | `TABS` <sub>local</sub> | `[ { href: '/stock', label: 'Overview' }, { href: '/stock/lots', label: 'Lots' }, { href: …` | `apps/web/src/components/tenant/stock-nav.tsx:26` |  |
-| `Taxes` <sub>local</sub> | `({ taxes, amount }: { taxes: InvoiceTaxLine[]; amount: (mino…)` | `apps/web/src/components/tenant/invoice-detail.tsx:387` |  |
+| `Taxes` <sub>local</sub> | `({ taxes, amount }: { taxes: InvoiceTaxLine[]; amount: (mino…)` | `apps/web/src/components/tenant/invoice-detail.tsx:570` |  |
 | `TaxRateCard` | `({ slug, card, rules, showHistory, canManage, canReadHistory…)` | `apps/web/src/components/tenant/tax-rate-card.tsx:45` |  |
 | `TaxRegistrationReference` <sub>local</sub> | `({ organization, countryCode, }: { organization: Organizatio…)` | `apps/web/src/components/tenant/clinic-settings.tsx:474` |  |
-| `TaxTab` <sub>local</sub> | `({ product, clinicToday, editable, pending, onSave, }: { pro…)` | `apps/web/src/components/tenant/product-panel.tsx:704` |  |
+| `TaxTab` <sub>local</sub> | `({ product, clinicToday, editable, pending, onSave, }: { pro…)` | `apps/web/src/components/tenant/product-panel.tsx:757` |  |
 | `TenantHeader` | `({ slug, session }: { slug: string; session: AuthSession })` | `apps/web/src/components/tenant/tenant-header.tsx:22` |  |
 | `TermPicker` | `({ label, hint, placeholder, disabled, search, onPick, }: { …)` | `apps/web/src/components/tenant/consultation-content.tsx:148` |  |
+| `TIERS` <sub>local</sub> | `[ { scope: 'PRODUCT' as const, title: 'One product', hint: 'Beats everything below it.', …` | `apps/web/src/components/tenant/charge-policy-list.tsx:65` |  |
 | `TimeRail` <sub>local</sub> | `({ slug, timezone, timeFormat, appointments, canCheckIn, can…)` | `apps/web/src/components/tenant/appointment-board.tsx:860` |  |
 | `TONE` <sub>local</sub> | `: Record<StockStatus, string>` | `apps/web/src/components/tenant/stock-status.tsx:75` |  |
-| `Totals` <sub>local</sub> | `({ invoice, amount, }: { invoice: InvoiceDetail; amount: (mi…)` | `apps/web/src/components/tenant/invoice-detail.tsx:313` |  |
+| `Totals` <sub>local</sub> | `({ invoice, amount, }: { invoice: InvoiceDetail; amount: (mi…)` | `apps/web/src/components/tenant/invoice-detail.tsx:496` |  |
 | `TRACKING` <sub>local</sub> | `[ { value: 'NONE', label: 'Not tracked individually' }, { value: 'LOT_BATCH', label: 'By …` | `apps/web/src/components/tenant/product-create-form.tsx:56` |  |
 | `Trail` <sub>local</sub> | `({ history, timezone, timeFormat, }: { history: AuditHistory…)` | `apps/web/src/components/tenant/record-history.tsx:179` |  |
 | `TransferDetail` | `({ slug, transfer, locations, timezone, timeFormat, branchId…)` | `apps/web/src/components/tenant/transfer-detail.tsx:56` |  |
@@ -392,10 +406,10 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `amount` <sub>local</sub> | `(minor: number, currency: string): string` | `apps/web/src/components/tenant/billing-screen.tsx:32` |  |
 | `askedFor` <sub>local</sub> | `(row: FollowUpRecallEntry, timezone: string): string` | `apps/web/src/components/tenant/recall-list.tsx:58` | "in 15 days", "on 4 September" — whichever half the doctor actually gave. |
 | `asList` <sub>local</sub> | `(value: FieldValue): string[]` | `apps/web/src/components/tenant/field-renderer.tsx:59` |  |
-| `asOptions` <sub>local</sub> | `(values: string[])` | `apps/web/src/components/tenant/product-panel.tsx:133` |  |
+| `asOptions` <sub>local</sub> | `(values: string[])` | `apps/web/src/components/tenant/product-panel.tsx:149` |  |
 | `asString` <sub>local</sub> | `(value: FieldValue): string` | `apps/web/src/components/tenant/field-renderer.tsx:56` |  |
 | `boxFor` <sub>local</sub> | `(range: VitalRange): { type: 'number'; min: number; max: number; step: number; i…` | `apps/web/src/components/tenant/vitals-panel.tsx:563` |  |
-| `buildDraft` <sub>local</sub> | `(prescription: PharmacyPrescriptionDetail, plans: LinePlan[]): DraftLine[]` | `apps/web/src/components/tenant/dispensing-workspace.tsx:96` |  |
+| `buildDraft` <sub>local</sub> | `(prescription: PharmacyPrescriptionDetail, plans: LinePlan[]): DraftLine[]` | `apps/web/src/components/tenant/dispensing-workspace.tsx:175` |  |
 | `clinicNav` <sub>local</sub> | `(permissions: string[]): NavLink[]` | `apps/web/src/components/tenant/tenant-header.tsx:94` |  |
 | `clockTime` <sub>local</sub> | `(value: string): string` | `apps/web/src/components/tenant/doctor-profile.tsx:65` | 09:00, from the "09:00:00" the API sends. |
 | `clockTime` <sub>local</sub> | `(value: string): string` | `apps/web/src/components/tenant/doctor-sections.tsx:90` | 09:00, from the "09:00:00" the API sends. |
@@ -415,13 +429,15 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `firstDiagnosis` <sub>local</sub> | `(episode: VisitHistoryEpisode): string \| null` | `apps/web/src/components/tenant/visit-history.tsx:174` | The journey's own first conclusion, used when nobody has titled it. |
 | `foldBuckets` <sub>local</sub> | `(rows: StockBalanceListResponse['balances']): FoldedEntry[]` | `apps/web/src/components/tenant/stock-overview.tsx:213` | Collapse one location's bucket rows into one entry per (product, lot). |
 | `format` <sub>local</sub> | `(value: unknown): string` | `apps/web/src/components/tenant/record-history.tsx:406` |  |
+| `gapsOf` <sub>local</sub> | `(charge: ChargeRequestSummary): string[]` | `apps/web/src/components/tenant/charge-queue.tsx:69` | The three reasons a charge cannot go on a bill as it stands. |
 | `groupByModule` <sub>local</sub> | `(permissions: PermissionCatalogue): [string, CataloguePermission[]][]` | `apps/web/src/components/tenant/role-list.tsx:28` |  |
 | `heldStatusFor` <sub>local</sub> | `(status: BatchListResponse['batches'][number]['status'])` | `apps/web/src/components/tenant/lot-list.tsx:255` |  |
 | `hourFor` <sub>local</sub> | `(hours: OperatingHour[], day: number): OperatingHour \| undefined` | `apps/web/src/components/tenant/branch-list.tsx:57` |  |
-| `humanise` <sub>local</sub> | `(value: string): string` | `apps/web/src/components/tenant/product-panel.tsx:127` | `MODIFIED_RELEASE` reads badly in a menu; sentence case with the underscore removed is what a pharmacist calls it. |
+| `humanise` <sub>local</sub> | `(value: string): string` | `apps/web/src/components/tenant/charge-policy-list.tsx:60` | Sentence case from an enum member — `SURGICAL_SUPPLY` → `Surgical supply`. |
+| `humanise` <sub>local</sub> | `(value: string): string` | `apps/web/src/components/tenant/product-panel.tsx:143` | `MODIFIED_RELEASE` reads badly in a menu; sentence case with the underscore removed is what a pharmacist calls it. |
 | `identityLine` <sub>local</sub> | `(patient: PatientSummary): string` | `apps/web/src/components/tenant/appointment-board.tsx:1793` |  |
 | `looksLikePhone` <sub>local</sub> | `(term: string): boolean` | `apps/web/src/components/tenant/appointment-board.tsx:1966` |  |
-| `lotKey` <sub>local</sub> | `(lot: { locationId: string; batchId: string \| null; serialId…): string` | `apps/web/src/components/tenant/dispensing-workspace.tsx:88` |  |
+| `lotKey` <sub>local</sub> | `(lot: { locationId: string; batchId: string \| null; serialId…): string` | `apps/web/src/components/tenant/dispensing-workspace.tsx:108` |  |
 | `matchWord` <sub>local</sub> | `(matches: PatientDuplicateMatch[]): string` | `apps/web/src/components/tenant/patient-search.tsx:65` | What the duplicate banner should call the thing that matched. |
 | `maturityLabel` | `(maturity: RulePackMaturity): string` | `apps/web/src/components/tenant/maturity-rail.tsx:36` |  |
 | `monthCells` <sub>local</sub> | `(month: string): (string \| null)[]` | `apps/web/src/components/tenant/working-day-picker.tsx:323` |  |
@@ -431,8 +447,11 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `readSections` <sub>local</sub> | `(definition: unknown): SectionRow[]` | `apps/web/src/components/tenant/consultation-template-editor.tsx:269` |  |
 | `regionChoices` <sub>local</sub> | `(sections: readonly ConsultationSectionConfig[]): readonly { value: string; label: string }[]` | `apps/web/src/components/tenant/consultation-engine.tsx:156` |  |
 | `statusNote` <sub>local</sub> | `(subscription: SubscriptionSummary): { tone: 'ok' \| 'warn' \| 'stop'; text: string; }` | `apps/web/src/components/tenant/billing-screen.tsx:44` |  |
+| `substituteLabel` <sub>local</sub> | `(candidate: SubstitutionCandidate): string` | `apps/web/src/components/tenant/dispensing-workspace.tsx:154` |  |
 | `summarise` <sub>local</sub> | `(reading: VitalsReading, unit: TemperatureUnit): string` | `apps/web/src/components/tenant/vitals-panel.tsx:585` |  |
+| `sumQuantities` <sub>local</sub> | `(values: readonly string[]): string` | `apps/web/src/components/tenant/dispensing-workspace.tsx:122` | Add decimal quantity strings without going through a float. ⚠️ SIX PLACES, BECAUSE THAT IS `stock_ledger`'s SCALE. Fixed-point on the integer of the scaled val… |
 | `termLabel` <sub>local</sub> | `(row: { item: { name: string } \| null; customText: string \| …): string` | `apps/web/src/components/tenant/consultation-content.tsx:375` | The label a coded-or-typed row renders under. |
+| `toAllocation` <sub>local</sub> | `(lot: DraftLot)` | `apps/web/src/components/tenant/dispensing-workspace.tsx:129` | One chosen lot, in the shape the request wants. |
 | `toBox` <sub>local</sub> | `(amountMinor: number \| null): string` | `apps/web/src/components/tenant/fee-schedule-grid.tsx:62` | Minor units to the major-unit string a person types back. |
 | `toEditable` <sub>local</sub> | `(discount: InvoiceDetail['discount'], currency: string): EditableDiscount` | `apps/web/src/components/tenant/invoice-draft-editor.tsx:505` |  |
 | `toInput` <sub>local</sub> | `(value: unknown): string` | `apps/web/src/components/tenant/clinic-settings.tsx:44` | The string form a value goes back into a form field as. |
@@ -463,7 +482,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `DAY_OPTIONS` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/doctor-create-form.tsx:61` |  |
 | `DAY_OPTIONS` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/doctor-sections.tsx:72` |  |
 | `DIAGNOSIS_ROLES` <sub>local</sub> | `[ { value: 'PRIMARY', label: 'Primary' }, { value: 'SECONDARY', label: 'Secondary' }, { v…` | `apps/web/src/components/tenant/consultation-content.tsx:503` |  |
-| `DOSAGE_FORMS` <sub>local</sub> | `[ '', 'TABLET', 'CAPSULE', 'SYRUP', 'SUSPENSION', 'SOLUTION', 'INJECTION', 'INFUSION', 'C…` | `apps/web/src/components/tenant/product-panel.tsx:77` |  |
+| `DOSAGE_FORMS` <sub>local</sub> | `[ '', 'TABLET', 'CAPSULE', 'SYRUP', 'SUSPENSION', 'SOLUTION', 'INJECTION', 'INFUSION', 'C…` | `apps/web/src/components/tenant/product-panel.tsx:93` |  |
 | `DURATION_UNITS` <sub>local</sub> | `[ { value: 'HOURS', label: 'hours' }, { value: 'DAYS', label: 'days' }, { value: 'WEEKS',…` | `apps/web/src/components/tenant/consultation-content.tsx:379` |  |
 | `DURATION_UNITS` <sub>local</sub> | `[ { value: 'HOURS', label: 'hours' }, { value: 'DAYS', label: 'days' }, { value: 'WEEKS',…` | `apps/web/src/components/tenant/consultation-engine.tsx:113` |  |
 | `EMPTY_DRAFT` <sub>local</sub> | `: Draft` | `apps/web/src/components/tenant/role-list.tsx:153` |  |
@@ -481,7 +500,7 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `GIVE_UP_AFTER_MS` <sub>local</sub> | `90_000` | `apps/web/src/components/tenant/payment-return.tsx:31` |  |
 | `GRID_CELLS` <sub>local</sub> | `42` | `apps/web/src/components/tenant/working-day-picker.tsx:57` | A month grid is six weeks of seven days, always — a fixed height never jumps. |
 | `HUMAN_STEPS` <sub>local</sub> | `2` | `apps/web/src/components/tenant/maturity-rail.tsx:34` | Where the platform's work ends and a person's begins. |
-| `IDENTIFIER_TYPES` <sub>local</sub> | `[ { value: 'GTIN', label: 'GTIN' }, { value: 'EAN', label: 'EAN' }, { value: 'UPC', label…` | `apps/web/src/components/tenant/product-panel.tsx:59` |  |
+| `IDENTIFIER_TYPES` <sub>local</sub> | `[ { value: 'GTIN', label: 'GTIN' }, { value: 'EAN', label: 'EAN' }, { value: 'UPC', label…` | `apps/web/src/components/tenant/product-panel.tsx:75` |  |
 | `IDLE_BOOKING` <sub>local</sub> | `: BookingState` | `apps/web/src/components/tenant/appointment-board.tsx:71` |  |
 | `IDLE_LOOKUP` <sub>local</sub> | `: LookupState` | `apps/web/src/components/tenant/appointment-board.tsx:79` |  |
 | `IDLE_REGISTER` <sub>local</sub> | `: QuickRegisterState` | `apps/web/src/components/tenant/appointment-board.tsx:82` | Same rule, same reason — see `IDLE_LOOKUP` above. |
@@ -497,11 +516,16 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `OTHER_RELATION` <sub>local</sub> | `'__OTHER__'` | `apps/web/src/components/tenant/patient-search.tsx:62` |  |
 | `OUTCOME_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/substitution-panel.tsx:31` |  |
 | `PENDING_SECTIONS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/consultation-engine.tsx:141` |  |
+| `POLICY_LABEL` <sub>local</sub> | `Object.fromEntries(…)` | `apps/web/src/components/tenant/charge-policy-list.tsx:42` |  |
+| `POLICY_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/charge-queue.tsx:52` |  |
+| `POLICY_NEEDS_DECISION` <sub>local</sub> | `new Set(…)` | `apps/web/src/components/tenant/charge-queue.tsx:79` |  |
 | `POLL_MS` <sub>local</sub> | `2500` | `apps/web/src/components/tenant/payment-return.tsx:30` |  |
 | `PROCEDURE_STATUSES` <sub>local</sub> | `[ { value: 'PLANNED', label: 'Planned' }, { value: 'PERFORMED', label: 'Performed' }, { v…` | `apps/web/src/components/tenant/consultation-content.tsx:596` |  |
+| `PRODUCT_TYPES` <sub>local</sub> | `[ 'MEDICINE', 'VACCINE', 'CONSUMABLE', 'SURGICAL_SUPPLY', 'MEDICAL_DEVICE', 'IMPLANT', 'D…` | `apps/web/src/components/tenant/charge-policy-list.tsx:44` |  |
 | `QUALITY_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/goods-receipt-panel.tsx:43` |  |
 | `REASON_WORDS` <sub>local</sub> | `: Record<WorkingDayReason, string>` | `apps/web/src/components/tenant/working-day-picker.tsx:49` |  |
 | `ROUTE_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/previous-visit-summary.tsx:39` |  |
+| `SCOPE_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/charge-queue.tsx:61` |  |
 | `SCOPE_LEVELS` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/role-list.tsx:20` | Named by what the role reaches, not by the enum the API stores. |
 | `SEVERITY_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/components/tenant/patient-chart.tsx:63` |  |
 | `SLOT_LENGTHS` <sub>local</sub> | `: SelectOption[]` | `apps/web/src/components/tenant/branch-list.tsx:37` | Appointment slot lengths, in minutes. |
@@ -570,8 +594,8 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `DegreeRow` <sub>local</sub> | `{ key, qualificationId, institute, yearOfCompletion }` | `apps/web/src/components/tenant/doctor-create-form.tsx:104` |  |
 | `Draft` <sub>local</sub> | `{ chiefComplaint, durationValue, durationUnit, onset, clinicalNotes, sections }` | `apps/web/src/components/tenant/consultation-engine.tsx:86` |  |
 | `Draft` <sub>local</sub> | `{ code, name, description, scopeLevel, permissionCodes }` | `apps/web/src/components/tenant/role-list.tsx:145` |  |
-| `DraftLine` <sub>local</sub> | `{ item, include, lots }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:82` |  |
-| `DraftLot` <sub>local</sub> | `{ key, locationId, locationName, batchId, lotNumber, expiresOn, serialId, availableQuantityBase, plannedQuantityBase, quantity, overrideReason }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:67` |  |
+| `DraftLine` <sub>local</sub> | `{ item, include, lots, substituteProductId, substitutionReason }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:91` |  |
+| `DraftLot` <sub>local</sub> | `{ key, locationId, locationName, batchId, lotNumber, expiresOn, serialId, availableQuantityBase, plannedQuantityBase, quantity, overrideReason }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:76` |  |
 | `EditableDiscount` <sub>local</sub> | `{ type, value }` | `apps/web/src/components/tenant/invoice-draft-editor.tsx:490` |  |
 | `EditableLine` <sub>local</sub> | `{ key, description, taxCategory, itemCode, quantity, unitPrice }` | `apps/web/src/components/tenant/invoice-draft-editor.tsx:480` |  |
 | `FieldRendererProps` | `{ field, value, onChange, disabled, sectionKey, slug, timeZone, scopeId }` | `apps/web/src/components/tenant/field-renderer.tsx:33` |  |
@@ -583,14 +607,17 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `LineDraft` <sub>local</sub> | `{ key, productId, goodsReceiptLineId, batchId, quantity, statusFrom }` | `apps/web/src/components/tenant/purchase-return-form.tsx:55` |  |
 | `LineDraft` <sub>local</sub> | `{ key, productId, quantity, suggestedSupplierId }` | `apps/web/src/components/tenant/requisition-form.tsx:34` |  |
 | `LineDraft` <sub>local</sub> | `{ key, productId, batchId, quantity }` | `apps/web/src/components/tenant/transfer-form.tsx:51` |  |
-| `LinePlan` <sub>local</sub> | `{ encounterPrescriptionId, plan }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:53` |  |
+| `LinePlan` <sub>local</sub> | `{ encounterPrescriptionId, plan }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:54` |  |
+| `LineSubstitutions` <sub>local</sub> | `{ encounterPrescriptionId, candidates }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:60` | The equivalents for one prescribed line, each with the law's answer attached. |
 | `PeriodStripProps` | `{ start, end, at, proration, muted }` | `apps/web/src/components/tenant/period-strip.tsx:28` |  |
 | `Props` <sub>local</sub> | `{ slug, branches, locations, products, batches, reasonCodes, moreProducts }` | `apps/web/src/components/tenant/adjustment-form.tsx:101` |  |
+| `Props` <sub>local</sub> | `{ slug, rules, canManage }` | `apps/web/src/components/tenant/charge-policy-list.tsx:83` |  |
+| `Props` <sub>local</sub> | `{ slug, charges, meta, summary, branches, canDecide, canBill }` | `apps/web/src/components/tenant/charge-queue.tsx:81` |  |
 | `Props` <sub>local</sub> | `{ costAverages, meta, branches }` | `apps/web/src/components/tenant/cost-average-list.tsx:26` |  |
 | `Props` <sub>local</sub> | `{ slug, branches, locations, products }` | `apps/web/src/components/tenant/counter-sale-form.tsx:41` |  |
 | `Props` <sub>local</sub> | `{ slug, dispense, timezone, timeFormat, canTakeReturns }` | `apps/web/src/components/tenant/dispense-detail.tsx:33` |  |
 | `Props` <sub>local</sub> | `{ dispenses, meta, branches }` | `apps/web/src/components/tenant/dispense-list.tsx:39` |  |
-| `Props` <sub>local</sub> | `{ slug, prescription, plans, locations, canDispense }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:58` |  |
+| `Props` <sub>local</sub> | `{ slug, prescription, plans, substitutions, locations, canDispense }` | `apps/web/src/components/tenant/dispensing-workspace.tsx:65` |  |
 | `Props` <sub>local</sub> | `{ slug, branches, suppliers, products, locations, manufacturers, order, moreProducts }` | `apps/web/src/components/tenant/goods-receipt-form.tsx:45` |  |
 | `Props` <sub>local</sub> | `{ goodsReceipts, meta, branches, suppliers, canManage }` | `apps/web/src/components/tenant/goods-receipt-list.tsx:32` |  |
 | `Props` <sub>local</sub> | `{ slug, receipt, canManage }` | `apps/web/src/components/tenant/goods-receipt-panel.tsx:31` |  |
@@ -603,7 +630,8 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `Props` <sub>local</sub> | `{ supplierProducts, meta, suppliers }` | `apps/web/src/components/tenant/price-book-list.tsx:20` |  |
 | `Props` <sub>local</sub> | `{ slug, units, categories, manufacturers, storageProfiles }` | `apps/web/src/components/tenant/product-create-form.tsx:63` |  |
 | `Props` <sub>local</sub> | `{ products, meta, categories, manufacturers, canManage }` | `apps/web/src/components/tenant/product-list.tsx:77` |  |
-| `Props` <sub>local</sub> | `{ slug, product, equivalents, medicine, units, canManage, canManageIdentifiers, canManageTax, canReadMedicine, canManageMedicine, regulatoryProfiles, jurisdictions, canReadRegulatory, canManageRegula…` | `apps/web/src/components/tenant/product-panel.tsx:135` |  |
+| `Props` <sub>local</sub> | `{ slug, product, equivalents, medicine, units, canManage, canManageIdentifiers, canManageTax, canReadMedicine, canManageMedicine, regulatoryProfiles, jurisdictions, canReadRegulatory, canManageRegula…` | `apps/web/src/components/tenant/product-panel.tsx:151` |  |
+| `Props` <sub>local</sub> | `{ slug, prices, branches, canManage }` | `apps/web/src/components/tenant/product-price-list.tsx:35` |  |
 | `Props` <sub>local</sub> | `{ slug, branches, suppliers, products, locations, priceBook, requisition, moreProducts }` | `apps/web/src/components/tenant/purchase-order-form.tsx:35` |  |
 | `Props` <sub>local</sub> | `{ purchaseOrders, meta, branches, suppliers, canManage }` | `apps/web/src/components/tenant/purchase-order-list.tsx:38` |  |
 | `Props` <sub>local</sub> | `{ slug, order, canManage, canReceive }` | `apps/web/src/components/tenant/purchase-order-panel.tsx:24` |  |
@@ -643,4 +671,4 @@ Files: `apps/web/src/components/tenant/adjustment-form.tsx` · `apps/web/src/com
 | `RoleOption` <sub>local</sub> | `MemberListResponse['roles'][number]` | `apps/web/src/components/tenant/member-list.tsx:29` |  |
 | `SectionAnswers` <sub>local</sub> | `Record<string, Record<string, FieldValue>>` | `apps/web/src/components/tenant/consultation-engine.tsx:84` |  |
 | `State` <sub>local</sub> | `{ status: 'idle' } \| { status: 'ok'; revisions: VitalsRevision[] } \| { status: 'error' }` | `apps/web/src/components/tenant/vitals-history.tsx:56` |  |
-| `Tab` <sub>local</sub> | `'details' \| 'packaging' \| 'identifiers' \| 'tax' \| 'regulatory' \| 'medicine' \| 'equivalents'` | `apps/web/src/components/tenant/product-panel.tsx:56` |  |
+| `Tab` <sub>local</sub> | `\| 'details' \| 'packaging' \| 'identifiers' \| 'price' \| 'tax' \| 'regulatory' \| 'medicine' \| 'equivalents'` | `apps/web/src/components/tenant/product-panel.tsx:65` |  |
