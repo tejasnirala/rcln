@@ -405,7 +405,30 @@ DECLARE
     'dispense_allocations',
     'dispense_returns',
     'dispense_return_lines',
-    'regulatory_decisions'
+    'regulatory_decisions',
+    -- ---------------------------------------------------------------------
+    -- Charging (PI-8). Three tables, TWO tenancy classes — unlike pharmacy,
+    -- where all seven were the same.
+    --
+    -- ⚠️ `charge_policy_rules` IS ORG-ONLY AND IS **NOT** IN THE branch_scoped
+    --   ARRAY BELOW. It has no `branch_id` column at all: "is this product
+    --   billed?" is the ORGANIZATION's commercial position, the same call
+    --   `suppliers` makes, and a three-site group does not decide separately at
+    --   each site that gloves are not chargeable. The branch loop's predicate
+    --   would name a column that does not exist and the CREATE POLICY would
+    --   raise at migration time — the way PI-3 discovered `stock_transfers`
+    --   could not join it either.
+    --
+    --   ⚠️ THE COST: a branch-scoped member reads the whole organization's
+    --     charge policy. Intended, and it is why nothing branch-confidential may
+    --     be added to that table.
+    --
+    -- `product_prices` and `charge_requests` are in BOTH loops. A price
+    -- legitimately differs between a city clinic and a suburban one, and a
+    -- charge request records what happened at ONE counter to ONE named person.
+    'charge_policy_rules',
+    'product_prices',
+    'charge_requests'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -974,6 +997,208 @@ CREATE POLICY product_visible ON encounter_prescriptions AS RESTRICTIVE
       AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
   ));
 
+-- ---------------------------------------------------------------------------
+-- What was DISPENSED (PI-7), and what it was priced in.
+--
+-- ⚠️ ADDED IN PI-8, AND ITS ABSENCE UNTIL THEN WAS A HOLE RATHER THAN A CHOICE.
+--   `encounter_prescriptions` directly above has carried `product_visible` since
+--   CE-4 for the same plain FK into the same platform-extensible table, which is
+--   what makes the omission on `dispense_lines` an oversight. Without it a
+--   clinic can attach another clinic's PRIVATE product to its own dispense line,
+--   and the name comes straight back out through the join the dispense detail
+--   screen makes. Exactly KI-3, on the most PHI-dense table in the programme.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS product_visible ON dispense_lines;
+CREATE POLICY product_visible ON dispense_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = dispense_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = dispense_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS unit_visible ON dispense_lines;
+CREATE POLICY unit_visible ON dispense_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = dispense_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = dispense_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
+-- ⚠️ THE SECOND PLAIN FK ON `dispense_lines`, AND THE ONE PI-8 ALMOST SHIPPED
+--   WITHOUT. `product_visible` above names `product_id`. `substituted_for_product_id`
+--   is a SECOND plain FK into the same platform-extensible table, it is accepted
+--   straight from the client (`dispenseLineRequest.substitutedForProductId`), it
+--   is written with no validation, and it is JOINED FOR ITS NAME and rendered on
+--   the dispense detail screen.
+--
+--   Exploit, before this: clinic A posts a dispense whose
+--   `substituted_for_product_id` is clinic B's PRIVATE product uuid.
+--   `tenant_isolation` is satisfied — the row is A's — and B's product name comes
+--   straight back on A's screen. Textbook KI-3, and PI-8 made it materially more
+--   reachable by adding the substitute picker to the dispensing workspace.
+--
+--   The model comment at `pharmacy.prisma` says "Plain FKs into possibly-platform
+--   rows — `product_visible`, `unit_visible`", PLURAL, describing a policy set
+--   that did not cover both columns. It does now.
+--
+-- ⚠️ NULLABLE, so the `IS NULL OR` half is live: most lines substitute nothing.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS substituted_product_visible ON dispense_lines;
+CREATE POLICY substituted_product_visible ON dispense_lines AS RESTRICTIVE
+  USING (
+    "substituted_for_product_id" IS NULL
+    OR EXISTS (
+      SELECT 1 FROM products p
+      WHERE p.id = dispense_lines.substituted_for_product_id
+        AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+    )
+  )
+  WITH CHECK (
+    "substituted_for_product_id" IS NULL
+    OR EXISTS (
+      SELECT 1 FROM products p
+      WHERE p.id = dispense_lines.substituted_for_product_id
+        AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+    )
+  );
+
+-- ---------------------------------------------------------------------------
+-- `regulatory_decisions.product_id` — the same class, PI-7 vintage.
+--
+-- Lower risk than the two above because `recordDecision` derives the id
+-- server-side rather than taking it from a request, so there is no direct write
+-- path a client controls. Added anyway: "the service happens not to pass an
+-- attacker-controlled id today" is the class of guarantee this schema exists to
+-- replace, and the decision snapshot is joined to a product name on the
+-- dispense detail screen like everything else here.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS product_visible ON regulatory_decisions;
+CREATE POLICY product_visible ON regulatory_decisions AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = regulatory_decisions.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = regulatory_decisions.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
+-- Charging (PI-8) — three tables, five policies, all the same shape.
+--
+-- `charge_policy_rules` has TWO nullable platform-extensible parents and exactly
+-- one of them is set on any row, so both policies carry the `IS NULL OR` half;
+-- on the other two tables the columns are NOT NULL and the policies are
+-- absolute.
+--
+-- Without these a clinic writes a price row or a policy rule against ANOTHER
+-- clinic's private product, and reads its name back through the join on the
+-- pricing screen. `tenant_isolation` is satisfied throughout — the row itself is
+-- theirs — which is precisely why `db:rls:check` cannot see it (KI-3).
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS product_visible ON charge_policy_rules;
+CREATE POLICY product_visible ON charge_policy_rules AS RESTRICTIVE
+  USING (
+    "product_id" IS NULL
+    OR EXISTS (
+      SELECT 1 FROM products p
+      WHERE p.id = charge_policy_rules.product_id
+        AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+    )
+  )
+  WITH CHECK (
+    "product_id" IS NULL
+    OR EXISTS (
+      SELECT 1 FROM products p
+      WHERE p.id = charge_policy_rules.product_id
+        AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+    )
+  );
+
+DROP POLICY IF EXISTS category_visible ON charge_policy_rules;
+CREATE POLICY category_visible ON charge_policy_rules AS RESTRICTIVE
+  USING (
+    "product_category_id" IS NULL
+    OR EXISTS (
+      SELECT 1 FROM product_categories c
+      WHERE c.id = charge_policy_rules.product_category_id
+        AND (c.organization_id IS NULL OR c.organization_id = app_current_org())
+    )
+  )
+  WITH CHECK (
+    "product_category_id" IS NULL
+    OR EXISTS (
+      SELECT 1 FROM product_categories c
+      WHERE c.id = charge_policy_rules.product_category_id
+        AND (c.organization_id IS NULL OR c.organization_id = app_current_org())
+    )
+  );
+
+DROP POLICY IF EXISTS product_visible ON product_prices;
+CREATE POLICY product_visible ON product_prices AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = product_prices.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = product_prices.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS unit_visible ON product_prices;
+CREATE POLICY unit_visible ON product_prices AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = product_prices.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = product_prices.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS product_visible ON charge_requests;
+CREATE POLICY product_visible ON charge_requests AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = charge_requests.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = charge_requests.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS unit_visible ON charge_requests;
+CREATE POLICY unit_visible ON charge_requests AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = charge_requests.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = charge_requests.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ));
+
 -- Who the patient was sent to. Nullable — a referral to a named colleague or
 -- to somebody outside the organization names no specialty at all.
 DROP POLICY IF EXISTS specialty_visible ON encounter_referrals;
@@ -1340,7 +1565,19 @@ DECLARE
     'dispense_allocations',
     'dispense_returns',
     'dispense_return_lines',
-    'regulatory_decisions'
+    'regulatory_decisions',
+    -- Charging (PI-8). ⚠️ TWO OF THE THREE — `charge_policy_rules` is org-wide
+    --   and has no branch_id; see the long note in the org_scoped array above.
+    --
+    --   ⚠️ AND THE TWO DIFFER FROM EACH OTHER HERE. `charge_requests.branch_id`
+    --     is NOT NULL, so the `IS NULL` half below is dead code for it and the
+    --     policy is absolute — a supply to a named patient is not another site's
+    --     register to read. `product_prices.branch_id` IS NULLABLE, and there
+    --     the `IS NULL` half is LIVE and load-bearing: NULL is the
+    --     organization-wide default price that every branch inherits, and a
+    --     policy that hid it would leave every branch with no price at all.
+    'product_prices',
+    'charge_requests'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP
@@ -1394,6 +1631,16 @@ DECLARE
     ARRAY['branch_closures',        'branches',    'branch_id'],
     ARRAY['invitation_branches',    'invitations', 'invitation_id'],
     ARRAY['staff_profiles',         'memberships', 'membership_id'],
+    -- What a member of staff is professionally registered as (PI-8). Exactly
+    -- `staff_profiles`' shape and hung off the same parent — a licence is a fact
+    -- about a PERSON at a clinic, not about a site, so the ORG-scoped parent is
+    -- the whole boundary and there is no branch half to restate.
+    --
+    -- ⚠️ IT IS READ BY THE RULE ENGINE, WHICH MAKES THE ISOLATION MATTER MORE
+    --   THAN THE ROW LOOKS. `RegulatoryActor.licenceTypes` comes from here, and
+    --   a leak across tenants would let one clinic's staff satisfy another
+    --   clinic's `PHARMACIST_AUTHORITY` rule.
+    ARRAY['membership_professional_registrations', 'memberships', 'membership_id'],
     -- The billing children. These sat on the EXEMPT list reading "reached via a
     -- scoped parent", which was the same true-of-the-code-as-written reasoning
     -- the branch children were exempted on — and it is enforced by nothing. An

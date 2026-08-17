@@ -605,7 +605,50 @@ export const PERMISSIONS = {
    */
   FEE_SCHEDULE_READ: 'billing.fee_schedule.read',
   FEE_SCHEDULE_MANAGE: 'billing.fee_schedule.manage',
+  /*
+   * Charging — the hand-off between what was supplied and what is billed (PI-8).
+   *
+   * ⚠️ THE READ IS HELD WHEREVER SUPPLIES HAPPEN, THE MANAGE WHEREVER MONEY IS
+   *   DECIDED, AND THAT SPLIT IS THE WHOLE DESIGN. A pharmacist has to see that
+   *   the medicine they handed over reached the charge queue — a supply that
+   *   silently produced no charge request is invisible until the month-end
+   *   figures are wrong. They have no business deciding whether it is billed.
+   *
+   * ⚠️ THE MANAGE IS NOT `billing.invoice.create`, AND THE DISTINCTION IS THE
+   *   ONE `charge_requests` EXISTS FOR. Raising an invoice is assembling a
+   *   document from charges somebody already approved; this is the approval —
+   *   answering an `OPTIONAL` policy, or suppressing a charge so that nobody is
+   *   billed at all. Folding it into the invoice code would mean every cashier
+   *   who can raise a bill can also decide, unlogged as a separate act, that a
+   *   supply is free.
+   *
+   * ⚠️ NO SEPARATE PRICING CODE, DELIBERATELY. What a clinic charges for a
+   *   product is gated by `billing.fee_schedule.manage`, which already means
+   *   exactly "may set what this clinic charges" and already carries the
+   *   reasoning above about why that is not BRANCH_ADMIN's. A second pricing
+   *   permission beside it is how a screen quotes one number and the bill states
+   *   another.
+   */
+  CHARGE_REQUEST_READ: 'billing.charge_request.read',
+  CHARGE_REQUEST_MANAGE: 'billing.charge_request.manage',
+  /*
+   * The standing answer to "is this product billed at all?".
+   *
+   * ⚠️ ITS OWN CODE RATHER THAN `CHARGE_REQUEST_MANAGE`, because the blast radii
+   *   differ by orders of magnitude. Deciding one `OPTIONAL` charge affects one
+   *   patient; editing the policy decides every future supply of that product at
+   *   every branch, silently and with no row to review. Same argument
+   *   FEE_SCHEDULE_MANAGE makes against being an invoice code.
+   */
+  CHARGE_POLICY_MANAGE: 'billing.charge_policy.manage',
   PAYMENT_COLLECT: 'billing.payment.collect',
+  /*
+   * ⚠️ SEEDED SINCE PHASE 3 AND UNREACHABLE UNTIL PI-8. `voidInvoice`'s header
+   *   recorded the gap: a void that reduces a reported tax liability is
+   *   corrected with a credit note, and there was no table, no series and no
+   *   `CREDIT_NOTE` kind to put one in. PI-8 built all three, and this is the
+   *   code that gates issuing one.
+   */
   CREDIT_NOTE_ISSUE: 'billing.credit_note.issue',
   REFUND_PROCESS: 'billing.refund.process',
   DOCTOR_PAYOUT_MANAGE: 'billing.doctor_payout.manage',

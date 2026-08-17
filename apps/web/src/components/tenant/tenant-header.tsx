@@ -138,6 +138,24 @@ function clinicNav(permissions: string[]): NavLink[] {
      */
     { href: '/invoices', label: 'Invoices', permission: ['billing.invoice.read'] },
     /*
+     * ⚠️ "CHARGES", AND IT IS A SEPARATE TAB FROM INVOICES ON PURPOSE (PI-8).
+     *   An invoice is a document that exists; this is everything that has been
+     *   handed over and has NOT reached one. They are different questions asked
+     *   by the same person at different moments — the till raises bills all day
+     *   and checks the charge queue when the day's takings do not add up — and
+     *   one tab holding both would bury the outstanding list inside the ledger.
+     *
+     * ⚠️ AND IT IS NOT UNDER PHARMACY, even though pharmacy is its only writer
+     *   today. PI-ADR-005 makes the charge seam shared: PI-9's clinical
+     *   consumption writes the same queue from the other side, and a receptionist
+     *   should not need a pharmacy permission to see what a procedure consumed.
+     *
+     * Sits directly after Invoices because it is where most future invoice lines
+     * come from. Gated on `billing.charge_request.read`, which a pharmacist holds
+     * for visibility and the front desk holds to work.
+     */
+    { href: '/charges', label: 'Charges', permission: ['billing.charge_request.read'] },
+    /*
      * ⚠️ "CATALOGUE", NOT "PHARMACY" OR "PRODUCTS". One catalogue holds
      *   medicines, gloves, implants, reagents and dental materials, so naming
      *   the tab after any one of them tells four of the five kinds of user it is

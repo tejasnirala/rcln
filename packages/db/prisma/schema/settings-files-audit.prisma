@@ -278,6 +278,17 @@ enum DataAccessResource {
   /// under ongoing treatment, and its title usually says what for — which is a
   /// diagnosis by another name, and is why this is not folded into `APPOINTMENT`.
   CLINICAL_EPISODE
+  /// What a named person is being billed for, before it reaches an invoice
+  /// (PI-8).
+  ///
+  /// ⚠️ NOT `INVOICE`, AND NOT `PRESCRIPTION`. A charge request names a patient
+  ///   beside a MEDICINE and a price, which `INVOICE` does not — an invoice line
+  ///   reads "Amoxicillin 500 mg" but the disclosure question about the billing
+  ///   ledger is a different one from "who is working the dispensary's charge
+  ///   queue". And it is not `PRESCRIPTION` because reading the queue discloses
+  ///   what was SUPPLIED and paid for rather than what was written, which is the
+  ///   same distinction `VITALS` and `ENCOUNTER` draw against `MEDICAL_HISTORY`.
+  CHARGE_REQUEST
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

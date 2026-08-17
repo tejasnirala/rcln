@@ -16,7 +16,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `assertMutable` <sub>local</sub> | `(organizationId: string \| null, noun: string): void` | `apps/api/src/services/product/catalogue.service.ts:54` |  |
 | `assertMutable` <sub>local</sub> | `(row: CategoryRow): void` | `apps/api/src/services/product/category.service.ts:107` |  |
 | `assertMutable` <sub>local</sub> | `(organizationId: string \| null): void` | `apps/api/src/services/product/product.service.ts:104` |  |
-| `assertMutable` <sub>local</sub> | `(organizationId: string \| null, noun: string): void` | `apps/api/src/services/product/unit.service.ts:82` |  |
+| `assertMutable` <sub>local</sub> | `(organizationId: string \| null, noun: string): void` | `apps/api/src/services/product/unit.service.ts:104` |  |
 | `assertNoOverlap` <sub>local</sub> | `(classifications: ReplaceProductTaxClassificationsRequest['c…): void` | `apps/api/src/services/product/tax-classification.service.ts:156` |  |
 | `assertSafeToDeactivate` <sub>local</sub> | `(tx: TxClient, id: string): Promise<void>` | `apps/api/src/services/product/category.service.ts:384` |  |
 | `calendarToday` | `(): Date` | `apps/api/src/services/product/values.ts:59` | Today as a calendar day, comparable with a `@db.Date` column. |
@@ -28,11 +28,11 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `createManufacturer` | `(ctx: TenantContext, input: CreateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>` | `apps/api/src/services/product/catalogue.service.ts:88` |  |
 | `createProduct` | `(ctx: TenantContext, input: CreateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:396` |  |
 | `createStorageProfile` | `(ctx: TenantContext, input: CreateStorageProfileRequest, options: CatalogueActionOptions): Promise<StorageProfileSummary>` | `apps/api/src/services/product/catalogue.service.ts:620` |  |
-| `createUnit` | `(ctx: TenantContext, input: CreateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:188` |  |
-| `createUnitConversion` | `(ctx: TenantContext, input: CreateUnitConversionRequest, options: CatalogueActionOptions): Promise<UnitConversionSummary>` | `apps/api/src/services/product/unit.service.ts:312` |  |
+| `createUnit` | `(ctx: TenantContext, input: CreateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:210` |  |
+| `createUnitConversion` | `(ctx: TenantContext, input: CreateUnitConversionRequest, options: CatalogueActionOptions): Promise<UnitConversionSummary>` | `apps/api/src/services/product/unit.service.ts:334` |  |
 | `deactivateCategory` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/category.service.ts:355` |  |
 | `decimalToString` | `(value: { toString(): string } \| null): string \| null` | `apps/api/src/services/product/values.ts:100` | `Decimal` columns come back as a Prisma Decimal. `toString()` preserves every digit; `Number()` would not, which is the whole reason quantities are strings on … |
-| `deleteUnitConversion` | `(ctx: TenantContext, conversionId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/unit.service.ts:440` |  |
+| `deleteUnitConversion` | `(ctx: TenantContext, conversionId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/unit.service.ts:462` |  |
 | `descendantRows` <sub>local</sub> | `(tx: TxClient, id: string, includeInactive: boolean, includeSelf: boolean): Promise<CategoryRow[]>` | `apps/api/src/services/product/category.service.ts:116` | Every descendant of `id`, flat, carrying an ABSOLUTE depth. |
 | `expireIdentifier` | `(ctx: TenantContext, productId: string, identifierId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/identifier.service.ts:164` |  |
 | `findCompositionOrThrow` <sub>local</sub> | `(tx: TxClient, id: string)` | `apps/api/src/services/product/catalogue.service.ts:366` |  |
@@ -51,9 +51,9 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `listProducts` | `(ctx: TenantContext, query: ProductListQuery): Promise<ProductListResponse>` | `apps/api/src/services/product/product.service.ts:235` |  |
 | `listStorageProfiles` | `(ctx: TenantContext, includeInactive: boolean): Promise<StorageProfileSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:593` |  |
 | `listTaxClassifications` | `(ctx: TenantContext, productId: string): Promise<ProductTaxClassificationDetail[]>` | `apps/api/src/services/product/tax-classification.service.ts:76` |  |
-| `listUnits` | `(ctx: TenantContext, query: UnitQuery): Promise<UnitListResponse>` | `apps/api/src/services/product/unit.service.ts:134` |  |
+| `listUnits` | `(ctx: TenantContext, query: UnitQuery): Promise<UnitListResponse>` | `apps/api/src/services/product/unit.service.ts:156` |  |
 | `loadCategory` <sub>local</sub> | `(tx: TxClient, id: string): Promise<CategoryRow>` | `apps/api/src/services/product/category.service.ts:82` |  |
-| `loadUnitGraph` | `(tx: TxClient): Promise<UnitGraph>` | `apps/api/src/services/product/unit.service.ts:107` |  |
+| `loadUnitGraph` | `(tx: TxClient): Promise<UnitGraph>` | `apps/api/src/services/product/unit.service.ts:129` |  |
 | `quantityInBaseUnits` | `(ctx: TenantContext, productId: string, quantity: string, level: number): Promise<string>` | `apps/api/src/services/product/packaging.service.ts:218` |  |
 | `readPackagings` <sub>local</sub> | `(tx: TxClient, productId: string): Promise<ProductPackagingDetail[]>` | `apps/api/src/services/product/packaging.service.ts:49` |  |
 | `readSynonyms` <sub>local</sub> | `(value: unknown): string[]` | `apps/api/src/services/product/catalogue.service.ts:198` |  |
@@ -61,8 +61,9 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `replacePackagings` | `(ctx: TenantContext, productId: string, input: ReplaceProductPackagingRequest, options: CatalogueActionOptions): Promise<ProductPackagingDetail[]>` | `apps/api/src/services/product/packaging.service.ts:93` |  |
 | `replaceTaxClassifications` | `(ctx: TenantContext, productId: string, input: ReplaceProductTaxClassificationsRequest, options: CatalogueActionOptions): Promise<ProductTaxClassificationDetail[]>` | `apps/api/src/services/product/tax-classification.service.ts:91` |  |
 | `resolveIdentifier` | `(ctx: TenantContext, query: ResolveIdentifierQuery): Promise<ResolveIdentifierResponse>` | `apps/api/src/services/product/identifier.service.ts:216` |  |
+| `resolveTaxCategories` | `(tx: TxClient, productIds: readonly string[], jurisdiction: { countryCode: string; regionCode?: string \| …, on: Date): Promise<Map<string, ResolvedTaxCategoryResponse>>` | `apps/api/src/services/product/tax-classification.service.ts:231` |  |
 | `resolveTaxCategory` | `(tx: TxClient, productId: string, jurisdiction: { countryCode: string; regionCode?: string \| …, on: Date): Promise<ResolvedTaxCategoryResponse>` | `apps/api/src/services/product/tax-classification.service.ts:200` |  |
-| `resolveTaxCategoryForTenant` | `(ctx: TenantContext, productId: string, jurisdiction: { countryCode: string; regionCode?: string \| …, on: Date): Promise<ResolvedTaxCategoryResponse>` | `apps/api/src/services/product/tax-classification.service.ts:270` | The HTTP-facing wrapper. Opens its own transaction. |
+| `resolveTaxCategoryForTenant` | `(ctx: TenantContext, productId: string, jurisdiction: { countryCode: string; regionCode?: string \| …, on: Date): Promise<ResolvedTaxCategoryResponse>` | `apps/api/src/services/product/tax-classification.service.ts:305` | The HTTP-facing wrapper. Opens its own transaction. |
 | `startOfCalendarDay` | `(value: Date): Date` | `apps/api/src/services/product/values.ts:54` |  |
 | `toCalendarDate` | `(value: Date): string` | `apps/api/src/services/product/values.ts:36` |  |
 | `toCategory` <sub>local</sub> | `(row: CategoryRow): ProductCategory` | `apps/api/src/services/product/category.service.ts:59` |  |
@@ -73,13 +74,13 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `toDetail` <sub>local</sub> | `(row: ProductWithSummary): ProductDetail` | `apps/api/src/services/product/product.service.ts:152` |  |
 | `toDetail` <sub>local</sub> | `(row: { id: string; countryCode: string; regionCode: string …): ProductTaxClassificationDetail` | `apps/api/src/services/product/tax-classification.service.ts:41` |  |
 | `toSummary` <sub>local</sub> | `(row: { id: string; organizationId: string \| null; code: str…): ProductSummary` | `apps/api/src/services/product/product.service.ts:112` |  |
-| `toUnit` <sub>local</sub> | `(row: UnitRow): UnitSummary` | `apps/api/src/services/product/unit.service.ts:62` |  |
+| `toUnit` <sub>local</sub> | `(row: UnitRow): UnitSummary` | `apps/api/src/services/product/unit.service.ts:84` |  |
 | `updateActiveIngredient` | `(ctx: TenantContext, ingredientId: string, input: UpdateActiveIngredientRequest, options: CatalogueActionOptions): Promise<ActiveIngredientSummary>` | `apps/api/src/services/product/catalogue.service.ts:283` |  |
 | `updateCategory` | `(ctx: TenantContext, id: string, input: UpdateProductCategoryRequest, options: CatalogueActionOptions): Promise<ProductCategory>` | `apps/api/src/services/product/category.service.ts:286` |  |
 | `updateComposition` | `(ctx: TenantContext, compositionId: string, input: UpdateCompositionRequest, options: CatalogueActionOptions): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:500` |  |
 | `updateManufacturer` | `(ctx: TenantContext, manufacturerId: string, input: UpdateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>` | `apps/api/src/services/product/catalogue.service.ts:132` |  |
 | `updateProduct` | `(ctx: TenantContext, productId: string, input: UpdateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:482` |  |
-| `updateUnit` | `(ctx: TenantContext, unitId: string, input: UpdateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:247` |  |
+| `updateUnit` | `(ctx: TenantContext, unitId: string, input: UpdateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:269` |  |
 | `upsertMedicineDetail` | `(ctx: TenantContext, productId: string, input: MedicineDetailRequest, options: CatalogueActionOptions): Promise<MedicineDetail>` | `apps/api/src/services/product/medicine.service.ts:85` |  |
 | `withdrawProduct` | `(ctx: TenantContext, productId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/product.service.ts:685` |  |
 
@@ -95,9 +96,9 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `CatalogueActionOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/product/unit.service.ts:46` |  |
+| `CatalogueActionOptions` | `{ ipAddress, userAgent, roleCodes }` | `apps/api/src/services/product/unit.service.ts:46` |  |
 | `CategoryRow` <sub>local</sub> | `{ id, code, name, parent_id, description, display_order, is_active, organization_id, depth, has_children }` | `apps/api/src/services/product/category.service.ts:46` |  |
-| `UnitRow` <sub>local</sub> | `{ id, organization_id, code, name, symbol, unit_class, is_base, is_active }` | `apps/api/src/services/product/unit.service.ts:51` |  |
+| `UnitRow` <sub>local</sub> | `{ id, organization_id, code, name, symbol, unit_class, is_base, is_active }` | `apps/api/src/services/product/unit.service.ts:73` |  |
 
 ## type
 

@@ -281,6 +281,11 @@ model DispenseLine {
 
   allocations DispenseAllocation[]
   returnLines DispenseReturnLine[]
+  /// The money side of this supply (PI-8). ⚠️ AT MOST ONE, enforced by a PARTIAL
+  ///   unique index in the migration — the idempotency guarantee that stops a
+  ///   retried post billing somebody twice. Pharmacy still owns no rate: this row
+  ///   is a hand-off to the invoice engine and holds no tax figure.
+  chargeRequests ChargeRequest[]
 
   @@unique([organizationId, dispenseId, lineNumber])
   @@unique([organizationId, id])
@@ -417,6 +422,9 @@ model DispenseReturnLine {
   dispenseReturn DispenseReturn    @relation(fields: [organizationId, dispenseReturnId], references: [organizationId, id], onDelete: Cascade)
   dispenseLine DispenseLine        @relation(fields: [organizationId, dispenseLineId], references: [organizationId, id], onDelete: Restrict)
   dispenseAllocation DispenseAllocation? @relation(fields: [organizationId, dispenseAllocationId], references: [organizationId, id], onDelete: Restrict)
+  /// The money side of this return (PI-8) — a `REVERSAL` charge request, which
+  /// cancels an unbilled charge or becomes a credit note against a billed one.
+  chargeRequests     ChargeRequest[]
 
   @@unique([organizationId, id])
   @@index([organizationId, dispenseReturnId])

@@ -74,6 +74,38 @@ enum InvoiceSourceType {
   OTHER
 }
 
+/// Is this document a charge or a reversal of one? (PI-8.)
+///
+/// ⚠️ A CREDIT NOTE IS AN INVOICE ROW WITH A DIFFERENT KIND, NOT A PARALLEL SET
+///   OF TABLES, AND THAT IS THE LOAD-BEARING DECISION OF PI-8. The alternative —
+///   `credit_notes` / `credit_note_items` / `credit_note_taxes` — duplicates the
+///   line arithmetic, the apportionment, the tax snapshot, the document join and,
+///   most of all, `invoices_lifecycle_guard`: the trigger that freezes an issued
+///   document's every money column against an allow-list. That guard is the
+///   hardest part of this engine to get right and the easiest to get subtly wrong
+///   twice. A credit note has exactly the same immutability requirement, so it
+///   gets exactly the same trigger by being the same table.
+///
+/// ⚠️ ITS SERIES IS SEPARATE, WHICH IS THE PART THE LAW ACTUALLY REQUIRES. Under
+///   GST a credit note is its own document with its own consecutive number, so
+///   `invoice-number.service.ts` keys it on a distinct period key and prints
+///   `CRN-` rather than `INV-`. One table, two series — which is what a clinic's
+///   books have always looked like.
+///
+/// ⚠️ AND EVERY QUERY THAT SUMS MONEY MUST SAY WHICH KIND IT MEANS. What a
+///   patient owes is Σ INVOICE − Σ CREDIT_NOTE; the totals on a credit-note row
+///   are POSITIVE and the KIND carries the sign, for the reason
+///   `ChargeRequestKind` keeps the sign out of its quantity. A negative number in
+///   a money column is one missing minus sign away from a credit that charges.
+enum InvoiceKind {
+  /// A charge. Every row written before PI-8 is one, which is why it is the
+  /// default — the backfill for the existing table is the default itself.
+  INVOICE
+  /// A reversal of an issued invoice, in whole or in part. Cites the invoice it
+  /// credits, and never edits it.
+  CREDIT_NOTE
+}
+
 /// Where an invoice is in its life.
 ///
 /// ⚠️ `DRAFT` IS THE ONLY STATE IN WHICH ANY MONEY COLUMN MAY MOVE. Everything
@@ -155,6 +187,19 @@ model Invoice {
   /// Null while DRAFT. See the header.
   invoiceNumber  String? @map("invoice_number") @db.VarChar(64)
 
+  /// A charge, or a reversal of one (PI-8). See `InvoiceKind`.
+  kind InvoiceKind @default(INVOICE)
+  /// The issued invoice this credit note reverses. Set iff `kind` is
+  /// `CREDIT_NOTE`, by CHECK, and composite-FK'd so a clinic can never credit
+  /// another clinic's document.
+  ///
+  /// ⚠️ NOT UNIQUE, FOR THE REASON `appointment_id` IS NOT. A partly returned
+  ///   supply is credited twice as the rest comes back, and both notes cite the
+  ///   same invoice. "How much of this invoice has been credited?" is a SUM, and
+  ///   the engine refuses a note that would take that sum past the invoice's own
+  ///   `grand_total`.
+  creditedInvoiceId String? @map("credited_invoice_id") @db.Uuid
+
   /// What kind of thing this invoice bills for. The discriminator over the
   /// typed reference columns below — see the enum's header.
   sourceType    InvoiceSourceType @map("source_type")
@@ -162,10 +207,26 @@ model Invoice {
   /// composite-FK'd, so an invoice can never bill another clinic's appointment.
   ///
   /// The first of what will be one column per integrated source: `labOrderId`
-  /// arrives with the lab module, `pharmacySaleId` with the pharmacy module,
-  /// each in the migration that creates its own table. PROCEDURE, SERVICE and
-  /// OTHER carry no reference at all — a manual invoice cites nothing, and the
-  /// service catalogue those first two will point at does not exist either.
+  /// arrives with the lab module, each in the migration that creates its own
+  /// table. PROCEDURE, SERVICE and OTHER carry no reference at all — a manual
+  /// invoice cites nothing, and the service catalogue those first two will point
+  /// at does not exist either.
+  ///
+  /// ⚠️ `PHARMACY` AND `INVENTORY` DELIBERATELY GAINED NO COLUMN HERE IN PI-8,
+  ///   AND THAT IS NOT THE RULE ABOVE BEING BENT. This comment used to promise a
+  ///   `pharmacySaleId`, and building one would have been wrong: a pharmacy
+  ///   invoice bills a SET of supplies, not one. Three dispenses across a
+  ///   morning are routinely one bill, and an inpatient's are one at discharge —
+  ///   a single id could name only the first of them, and the rest would be
+  ///   billed on a document that cites nothing.
+  ///
+  ///   The link exists and is stronger for being on the other side:
+  ///   `charge_requests.invoice_id` is many-to-one and composite-FK'd to BOTH
+  ///   the invoice and the dispense line, so the tenant travels in both keys and
+  ///   a cross-tenant reference stays unrepresentable (ADR-0004) — which is the
+  ///   guarantee this rule exists to preserve, not the column shape.
+  ///   `invoices_source_reference_matches_type` therefore needs no new clause,
+  ///   because a pharmacy invoice carries no reference column to constrain.
   ///
   /// ⚠️ NOT UNIQUE, DELIBERATELY. A visit billed, voided and billed again has
   ///   two invoices citing it, and the void must keep its reference or the
@@ -343,9 +404,16 @@ model Invoice {
   issuer             User?                  @relation("InvoiceIssuedBy", fields: [issuedBy], references: [id], onDelete: SetNull)
   canceller          User?                  @relation("InvoiceCancelledBy", fields: [cancelledBy], references: [id], onDelete: SetNull)
 
+  /// The document this one credits, and the notes credited against it (PI-8).
+  creditedInvoice Invoice?  @relation("InvoiceCreditNote", fields: [organizationId, creditedInvoiceId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  creditNotes     Invoice[] @relation("InvoiceCreditNote")
+
   items     InvoiceItem[]
   taxes     InvoiceTax[]
   documents InvoiceDocument[]
+  /// What this invoice billed (PI-8). Written by `services/invoicing` on the
+  /// charge request, never the other way round.
+  chargeRequests ChargeRequest[]
 
   /// ⚠️ THE ONE UNIQUE IN THIS SCHEMA THAT WANTS NULLS **DISTINCT**, WHICH IS
   ///   POSTGRES' DEFAULT — so it is written plainly and this comment exists
@@ -374,6 +442,9 @@ model Invoice {
   ///   dropped index breaks no test and no type. Declaring it makes the diff
   ///   empty. If you add a hand-written index in a migration, add it here too.
   @@index([organizationId, practitionerProfileId])
+  /// "What has been credited against this invoice?" — asked once per credit
+  /// note to check the running sum, and once per invoice detail render.
+  @@index([organizationId, creditedInvoiceId])
   @@map("invoices")
 }
 
@@ -408,6 +479,33 @@ model InvoiceItem {
   /// is what actually selects the rate, and the two are separate so a clinic can
   /// print a code without that string silently becoming a lookup key.
   itemCode    String? @map("item_code") @db.VarChar(32)
+  /// The line on the ORIGINAL invoice that this credit-note line reverses
+  /// (PI-8, closing the per-line half of the credit ceiling).
+  ///
+  /// ⚠️ WITHOUT IT THE PER-LINE CAP CANNOT AGGREGATE, AND THAT WAS A REAL
+  ///   DEFECT. `resolveLines` caps a credited quantity against the ORIGINAL
+  ///   line's quantity; with no link back there was nothing to sum across
+  ///   earlier notes, so a two-line bill could be credited twice on line A and
+  ///   never on line B. The total stayed bounded by `assertWithinRemaining`, so
+  ///   no clinic could refund more than it charged — but the document said more
+  ///   of A came back than ever went out, and stock reconciliation reads lines.
+  ///
+  /// ⚠️ SET ONLY ON A `CREDIT_NOTE`'s LINES, AND **NOT** ENFORCED BY A CHECK.
+  ///   The constraint it wants is "non-null only when the parent invoice's
+  ///   `kind` is CREDIT_NOTE", which is a fact about ANOTHER ROW and therefore
+  ///   not expressible as a CHECK. A trigger was considered and refused: this is
+  ///   provenance rather than a money column, the service is its only writer,
+  ///   and the cost of getting it wrong is a broken link rather than a wrong
+  ///   figure. Recorded so nobody assumes the database is holding it.
+  ///
+  /// ⚠️ IT MUST SURVIVE A REPRICE. `repriceLoadedDraft` DELETES and re-inserts
+  ///   every line, so this column is carried through `StagedLine` — the same
+  ///   trap that made `charge_requests.invoice_item_id` unusable and got that
+  ///   column removed. The credit note is finalised, and finalisation re-prices.
+  ///
+  /// Composite-FK'd, so a note can never cite another clinic's invoice line.
+  creditedInvoiceItemId String? @map("credited_invoice_item_id") @db.Uuid
+
   /// ⚠️ THE KEY INTO `tax_rules`, MATCHED EXACTLY. There is no HSN prefix tree,
   ///   deliberately: a prefix match that resolved `30049099` to the broader
   ///   `3004` heading would apply a confident, unreviewed rate. A category with
@@ -456,11 +554,21 @@ model InvoiceItem {
 
   taxes InvoiceTax[]
 
+  /// Restrict: an issued invoice's lines are frozen, so the row a credit note
+  /// cites cannot move under it. A DRAFT's lines are deleted on every reprice,
+  /// and a credit note only ever cites an ISSUED invoice — which is what makes
+  /// Restrict safe rather than a landmine.
+  creditedItem  InvoiceItem?  @relation("InvoiceItemCredit", fields: [organizationId, creditedInvoiceItemId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  creditedBy    InvoiceItem[] @relation("InvoiceItemCredit")
+
   /// Composite-FK target so `invoice_taxes` can cite the line it priced.
   @@unique([organizationId, id])
   /// Two lines cannot claim the same position on one document.
   @@unique([organizationId, invoiceId, lineNumber])
   @@index([organizationId, invoiceId])
+  /// "How much of this line has already been credited?" — summed per line across
+  /// every live note, on every credit note raised.
+  @@index([organizationId, creditedInvoiceItemId])
   @@map("invoice_items")
 }
 

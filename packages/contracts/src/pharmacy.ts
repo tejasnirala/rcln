@@ -293,6 +293,17 @@ export const substitutionCandidate = z.object({
   productName: z.string(),
   manufacturerName: z.string().nullable(),
   strength: z.string().nullable(),
+  /**
+   * The unit a supply of THIS product is counted in.
+   *
+   * ⚠️ THE ID AS WELL AS THE SYMBOL, ADDED IN PI-8 SO THE WORKSPACE CAN ACTUALLY
+   *   SUPPLY A SUBSTITUTE. A dispense line states the unit its quantity is in,
+   *   and sending the PRESCRIBED product's unit for a different product is a
+   *   conversion against the wrong graph — the ledger refuses it, but only after
+   *   the engine has been asked about a quantity nobody meant. The symbol alone
+   *   is for reading; the id is what the request needs.
+   */
+  baseUnitId: uuid,
   baseUnitSymbol: z.string(),
   availableQuantityBase: decimalString,
   /** Does the shelf hold enough of it for what is needed? */

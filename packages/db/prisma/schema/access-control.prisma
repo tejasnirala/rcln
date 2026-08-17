@@ -51,6 +51,9 @@ model Membership {
   roles        MembershipRole[]
   overrides    MembershipPermissionOverride[]
   staffProfile StaffProfile?
+  /// What this person is professionally registered as (PI-8). Read into
+  /// `RegulatoryActor.licenceTypes` on every consult — see the model.
+  professionalRegistrations MembershipProfessionalRegistration[]
   /**
    * Composite, against `(organization_id, id)` — ADR-0004. Without it this column
    * could name another clinic's branch, and "we validate it on read" is exactly
@@ -326,4 +329,86 @@ model StaffProfile {
 
   @@index([designationId])
   @@map("staff_profiles")
+}
+
+/// Whether a registration is currently good.
+///
+/// ⚠️ IT IS A RECORDED FACT, NOT A COMPUTED ONE. `EXPIRED` is what the clinic
+///   marked; `expires_on` in the past is what the calendar says. The actor
+///   resolver requires BOTH — status `ACTIVE` and an unexpired date — so a
+///   registration that lapsed while nobody updated the row stops counting on the
+///   day it lapsed rather than on the day somebody notices.
+enum ProfessionalRegistrationStatus {
+  ACTIVE
+  /// Suspended by the authority. Not a licence, and distinct from expired.
+  SUSPENDED
+  EXPIRED
+}
+
+/// A professional registration a member of staff holds (PI-8, closing
+/// KNOWN_ISSUES #9).
+///
+/// ⚠️ THIS EXISTS BECAUSE `RegulatoryActor.licenceTypes` WAS EMPTY ON EVERY CALL.
+///   Rules across this programme's target jurisdictions say things like "the
+///   supply must be made by a registered pharmacist" — India's Pharmacy Act
+///   s. 42(1) is the one this repository has rules for — and until now nothing in
+///   the schema could record that anybody was one. A `PHARMACIST_AUTHORITY` rule
+///   naming a licence therefore resolved `UNDETERMINED`, which REFUSES. It was
+///   latent only because no pack is `PRODUCTION_ENABLED`; the day a named human
+///   signs one off is the day it stops being latent, and it must not be that
+///   day's discovery.
+///
+/// ⚠️ NOT `doctor_profiles.registration_number`, AND THAT COLUMN IS NOT MOVED.
+///   A medical council registration is a doctor's, one per profile, printed on
+///   an invoice. This is a pharmacist's, a nurse's, a radiographer's — a person
+///   holds several, in several jurisdictions, each with its own expiry — and it
+///   is read by a rule engine rather than printed. Two facts, two homes; folding
+///   them together would make the invoice's practitioner block depend on which
+///   licence sorted first.
+///
+/// ⚠️ `licence_type` IS THE MATCH KEY AND IT IS A FREE STRING, DELIBERATELY. A
+///   rule pack names the licence a jurisdiction actually issues — `PHARMACIST`,
+///   `PHARMACY_TECHNICIAN`, `VETERINARY_SURGEON` — and an enum here would mean a
+///   migration every time a country's pack lands. It is matched EXACTLY, with no
+///   normalisation, for the reason `tax_category` is: a fuzzy match would apply a
+///   confident, unreviewed answer.
+///
+/// A child of `memberships` with no `organization_id` of its own — exactly
+/// `staff_profiles`' shape, and it joins the same `parent_scoped` RLS loop.
+model MembershipProfessionalRegistration {
+  id           String @id @default(uuid()) @db.Uuid
+  membershipId String @map("membership_id") @db.Uuid
+
+  /// The exact-match key into a rule's licence list. See the header.
+  licenceType        String @map("licence_type") @db.VarChar(64)
+  registrationNumber String @map("registration_number") @db.VarChar(128)
+  /// Who issued it — `IN`, `IN-KA`, `GB`. The same shape `jurisdictions` uses,
+  /// and NULLABLE because a clinic recording "she is a registered pharmacist"
+  /// without looking up the council is better than a clinic recording nothing.
+  jurisdictionCode   String? @map("jurisdiction_code") @db.VarChar(10)
+  /// The council's name as the clinic knows it. Presentation only — nothing
+  /// matches on it, for the reason `item_code` is not `tax_category`.
+  authorityName      String? @map("authority_name") @db.VarChar(255)
+
+  /// ⚠️ DATES, NOT INSTANTS. A registration runs to the end of a calendar day in
+  ///   the council's own reckoning, not to an instant in UTC.
+  issuedOn  DateTime? @map("issued_on") @db.Date
+  expiresOn DateTime? @map("expires_on") @db.Date
+
+  status ProfessionalRegistrationStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  /// One row per licence type per person. A pharmacist re-registering replaces
+  /// the number on the row rather than growing a second one; the history of a
+  /// licence is `audit_logs`' business, not a second live row the resolver would
+  /// have to choose between.
+  @@unique([membershipId, licenceType])
+  /// The actor resolver's read: every live registration for one member.
+  @@index([membershipId, status])
+  @@map("membership_professional_registrations")
 }

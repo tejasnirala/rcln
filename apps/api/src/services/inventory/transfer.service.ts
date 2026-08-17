@@ -89,7 +89,16 @@ const detailInclude = Prisma.validator<Prisma.StockTransferInclude>()({
       serial: { select: { serialNumber: true } },
       unit: { select: { symbol: true } },
     },
-    orderBy: { createdAt: 'asc' },
+    /*
+     * ⚠️ THE `id` TIE-BREAK IS LOAD-BEARING (KNOWN_ISSUES #1, closed in PI-8).
+     *   `createMany` gives every line of one document the SAME `created_at`, so
+     *   `createdAt` alone is not a total order and a transfer's lines could come
+     *   back arranged differently on each read. PI-4 hit the identical bug in the
+     *   four procurement document services, where it made a landed-cost assertion
+     *   fail; this file kept it because no PI-3 suite asserts line order. Fixed
+     *   here because PI-8 touched this file, which is what the entry asked for.
+     */
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   },
 });
 
@@ -1199,6 +1208,8 @@ export async function receiveTransfer(
         occurredAt: new Date(),
         documentType: 'TRANSFER',
         documentId: existing.id,
+        /* The caller, as the rules judge them. See the goods-receipt note. */
+        roleCodes: options.roleCodes ?? [],
       });
 
       const destinationBatchId = await findOrCreateDestinationBatch(

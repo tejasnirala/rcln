@@ -46,6 +46,28 @@ import { buildUnitGraph, conversionFactor, type UnitGraph, type UnitClass } from
 export interface CatalogueActionOptions {
   ipAddress?: string | undefined;
   userAgent?: string | undefined;
+  /**
+   * The caller's effective PERMISSION codes for the branch being acted on
+   * (PI-8, closing KNOWN_ISSUES #5).
+   *
+   * ⚠️ IT LIVES ON THIS SHARED OPTIONS TYPE BECAUSE THE DOCUMENTS THAT NEED IT
+   *   ALREADY TAKE IT. Goods receipt and stock transfer both consult
+   *   `@rcln/regulatory` while posting, and both used to pass an EMPTY actor —
+   *   so a `PHARMACIST_AUTHORITY` or `IMPORT_RESTRICTION` rule aimed at `STOCK`
+   *   saw somebody holding nothing and refused. Adding a fourth options type
+   *   just for them would have left the next document to rediscover it.
+   *
+   * ⚠️ OPTIONAL, AND ABSENT MEANS AN ACTOR HOLDING NOTHING — which satisfies no
+   *   rule that names anything, so a call site that forgets refuses rather than
+   *   permits. It has to be optional because the worker's sweeps post movements
+   *   with no human caller at all.
+   *
+   * ⚠️ PERMISSION CODES, NEVER ROLE NAMES. A clinic may rename `PHARMACIST` to
+   *   "Dispensary Lead", and a rule naming the role would then match nobody —
+   *   which reads as the rule being wrong rather than the role having been
+   *   renamed. See `RegulatoryActorInput`.
+   */
+  roleCodes?: readonly string[] | undefined;
 }
 
 interface UnitRow {

@@ -107,6 +107,26 @@ BEGIN
   IF to_regclass('public.stock_balances') IS NOT NULL THEN
     REVOKE INSERT, UPDATE, DELETE ON stock_balances FROM rcln_app;
   END IF;
+  -- The regulatory decision snapshot (PI-7, PI-ADR-008).
+  --
+  -- ⚠️ ADDED IN PI-8, AND ITS ABSENCE HERE WAS A REAL HOLE RATHER THAN AN
+  --   OVERSIGHT NOBODY COULD HIT. `20260825090000_pharmacy_dispensing` revokes
+  --   these in the migration, and `ALTER DEFAULT PRIVILEGES` above re-grants them
+  --   on the next `db:reset` — which is exactly what this file's own header says
+  --   about migration-level REVOKEs, and exactly why every other append-only
+  --   table is restated here. The isolation case that catches it only fails
+  --   AFTER a reset, so PI-7 shipped green.
+  --
+  --   A trigger refuses both anyway. That is the second layer, not a reason to
+  --   skip this one: a decision a clinic can rewrite after the fact is worth
+  --   nothing as evidence to an inspector, and neither layer alone survives a
+  --   stray GRANT or a dropped trigger.
+  --
+  --   ⚠️ INSERT IS KEPT. `recordDecision` writes through `rcln_app` inside the
+  --     transaction that acts on the answer.
+  IF to_regclass('public.regulatory_decisions') IS NOT NULL THEN
+    REVOKE UPDATE, DELETE ON regulatory_decisions FROM rcln_app;
+  END IF;
 END
 $$;
 

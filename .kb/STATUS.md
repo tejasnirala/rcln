@@ -1386,12 +1386,14 @@ Procurement + Regulatory platform serving clinical, dental, veterinary and lab
 workflows across ten jurisdictions, not a pharmacy module. Start at
 `PharmacyInventory/NEXT_SESSION.md`.
 
-**PI-0 (discovery & architecture), PI-1 (Product Platform Core), PI-2 (Inventory
-Foundation) and PI-3 (Movements) are complete.** PI-1 and PI-2 are merged to
-`main`. PI-3 is on `feat/pi-3-movements` and has NOT been through
-`/code-review` or `security-reviewer` yet — required before merge, because it
-adds four tenant tables, a platform-extensible one, a bespoke two-branch RLS
-policy and a second SECURITY DEFINER discovery function.
+**PI-0 through PI-8 are complete.** PI-1..PI-6 are merged to `main`; PI-7 and
+PI-8 are on the programme branch and have NOT been through `/code-review` or
+`security-reviewer` yet — required before merge, because between them they add
+twelve tenant tables, the credit-note kind on `invoices`, and three new
+permission codes.
+
+**PI-9 (Clinical Consumption) remains blocked** on `encounters`/`procedures`.
+**PI-10 (Recall) and PI-12 (Online Pharmacy) are unblocked** as of PI-8.
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.
 
@@ -1551,6 +1553,23 @@ Strictly in this order; dispensing depends on batches existing.
       the number is taken last so a refusal burns none. ⚠️ Enforcement is still
       gated on a human sign-off, so a refusal is recorded and reported and stops
       nothing. Pharmacy owns no money: billing is PI-8
+- [x] Billing and tax integration — PI-8. `charge_requests` is the structured
+      hand-off a dispense writes in its OWN transaction; the charge POLICY
+      decides whether a supply reaches a bill at all (a consumed glove produces
+      no invoice line, an implant does); `product_prices` is what a clinic sells
+      for, with a branch override beating an organization default. `POST
+/v1/invoices/from-charges` raises an ordinary `sourceType: PHARMACY`
+      invoice through the engine Phases 3–7 built, and nothing in the programme
+      inserts an `invoice_item` or computes a tax figure.
+      ⚠️ **The credit-note engine landed here** — the gap `voidInvoice`'s header
+      recorded as deliberate. A credit note is an `invoices` row with
+      `kind: CREDIT_NOTE` and its own consecutive `CRN-` series, so it inherits
+      `invoices_lifecycle_guard` rather than needing a second copy of it. It
+      moves no money: there is still no patient-payments table, so
+      `billing.refund.process` remains unreachable.
+      ⚠️ A charge request can never STOP a supply — every configuration gap is a
+      nullable column shown on the review screen, never an exception thrown at a
+      pharmacist mid-dispense.
 
 ### Phase 6 — Lab
 

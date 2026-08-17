@@ -15,34 +15,35 @@ Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pha
 | `auditMeta` | `(options: { ipAddress?: string \| undefined; userAgent?: stri…): { ipAddress?: string; userAgent?: string }` | `apps/api/src/services/pharmacy/shared.ts:328` |  |
 | `availableByProduct` <sub>local</sub> | `(tx: TxClient, branchId: string, productIds: readonly string[]): Promise<Map<string, Prisma.Decimal>>` | `apps/api/src/services/pharmacy/queue.service.ts:389` |  |
 | `cancelPrescriptionFulfilment` | `(ctx: TenantContext, encounterId: string, body: CancelPrescriptionFulfilmentRequest, options: PharmacyActionOptions): Promise<PharmacyPrescriptionDetail>` | `apps/api/src/services/pharmacy/queue.service.ts:517` |  |
-| `consultForReturn` | `(tx: TxClient, ctx: TenantContext, input: Omit<SupplyConsultation, 'transaction'> & { requestR…): Promise<{ decisionId: string; disposition: 'RESTOCKED' \| 'Q…` | `apps/api/src/services/pharmacy/consult.ts:170` |  |
-| `consultForSupply` | `(tx: TxClient, ctx: TenantContext, input: SupplyConsultation): Promise<SupplyDecision>` | `apps/api/src/services/pharmacy/consult.ts:82` | Ask, snapshot, and refuse where the platform is allowed to. Throws `RegulatoryRefusalError` (422, never 403) when the decision both fails to permit AND comes f… |
-| `createDispense` | `(ctx: TenantContext, body: CreateDispenseRequest, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:458` | Supply it. |
-| `createDispenseReturn` | `(ctx: TenantContext, dispenseId: string, body: CreateDispenseReturnRequest, options: PharmacyActionOptions): Promise<DispenseReturnDetail>` | `apps/api/src/services/pharmacy/return.service.ts:31` |  |
-| `decisionFromSnapshot` <sub>local</sub> | `(row: DetailRow['lines'][number]['regulatoryDecision']): { outcome: 'PERMITTED' \| 'PERMITTED_WITH_CONDITIONS' \| 'REF…` | `apps/api/src/services/pharmacy/dispense.service.ts:118` |  |
+| `consultForReturn` | `(tx: TxClient, ctx: TenantContext, input: Omit<SupplyConsultation, 'transaction'> & { requestR…): Promise<{ decisionId: string; disposition: 'RESTOCKED' \| 'Q…` | `apps/api/src/services/pharmacy/consult.ts:223` |  |
+| `consultForSupply` | `(tx: TxClient, ctx: TenantContext, input: SupplyConsultation): Promise<SupplyDecision>` | `apps/api/src/services/pharmacy/consult.ts:98` | Ask, snapshot, and refuse where the platform is allowed to. Throws `RegulatoryRefusalError` (422, never 403) when the decision both fails to permit AND comes f… |
+| `createDispense` | `(ctx: TenantContext, body: CreateDispenseRequest, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:459` | Supply it. |
+| `createDispenseReturn` | `(ctx: TenantContext, dispenseId: string, body: CreateDispenseReturnRequest, options: PharmacyActionOptions): Promise<DispenseReturnDetail>` | `apps/api/src/services/pharmacy/return.service.ts:32` |  |
+| `decisionFromSnapshot` <sub>local</sub> | `(row: DetailRow['lines'][number]['regulatoryDecision']): { outcome: 'PERMITTED' \| 'PERMITTED_WITH_CONDITIONS' \| 'REF…` | `apps/api/src/services/pharmacy/dispense.service.ts:119` |  |
 | `dispensedByPrescriptionLine` | `(tx: TxClient, organizationId: string, encounterPrescriptionIds: readonly string[]): Promise<Map<string, Prisma.Decimal>>` | `apps/api/src/services/pharmacy/shared.ts:201` |  |
 | `displayName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/queue.service.ts:68` | A patient's name from its two halves. Users carry one `full_name` instead. |
-| `getDispense` | `(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:278` |  |
-| `getDispenseReturn` | `(ctx: TenantContext, id: string): Promise<DispenseReturnDetail>` | `apps/api/src/services/pharmacy/return.service.ts:295` |  |
+| `getDispense` | `(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:279` |  |
+| `getDispenseReturn` | `(ctx: TenantContext, id: string): Promise<DispenseReturnDetail>` | `apps/api/src/services/pharmacy/return.service.ts:336` |  |
 | `getPharmacyDashboard` | `(ctx: TenantContext, query: PharmacyDashboardQuery, options: PharmacyActionOptions): Promise<PharmacyDashboardResponse>` | `apps/api/src/services/pharmacy/dashboard.service.ts:26` |  |
 | `getPharmacyPrescription` | `(ctx: TenantContext, encounterId: string, options: PharmacyActionOptions): Promise<PharmacyPrescriptionDetail>` | `apps/api/src/services/pharmacy/queue.service.ts:214` |  |
 | `isDispensableStatus` <sub>local</sub> | `(status: string): boolean` | `apps/api/src/services/pharmacy/queue.service.ts:63` |  |
-| `listDispenses` | `(ctx: TenantContext, query: DispenseQuery, options: PharmacyActionOptions): Promise<DispenseListResponse>` | `apps/api/src/services/pharmacy/dispense.service.ts:221` |  |
+| `listDispenses` | `(ctx: TenantContext, query: DispenseQuery, options: PharmacyActionOptions): Promise<DispenseListResponse>` | `apps/api/src/services/pharmacy/dispense.service.ts:222` |  |
 | `listPrescriptionQueue` | `(ctx: TenantContext, query: PrescriptionQueueQuery, options: PharmacyActionOptions): Promise<PrescriptionQueueResponse>` | `apps/api/src/services/pharmacy/queue.service.ts:82` |  |
 | `listSubstitutionCandidates` | `(ctx: TenantContext, productId: string, query: SubstitutionQuery, options: PharmacyActionOptions): Promise<SubstitutionResponse>` | `apps/api/src/services/pharmacy/substitution.service.ts:44` |  |
-| `loadDispenseForReturn` | `(tx: TxClient, organizationId: string, dispenseId: string): Promise<{ id: string; branchId: string; locationId: string;…` | `apps/api/src/services/pharmacy/dispense.service.ts:851` | Guard used by the return path, kept here so both agree on what "posted" means. |
-| `patientName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/dispense.service.ts:106` | A patient's name from its two halves. Users carry one `full_name` instead. |
+| `loadDispenseForReturn` | `(tx: TxClient, organizationId: string, dispenseId: string): Promise<{ id: string; branchId: string; locationId: string;…` | `apps/api/src/services/pharmacy/dispense.service.ts:933` | Guard used by the return path, kept here so both agree on what "posted" means. |
+| `patientName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/dispense.service.ts:107` | A patient's name from its two halves. Users carry one `full_name` instead. |
+| `priorQuantitySupplied` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, input: { patientId: string; productId: string; before: Date…): Promise<string>` | `apps/api/src/services/pharmacy/consult.ts:314` |  |
 | `q` | `(value: Prisma.Decimal \| number \| string): string` | `apps/api/src/services/pharmacy/shared.ts:339` | A decimal as the wire wants it: a string, never a float. |
 | `recordDecision` | `(tx: TxClient, ctx: TenantContext, input: DecisionSnapshotInput): Promise<string>` | `apps/api/src/services/pharmacy/shared.ts:155` |  |
-| `refreshDispenseStatus` | `(tx: TxClient, dispenseId: string): Promise<void>` | `apps/api/src/services/pharmacy/dispense.service.ts:836` |  |
+| `refreshDispenseStatus` | `(tx: TxClient, dispenseId: string): Promise<void>` | `apps/api/src/services/pharmacy/dispense.service.ts:918` |  |
 | `refreshFulfilment` | `(tx: TxClient, ctx: TenantContext, encounterId: string, branchId: string): Promise<void>` | `apps/api/src/services/pharmacy/shared.ts:240` |  |
 | `refusingRuleCodes` | `(decision: RegulatoryDecisionResponse): string[]` | `apps/api/src/services/pharmacy/shared.ts:130` | The codes that did not permit. Log-safe: a code, never a patient. |
-| `resolveAllocations` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string, productId: string, productName: string, quantityBase: string, requested: DispenseLineRequest['allocations']): Promise<ResolvedAllocation[]>` | `apps/api/src/services/pharmacy/dispense.service.ts:336` |  |
+| `resolveAllocations` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string, productId: string, productName: string, quantityBase: string, requested: DispenseLineRequest['allocations']): Promise<ResolvedAllocation[]>` | `apps/api/src/services/pharmacy/dispense.service.ts:337` |  |
 | `resolveBranchId` | `(ctx: TenantContext, named: string \| undefined, acting: string \| null \| undefined): string` | `apps/api/src/services/pharmacy/shared.ts:37` |  |
 | `resolveDispensingLocation` | `(tx: TxClient, branchId: string, locationId: string): Promise<DispensingLocation>` | `apps/api/src/services/pharmacy/shared.ts:68` |  |
 | `toDecisionSummary` | `(decision: RegulatoryDecisionResponse): DispenseRegulatorySummary` | `apps/api/src/services/pharmacy/shared.ts:114` |  |
-| `toDetail` <sub>local</sub> | `(row: DetailRow): DispenseDetail` | `apps/api/src/services/pharmacy/dispense.service.ts:169` |  |
-| `toSummary` <sub>local</sub> | `(row: DetailRow): DispenseSummary` | `apps/api/src/services/pharmacy/dispense.service.ts:146` |  |
+| `toDetail` <sub>local</sub> | `(row: DetailRow): DispenseDetail` | `apps/api/src/services/pharmacy/dispense.service.ts:170` |  |
+| `toSummary` <sub>local</sub> | `(row: DetailRow): DispenseSummary` | `apps/api/src/services/pharmacy/dispense.service.ts:147` |  |
 | `verifyPrescription` | `(ctx: TenantContext, encounterId: string, body: VerifyPrescriptionRequest, options: PharmacyActionOptions): Promise<PharmacyPrescriptionDetail>` | `apps/api/src/services/pharmacy/queue.service.ts:423` |  |
 
 ## const
@@ -56,7 +57,7 @@ Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pha
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.DispenseInclude>()(…)` | `apps/api/src/services/pharmacy/dispense.service.ts:72` |  |
+| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.DispenseInclude>()(…)` | `apps/api/src/services/pharmacy/dispense.service.ts:73` |  |
 
 ## interface
 
@@ -65,12 +66,12 @@ Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pha
 | `DecisionSnapshotInput` | `{ branchId, productId, transaction, quantityBase, decision }` | `apps/api/src/services/pharmacy/shared.ts:137` |  |
 | `DispensingLocation` | `{ id, name, kind, requiresControlledAccess, hasControlledAccess }` | `apps/api/src/services/pharmacy/shared.ts:52` |  |
 | `PharmacyActionOptions` | `{ ipAddress, userAgent, route, actingBranchId, roleCodes }` | `apps/api/src/services/pharmacy/queue.service.ts:45` | The audit/data-access metadata a route hands down. |
-| `ResolvedAllocation` <sub>local</sub> | `{ locationId, batchId, serialId, quantityBase, isOverride, overrideReason, lotNumber, expiresOn, serialNumber }` | `apps/api/src/services/pharmacy/dispense.service.ts:309` |  |
-| `SupplyConsultation` | `{ branchId, productId, locationId, quantityBase, transaction, occurredAt, prescription, patient, substitution, traceability, priorQuantityInPeriodBase, actor, documentId }` | `apps/api/src/services/pharmacy/consult.ts:45` |  |
-| `SupplyDecision` | `{ decisionId, summary, decision }` | `apps/api/src/services/pharmacy/consult.ts:70` |  |
+| `ResolvedAllocation` <sub>local</sub> | `{ locationId, batchId, serialId, quantityBase, isOverride, overrideReason, lotNumber, expiresOn, serialNumber }` | `apps/api/src/services/pharmacy/dispense.service.ts:310` |  |
+| `SupplyConsultation` | `{ branchId, productId, locationId, quantityBase, transaction, occurredAt, prescription, patient, substitution, traceability, priorQuantityInPeriodBase, patientId, actor, documentId }` | `apps/api/src/services/pharmacy/consult.ts:46` |  |
+| `SupplyDecision` | `{ decisionId, summary, decision }` | `apps/api/src/services/pharmacy/consult.ts:86` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DetailRow` <sub>local</sub> | `Prisma.DispenseGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/pharmacy/dispense.service.ts:103` |  |
+| `DetailRow` <sub>local</sub> | `Prisma.DispenseGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/pharmacy/dispense.service.ts:104` |  |

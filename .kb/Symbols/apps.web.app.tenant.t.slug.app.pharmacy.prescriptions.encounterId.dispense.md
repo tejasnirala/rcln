@@ -10,10 +10,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/prescriptions/[encount
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DispenseWorkspacePage` | `({ params, }: { params: Promise<{ slug: string; encounterId:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/prescriptions/[encounterId]/dispense/page.tsx:35` |  |
+| `DispenseWorkspacePage` | `({ params, }: { params: Promise<{ slug: string; encounterId:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/prescriptions/[encounterId]/dispense/page.tsx:48` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/prescriptions/[encounterId]/dispense/page.tsx:14` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/prescriptions/[encounterId]/dispense/page.tsx:15` |  |

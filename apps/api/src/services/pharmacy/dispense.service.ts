@@ -54,6 +54,7 @@ import { recordDataAccess } from '../audit/data-access.service.js';
 import { issueNumber } from '../numbering/number-sequence.service.js';
 import { movementDeps, recordMovementIn } from '../inventory/movement.service.js';
 import { planStockAllocationWithin } from '../inventory/allocation.service.js';
+import { raiseChargeRequestsWithin } from '../charging/charge-request.service.js';
 import { consultForSupply } from './consult.js';
 import {
   ageYearsOn,
@@ -485,7 +486,15 @@ export async function createDispense(
               doctorProfile: { select: { userId: true } },
               patient: { select: { dateOfBirth: true, subjectType: true } },
               prescriptions: {
-                select: { id: true, productId: true, quantity: true, instructions: true },
+                select: {
+                  id: true,
+                  productId: true,
+                  quantity: true,
+                  instructions: true,
+                  /* The prescriber's endorsement of a repeat (PI-8, #8). */
+                  repeatsAuthorised: true,
+                  repeatsAuthorisedLimit: true,
+                },
               },
             },
           })
@@ -540,6 +549,13 @@ export async function createDispense(
       allocations: ResolvedAllocation[];
       decisionId: string;
       labelInstructions: string | null;
+      /**
+       * Filled in when the line is written, and read by the charge-request pass
+       * afterwards (PI-8). ⚠️ NOT optional in practice — every entry gets one
+       * before the loop that writes them ends — and typed as it is because the
+       * id does not exist when the entry is pushed.
+       */
+      dispenseLineId: string;
     }[] = [];
 
     let lineNumber = 0;
@@ -630,15 +646,31 @@ export async function createDispense(
                 })
               : 0,
             /*
-             * ⚠️ `repeatsAuthorised` IS DELIBERATELY ABSENT AND ABSENT IS NOT
-             *   FALSE. The clinical record has no field in which a prescriber can
-             *   endorse a repeat yet — CE-4's `encounter_prescriptions` carries a
-             *   quantity and a duration and nothing that says "may be dispensed
-             *   twice". The framework can now express it (`@rcln/regulatory`), and
-             *   the day the clinical side adds the field this is where it plugs
-             *   in. Until then an endorsed repeat is refused, which is the correct
-             *   direction to be wrong in and is recorded in KNOWN_ISSUES.
+             * ⚠️ THE PRESCRIBER'S ENDORSEMENT, READ FROM THE CLINICAL RECORD
+             *   (PI-8, closing KNOWN_ISSUES #8). PI-7 closed the framework half —
+             *   the engine has been able to be TOLD a repeat was endorsed since
+             *   then — and nothing could tell it, because `encounter_prescriptions`
+             *   had a quantity and a duration and no field saying "may be
+             *   dispensed twice". A lawful endorsed repeat was therefore refused.
+             *
+             * ⚠️ ABSENT IS STILL NOT `false`, AND THAT IS WHY THE COLUMN IS
+             *   NULLABLE AND THESE ARE SPREAD RATHER THAN COERCED. NULL is "the
+             *   prescriber did not address repeats", which is the ordinary case
+             *   and is what the engine treats as no endorsement; `false` is a
+             *   positive instruction that this may NOT be repeated. Sending
+             *   `repeatsAuthorised: false` for every prescription ever written
+             *   would turn silence into a refusal the prescriber never wrote.
+             *
+             * ⚠️ AND A `true` WITH NO LIMIT STILL RESOLVES `UNDETERMINED`, WHICH
+             *   REFUSES. An endorsement stating no number is not an unlimited
+             *   one — PI-7's tests pin exactly that, and nothing here weakens it.
              */
+            ...(prescriptionLine?.repeatsAuthorised != null
+              ? { repeatsAuthorised: prescriptionLine.repeatsAuthorised }
+              : {}),
+            ...(prescriptionLine?.repeatsAuthorisedLimit != null
+              ? { repeatsAuthorisedLimit: prescriptionLine.repeatsAuthorisedLimit }
+              : {}),
           }
         : undefined;
 
@@ -650,6 +682,13 @@ export async function createDispense(
         transaction: body.kind === 'COUNTER_SALE' ? 'COUNTER_SALE' : 'DISPENSE',
         occurredAt: dispensedAt,
         documentId: dispenseId,
+        /*
+         * ⚠️ WHO THIS IS FOR, SO A QUANTITY LIMIT CAN BE COUNTED (PI-8). NULL on
+         *   a counter sale to somebody with no patient record — there is no
+         *   history to sum, so a period rule stays `UNDETERMINED` and refuses
+         *   rather than reading as "they have had none".
+         */
+        patientId,
         ...(prescriptionFacts ? { prescription: prescriptionFacts } : {}),
         ...(encounter
           ? {
@@ -691,6 +730,8 @@ export async function createDispense(
         allocations,
         decisionId: consultation.decisionId,
         labelInstructions: line.labelInstructions ?? prescriptionLine?.instructions ?? null,
+        /* Replaced with the real id the moment the line row is written, below. */
+        dispenseLineId: '',
       });
     }
 
@@ -743,6 +784,14 @@ export async function createDispense(
         },
         select: { id: true },
       });
+
+      /*
+       * Kept so the charge requests can cite the lines by id after the loop
+       * (PI-8). Raising them inside this loop would mean resolving the policy,
+       * the price and the tax category per line with the unit graph and the
+       * branch's jurisdiction re-read each time.
+       */
+      item.dispenseLineId = created.id;
 
       for (const allocation of item.allocations) {
         await tx.dispenseAllocation.create({
@@ -799,6 +848,39 @@ export async function createDispense(
     if (encounter) {
       await refreshFulfilment(tx, ctx, encounter.id, branchId);
     }
+
+    /*
+     * ⚠️ THE MONEY SIDE, IN THE SAME TRANSACTION AS THE SUPPLY (PI-8), AND
+     *   PHARMACY STILL OWNS NO RATE. This writes `charge_requests` — the
+     *   structured hand-off PI-ADR-005 requires — and no invoice, no price
+     *   decision and no tax figure. `raiseChargeRequestsWithin` resolves the
+     *   clinic's charge POLICY, reads its price list and asks
+     *   `resolveTaxCategory` for a category string; everything downstream is
+     *   `services/invoicing` and `@rcln/tax`, untouched.
+     *
+     * ⚠️ SAME TRANSACTION, BECAUSE A CHARGE THAT COULD COMMIT WITHOUT ITS
+     *   DISPENSE WILL, on the day the dispense rolls back — and the clinic bills
+     *   for medicine that never left the shelf.
+     *
+     * ⚠️ AND IT CANNOT STOP THE SUPPLY. A missing price or an unclassified
+     *   product is written as a NULL column and shown on the charge-review
+     *   screen; nothing in that path throws. A pharmacist handing somebody their
+     *   medicine must never be blocked because an accountant has not filled in a
+     *   grid — see the service header for how the two requirements are
+     *   reconciled.
+     */
+    await raiseChargeRequestsWithin(tx, ctx, {
+      branchId,
+      kind: 'SUPPLY',
+      patientId,
+      /* The instant it was HANDED OVER — it becomes the invoice's `suppliedAt`. */
+      occurredAt: dispensedAt,
+      lines: prepared.map((item) => ({
+        dispenseLineId: item.dispenseLineId,
+        productId: item.productId,
+        quantityBase: item.quantityBase,
+      })),
+    });
 
     /*
      * ⚠️ IDS AND COUNTS. No medicine name, no patient name — an audit row is read

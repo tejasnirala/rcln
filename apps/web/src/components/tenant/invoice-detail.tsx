@@ -15,6 +15,7 @@ import { INVOICE_SOURCE_LABELS } from '@/lib/invoice-filters';
 import {
   cancelInvoice,
   issueInvoice,
+  creditInvoice,
   voidInvoice,
   type InvoiceFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/invoices/actions';
@@ -45,6 +46,7 @@ export function InvoiceDetailScreen({
   canIssue,
   canCancel,
   canReadHistory,
+  canCredit,
 }: {
   slug: string;
   invoice: InvoiceDetail;
@@ -70,13 +72,33 @@ export function InvoiceDetailScreen({
    *   invoice the ledger correctly hides from them. See `audit.routes.ts`.
    */
   canReadHistory: boolean;
+  /**
+   * `billing.credit_note.issue` (PI-8).
+   *
+   * ⚠️ DELIBERATELY NOT IMPLIED BY `canCancel`, EVEN THOUGH BOTH REVERSE A BILL.
+   *   Voiding reverses a document in FULL and keeps its number; a credit note
+   *   reverses PART of one, several times over as stock comes back, and issues a
+   *   new document with its own statutory serial. A clinic that separates who may
+   *   do which is a control the seeded permission already anticipated.
+   */
+  canCredit: boolean;
 }) {
   const [state, setState] = useState<InvoiceFormState>({ status: 'idle' });
   const [pending, startTransition] = useTransition();
   const [editing, setEditing] = useState(false);
   /** Which confirmation is open. One at a time — they are all irreversible. */
-  const [asking, setAsking] = useState<'none' | 'issue' | 'cancel' | 'void'>('none');
+  const [asking, setAsking] = useState<'none' | 'issue' | 'cancel' | 'void' | 'credit'>('none');
   const [reason, setReason] = useState('');
+  /**
+   * How much of each line is coming back (PI-8).
+   *
+   * ⚠️ SEEDED WITH THE WHOLE INVOICE, BECAUSE THAT IS THE COMMON CASE. A patient
+   *   brought everything back, or the bill was raised in error. Untick a line or
+   *   lower its quantity for a partial return — the API takes the same shape
+   *   either way, and an EMPTY list is its own "credit all of it", which is what
+   *   is sent when every line is still ticked at its full quantity.
+   */
+  const [creditLines, setCreditLines] = useState<Record<string, string>>({});
 
   const outcome = useRef<HTMLDivElement>(null);
   useOutcomeFocus(state.status, outcome);
@@ -91,6 +113,21 @@ export function InvoiceDetailScreen({
    */
   const isVoidable =
     invoice.status === 'ISSUED' || invoice.status === 'PARTIALLY_PAID' || invoice.status === 'PAID';
+  /*
+   * ⚠️ THE SAME THREE STATUSES A VOID IS REACHABLE FROM, AND ONE MORE CONDITION:
+   *   a credit note is not itself creditable. `CREDITABLE_STATUSES` in
+   *   `credit-note.service.ts` is the definition this mirrors, and the extra
+   *   `kind` test is what stops the screen offering a control that produces a
+   *   422 telling somebody a note cannot credit a note.
+   *
+   * ⚠️ AND IT CHECKS WHAT IS LEFT. An invoice already credited in full has
+   *   nothing to reverse, and the engine refuses; hiding the button is the
+   *   honest map rather than a 409 from a control that looked available.
+   */
+  const isCreditable =
+    isVoidable &&
+    invoice.kind === 'INVOICE' &&
+    invoice.creditedTotalMinor < invoice.grandTotalMinor;
   const amount = (minor: number): string => formatMoney(money(minor, invoice.currency));
 
   function run(action: () => Promise<InvoiceFormState>): void {
@@ -100,6 +137,7 @@ export function InvoiceDetailScreen({
       if (result.status === 'done') {
         setAsking('none');
         setReason('');
+        setCreditLines({});
       }
     });
   }
@@ -173,6 +211,21 @@ export function InvoiceDetailScreen({
           {isDraft && canCancel && !editing ? (
             <Button variant="danger" size="sm" onClick={() => setAsking('cancel')}>
               Cancel the draft
+            </Button>
+          ) : null}
+          {isCreditable && canCredit && !editing ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                /* Every line, at its full quantity — the common case. */
+                setCreditLines(
+                  Object.fromEntries(invoice.items.map((item) => [item.id, item.quantity]))
+                );
+                setAsking('credit');
+              }}
+            >
+              Raise a credit note
             </Button>
           ) : null}
           {isVoidable && canCancel && !editing ? (
@@ -251,7 +304,7 @@ export function InvoiceDetailScreen({
       {asking === 'void' ? (
         <Confirm
           heading="Void this invoice?"
-          body="The number and the document both stand — the patient may be holding a copy — and the reason is the only account of why this bill was reversed. There is no credit note yet."
+          body="The number and the document both stand — the patient may be holding a copy — and the reason is the only account of why this bill was reversed. To reverse only part of it, raise a credit note instead."
           confirmLabel="Void the invoice"
           pending={pending}
           reason={{
@@ -264,6 +317,136 @@ export function InvoiceDetailScreen({
           onCancel={() => setAsking('none')}
           onConfirm={() => run(() => voidInvoice(slug, invoice.id, reason))}
         />
+      ) : null}
+
+      {asking === 'credit' ? (
+        <Confirm
+          heading="Raise a credit note?"
+          body="A credit note is a new document with its own number, reversing what you choose below at the rate that was in force when it was supplied. This invoice is not edited — it stands exactly as the patient received it."
+          confirmLabel="Raise the credit note"
+          pending={pending}
+          extra={
+            <div className="mt-4 max-w-prose">
+              <table className="w-full text-left text-sm">
+                <thead className="text-muted border-rule border-b text-xs">
+                  <tr>
+                    <th className="py-2 font-normal">
+                      <span className="sr-only">Include</span>
+                    </th>
+                    <th className="py-2 font-normal">Line</th>
+                    <th className="py-2 font-normal">Billed</th>
+                    <th className="py-2 font-normal">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoice.items.map((item) => {
+                    const included = creditLines[item.id] !== undefined;
+                    return (
+                      <tr key={item.id} className="border-rule border-b last:border-0">
+                        <td className="py-2">
+                          <input
+                            type="checkbox"
+                            checked={included}
+                            aria-label={`Credit ${item.description}`}
+                            onChange={() =>
+                              setCreditLines((current) => {
+                                const next = { ...current };
+                                if (included) delete next[item.id];
+                                else next[item.id] = item.quantity;
+                                return next;
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="py-2">{item.description}</td>
+                        <td className="py-2 tabular-nums">{item.quantity}</td>
+                        <td className="py-2">
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            disabled={!included}
+                            value={creditLines[item.id] ?? ''}
+                            aria-label={`Quantity of ${item.description} to credit`}
+                            onChange={(event) =>
+                              setCreditLines((current) => ({
+                                ...current,
+                                [item.id]: event.target.value,
+                              }))
+                            }
+                            className="border-rule w-24 rounded-sm border px-2 py-1 tabular-nums disabled:opacity-40"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {Object.keys(creditLines).length === 0 ? (
+                <p className="text-danger mt-2 text-[0.8125rem]">
+                  Choose at least one line to credit.
+                </p>
+              ) : null}
+            </div>
+          }
+          reason={{
+            value: reason,
+            onChange: setReason,
+            label: 'Why',
+            hint: 'Required. It prints on the credit note and is what an auditor asks first.',
+            errors: state.fieldErrors?.['reason'],
+          }}
+          onCancel={() => setAsking('none')}
+          onConfirm={() =>
+            run(() =>
+              creditInvoice(
+                slug,
+                invoice.id,
+                reason,
+                Object.entries(creditLines).map(([invoiceItemId, quantity]) => ({
+                  invoiceItemId,
+                  quantity,
+                }))
+              )
+            )
+          }
+        />
+      ) : null}
+
+      {/*
+        ⚠️ THE NOTES RAISED AGAINST THIS BILL, AND WHAT IS LEFT. Shown on the
+          invoice rather than only in the ledger, because "has this been
+          refunded?" is asked while looking at the bill. The totals are
+          POSITIVE on a credit note — the kind carries the sign — so the
+          subtraction is stated in words rather than left to the reader.
+      */}
+      {invoice.creditNotes.length > 0 ? (
+        <section
+          aria-labelledby="credit-notes"
+          className="border-rule bg-card rounded-md border p-4"
+        >
+          <h2 id="credit-notes" className="text-ink text-[1rem]">
+            Credited
+          </h2>
+          <p className="text-muted mt-1 text-[0.875rem]">
+            {amount(invoice.creditedTotalMinor)} of {amount(invoice.grandTotalMinor)} has been
+            reversed.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {invoice.creditNotes.map((note) => (
+              <li key={note.invoiceId} className="flex items-center justify-between gap-4">
+                <Link
+                  href={`/invoices/${note.invoiceId}`}
+                  className="text-drape text-[0.875rem] hover:underline"
+                >
+                  {note.invoiceNumber ?? 'Credit note'}
+                </Link>
+                <span className="text-ink text-[0.875rem] tabular-nums">
+                  {amount(note.grandTotalMinor)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       {invoice.cancellationReason === null ? null : (
@@ -588,6 +771,7 @@ function Confirm({
   confirmLabel,
   pending,
   reason,
+  extra,
   onCancel,
   onConfirm,
 }: {
@@ -602,6 +786,17 @@ function Confirm({
     hint: string;
     errors?: string[] | undefined;
   };
+  /**
+   * An optional block between the body and the reason — the credit dialog's line
+   * picker (PI-8).
+   *
+   * ⚠️ A SLOT RATHER THAN A SECOND CONFIRM COMPONENT. All four of these dialogs
+   *   are the same irreversible-action shape and share the heading, the reason
+   *   field, the disabled-while-pending pair and the "Keep it as it is" wording.
+   *   Forking one of them to add a table is how two dialogs that must behave
+   *   identically start drifting.
+   */
+  extra?: React.ReactNode;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -614,6 +809,7 @@ function Confirm({
         {heading}
       </h2>
       <p className="text-ink-soft mt-2 max-w-prose text-sm">{body}</p>
+      {extra}
       {reason ? (
         <div className="mt-4 max-w-prose">
           <Textarea

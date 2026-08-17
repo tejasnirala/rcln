@@ -38,15 +38,28 @@ export async function getPharmacyDashboard(
     if (!branch) throw new NotFoundError('Branch');
 
     /*
-     * ⚠️ THE DAY BOUNDARY IS UTC HERE AND THE BRANCH'S ELSEWHERE, WHICH IS A
-     *   KNOWN ROUGH EDGE ON A COUNTER. "Dispensed today" straddling midnight in a
-     *   clinic several hours off UTC will read a few hours early or late; the
-     *   expiry SWEEP resolves the branch's own day in SQL because a lot expiring
-     *   is a fact with consequences, and a count on a dashboard is not. Recorded
-     *   rather than silently accepted — invariant 6's exception list is short and
-     *   this is on it.
+     * ⚠️ THE BRANCH'S OWN DAY, RESOLVED IN POSTGRES (KNOWN_ISSUES #12, closed in
+     *   PI-8). This used to be `new Date().toISOString().slice(0, 10)` — the UTC
+     *   day — so "dispensed today" at a clinic several hours off UTC straddled
+     *   midnight wrongly and a pharmacist reading the counter first thing saw
+     *   yesterday's afternoon in today's count.
+     *
+     *   Resolved the way `inventory_branches_with_expired_stock` does it: in SQL,
+     *   from `branches.timezone`, never in Node. The container's zone is UTC and
+     *   the browser's is the user's, and neither is the clinic's — invariant 6.
+     *
+     *   The result is the branch-local midnight AS AN INSTANT, which is what the
+     *   `gte` comparisons below need: the columns are `timestamptz`, so the
+     *   boundary has to be a point in time rather than a calendar date.
      */
-    const startOfToday = new Date(new Date().toISOString().slice(0, 10));
+    const dayStart = await tx.$queryRaw<{ start_of_day: Date }[]>`
+      SELECT (date_trunc('day', now() AT TIME ZONE b.timezone) AT TIME ZONE b.timezone)
+               AS start_of_day
+        FROM branches b
+       WHERE b.id = ${branchId}::uuid
+    `;
+    const startOfToday =
+      dayStart[0]?.start_of_day ?? new Date(new Date().toISOString().slice(0, 10));
     const horizon = new Date(startOfToday);
     horizon.setUTCDate(horizon.getUTCDate() + EXPIRY_HORIZON_DAYS);
 

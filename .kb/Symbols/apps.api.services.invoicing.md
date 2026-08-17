@@ -4,132 +4,155 @@
 
 > Billing a consultation — the first integrated source on the invoice engine.
 
-Files: `apps/api/src/services/invoicing/appointment-billing.service.ts` · `apps/api/src/services/invoicing/invoice-lifecycle.service.ts` · `apps/api/src/services/invoicing/invoice-number.service.ts` · `apps/api/src/services/invoicing/invoice-visibility.ts` · `apps/api/src/services/invoicing/invoice.service.ts` · `apps/api/src/services/invoicing/issue-invoice.ts` · `apps/api/src/services/invoicing/money.ts` · `apps/api/src/services/invoicing/pricing.service.ts` · `apps/api/src/services/invoicing/tax.service.ts`
+Files: `apps/api/src/services/invoicing/appointment-billing.service.ts` · `apps/api/src/services/invoicing/charge-billing.service.ts` · `apps/api/src/services/invoicing/credit-note.service.ts` · `apps/api/src/services/invoicing/invoice-lifecycle.service.ts` · `apps/api/src/services/invoicing/invoice-number.service.ts` · `apps/api/src/services/invoicing/invoice-visibility.ts` · `apps/api/src/services/invoicing/invoice.service.ts` · `apps/api/src/services/invoicing/issue-invoice.ts` · `apps/api/src/services/invoicing/money.ts` · `apps/api/src/services/invoicing/pricing.service.ts` · `apps/api/src/services/invoicing/tax.service.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `addressOf` <sub>local</sub> | `(patient: BillableAppointment['patient']): string \| null` | `apps/api/src/services/invoicing/appointment-billing.service.ts:524` |  |
-| `assertRegistrationCoversBranch` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string, suppliedAt: Date): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:855` |  |
+| `addressOf` <sub>local</sub> | `(charge: ChargeRow): string \| null` | `apps/api/src/services/invoicing/charge-billing.service.ts:393` | The patient's primary address as one printable block. |
+| `assertCreditable` <sub>local</sub> | `(original: Original): void` | `apps/api/src/services/invoicing/credit-note.service.ts:260` |  |
+| `assertOneBill` <sub>local</sub> | `(charges: readonly ChargeRow[]): ChargeRow` | `apps/api/src/services/invoicing/charge-billing.service.ts:227` |  |
+| `assertRegistrationCoversBranch` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string, suppliedAt: Date): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:901` |  |
+| `assertWithinRemaining` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, original: Original, draftId: string): Promise<void>` | `apps/api/src/services/invoicing/credit-note.service.ts:467` |  |
+| `attachToInvoice` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string, charges: readonly ChargeRow[]): Promise<void>` | `apps/api/src/services/invoicing/charge-billing.service.ts:346` |  |
 | `auditOptions` | `(options: InvoiceActionOptions): InvoiceAuditOptions` | `apps/api/src/services/invoicing/invoice.service.ts:81` |  |
-| `branchInstant` | `(tx: TxClient, branchId: string, day: string): Promise<Date>` | `apps/api/src/services/invoicing/invoice.service.ts:691` |  |
-| `branchLocalDateParts` <sub>local</sub> | `(tx: TxClient, branchId: string, instant: Date): Promise<Date>` | `apps/api/src/services/invoicing/invoice-number.service.ts:168` |  |
-| `cancelDraftInvoice` | `(tx: TxClient, ctx: TenantContext, input: { invoiceId: string; reason?: string \| null }, options: InvoiceAuditOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:562` |  |
-| `cancelInvoice` | `(ctx: TenantContext, input: { invoiceId: string; reason?: string \| null }, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:494` |  |
+| `branchInstant` | `(tx: TxClient, branchId: string, day: string): Promise<Date>` | `apps/api/src/services/invoicing/invoice.service.ts:731` |  |
+| `branchLocalDateParts` <sub>local</sub> | `(tx: TxClient, branchId: string, instant: Date): Promise<Date>` | `apps/api/src/services/invoicing/invoice-number.service.ts:204` |  |
+| `cancelDraftInvoice` | `(tx: TxClient, ctx: TenantContext, input: { invoiceId: string; reason?: string \| null }, options: InvoiceAuditOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:608` |  |
+| `cancelInvoice` | `(ctx: TenantContext, input: { invoiceId: string; reason?: string \| null }, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:534` |  |
 | `canSeePractitioner` | `(visibility: InvoiceVisibility, practitionerProfileId: string \| null): boolean` | `apps/api/src/services/invoicing/invoice-visibility.ts:188` |  |
 | `canSeeSource` | `(visibility: InvoiceVisibility, source: InvoiceSourceType): boolean` | `apps/api/src/services/invoicing/invoice-visibility.ts:211` |  |
-| `createDraftInvoice` | `(tx: TxClient, ctx: TenantContext, input: CreateDraftInvoiceInput, options: InvoiceAuditOptions): Promise<{ id: string }>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:146` |  |
-| `createInvoice` | `(ctx: TenantContext, input: CreateInvoiceServiceInput, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:401` |  |
+| `createCreditNote` | `(ctx: TenantContext, invoiceId: string, input: CreateCreditNoteRequest, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/credit-note.service.ts:139` |  |
+| `createDraftInvoice` | `(tx: TxClient, ctx: TenantContext, input: CreateDraftInvoiceInput, options: InvoiceAuditOptions): Promise<{ id: string }>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:169` |  |
+| `createInvoice` | `(ctx: TenantContext, input: CreateInvoiceServiceInput, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:441` |  |
 | `createInvoiceForAppointment` | `(ctx: TenantContext, appointmentId: string, input: CreateAppointmentInvoiceRequest, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:555` |  |
-| `currentDocument` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<CurrentDocument \| null>` | `apps/api/src/services/invoicing/invoice.service.ts:648` |  |
+| `createInvoiceFromCharges` | `(ctx: TenantContext, input: CreateInvoiceFromChargesRequest, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/charge-billing.service.ts:95` |  |
+| `creditedPerLine` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<Map<string, Prisma.Decimal>>` | `apps/api/src/services/invoicing/credit-note.service.ts:414` |  |
+| `currentDocument` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<CurrentDocument \| null>` | `apps/api/src/services/invoicing/invoice.service.ts:688` |  |
 | `customerName` <sub>local</sub> | `(patient: BillableAppointment['patient']): string` | `apps/api/src/services/invoicing/appointment-billing.service.ts:533` |  |
-| `dateColumn` <sub>local</sub> | `(value: string \| null \| undefined): Date \| null` | `apps/api/src/services/invoicing/invoice.service.ts:742` | `YYYY-MM-DD` → the value a `DATE` column takes, matching every other service. |
-| `dateRange` <sub>local</sub> | `(tx: TxClient, query: ListInvoicesQuery): Promise<[Date, Date] \| null>` | `apps/api/src/services/invoicing/invoice.service.ts:710` |  |
+| `customerName` <sub>local</sub> | `(charge: ChargeRow): string` | `apps/api/src/services/invoicing/charge-billing.service.ts:375` |  |
+| `dateColumn` <sub>local</sub> | `(value: string \| null \| undefined): Date \| null` | `apps/api/src/services/invoicing/invoice.service.ts:782` | `YYYY-MM-DD` → the value a `DATE` column takes, matching every other service. |
+| `dateRange` <sub>local</sub> | `(tx: TxClient, query: ListInvoicesQuery): Promise<[Date, Date] \| null>` | `apps/api/src/services/invoicing/invoice.service.ts:750` |  |
 | `daysBetween` <sub>local</sub> | `(from: string, to: string): number` | `apps/api/src/services/invoicing/appointment-billing.service.ts:265` | Whole days between two calendar dates. Both are plain days, so no zone applies. |
-| `discountColumns` <sub>local</sub> | `(discount: DiscountInput \| undefined): { discountType: 'PERCENTAGE' \| 'FIXED' \| null; discountBps:…` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1104` | The three columns that hold a discount AS ENTERED, on either table. |
-| `discountOf` <sub>local</sub> | `(row: DetailRow, currency: string): DiscountInputRequest \| null` | `apps/api/src/services/invoicing/invoice.service.ts:901` | The header discount, as entered — what re-opens the draft on the screen. |
-| `documentState` <sub>local</sub> | `(document: CurrentDocument \| null): InvoiceDocumentState` | `apps/api/src/services/invoicing/invoice.service.ts:912` |  |
-| `finalizeInvoice` | `(tx: TxClient, ctx: TenantContext, input: FinalizeInvoiceInput, options: InvoiceAuditOptions): Promise<FinalizedInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:444` |  |
+| `discountColumns` <sub>local</sub> | `(discount: DiscountInput \| undefined): { discountType: 'PERCENTAGE' \| 'FIXED' \| null; discountBps:…` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1156` | The three columns that hold a discount AS ENTERED, on either table. |
+| `discountOf` <sub>local</sub> | `(row: DetailRow, currency: string): DiscountInputRequest \| null` | `apps/api/src/services/invoicing/invoice.service.ts:968` | The header discount, as entered — what re-opens the draft on the screen. |
+| `documentState` <sub>local</sub> | `(document: CurrentDocument \| null): InvoiceDocumentState` | `apps/api/src/services/invoicing/invoice.service.ts:979` |  |
+| `finalizeInvoice` | `(tx: TxClient, ctx: TenantContext, input: FinalizeInvoiceInput, options: InvoiceAuditOptions): Promise<FinalizedInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:488` |  |
 | `getAppointmentBilling` | `(ctx: TenantContext, appointmentId: string): Promise<AppointmentBilling>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:472` |  |
-| `getInvoice` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:320` | One invoice, in full. Logged when it names a patient: this is the bill itself, with every line's description on it. |
-| `getInvoiceDocumentData` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDocumentData>` | `apps/api/src/services/invoicing/invoice.service.ts:372` |  |
-| `invoiceAuditSnapshot` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<AuditSnapshot>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:769` |  |
-| `invoiceCurrency` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility): Promise<string>` | `apps/api/src/services/invoicing/invoice.service.ts:603` |  |
+| `getInvoice` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:360` | One invoice, in full. Logged when it names a patient: this is the bill itself, with every line's description on it. |
+| `getInvoiceDocumentData` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDocumentData>` | `apps/api/src/services/invoicing/invoice.service.ts:412` |  |
+| `invoiceAuditSnapshot` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<AuditSnapshot>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:815` |  |
+| `invoiceCurrency` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility): Promise<string>` | `apps/api/src/services/invoicing/invoice.service.ts:643` |  |
 | `issueInvoice` | `(ctx: TenantContext, input: { invoiceId: string; issuedAt: Date }, options: InvoiceAuditOptions): Promise<FinalizedInvoice>` | `apps/api/src/services/invoicing/issue-invoice.ts:37` |  |
-| `issueInvoiceById` | `(ctx: TenantContext, input: { invoiceId: string; issuedOn?: string \| undefined }, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:475` |  |
-| `issueInvoiceNumber` | `(tx: TxClient, ctx: TenantContext, spec: InvoiceNumberSpec): Promise<IssuedNumber>` | `apps/api/src/services/invoicing/invoice-number.service.ts:97` | Take the next invoice number for a branch, source and period. Runs on the caller's transaction, so a finalisation that rolls back takes the number with it and … |
+| `issueInvoiceById` | `(ctx: TenantContext, input: { invoiceId: string; issuedOn?: string \| undefined }, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:515` |  |
+| `issueInvoiceNumber` | `(tx: TxClient, ctx: TenantContext, spec: InvoiceNumberSpec): Promise<IssuedNumber>` | `apps/api/src/services/invoicing/invoice-number.service.ts:123` | Take the next invoice number for a branch, source and period. Runs on the caller's transaction, so a finalisation that rolls back takes the number with it and … |
 | `line` <sub>local</sub> | `(text: string): string` | `apps/api/src/services/invoicing/appointment-billing.service.ts:445` | `invoice_items.description` is varchar(255), and a long name must not abort a bill. |
-| `listInvoices` | `(ctx: TenantContext, query: ListInvoicesQuery, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceListResult>` | `apps/api/src/services/invoicing/invoice.service.ts:195` |  |
+| `listInvoices` | `(ctx: TenantContext, query: ListInvoicesQuery, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceListResult>` | `apps/api/src/services/invoicing/invoice.service.ts:225` |  |
 | `liveInvoicesFor` | `(tx: TxClient, appointmentIds: readonly string[]): Promise<Map<string, AppointmentInvoiceLink>>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:158` |  |
 | `loadAppointment` <sub>local</sub> | `(tx: TxClient, appointmentId: string): Promise<BillableAppointment>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:453` |  |
-| `loadDraft` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<LoadedDraft>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1077` |  |
+| `loadDraft` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<LoadedDraft>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1129` |  |
 | `loadTaxContext` | `(tx: TxClient, ctx: TenantContext, branchId: string, at: Date): Promise<TaxContext>` | `apps/api/src/services/invoicing/tax.service.ts:64` |  |
-| `loadVisible` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility): Promise<DetailRow>` | `apps/api/src/services/invoicing/invoice.service.ts:536` |  |
+| `loadVisible` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility): Promise<DetailRow>` | `apps/api/src/services/invoicing/invoice.service.ts:576` |  |
+| `loadVisibleInvoice` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility): Promise<Original>` | `apps/api/src/services/invoicing/credit-note.service.ts:518` |  |
 | `lockAppointment` <sub>local</sub> | `(tx: TxClient, appointmentId: string): Promise<void>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:704` |  |
-| `logInvoiceRead` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoice: Pick<DetailRow, 'id' \| 'patientId' \| 'branchId'>, accessType: 'VIEW' \| 'PRINT', options: InvoiceActionOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice.service.ts:570` |  |
-| `minor` <sub>local</sub> | `(value: Prisma.Decimal, currency: string): number` | `apps/api/src/services/invoicing/invoice.service.ts:751` | The column → minor units, per row, at the row's own currency. |
-| `organizationCurrency` | `(tx: TxClient, ctx: TenantContext): Promise<string>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1124` |  |
-| `periodFor` | `(countryCode: string, localDate: Date): { key: string; startYear: number }` | `apps/api/src/services/invoicing/invoice-number.service.ts:123` | The period a date falls in, and the year that goes in the printed number. |
+| `lockCharges` <sub>local</sub> | `(tx: TxClient, ids: readonly string[]): Promise<void>` | `apps/api/src/services/invoicing/charge-billing.service.ts:366` |  |
+| `lockInvoice` <sub>local</sub> | `(tx: TxClient, invoiceId: string): Promise<void>` | `apps/api/src/services/invoicing/credit-note.service.ts:545` |  |
+| `logInvoiceRead` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoice: Pick<DetailRow, 'id' \| 'patientId' \| 'branchId'>, accessType: 'VIEW' \| 'PRINT', options: InvoiceActionOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice.service.ts:610` |  |
+| `minor` <sub>local</sub> | `(value: Prisma.Decimal, currency: string): number` | `apps/api/src/services/invoicing/invoice.service.ts:791` | The column → minor units, per row, at the row's own currency. |
+| `organizationCurrency` | `(tx: TxClient, ctx: TenantContext): Promise<string>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1176` |  |
+| `periodFor` | `(countryCode: string, localDate: Date): { key: string; startYear: number }` | `apps/api/src/services/invoicing/invoice-number.service.ts:159` | The period a date falls in, and the year that goes in the printed number. |
 | `practitionerProfileFor` | `(ctx: TenantContext): Promise<string \| null>` | `apps/api/src/services/invoicing/invoice-visibility.ts:235` |  |
-| `priceAndPersist` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, request: PricingRequest): Promise<PricedDraftInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:932` |  |
+| `priceAndPersist` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, request: PricingRequest): Promise<PricedDraftInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:980` |  |
 | `priceDraftInvoice` | `(tx: TxClient, ctx: TenantContext, input: DraftInvoiceInput): Promise<PricedDraftInvoice>` | `apps/api/src/services/invoicing/pricing.service.ts:77` |  |
-| `readInvoiceDetail` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions, log: boolean): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:345` |  |
-| `recordInvoicePrint` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<{ invoiceNumber: string \| null; documentId: string …` | `apps/api/src/services/invoicing/invoice.service.ts:615` | The public half of the above, for the PDF route, which reads bytes not rows. |
-| `repriceDraftInvoice` | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<PricedDraftInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:355` |  |
-| `repriceLoadedDraft` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoice: LoadedDraft): Promise<PricedDraftInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:364` | The half of the above that a caller which has already loaded the draft uses. |
+| `readInvoiceDetail` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions, log: boolean): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:385` |  |
+| `recordInvoicePrint` | `(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<{ invoiceNumber: string \| null; documentId: string …` | `apps/api/src/services/invoicing/invoice.service.ts:655` | The public half of the above, for the PDF route, which reads bytes not rows. |
+| `repriceDraftInvoice` | `(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<PricedDraftInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:398` |  |
+| `repriceLoadedDraft` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, invoice: LoadedDraft): Promise<PricedDraftInvoice>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:407` | The half of the above that a caller which has already loaded the draft uses. |
 | `requestInvoicePdf` | `(ctx: TenantContext, job: InvoicePdfJob, attempt): Promise<void>` | `apps/api/src/services/invoicing/issue-invoice.ts:67` |  |
 | `rescheduleCharges` <sub>local</sub> | `(tx: TxClient, appointmentId: string, currency: string): Promise<{ totalMinor: number; count: number; lines: DraftLi…` | `apps/api/src/services/invoicing/appointment-billing.service.ts:402` |  |
-| `resolveBranch` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string): Promise<{ code: string; countryCode: string }>` | `apps/api/src/services/invoicing/invoice-number.service.ts:137` |  |
+| `resolveBranch` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string): Promise<{ code: string; countryCode: string }>` | `apps/api/src/services/invoicing/invoice-number.service.ts:173` |  |
 | `resolveCharge` <sub>local</sub> | `(tx: TxClient, appointment: BillableAppointment, dates: { suppliedOn: string; parentOn: string \| null }, currency: string): Promise<{ charge: ConsultationCharge \| null; unpricedReason…` | `apps/api/src/services/invoicing/appointment-billing.service.ts:304` |  |
 | `resolveInvoiceVisibility` | `(holds: (permission: PermissionCode) => Promise<boolean>, practitionerProfileId: string \| null): Promise<InvoiceVisibility>` | `apps/api/src/services/invoicing/invoice-visibility.ts:125` |  |
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, appointment: BillableAppointment, dates: { suppliedOn: string; parentOn: string \| null }, currency: string, input: CreateAppointmentInvoiceRequest): Promise<DraftLineInput[]>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:664` |  |
-| `summariseTaxes` <sub>local</sub> | `(items: DetailRow['items'], currency: string): InvoiceTaxLine[]` | `apps/api/src/services/invoicing/invoice.service.ts:864` |  |
+| `resolveLines` <sub>local</sub> | `(original: Original, input: CreateCreditNoteRequest, alreadyCreditedByItem: ReadonlyMap<string, Prisma.Decimal>): ResolvedCreditLine[]` | `apps/api/src/services/invoicing/credit-note.service.ts:306` |  |
+| `summariseTaxes` <sub>local</sub> | `(items: DetailRow['items'], currency: string): InvoiceTaxLine[]` | `apps/api/src/services/invoicing/invoice.service.ts:931` |  |
 | `taxForItem` | `(context: TaxContext, input: { net: Money; /** Matched exactly against `tax_rules…): TaxQuote` | `apps/api/src/services/invoicing/tax.service.ts:256` |  |
 | `toDecimal` | `(value: Money): Prisma.Decimal` | `apps/api/src/services/invoicing/money.ts:28` | Minor units -> the column. |
-| `toDetail` <sub>local</sub> | `(row: DetailRow, document: Awaited<ReturnType<typeof currentDocument>>): InvoiceDetail` | `apps/api/src/services/invoicing/invoice.service.ts:782` |  |
-| `toItemDetail` <sub>local</sub> | `(item: DetailRow['items'][number], currency: string): InvoiceItemDetail` | `apps/api/src/services/invoicing/invoice.service.ts:824` |  |
+| `toDetail` <sub>local</sub> | `(row: DetailRow, document: Awaited<ReturnType<typeof currentDocument>>): InvoiceDetail` | `apps/api/src/services/invoicing/invoice.service.ts:824` |  |
+| `toItemDetail` <sub>local</sub> | `(item: DetailRow['items'][number], currency: string): InvoiceItemDetail` | `apps/api/src/services/invoicing/invoice.service.ts:891` |  |
+| `toLine` <sub>local</sub> | `(charge: ChargeRow, currency: string): DraftLineInput` | `apps/api/src/services/invoicing/charge-billing.service.ts:318` |  |
 | `toLink` <sub>local</sub> | `(row: LinkRow): AppointmentInvoiceLink` | `apps/api/src/services/invoicing/appointment-billing.service.ts:126` |  |
-| `toListItem` <sub>local</sub> | `(row: ListRow): InvoiceListItem` | `apps/api/src/services/invoicing/invoice.service.ts:754` |  |
+| `toListItem` <sub>local</sub> | `(row: ListRow): InvoiceListItem` | `apps/api/src/services/invoicing/invoice.service.ts:794` |  |
 | `toMoney` | `(value: Prisma.Decimal, currency: string): Money` | `apps/api/src/services/invoicing/money.ts:39` |  |
-| `updateDraftInvoice` | `(tx: TxClient, ctx: TenantContext, input: UpdateDraftInvoiceInput, options: InvoiceAuditOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:287` |  |
-| `updateInvoice` | `(ctx: TenantContext, input: UpdateInvoiceServiceInput, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:435` |  |
+| `updateDraftInvoice` | `(tx: TxClient, ctx: TenantContext, input: UpdateDraftInvoiceInput, options: InvoiceAuditOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:329` |  |
+| `updateInvoice` | `(ctx: TenantContext, input: UpdateInvoiceServiceInput, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:475` |  |
 | `visitDates` <sub>local</sub> | `(tx: TxClient, appointmentId: string): Promise<{ suppliedOn: string; parentOn: string \| null }>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:245` |  |
-| `voidInvoice` | `(tx: TxClient, ctx: TenantContext, input: { invoiceId: string; reason: string }, options: InvoiceAuditOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:620` |  |
-| `voidIssuedInvoice` | `(ctx: TenantContext, input: { invoiceId: string; reason: string }, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:508` |  |
+| `voidInvoice` | `(tx: TxClient, ctx: TenantContext, input: { invoiceId: string; reason: string }, options: InvoiceAuditOptions): Promise<void>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:666` |  |
+| `voidIssuedInvoice` | `(ctx: TenantContext, input: { invoiceId: string; reason: string }, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>` | `apps/api/src/services/invoicing/invoice.service.ts:548` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `APPOINTMENT_SELECT` <sub>local</sub> | `{ id: true, branchId: true, patientId: true, doctorProfileI…` | `apps/api/src/services/invoicing/appointment-billing.service.ts:187` |  |
-| `AUDIT_SELECT` <sub>local</sub> | `{ status: true, sourceType: true, branchId: true, appointme…` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:726` |  |
+| `AUDIT_SELECT` <sub>local</sub> | `{ status: true, sourceType: true, branchId: true, appointme…` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:772` |  |
 | `BLOCKED_BY_STATUS` <sub>local</sub> | `: Partial<Record<AppointmentStatusValue, AppointmentBillingBlockedReason>>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:101` | Statuses in which a visit is not something to raise a bill for. |
 | `CASH_ROUNDING_KEY` <sub>local</sub> | `'billing.cash_rounding_minor'` | `apps/api/src/services/invoicing/pricing.service.ts:67` |  |
+| `CHARGE_SELECT` <sub>local</sub> | `{ id: true, branchId: true, sourceType: true, kind: true, s…` | `apps/api/src/services/invoicing/charge-billing.service.ts:46` |  |
 | `CONSULTATION_TAX_CATEGORY` <sub>local</sub> | `'CONSULTATION'` | `apps/api/src/services/invoicing/appointment-billing.service.ts:98` |  |
-| `DETAIL_SELECT` <sub>local</sub> | `{ ...LIST_SELECT, appointmentId: true, /* Not printed — `lo…` | `apps/api/src/services/invoicing/invoice.service.ts:109` |  |
-| `DOCUMENT_SELECT` <sub>local</sub> | `{ fileId: true, generatedAt: true, file: { select: { status…` | `apps/api/src/services/invoicing/invoice.service.ts:640` |  |
-| `DRAFT_SELECT` <sub>local</sub> | `{ id: true, branchId: true, status: true, sourceType: true,…` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1048` |  |
-| `FINANCIAL_YEAR_COUNTRIES` <sub>local</sub> | `new Set(…)` | `apps/api/src/services/invoicing/invoice-number.service.ts:77` |  |
+| `CREDITABLE_STATUSES` <sub>local</sub> | `['ISSUED', 'PARTIALLY_PAID', 'PAID'] as const` | `apps/api/src/services/invoicing/credit-note.service.ts:66` |  |
+| `DETAIL_SELECT` <sub>local</sub> | `{ ...LIST_SELECT, appointmentId: true, /* Not printed — `lo…` | `apps/api/src/services/invoicing/invoice.service.ts:112` |  |
+| `DOCUMENT_SELECT` <sub>local</sub> | `{ fileId: true, generatedAt: true, file: { select: { status…` | `apps/api/src/services/invoicing/invoice.service.ts:680` |  |
+| `DRAFT_SELECT` <sub>local</sub> | `{ id: true, branchId: true, status: true, sourceType: true,…` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1097` |  |
+| `FINANCIAL_YEAR_COUNTRIES` <sub>local</sub> | `new Set(…)` | `apps/api/src/services/invoicing/invoice-number.service.ts:98` |  |
 | `GENERAL_SOURCES` <sub>local</sub> | `INVOICE_SOURCE_TYPES.filter(…)` | `apps/api/src/services/invoicing/invoice-visibility.ts:72` | The sources any holder of `billing.invoice.read` sees. |
-| `IMPOSSIBLE_ID` <sub>local</sub> | `randomUUID(…)` | `apps/api/src/services/invoicing/invoice.service.ts:173` |  |
+| `IMPOSSIBLE_ID` <sub>local</sub> | `randomUUID(…)` | `apps/api/src/services/invoicing/invoice.service.ts:203` |  |
 | `INVOICE_SOURCE_TYPES` | `[ 'APPOINTMENT', 'PROCEDURE', 'SERVICE', 'LAB', 'PHARMACY',…` | `apps/api/src/services/invoicing/invoice-visibility.ts:41` |  |
+| `KIND_PREFIXES` <sub>local</sub> | `{ INVOICE: 'INV', CREDIT_NOTE: 'CRN', } as const` | `apps/api/src/services/invoicing/invoice-number.service.ts:82` |  |
 | `LINK_SELECT` <sub>local</sub> | `{ id: true, appointmentId: true, invoiceNumber: true, statu…` | `apps/api/src/services/invoicing/appointment-billing.service.ts:113` |  |
-| `LIST_SELECT` <sub>local</sub> | `{ id: true, invoiceNumber: true, status: true, sourceType: …` | `apps/api/src/services/invoicing/invoice.service.ts:92` |  |
+| `LIST_SELECT` <sub>local</sub> | `{ id: true, invoiceNumber: true, /* PI-8: a charge or a rev…` | `apps/api/src/services/invoicing/invoice.service.ts:92` |  |
+| `LIVE_NOTE_STATUSES` <sub>local</sub> | `['DRAFT', 'FINALIZING', 'ISSUED', 'PARTIALLY_PAID', 'PAID'] as const` | `apps/api/src/services/invoicing/credit-note.service.ts:69` | Credit notes that count against the invoice's remaining creditable value. |
 | `LIVE_STATUSES` <sub>local</sub> | `[ 'DRAFT', 'FINALIZING', 'ISSUED', 'PARTIALLY_PAID', 'PAID'…` | `apps/api/src/services/invoicing/appointment-billing.service.ts:75` |  |
 | `MODULE_GATED` <sub>local</sub> | `{ LAB: PERMISSIONS.LAB_ORDER_READ, PHARMACY: PERMISSIONS.DI…` | `apps/api/src/services/invoicing/invoice-visibility.ts:65` |  |
+| `ORIGINAL_SELECT` <sub>local</sub> | `{ id: true, kind: true, status: true, branchId: true, sourc…` | `apps/api/src/services/invoicing/credit-note.service.ts:71` |  |
 | `SOURCE_CODES` <sub>local</sub> | `{ APPOINTMENT: 'APP', PROCEDURE: 'PRO', SERVICE: 'SRV', LAB: 'LAB', PHARMACY: 'PHA', INVE…` | `apps/api/src/services/invoicing/invoice-number.service.ts:56` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `CreateDraftInvoiceInput` | `{ branchId, sourceType, appointmentId, patientId, customer, practitioner, suppliedAt, dueDate, currency, lines, discount, notes }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:75` |  |
-| `CreateInvoiceServiceInput` | `{ suppliedOn, dueOn }` | `apps/api/src/services/invoicing/invoice.service.ts:392` |  |
+| `CreateDraftInvoiceInput` | `{ branchId, sourceType, kind, creditedInvoiceId, appointmentId, patientId, customer, practitioner, suppliedAt, dueDate, currency, lines, discount, notes }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:87` |  |
+| `CreateInvoiceServiceInput` | `{ suppliedOn, dueOn }` | `apps/api/src/services/invoicing/invoice.service.ts:432` |  |
 | `DraftInvoiceInput` | `{ branchId, suppliedAt, currency, lines, discount, customerTaxId }` | `apps/api/src/services/invoicing/pricing.service.ts:33` |  |
-| `DraftLineInput` | `{ description, taxCategory, itemCode, quantity, unitPrice, discount }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:62` |  |
-| `FinalizedInvoice` | `{ id, branchId, invoiceNumber, issuedAt, grandTotal }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:417` |  |
-| `FinalizeInvoiceInput` | `{ invoiceId, issuedAt }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:122` |  |
+| `DraftLineInput` | `{ description, creditedInvoiceItemId, taxCategory, itemCode, quantity, unitPrice, discount }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:62` |  |
+| `FinalizedInvoice` | `{ id, branchId, invoiceNumber, issuedAt, grandTotal }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:461` |  |
+| `FinalizeInvoiceInput` | `{ invoiceId, issuedAt }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:145` |  |
 | `InvoiceActionOptions` | `{ ipAddress, userAgent, route }` | `apps/api/src/services/invoicing/invoice.service.ts:64` | Request metadata, carried onto the disclosure trail. |
-| `InvoiceAuditOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:693` |  |
-| `InvoiceListResult` | `{ invoices, total }` | `apps/api/src/services/invoicing/invoice.service.ts:178` |  |
-| `InvoiceNumberSpec` | `{ branchId, sourceType, issuedAt }` | `apps/api/src/services/invoicing/invoice-number.service.ts:79` |  |
+| `InvoiceAuditOptions` | `{ ipAddress, userAgent }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:739` |  |
+| `InvoiceListResult` | `{ invoices, total }` | `apps/api/src/services/invoicing/invoice.service.ts:208` |  |
+| `InvoiceNumberSpec` | `{ branchId, sourceType, kind, issuedAt }` | `apps/api/src/services/invoicing/invoice-number.service.ts:100` |  |
 | `InvoiceVisibility` | `{ scopedToOwnWork, practitionerProfileId, all, sources }` | `apps/api/src/services/invoicing/invoice-visibility.ts:74` |  |
 | `PricedDraftInvoice` | `{ issuerTaxRegistrationId, issuerLegalName }` | `apps/api/src/services/invoicing/pricing.service.ts:70` | Everything a Phase 5 finalisation needs to write, and nothing it has written. |
-| `PricingRequest` <sub>local</sub> | `{ invoiceId, branchId, currency, suppliedAt, customerTaxId, discount, lines }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:908` |  |
-| `StagedLine` <sub>local</sub> | `{ lineNumber, itemCode, input }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:902` |  |
+| `PricingRequest` <sub>local</sub> | `{ invoiceId, branchId, currency, suppliedAt, customerTaxId, discount, lines }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:956` |  |
+| `ResolvedCreditLine` <sub>local</sub> | `{ draft }` | `apps/api/src/services/invoicing/credit-note.service.ts:276` |  |
+| `StagedLine` <sub>local</sub> | `{ lineNumber, itemCode, creditedInvoiceItemId, input }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:948` |  |
 | `TaxContext` | `{ registrations, rules, placeOfSupply }` | `apps/api/src/services/invoicing/tax.service.ts:44` |  |
-| `UpdateDraftInvoiceInput` | `{ invoiceId }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:262` |  |
-| `UpdateInvoiceServiceInput` | `{ suppliedOn, dueOn }` | `apps/api/src/services/invoicing/invoice.service.ts:427` |  |
+| `UpdateDraftInvoiceInput` | `{ invoiceId }` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:304` |  |
+| `UpdateInvoiceServiceInput` | `{ suppliedOn, dueOn }` | `apps/api/src/services/invoicing/invoice.service.ts:467` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `BillableAppointment` <sub>local</sub> | `Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:229` |  |
-| `CurrentDocument` <sub>local</sub> | `Prisma.InvoiceDocumentGetPayload<{ select: typeof DOCUMENT_SELECT }>` | `apps/api/src/services/invoicing/invoice.service.ts:646` |  |
-| `DetailRow` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof DETAIL_SELECT }>` | `apps/api/src/services/invoicing/invoice.service.ts:176` |  |
+| `ChargeRow` <sub>local</sub> | `Prisma.ChargeRequestGetPayload<{ select: typeof CHARGE_SELECT }>` | `apps/api/src/services/invoicing/charge-billing.service.ts:77` |  |
+| `CurrentDocument` <sub>local</sub> | `Prisma.InvoiceDocumentGetPayload<{ select: typeof DOCUMENT_SELECT }>` | `apps/api/src/services/invoicing/invoice.service.ts:686` |  |
+| `DetailRow` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof DETAIL_SELECT }>` | `apps/api/src/services/invoicing/invoice.service.ts:206` |  |
+| `InvoiceKind` | `keyof typeof KIND_PREFIXES` | `apps/api/src/services/invoicing/invoice-number.service.ts:87` |  |
 | `InvoiceSourceType` | `keyof typeof SOURCE_CODES` | `apps/api/src/services/invoicing/invoice-number.service.ts:66` |  |
 | `LinkRow` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof LINK_SELECT }>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:124` |  |
-| `ListRow` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof LIST_SELECT }>` | `apps/api/src/services/invoicing/invoice.service.ts:175` |  |
-| `LoadedDraft` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof DRAFT_SELECT }>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1075` |  |
+| `ListRow` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof LIST_SELECT }>` | `apps/api/src/services/invoicing/invoice.service.ts:205` |  |
+| `LoadedDraft` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof DRAFT_SELECT }>` | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:1127` |  |
+| `Original` <sub>local</sub> | `Prisma.InvoiceGetPayload<{ select: typeof ORIGINAL_SELECT }>` | `apps/api/src/services/invoicing/credit-note.service.ts:114` |  |

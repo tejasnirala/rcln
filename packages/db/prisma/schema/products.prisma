@@ -306,6 +306,10 @@ model UnitOfMeasure {
   /// Pharmacy (PI-7). The unit the person at the counter thought in — twelve
   /// tablets, one bottle — before conversion to the product's base unit.
   dispenseLines       DispenseLine[]            @relation("DispenseLineUnit")
+  /// Charging (PI-8). The unit a price is PER — a clinic prices a strip, not a
+  /// tablet — and the unit the invoice line's quantity is therefore expressed in.
+  productPrices       ProductPrice[]            @relation("ProductPriceUnit")
+  chargeRequests      ChargeRequest[]           @relation("ChargeRequestUnit")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -392,6 +396,9 @@ model ProductCategory {
   /// has no RLS policy, so a rule pointing at one clinic's private category
   /// would leak its name to all of them. A trigger in the migration refuses it.
   regulatoryRules RegulatoryRule[]  @relation("RegulatoryRuleCategory")
+  /// Charging (PI-8). A clinic answers "is this billed?" for a whole category —
+  /// "consumables are never billed" is one row rather than four hundred.
+  chargePolicyRules ChargePolicyRule[] @relation("ChargePolicyRuleCategory")
 
   @@unique([organizationId, code])
   @@unique([organizationId, id])
@@ -717,6 +724,11 @@ model Product {
   /// something else was handed over.
   dispenseSubstitutions DispenseLine[]           @relation("DispenseLineSubstitutedFor")
   regulatoryDecisions RegulatoryDecision[]
+  /// Charging (PI-8). Plain FKs again, for the reason the two above are: a
+  /// clinic prices and bills PLATFORM products.
+  chargePolicyRules   ChargePolicyRule[]         @relation("ChargePolicyRuleProduct")
+  prices              ProductPrice[]             @relation("ProductPriceProduct")
+  chargeRequests      ChargeRequest[]            @relation("ChargeRequestProduct")
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   /// Which specialties this product is relevant to. ⚠️ RANKS, NEVER FILTERS —

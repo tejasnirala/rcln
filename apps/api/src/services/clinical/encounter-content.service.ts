@@ -157,6 +157,9 @@ const PRESCRIPTION_SELECT = {
   startDate: true,
   endDate: true,
   isPrn: true,
+  /* The prescriber's endorsement of a repeat (PI-8, KNOWN_ISSUES #8). */
+  repeatsAuthorised: true,
+  repeatsAuthorisedLimit: true,
   instructions: true,
   notes: true,
   displayOrder: true,
@@ -412,6 +415,8 @@ export async function encounterContentOf(
       startDate: isoDate(row.startDate),
       endDate: isoDate(row.endDate),
       isPrn: row.isPrn,
+      repeatsAuthorised: row.repeatsAuthorised,
+      repeatsAuthorisedLimit: row.repeatsAuthorisedLimit,
       instructions: row.instructions,
       notes: row.notes,
       displayOrder: row.displayOrder,
@@ -1068,6 +1073,13 @@ const PRESCRIPTION_FIELDS = [
   'foodRelation',
   'timing',
   'isPrn',
+  /*
+   * ⚠️ ON THE AMEND/COPY LIST, because an endorsed repeat is part of what the
+   *   prescriber wrote and an amended prescription that silently dropped it
+   *   would turn a lawful repeat back into a refusal.
+   */
+  'repeatsAuthorised',
+  'repeatsAuthorisedLimit',
   'instructions',
   'notes',
   'displayOrder',
@@ -1123,6 +1135,19 @@ export async function addPrescription(
         ...(input.startDate != null ? { startDate: toDate(input.startDate) as Date } : {}),
         ...(input.endDate != null ? { endDate: toDate(input.endDate) as Date } : {}),
         ...(input.isPrn !== undefined ? { isPrn: input.isPrn } : {}),
+        /*
+         * ⚠️ `!== undefined`, NOT `!= null`, AND THE DIFFERENCE IS THE WHOLE
+         *   POINT OF THE COLUMN. An explicit `false` — "this may NOT be
+         *   repeated" — is a positive instruction the prescriber gave, and
+         *   `!= null` would drop it on the floor along with the `null` that
+         *   means they said nothing. Same treatment `isPrn` gets above.
+         */
+        ...(input.repeatsAuthorised !== undefined
+          ? { repeatsAuthorised: input.repeatsAuthorised }
+          : {}),
+        ...(input.repeatsAuthorisedLimit !== undefined
+          ? { repeatsAuthorisedLimit: input.repeatsAuthorisedLimit }
+          : {}),
         ...(input.instructions != null ? { instructions: input.instructions } : {}),
         ...(input.notes != null ? { notes: input.notes } : {}),
         displayOrder,
@@ -2167,6 +2192,8 @@ export async function copyContentToAmendment(
         startDate: row.startDate,
         endDate: row.endDate,
         isPrn: row.isPrn,
+        repeatsAuthorised: row.repeatsAuthorised,
+        repeatsAuthorisedLimit: row.repeatsAuthorisedLimit,
         instructions: row.instructions,
         notes: row.notes,
         displayOrder: row.displayOrder,

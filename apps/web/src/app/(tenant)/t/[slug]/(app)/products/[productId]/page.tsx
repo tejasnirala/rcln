@@ -6,11 +6,12 @@ import type {
   JurisdictionListResponse,
   MedicineDetail,
   ProductDetail,
+  ProductPriceListResponse,
   ProductRegulatoryProfileDetail,
   UnitListResponse,
 } from '@rcln/contracts';
 import { api } from '@/lib/api';
-import { getAccessToken, getSession, timezoneOf } from '@/lib/session';
+import { branchesInScope, getAccessToken, getSession, timezoneOf } from '@/lib/session';
 import { todayIn } from '@/lib/calendar-range';
 import { Alert } from '@/components/ui/alert';
 import { ProductPanel } from '@/components/tenant/product-panel';
@@ -60,39 +61,71 @@ export default async function ProductPage({
    *   refusal is swallowed and the tab is not offered.
    */
   const canReadRegulatory = permissions.includes(PERMISSIONS.PRODUCT_REGULATORY_READ);
+  /*
+   * ⚠️ THE PRICE TAB IS GATED ON THE FEE-SCHEDULE CODES, NOT ON A CHARGING ONE
+   *   (PI-8). `billing.fee_schedule.read` already means "may see what this clinic
+   *   charges" and is held widely — the front desk quotes a price before a
+   *   patient has agreed to anything. The MANAGE half is deliberately narrower
+   *   and is not on BRANCH_ADMIN: a price is a commercial position of the
+   *   organization even when it varies by branch. Same split, same reasoning as
+   *   consultation fees; see FEE_SCHEDULE_MANAGE.
+   */
+  const canReadPrices = permissions.includes(PERMISSIONS.FEE_SCHEDULE_READ);
 
-  const [product, equivalents, medicine, units, regulatoryProfiles, jurisdictions] =
-    await Promise.all([
-      api<ProductDetail>(`/api/v1/products/${productId}`, { slug, accessToken }),
-      api<EquivalentProductsResponse>(`/api/v1/products/${productId}/equivalents`, {
-        slug,
-        accessToken,
-      }),
-      canReadMedicine
-        ? api<MedicineDetail | null>(`/api/v1/products/${productId}/medicine`, {
-            slug,
-            accessToken,
-          })
-        : Promise.resolve({ ok: false, status: 403 } as const),
-      api<UnitListResponse>('/api/v1/units', { slug, accessToken }),
-      canReadRegulatory
-        ? api<{ profiles: ProductRegulatoryProfileDetail[] }>(
-            `/api/v1/products/${productId}/regulatory-profiles`,
-            { slug, accessToken }
-          )
-        : Promise.resolve({ ok: false, status: 403 } as const),
-      /*
-       * The places a profile can name. Fetched here rather than in the panel so the
-       * picker is a real list rather than a free-text jurisdiction id — two
-       * spellings of the same place is how a profile silently never matches a rule.
-       */
-      canReadRegulatory
-        ? api<JurisdictionListResponse>('/api/v1/regulatory/jurisdictions?limit=100', {
-            slug,
-            accessToken,
-          })
-        : Promise.resolve({ ok: false, status: 403 } as const),
-    ]);
+  const [
+    product,
+    equivalents,
+    medicine,
+    units,
+    regulatoryProfiles,
+    jurisdictions,
+    prices,
+    branches,
+  ] = await Promise.all([
+    api<ProductDetail>(`/api/v1/products/${productId}`, { slug, accessToken }),
+    api<EquivalentProductsResponse>(`/api/v1/products/${productId}/equivalents`, {
+      slug,
+      accessToken,
+    }),
+    canReadMedicine
+      ? api<MedicineDetail | null>(`/api/v1/products/${productId}/medicine`, {
+          slug,
+          accessToken,
+        })
+      : Promise.resolve({ ok: false, status: 403 } as const),
+    api<UnitListResponse>('/api/v1/units', { slug, accessToken }),
+    canReadRegulatory
+      ? api<{ profiles: ProductRegulatoryProfileDetail[] }>(
+          `/api/v1/products/${productId}/regulatory-profiles`,
+          { slug, accessToken }
+        )
+      : Promise.resolve({ ok: false, status: 403 } as const),
+    /*
+     * The places a profile can name. Fetched here rather than in the panel so the
+     * picker is a real list rather than a free-text jurisdiction id — two
+     * spellings of the same place is how a profile silently never matches a rule.
+     */
+    canReadRegulatory
+      ? api<JurisdictionListResponse>('/api/v1/regulatory/jurisdictions?limit=100', {
+          slug,
+          accessToken,
+        })
+      : Promise.resolve({ ok: false, status: 403 } as const),
+    /*
+     * What this product sells for. Swallowed to an empty list on a refusal, the
+     * way the medicine and regulatory tabs are — a caller without the code
+     * simply is not offered the tab, and a 403 here must never take down a page
+     * whose every other panel is theirs to read.
+     */
+    canReadPrices
+      ? api<ProductPriceListResponse>(`/api/v1/charging/prices?productId=${productId}&limit=100`, {
+          slug,
+          accessToken,
+        })
+      : Promise.resolve({ ok: false, status: 403 } as const),
+    /* The branches a price may be scoped to. Only the ones this caller works at. */
+    canReadPrices ? branchesInScope(slug) : Promise.resolve([]),
+  ]);
 
   // A product in another tenant is filtered out by RLS before the service sees
   // it, so the API answers 404 — genuinely indistinguishable from one that never
@@ -132,6 +165,10 @@ export default async function ProductPage({
       jurisdictions={jurisdictions.ok ? (jurisdictions.data?.jurisdictions ?? []) : []}
       canReadRegulatory={canReadRegulatory}
       canManageRegulatory={permissions.includes(PERMISSIONS.PRODUCT_REGULATORY_MANAGE)}
+      prices={prices.ok ? (prices.data?.items ?? []) : []}
+      branches={branches}
+      canReadPrices={canReadPrices}
+      canManagePrices={permissions.includes(PERMISSIONS.FEE_SCHEDULE_MANAGE)}
     />
   );
 }

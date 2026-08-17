@@ -27,5 +27,9 @@ export * from './inventory.js';
 export * from './procurement.js';
 export * from './regulatory.js';
 export * from './pharmacy.js';
+/* ⚠️ AFTER `invoices.js` and `products.js` — it imports the source-type and
+   product-type enums from them, and a Zod module cycle fails at runtime rather
+   than at lint. Same note `visit-history.js` carries. */
+export * from './charging.js';
 export * from './tax.js';
 export * from './locale.js';
