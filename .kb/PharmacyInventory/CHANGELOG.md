@@ -5,6 +5,126 @@ discussed.
 
 ---
 
+## 2026-08-17 — PI-9: what the procedure used
+
+**Phase:** PI-9 · **Branch:** `feat/pi-9-clinical-consumption` · **Result:**
+complete, **not reviewed** · **Tests:** +24 unit, +24 integration, +19 isolation,
++4 route-gate cases. Lint (0 errors), typecheck and `db:rls:check` (126 tables)
+green. ⚠️ `/code-review` and `security-reviewer` NOT run.
+
+The other writer of the seam PI-8 built. A dispense is stock going into somebody's
+hand at a counter; this is stock going into somebody during a procedure, and the
+charge engine cannot tell the difference — which is the whole point of
+PI-ADR-005.
+
+### What the phase had to decide, and what it decided
+
+**The law is not asked.** This is the decision most likely to be questioned, so
+it is first. Every rule type in PI-5 is about SUPPLYING a product to a person —
+may this be dispensed, may it be substituted, was a prescription presented. A
+clinician using an anaesthetic on their own patient during a procedure they are
+performing is not a supply, no rule addresses it, and calling `evaluateWithin`
+would answer `UNDETERMINED` — which refuses — for every product on the platform.
+PI-6.7's enforcement gate would swallow that today, and that is precisely the
+argument against relying on it: the day a named human moves a pack to
+`PRODUCTION_ENABLED`, every procedure in the clinic stops. The call site is
+marked in the service header for whoever writes an administration rule type.
+
+**Two anchors are built and two are declared.** `ENCOUNTER` and
+`ENCOUNTER_PROCEDURE` carry columns; `LAB_ORDER` and `IMAGING_STUDY` are enum
+members with none, refused by `clinical_consumptions_anchor_is_resolvable`. A
+polymorphic `(subject_type, subject_id)` pair was refused for the reason the
+tracker predicted: it cannot carry a composite FK, so the database cannot
+tenant-check it.
+
+**A correction after the close is a second record; an amendment before it
+restates the first — and both write DELTA ledger legs**, because `stock_ledger`
+has no update path. What an amendment buys is that the record reads as one event
+rather than three, which is what a clinician correcting a typo thirty seconds
+later means. It is refused once the consultation is signed OR once anything on it
+has reached an invoice.
+
+**Four permission codes, not the two the plan named.** Reading needed its own
+because a doctor holds no `inventory.stock.read` and would otherwise be unable to
+see the panel on their own consultation. Writing templates needed one because
+deciding what a procedure is EXPECTED to use sets the baseline every variance is
+measured against — a configuration act, beside `inventory.reason_code.manage`.
+
+### The PI-8.11 lessons, applied rather than repeated
+
+- **There is no `isOverride` on the request contract at all.** Whether a line
+  departs from its template is arithmetic the server does over two numbers it
+  already holds. The contract suite asserts the field is DROPPED rather than
+  honoured if a client sends one — which is the case that fails the day somebody
+  adds it back, and the direct analogue of the dispensing CRITICAL where every
+  control hung off a client-set field.
+- **A line may not cite the glove's template line while consuming an implant.**
+  Same class, different column: it would record an expectation of 2 against an
+  implant and report a variance for something the template never listed.
+- **`amendConsumption` and `correctConsumption` both lock the record first.** The
+  reversal ceiling — what came off minus what has gone back — is
+  `alreadyCreditedByItem` in this domain.
+- **`assertNoOverlap` is a read-then-write that is NOT locked, and the reasoning
+  is written down** rather than left to be discovered: the loser writes an
+  overlapping window, not a corrupt one, and the resolver breaks the tie
+  deterministically. The failure mode is a wrong pre-fill in front of a human,
+  not a movement of stock.
+
+### Three things this phase found in earlier work
+
+1. **`encounter_procedures` had no `@@unique([organization_id, id])`**, so
+   ADR-0004's composite FK could not be drawn to it. Every other clinical parent
+   already carried one; this table was simply the first thing ever to reference
+   it. Added here.
+2. **`charge_requests_reference_matches_kind` permitted an `INVENTORY` request
+   citing nothing at all.** PI-8 wrote that branch deliberately — "audible rather
+   than silently legal" — while no caller existed. PI-9 is the caller, and the
+   constraint is REPLACED (not edited: Prisma checksums an applied migration) to
+   require the consumption line.
+3. **`raiseChargeRequestsWithin` hard-coded `sourceType: 'PHARMACY'`.** It now
+   takes it, required and undefaulted — a default would have made PI-9's first
+   write a PHARMACY request citing a consumption line.
+
+### An override is refused, never clamped
+
+Somebody without `consumption.override` gets an error telling them to ask a
+colleague who holds it. The alternative — silently recording the EXPECTED figure
+— would put a quantity in the ledger nobody used, which is the one outcome
+CLINICAL_CONSUMPTION.md rules out by name. The web panel keeps the field
+editable either way and warns before the round trip, because a screen that
+clamped the number would invite exactly that substitution.
+
+### PI-9.9, and the two defects the picker uncovered
+
+The panel offers the candidate lots — and, for a serialised product, the
+individual numbered devices — with FEFO's proposal pre-filled. Building it found
+two bugs that were ALSO live in PI-7's dispensing path, which had the identical
+code and no test that exercised either:
+
+1. **The candidate check was narrowed to what FEFO would take, so every override
+   was refused.** `planAllocation` stops once the requested quantity is covered,
+   and both services validated the caller's chosen lots against a plan for the
+   LINE's quantity — so any lot FEFO had not picked answered "that lot cannot be
+   supplied", which is precisely the act the override exists to permit. The
+   happy path was unaffected, which is why it shipped.
+2. **Assigning a serial to a patient violated `serials_assignment_dated`** —
+   `(assigned_patient_id IS NULL) = (assigned_at IS NULL)`, and both set the
+   patient without the date. Every supply of a serialised product to a patient
+   was a 500. Nothing in the pharmacy suite had ever dispensed one.
+
+Both fixed in both services, each with a regression test in `pharmacy.test.ts`
+**verified to fail against the reverted code** — a regression test that passes
+either way is worth nothing, and these guard the class of defect that survives
+precisely because the ordinary path still works.
+
+### What is open
+
+`/code-review` and `security-reviewer` — and a reviewer should look at the
+dispensing change specifically, because it is the highest-risk write in the
+programme and this phase touched it. Nothing has been clicked in a browser.
+
+---
+
 ## 2026-08-17 — PI-8: the counter's takings
 
 **Phase:** PI-8 · **Branch:** `feat/pi-8-billing-tax-integration` · **Result:**

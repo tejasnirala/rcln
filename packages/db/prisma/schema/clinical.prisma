@@ -204,6 +204,10 @@ model ClinicalMasterItem {
   /// practice — the kind is not enforced by the FK, and the selector is what
   /// makes it true.
   findingUses       ClinicalFinding[]        @relation("FindingItem")
+  /// What a procedure normally consumes (PI-9). `PROCEDURE` items only in
+  /// practice — enforced by the service, not by the FK, exactly as
+  /// `findingUses` above is.
+  consumptionTemplates ConsumptionTemplate[]  @relation("ConsumptionTemplateItem")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -986,6 +990,10 @@ model Encounter {
   ///   own rows beside it — invariant 7.
   fulfilment      PrescriptionFulfilment?
   dispenses       Dispense[]
+  /// What this visit consumed off the shelves (PI-9). ⚠️ ONE WAY, exactly as
+  ///   `fulfilment` is: consumption reads the consultation and writes only its
+  ///   own rows beside it. Nothing here is a clinical authoring code.
+  consumptions    ClinicalConsumption[]
   recommendations EncounterFollowUpRecommendation[]
   /// The clinical content (CE-4). Cascade on every one of them: a deleted
   /// consultation takes its own content with it, and all of this IS content.
@@ -1398,6 +1406,19 @@ model EncounterProcedure {
   /// deleted out from under the record.
   region       VisualRegion?       @relation("ProcedureRegion", fields: [visualRegionId], references: [id], onDelete: Restrict)
 
+  /// What this procedure actually consumed (PI-9) — the reader the index below
+  /// was annotated for. `Restrict` on the other side: a procedure whose gloves
+  /// and implant are on the ledger is unlinked before it is removed, never
+  /// deleted out from under the movement that cites it.
+  consumptions ClinicalConsumption[]
+
+  /// ⚠️ THE COMPOSITE-FK TARGET, ADDED BY PI-9 AND REQUIRED BY ADR-0004.
+  ///   `clinical_consumptions.encounter_procedure_id` references
+  ///   `(organization_id, id)` so a consumption at one tenant citing another
+  ///   tenant's procedure is unrepresentable rather than merely unlikely. Every
+  ///   other clinical parent already carried one; this table was simply the
+  ///   first to be referenced.
+  @@unique([organizationId, id])
   @@index([organizationId, encounterId, displayOrder])
   /// PI-9 reads this: what procedures were performed, and therefore what stock
   /// they consumed.

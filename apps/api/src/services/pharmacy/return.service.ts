@@ -319,6 +319,8 @@ export async function createDispenseReturn(
      */
     await reverseChargeForReturnWithin(tx, ctx, {
       branchId: dispense.branchId,
+      /* Explicit since PI-9 gave the engine its second caller. */
+      sourceType: 'PHARMACY',
       patientId: dispense.patientId,
       occurredAt: returnedAt,
       lines: reversals,

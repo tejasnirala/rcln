@@ -9,8 +9,8 @@ Declared at `packages/db/prisma/schema/charging.prisma:277`.
 | table | `charge_requests` |
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `branch` policy |
-| columns | 28 |
-| relations | 10 |
+| columns | 29 |
+| relations | 11 |
 
 ## Columns
 
@@ -24,6 +24,7 @@ Declared at `packages/db/prisma/schema/charging.prisma:277`.
 | `status` | `ChargeRequestStatus` | `status ChargeRequestStatus @default(PENDING)` |
 | `dispenseLineId` | `String?` | `dispenseLineId String? @map("dispense_line_id") @db.Uuid` |
 | `dispenseReturnLineId` | `String?` | `dispenseReturnLineId String? @map("dispense_return_line_id") @db.Uuid` |
+| `consumptionLineId` | `String?` | `consumptionLineId String? @map("consumption_line_id") @db.Uuid` |
 | `productId` | `String` | `productId String @map("product_id") @db.Uuid` |
 | `patientId` | `String?` | `patientId String? @map("patient_id") @db.Uuid` |
 | `occurredAt` | `DateTime` | `occurredAt DateTime @map("occurred_at") @db.Timestamptz(6)` |
@@ -53,6 +54,7 @@ Declared at `packages/db/prisma/schema/charging.prisma:277`.
 | `branch` | [`Branch`](Branch.md) | `branch Branch @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)` |
 | `dispenseLine` | [`DispenseLine`](DispenseLine.md) | `dispenseLine DispenseLine? @relation(fields: [organizationId, dispenseLineId], references: [organizationId, id], onDelete: Cascade)` |
 | `dispenseReturnLine` | [`DispenseReturnLine`](DispenseReturnLine.md) | `dispenseReturnLine DispenseReturnLine? @relation(fields: [organizationId, dispenseReturnLineId], references: [organizationId, id], onDelete: Cascade)` |
+| `consumptionLine` | [`ConsumptionLine`](ConsumptionLine.md) | `consumptionLine ConsumptionLine? @relation(fields: [organizationId, consumptionLineId], references: [organizationId, id], onDelete: Cascade)` |
 | `product` | [`Product`](Product.md) | `product Product @relation("ChargeRequestProduct", fields: [productId], references: [id], onDelete: Restrict)` |
 | `unit` | [`UnitOfMeasure`](UnitOfMeasure.md) | `unit UnitOfMeasure @relation("ChargeRequestUnit", fields: [unitId], references: [id], onDelete: Restrict)` |
 | `patient` | [`Patient`](Patient.md) | `patient Patient? @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Restrict)` |
@@ -65,6 +67,7 @@ Declared at `packages/db/prisma/schema/charging.prisma:277`.
 - `@@unique([organizationId, id])`
 - `@@index([organizationId, dispenseLineId])`
 - `@@index([organizationId, dispenseReturnLineId])`
+- `@@index([organizationId, consumptionLineId])`
 - `@@index([organizationId, branchId, status, occurredAt])`
 - `@@index([organizationId, patientId, occurredAt])`
 - `@@index([organizationId, invoiceId])`
@@ -77,6 +80,7 @@ erDiagram
     ChargeRequest }o--o{ Branch : relates
     ChargeRequest }o--o{ DispenseLine : relates
     ChargeRequest }o--o{ DispenseReturnLine : relates
+    ChargeRequest }o--o{ ConsumptionLine : relates
     ChargeRequest }o--o{ Product : relates
     ChargeRequest }o--o{ UnitOfMeasure : relates
     ChargeRequest }o--o{ Patient : relates

@@ -65,11 +65,20 @@ import { resolveProductPricesWithin } from './price.service.js';
 // Raising them
 // ---------------------------------------------------------------------------
 
-/** One supplied — or returned — line, as the caller already has it in hand. */
+/** One supplied, consumed — or returned — line, as the caller already has it. */
 export interface ChargeableLine {
-  /** Exactly one of these two, matching `charge_requests_reference_matches_kind`. */
+  /**
+   * Exactly ONE of these three, matching `charge_requests_reference_matches_kind`
+   * and the `sourceType` on the input below.
+   *
+   * ⚠️ A CONSUMPTION USES ONE COLUMN FOR BOTH DIRECTIONS, unlike pharmacy's two.
+   *   A consumption reversal is another `clinical_consumptions` row with its own
+   *   lines, not a separate return table, so a REVERSAL cites a consumption line
+   *   exactly as a SUPPLY does and `kind` is what distinguishes them.
+   */
   dispenseLineId?: string;
   dispenseReturnLineId?: string;
+  consumptionLineId?: string;
   productId: string;
   /** Positive, in the product's base unit. The REVERSAL's sign is its `kind`. */
   quantityBase: string;
@@ -77,6 +86,14 @@ export interface ChargeableLine {
 
 export interface RaiseChargeRequestsInput {
   branchId: string;
+  /**
+   * ⚠️ REQUIRED, AND DELIBERATELY NOT DEFAULTED TO `PHARMACY` (PI-9). The column
+   *   was hard-coded here while pharmacy was the only caller; a default would
+   *   have made PI-9's first consumption write a PHARMACY charge request citing
+   *   a consumption line, which the CHECK now refuses — but only because the
+   *   CHECK was tightened in the same phase. Two callers, two explicit answers.
+   */
+  sourceType: 'PHARMACY' | 'INVENTORY';
   kind: 'SUPPLY' | 'REVERSAL';
   patientId: string | null;
   /** The instant of the supply. Becomes the invoice's `suppliedAt`. */
@@ -244,11 +261,12 @@ export async function raiseChargeRequestsWithin(
     rows.push({
       organizationId: ctx.organizationId,
       branchId: input.branchId,
-      sourceType: 'PHARMACY',
+      sourceType: input.sourceType,
       kind: input.kind,
       status: willBill ? 'PENDING' : 'SUPPRESSED',
       ...(line.dispenseLineId ? { dispenseLineId: line.dispenseLineId } : {}),
       ...(line.dispenseReturnLineId ? { dispenseReturnLineId: line.dispenseReturnLineId } : {}),
+      ...(line.consumptionLineId ? { consumptionLineId: line.consumptionLineId } : {}),
       productId: product.id,
       patientId: input.patientId,
       occurredAt: input.occurredAt,
@@ -258,7 +276,7 @@ export async function raiseChargeRequestsWithin(
       policy: policy.policy,
       policyScope: policy.scope,
       policyRuleId: policy.ruleId,
-      description: describe(product.name, input.kind),
+      description: describe(product.name, input.kind, input.sourceType),
       unitPrice,
       currency,
       taxCategory: tax.taxCategory,
@@ -336,8 +354,24 @@ function toBilledQuantity(
  *   charge-review screen shows exactly the string that will be printed. Same
  *   helper `appointment-billing.service.ts` needed and for the same reason.
  */
-function describe(productName: string, kind: 'SUPPLY' | 'REVERSAL'): string {
-  const text = kind === 'REVERSAL' ? `${productName} (returned)` : productName;
+function describe(
+  productName: string,
+  kind: 'SUPPLY' | 'REVERSAL',
+  sourceType: 'PHARMACY' | 'INVENTORY'
+): string {
+  /*
+   * ⚠️ THE REVERSAL WORDING DIFFERS BY SOURCE, AND IT IS NOT COSMETIC. A patient
+   *   reading "(returned)" on a credit note for a pharmacy line brought the box
+   *   back. Nobody returns a consumed implant — the correction says less was
+   *   used than was recorded, which is a different sentence and the one a
+   *   patient querying their bill needs to see.
+   */
+  const text =
+    kind === 'REVERSAL'
+      ? sourceType === 'INVENTORY'
+        ? `${productName} (not used)`
+        : `${productName} (returned)`
+      : productName;
   return text.length <= 255 ? text : `${text.slice(0, 254)}…`;
 }
 

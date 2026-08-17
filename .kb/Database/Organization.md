@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 116 |
+| relations | 121 |
 
 ## Columns
 
@@ -131,6 +131,11 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `chargePolicyRules` | [`ChargePolicyRule`](ChargePolicyRule.md) | `chargePolicyRules ChargePolicyRule[]` |
 | `productPrices` | [`ProductPrice`](ProductPrice.md) | `productPrices ProductPrice[]` |
 | `chargeRequests` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequests ChargeRequest[]` |
+| `consumptionTemplates` | [`ConsumptionTemplate`](ConsumptionTemplate.md) | `consumptionTemplates ConsumptionTemplate[]` |
+| `consumptionTemplateLines` | [`ConsumptionTemplateLine`](ConsumptionTemplateLine.md) | `consumptionTemplateLines ConsumptionTemplateLine[]` |
+| `clinicalConsumptions` | [`ClinicalConsumption`](ClinicalConsumption.md) | `clinicalConsumptions ClinicalConsumption[]` |
+| `consumptionLines` | [`ConsumptionLine`](ConsumptionLine.md) | `consumptionLines ConsumptionLine[]` |
+| `consumptionAllocations` | [`ConsumptionAllocation`](ConsumptionAllocation.md) | `consumptionAllocations ConsumptionAllocation[]` |
 | `clinicalMasterItems` | [`ClinicalMasterItem`](ClinicalMasterItem.md) | `clinicalMasterItems ClinicalMasterItem[]` |
 | `clinicalMasterCodings` | [`ClinicalMasterCoding`](ClinicalMasterCoding.md) | `clinicalMasterCodings ClinicalMasterCoding[]` |
 | `clinicalMasterScopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `clinicalMasterScopes ClinicalMasterScope[]` |
@@ -258,6 +263,11 @@ erDiagram
     Organization }o--o{ ChargePolicyRule : relates
     Organization }o--o{ ProductPrice : relates
     Organization }o--o{ ChargeRequest : relates
+    Organization }o--o{ ConsumptionTemplate : relates
+    Organization }o--o{ ConsumptionTemplateLine : relates
+    Organization }o--o{ ClinicalConsumption : relates
+    Organization }o--o{ ConsumptionLine : relates
+    Organization }o--o{ ConsumptionAllocation : relates
     Organization }o--o{ ClinicalMasterItem : relates
     Organization }o--o{ ClinicalMasterCoding : relates
     Organization }o--o{ ClinicalMasterScope : relates

@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 63 |
+| relations | 66 |
 
 ## Columns
 
@@ -104,6 +104,9 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `chargeRequestsDecided` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequestsDecided ChargeRequest[] @relation("ChargeRequestDecidedBy")` |
 | `chargePolicyRulesUpdated` | [`ChargePolicyRule`](ChargePolicyRule.md) | `chargePolicyRulesUpdated ChargePolicyRule[] @relation("ChargePolicyRuleUpdatedBy")` |
 | `productPricesUpdated` | [`ProductPrice`](ProductPrice.md) | `productPricesUpdated ProductPrice[] @relation("ProductPriceUpdatedBy")` |
+| `consumptionsRecorded` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptionsRecorded ClinicalConsumption[] @relation("ConsumptionRecordedBy")` |
+| `consumptionsAmended` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptionsAmended ClinicalConsumption[] @relation("ConsumptionAmendedBy")` |
+| `consumptionTemplatesUpdated` | [`ConsumptionTemplate`](ConsumptionTemplate.md) | `consumptionTemplatesUpdated ConsumptionTemplate[] @relation("ConsumptionTemplateUpdatedBy")` |
 
 ## Indexes and constraints
 
@@ -154,4 +157,6 @@ erDiagram
     User }o--o{ ChargeRequest : relates
     User }o--o{ ChargePolicyRule : relates
     User }o--o{ ProductPrice : relates
+    User }o--o{ ClinicalConsumption : relates
+    User }o--o{ ConsumptionTemplate : relates
 ```

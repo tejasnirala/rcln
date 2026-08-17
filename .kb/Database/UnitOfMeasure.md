@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/products.prisma:270`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 10 |
-| relations | 16 |
+| relations | 18 |
 
 ## Columns
 
@@ -47,6 +47,8 @@ Declared at `packages/db/prisma/schema/products.prisma:270`.
 | `dispenseLines` | [`DispenseLine`](DispenseLine.md) | `dispenseLines DispenseLine[] @relation("DispenseLineUnit")` |
 | `productPrices` | [`ProductPrice`](ProductPrice.md) | `productPrices ProductPrice[] @relation("ProductPriceUnit")` |
 | `chargeRequests` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequests ChargeRequest[] @relation("ChargeRequestUnit")` |
+| `consumptionTemplateLines` | [`ConsumptionTemplateLine`](ConsumptionTemplateLine.md) | `consumptionTemplateLines ConsumptionTemplateLine[] @relation("ConsumptionTemplateLineUnit")` |
+| `consumptionLines` | [`ConsumptionLine`](ConsumptionLine.md) | `consumptionLines ConsumptionLine[] @relation("ConsumptionLineUnit")` |
 
 ## Indexes and constraints
 
@@ -73,4 +75,6 @@ erDiagram
     UnitOfMeasure }o--o{ DispenseLine : relates
     UnitOfMeasure }o--o{ ProductPrice : relates
     UnitOfMeasure }o--o{ ChargeRequest : relates
+    UnitOfMeasure }o--o{ ConsumptionTemplateLine : relates
+    UnitOfMeasure }o--o{ ConsumptionLine : relates
 ```

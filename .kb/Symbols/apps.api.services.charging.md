@@ -14,33 +14,33 @@ Files: `apps/api/src/services/charging/charge-request.service.ts` · `apps/api/s
 | `assertUnitPriceable` <sub>local</sub> | `(tx: TxClient, product: { id: string; baseUnitId: string }, unitId: string): Promise<void>` | `apps/api/src/services/charging/price.service.ts:396` |  |
 | `auditMeta` | `(options: ChargingActionOptions): { ipAddress?: string \| undefined; userAgent?: string \| unde…` | `apps/api/src/services/charging/policy.service.ts:498` | The audit metadata a route hands down, narrowed to what `audit_logs` holds. |
 | `createChargePolicyRule` | `(ctx: TenantContext, input: CreateChargePolicyRuleRequest, options: ChargingActionOptions): Promise<ChargePolicyRuleDetail>` | `apps/api/src/services/charging/policy.service.ts:367` |  |
-| `decideChargeRequest` | `(ctx: TenantContext, chargeRequestId: string, input: DecideChargeRequest, options: ChargingActionOptions): Promise<ChargeRequestSummary>` | `apps/api/src/services/charging/charge-request.service.ts:744` |  |
+| `decideChargeRequest` | `(ctx: TenantContext, chargeRequestId: string, input: DecideChargeRequest, options: ChargingActionOptions): Promise<ChargeRequestSummary>` | `apps/api/src/services/charging/charge-request.service.ts:778` |  |
 | `defaultChargePolicy` | `(productType: ProductType): ChargePolicyValue` | `apps/api/src/services/charging/policy.service.ts:81` | The default tier of the chain. Everything not in the set above is consumed rather than sold — gauze, gloves, disinfectant, a lab reagent, a dental material use… |
 | `deleteChargePolicyRule` | `(ctx: TenantContext, ruleId: string, options: ChargingActionOptions): Promise<void>` | `apps/api/src/services/charging/policy.service.ts:470` |  |
 | `deleteProductPrice` | `(ctx: TenantContext, priceId: string, options: ChargingActionOptions): Promise<void>` | `apps/api/src/services/charging/price.service.ts:325` |  |
-| `describe` <sub>local</sub> | `(productName: string, kind: 'SUPPLY' \| 'REVERSAL'): string` | `apps/api/src/services/charging/charge-request.service.ts:339` |  |
-| `getChargeQueueSummary` | `(ctx: TenantContext, branchId: string \| undefined): Promise<ChargeQueueSummary>` | `apps/api/src/services/charging/charge-request.service.ts:666` |  |
+| `describe` <sub>local</sub> | `(productName: string, kind: 'SUPPLY' \| 'REVERSAL', sourceType: 'PHARMACY' \| 'INVENTORY'): string` | `apps/api/src/services/charging/charge-request.service.ts:357` |  |
+| `getChargeQueueSummary` | `(ctx: TenantContext, branchId: string \| undefined): Promise<ChargeQueueSummary>` | `apps/api/src/services/charging/charge-request.service.ts:700` |  |
 | `isBillable` | `(policy: ChargePolicyValue): boolean` | `apps/api/src/services/charging/policy.service.ts:86` | Does this policy produce an invoice line without asking anybody? |
 | `listChargePolicyRules` | `(ctx: TenantContext, query: ListChargePolicyRulesQuery): Promise<ChargePolicyRuleListResponse>` | `apps/api/src/services/charging/policy.service.ts:321` |  |
-| `listChargeRequests` | `(ctx: TenantContext, query: ListChargeRequestsQuery, options: ChargingActionOptions): Promise<ChargeRequestListResponse>` | `apps/api/src/services/charging/charge-request.service.ts:577` |  |
+| `listChargeRequests` | `(ctx: TenantContext, query: ListChargeRequestsQuery, options: ChargingActionOptions): Promise<ChargeRequestListResponse>` | `apps/api/src/services/charging/charge-request.service.ts:611` |  |
 | `listProductPrices` | `(ctx: TenantContext, query: ListProductPricesQuery): Promise<ProductPriceListResponse>` | `apps/api/src/services/charging/price.service.ts:207` |  |
-| `lockChargeRequest` <sub>local</sub> | `(tx: TxClient, chargeRequestId: string): Promise<void>` | `apps/api/src/services/charging/charge-request.service.ts:823` |  |
+| `lockChargeRequest` <sub>local</sub> | `(tx: TxClient, chargeRequestId: string): Promise<void>` | `apps/api/src/services/charging/charge-request.service.ts:857` |  |
 | `needsDecision` | `(policy: ChargePolicyValue): boolean` | `apps/api/src/services/charging/policy.service.ts:100` |  |
-| `raiseChargeRequestsWithin` | `(tx: TxClient, ctx: TenantContext, input: RaiseChargeRequestsInput): Promise<{ raised: number; suppressed: number }>` | `apps/api/src/services/charging/charge-request.service.ts:104` |  |
+| `raiseChargeRequestsWithin` | `(tx: TxClient, ctx: TenantContext, input: RaiseChargeRequestsInput): Promise<{ raised: number; suppressed: number }>` | `apps/api/src/services/charging/charge-request.service.ts:121` |  |
 | `resolveChargePoliciesWithin` | `(tx: TxClient, ctx: TenantContext, products: readonly { id: string; type: ProductType; categor…): Promise<Map<string, ResolvedPolicy>>` | `apps/api/src/services/charging/policy.service.ts:168` |  |
 | `resolveChargePolicyFor` | `(ctx: TenantContext, productId: string): Promise<ResolvedChargePolicy>` | `apps/api/src/services/charging/policy.service.ts:251` |  |
 | `resolveChargePolicyWithin` | `(tx: TxClient, ctx: TenantContext, product: { id: string; type: ProductType; categoryId: strin…): Promise<ResolvedPolicy>` | `apps/api/src/services/charging/policy.service.ts:140` |  |
 | `resolveProductPricesWithin` | `(tx: TxClient, ctx: TenantContext, productIds: readonly string[], branchId: string, currency: string): Promise<Map<string, ResolvedProductPrice>>` | `apps/api/src/services/charging/price.service.ts:137` |  |
 | `resolveProductPriceWithin` | `(tx: TxClient, ctx: TenantContext, productId: string, branchId: string, currency: string): Promise<ResolvedProductPrice \| null>` | `apps/api/src/services/charging/price.service.ts:114` |  |
-| `reverseChargeForReturnWithin` | `(tx: TxClient, ctx: TenantContext, input: Omit<RaiseChargeRequestsInput, 'lines' \| 'kind'> & {…): Promise<{ raised: number; cancelled: number }>` | `apps/api/src/services/charging/charge-request.service.ts:360` |  |
+| `reverseChargeForReturnWithin` | `(tx: TxClient, ctx: TenantContext, input: Omit<RaiseChargeRequestsInput, 'lines' \| 'kind'> & {…): Promise<{ raised: number; cancelled: number }>` | `apps/api/src/services/charging/charge-request.service.ts:394` |  |
 | `scopeOf` <sub>local</sub> | `(row: RuleRow): ChargePolicyScopeValue` | `apps/api/src/services/charging/policy.service.ts:292` |  |
-| `toBilledQuantity` <sub>local</sub> | `(graph: Parameters<typeof convertFromBase>[0], quantityBase: string, baseUnitId: string, pricedUnitId: string): string` | `apps/api/src/services/charging/charge-request.service.ts:306` |  |
+| `toBilledQuantity` <sub>local</sub> | `(graph: Parameters<typeof convertFromBase>[0], quantityBase: string, baseUnitId: string, pricedUnitId: string): string` | `apps/api/src/services/charging/charge-request.service.ts:324` |  |
 | `toDetail` <sub>local</sub> | `(row: RuleRow): ChargePolicyRuleDetail` | `apps/api/src/services/charging/policy.service.ts:298` |  |
 | `toDetail` <sub>local</sub> | `(row: PriceRow): ProductPriceDetail` | `apps/api/src/services/charging/price.service.ts:192` |  |
-| `toSummary` <sub>local</sub> | `(row: SummaryRow): ChargeRequestSummary` | `apps/api/src/services/charging/charge-request.service.ts:504` |  |
+| `toSummary` <sub>local</sub> | `(row: SummaryRow): ChargeRequestSummary` | `apps/api/src/services/charging/charge-request.service.ts:538` |  |
 | `updateChargePolicyRule` | `(ctx: TenantContext, ruleId: string, input: UpdateChargePolicyRuleRequest, options: ChargingActionOptions): Promise<ChargePolicyRuleDetail>` | `apps/api/src/services/charging/policy.service.ts:425` |  |
 | `upsertProductPrice` | `(ctx: TenantContext, input: UpsertProductPriceRequest, options: ChargingActionOptions): Promise<ProductPriceDetail>` | `apps/api/src/services/charging/price.service.ts:259` |  |
-| `whereFor` <sub>local</sub> | `(ctx: TenantContext, query: ListChargeRequestsQuery): Prisma.ChargeRequestWhereInput` | `apps/api/src/services/charging/charge-request.service.ts:622` |  |
+| `whereFor` <sub>local</sub> | `(ctx: TenantContext, query: ListChargeRequestsQuery): Prisma.ChargeRequestWhereInput` | `apps/api/src/services/charging/charge-request.service.ts:656` |  |
 
 ## const
 
@@ -49,18 +49,18 @@ Files: `apps/api/src/services/charging/charge-request.service.ts` · `apps/api/s
 | `BILLABLE_BY_DEFAULT` <sub>local</sub> | `: ReadonlySet<string>` | `apps/api/src/services/charging/policy.service.ts:58` |  |
 | `PRICE_SELECT` <sub>local</sub> | `{ id: true, productId: true, branchId: true, unitId: true, …` | `apps/api/src/services/charging/price.service.ts:177` |  |
 | `RULE_SELECT` <sub>local</sub> | `{ id: true, policy: true, note: true, productId: true, prod…` | `apps/api/src/services/charging/policy.service.ts:278` |  |
-| `SUMMARY_SELECT` <sub>local</sub> | `{ id: true, branchId: true, sourceType: true, kind: true, s…` | `apps/api/src/services/charging/charge-request.service.ts:465` |  |
+| `SUMMARY_SELECT` <sub>local</sub> | `{ id: true, branchId: true, sourceType: true, kind: true, s…` | `apps/api/src/services/charging/charge-request.service.ts:499` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ChargeableLine` | `{ dispenseLineId, dispenseReturnLineId, productId, quantityBase }` | `apps/api/src/services/charging/charge-request.service.ts:69` | One supplied — or returned — line, as the caller already has it in hand. |
+| `ChargeableLine` | `{ dispenseLineId, dispenseReturnLineId, consumptionLineId, productId, quantityBase }` | `apps/api/src/services/charging/charge-request.service.ts:69` | One supplied, consumed — or returned — line, as the caller already has it. |
 | `ChargingActionOptions` | `{ ipAddress, userAgent, route, actingBranchId }` | `apps/api/src/services/charging/policy.service.ts:313` |  |
-| `RaiseChargeRequestsInput` | `{ branchId, kind, patientId, occurredAt, lines }` | `apps/api/src/services/charging/charge-request.service.ts:78` |  |
+| `RaiseChargeRequestsInput` | `{ branchId, sourceType, kind, patientId, occurredAt, lines }` | `apps/api/src/services/charging/charge-request.service.ts:87` |  |
 | `ResolvedPolicy` | `{ policy, scope, ruleId }` | `apps/api/src/services/charging/policy.service.ts:110` |  |
 | `ResolvedProductPrice` | `{ unitPrice, unitId, fromBranchOverride }` | `apps/api/src/services/charging/price.service.ts:77` |  |
-| `ReversedLine` | `{ originalDispenseLineId }` | `apps/api/src/services/charging/charge-request.service.ts:456` | A return line, and the supply line it came off. |
+| `ReversedLine` | `{ originalDispenseLineId }` | `apps/api/src/services/charging/charge-request.service.ts:490` | A return line, and the supply line it came off. |
 
 ## type
 
@@ -68,4 +68,4 @@ Files: `apps/api/src/services/charging/charge-request.service.ts` · `apps/api/s
 | --- | --- | --- | --- |
 | `PriceRow` <sub>local</sub> | `Prisma.ProductPriceGetPayload<{ select: typeof PRICE_SELECT }>` | `apps/api/src/services/charging/price.service.ts:190` |  |
 | `RuleRow` <sub>local</sub> | `Prisma.ChargePolicyRuleGetPayload<{ select: typeof RULE_SELECT }>` | `apps/api/src/services/charging/policy.service.ts:290` |  |
-| `SummaryRow` <sub>local</sub> | `Prisma.ChargeRequestGetPayload<{ select: typeof SUMMARY_SELECT }>` | `apps/api/src/services/charging/charge-request.service.ts:502` |  |
+| `SummaryRow` <sub>local</sub> | `Prisma.ChargeRequestGetPayload<{ select: typeof SUMMARY_SELECT }>` | `apps/api/src/services/charging/charge-request.service.ts:536` |  |

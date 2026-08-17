@@ -343,6 +343,25 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        */
       P.CHARGE_REQUEST_READ,
       P.CHARGE_REQUEST_MANAGE,
+      /*
+       * What the treatment rooms at this site used, and the templates that say
+       * what they were expected to use (PI-9).
+       *
+       * ⚠️ `template.manage` AND NOT `.record`, WHICH IS THE INVERSE OF THE
+       *   CLINICAL ROLES BELOW AND IS THE POINT. A branch administrator sets the
+       *   baseline a variance is measured against — a configuration act, beside
+       *   `inventory.reason_code.manage` — and does not stand in the room saying
+       *   what came off the trolley. Granting them `.record` would let the
+       *   person who defines "normal" also file the numbers measured against it.
+       *
+       * ⚠️ THE TEMPLATES ARE ORG-WIDE THOUGH, unlike most of this role. There is
+       *   no `branch_id` on `consumption_templates` — see the model — so editing
+       *   one changes what every site pre-fills. Accepted for the reason this
+       *   role's org-wide supplier and price reads are accepted, and recorded
+       *   here rather than discovered.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_TEMPLATE_MANAGE,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,
@@ -439,6 +458,19 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_DEFINITION_READ,
       P.MEDICINE_READ,
       /*
+       * Records what a procedure consumed (PI-9).
+       *
+       * ⚠️ NOT A CLINICAL AUTHORING CODE, WHICH IS WHY IT IS NOT ON THE
+       *   `CLINICAL_AUTHORING` LIST AND WHY ORG_OWNER AND ORG_ADMIN KEEP IT. A
+       *   consumption is a stock movement anchored to a consultation — the same
+       *   relationship `prescription_fulfilments` has to a prescription — and it
+       *   writes nothing in the chart. Invariant 7 is untouched: the arrow points
+       *   from the consumption into the clinical record and never back.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_RECORD,
+      P.CONSUMPTION_OVERRIDE,
+      /*
        * Reads what a jurisdiction says about what they are about to prescribe,
        * and asserts nothing (PI-5). The same line invariant 7 draws for the
        * catalogue: consulting the rule is prescribing, recording the product's
@@ -486,11 +518,26 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRESCRIPTION_READ,
       P.LAB_ORDER_READ,
       /*
-       * Reads the catalogue because a nurse draws consumables from the trolley
-       * and will record what was used once PI-9 lands. Curating it is not their
-       * job and neither is the medicine detail behind it — no MEDICINE_READ.
+       * Reads the catalogue because a nurse draws consumables from the trolley,
+       * and records what was used (PI-9 — the phase the previous version of this
+       * comment was waiting for). Curating the catalogue is not their job and
+       * neither is the medicine detail behind it — no MEDICINE_READ.
        */
       P.PRODUCT_DEFINITION_READ,
+      /*
+       * ⚠️ ALL THREE, INCLUDING THE OVERRIDE, AND THAT IS DELIBERATE. The nurse
+       *   is frequently the person actually holding the trolley, and a role that
+       *   could record a consumption but not depart from the template would stop
+       *   at the first procedure that used two swabs instead of one — at which
+       *   point the honest number goes unrecorded and the inventory quietly
+       *   stops matching reality, which is the outcome CLINICAL_CONSUMPTION.md
+       *   says is worse than any variance. The override is AUDITED, never
+       *   obstructed; a clinic that wants variances approved withholds this code
+       *   on a clone of this role.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_RECORD,
+      P.CONSUMPTION_OVERRIDE,
       P.SETTINGS_USER_WRITE,
     ],
   },
@@ -698,6 +745,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * granted here either.
        */
       P.CHARGE_REQUEST_READ,
+      /*
+       * ⚠️ READ, AND POINTEDLY NOT `.record` (PI-9). A pharmacist runs the store
+       *   the treatment rooms draw from, so "what did theatre use out of my
+       *   stock this week" is their question — but the person who says a
+       *   procedure used three pairs of gloves is the person who was standing in
+       *   the room. A dispensary that could record consumption against somebody
+       *   else's procedure could move stock off its own books with no clinician
+       *   in the loop.
+       */
+      P.CONSUMPTION_READ,
       P.SUPPLIER_MANAGE,
       P.PURCHASE_ORDER_READ,
       P.PURCHASE_ORDER_MANAGE,

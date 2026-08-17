@@ -42,6 +42,7 @@ import { redis } from '../../src/utils/redis.js';
 import type { TenantContext } from '@rcln/db';
 import { createLocation } from '../../src/services/inventory/location.service.js';
 import { createBatch } from '../../src/services/inventory/batch.service.js';
+import { createSerial } from '../../src/services/inventory/serial.service.js';
 import { recordMovement } from '../../src/services/inventory/movement.service.js';
 import { verifyBalances } from '../../src/services/inventory/balance.service.js';
 import {
@@ -894,5 +895,128 @@ describe('the dashboard', () => {
     expect(dashboard.branchId).toBe(org.branchId);
     expect(dashboard.dispensedToday).toBeGreaterThan(0);
     expect(JSON.stringify(dashboard)).not.toContain('Phr Patient');
+  });
+});
+
+/**
+ * Two defects PI-9 found in this path by writing the identical code and hitting
+ * the identical constraints. Both were reachable here and covered by nothing.
+ */
+describe('supplying a serialised device, and reaching past the oldest lot', () => {
+  let device: string;
+  let deviceSerialA: string;
+  let deviceSerialB: string;
+
+  beforeAll(async () => {
+    const product = await owner.query<{ id: string }>(
+      `INSERT INTO products
+         (id, organization_id, type, status, code, name, base_unit_id, tracking_mode,
+          is_stock_item, updated_at)
+       VALUES (gen_random_uuid(), $1, 'IMPLANT', 'ACTIVE', 'PHR-DEV', 'Phr Device', $2,
+               'SERIAL', true, now())
+       RETURNING id`,
+      [org.organizationId, baseUnit]
+    );
+    device = product.rows[0]?.id ?? '';
+
+    deviceSerialA = (
+      await createSerial(ctx, {
+        branchId: org.branchId,
+        productId: device,
+        serialNumber: 'PHR-DEV-A',
+      })
+    ).id;
+    deviceSerialB = (
+      await createSerial(ctx, {
+        branchId: org.branchId,
+        productId: device,
+        serialNumber: 'PHR-DEV-B',
+      })
+    ).id;
+
+    for (const serialId of [deviceSerialA, deviceSerialB]) {
+      await recordMovement(ctx, {
+        branchId: org.branchId,
+        productId: device,
+        serialId,
+        movementType: 'RETURN',
+        quantity: '1',
+        locationId: counter,
+        referenceType: 'MANUAL',
+      });
+    }
+  });
+
+  /**
+   * ⚠️ `serials_assignment_dated` IS `(assigned_patient_id IS NULL) = (assigned_at
+   *   IS NULL)`, and this path set the patient without the date — so every
+   *   supply of a serialised product TO A PATIENT raised a Postgres 23514 and
+   *   reached the caller as a 500. The whole point of tracking a serial is
+   *   knowing whose it is, and nothing in this suite had ever dispensed one.
+   */
+  it('assigns a supplied device to the patient, with the date the check demands', async () => {
+    const dispense = await createDispense(ctx, {
+      branchId: org.branchId,
+      locationId: counter,
+      kind: 'COUNTER_SALE',
+      patientId,
+      lines: [{ productId: device, quantity: '1', unitId: baseUnit }],
+    });
+
+    const serialId = dispense.lines[0]?.allocations[0]?.serialId ?? '';
+    expect(serialId).not.toBe('');
+
+    const { rows } = await owner.query<{
+      status: string;
+      assigned: string | null;
+      assigned_at: Date | null;
+    }>(`SELECT status, assigned_patient_id AS assigned, assigned_at FROM serials WHERE id = $1`, [
+      serialId,
+    ]);
+    expect(rows[0]?.status).toBe('ISSUED');
+    expect(rows[0]?.assigned).toBe(patientId);
+    expect(rows[0]?.assigned_at).not.toBeNull();
+  });
+
+  /**
+   * ⚠️ THE OVERRIDE, WHICH THIS PATH REFUSED. `resolveAllocations` planned for
+   *   the LINE's quantity and then checked the pharmacist's chosen lots against
+   *   that plan — so any lot FEFO had not picked came back "cannot be supplied",
+   *   which is exactly the act the override exists to permit. The happy path
+   *   passed, so nothing failed until somebody reached past the oldest lot.
+   */
+  it('supplies the device the pharmacist chose, not the one FEFO picked', async () => {
+    const { rows: free } = await owner.query<{ id: string }>(
+      `SELECT id FROM serials WHERE id = ANY($1) AND status <> 'ISSUED'`,
+      [[deviceSerialA, deviceSerialB]]
+    );
+    const chosen = free[0]?.id ?? '';
+    expect(chosen).not.toBe('');
+
+    const dispense = await createDispense(ctx, {
+      branchId: org.branchId,
+      locationId: counter,
+      kind: 'COUNTER_SALE',
+      patientId,
+      lines: [
+        {
+          productId: device,
+          quantity: '1',
+          unitId: baseUnit,
+          allocations: [
+            {
+              locationId: counter,
+              serialId: chosen,
+              quantityBase: '1',
+              isOverride: true,
+              overrideReason: 'The other pack was already open.',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(dispense.lines[0]?.allocations[0]?.serialId).toBe(chosen);
+    expect(dispense.lines[0]?.allocations[0]?.isOverride).toBe(true);
   });
 });

@@ -12,6 +12,7 @@ import encounterRoutes from './encounters.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
 import chargingRoutes from './charging.routes.js';
+import consumptionRoutes from './consumption.routes.js';
 import invoiceRoutes from './invoices.routes.js';
 import taxRoutes from './tax.routes.js';
 import invitationRoutes from './invitations.routes.js';
@@ -320,6 +321,24 @@ router.use('/fee-schedule', feeRoutes);
 // and price routes name a catalogue row and nobody, so they do not. See the
 // header of charging.routes.ts.
 router.use('/charging', chargingRoutes);
+
+// What a procedure actually consumed (PI-9), and the templates that say what it
+// normally would. The other caller of the charge seam above.
+//
+// ⚠️ NOT UNDER /clinical AND NOT UNDER /inventory, AND BOTH ALTERNATIVES ARE
+//    WRONG IN OPPOSITE DIRECTIONS. It is not /clinical because nothing here
+//    writes the chart — a consumption is a stock movement anchored to a
+//    consultation, the relationship `prescription_fulfilments` has to a
+//    prescription, and invariant 7 holds because the arrow points one way. It is
+//    not /inventory because the act belongs to whoever was standing in the room:
+//    a dentist recording three pairs of gloves is not correcting a count, and
+//    gating it behind `inventory.stock.adjust` would hand every clinician the
+//    permission where shrinkage hides.
+//
+// PHI: the record names a patient beside an implant's serial, so every read of
+// it — including the GET that only PLANS — files a disclosure row. The template
+// routes name a procedure and nobody, so they do not.
+router.use('/consumption', consumptionRoutes);
 
 // A record's own history, for any record in this clinic. Read-only, and the only
 // way rows leave `audit_logs` — which is append-only at the database, not merely

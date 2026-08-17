@@ -32,6 +32,7 @@ import clinicalRoutes from '../../src/routes/v1/clinical.routes.js';
 import consultationTemplateRoutes from '../../src/routes/v1/consultation-templates.routes.js';
 import visualMapRoutes from '../../src/routes/v1/visual-maps.routes.js';
 import pharmacyRoutes from '../../src/routes/v1/pharmacy.routes.js';
+import consumptionRoutes from '../../src/routes/v1/consumption.routes.js';
 
 /**
  * ⚠️ THIS SUITE TOUCHES NO DATABASE AND STILL HAS TO HANG UP.
@@ -116,6 +117,15 @@ const ROUTERS: { name: string; router: IRouter }[] = [
    *   router carries an AUTHORING code (invariant 7).
    */
   { name: 'pharmacy', router: pharmacyRoutes },
+  /*
+   * ⚠️ CONSUMPTION IS AUDITED FOR THE REASON PHARMACY IS (PI-9), AND IT IS THE
+   *   CLOSER CALL OF THE TWO. It is anchored to a consultation, it is reached
+   *   from the consultation's own screen, and it names a patient beside a device
+   *   serial — so it discloses what the four clinical routers write, while
+   *   authoring none of it. The case below asserts the other half: no route on
+   *   this router carries a `clinical.*` code.
+   */
+  { name: 'consumption', router: consumptionRoutes },
 ];
 
 /**
@@ -174,6 +184,7 @@ const NOT_CLINICAL: string[] = [
 
 const AUDITED_FILES: string[] = [
   'pharmacy.routes.ts',
+  'consumption.routes.ts',
   'encounters.routes.ts',
   'clinical.routes.ts',
   'consultation-templates.routes.ts',
@@ -363,6 +374,63 @@ describe('the dispensary reads the clinical record and never writes it', () => {
     expect(reads.length).toBeGreaterThan(0);
     for (const route of reads) {
       expect(route.permissions).toEqual([PERMISSIONS.DISPENSE_READ]);
+    }
+  });
+});
+
+/**
+ * ⚠️ INVARIANT 7 A THIRD TIME (PI-9), AND THIS ROUTER IS THE ONE MOST LIKELY TO
+ *   ACQUIRE A CLINICAL CODE BY MISTAKE. It is anchored to an encounter, it is
+ *   rendered on the consultation page, and "recording what a procedure used"
+ *   sounds like writing in the chart until you notice the row it writes is a
+ *   stock movement. A `clinical.encounter.*` code here would read as tidy in a
+ *   diff and would put the treatment room inside the clinical record.
+ */
+describe('consumption reads the consultation and never writes it', () => {
+  const routes = routesOf(consumptionRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical authoring code on any route', () => {
+    const authoring = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(authoring).toEqual([]);
+  });
+
+  it('gates every route behind a consumption code', () => {
+    for (const route of routes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^consumption\./);
+    }
+  });
+
+  /**
+   * ⚠️ AND THE TEMPLATE WRITES ARE BEHIND THE NARROWER CODE. Deciding what a
+   *   procedure is EXPECTED to use sets the baseline every variance is measured
+   *   against, at every branch; recording what one actually used is a daily act
+   *   by whoever was in the room. A template write behind `consumption.record`
+   *   would let anyone who can record also move the line they are measured
+   *   against.
+   */
+  it('gates template writes behind the template code', () => {
+    const templateWrites = routes.filter(
+      (route) => route.method !== 'GET' && route.path.startsWith('/templates')
+    );
+    expect(templateWrites.length).toBeGreaterThan(0);
+    for (const route of templateWrites) {
+      expect(route.permissions).toEqual([PERMISSIONS.CONSUMPTION_TEMPLATE_MANAGE]);
+    }
+  });
+
+  /** And every read is one code, so a clinic grants "may see this" once. */
+  it('reads behind the consumption read code, and nothing else', () => {
+    const reads = routes.filter((route) => route.method === 'GET');
+    expect(reads.length).toBeGreaterThan(0);
+    for (const route of reads) {
+      expect(route.permissions).toEqual([PERMISSIONS.CONSUMPTION_READ]);
     }
   });
 });

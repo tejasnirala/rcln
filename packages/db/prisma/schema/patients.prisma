@@ -223,6 +223,10 @@ model Patient {
   /// other side for the reason `dispenses` is: a billing record is a retention
   /// obligation too.
   chargeRequests          ChargeRequest[]
+  /// What was used ON this person during a procedure (PI-9). ⚠️ PHI, and
+  /// `Restrict` on the other side for the reason the two above are — "which
+  /// implant was fitted" is the question a device recall asks years later.
+  clinicalConsumptions    ClinicalConsumption[]
 
   @@unique([organizationId, uhid])
   /// Composite-FK target. Registrations, appointments, encounters, invoices and

@@ -44,7 +44,7 @@ signs and amends — a finalized record is immutable, and a correction is a new 
 citing it that carries a COPY of its content. And it now holds that content as
 real rows: diagnoses, prescriptions, procedures, investigations, advice,
 referrals, attachments and a follow-up plan, each with a foreign key the database
-checks. **PI-7 has since shipped against them and PI-9 is unblocked.** CE-5 added the read side — visit
+checks. **PI-7 and PI-9 have both since shipped against them.** CE-5 added the read side — visit
 history, the episode timeline, the read-only record, the previous-visit panel and
 the recall screen — and CE-6 added the chart: `visual_maps`, `visual_regions` and
 `clinical_findings`, with the 32-tooth FDI odontogram seeded and ONE generic
@@ -1013,8 +1013,10 @@ Its own programme, with its own tracker. Full detail in
       `db:rls:check` at **108**, including seven `*_visible` policies standing in
       for composite FKs that cannot be drawn into a platform-extensible parent.
       **No new permission codes**: recording a diagnosis IS writing up the
-      consultation. **PI-7 shipped against `encounter_prescriptions`; PI-9 is
-      unblocked** — `encounter_procedures` exists.
+      consultation. **PI-7 shipped against `encounter_prescriptions` and PI-9
+      shipped against `encounter_procedures`** — which PI-9 gave the
+      `@@unique([organization_id, id])` composite-FK target ADR-0004 requires
+      and nothing had needed until then.
 - [x] **CE-5 — visit history and episodes.** No schema at all: read surfaces
       over CE-1…CE-4's tables. `GET /patients/:id/visit-history`,
       `GET /clinical-episodes/:id`, `GET /appointments/:id/previous-visit`,
@@ -1386,14 +1388,19 @@ Procurement + Regulatory platform serving clinical, dental, veterinary and lab
 workflows across ten jurisdictions, not a pharmacy module. Start at
 `PharmacyInventory/NEXT_SESSION.md`.
 
-**PI-0 through PI-8 are complete.** PI-1..PI-6 are merged to `main`; PI-7 and
-PI-8 are on the programme branch and have NOT been through `/code-review` or
-`security-reviewer` yet — required before merge, because between them they add
-twelve tenant tables, the credit-note kind on `invoices`, and three new
-permission codes.
+**PI-0 through PI-9 are complete.** PI-1..PI-6 are merged to `main`; PI-7 and
+PI-8 are on the programme branch and went through the PI-8.11 review gate —
+1 CRITICAL, 3 HIGH, 2 MEDIUM, 5 WARNING, all fixed. **PI-9 is on
+`feat/pi-9-clinical-consumption` and has NOT been through `/code-review` or
+`security-reviewer` yet** — required before merge, because it adds five tenant
+tables, a column on `charge_requests`, a unique index on a clinical table and
+four new permission codes.
 
-**PI-9 (Clinical Consumption) remains blocked** on `encounters`/`procedures`.
-**PI-10 (Recall) and PI-12 (Online Pharmacy) are unblocked** as of PI-8.
+**PI-9 was never blocked** — `encounters` and `encounter_procedures` had existed
+since the consultation engine merged, and the roll-up saying otherwise was stale
+for weeks. **PI-10 (Recall) and PI-12 (Online Pharmacy) are unblocked**, and
+PI-10 in particular now has the second half of its question: a recall that walked
+only `dispense_allocations` would miss every implant ever fitted.
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.
 

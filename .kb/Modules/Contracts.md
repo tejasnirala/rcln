@@ -25,6 +25,7 @@ Zod schemas shared by API and web. The request/response shape is written once an
 - `packages/contracts/src/clinical.ts`
 - `packages/contracts/src/common.ts`
 - `packages/contracts/src/consultation.ts`
+- `packages/contracts/src/consumption.ts`
 - `packages/contracts/src/doctors.ts`
 - `packages/contracts/src/encounter-content.ts`
 - `packages/contracts/src/encounters.ts`
@@ -68,6 +69,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `AllocationPlanResponse` | type | `packages/contracts/src/inventory.ts:1342` |
 | `allocationStrategy` | zod | `packages/contracts/src/inventory.ts:923` |
 | `AllocationStrategy` | type | `packages/contracts/src/inventory.ts:1315` |
+| `amendConsumptionRequest` | zod | `packages/contracts/src/consumption.ts:320` |
+| `AmendConsumptionRequest` | type | `packages/contracts/src/consumption.ts:472` |
 | `amendEncounterRequest` | zod | `packages/contracts/src/encounters.ts:160` |
 | `AmendEncounterRequest` | type | `packages/contracts/src/encounters.ts:163` |
 | `apiError` | zod | `packages/contracts/src/common.ts:157` |
@@ -199,6 +202,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `CheckoutResponse` | interface | `packages/contracts/src/billing.ts:263` |
 | `checkSlugQuery` | zod | `packages/contracts/src/tenancy.ts:542` |
 | `CheckSlugQuery` | type | `packages/contracts/src/tenancy.ts:939` |
+| `clinicalConsumptionKind` | zod | `packages/contracts/src/consumption.ts:59` |
+| `ClinicalConsumptionKind` | type | `packages/contracts/src/consumption.ts:452` |
 | `clinicalDurationUnit` | zod | `packages/contracts/src/encounter-content.ts:64` |
 | `ClinicalDurationUnitValue` | type | `packages/contracts/src/encounter-content.ts:65` |
 | `clinicalEpisodeDetail` | var | `packages/contracts/src/clinical.ts:201` |
@@ -270,6 +275,50 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `ConsultationTemplateVersionSummary` | type | `packages/contracts/src/consultation.ts:131` |
 | `consultationUnpricedReason` | zod | `packages/contracts/src/invoices.ts:579` |
 | `ConsultationUnpricedReason` | type | `packages/contracts/src/invoices.ts:580` |
+| `consumptionAllocationDetail` | zod | `packages/contracts/src/consumption.ts:345` |
+| `ConsumptionAllocationDetail` | type | `packages/contracts/src/consumption.ts:475` |
+| `consumptionAllocationRequest` | zod | `packages/contracts/src/consumption.ts:254` |
+| `ConsumptionAllocationRequest` | type | `packages/contracts/src/consumption.ts:469` |
+| `consumptionAnchorKind` | zod | `packages/contracts/src/consumption.ts:55` |
+| `ConsumptionAnchorKind` | type | `packages/contracts/src/consumption.ts:450` |
+| `consumptionCandidateLot` | zod | `packages/contracts/src/consumption.ts:189` |
+| `ConsumptionCandidateLot` | type | `packages/contracts/src/consumption.ts:465` |
+| `consumptionCorrectionKind` | zod | `packages/contracts/src/consumption.ts:66` |
+| `ConsumptionCorrectionKind` | type | `packages/contracts/src/consumption.ts:453` |
+| `consumptionDetail` | var | `packages/contracts/src/consumption.ts:407` |
+| `ConsumptionDetail` | type | `packages/contracts/src/consumption.ts:478` |
+| `consumptionLineDetail` | zod | `packages/contracts/src/consumption.ts:360` |
+| `ConsumptionLineDetail` | type | `packages/contracts/src/consumption.ts:476` |
+| `consumptionLineRequest` | zod | `packages/contracts/src/consumption.ts:272` |
+| `ConsumptionLineRequest` | type | `packages/contracts/src/consumption.ts:470` |
+| `consumptionListResponse` | zod | `packages/contracts/src/consumption.ts:439` |
+| `ConsumptionListResponse` | type | `packages/contracts/src/consumption.ts:480` |
+| `consumptionPlanLine` | zod | `packages/contracts/src/consumption.ts:212` |
+| `ConsumptionPlanLine` | type | `packages/contracts/src/consumption.ts:466` |
+| `consumptionPlanQuery` | zod | `packages/contracts/src/consumption.ts:165` |
+| `ConsumptionPlanQuery` | type | `packages/contracts/src/consumption.ts:464` |
+| `consumptionPlanResponse` | zod | `packages/contracts/src/consumption.ts:236` |
+| `ConsumptionPlanResponse` | type | `packages/contracts/src/consumption.ts:467` |
+| `consumptionQuery` | var | `packages/contracts/src/consumption.ts:426` |
+| `ConsumptionQuery` | type | `packages/contracts/src/consumption.ts:479` |
+| `consumptionSummary` | zod | `packages/contracts/src/consumption.ts:382` |
+| `ConsumptionSummary` | type | `packages/contracts/src/consumption.ts:477` |
+| `consumptionTemplateDetail` | var | `packages/contracts/src/consumption.ts:142` |
+| `ConsumptionTemplateDetail` | type | `packages/contracts/src/consumption.ts:460` |
+| `consumptionTemplateLineDetail` | zod | `packages/contracts/src/consumption.ts:114` |
+| `ConsumptionTemplateLineDetail` | type | `packages/contracts/src/consumption.ts:458` |
+| `consumptionTemplateLineRequest` | zod | `packages/contracts/src/consumption.ts:72` |
+| `ConsumptionTemplateLineRequest` | type | `packages/contracts/src/consumption.ts:455` |
+| `consumptionTemplateListResponse` | zod | `packages/contracts/src/consumption.ts:154` |
+| `ConsumptionTemplateListResponse` | type | `packages/contracts/src/consumption.ts:462` |
+| `consumptionTemplateQuery` | var | `packages/contracts/src/consumption.ts:147` |
+| `ConsumptionTemplateQuery` | type | `packages/contracts/src/consumption.ts:461` |
+| `consumptionTemplateStatus` | zod | `packages/contracts/src/consumption.ts:57` |
+| `ConsumptionTemplateStatus` | type | `packages/contracts/src/consumption.ts:451` |
+| `consumptionTemplateSummary` | zod | `packages/contracts/src/consumption.ts:129` |
+| `ConsumptionTemplateSummary` | type | `packages/contracts/src/consumption.ts:459` |
+| `correctConsumptionRequest` | zod | `packages/contracts/src/consumption.ts:334` |
+| `CorrectConsumptionRequest` | type | `packages/contracts/src/consumption.ts:473` |
 | `COUNTRIES` | const | `packages/contracts/src/locale.ts:305` |
 | `countryCode` | var | `packages/contracts/src/products.ts:152` |
 | `countryInfo` | fn | `packages/contracts/src/locale.ts:572` |
@@ -302,6 +351,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `CreateCompositionRequest` | type | `packages/contracts/src/products.ts:877` |
 | `createConsultationTemplateRequest` | zod | `packages/contracts/src/consultation.ts:96` |
 | `CreateConsultationTemplateRequest` | type | `packages/contracts/src/consultation.ts:110` |
+| `createConsumptionTemplateRequest` | zod | `packages/contracts/src/consumption.ts:83` |
+| `CreateConsumptionTemplateRequest` | type | `packages/contracts/src/consumption.ts:456` |
 | `createCreditNoteRequest` | zod | `packages/contracts/src/invoices.ts:285` |
 | `CreateCreditNoteRequest` | type | `packages/contracts/src/invoices.ts:320` |
 | `createDesignationRequest` | zod | `packages/contracts/src/tenancy.ts:275` |
@@ -894,6 +945,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `reasonCode` | var | `packages/contracts/src/inventory.ts:187` |
 | `receiveStockTransferRequest` | zod | `packages/contracts/src/inventory.ts:1041` |
 | `ReceiveStockTransferRequest` | type | `packages/contracts/src/inventory.ts:1326` |
+| `recordConsumptionRequest` | var | `packages/contracts/src/consumption.ts:284` |
+| `RecordConsumptionRequest` | type | `packages/contracts/src/consumption.ts:471` |
 | `recordMovementRequest` | var | `packages/contracts/src/inventory.ts:589` |
 | `RecordMovementRequest` | type | `packages/contracts/src/inventory.ts:880` |
 | `recordMovementResponse` | zod | `packages/contracts/src/inventory.ts:649` |
@@ -1214,6 +1267,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `UpdateCompositionRequest` | type | `packages/contracts/src/products.ts:878` |
 | `updateConsultationTemplateRequest` | var | `packages/contracts/src/consultation.ts:112` |
 | `UpdateConsultationTemplateRequest` | type | `packages/contracts/src/consultation.ts:119` |
+| `updateConsumptionTemplateRequest` | zod | `packages/contracts/src/consumption.ts:105` |
+| `UpdateConsumptionTemplateRequest` | type | `packages/contracts/src/consumption.ts:457` |
 | `updateDoctorQualificationRequest` | zod | `packages/contracts/src/doctors.ts:185` |
 | `UpdateDoctorQualificationRequest` | type | `packages/contracts/src/doctors.ts:586` |
 | `updateDoctorRequest` | var | `packages/contracts/src/doctors.ts:139` |
