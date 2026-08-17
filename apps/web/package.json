@@ -13,7 +13,7 @@
     "clean": "rm -rf .next out *.tsbuildinfo"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.7.1",
+    "@hookform/resolvers": "^5.8.0",
     "@rcln/clinical": "workspace:*",
     "@rcln/contracts": "workspace:*",
     "@rcln/documents": "workspace:*",
@@ -25,12 +25,12 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.545.0",
-    "next": "16.3.0",
+    "next": "16.3.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.85.0",
     "recharts": "^3.10.1",
-    "sonner": "^2.0.7",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^3.3.1",
     "zod": "catalog:"
   },
