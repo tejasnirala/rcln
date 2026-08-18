@@ -307,6 +307,17 @@ export async function getDispense(
 // The supply
 // ---------------------------------------------------------------------------
 
+/**
+ * A quantity no clinic holds, asked for so the planner returns every candidate.
+ *
+ * ⚠️ A PROBE, NOT A LIMIT, AND IT CANNOT OVER-ALLOCATE ANYTHING. `planAllocation`
+ *   stops when the request is covered or the candidates run out; asking for more
+ *   than exists returns all of them with a large shortfall, which the
+ *   caller-supplied path ignores because it is not asking whether the shelf can
+ *   cover anything. Planning writes nothing. Largest value `Decimal(18,6)` holds.
+ */
+const EVERYTHING_ON_THE_SHELF = '999999999999';
+
 interface ResolvedAllocation {
   locationId: string;
   batchId: string | null;
@@ -355,10 +366,29 @@ async function resolveAllocations(
    *   conversion happened once, above, through the same `toBaseUnits` the ledger
    *   legs use; converting again here would be a second answer to one question.
    */
+  /*
+   * ⚠️ TWO DIFFERENT QUESTIONS, AND ASKING ONE PLAN BOTH OF THEM WAS A BUG
+   *   (found in PI-9, which had written the identical shape):
+   *
+   *     "what would FEFO take for this quantity"  ->  plan for `quantityBase`
+   *     "may this lot be supplied at all"         ->  plan for EVERYTHING
+   *
+   *   `planAllocation` walks the candidate buckets in order and STOPS once the
+   *   request is covered. So a plan for the line's own quantity returns only the
+   *   lots FEFO picked — and validating a pharmacist's CHOSEN lots against that
+   *   set refuses every lot the plan did not choose, which is precisely the act
+   *   the override exists to permit. Reaching past the oldest lot for a damaged
+   *   strip answered "that lot cannot be supplied", and the ordinary FEFO path
+   *   passed, so nothing failed until somebody exercised the override.
+   *
+   *   The candidacy rules are identical either way — AVAILABLE, unexpired, an
+   *   ACTIVE batch, an active location — because they are the allocator's filter
+   *   and not a property of the quantity asked for.
+   */
   const plan = await planStockAllocationWithin(tx, ctx, {
     branchId,
     productId,
-    quantity: quantityBase,
+    quantity: requested && requested.length > 0 ? EVERYTHING_ON_THE_SHELF : quantityBase,
   });
 
   const candidates = new Map(
@@ -367,6 +397,26 @@ async function resolveAllocations(
       line,
     ])
   );
+
+  /*
+   * What FEFO would have taken for THIS LINE, walked down the full candidate
+   * list. It is what an override is measured against — `candidate.quantityBase`
+   * under the whole-shelf probe is the bucket's entire contents, and comparing
+   * against that would mark every allocation an override.
+   */
+  const plannedForLine = new Map<string, Prisma.Decimal>();
+  let toCover = new Prisma.Decimal(quantityBase);
+  for (const candidate of plan.lines) {
+    const take = Prisma.Decimal.max(
+      0,
+      Prisma.Decimal.min(toCover, new Prisma.Decimal(candidate.availableQuantityBase))
+    );
+    toCover = toCover.sub(take);
+    plannedForLine.set(
+      `${candidate.locationId}|${candidate.batchId ?? '-'}|${candidate.serialId ?? '-'}`,
+      take
+    );
+  }
 
   if (!requested || requested.length === 0) {
     if (new Prisma.Decimal(plan.shortfallQuantityBase).gt(0)) {
@@ -419,7 +469,7 @@ async function resolveAllocations(
      *   THAT RATHER THAN THE CLIENT. A screen that forgot to set the flag would
      *   otherwise record a silent departure from FEFO as routine.
      */
-    const planned = new Prisma.Decimal(candidate.quantityBase);
+    const planned = plannedForLine.get(key) ?? new Prisma.Decimal(0);
     const isOverride = line.isOverride || !planned.eq(wanted);
     if (isOverride && !(line.overrideReason ?? '').trim()) {
       throw new ValidationError(
@@ -592,6 +642,48 @@ export async function createDispense(
         throw new ValidationError(
           'One of these lines cites a prescribed medicine that is not on this prescription.'
         );
+      }
+
+      /*
+       * ⚠️ SUPPLYING SOMETHING OTHER THAN WHAT WAS PRESCRIBED *IS* A SUBSTITUTION,
+       *   AND THE CLIENT DOES NOT GET TO DECIDE WHETHER TO CALL IT ONE. Without
+       *   this, a line could cite prescription line P (for product A) while
+       *   supplying product B and simply omit `substitutedForProductId` — and
+       *   because BOTH contract refinements are conditioned on that field being
+       *   set, omitting it skipped the mandatory reason AND the self-substitution
+       *   check. Worse, the engine is told a substitution happened only by
+       *   `...(line.substitutedForProductId ? { substitution: … } : {})` below, so
+       *   every `SUBSTITUTION_RESTRICTION` rule sat out and the frozen decision on
+       *   `dispense_lines.regulatory_decision_id` recorded a PERMITTED supply for a
+       *   question nobody asked. The stored row then read
+       *   `substituted_for_product_id = NULL`, which asserts B is what the
+       *   prescriber wrote, and `refreshFulfilment` closed the prescription off
+       *   because it sums by prescription line without looking at the product.
+       *
+       *   The declaration is derived from the two products disagreeing, never
+       *   trusted. The web workspace always sent the field — but the workspace is
+       *   not the boundary, and this is the one place that can tell.
+       */
+      if (prescriptionLine) {
+        if (line.productId !== prescriptionLine.productId && !line.substitutedForProductId) {
+          throw new ValidationError(
+            'This line supplies a different product from the one prescribed. Record it as a substitution, with the reason, so the law is asked the substitution question.'
+          );
+        }
+        /*
+         * Both directions: a declared substitution must name the product on the
+         * line it cites — which refuses an undeclared swap AND a claimed one that
+         * points at some third product, whose only effect would be to put a name
+         * on the record that was never prescribed.
+         */
+        if (
+          line.substitutedForProductId &&
+          line.substitutedForProductId !== prescriptionLine.productId
+        ) {
+          throw new ValidationError(
+            'A substitution has to name the product that was actually prescribed on the line it cites.'
+          );
+        }
       }
 
       const quantityBase = await toBaseUnits(
@@ -838,7 +930,19 @@ export async function createDispense(
             where: { id: allocation.serialId },
             data: {
               status: 'ISSUED',
-              ...(patientId !== null ? { assignedPatientId: patientId } : {}),
+              /*
+               * ⚠️ `assigned_at` MOVES WITH `assigned_patient_id` OR THE ROW IS
+               *   REFUSED. `serials_assignment_dated` is
+               *   `(assigned_patient_id IS NULL) = (assigned_at IS NULL)`, so
+               *   this used to raise a 23514 on every dispense of a serialised
+               *   product TO A PATIENT — the whole point of tracking a serial.
+               *   Found in PI-9, which writes the identical update and hit the
+               *   identical constraint; no pharmacy case covered a serialised
+               *   supply, so nothing failed until something else did it too.
+               */
+              ...(patientId !== null
+                ? { assignedPatientId: patientId, assignedAt: new Date() }
+                : {}),
             },
           });
         }
@@ -871,6 +975,8 @@ export async function createDispense(
      */
     await raiseChargeRequestsWithin(tx, ctx, {
       branchId,
+      /* Explicit since PI-9 gave the engine its second caller. */
+      sourceType: 'PHARMACY',
       kind: 'SUPPLY',
       patientId,
       /* The instant it was HANDED OVER — it becomes the invoice's `suppliedAt`. */

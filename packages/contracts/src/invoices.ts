@@ -290,8 +290,32 @@ export const createCreditNoteRequest = z.object({
    *   argument `voidInvoiceRequest.reason` makes.
    */
   reason: z.string().min(1).max(500),
-  /** Empty credits the whole invoice — every line, in full. */
-  lines: z.array(creditNoteLineRequest).max(200).default([]),
+  /**
+   * Empty credits the whole invoice — every line, in full.
+   *
+   * ⚠️ EACH LINE ONCE, AND THIS REFINEMENT IS LOAD-BEARING RATHER THAN TIDY. The
+   *   per-line ceiling in `resolveLines` measures every entry against
+   *   `alreadyCreditedByItem`, a snapshot taken ONCE before the loop runs. Name
+   *   the same `invoiceItemId` twice and both entries read the same untouched
+   *   remainder and both pass, so a line can be credited past what was supplied
+   *   as long as the grand total stays under `assertWithinRemaining`'s ceiling —
+   *   which it does whenever the invoice has more than one line. The document
+   *   then reverses a quantity of one HSN that was never billed under it, which
+   *   is a GST misstatement per line rather than a rounding argument, and stock
+   *   reconciliation reads those lines.
+   *
+   *   `createInvoiceFromChargesRequest` already refines exactly this way, for
+   *   exactly this reason. The cross-request half of the cap was closed; this is
+   *   the within-request half.
+   */
+  lines: z
+    .array(creditNoteLineRequest)
+    .max(200)
+    .refine(
+      (lines) => new Set(lines.map((l) => l.invoiceItemId)).size === lines.length,
+      'credit each invoice line once — combine the quantities instead'
+    )
+    .default([]),
 });
 export type CreateCreditNoteRequest = z.infer<typeof createCreditNoteRequest>;
 

@@ -428,7 +428,31 @@ DECLARE
     -- charge request records what happened at ONE counter to ONE named person.
     'charge_policy_rules',
     'product_prices',
-    'charge_requests'
+    'charge_requests',
+    -- ---------------------------------------------------------------------
+    -- Clinical consumption (PI-9). Five tables, TWO tenancy classes — the same
+    -- split charging has, and for the same reason.
+    --
+    -- ⚠️ THE TWO TEMPLATE TABLES ARE ORG-ONLY AND ARE **NOT** IN THE
+    --   branch_scoped ARRAY BELOW. Neither carries a `branch_id` column: "a root
+    --   canal uses two pairs of gloves and 2 mL of anaesthetic" is how this
+    --   ORGANIZATION practises, exactly the call `charge_policy_rules` makes
+    --   about billability and `suppliers` makes about vendors. The branch loop's
+    --   predicate would name a column that does not exist and the CREATE POLICY
+    --   would raise at migration time.
+    --
+    --   ⚠️ THE COST: a branch-scoped clinician reads the whole organization's
+    --     consumption templates. Intended — they follow them — and it is why
+    --     nothing branch-confidential may be added to those two tables.
+    --
+    -- The three RECORD tables are in both loops. What was used happened at ONE
+    -- place, to ONE named person, and `clinical_consumptions` holds a patient
+    -- beside an implant's serial number.
+    'consumption_templates',
+    'consumption_template_lines',
+    'clinical_consumptions',
+    'consumption_lines',
+    'consumption_allocations'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -1199,6 +1223,88 @@ CREATE POLICY unit_visible ON charge_requests AS RESTRICTIVE
       AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
   ));
 
+-- ---------------------------------------------------------------------------
+-- The RESTRICTIVE `*_visible` policies — KI-3, the risk `db:rls:check`
+-- structurally cannot see.
+--
+-- Three plain FKs into platform-extensible tables across two tables here:
+-- `consumption_templates.item_id` into `clinical_master_items`, and
+-- `product_id` / `unit_id` on both line tables. `tenant_isolation` constrains
+-- the CHILD side and says nothing about the parent side, so without these a
+-- clinic attaches another clinic's private procedure word or private product to
+-- its own row and reads the name straight back through the join that renders
+-- it.
+--
+-- ⚠️ THIS EXACT CLASS HAS PRODUCED A CRITICAL IN THREE SEPARATE PHASES, most
+--   recently on `dispense_lines.substituted_for_product_id`, which PI-8 closed
+--   only because somebody swept for it deliberately.
+-- ---------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS item_visible ON consumption_templates;
+CREATE POLICY item_visible ON consumption_templates AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM clinical_master_items i
+    WHERE i.id = consumption_templates.item_id
+      AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM clinical_master_items i
+    WHERE i.id = consumption_templates.item_id
+      AND (i.organization_id IS NULL OR i.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS product_visible ON consumption_template_lines;
+CREATE POLICY product_visible ON consumption_template_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = consumption_template_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = consumption_template_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS unit_visible ON consumption_template_lines;
+CREATE POLICY unit_visible ON consumption_template_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = consumption_template_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = consumption_template_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS product_visible ON consumption_lines;
+CREATE POLICY product_visible ON consumption_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = consumption_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = consumption_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS unit_visible ON consumption_lines;
+CREATE POLICY unit_visible ON consumption_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = consumption_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = consumption_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ));
+
 -- Who the patient was sent to. Nullable — a referral to a named colleague or
 -- to somebody outside the organization names no specialty at all.
 DROP POLICY IF EXISTS specialty_visible ON encounter_referrals;
@@ -1577,7 +1683,18 @@ DECLARE
     --     organization-wide default price that every branch inherits, and a
     --     policy that hid it would leave every branch with no price at all.
     'product_prices',
-    'charge_requests'
+    'charge_requests',
+    -- Clinical consumption (PI-9). ⚠️ THREE OF THE FIVE — the two template
+    --   tables are org-wide and have no branch_id; see the note in the
+    --   org_scoped array above.
+    --
+    --   All three `branch_id`s are NOT NULL, so the `IS NULL` half below is dead
+    --   code for them and the policy is absolute — like the pharmacy seven and
+    --   unlike `product_prices`. What was used on a named patient in one
+    --   treatment room is not another site's record to read.
+    'clinical_consumptions',
+    'consumption_lines',
+    'consumption_allocations'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP

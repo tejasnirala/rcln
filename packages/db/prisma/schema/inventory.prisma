@@ -298,6 +298,10 @@ model InventoryLocation {
   dispenses               Dispense[]           @relation("DispenseLocation")
   dispenseAllocations     DispenseAllocation[] @relation("DispenseAllocationLocation")
   dispenseReturns         DispenseReturn[]     @relation("DispenseReturnLocation")
+  // PI-9. The trolley, cabinet or treatment room a procedure's material came
+  // off. ⚠️ NOT required to be a dispensing point — see `ClinicalConsumption`.
+  consumptions            ClinicalConsumption[]   @relation("ConsumptionLocation")
+  consumptionAllocations  ConsumptionAllocation[] @relation("ConsumptionAllocationLocation")
 
   @@unique([organizationId, branchId, code])
   /// The composite-FK target every child below references.
@@ -467,6 +471,10 @@ model Batch {
   /// question a recall asks first, and this relation plus
   /// `dispense_allocations(organization_id, batch_id)` is how it is answered.
   dispenseAllocations   DispenseAllocation[] @relation("DispenseAllocationBatch")
+  /// PI-9. The other half of the same recall question: a lot consumed during a
+  /// procedure never went out of a counter, so a recall that walked only
+  /// `dispense_allocations` would miss every implant ever fitted.
+  consumptionAllocations ConsumptionAllocation[] @relation("ConsumptionAllocationBatch")
 
   @@unique([organizationId, branchId, productId, lotNumber])
   @@unique([organizationId, id])
@@ -535,6 +543,10 @@ model Serial {
   purchaseReturnLines PurchaseReturnLine[] @relation("PurchaseReturnLineSerial")
   /// PI-7. The supply that issued this device to somebody.
   dispenseAllocations DispenseAllocation[] @relation("DispenseAllocationSerial")
+  /// PI-9. The procedure that FITTED this device. ⚠️ This is what makes a device
+  /// recall answerable at patient level, and it is why a consumed serial sets
+  /// `assigned_patient_id` in the same transaction.
+  consumptionAllocations ConsumptionAllocation[] @relation("ConsumptionAllocationSerial")
 
   /// Serial numbers repeat across manufacturers, so the key is product-qualified
   /// as well as tenant-qualified.

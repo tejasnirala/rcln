@@ -310,6 +310,10 @@ model UnitOfMeasure {
   /// tablet — and the unit the invoice line's quantity is therefore expressed in.
   productPrices       ProductPrice[]            @relation("ProductPriceUnit")
   chargeRequests      ChargeRequest[]           @relation("ChargeRequestUnit")
+  /// Clinical consumption (PI-9). The unit a template is written in — "2 pairs",
+  /// "2 mL" — and the unit the clinician confirmed the actual figure in.
+  consumptionTemplateLines ConsumptionTemplateLine[] @relation("ConsumptionTemplateLineUnit")
+  consumptionLines         ConsumptionLine[]         @relation("ConsumptionLineUnit")
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -729,6 +733,11 @@ model Product {
   chargePolicyRules   ChargePolicyRule[]         @relation("ChargePolicyRuleProduct")
   prices              ProductPrice[]             @relation("ProductPriceProduct")
   chargeRequests      ChargeRequest[]            @relation("ChargeRequestProduct")
+  /// Clinical consumption (PI-9). Plain FKs for the same reason: a clinic's
+  /// procedures consume PLATFORM products, so both tables need
+  /// `product_visible`.
+  consumptionTemplateLines ConsumptionTemplateLine[] @relation("ConsumptionTemplateLineProduct")
+  consumptionLines         ConsumptionLine[]         @relation("ConsumptionLineProduct")
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   /// Which specialties this product is relevant to. ⚠️ RANKS, NEVER FILTERS —

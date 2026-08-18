@@ -65,6 +65,41 @@ const CLINICAL_AUTHORING: PermissionCode[] = [
 const authorsClinicalNotes = (p: PermissionCode): boolean => CLINICAL_AUTHORING.includes(p);
 
 /**
+ * Attesting, as a professional, that a clinical instruction is sound.
+ *
+ * ⚠️ A THIRD "EXCEPT" LIST RATHER THAN A LINE IN `CLINICAL_AUTHORING`, because
+ *   this is not authoring. `pharmacy.dispense.verify` writes no clinical record —
+ *   it writes `prescription_fulfilments`, pharmacy's own row beside the
+ *   consultation, which is exactly what keeps invariant 7 true at the router. So
+ *   it does not belong on a list whose name and ADR are about who may write in
+ *   the chart.
+ *
+ * ⚠️ IT IS EXCLUDED FOR THE SAME STRUCTURAL REASON THOUGH: ORG_OWNER and
+ *   ORG_ADMIN are built as `ALL_PERMISSIONS.filter(...)`, so a code that is
+ *   nobody's by intention joins them silently unless it is named here.
+ *
+ * `codes.ts` defines `.verify` as "a professional reads the prescription and says
+ * it is sound — the drug, the dose, the interaction, the patient". That is
+ * clinical judgement by its own definition, and `verifyPrescription` checks the
+ * permission code and nothing else: no licence lookup, no `regulatoryActorWithin`
+ * — the licence check happens at DISPENSE time, not here. Left on the default
+ * "everything except" roles, a non-clinician owner could be recorded in
+ * `prescription_fulfilments.verified_by_id` as the professional who confirmed a
+ * controlled-substance prescription was safe, and the workspace would then treat
+ * it as cleared for supply.
+ *
+ * ⚠️ `.create` STAYING WHERE IT IS, IS NOT AN ARGUMENT FOR KEEPING `.verify`.
+ *   Handing boxes over and judging that they should be handed over are two acts,
+ *   and splitting them is the entire reason there are two codes — see PHARMACIST,
+ *   which holds both because a single-pharmacist dispensary is the ordinary shape.
+ *   A clinic whose owner IS the pharmacist grants it by cloning a role or per
+ *   membership, which is the same door every other clinical code uses.
+ */
+const PROFESSIONAL_ATTESTATION: PermissionCode[] = [P.DISPENSE_VERIFY];
+
+const attestsProfessionally = (p: PermissionCode): boolean => PROFESSIONAL_ATTESTATION.includes(p);
+
+/**
  * Signing off a jurisdiction's rule pack. NOT held by anybody, by default.
  *
  * ⚠️ NAMED HERE FOR THE SAME REASON `CLINICAL_AUTHORING` IS: ORG_OWNER and
@@ -124,12 +159,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'ORGANIZATION',
     /*
      * Everything except platform-level permissions, authoring a consultation,
-     * and signing off a regulatory rule pack.
+     * verifying a prescription as a professional, and signing off a regulatory
+     * rule pack.
      */
     permissions: ALL_PERMISSIONS.filter(
       (p) =>
         !p.startsWith('platform.') &&
         !authorsClinicalNotes(p) &&
+        !attestsProfessionally(p) &&
         !signsOffRulePacks(p) &&
         !maintainsPlatformLaw(p)
     ),
@@ -143,6 +180,7 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       (p) =>
         !p.startsWith('platform.') &&
         !authorsClinicalNotes(p) &&
+        !attestsProfessionally(p) &&
         !signsOffRulePacks(p) &&
         !maintainsPlatformLaw(p) &&
         p !== P.ORG_BILLING_MANAGE &&
@@ -305,6 +343,25 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        */
       P.CHARGE_REQUEST_READ,
       P.CHARGE_REQUEST_MANAGE,
+      /*
+       * What the treatment rooms at this site used, and the templates that say
+       * what they were expected to use (PI-9).
+       *
+       * ⚠️ `template.manage` AND NOT `.record`, WHICH IS THE INVERSE OF THE
+       *   CLINICAL ROLES BELOW AND IS THE POINT. A branch administrator sets the
+       *   baseline a variance is measured against — a configuration act, beside
+       *   `inventory.reason_code.manage` — and does not stand in the room saying
+       *   what came off the trolley. Granting them `.record` would let the
+       *   person who defines "normal" also file the numbers measured against it.
+       *
+       * ⚠️ THE TEMPLATES ARE ORG-WIDE THOUGH, unlike most of this role. There is
+       *   no `branch_id` on `consumption_templates` — see the model — so editing
+       *   one changes what every site pre-fills. Accepted for the reason this
+       *   role's org-wide supplier and price reads are accepted, and recorded
+       *   here rather than discovered.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_TEMPLATE_MANAGE,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,
@@ -401,6 +458,19 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_DEFINITION_READ,
       P.MEDICINE_READ,
       /*
+       * Records what a procedure consumed (PI-9).
+       *
+       * ⚠️ NOT A CLINICAL AUTHORING CODE, WHICH IS WHY IT IS NOT ON THE
+       *   `CLINICAL_AUTHORING` LIST AND WHY ORG_OWNER AND ORG_ADMIN KEEP IT. A
+       *   consumption is a stock movement anchored to a consultation — the same
+       *   relationship `prescription_fulfilments` has to a prescription — and it
+       *   writes nothing in the chart. Invariant 7 is untouched: the arrow points
+       *   from the consumption into the clinical record and never back.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_RECORD,
+      P.CONSUMPTION_OVERRIDE,
+      /*
        * Reads what a jurisdiction says about what they are about to prescribe,
        * and asserts nothing (PI-5). The same line invariant 7 draws for the
        * catalogue: consulting the rule is prescribing, recording the product's
@@ -448,11 +518,26 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRESCRIPTION_READ,
       P.LAB_ORDER_READ,
       /*
-       * Reads the catalogue because a nurse draws consumables from the trolley
-       * and will record what was used once PI-9 lands. Curating it is not their
-       * job and neither is the medicine detail behind it — no MEDICINE_READ.
+       * Reads the catalogue because a nurse draws consumables from the trolley,
+       * and records what was used (PI-9 — the phase the previous version of this
+       * comment was waiting for). Curating the catalogue is not their job and
+       * neither is the medicine detail behind it — no MEDICINE_READ.
        */
       P.PRODUCT_DEFINITION_READ,
+      /*
+       * ⚠️ ALL THREE, INCLUDING THE OVERRIDE, AND THAT IS DELIBERATE. The nurse
+       *   is frequently the person actually holding the trolley, and a role that
+       *   could record a consumption but not depart from the template would stop
+       *   at the first procedure that used two swabs instead of one — at which
+       *   point the honest number goes unrecorded and the inventory quietly
+       *   stops matching reality, which is the outcome CLINICAL_CONSUMPTION.md
+       *   says is worse than any variance. The override is AUDITED, never
+       *   obstructed; a clinic that wants variances approved withholds this code
+       *   on a clone of this role.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_RECORD,
+      P.CONSUMPTION_OVERRIDE,
       P.SETTINGS_USER_WRITE,
     ],
   },
@@ -660,6 +745,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * granted here either.
        */
       P.CHARGE_REQUEST_READ,
+      /*
+       * ⚠️ READ, AND POINTEDLY NOT `.record` (PI-9). A pharmacist runs the store
+       *   the treatment rooms draw from, so "what did theatre use out of my
+       *   stock this week" is their question — but the person who says a
+       *   procedure used three pairs of gloves is the person who was standing in
+       *   the room. A dispensary that could record consumption against somebody
+       *   else's procedure could move stock off its own books with no clinician
+       *   in the loop.
+       */
+      P.CONSUMPTION_READ,
       P.SUPPLIER_MANAGE,
       P.PURCHASE_ORDER_READ,
       P.PURCHASE_ORDER_MANAGE,

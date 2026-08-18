@@ -20,7 +20,7 @@ Files: `apps/api/src/services/regulatory/actor.service.ts` · `apps/api/src/serv
 | `isBlockingOutcome` | `(outcome: RegulatoryDecisionResponse['outcome']): outcome is BlockingOutcome` | `apps/api/src/services/regulatory/enforcement.ts:56` |  |
 | `isEnforceable` | `(decision: RegulatoryDecisionResponse): boolean` | `apps/api/src/services/regulatory/enforcement.ts:75` |  |
 | `jurisdictionLabel` | `(jurisdiction: { countryCode: string; regionCode: string \| n…): string` | `apps/api/src/services/regulatory/shared.ts:23` | `IN-KA` or `IN`. Formatted once so no screen has to decide. |
-| `licenceTypesFor` | `(tx: TxClient, ctx: TenantContext, on: Date): Promise<string[]>` | `apps/api/src/services/regulatory/actor.service.ts:59` |  |
+| `licenceTypesFor` | `(tx: TxClient, ctx: TenantContext, on: Date, branchId?: string): Promise<string[]>` | `apps/api/src/services/regulatory/actor.service.ts:80` |  |
 | `listAuthorities` | `(ctx: TenantContext, query: RegulatoryAuthorityQuery): Promise<RegulatoryAuthorityListResponse>` | `apps/api/src/services/regulatory/catalogue.service.ts:77` |  |
 | `listJurisdictions` | `(ctx: TenantContext, query: JurisdictionQuery): Promise<JurisdictionListResponse>` | `apps/api/src/services/regulatory/catalogue.service.ts:49` |  |
 | `listRegulatoryProfiles` | `(ctx: TenantContext, productId: string): Promise<ProductRegulatoryProfileDetail[]>` | `apps/api/src/services/regulatory/profile.service.ts:94` |  |
@@ -31,8 +31,10 @@ Files: `apps/api/src/services/regulatory/actor.service.ts` · `apps/api/src/serv
 | `loadRules` <sub>local</sub> | `(tx: TxClient, place: Jurisdiction, on: Date): Promise<RegulatoryRule[]>` | `apps/api/src/services/regulatory/evaluation.service.ts:97` |  |
 | `pageMeta` | `(total: number, page: number, limit: number): { page: number; limit: number; total: number; totalPages: n…` | `apps/api/src/services/regulatory/shared.ts:236` | The page envelope every list in this domain returns. |
 | `readProfiles` <sub>local</sub> | `(tx: TxClient, productId: string): Promise<ProductRegulatoryProfileDetail[]>` | `apps/api/src/services/regulatory/profile.service.ts:75` | The read, INSIDE a caller's transaction — see `readPackagings` for why. |
-| `regulatoryActorWithin` | `(tx: TxClient, ctx: TenantContext, input: { roleCodes: readonly string[]; occurredAt: Date; /*…): Promise<RegulatoryActorInput>` | `apps/api/src/services/regulatory/actor.service.ts:101` |  |
+| `regulatoryActorWithin` | `(tx: TxClient, ctx: TenantContext, input: { roleCodes: readonly string[]; occurredAt: Date; /*…): Promise<RegulatoryActorInput>` | `apps/api/src/services/regulatory/actor.service.ts:138` |  |
 | `replaceRegulatoryProfiles` | `(ctx: TenantContext, productId: string, input: ReplaceProductRegulatoryProfilesRequest, options: CatalogueActionOptions): Promise<ProductRegulatoryProfileDetail[]>` | `apps/api/src/services/regulatory/profile.service.ts:109` |  |
+| `startOfBranchDay` <sub>local</sub> | `(tx: TxClient, branchId: string, on: Date): Promise<Date>` | `apps/api/src/services/regulatory/actor.service.ts:70` |  |
+| `startOfUtcDay` <sub>local</sub> | `(on: Date): Date` | `apps/api/src/services/regulatory/actor.service.ts:59` |  |
 | `summarise` | `(decision: RegulatoryDecisionResponse, productId: string): { productId: string; outcome: string; jurisdiction: string;…` | `apps/api/src/services/regulatory/enforcement.ts:91` |  |
 | `toAuthoritySummary` | `(row: AuthorityRow): RegulatoryAuthoritySummary` | `apps/api/src/services/regulatory/shared.ts:76` |  |
 | `toDetail` <sub>local</sub> | `(row: ProfileRow, on: Date): ProductRegulatoryProfileDetail` | `apps/api/src/services/regulatory/profile.service.ts:52` |  |

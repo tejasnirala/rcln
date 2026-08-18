@@ -653,6 +653,60 @@ export const PERMISSIONS = {
   REFUND_PROCESS: 'billing.refund.process',
   DOCTOR_PAYOUT_MANAGE: 'billing.doctor_payout.manage',
 
+  // -- clinical consumption --------------------------------------------------
+  /*
+   * What a procedure actually used off the shelf (PI-9).
+   *
+   * ⚠️ A NEW MODULE PREFIX RATHER THAN `inventory.*` OR `clinical.*`, AND BOTH
+   *   ALTERNATIVES ARE WRONG IN OPPOSITE DIRECTIONS.
+   *
+   *   Not `inventory.stock.adjust`: a dentist recording three pairs of gloves is
+   *   not correcting a count, and gating consumption behind the adjustment code
+   *   would hand every clinician the permission where shrinkage hides. It is
+   *   also the weaker act — an adjustment changes what the clinic HOLDS with no
+   *   external event behind it, while a consumption records a physical event
+   *   somebody witnessed.
+   *
+   *   Not `clinical.*`: consumption writes NO clinical record (invariant 7). It
+   *   is a stock movement anchored to a consultation, the same relationship
+   *   `prescription_fulfilments` has to a prescription, and PI-7's route-gate
+   *   test asserts pharmacy carries no `clinical.*` code for exactly this
+   *   reason. A `clinical.consumption.record` code would additionally be
+   *   stripped from ORG_OWNER and ORG_ADMIN by the `CLINICAL_AUTHORING` list,
+   *   which would be wrong: an administrator reconciling a treatment room's
+   *   trolley is not authoring a chart.
+   */
+  CONSUMPTION_READ: 'consumption.record.read',
+  CONSUMPTION_RECORD: 'consumption.record',
+  /*
+   * Departing from what the template expected.
+   *
+   * ⚠️ ITS OWN CODE, AND THE SPLIT IS THE ONE CLINICAL_CONSUMPTION.md ASKS FOR
+   *   BY NAME: "recording what was used and overriding the expected quantity are
+   *   different acts, and the second is the one a variance report cares about".
+   *
+   * ⚠️ AND HOLDING IT NEVER BLOCKS A CLINICIAN — the whole design refuses to
+   *   obstruct. What the code buys is that a clinic which wants variances
+   *   approved by a named person can arrange it by NOT granting this to
+   *   everyone; the defaults grant it to whoever holds `.record`, because a
+   *   dentist who used three pairs of gloves used three pairs of gloves and a
+   *   system that argues gets an inventory that stops matching reality.
+   */
+  CONSUMPTION_OVERRIDE: 'consumption.override',
+  /*
+   * Writing the templates themselves.
+   *
+   * ⚠️ A CONFIGURATION CODE, BESIDE `inventory.reason_code.manage` AND FOR THE
+   *   SAME REASON. Recording a consumption is a daily operational act; deciding
+   *   what a root canal is EXPECTED to consume sets the baseline every future
+   *   variance is measured against, at every branch, and quietly restates what
+   *   "normal" means for a procedure the clinic bills for.
+   *
+   *   Reading a template needs only `consumption.record.read` — the pre-filled
+   *   panel is on the surface that code gates.
+   */
+  CONSUMPTION_TEMPLATE_MANAGE: 'consumption.template.manage',
+
   // -- reports ---------------------------------------------------------------
   REPORT_DASHBOARD: 'report.dashboard.read',
   REPORT_REVENUE: 'report.revenue.read',

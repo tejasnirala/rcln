@@ -42,6 +42,7 @@ import { redis } from '../../src/utils/redis.js';
 import type { TenantContext } from '@rcln/db';
 import { createLocation } from '../../src/services/inventory/location.service.js';
 import { createBatch } from '../../src/services/inventory/batch.service.js';
+import { createSerial } from '../../src/services/inventory/serial.service.js';
 import { recordMovement } from '../../src/services/inventory/movement.service.js';
 import { verifyBalances } from '../../src/services/inventory/balance.service.js';
 import {
@@ -685,6 +686,90 @@ describe('a prescription that is not current', () => {
   });
 });
 
+/**
+ * ⚠️ SUPPLYING SOMETHING ELSE IS A SUBSTITUTION WHETHER OR NOT THE CALLER SAYS SO
+ *   (PI-8 review, CRITICAL). Every substitution control in the programme hangs off
+ *   `substitutedForProductId`: the contract refines the mandatory reason only when
+ *   it is set, and `consultForSupply` is told `substitution: { isSubstitution: true }`
+ *   only when it is set. So a line citing prescription line P (for product A) while
+ *   supplying product B, with the field simply OMITTED, used to sail through — every
+ *   `SUBSTITUTION_RESTRICTION` rule sat out, the frozen decision recorded a PERMITTED
+ *   supply for a question nobody asked, the stored row read
+ *   `substituted_for_product_id = NULL` (asserting B is what the prescriber wrote),
+ *   and `refreshFulfilment` closed the prescription because it sums by prescription
+ *   line without looking at the product.
+ *
+ *   The web workspace always sent the field. The workspace is not the boundary.
+ */
+describe('supplying a different product from the one prescribed', () => {
+  let other: string;
+
+  beforeAll(async () => {
+    const row = await owner.query<{ id: string }>(
+      `INSERT INTO products
+         (id, organization_id, type, status, code, name, base_unit_id, tracking_mode,
+          is_expiry_controlled, is_stock_item, updated_at)
+       VALUES (gen_random_uuid(), $1, 'MEDICINE', 'ACTIVE', 'PHR-MED-ALT', 'Phr Medicine Alt', $2,
+               'LOT_BATCH', true, true, now())
+       RETURNING id`,
+      [org.organizationId, baseUnit]
+    );
+    other = row.rows[0]?.id ?? '';
+  });
+
+  it('refuses a swap that does not declare itself', async () => {
+    await expect(
+      createDispense(ctx, {
+        branchId: org.branchId,
+        locationId: counter,
+        kind: 'PRESCRIPTION',
+        encounterId,
+        lines: [
+          {
+            encounterPrescriptionId: prescriptionLineId,
+            productId: other,
+            quantity: '1',
+            unitId: baseUnit,
+          },
+        ],
+      } as never)
+    ).rejects.toThrow(/record it as a substitution/i);
+  });
+
+  /*
+   * The other half: a declared substitution has to name the product on the line it
+   * cites. Pointing it at some third product would put a name on the clinical record
+   * that was never prescribed, and would ask the engine about the wrong swap.
+   */
+  it('refuses a substitution that names a product the prescription does not', async () => {
+    await expect(
+      createDispense(ctx, {
+        branchId: org.branchId,
+        locationId: counter,
+        kind: 'PRESCRIPTION',
+        encounterId,
+        /*
+         * The supplied product IS the prescribed one, so this is not a swap at
+         * all — but it claims to have been substituted for a product the line
+         * never named. Caught here rather than by the contract, whose only
+         * refinement on this field is that a product is not substituted for
+         * itself.
+         */
+        lines: [
+          {
+            encounterPrescriptionId: prescriptionLineId,
+            productId: medicine,
+            substitutedForProductId: other,
+            substitutionReason: 'out of stock',
+            quantity: '1',
+            unitId: baseUnit,
+          },
+        ],
+      } as never)
+    ).rejects.toThrow(/actually prescribed/i);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Returns
 // ---------------------------------------------------------------------------
@@ -810,5 +895,128 @@ describe('the dashboard', () => {
     expect(dashboard.branchId).toBe(org.branchId);
     expect(dashboard.dispensedToday).toBeGreaterThan(0);
     expect(JSON.stringify(dashboard)).not.toContain('Phr Patient');
+  });
+});
+
+/**
+ * Two defects PI-9 found in this path by writing the identical code and hitting
+ * the identical constraints. Both were reachable here and covered by nothing.
+ */
+describe('supplying a serialised device, and reaching past the oldest lot', () => {
+  let device: string;
+  let deviceSerialA: string;
+  let deviceSerialB: string;
+
+  beforeAll(async () => {
+    const product = await owner.query<{ id: string }>(
+      `INSERT INTO products
+         (id, organization_id, type, status, code, name, base_unit_id, tracking_mode,
+          is_stock_item, updated_at)
+       VALUES (gen_random_uuid(), $1, 'IMPLANT', 'ACTIVE', 'PHR-DEV', 'Phr Device', $2,
+               'SERIAL', true, now())
+       RETURNING id`,
+      [org.organizationId, baseUnit]
+    );
+    device = product.rows[0]?.id ?? '';
+
+    deviceSerialA = (
+      await createSerial(ctx, {
+        branchId: org.branchId,
+        productId: device,
+        serialNumber: 'PHR-DEV-A',
+      })
+    ).id;
+    deviceSerialB = (
+      await createSerial(ctx, {
+        branchId: org.branchId,
+        productId: device,
+        serialNumber: 'PHR-DEV-B',
+      })
+    ).id;
+
+    for (const serialId of [deviceSerialA, deviceSerialB]) {
+      await recordMovement(ctx, {
+        branchId: org.branchId,
+        productId: device,
+        serialId,
+        movementType: 'RETURN',
+        quantity: '1',
+        locationId: counter,
+        referenceType: 'MANUAL',
+      });
+    }
+  });
+
+  /**
+   * ⚠️ `serials_assignment_dated` IS `(assigned_patient_id IS NULL) = (assigned_at
+   *   IS NULL)`, and this path set the patient without the date — so every
+   *   supply of a serialised product TO A PATIENT raised a Postgres 23514 and
+   *   reached the caller as a 500. The whole point of tracking a serial is
+   *   knowing whose it is, and nothing in this suite had ever dispensed one.
+   */
+  it('assigns a supplied device to the patient, with the date the check demands', async () => {
+    const dispense = await createDispense(ctx, {
+      branchId: org.branchId,
+      locationId: counter,
+      kind: 'COUNTER_SALE',
+      patientId,
+      lines: [{ productId: device, quantity: '1', unitId: baseUnit }],
+    });
+
+    const serialId = dispense.lines[0]?.allocations[0]?.serialId ?? '';
+    expect(serialId).not.toBe('');
+
+    const { rows } = await owner.query<{
+      status: string;
+      assigned: string | null;
+      assigned_at: Date | null;
+    }>(`SELECT status, assigned_patient_id AS assigned, assigned_at FROM serials WHERE id = $1`, [
+      serialId,
+    ]);
+    expect(rows[0]?.status).toBe('ISSUED');
+    expect(rows[0]?.assigned).toBe(patientId);
+    expect(rows[0]?.assigned_at).not.toBeNull();
+  });
+
+  /**
+   * ⚠️ THE OVERRIDE, WHICH THIS PATH REFUSED. `resolveAllocations` planned for
+   *   the LINE's quantity and then checked the pharmacist's chosen lots against
+   *   that plan — so any lot FEFO had not picked came back "cannot be supplied",
+   *   which is exactly the act the override exists to permit. The happy path
+   *   passed, so nothing failed until somebody reached past the oldest lot.
+   */
+  it('supplies the device the pharmacist chose, not the one FEFO picked', async () => {
+    const { rows: free } = await owner.query<{ id: string }>(
+      `SELECT id FROM serials WHERE id = ANY($1) AND status <> 'ISSUED'`,
+      [[deviceSerialA, deviceSerialB]]
+    );
+    const chosen = free[0]?.id ?? '';
+    expect(chosen).not.toBe('');
+
+    const dispense = await createDispense(ctx, {
+      branchId: org.branchId,
+      locationId: counter,
+      kind: 'COUNTER_SALE',
+      patientId,
+      lines: [
+        {
+          productId: device,
+          quantity: '1',
+          unitId: baseUnit,
+          allocations: [
+            {
+              locationId: counter,
+              serialId: chosen,
+              quantityBase: '1',
+              isOverride: true,
+              overrideReason: 'The other pack was already open.',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(dispense.lines[0]?.allocations[0]?.serialId).toBe(chosen);
+    expect(dispense.lines[0]?.allocations[0]?.isOverride).toBe(true);
   });
 });

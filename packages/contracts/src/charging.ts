@@ -310,14 +310,23 @@ export const decideChargeRequest = z.discriminatedUnion('decision', [
      * appointment invoice, and the same reason: what was actually agreed beats
      * what the grid says.
      *
-     * ⚠️ THIS IS A PRICING POWER BEHIND `billing.charge_request.manage`, NOT
-     *   `billing.fee_schedule.manage`, AND THE ROUTER'S HEADER DOES NOT SAY SO.
-     *   Recorded here rather than re-gated: RECEPTIONIST and BRANCH_ADMIN hold
-     *   both this code and `billing.invoice.create`, and a holder of the latter
-     *   can already type any price onto a manual invoice — so it confers no
-     *   authority they lack. What it is NOT is a second copy of the PRICE LIST:
-     *   it moves one line on one bill and is recorded against a named person on
-     *   the charge request, where the grid is silent and applies to everything.
+     * ⚠️ SENDING THIS FIELD REQUIRES `billing.fee_schedule.manage` AS WELL AS
+     *   `billing.charge_request.manage`. It is a pricing power, so it asks for
+     *   the pricing code; deciding a charge on the price the grid already
+     *   resolved asks for neither extra code nor extra thought.
+     *
+     *   This used to be gated on the charge code alone, on the argument that
+     *   "RECEPTIONIST and BRANCH_ADMIN hold both this code and
+     *   `billing.invoice.create`, so it confers no authority they lack". That is
+     *   true of the DEFAULT roles and of nothing else — `roles.ts` says in its own
+     *   header that the defaults are "a default, not a ceiling", and a clinic that
+     *   separates duties by cloning a charge-reviewer role without
+     *   `INVOICE_CREATE` got a person who could re-price any charge to nothing.
+     *   The coupling the argument leaned on was enforced by no code.
+     *
+     *   What it is still NOT is a second copy of the PRICE LIST: it moves one line
+     *   on one bill and is recorded against a named person on the charge request,
+     *   where the grid is silent and applies to everything.
      */
     unitPriceMinor: z.int().min(0).optional(),
   }),

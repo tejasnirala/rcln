@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-16 (PI-8 complete)
+**Last updated:** 2026-08-17 (PI-9 complete)
 
 ## Status vocabulary
 
@@ -34,25 +34,25 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 
 ## Phase roll-up
 
-| Phase     | Title                                                   | Status                    | Blocked by                                 |
-| --------- | ------------------------------------------------------- | ------------------------- | ------------------------------------------ |
-| PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                          |
-| PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                          |
-| PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                          |
-| PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                          |
-| PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                          |
-| PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                          |
-| PI-6      | India Rule Pack                                         | **COMPLETE** (2026-08-13) | —                                          |
-| PI-7      | Pharmacy Dispensing                                     | **COMPLETE** (2026-08-16) | —                                          |
-| PI-8      | Billing & Tax Integration                               | **COMPLETE** (2026-08-17) | reviews deferred to the next session       |
-| PI-9      | Clinical Consumption                                    | **BLOCKED**               | `encounters`/`procedures` (Phase 3) + PI-3 |
-| PI-10     | Recall & Traceability                                   | PLANNED                   | PI-2, PI-4                                 |
-| PI-11     | Veterinary Enablement                                   | PLANNED                   | PI-1, PI-5                                 |
-| PI-12     | Online Pharmacy                                         | PLANNED                   | **UNBLOCKED** — PI-8 landed                |
-| PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                       |
-| PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                       |
-| PI-23     | Identifier Resolution / Barcode                         | NOT_STARTED               | PI-1, PI-2                                 |
-| PI-24     | Global Hardening                                        | NOT_STARTED               | everything                                 |
+| Phase     | Title                                                   | Status                    | Blocked by                               |
+| --------- | ------------------------------------------------------- | ------------------------- | ---------------------------------------- |
+| PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                        |
+| PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                        |
+| PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                        |
+| PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                        |
+| PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                        |
+| PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                        |
+| PI-6      | India Rule Pack                                         | **COMPLETE** (2026-08-13) | —                                        |
+| PI-7      | Pharmacy Dispensing                                     | **COMPLETE** (2026-08-16) | —                                        |
+| PI-8      | Billing & Tax Integration                               | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
+| PI-9      | Clinical Consumption                                    | **COMPLETE** (2026-08-17) | —                                        |
+| PI-10     | Recall & Traceability                                   | PLANNED                   | PI-2, PI-4                               |
+| PI-11     | Veterinary Enablement                                   | PLANNED                   | PI-1, PI-5                               |
+| PI-12     | Online Pharmacy                                         | PLANNED                   | **UNBLOCKED** — PI-8 landed              |
+| PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                     |
+| PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                     |
+| PI-23     | Identifier Resolution / Barcode                         | NOT_STARTED               | PI-1, PI-2                               |
+| PI-24     | Global Hardening                                        | NOT_STARTED               | everything                               |
 
 ---
 
@@ -948,3 +948,332 @@ standing at a counter waiting.
 **Next action:** PI-8.11 hardening — `/code-review` and `security-reviewer`, run
 manually. Neither PI-10 nor PI-12 should start before the security review of this
 diff lands.
+
+---
+
+# PI-8.11 — Hardening · COMPLETE (2026-08-17)
+
+The review gate `NEXT_SESSION.md` said had to land before anything else started.
+Run over `main...HEAD` — the whole unreviewed PI-7 + PI-8 diff, 247 files.
+
+| Check               | Result                                    |
+| ------------------- | ----------------------------------------- |
+| typecheck           | PASS — 29 tasks                           |
+| lint                | PASS — 0 errors, 3 pre-existing warnings  |
+| `db:rls:check`      | PASS — 121 tenant tables                  |
+| unit                | **231** across 13 suites (+4 new)         |
+| tenant-isolation    | **410** across 23 suites                  |
+| integration         | **1 077** across 48 suites (+5 new)       |
+| `security-reviewer` | 1 HIGH, 2 MEDIUM, 3 LOW — **no CRITICAL** |
+| `code-reviewer`     | **1 CRITICAL**, 2 HIGH, 5 WARNING, 5 NIT  |
+
+### The CRITICAL, and why it is the one to remember
+
+**A dispense line could supply a different product from the one prescribed
+without declaring a substitution.** Every substitution control in the programme
+hangs off `substitutedForProductId`: both contract refinements are conditioned on
+it being set, and `consultForSupply` is told `substitution: { isSubstitution: true }`
+only when it is set. So omitting it meant no mandatory reason, no
+`SUBSTITUTION_RESTRICTION` rule ever fired, and the frozen
+`regulatory_decision_id` recorded a PERMITTED supply for a question nobody asked.
+The stored row then read `substituted_for_product_id = NULL` — asserting the
+substitute IS what the prescriber wrote — and `refreshFulfilment` closed the
+prescription off, because it sums by prescription line without looking at the
+product.
+
+`prescriptionLine.productId` was selected and never compared to anything.
+
+⚠️ **THE WEB WORKSPACE ALWAYS SENT THE FIELD, WHICH IS WHY THIS SURVIVED THE
+PHASE.** A control that only the happy-path client applies is not a control. The
+declaration is now DERIVED from the two products disagreeing, never trusted.
+
+### The rest, all fixed
+
+1. **[HIGH] Duplicate `invoiceItemId` defeated the per-line credit cap.**
+   `alreadyCreditedByItem` is snapshotted once before the loop, so two entries
+   naming one line both read the same untouched remainder. Split across two small
+   quantities the total stays under `assertWithinRemaining` and commits — a
+   statutory credit note reversing a quantity of one HSN that was never billed
+   under it. `createInvoiceFromChargesRequest` had already answered the identical
+   question with a `.refine()`; the credit note now has the same one.
+2. **[HIGH] `unitPriceMinor` was a pricing power behind the charge code.** The
+   contract argued it was safe because the default roles hold `invoice.create`
+   too — true of the defaults and of nothing else, and `roles.ts` says in its own
+   header that the defaults are "a default, not a ceiling". Now requires
+   `billing.fee_schedule.manage` **in addition**, and only when a price is
+   actually overridden.
+3. **[HIGH] The return ceiling was a read-then-write with no lock.** The CHECK
+   constraint stopped the corruption, so this was never a data defect — it was a
+   Postgres 23514 reaching `errorHandler`, which has no case for a CHECK
+   violation, so the loser got a 500 instead of "that already came back".
+4. **[MEDIUM] A branch-scoped member could write the CLINIC-WIDE price.** RLS
+   cannot catch it: the `branch_id IS NULL` half of `branch_isolation` is
+   correctly load-bearing for reads and passes `WITH CHECK` too. ⚠️ And
+   `deleteProductPrice` carried a comment reading "the org-wide one is covered by
+   nothing, so it is checked here" directly above a line that checked the BRANCH
+   row and skipped the org-wide one — **the inverse of what it promised**. The
+   same failure mode PI-7 wrote up: a comment documenting an intention as though
+   it were an implementation.
+5. **[MEDIUM] `pharmacy.dispense.verify` reached ORG_OWNER and ORG_ADMIN.** Those
+   are `ALL_PERMISSIONS.filter(...)` roles, so a code nobody was meant to have
+   joins them silently unless named. Excluded through a new
+   `PROFESSIONAL_ATTESTATION` list rather than by stretching `CLINICAL_AUTHORING`
+   — verifying writes `prescription_fulfilments`, not the chart, which is exactly
+   what keeps invariant 7 true at the router.
+6. **[WARNING] Float money**, in a figure the same file computed correctly in
+   `Prisma.Decimal` 150 lines later — so the queue header and the queue rows could
+   disagree by a minor unit on one screen.
+7. **[WARNING] Verifying could clobber a concurrent dispense's fulfilment state**,
+   and the read-then-create raced the unique. Now locked, and an upsert.
+8. **[LOW] Licence validity was evaluated on the UTC day**, contradicting
+   invariant 6 and the model's own comment — for an IST clinic every supply
+   between 00:00 and 05:30 local honoured a licence that expired yesterday. Now
+   resolved in SQL from `branches.timezone`.
+9. **[NIT] The workspace sent `'0'`** for a substituted line with no outstanding
+   quantity, producing a 400 naming a quantity no control on the screen sets.
+
+### What the reviews confirmed clean
+
+All 11 new tenant tables carry policies in **both** `enable-rls.sql` and their
+migration with no drift, and all 11 have isolation cases. The full plain-FK sweep
+found **no missing member** of the `*_visible` class that produced a CRITICAL in
+three separate phases — including `substituted_for_product_id`, which PI-8 closed.
+`regulatory_decisions` is append-only in both layers. Six raw-SQL sites, all
+parameterized. No `@rcln/db/unsafe`. IDOR and 404-not-403 correct on every new
+route. PHI clean in logs, Redis and URLs. Middleware order correct on both routers.
+
+⚠️ **THE RLS LAYER PASSED, WHICH IS THE FIRST TIME.** Every finding that survived
+is application-layer authorization or a concurrency race — the two things no
+automated check in this repository looks at.
+
+### Still open
+
+- **Nothing has been clicked in a browser.** Unchanged since PI-1.
+- **`membership_professional_registrations` has no write path**, so
+  `RegulatoryActor.licenceTypes` is `[]` for every real user and KNOWN_ISSUES #9
+  is half closed: the column exists, nothing fills it. Latent — enforcement only
+  bites at `PRODUCTION_ENABLED`.
+- **`lockCharges` relies on a planner property, not a guarantee.** In practice
+  PostgreSQL plans `ORDER BY id FOR UPDATE` as `LockRows → Sort → Scan` so the
+  header's claim holds; it is a plan shape rather than a documented contract.
+  Recorded, not changed.
+- **The per-line loop in `createDispense` is a genuine N+1** inside the
+  highest-contention transaction in the programme — ~5 round trips per line while
+  holding advisory bucket locks. The product read alone is one `findMany`.
+- **`explicit organizationId` is omitted on five product reads** where a sibling
+  goes out of its way to include it. RLS is the only layer holding them.
+
+---
+
+# PI-9 — Clinical Consumption · COMPLETE (2026-08-17)
+
+**Dependencies:** PI-1..PI-3 (product, inventory, movements) + `encounters` /
+`encounter_procedures`, **all satisfied**. PI-8 supplies the charge engine.
+**Design:** [CLINICAL_CONSUMPTION.md](CLINICAL_CONSUMPTION.md) — read it first;
+it is the whole specification and it is unusually complete.
+
+⚠️ **THE BLOCKER RECORDED AGAINST THIS PHASE SINCE PI-0 IS GONE.** `encounters`
+and `encounter_procedures` landed with the consultation engine (`066a79c`), and
+`EncounterProcedure` carries `@@index([organizationId, itemId, status])` annotated
+"PI-9 reads this: what procedures were performed, and therefore what stock they
+consumed". The roll-up said BLOCKED until 2026-08-17 because nobody had rechecked
+it; STATUS.md line 47 had said "PI-9 is unblocked" for some time.
+
+**Migration:** `20260908090000_clinical_consumption` — 5 tables, 3 enums, 9
+CHECKs, 2 partial uniques, 13 RLS policies, plus `charge_requests.consumption_line_id`
+and the `@@unique([organization_id, id])` `encounter_procedures` had always
+needed. `..090500_data_access_resource_clinical_consumption` adds the enum value.
+
+| Task    | Description                                                                          | Status                                                                      |
+| ------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| PI-9.1  | `consumption_templates` + lines — org-scoped, versioned by effective date            | COMPLETE — the open-ended half is an index, the rest a check                |
+| PI-9.2  | `clinical_consumptions` + `consumption_lines` — the anchor set, expected vs actual   | COMPLETE — 2 anchors built, 2 declared and refused                          |
+| PI-9.3  | RLS on every new table + isolation cases + the `*_visible` sweep                     | COMPLETE — 5 tables, 5 `*_visible`, 19 isolation cases                      |
+| PI-9.4  | `consumption.record` / `consumption.override` permission codes and role grants       | COMPLETE — four codes; see the note below on the other two                  |
+| PI-9.5  | Contracts in `@rcln/contracts`                                                       | COMPLETE — `packages/contracts/src/consumption.ts`                          |
+| PI-9.6  | The recording service — FEFO allocation, `CLINICAL_CONSUMPTION` ledger legs, serials | COMPLETE — one transaction, no draft                                        |
+| PI-9.7  | **The `InventoryChargeRequest` writer** — PI-8 built the engine and left no caller   | COMPLETE — the caller PI-8 named                                            |
+| PI-9.8  | Amend before close; compensating movement after                                      | COMPLETE — delta legs before, a second record after                         |
+| PI-9.9  | Assigning a serial to a patient gets its screen at last (deferred here from PI-2)    | COMPLETE — the picker, and the two defects it uncovered                     |
+| PI-9.10 | Screens — template editor, the consumption panel on the encounter/procedure          | COMPLETE — 3 screens plus the panel                                         |
+| PI-9.11 | Tests — unit, integration, isolation                                                 | COMPLETE — 24 unit · 28 integration · 19 isolation, +2 pharmacy regressions |
+
+### Completion gate
+
+`DB` migration + RLS + isolation ✓ · `BE` every service through `withTenant` ✓ ·
+`API` contracts + routes + the standard chain ✓ · `FE` 3 screens + the
+consultation panel ✓ · `VAL` Zod on every surface ✓ · `AUTHZ` four codes, all
+new ✓ · `AUDIT` `recordAudit` on every write and `recordDataAccess` on every read
+including the PLAN ✓ · `REG` n/a — deliberately, and the reasoning is in the
+service header: no rule type in PI-5 addresses ADMINISTERING a product, and
+asking the engine would answer `UNDETERMINED` for every product on the platform,
+which refuses · `TEST` ✓ · `DOC` this directory ✓ · `REGRESS` lint (0 errors),
+typecheck, `db:rls:check` at **126** tables, **255 unit · 429 isolation · 1 067
+integration** all green ✓.
+
+### What landed
+
+| Area        | What                                                                                                                                                              |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | `consumption_templates`, `consumption_template_lines`, `clinical_consumptions`, `consumption_lines`, `consumption_allocations`                                    |
+| Charging    | `charge_requests.consumption_line_id` — the column PI-8 said would arrive in the migration that creates its table. `raiseChargeRequestsWithin` gains `sourceType` |
+| Clinical    | `encounter_procedures` gains `@@unique([organization_id, id])`, the composite-FK target ADR-0004 requires and nothing had needed until now                        |
+| RLS         | `db:rls:check` green at **126** (was 121). ⚠️ Two tenancy classes: the two template tables are org-only, the three record tables are org + branch                 |
+| Permissions | `consumption.record.read` / `.record` / `.override` / `.template.manage` — DOCTOR and NURSE get the first three, BRANCH_ADMIN the read and the templates          |
+| Contracts   | `packages/contracts/src/consumption.ts`                                                                                                                           |
+| Services    | `services/consumption/{shared,template,consumption}.service.ts`                                                                                                   |
+| Routes      | `/v1/consumption/{templates,plan,records}`                                                                                                                        |
+| Web         | `/usage` (used, templates, one template) plus the consumption panel on the consultation; a "Usage" nav entry                                                      |
+| Tests       | `tests/unit/consumption-contract.test.ts` (24) · `tests/integration/consumption.test.ts` (24) · 19 isolation cases · `route-gates` audits the new router          |
+
+### The four decisions PI-9 was required to make
+
+**1. Two anchors are built and two are declared.** `ENCOUNTER` and
+`ENCOUNTER_PROCEDURE` carry columns; `LAB_ORDER` and `IMAGING_STUDY` are enum
+members with none, and `clinical_consumptions_anchor_is_resolvable` refuses them.
+The member costs nothing and saves the lab phase an enum migration — the same
+call PI-3 made with `StockReservationStatus.CONSUMED`. A polymorphic
+`(subject_type, subject_id)` pair was refused for the reason the tracker
+predicted: it cannot carry a composite FK, so the database cannot tenant-check
+it, which is ADR-0006 wearing different clothes.
+
+**2. ⚠️ THE LAW IS NOT ASKED, AND THAT IS A DECISION RATHER THAN AN OMISSION.**
+`@rcln/regulatory` answers questions about SUPPLYING a product to a person — may
+this be dispensed, may it be substituted, was a prescription presented. A
+clinician using an anaesthetic on their own patient during a procedure they are
+performing is not a supply, no rule type in PI-5 addresses it, and calling
+`evaluateWithin` here would answer `UNDETERMINED` — which refuses — for every
+product on the platform. PI-6.7's enforcement gate would swallow that today,
+which is exactly why it must not be relied on: the day somebody moves a pack to
+`PRODUCTION_ENABLED`, every procedure in the clinic would stop. The call site is
+marked in `consumption.service.ts`'s header for the phase that writes an
+administration rule type.
+
+**3. A correction after the close is a second record; an amendment before it is
+not.** Both write DELTA ledger legs, because `stock_ledger` has no update path
+and never will. What an amendment buys is that the RECORD reads as one event
+rather than three — which is what a clinician correcting a typo thirty seconds
+later actually means. It is refused once the consultation is signed OR once
+anything on it has reached an invoice, whichever comes first.
+
+**4. Four permission codes, not the two the plan named.** `consumption.record`
+and `.override` are the two CLINICAL_CONSUMPTION.md asks for. Reading needed its
+own code because a doctor holds no `inventory.stock.read` and would otherwise be
+unable to see the panel on their own consultation; writing templates needed one
+because deciding what a procedure is EXPECTED to use sets the baseline every
+variance is measured against, which is a configuration act beside
+`inventory.reason_code.manage`. ⚠️ None is a `clinical.*` code and none is
+excluded from ORG_OWNER / ORG_ADMIN — an administrator reconciling a treatment
+room's trolley is not authoring a chart, and `route-gates.test.ts` now asserts
+the router carries no `clinical.*` code at all.
+
+### What it inherited from the PI-8.11 review, and did not repeat
+
+- **The declaration is derived, never trusted.** There is no `isOverride` on the
+  request contract at all: whether a line departs from its template is arithmetic
+  the server does over two numbers it already holds. The contract suite asserts
+  the field is DROPPED rather than honoured if a client sends one, which is the
+  case that fails the day somebody adds it back.
+- **The template pairing is re-checked.** A line may not cite the glove's
+  template line while consuming an implant — the PI-9 analogue of the dispensing
+  CRITICAL, where every control hung off a client-set field and the stored row
+  then asserted something nobody had written.
+- **Every read-then-write over a running total takes the row lock.**
+  `amendConsumption` and `correctConsumption` both `SELECT … FOR UPDATE` the
+  record first. The reversal ceiling — what came off minus what has gone back —
+  is PI-8.11's `alreadyCreditedByItem` finding in this domain.
+- **`assertNoOverlap` is a read-then-write that is deliberately NOT locked, and
+  the reasoning is written down rather than assumed.** The loser of that race
+  writes an overlapping window, not a corrupt one, and
+  `resolveTemplateInForceWithin` resolves an overlap deterministically — so the
+  failure mode is "the wrong one of two templates pre-fills a panel a human is
+  looking at", not a movement of stock.
+
+### What is open, and honestly so
+
+- **Nothing has been clicked in a browser.** The same item every phase has left,
+  now across three more screens and one panel.
+- **The plan is anchored to the consultation, not to a procedure, on the one
+  screen that renders it.** `/v1/consumption/plan` takes an
+  `encounterProcedureId` and the service uses it; the consultation page reaches a
+  record by encounter id and has no procedure selected, so it plans against the
+  visit. A procedure-anchored panel belongs inside the consultation engine, which
+  PI-9 deliberately did not reshape.
+- **`/code-review` and `security-reviewer` have NOT been run.** This diff touches
+  the schema, tenancy, permissions, patient data, billing and raw SQL, so
+  CLAUDE.md makes the security review mandatory before merge. Point a reviewer at
+  these first, because they are where the phase took its risks: `restateLine`'s
+  delta arithmetic and its charge-request delete-and-re-raise, `recordReversal`'s
+  ceiling under the lock, `assertMayOverride` being enforced in the service rather
+  than at the route, and the five new `*_visible` policies.
+- **`@rcln/billing`'s package test suite fails to load**, and it did so before
+  this phase — verified by stashing the whole diff. A module-resolution problem in
+  the generated Prisma client, unrelated to PI-9 and not fixed here.
+
+### The decisions this phase was required to make, as they were anticipated
+
+**Kept for the reasoning, not the status — every one of the four was taken, and
+"The four decisions PI-9 was required to make" above records what was actually
+decided.**
+
+1. **What the anchor set is.** CLINICAL_CONSUMPTION.md says only the ANCHOR
+   differs across specialties — procedure, encounter, lab order, imaging study —
+   and calls it "one nullable-per-kind reference set, not a second subsystem".
+   Only `encounters` and `encounter_procedures` EXIST today, so the honest move is
+   to build those two and leave the others as enum members with no column, the way
+   PI-8 handled `CONTRACT_DEFINED`. ⚠️ A polymorphic `(subject_type, subject_id)`
+   pair would be the ADR-0006 mistake wearing different clothes — it cannot carry
+   a composite FK, so it cannot be tenant-checked by the database.
+2. **Whether a template line may name a platform product.** It may, which means
+   `consumption_template_lines.product_id` is a plain FK into a
+   platform-extensible table and needs a RESTRICTIVE `product_visible` policy.
+   This exact class has produced a CRITICAL in three phases and was still open on
+   `dispense_lines.substituted_for_product_id` until PI-8.
+3. **Consumption is NOT a charge (PI-ADR-005).** The service emits a
+   `charge_request` per consumed line and knows nothing about billability. The
+   policy decides. `NEVER_BILL` gloves and a `SEPARATELY_BILLABLE` implant go
+   through identical code.
+4. **An override is audited and never obstructed.** A dentist who used three pairs
+   of gloves used three pairs. Large variances are PI-22's report, not this
+   phase's refusal.
+
+### PI-9.9, and the two defects the picker uncovered
+
+The panel now offers the lots — and, for a serialised product, the individual
+numbered devices — with FEFO's proposal pre-filled. Building it turned up two
+bugs, both of which were ALSO live in PI-7's dispensing path, because that path
+had the identical code and no test that exercised either.
+
+**1. ⚠️ THE CANDIDATE CHECK WAS NARROWED TO WHAT FEFO WOULD TAKE, SO EVERY
+OVERRIDE WAS REFUSED.** `planAllocation` walks the buckets in order and STOPS
+once the requested quantity is covered. Both services planned for the LINE's
+quantity and then validated the caller's chosen lots against that plan — so any
+lot FEFO had not picked came back "that lot cannot be supplied", which is exactly
+the act the override exists to permit. Reaching past the oldest lot for a damaged
+strip, or naming the second of two implants, was impossible through the API.
+Fixed in both: the candidate list is planned for the whole shelf, and what FEFO
+would have taken for the line is computed separately, because the two are
+different questions and one plan cannot answer both.
+
+**2. ⚠️ ASSIGNING A SERIAL TO A PATIENT RAISED A 23514 AND REACHED THE CALLER AS
+A 500.** `serials_assignment_dated` is
+`(assigned_patient_id IS NULL) = (assigned_at IS NULL)`, and both services set
+the patient without the date. Every supply of a serialised product TO A PATIENT
+failed — which is the whole point of tracking a serial. Nothing in the pharmacy
+suite had ever dispensed one, so it shipped.
+
+Both fixes carry a regression test in `pharmacy.test.ts`, and **both tests were
+verified to FAIL against the reverted code**: a regression test that passes
+either way is worth nothing, and these two guard the exact class of defect that
+survives because the happy path is unaffected.
+
+### What it inherits from the PI-8.11 review, and must not repeat
+
+- **Derive the declaration, never trust the client's flag.** The PI-9 analogue of
+  the dispensing CRITICAL is a consumption line whose product disagrees with the
+  template's while claiming to be the template's — check it server-side.
+- **Every read-then-write over a running total needs the row lock**, not just a
+  CHECK constraint. Three phases have now paid for this.
+- **A comment that describes intent must describe the code beneath it.** Two
+  separate CRITICAL/MEDIUM findings have now been comments documenting controls
+  nobody had written.

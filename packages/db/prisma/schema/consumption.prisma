@@ -1,0 +1,474 @@
+// ---------------------------------------------------------------------------
+// Clinical consumption — what a procedure actually used (PI-9)
+//
+// ⚠️ CONSUMPTION IS NOT A CHARGE, AND THAT IS PI-ADR-005 AND THE SINGLE MOST
+//   IMPORTANT RULE IN THIS FILE. Nothing here holds a price, a policy or a tax
+//   figure. A consumed glove and a consumed implant travel through identical
+//   code; `charge_requests` is the hand-off and the CHARGE POLICY — a clinic's
+//   commercial position, resolved in `services/charging` — decides which of them
+//   ever reaches an invoice. A system that derives "somebody owes for it" from
+//   "it left the shelf" bills for gauze.
+//
+// ⚠️ AND IT OWNS NO QUANTITY EITHER. Every figure below is a RECORD of a
+//   movement; the movement itself is a `stock_ledger` row written by
+//   `recordMovement()` and by nothing else (PI-ADR-004). `consumption_lines`
+//   states what a clinician says was used, `consumption_allocations` states
+//   which lots it came out of, and the ledger is what the balance is computed
+//   from.
+//
+// ── THE ANCHOR ───────────────────────────────────────────────────────────────
+// CLINICAL_CONSUMPTION.md's promise is that one engine serves dental, surgery,
+// general medicine, laboratory, imaging and veterinary work, and that only the
+// ANCHOR differs — what the consumption record points AT. That is a
+// nullable-per-kind reference set and NOT a polymorphic `(subject_type,
+// subject_id)` pair: a loose uuid cannot carry a composite foreign key, so it
+// cannot be tenant-checked by the database, which is ADR-0006's mistake wearing
+// different clothes.
+//
+// Two anchors exist in this repository and two are built. The other members of
+// `ConsumptionAnchorKind` are declared with no column and refused by CHECK,
+// exactly as PI-8 left `CONTRACT_DEFINED` resolving to a human: the member is
+// there so the phase that builds the lab does not need an enum migration, and
+// the CHECK is what stops anybody claiming an anchor with nothing behind it.
+//
+// ── PHI ──────────────────────────────────────────────────────────────────────
+// "This person had this implant fitted on this day" is a clinical fact about a
+// named human and is treated exactly as `dispenses` is: ids and counts in logs
+// and in audit rows, nothing in Redis, nothing in a URL. A TEMPLATE is not PHI —
+// it is a statement about a procedure, not about a patient — and the two halves
+// of this file are deliberately different in that respect.
+// ---------------------------------------------------------------------------
+
+/// What a consumption record points at.
+///
+/// ⚠️ TWO MEMBERS ARE BUILT AND TWO ARE DECLARED. `ENCOUNTER` and
+///   `ENCOUNTER_PROCEDURE` have columns; `LAB_ORDER` and `IMAGING_STUDY` name
+///   tables that do not exist in this repository, so they carry no column and
+///   `clinical_consumptions_anchor_is_resolvable` refuses them. Guessing at the
+///   shape of a reference to a table nobody has designed is the mistake PI-5
+///   records about `regulatory_decisions`, and the enum member costs nothing.
+enum ConsumptionAnchorKind {
+  /// The consultation itself — a dressing, an injectable, anything used at a
+  /// visit that is not filed under a named procedure.
+  ENCOUNTER
+  /// A named procedure within a consultation. The ordinary case, and the one
+  /// `encounter_procedures`' own `(organization_id, item_id, status)` index was
+  /// annotated for.
+  ENCOUNTER_PROCEDURE
+  /// Reagents, kits, tubes. ⚠️ NO COLUMN — the lab module is permission codes
+  /// and nothing else.
+  LAB_ORDER
+  /// Contrast media. ⚠️ NO COLUMN — imaging does not exist here either.
+  IMAGING_STUDY
+}
+
+/// Where a template is in its life.
+///
+/// ⚠️ A TEMPLATE IS A STARTING POINT AND NEVER A COMMITMENT. Nothing is deducted
+///   from stock by any row in a template; only an actual recording moves
+///   quantity. `RETIRED` therefore changes what the next procedure PRE-FILLS and
+///   restates nothing about what past procedures used.
+enum ConsumptionTemplateStatus {
+  /// Being written. Not offered to a clinician.
+  DRAFT
+  /// In force for its effective window.
+  ACTIVE
+  /// Superseded or withdrawn. Kept for ever — a consumption record cites the
+  /// version it was pre-filled from, and that citation must stay answerable.
+  RETIRED
+}
+
+/// Is this record what was used, or a correction to what was recorded?
+///
+/// ⚠️ A CORRECTION AFTER THE ENCOUNTER CLOSES IS A SECOND RECORD, NEVER AN EDIT.
+///   Same discipline as the ledger it writes into and as the credit note that
+///   corrects an invoice: what was recorded stays recorded, and the compensating
+///   movement is its own row citing it. Before the encounter closes an amendment
+///   IS allowed to restate the original — see `amendConsumption`, which is the
+///   one path that rewrites a line, and which still writes delta ledger legs
+///   because the ledger is append-only regardless.
+enum ClinicalConsumptionKind {
+  /// What was used. Writes `CLINICAL_CONSUMPTION` legs.
+  CONSUMPTION
+  /// More was used than was recorded, and the encounter has closed. Writes
+  /// further `CLINICAL_CONSUMPTION` legs and cites the record it corrects.
+  ADDITIONAL_CONSUMPTION
+  /// Less was used than was recorded, and the encounter has closed. Writes
+  /// `RETURN` legs — the stock goes back on the shelf — and raises `REVERSAL`
+  /// charge requests. ⚠️ Its quantities are POSITIVE and the direction is the
+  /// kind, for the reason `stock_ledger` keeps the sign out of the quantity.
+  CONSUMPTION_REVERSAL
+}
+
+// ---------------------------------------------------------------------------
+// Templates — what a procedure normally uses
+// ---------------------------------------------------------------------------
+
+/// What this procedure normally consumes.
+///
+/// ⚠️ ORG-SCOPED, NOT BRANCH-SCOPED, AND IT HAS NO `branch_id` COLUMN AT ALL. "A
+///   root canal uses two pairs of gloves and 2 mL of anaesthetic" is a statement
+///   about how this ORGANIZATION practises, the same call `charge_policy_rules`
+///   makes about billability. A three-site group does not maintain three copies,
+///   and the branch RLS loop's predicate would name a column that does not
+///   exist. ⚠️ The cost is the same too: a branch-scoped member reads the whole
+///   organization's templates, so nothing branch-confidential may go on this
+///   table.
+///
+/// ⚠️ VERSIONED BY EFFECTIVE DATE, SO A TEMPLATE CHANGE NEVER RESTATES WHAT A
+///   PAST PROCEDURE CONSUMED. A consumption record snapshots the EXPECTED
+///   quantity onto its own line at the moment it is recorded, so history is
+///   answerable from the record; the version chain here is what makes "what did
+///   we expect in March" answerable as well, and what stops an edit to today's
+///   template silently changing yesterday's variance report.
+model ConsumptionTemplate {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  /// The procedure this is the template FOR.
+  ///
+  /// ⚠️ A PLAIN FK INTO A PLATFORM-EXTENSIBLE TABLE, so it needs a RESTRICTIVE
+  ///   `item_visible` policy — `clinical_master_items.organization_id` is
+  ///   NULLABLE and this row's is NOT NULL, so the composite reference ADR-0004
+  ///   would otherwise give us is unavailable. Without the policy a clinic
+  ///   attaches another clinic's private procedure word to its own template and
+  ///   reads the name back through the join on the template screen. This exact
+  ///   class has produced a CRITICAL in three separate phases.
+  ///
+  /// ⚠️ CHECKED TO `kind = 'PROCEDURE'` IN THE SERVICE, not by CHECK — the kind
+  ///   lives on the other table and a CHECK cannot see it. A trigger was refused
+  ///   for the reason the migration gives.
+  itemId String @map("item_id") @db.Uuid
+
+  /// What the clinic calls this version. Free text, not PHI.
+  name String @db.VarChar(255)
+  /// Monotonic within `(organization, item)`. Human-facing: "v3".
+  version Int @default(1)
+
+  status ConsumptionTemplateStatus @default(DRAFT)
+
+  /// ⚠️ DATES, NOT INSTANTS. "Which template was in force when this procedure
+  ///   was done" is a calendar question the clinic answers in its own timezone,
+  ///   the same call `encounter_procedures.performed_on` makes.
+  effectiveFrom DateTime  @map("effective_from") @db.Date
+  /// NULL = still in force. ⚠️ At most ONE open-ended ACTIVE version per
+  /// procedure, by partial unique index in the migration. Overlaps in CLOSED
+  /// windows are refused in the service, because a CHECK cannot see another row
+  /// and a range-exclusion constraint over a soft-deleted table is a bigger
+  /// hammer than this needs.
+  effectiveTo   DateTime? @map("effective_to") @db.Date
+
+  /// Why this version exists. Not PHI — it is about a procedure.
+  notes String? @db.Text
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?   @map("updated_by") @db.Uuid
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Restrict: a procedure word a template cites is deactivated with the
+  /// taxonomy, never deleted out from under it. Same rule
+  /// `encounter_procedures.item` follows.
+  item         ClinicalMasterItem @relation("ConsumptionTemplateItem", fields: [itemId], references: [id], onDelete: Restrict)
+  updater      User?              @relation("ConsumptionTemplateUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  lines        ConsumptionTemplateLine[]
+  consumptions ClinicalConsumption[]
+
+  @@unique([organizationId, itemId, version])
+  @@unique([organizationId, id])
+  /// The pre-fill's read: every version of one procedure's template, so the one
+  /// in force on a date is a single index scan.
+  @@index([organizationId, itemId, effectiveFrom])
+  @@index([organizationId, status])
+  @@map("consumption_templates")
+}
+
+/// One product a procedure normally uses.
+model ConsumptionTemplateLine {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  templateId     String @map("template_id") @db.Uuid
+
+  /// ⚠️ Plain FKs into platform-extensible tables — `product_visible` and
+  ///   `unit_visible`, both RESTRICTIVE, both in `enable-rls.sql` and in the
+  ///   migration. See the note on `consumption_templates.item_id`.
+  productId String @map("product_id") @db.Uuid
+
+  /// What the clinic thinks in — "2 pairs", "2 mL" — and the unit it says it in.
+  /// ⚠️ NOT necessarily the product's base unit, which is the whole reason the
+  ///   unit is stored beside the number.
+  quantity Decimal @db.Decimal(18, 6)
+  unitId   String  @map("unit_id") @db.Uuid
+
+  /// "Usually, but not always." An optional line is pre-filled at zero rather
+  /// than at its quantity, so a clinician adds it deliberately.
+  isOptional Boolean @default(false) @map("is_optional")
+
+  /// Sort within the template. Ties break by id so the order is total — the
+  /// lesson KNOWN_ISSUES #1 cost on `stock_transfer_lines`.
+  displayOrder Int @default(0) @map("display_order")
+
+  note String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  template     ConsumptionTemplate @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Cascade)
+  product      Product             @relation("ConsumptionTemplateLineProduct", fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure       @relation("ConsumptionTemplateLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+
+  consumptionLines ConsumptionLine[]
+
+  /// One line per product per version. A template that listed gloves twice
+  /// pre-fills two rows for one thing and the clinician deletes one at random.
+  @@unique([organizationId, templateId, productId])
+  @@unique([organizationId, id])
+  @@index([organizationId, templateId, displayOrder])
+  @@index([organizationId, productId])
+  @@map("consumption_template_lines")
+}
+
+// ---------------------------------------------------------------------------
+// The record — what was actually used
+// ---------------------------------------------------------------------------
+
+/// What one procedure, at one place, on one day, actually consumed.
+///
+/// ⚠️ NO DRAFT, FOR THE REASON A DISPENSE HAS NONE. The material left the
+///   trolley and went into somebody's mouth once; a draft consumption would be
+///   stock that has physically gone with no ledger row saying so. The panel
+///   assembles a plan (which writes nothing), a clinician confirms it, and ONE
+///   transaction writes the record, the lines, the allocations, the ledger legs
+///   and the charge requests.
+///
+/// ⚠️ AN OVERRIDE IS AUDITED AND NEVER OBSTRUCTED. A dentist who used three
+///   pairs of gloves used three pairs of gloves. A system that argues gets an
+///   inventory that quietly stops matching reality, which is worse than any
+///   variance. Large variances are PI-22's REPORT, not this table's refusal.
+model ClinicalConsumption {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  /// Where it happened. The RLS boundary and the branch whose shelves moved.
+  branchId       String @map("branch_id") @db.Uuid
+
+  kind ClinicalConsumptionKind @default(CONSUMPTION)
+
+  /// ⚠️ ONE TYPED REFERENCE PER ANCHOR, NEVER A POLYMORPHIC PAIR. See the file
+  ///   header. `anchor_kind` says which one is set and
+  ///   `clinical_consumptions_anchor_is_resolvable` enforces it.
+  anchorKind            ConsumptionAnchorKind @map("anchor_kind")
+  /// NOT NULL for both built anchors: a procedure belongs to a consultation, so
+  /// the encounter is known either way and every read filters on it.
+  encounterId           String                @map("encounter_id") @db.Uuid
+  /// Set when the anchor is a named procedure, NULL when the consumption is
+  /// filed against the visit itself.
+  encounterProcedureId  String?               @map("encounter_procedure_id") @db.Uuid
+
+  /// ⚠️ PHI, AND NOT NULLABLE — unlike `dispenses.patient_id`. There is no
+  ///   counter-sale equivalent here: consumption is anchored to a consultation,
+  ///   and a consultation has a patient. Denormalised from the encounter so the
+  ///   "what did this person have used on them" read is one index scan, and
+  ///   taken FROM the encounter rather than from any request body.
+  patientId String @map("patient_id") @db.Uuid
+
+  /// Which trolley, cabinet or room stock the material came off. Branch-
+  /// qualified. ⚠️ NOT required to be a dispensing point — a procedure room's
+  /// trolley is not a counter, and requiring `is_dispensing_point` here would
+  /// force clinics to mislabel every treatment room to record a swab.
+  locationId String @map("location_id") @db.Uuid
+
+  /// The version the panel pre-filled from, where one existed. NULL is ordinary
+  /// — a procedure with no template records perfectly well.
+  templateId String? @map("template_id") @db.Uuid
+
+  recordedById String   @map("recorded_by_id") @db.Uuid
+  /// ⚠️ WHEN IT WAS USED, not when it was keyed in. Every ledger leg carries
+  ///   this as its `occurred_at`, and the charge request as its `occurred_at`,
+  ///   which is what selects the effective-dated tax rule.
+  occurredAt   DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  /// The record this corrects. ⚠️ NOT NULL exactly when `kind` is not
+  ///   `CONSUMPTION`, by CHECK: a correction that cites nothing is a second
+  ///   consumption pretending to be an accounting entry.
+  correctsConsumptionId String? @map("corrects_consumption_id") @db.Uuid
+
+  /// Why, on a correction. Required by CHECK on both correcting kinds.
+  correctionReason String? @map("correction_reason") @db.Text
+
+  /// ⚠️ PHI-capable. "Used the wider bur after the canal opened up."
+  notes String? @db.Text
+
+  /// Set by `amendConsumption` while the encounter is still open. Its presence
+  /// is what tells a reader that the quantities below are not the first ones
+  /// recorded — the deltas are in the ledger either way.
+  amendedById String?   @map("amended_by_id") @db.Uuid
+  amendedAt   DateTime? @map("amended_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch               @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  encounter    Encounter            @relation(fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Restrict)
+  procedure    EncounterProcedure?  @relation(fields: [organizationId, encounterProcedureId], references: [organizationId, id], onDelete: Restrict)
+  /// Restrict, like `dispenses.patient`: what was used on a person is a
+  /// retention obligation and outlives their being a current patient.
+  patient      Patient              @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Restrict)
+  location     InventoryLocation    @relation("ConsumptionLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  template     ConsumptionTemplate? @relation(fields: [organizationId, templateId], references: [organizationId, id], onDelete: Restrict)
+  recordedBy   User                 @relation("ConsumptionRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  amendedBy    User?                @relation("ConsumptionAmendedBy", fields: [amendedById], references: [id], onDelete: Restrict)
+
+  /// ⚠️ `Restrict`, AND `SetNull` IS NOT AVAILABLE — the composite includes
+  ///   `organization_id`, which is NOT NULL, so Postgres cannot null the pair.
+  ///   The same trap `charge_requests.policy_rule_id` documents.
+  corrects   ClinicalConsumption?  @relation("ConsumptionCorrects", fields: [organizationId, correctsConsumptionId], references: [organizationId, id], onDelete: Restrict, onUpdate: NoAction)
+  correctedBy ClinicalConsumption[] @relation("ConsumptionCorrects")
+
+  lines ConsumptionLine[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  /// The panel's read: everything consumed at this consultation.
+  @@index([organizationId, encounterId])
+  @@index([organizationId, encounterProcedureId])
+  /// "What has been used on this person" — a PHI read, one scan.
+  @@index([organizationId, patientId, occurredAt(sort: Desc)])
+  @@index([organizationId, branchId, occurredAt(sort: Desc)])
+  @@index([organizationId, correctsConsumptionId])
+  @@map("clinical_consumptions")
+}
+
+/// One product used, with what the template expected beside what was used.
+///
+/// ⚠️ VARIANCE IS DERIVED AND NEVER STORED. `actual − expected` is arithmetic
+///   over two columns on this row; a stored third column is a second answer to
+///   the same question, free to disagree with the first the moment an amendment
+///   restates one of them.
+model ConsumptionLine {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  consumptionId  String @map("consumption_id") @db.Uuid
+
+  lineNumber Int @map("line_number") @db.SmallInt
+
+  /// The template line this answers, where the panel pre-filled it. NULL where
+  /// the clinician added a product the template never listed — which is an
+  /// ordinary event and must be recordable as itself.
+  ///
+  /// ⚠️ THE PRODUCT IS RE-DERIVED, NEVER TRUSTED FROM THE CLIENT'S PAIRING. A
+  ///   line whose `product_id` disagrees with the template line it claims is the
+  ///   PI-9 analogue of PI-8.11's dispensing CRITICAL, where a supply cited a
+  ///   prescription line for a different product and no control noticed. The
+  ///   service refuses the mismatch rather than recording it.
+  templateLineId String? @map("template_line_id") @db.Uuid
+
+  /// Plain FKs into platform-extensible tables — `product_visible`,
+  /// `unit_visible`.
+  productId String @map("product_id") @db.Uuid
+
+  /// ⚠️ WHAT THE TEMPLATE SAID, IN BASE UNITS, FROZEN AT THE MOMENT OF
+  ///   RECORDING. Zero where the clinician added the line themselves. It is
+  ///   snapshotted rather than joined because the template is versioned and
+  ///   editable, and a variance report that re-read it would restate last
+  ///   month's variances every time somebody tidied a template.
+  expectedQuantityBase Decimal @map("expected_quantity_base") @db.Decimal(18, 6)
+
+  /// What the clinician typed, and the unit they thought in.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+  /// The same amount through the one `toBaseUnits` the ledger uses. Positive;
+  /// the leg carries the sign and the sign is a property of the movement type.
+  quantityBase    Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  /// Did somebody depart from what the template expected?
+  ///
+  /// ⚠️ DERIVED BY THE SERVICE FROM THE TWO NUMBERS DISAGREEING, NEVER TAKEN
+  ///   FROM THE CLIENT. A screen that forgot to set the flag would otherwise
+  ///   record a departure as routine — the same reason
+  ///   `dispense_allocations.is_override` is decided server-side, and the same
+  ///   reason PI-8.11's CRITICAL survived a whole phase.
+  isOverride     Boolean @default(false) @map("is_override")
+  /// ⚠️ Required by CHECK whenever `is_override`, and gated on
+  ///   `consumption.override` at the route. Recording what was used and
+  ///   overriding what was expected are different acts, which is why they are
+  ///   different permission codes.
+  overrideReason String? @map("override_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch                   @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  consumption  ClinicalConsumption      @relation(fields: [organizationId, consumptionId], references: [organizationId, id], onDelete: Cascade)
+  templateLine ConsumptionTemplateLine? @relation(fields: [organizationId, templateLineId], references: [organizationId, id], onDelete: Restrict)
+  product      Product                  @relation("ConsumptionLineProduct", fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure            @relation("ConsumptionLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+
+  allocations ConsumptionAllocation[]
+  /// The money side (PI-8's engine, PI-9's caller). ⚠️ AT MOST ONE, by PARTIAL
+  ///   unique index in the migration — the idempotency guarantee that stops a
+  ///   retried post billing somebody twice, exactly as `dispense_lines` has.
+  ///   Consumption still owns no rate: this is a hand-off.
+  chargeRequests ChargeRequest[]
+
+  @@unique([organizationId, consumptionId, lineNumber])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, consumptionId])
+  /// "How much of this product do procedures actually use" — PI-22's read.
+  @@index([organizationId, productId])
+  @@index([organizationId, templateLineId])
+  @@map("consumption_lines")
+}
+
+/// Which physical lot the quantity on a line came out of.
+///
+/// ⚠️ ITS OWN TABLE FOR THE REASON `dispense_allocations` IS ONE: a line
+///   routinely spans two lots, and a `batch_id` on the line would force the
+///   clinician to key two lines for one material — which then reads as two
+///   consumptions to every report.
+///
+/// ⚠️ A CONSUMED IMPLANT RECORDS ITS SERIAL, AND THAT IS WHAT MAKES A DEVICE
+///   RECALL ANSWERABLE AT PATIENT LEVEL. PI-10 walks exactly this index.
+model ConsumptionAllocation {
+  id                String @id @default(uuid()) @db.Uuid
+  organizationId    String @map("organization_id") @db.Uuid
+  branchId          String @map("branch_id") @db.Uuid
+  consumptionLineId String @map("consumption_line_id") @db.Uuid
+
+  locationId String  @map("location_id") @db.Uuid
+  batchId    String? @map("batch_id") @db.Uuid
+  serialId   String? @map("serial_id") @db.Uuid
+
+  quantityBase Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  /// Did a human reach past the FEFO plan for this lot? Recorded, not
+  /// prevented, and the reason is required when it is true — the same rule
+  /// `dispense_allocations` states at length.
+  isOverride     Boolean @default(false) @map("is_override")
+  overrideReason String? @map("override_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch          Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  consumptionLine ConsumptionLine   @relation(fields: [organizationId, consumptionLineId], references: [organizationId, id], onDelete: Cascade)
+  /// Branch-qualified, exactly as the ledger's are: an allocation at branch A
+  /// citing a lot or a device at branch B is unrepresentable.
+  location        InventoryLocation @relation("ConsumptionAllocationLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  batch           Batch?            @relation("ConsumptionAllocationBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+  serial          Serial?           @relation("ConsumptionAllocationSerial", fields: [organizationId, branchId, serialId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, consumptionLineId])
+  /// Traceability: "which patients got this lot", asked from the batch side.
+  @@index([organizationId, batchId])
+  @@index([organizationId, serialId])
+  @@map("consumption_allocations")
+}

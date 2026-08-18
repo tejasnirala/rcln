@@ -289,6 +289,15 @@ enum DataAccessResource {
   ///   what was SUPPLIED and paid for rather than what was written, which is the
   ///   same distinction `VITALS` and `ENCOUNTER` draw against `MEDICAL_HISTORY`.
   CHARGE_REQUEST
+  /// What was USED on a named person during a procedure (PI-9).
+  ///
+  /// ⚠️ NOT `INVENTORY_SERIAL` AND NOT `ENCOUNTER`. `INVENTORY_SERIAL` is the
+  ///   same fact asked from the STOCK side — "who looked up device 7742" — by a
+  ///   storekeeper or a recall; this is asked from the PATIENT side and returns
+  ///   a product list and a variance. And reading the consumption panel
+  ///   discloses no diagnosis, prescription or note, which is the line `VITALS`
+  ///   draws against `ENCOUNTER`.
+  CLINICAL_CONSUMPTION
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

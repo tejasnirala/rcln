@@ -458,6 +458,30 @@ export async function verifyPrescription(
     const branchId = body.branchId ?? options.actingBranchId ?? encounter.branchId;
     assertBranchInScope(ctx, branchId);
 
+    /*
+     * ⚠️ LOCKED BEFORE IT IS READ, BECAUSE VERIFY AND SUPPLY WRITE THE SAME ROW.
+     *   `refreshFulfilment` moves this row to PARTIALLY_DISPENSED / COMPLETED from
+     *   inside `createDispense`'s transaction. Without the lock: a pharmacist opens
+     *   verify while the row reads VERIFIED, a colleague dispenses 5 of 10 and
+     *   commits PARTIALLY_DISPENSED, and the first transaction — which read
+     *   VERIFIED before that commit — writes VERIFIED straight back over it. The
+     *   queue then shows a prescription awaiting supply with nothing dispensed
+     *   against it, and the status guard below will happily let it be verified and
+     *   dispensed a second time.
+     *
+     *   `FOR UPDATE` locks nothing when the row does not exist yet, which is why
+     *   the write below is an upsert rather than the read-then-branch it was: two
+     *   first-time verifications of one encounter both saw `existing = null` and
+     *   the loser hit `@@unique([organizationId, encounterId])` as a raw P2002
+     *   instead of the ConflictError written for it.
+     */
+    await tx.$queryRaw`
+      SELECT id FROM prescription_fulfilments
+       WHERE organization_id = ${ctx.organizationId}::uuid
+         AND encounter_id = ${encounterId}::uuid
+         FOR UPDATE
+    `;
+
     const existing = await tx.prescriptionFulfilment.findUnique({
       where: { organizationId_encounterId: { organizationId: ctx.organizationId, encounterId } },
       select: { id: true, status: true },
@@ -479,13 +503,11 @@ export async function verifyPrescription(
       cancelledAt: null,
     };
 
-    if (existing) {
-      await tx.prescriptionFulfilment.update({ where: { id: existing.id }, data });
-    } else {
-      await tx.prescriptionFulfilment.create({
-        data: { organizationId: ctx.organizationId, encounterId, ...data },
-      });
-    }
+    await tx.prescriptionFulfilment.upsert({
+      where: { organizationId_encounterId: { organizationId: ctx.organizationId, encounterId } },
+      create: { organizationId: ctx.organizationId, encounterId, ...data },
+      update: data,
+    });
 
     /*
      * ⚠️ THE AUDIT ROW CARRIES NO MEDICINE AND NO NAME. `audit_logs` is read by

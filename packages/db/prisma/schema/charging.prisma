@@ -295,12 +295,17 @@ model ChargeRequest {
   ///   makes a cross-tenant link unrepresentable (ADR-0004).
   ///
   ///   `dispense_line_id` is set on a pharmacy SUPPLY;
-  ///   `dispense_return_line_id` on a pharmacy REVERSAL. An `INVENTORY` request
-  ///   carries neither yet — clinical consumption is PI-9 and its table does not
-  ///   exist, so the column arrives in the migration that creates it, exactly as
-  ///   `invoices` says.
+  ///   `dispense_return_line_id` on a pharmacy REVERSAL; `consumption_line_id`
+  ///   on an `INVENTORY` request of either kind.
+  ///
+  /// ⚠️ `consumption_line_id` ARRIVED IN PI-9's OWN MIGRATION, WHICH IS WHAT
+  ///   PI-8 SAID WOULD HAPPEN. It carries no `..._return_line_id` twin because a
+  ///   consumption reversal is another `clinical_consumptions` ROW with its own
+  ///   lines (`CONSUMPTION_REVERSAL`), not a separate return table — so one
+  ///   column serves both directions and `kind` says which it is.
   dispenseLineId       String? @map("dispense_line_id") @db.Uuid
   dispenseReturnLineId String? @map("dispense_return_line_id") @db.Uuid
+  consumptionLineId    String? @map("consumption_line_id") @db.Uuid
 
   /// What was supplied. Plain FKs into platform-extensible tables.
   productId String @map("product_id") @db.Uuid
@@ -401,6 +406,9 @@ model ChargeRequest {
   /// nothing may delete a posted dispense line anyway.
   dispenseLine       DispenseLine?       @relation(fields: [organizationId, dispenseLineId], references: [organizationId, id], onDelete: Cascade)
   dispenseReturnLine DispenseReturnLine? @relation(fields: [organizationId, dispenseReturnLineId], references: [organizationId, id], onDelete: Cascade)
+  /// Cascade, like the two above: a charge request has no life apart from the
+  /// line it cites, and nothing may delete a posted consumption line anyway.
+  consumptionLine    ConsumptionLine?    @relation(fields: [organizationId, consumptionLineId], references: [organizationId, id], onDelete: Cascade)
   product            Product             @relation("ChargeRequestProduct", fields: [productId], references: [id], onDelete: Restrict)
   unit               UnitOfMeasure       @relation("ChargeRequestUnit", fields: [unitId], references: [id], onDelete: Restrict)
   /// Restrict, like `dispenses.patient`: a person's billing history is a
@@ -422,6 +430,10 @@ model ChargeRequest {
   ///   treatment `invoice_documents_current_per_type_key` gets.
   @@index([organizationId, dispenseLineId])
   @@index([organizationId, dispenseReturnLineId])
+  /// The same partial-unique treatment (PI-9): `WHERE consumption_line_id IS NOT
+  /// NULL`, in the migration, because Prisma cannot express it and a plain
+  /// unique would refuse the many rows that carry none.
+  @@index([organizationId, consumptionLineId])
   /// The charge-review screen: what is outstanding at this counter, oldest
   /// first. The one query that renders it.
   @@index([organizationId, branchId, status, occurredAt])

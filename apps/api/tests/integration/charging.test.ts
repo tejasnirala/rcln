@@ -1247,3 +1247,73 @@ describe('crediting the same line twice', () => {
     expect(rows[0]?.credited_invoice_item_id).toBe(invoice.firstItemId);
   });
 });
+
+/**
+ * Who may write the CLINIC-WIDE price (PI-8 review, MEDIUM).
+ *
+ * ⚠️ RLS CANNOT ANSWER THIS ONE, AND THE REASON IS WHAT MAKES THE POLICY RIGHT.
+ *   `branch_isolation` on `product_prices` is
+ *   `branch_id IS NULL OR branch_id = ANY(app_branch_scope())`, and the nullable
+ *   half is deliberately live so every branch INHERITS the organization default.
+ *   But `WITH CHECK` runs the same predicate, so the policy that correctly lets
+ *   one site READ the default also let it overwrite and delete the default —
+ *   changing what every other branch bills, from a session scoped to one of them.
+ *
+ *   `deleteProductPrice` even carried a comment saying the org-wide row "is
+ *   covered by nothing, so it is checked here", directly above a line that
+ *   checked the BRANCH row and skipped the org-wide one.
+ */
+describe('the clinic-wide price', () => {
+  let secondBranch: string;
+  let scoped: TenantContext;
+  let priced: string;
+
+  beforeAll(async () => {
+    const row = await owner.query<{ id: string }>(
+      `INSERT INTO branches (id, organization_id, code, name, timezone, updated_at)
+       VALUES (gen_random_uuid(), $1, 'CHG-SAT', 'Chg Satellite', 'Asia/Kolkata', now())
+       RETURNING id`,
+      [org.organizationId]
+    );
+    secondBranch = row.rows[0]?.id ?? '';
+
+    /* Scoped to ONE of the organization's two branches. */
+    scoped = {
+      organizationId: org.organizationId,
+      branchIds: [org.branchId],
+      userId: org.ownerUserId,
+    };
+    priced = await makeProduct('CHG-ORGWIDE', 'CONSUMABLE');
+  });
+
+  it('is refused to a caller who speaks for only one branch', async () => {
+    await expect(
+      upsertProductPrice(scoped, { productId: priced, unitId: baseUnit, amountMinor: 100 })
+    ).rejects.toThrow(/clinic-wide access/i);
+  });
+
+  /* Their OWN branch's override is still theirs to set — that is the whole point. */
+  it('does not stop that caller pricing their own branch', async () => {
+    const price = await upsertProductPrice(scoped, {
+      productId: priced,
+      unitId: baseUnit,
+      branchId: org.branchId,
+      amountMinor: 100,
+    });
+    expect(price.branchId).toBe(org.branchId);
+  });
+
+  it('is allowed to a caller whose scope covers every branch', async () => {
+    const orgWide: TenantContext = {
+      organizationId: org.organizationId,
+      branchIds: [org.branchId, secondBranch],
+      userId: org.ownerUserId,
+    };
+    const price = await upsertProductPrice(orgWide, {
+      productId: priced,
+      unitId: baseUnit,
+      amountMinor: 250,
+    });
+    expect(price.branchId).toBeNull();
+  });
+});

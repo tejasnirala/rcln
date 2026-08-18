@@ -156,6 +156,23 @@ function clinicNav(permissions: string[]): NavLink[] {
      */
     { href: '/charges', label: 'Charges', permission: ['billing.charge_request.read'] },
     /*
+     * ⚠️ "USAGE", AND IT IS A SEPARATE TAB FROM STOCK ON PURPOSE (PI-9). Stock
+     *   says what the clinic HOLDS; this says what its procedures USED and how
+     *   that compared with what was expected. They are different questions asked
+     *   by different people — a storekeeper counts shelves, a clinical lead asks
+     *   why a root canal is using twice the anaesthetic it is meant to — and the
+     *   permissions say so: a doctor and a nurse hold `consumption.record.read`
+     *   and deliberately hold no stock code at all, so folding this into Stock
+     *   would put it behind a tab they cannot open.
+     *
+     * ⚠️ RECORDING IS NOT DONE FROM HERE. What a procedure used is recorded on
+     *   the consultation it happened at, because the anchor is what makes the
+     *   record traceable. This tab is the list, the variances and the templates.
+     *
+     * Sits after Charges because it is the other writer of that queue.
+     */
+    { href: '/usage', label: 'Usage', permission: ['consumption.record.read'] },
+    /*
      * ⚠️ "CATALOGUE", NOT "PHARMACY" OR "PRODUCTS". One catalogue holds
      *   medicines, gloves, implants, reagents and dental materials, so naming
      *   the tab after any one of them tells four of the five kinds of user it is

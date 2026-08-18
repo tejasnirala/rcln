@@ -136,6 +136,7 @@ export async function consultForSupply(
     await regulatoryActorWithin(tx, ctx, {
       roleCodes: input.actor.roleCodes,
       occurredAt: input.occurredAt,
+      branchId: input.branchId,
       ...(input.actor.isPrescriber !== undefined ? { isPrescriber: input.actor.isPrescriber } : {}),
     }),
     /*
@@ -247,6 +248,7 @@ export async function consultForReturn(
     await regulatoryActorWithin(tx, ctx, {
       roleCodes: input.actor.roleCodes,
       occurredAt: input.occurredAt,
+      branchId: input.branchId,
     })
   );
 

@@ -162,6 +162,14 @@ model User {
   chargePolicyRulesUpdated  ChargePolicyRule[]                @relation("ChargePolicyRuleUpdatedBy")
   productPricesUpdated      ProductPrice[]                    @relation("ProductPriceUpdatedBy")
 
+  // -- Clinical consumption (PI-9) --------------------------------------------
+  /// ⚠️ WHO SAYS THIS WAS USED. A consumption attributed to nobody is a stock
+  ///   movement with no author, and the variance report exists precisely to be
+  ///   read alongside a name.
+  consumptionsRecorded      ClinicalConsumption[]             @relation("ConsumptionRecordedBy")
+  consumptionsAmended       ClinicalConsumption[]             @relation("ConsumptionAmendedBy")
+  consumptionTemplatesUpdated ConsumptionTemplate[]           @relation("ConsumptionTemplateUpdatedBy")
+
   @@index([status])
   @@index([isPlatformAdmin])
   @@map("users")

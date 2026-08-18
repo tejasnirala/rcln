@@ -31,5 +31,11 @@ export * from './pharmacy.js';
    product-type enums from them, and a Zod module cycle fails at runtime rather
    than at lint. Same note `visit-history.js` carries. */
 export * from './charging.js';
+/* ⚠️ AFTER `inventory.js` and `common.js`, whose `positiveQuantity` and
+   `calendarDate` it imports. It deliberately imports nothing from `charging.js`
+   — consumption knows nothing about billability (PI-ADR-005) — so the order
+   relative to that line is arbitrary and the placement is alphabetical drift,
+   not a dependency. */
+export * from './consumption.js';
 export * from './tax.js';
 export * from './locale.js';

@@ -209,6 +209,17 @@ model Organization {
   productPrices           ProductPrice[]
   chargeRequests          ChargeRequest[]
 
+  // -- Clinical consumption (PI-9) --------------------------------------------
+  /// ⚠️ THE TEMPLATES ARE ORG-ONLY AND ARE **NOT** ON `Branch`. "A root canal
+  ///   uses two pairs of gloves" is how this organization practises, the same
+  ///   call `chargePolicyRules` makes about billability. The RECORD of what was
+  ///   used happened at a place, so the three tables below it are on both.
+  consumptionTemplates     ConsumptionTemplate[]
+  consumptionTemplateLines ConsumptionTemplateLine[]
+  clinicalConsumptions     ClinicalConsumption[]
+  consumptionLines         ConsumptionLine[]
+  consumptionAllocations   ConsumptionAllocation[]
+
   // -- Clinical consultation engine (CE-1) ------------------------------------
   clinicalMasterItems          ClinicalMasterItem[]
   clinicalMasterCodings        ClinicalMasterCoding[]
@@ -393,6 +404,14 @@ model Branch {
   ///   suburban one, and its `branch_id` is NULLABLE for the org-wide default.
   productPrices           ProductPrice[]
   chargeRequests          ChargeRequest[]
+
+  // -- Clinical consumption (PI-9) --------------------------------------------
+  /// ⚠️ `consumption_templates` IS **NOT** HERE, for the reason
+  ///   `charge_policy_rules` is not: a template is the organization's clinical
+  ///   practice, not one site's. What was actually USED happened at a place.
+  clinicalConsumptions    ClinicalConsumption[]
+  consumptionLines        ConsumptionLine[]
+  consumptionAllocations  ConsumptionAllocation[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   followUpRecommendations EncounterFollowUpRecommendation[]

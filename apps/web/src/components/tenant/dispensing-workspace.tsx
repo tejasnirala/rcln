@@ -362,6 +362,25 @@ export function DispensingWorkspace({
       line.include && line.substituteProductId !== null && line.substitutionReason.trim() === ''
   );
 
+  /*
+   * ⚠️ AND A SUBSTITUTION NEEDS AN OUTSTANDING QUANTITY, FOR THE SAME REASON THE
+   *   BUTTON IS DISABLED ABOVE RATHER THAN THE SERVER ANSWERING 400. A substituted
+   *   line sends `outstandingQuantityBase` — deliberately, because the lots on
+   *   screen were planned for the PRESCRIBED product — and that field is nullable.
+   *   When it is null the payload used to fall back to `'0'`, which
+   *   `positiveQuantity` rejects, so the pharmacist got a validation error naming
+   *   a quantity no control on the screen sets and no edit could fix.
+   *
+   *   The prescribed product is still dispensable on that line; it is only the
+   *   swap that cannot be sized. Saying so beats a 400.
+   */
+  const unsizedSubstitution = lines.some(
+    (line) =>
+      line.include &&
+      line.substituteProductId !== null &&
+      line.item.outstandingQuantityBase === null
+  );
+
   const setLot = (lineIndex: number, key: string, patch: Partial<DraftLot>): void => {
     setLines((current) =>
       current.map((line, index) =>
@@ -698,13 +717,21 @@ export function DispensingWorkspace({
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-muted text-[0.875rem]">
-          {nothingToSupply
-            ? 'Nothing is selected to hand over yet.'
-            : `Handing over ${payload.length} ${payload.length === 1 ? 'medicine' : 'medicines'}.`}
+          {unsizedSubstitution
+            ? 'One of these prescriptions does not say how much is outstanding, so a substitute cannot be sized. Hand over the prescribed medicine on that line, or ask the prescriber to restate the quantity.'
+            : nothingToSupply
+              ? 'Nothing is selected to hand over yet.'
+              : `Handing over ${payload.length} ${payload.length === 1 ? 'medicine' : 'medicines'}.`}
         </p>
         <Button
           type="submit"
-          disabled={!canDispense || nothingToSupply || missingSubstitutionReason || pending}
+          disabled={
+            !canDispense ||
+            nothingToSupply ||
+            missingSubstitutionReason ||
+            unsizedSubstitution ||
+            pending
+          }
         >
           {pending ? 'Dispensing…' : 'Dispense'}
         </Button>

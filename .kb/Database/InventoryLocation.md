@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/inventory.prisma:252`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `visible` policy |
 | columns | 13 |
-| relations | 17 |
+| relations | 19 |
 
 ## Columns
 
@@ -51,6 +51,8 @@ Declared at `packages/db/prisma/schema/inventory.prisma:252`.
 | `dispenses` | [`Dispense`](Dispense.md) | `dispenses Dispense[] @relation("DispenseLocation")` |
 | `dispenseAllocations` | [`DispenseAllocation`](DispenseAllocation.md) | `dispenseAllocations DispenseAllocation[] @relation("DispenseAllocationLocation")` |
 | `dispenseReturns` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturns DispenseReturn[] @relation("DispenseReturnLocation")` |
+| `consumptions` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptions ClinicalConsumption[] @relation("ConsumptionLocation")` |
+| `consumptionAllocations` | [`ConsumptionAllocation`](ConsumptionAllocation.md) | `consumptionAllocations ConsumptionAllocation[] @relation("ConsumptionAllocationLocation")` |
 
 ## Indexes and constraints
 
@@ -79,4 +81,6 @@ erDiagram
     InventoryLocation }o--o{ Dispense : relates
     InventoryLocation }o--o{ DispenseAllocation : relates
     InventoryLocation }o--o{ DispenseReturn : relates
+    InventoryLocation }o--o{ ClinicalConsumption : relates
+    InventoryLocation }o--o{ ConsumptionAllocation : relates
 ```
