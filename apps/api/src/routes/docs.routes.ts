@@ -129,13 +129,89 @@ router.get('/openapi.json', (_req: Request, res: Response): void => {
     .send(JSON.stringify(openApiDocument(), null, 2));
 });
 
+/**
+ * Black, white and orange.
+ *
+ * ⚠️ `theme: 'none'` BELOW IS WHAT MAKES THIS WORK. Scalar's named themes ship
+ *   their own palette AND their own light/dark pair; layering custom properties
+ *   over one means fighting whichever half the viewer's system prefers. `none`
+ *   ships no palette at all, so every colour the reference renders comes from
+ *   here and there is nothing to lose a specificity argument with.
+ *
+ * ⚠️ AND THE DARK STATE IS FORCED. The palette is designed for a black ground —
+ *   white body text on Scalar's light background would be invisible — so the
+ *   toggle is removed rather than left to hand somebody an unreadable page.
+ *
+ * Injected inline, which `style-src 'unsafe-inline'` in the CSP above already
+ * permits; no extra origin and no extra directive.
+ *
+ * The HTTP method colours are set deliberately rather than inherited. They are
+ * the one place semantic colour beats brand colour — a reader scanning for the
+ * DELETE on a list of twenty operations is reading the colour, not the word —
+ * so they stay green/blue/amber/red and are lifted to tints that hold their
+ * contrast against `#000`.
+ */
+const THEME = `
+:root {
+  --scalar-color-1: #ffffff;
+  --scalar-color-2: #b8b8bf;
+  --scalar-color-3: #85858e;
+  --scalar-color-disabled: #5a5a63;
+  --scalar-color-ghost: #6f6f78;
+
+  --scalar-background-1: #000000;
+  --scalar-background-2: #0c0c0e;
+  --scalar-background-3: #16161a;
+  --scalar-background-card: #0c0c0e;
+
+  --scalar-color-accent: #ff7a1a;
+  --scalar-background-accent: rgba(255, 122, 26, 0.14);
+
+  --scalar-border-color: #26262c;
+  --scalar-border-width: 1px;
+
+  --scalar-link-color: #ff7a1a;
+  --scalar-link-color-hover: #ff9c4d;
+  --scalar-link-color-visited: #ff7a1a;
+
+  --scalar-sidebar-background-1: #060607;
+  --scalar-sidebar-color-1: #ffffff;
+  --scalar-sidebar-color-2: #9a9aa3;
+  --scalar-sidebar-border-color: #1e1e23;
+  --scalar-sidebar-color-active: #ff7a1a;
+  --scalar-sidebar-item-active-background: rgba(255, 122, 26, 0.12);
+  --scalar-sidebar-item-hover-background: #131317;
+  --scalar-sidebar-item-hover-color: #ffffff;
+  --scalar-sidebar-search-background: #0c0c0e;
+  --scalar-sidebar-search-border-color: #26262c;
+  --scalar-sidebar-search-color: #b8b8bf;
+
+  /* Semantic, not brand — see the note above. */
+  --scalar-color-green: #3ddc84;
+  --scalar-color-blue: #4da3ff;
+  --scalar-color-orange: #ffb020;
+  --scalar-color-red: #ff5c5c;
+  --scalar-color-yellow: #ffd23f;
+  --scalar-color-purple: #b892ff;
+
+  --scalar-background-alert: rgba(255, 176, 32, 0.14);
+  --scalar-color-alert: #ffb020;
+  --scalar-background-danger: rgba(255, 92, 92, 0.14);
+  --scalar-color-danger: #ff5c5c;
+}
+`;
+
 router.use(
   '/',
   apiReference({
     url: '/docs/openapi.json',
     cdn: '/docs/assets/standalone.js',
     pageTitle: 'rcln API reference',
-    theme: 'purple',
+    theme: 'none',
+    darkMode: true,
+    forceDarkModeState: 'dark',
+    hideDarkModeToggle: true,
+    customCss: THEME,
     /*
      * The `Host` header selects the clinic, so the address the reference is
      * being read at is already the right server for a live call — try-it-out

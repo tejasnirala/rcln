@@ -124,7 +124,7 @@ Paths are as registered — prepend the mount prefixes below for the callable UR
 | USE | `*` | `helmet(…)` | `apps/api/src/routes/docs.routes.ts:88` |
 | USE | `/assets` | `express.static(scalarAssetsDir())` | `apps/api/src/routes/docs.routes.ts:108` |
 | GET | `/openapi.json` | `<inline>` | `apps/api/src/routes/docs.routes.ts:125` |
-| USE | `/` | `apiReference(…)` | `apps/api/src/routes/docs.routes.ts:132` |
+| USE | `/` | `apiReference(…)` | `apps/api/src/routes/docs.routes.ts:204` |
 | USE | `/v1` | `v1Routes` | `apps/api/src/routes/index.ts:7` |
 | USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/appointments.routes.ts:100` |
 | GET | `/availability` | `authorize(PERMISSIONS.APPOINTMENT_AVAILABILITY_READ)` → `validate(availabilityQuery)` → `<inline>` | `apps/api/src/routes/v1/appointments.routes.ts:116` |

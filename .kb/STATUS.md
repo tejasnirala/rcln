@@ -1407,6 +1407,32 @@ movement of a serial-tracked product without one — so the quarantine button
 raised an error for every implant in the clinic. Fixed, with a test verified to
 fail against the reverted code.
 
+**The API reference at `/docs` is complete — all 425 endpoints, 2026-08-18.**
+The document was already generated and already covered every route structurally:
+introspection reads method, path, permission gate and request schema off the
+routers themselves, so those cannot drift. What 382 of the 425 lacked was the
+half a machine cannot derive — what the endpoint is FOR, what comes back, and a
+worked example. They rendered as a bare `GET /api/v1/doctors` with no prose, no
+response shape and nothing to copy.
+
+Two things now hold it there:
+
+- **`registry/fixtures.ts` is one clinic, described once.** Every example in the
+  document imports its ids from it, so the reference tells one story end to end —
+  Ravi Subramanian is registered at Indiranagar, books with Dr Meera Krishnan, is
+  seen in an encounter, leaves with the amoxicillin the pharmacy dispenses out of
+  the batch procurement received from MedSource, and is billed for it on one
+  invoice. Before this each file invented its own uuids and none of them agreed.
+- **Two gates in `tests/unit/openapi.test.ts`.** One fails on any route with no
+  registry entry — reversing the earlier choice to report coverage rather than
+  enforce it, which is what let the document sit at 43/425. The other fails on
+  any uuid in an example that `fixtures.ts` does not declare, because a single
+  invented id destroys the correlation and is invisible in review.
+
+⚠️ Running the API test suite in one process exceeds the api container's 3 GB
+`mem_limit` and is SIGKILLed. Pre-existing — it reproduces on a clean checkout —
+and unrelated to the documentation. Run it in batches until that is addressed.
+
 **PI-11 (Veterinary) and PI-12 (Online Pharmacy) are unblocked.**
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.

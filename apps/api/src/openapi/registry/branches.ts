@@ -7,10 +7,11 @@
  */
 import { branchDetail, branchListResponse } from '@rcln/contracts';
 import type { DocRegistry } from '../types.js';
+import { BRANCH_ID, BRANCH_KOCHI_ID, CLOSURE_ID } from './fixtures.js';
 
 /** One fully-populated branch, used as the response example throughout. */
 const MAIN_BRANCH = {
-  id: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+  id: BRANCH_ID,
   name: 'Alpha Clinic — Indiranagar',
   code: 'BLR-IND',
   branchType: 'CLINIC',
@@ -67,7 +68,7 @@ the screens that call this need the whole set to render a switcher.
               MAIN_BRANCH,
               {
                 ...MAIN_BRANCH,
-                id: '3c9d5a71-8e42-4f16-b0d3-7a5e9c1f2b84',
+                id: BRANCH_KOCHI_ID,
                 name: 'Alpha Clinic — Kochi',
                 code: 'KOC-MG',
                 isPrimary: false,
@@ -166,7 +167,7 @@ they are replaced as a set through \`PUT /api/v1/branches/{branchId}/operating-h
           message: 'Branch created',
           data: {
             ...MAIN_BRANCH,
-            id: '5e2f8a90-1c47-4d3b-8f6a-9b0c1d2e3f45',
+            id: CLOSURE_ID,
             name: 'Alpha Clinic — Koramangala',
             code: 'BLR-KOR',
             isPrimary: false,

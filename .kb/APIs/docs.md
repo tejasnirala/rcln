@@ -12,6 +12,6 @@ Source: `apps/api/src/routes/docs.routes.ts`
 | USE | `*` | `helmet(…)` | `apps/api/src/routes/docs.routes.ts:88` |
 | USE | `/assets` | `express.static(scalarAssetsDir())` | `apps/api/src/routes/docs.routes.ts:108` |
 | GET | `/openapi.json` | `<inline>` | `apps/api/src/routes/docs.routes.ts:125` |
-| USE | `/` | `apiReference(…)` | `apps/api/src/routes/docs.routes.ts:132` |
+| USE | `/` | `apiReference(…)` | `apps/api/src/routes/docs.routes.ts:204` |
 
 Symbols in this module: [apps.api.routes.md](../Symbols/apps.api.routes.md)

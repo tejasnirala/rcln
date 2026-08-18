@@ -188,6 +188,61 @@ plus a case in `apps/api/tests/integration/tenant-isolation/`.
 missing policy produces no error and breaks no single-tenant test. It just
 starts returning other clinics' patient records.
 
+## The API reference is part of the endpoint, not a follow-up
+
+`/docs` serves a generated OpenAPI 3.1 document. **Every one of the 425 endpoints
+carries hand-written prose, and a test enforces that** — so touching the HTTP
+surface is not done until the reference matches it.
+
+Half the document is derived and cannot drift: `openapi/introspect.ts` reads the
+method, path, permission gate and request schema off the routers themselves. The
+half a machine cannot derive lives in `apps/api/src/openapi/registry/<domain>.ts`,
+keyed `METHOD /full/path` with the path written as OpenAPI writes it
+(`{branchId}`, not `:branchId`).
+
+**When you add an endpoint** — add a registry entry in the same commit. At
+minimum a `summary` and a `description`; add `response`, `requestExamples` and
+`responseExamples` for anything carrying PHI or money. A new _router_ also needs a
+line in `openapi/mounts.ts`, or `assertMountsCover()` fails.
+
+**When you change an endpoint** — update the entry. A renamed field, a tightened
+permission or a new failure status breaks no build and leaves the reference
+confidently describing something untrue, which is worse than no reference at all:
+consumers write against it and find out at runtime.
+
+**When you remove an endpoint** — delete the entry. A key matching no route is a
+paragraph about something that no longer exists, and the test fails on it.
+
+Three gates in `apps/api/tests/unit/openapi.test.ts` hold this:
+
+| Case                                                          | Fails when                |
+| ------------------------------------------------------------- | ------------------------- |
+| `has a registry entry for every route the API serves`         | a route has no prose      |
+| `has no registry entry for a route that does not exist`       | prose outlives its route  |
+| `draws every identifier in its examples from the fixture set` | an example invents a uuid |
+
+⚠️ **NEVER WRITE A LITERAL UUID IN A REGISTRY FILE.** Every id comes from
+`registry/fixtures.ts`, which is one clinic described once — the same patient,
+doctor, batch and invoice throughout, so the reference tells one story end to end
+rather than 425 unrelated fragments. Add the id there, with a name and a sentence
+saying what it is, then import it. A stray uuid is invisible in review because
+one uuid looks exactly like another.
+
+Money in examples is **minor units** (`24000` is ₹240.00) and times are UTC with
+a `Z`, because that is what the wire carries.
+
+```bash
+docker compose exec api pnpm --filter @rcln/api docs:validate   # coverage + 3.1 conformance
+```
+
+It prints `<n> endpoints … <n> carry hand-written documentation`. Those two
+numbers must be equal.
+
+⚠️ **A failure status must be described before it can be cited.** `errors: [418]` on
+an endpoint throws at build time unless `418` is in `ERROR_CASES` in
+`openapi/envelope.ts`. That is deliberate — a status nobody has described is a
+status a consumer cannot handle.
+
 ## Subagents and skills available
 
 Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
@@ -244,6 +299,9 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
 - Never interpolate user input into `$queryRaw` — parameterize.
 - Never add a dependency without calling it out and justifying it.
 - Never claim something is verified when you only edited it.
+- Never add, change or delete an endpoint without updating its entry in
+  `apps/api/src/openapi/registry/` — and never write a literal uuid in one;
+  import it from `registry/fixtures.ts`.
 - Never write a helper without checking `pnpm kb:find` first, and never
   hand-edit a generated file under `.kb/`.
 

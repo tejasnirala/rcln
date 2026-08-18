@@ -18,7 +18,7 @@ Files: `apps/api/src/openapi/document.ts` · `apps/api/src/openapi/envelope.ts` 
 | `countRoutes` | `(router: IRouter): number` | `apps/api/src/openapi/introspect.ts:132` |  |
 | `describeOperation` <sub>local</sub> | `(endpoint: Endpoint): string` | `apps/api/src/openapi/document.ts:142` |  |
 | `endpointKey` | `(method: string, path: string): string` | `apps/api/src/openapi/types.ts:53` | Key an endpoint the way the registry does. |
-| `errorResponse` | `(status: number): JsonSchema` | `apps/api/src/openapi/envelope.ts:169` | The OpenAPI response object for one failure status. |
+| `errorResponse` | `(status: number): JsonSchema` | `apps/api/src/openapi/envelope.ts:188` | The OpenAPI response object for one failure status. |
 | `errorStatusesFor` <sub>local</sub> | `(endpoint: Endpoint): number[]` | `apps/api/src/openapi/document.ts:108` |  |
 | `fullPath` <sub>local</sub> | `(prefix: string, path: string): string` | `apps/api/src/openapi/document.ts:28` | Join a mount prefix to a router-relative path without doubling the slash. |
 | `introspectRouter` | `(router: IRouter): IntrospectedRoute[]` | `apps/api/src/openapi/introspect.ts:75` |  |

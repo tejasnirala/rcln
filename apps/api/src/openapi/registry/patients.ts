@@ -20,12 +20,13 @@ import {
   visitHistoryResponse,
 } from '@rcln/contracts';
 import type { DocRegistry } from '../types.js';
+import { BRANCH_ID, BRANCH_KOCHI_ID, PATIENT_ID, PATIENT_TWO_ID } from './fixtures.js';
 
-const PATIENT_ID =
+const PATIENT_ID_NOTE =
   "The patient's `id` (not their UHID). A patient at another clinic is answered `404`.";
 
 const PATIENT_EXAMPLE = {
-  id: '6d1e4b82-3f70-4a5c-9d18-2e7b0c9a4f63',
+  id: PATIENT_ID,
   uhid: 'ALP-000241',
   fullName: 'Ravi Subramanian',
   firstName: 'Ravi',
@@ -46,11 +47,11 @@ const PATIENT_EXAMPLE = {
   deceasedOn: null,
   mergedIntoId: null,
   mrn: 'IND-1043',
-  branchId: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+  branchId: BRANCH_ID,
   crossBranch: false,
   registrations: [
     {
-      branchId: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+      branchId: BRANCH_ID,
       branchName: 'Alpha Clinic — Indiranagar',
       mrn: 'IND-1043',
       registeredOn: '2024-11-03T06:12:00.000Z',
@@ -116,11 +117,11 @@ envelope's top-level \`meta\`.
                 phone: '+919845067890',
                 status: 'ACTIVE',
                 mrn: 'IND-1043',
-                branchId: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+                branchId: BRANCH_ID,
                 crossBranch: false,
               },
               {
-                id: 'b93f2c05-8a41-4e6d-97b2-0f5a1d3c8e74',
+                id: PATIENT_TWO_ID,
                 uhid: 'ALP-000318',
                 fullName: 'Ravi Menon',
                 gender: 'MALE',
@@ -234,7 +235,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
           gender: 'MALE',
           dateOfBirth: '1979-02-14',
           phone: '+919845067890',
-          branchId: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+          branchId: BRANCH_ID,
         },
       },
       {
@@ -246,7 +247,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
           gender: 'FEMALE',
           approxAgeYears: 72,
           phone: '+919845099887',
-          branchId: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+          branchId: BRANCH_ID,
         },
       },
     ],
@@ -265,7 +266,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
       'The full identity record: names, contact details, identifiers, and every branch registration, address and emergency contact.\n\n**Not the medical history** — allergies, conditions and medications sit behind a separate permission at `GET /api/v1/patients/{patientId}/history`, because the front desk holds this one and must not hold that one.',
     response: patientDetail,
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     responseExamples: [
       {
         summary: 'A registered patient',
@@ -281,7 +282,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
     message: 'Patient updated',
     response: patientDetail,
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     requestExamples: [
       { summary: 'Correct a phone number', value: { phone: '+919845000111' } },
       {
@@ -299,7 +300,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
       'A **soft delete** — `deleted_at` is stamped and the row stays. Nothing hard-deletes a patient: their appointments, invoices, dispensing records and clinical notes all reference them, and a clinic is required to be able to produce that history.',
     message: 'Patient record removed',
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     responseExamples: [
       {
         summary: 'Removed',
@@ -317,11 +318,11 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
     message: 'Registered at clinic',
     response: patientDetail,
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     requestExamples: [
       {
         summary: 'Also seen at Kochi',
-        value: { branchId: '3c9d5a71-8e42-4f16-b0d3-7a5e9c1f2b84' },
+        value: { branchId: BRANCH_KOCHI_ID },
       },
     ],
     errors: [409],
@@ -335,7 +336,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
     message: 'Address added',
     response: patientDetail,
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     requestExamples: [
       {
         summary: 'Home address',
@@ -357,7 +358,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
     message: 'Address removed',
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       addressId: "The address `id` from the patient record's `addresses` array.",
     },
   },
@@ -370,7 +371,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
     message: 'Contact added',
     response: patientDetail,
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     requestExamples: [
       {
         summary: 'Spouse',
@@ -389,7 +390,7 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
     message: 'Contact removed',
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       contactId: "The contact `id` from the patient record's `contacts` array.",
     },
   },
@@ -413,7 +414,7 @@ disclosure and not the same permission.
     response: visitHistoryResponse,
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       from: 'ISO date. Omit for no lower bound.',
       to: 'ISO date. Omit for no upper bound.',
       page: '1-based.',
@@ -436,7 +437,7 @@ is \`/visit-history\`.
 `.trim(),
     response: patientHistoryResponse,
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
   },
 
   'POST /api/v1/patients/{patientId}/allergies': {
@@ -446,7 +447,7 @@ is \`/visit-history\`.
     status: 201,
     message: 'Allergy recorded',
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     requestExamples: [
       {
         summary: 'Drug allergy',
@@ -466,7 +467,7 @@ is \`/visit-history\`.
     message: 'Allergy withdrawn',
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       allergyId: 'The allergy `id` from `GET /api/v1/patients/{patientId}/history`.',
     },
   },
@@ -477,7 +478,7 @@ is \`/visit-history\`.
     status: 201,
     message: 'Condition recorded',
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     requestExamples: [
       {
         summary: 'A chronic condition',
@@ -497,7 +498,7 @@ is \`/visit-history\`.
     message: 'Condition updated',
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       conditionId: 'The condition `id` from `GET /api/v1/patients/{patientId}/history`.',
     },
     requestExamples: [
@@ -519,7 +520,7 @@ is \`/visit-history\`.
     message: 'Condition withdrawn',
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       conditionId: 'The condition `id` from `GET /api/v1/patients/{patientId}/history`.',
     },
   },
@@ -531,7 +532,7 @@ is \`/visit-history\`.
     status: 201,
     message: 'Medicine recorded',
     phi: true,
-    params: { patientId: PATIENT_ID },
+    params: { patientId: PATIENT_ID_NOTE },
     requestExamples: [
       {
         summary: 'Prescribed elsewhere',
@@ -552,7 +553,7 @@ is \`/visit-history\`.
     message: 'Medicine stopped',
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       medicationId: 'The medication `id` from `GET /api/v1/patients/{patientId}/history`.',
     },
     requestExamples: [
@@ -569,7 +570,7 @@ is \`/visit-history\`.
     message: 'Medicine removed',
     phi: true,
     params: {
-      patientId: PATIENT_ID,
+      patientId: PATIENT_ID_NOTE,
       medicationId: 'The medication `id` from `GET /api/v1/patients/{patientId}/history`.',
     },
   },

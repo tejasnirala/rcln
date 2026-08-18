@@ -8,13 +8,14 @@
  */
 import { authSession, invitationPreview } from '@rcln/contracts';
 import type { DocRegistry } from '../types.js';
+import { BRANCH_ID, BRANCH_KOCHI_ID, ORG_ID, OTHER_ORG_ID, USER_ID } from './fixtures.js';
 
 const SESSION_EXAMPLE = {
   accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3ZjNh…',
   refreshToken: 'v2.local.8Jd1kQ0mV3xY7pR2wL9nT4bC6sA5fH…',
   expiresIn: 900,
   user: {
-    id: '2b6a9c14-7d58-4e93-a1f0-3c8b5d2e7a94',
+    id: USER_ID,
     fullName: 'Dr Meera Krishnan',
     email: 'meera@alphaclinic.in',
     phone: '+919845012345',
@@ -24,16 +25,16 @@ const SESSION_EXAMPLE = {
     phoneVerified: true,
     lastPlatformOrganizationId: null,
   },
-  activeOrganizationId: 'd4e5f6a7-b8c9-4012-8345-6789abcdef01',
-  activeBranchId: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+  activeOrganizationId: ORG_ID,
+  activeBranchId: BRANCH_ID,
   memberships: [
     {
-      organizationId: 'd4e5f6a7-b8c9-4012-8345-6789abcdef01',
+      organizationId: ORG_ID,
       organizationName: 'Alpha Clinic',
       slug: 'alpha',
       branches: [
         {
-          id: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f',
+          id: BRANCH_ID,
           name: 'Alpha Clinic — Indiranagar',
           code: 'BLR-IND',
         },
@@ -347,7 +348,7 @@ Every claim is audited with the reason given when the grant was created.
               ...SESSION_EXAMPLE.user,
               fullName: 'Platform Support',
               isPlatformAdmin: true,
-              lastPlatformOrganizationId: 'd4e5f6a7-b8c9-4012-8345-6789abcdef01',
+              lastPlatformOrganizationId: ORG_ID,
             },
             impersonation: {
               organizationName: 'Alpha Clinic',
@@ -419,9 +420,7 @@ Re-read \`permissions\` after every switch rather than carrying the old set over
 Refused for a branch the caller holds no assignment for.
 `.trim(),
     ...signedIn('Now at the second branch', 'Branch switched'),
-    requestExamples: [
-      { summary: 'Move to Kochi', value: { branchId: '3c9d5a71-8e42-4f16-b0d3-7a5e9c1f2b84' } },
-    ],
+    requestExamples: [{ summary: 'Move to Kochi', value: { branchId: BRANCH_KOCHI_ID } }],
     errors: [404],
   },
 
@@ -441,7 +440,7 @@ token cannot be used to probe which subdomains exist.
     requestExamples: [
       {
         summary: 'Move to the other clinic',
-        value: { organizationId: 'a1b2c3d4-e5f6-4789-8abc-def012345678' },
+        value: { organizationId: OTHER_ORG_ID },
       },
     ],
     errors: [404],

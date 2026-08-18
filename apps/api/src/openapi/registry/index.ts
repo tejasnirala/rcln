@@ -5,9 +5,10 @@
  * ⚠️ EVERY KEY IS CHECKED AGAINST THE ROUTERS. `tests/unit/openapi.test.ts`
  *   fails on a key that matches no route, so an endpoint renamed or deleted
  *   cannot leave a paragraph behind describing something that is no longer
- *   there. The reverse — a route with no entry here — is reported as coverage
- *   rather than as a failure, because a new endpoint should not block a deploy
- *   on its documentation.
+ *   there. The reverse fails too: `has a registry entry for every route the API
+ *   serves` requires an entry for EVERY endpoint, so a new route cannot merge
+ *   without its prose. That gate was added once the document reached 100%, and
+ *   it is what stops it sliding back to the 10% it started at.
  *
  * One file per domain, keyed `METHOD /full/path` with the path exactly as
  * OpenAPI writes it (`{branchId}`, not `:branchId`).
@@ -15,14 +16,60 @@
 import type { Tag } from '../mounts.js';
 import type { DocRegistry } from '../types.js';
 
+import { appointmentDocs } from './appointments.js';
+import { auditDocs } from './audit.js';
 import { authDocs } from './auth.js';
+import { billingDocs } from './billing.js';
 import { branchDocs } from './branches.js';
+import { catalogueMasterDocs } from './catalogue-masters.js';
+import { chargingDocs } from './charging.js';
+import { clinicalConfigDocs } from './clinical-config.js';
+import { clinicalDocs } from './clinical.js';
+import { clinicalTaxonomyDocs } from './clinical-taxonomy.js';
+import { doctorDocs } from './doctors.js';
+import { encounterDocs } from './encounters.js';
+import { healthDocs } from './health.js';
+import { inventoryDocs } from './inventory.js';
+import { invoiceDocs } from './invoices.js';
+import { memberDocs } from './members.js';
+import { organizationDocs } from './organization.js';
 import { patientDocs } from './patients.js';
+import { pharmacyDocs } from './pharmacy.js';
+import { procurementDocs } from './procurement.js';
+import { platformDocs } from './platform.js';
+import { productDocs } from './products.js';
+import { recallDocs } from './recalls.js';
+import { regulatoryDocs } from './regulatory.js';
+import { publicDocs } from './public.js';
+import { webhookDocs } from './webhooks.js';
 
 export const DOCS: DocRegistry = {
+  ...healthDocs,
   ...authDocs,
+  ...publicDocs,
+  ...organizationDocs,
   ...branchDocs,
+  ...memberDocs,
+  ...doctorDocs,
+  ...clinicalTaxonomyDocs,
   ...patientDocs,
+  ...appointmentDocs,
+  ...encounterDocs,
+  ...clinicalDocs,
+  ...clinicalConfigDocs,
+  ...productDocs,
+  ...catalogueMasterDocs,
+  ...inventoryDocs,
+  ...procurementDocs,
+  ...chargingDocs,
+  ...invoiceDocs,
+  ...recallDocs,
+  ...billingDocs,
+  ...platformDocs,
+  ...pharmacyDocs,
+  ...regulatoryDocs,
+  ...auditDocs,
+  ...webhookDocs,
 };
 
 /** What each section of the API is, in one paragraph a stranger can read. */

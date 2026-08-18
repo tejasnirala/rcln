@@ -1,6 +1,6 @@
 ---
 name: new-feature
-description: Scaffold a complete end-to-end vertical slice for rcln following existing patterns — schema + RLS, contracts, permissions, service, route, web screen, tests. Invoke with /new-feature <feature-name>.
+description: Scaffold a complete end-to-end vertical slice for rcln following existing patterns — schema + RLS, contracts, permissions, service, route, OpenAPI registry entry, web screen, tests. Invoke with /new-feature <feature-name>.
 ---
 
 # New Feature Scaffold (rcln vertical slice)
@@ -112,7 +112,27 @@ resolveTenant → authenticate → authorize(PERMISSION_CODE) → withTenant →
 - Unknown tenant is **404, never 403**.
 - Audit every mutation, and every PHI **read**.
 
-## 9. Web — `apps/web/src/app/`
+## 9. API reference — `apps/api/src/openapi/registry/<domain>.ts`
+
+**Part of the slice, not a follow-up.** `tests/unit/openapi.test.ts` fails on any
+route without a registry entry, so the slice is not green until this exists.
+
+- One file per domain, keyed `METHOD /full/path` with `{param}`, not `:param`.
+  Export it and spread it into `registry/index.ts`.
+- **A new router needs a `MOUNTS` entry** in `openapi/mounts.ts` too, or
+  `assertMountsCover()` fails.
+- Introspection derives method, path, gate and request schema. You write
+  `summary`, `description`, `response`, `phi`, `errors` and worked examples.
+- **Never a literal uuid** — import every id from `registry/fixtures.ts`, the one
+  clinic the whole reference describes. New entities get an id there, named, with
+  a sentence saying what it is.
+- Minor units for money, UTC with a `Z` for times.
+- A status you cite in `errors` must exist in `ERROR_CASES` (`openapi/envelope.ts`).
+
+Full prose and several examples for PHI and money surfaces; summary, description,
+response and one example for masters and CRUD.
+
+## 10. Web — `apps/web/src/app/`
 
 **If this slice has a UI, load the `frontend-design` skill now — before any JSX.** It sets palette, type, layout and the signature element; a visual direction retrofitted onto finished markup means rewriting the markup. Read `apps/web/AGENTS.md` for the two calibrations that matter here: clinical screens optimise for legibility and speed over expressiveness, and the design direction is set once by the first screen and inherited by every screen after it. If screens already exist, match them rather than inventing a second direction.
 
@@ -120,24 +140,25 @@ Under `t/[slug]/` for tenant screens, `platform/` for super-admin. Types from `@
 
 Design the empty, loading and error states as part of the screen, not afterwards — an empty patient list is an invitation to act, and every clinical screen is empty on day one of a new clinic. Never use a real-looking patient name in placeholder copy.
 
-## 10. Worker — `apps/worker/`
+## 11. Worker — `apps/worker/`
 
 Anything slow, external, or retryable goes on a BullMQ queue with an idempotency key. Queues are registered but most processors are stubs — check before assuming one exists.
 
-## 11. Tests
+## 12. Tests
 
 - **`apps/api/tests/integration/tenant-isolation/` — add a case for every new tenant table.** Non-negotiable. Real Postgres, real migrations, real RLS; never mock Prisma.
 - Unit tests for service logic, permission resolution, and any arithmetic. Billing maths deserves property-based tests — rounding compounds.
 
-## 12. Verify
+## 13. Verify
 
 ```bash
 docker compose exec api pnpm validate      # typecheck + lint + test
 docker compose exec api pnpm db:rls:check
+docker compose exec api pnpm --filter @rcln/api docs:validate   # coverage must read n/n
 ```
 
 Then exercise it for real — `curl` the endpoint, load the page, check the container stayed up. This codebase has produced several bugs that typecheck cleanly and fail only at runtime (`docs/PITFALLS.md`). Report actual output; never claim a passing run you did not perform.
 
-## 13. Update `docs/STATUS.md`
+## 14. Update `docs/STATUS.md`
 
 Move the item from "Not done" to "Done" when the slice is complete, including its tests.

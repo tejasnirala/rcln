@@ -13,6 +13,12 @@ Files: `apps/api/src/routes/docs.routes.ts` · `apps/api/src/routes/index.ts`
 | `openApiDocument` | `(): Record<string, unknown>` | `apps/api/src/routes/docs.routes.ts:49` |  |
 | `scalarAssetsDir` <sub>local</sub> | `(): string` | `apps/api/src/routes/docs.routes.ts:55` | Where the prebuilt Scalar browser bundle lives inside node_modules. |
 
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `THEME` <sub>local</sub> | `` :root { --scalar-color-1: #ffffff; --scalar-color-2: #b8b…` | `apps/api/src/routes/docs.routes.ts:154` |  |
+
 ## var
 
 | name | signature | at | notes |

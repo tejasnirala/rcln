@@ -153,6 +153,11 @@ export const ERROR_CASES: Record<number, ErrorCase> = {
       },
     },
   },
+  402: {
+    description:
+      'The acquirer declined the payment. **Retrying an identical request will not help** — the customer has to use a different instrument or resolve it with their bank. Deliberately distinct from a `503`, which means we do not know whether the payment succeeded and must never be presented as a decline.',
+    example: { success: false, message: 'Your bank declined this payment.' },
+  },
   429: {
     description:
       'Rate limited. Applied per client address; the authentication endpoints carry a much tighter budget than the rest of the API.',
@@ -162,6 +167,20 @@ export const ERROR_CASES: Record<number, ErrorCase> = {
     description:
       'An unhandled failure. The message is the fixed string `Internal server error` in production and the real error text elsewhere. Safe to retry once; if it persists, quote the `X-Request-Id` from the response headers.',
     example: { success: false, message: 'Internal server error' },
+  },
+  503: {
+    description:
+      'Either a dependency this instance needs is not answering, or — on a payment route — the provider did not tell us whether the charge succeeded. ⚠️ On a payment, this is NOT a decline and the customer must not be told the payment failed, because it may not have; reconcile with the provider instead. Otherwise it is produced by the readiness probe, which names the failing dependency in `data`. Produced by the readiness probe alone, which names the failing dependency in `data` rather than only reporting that something is wrong. That is a signal to stop routing traffic here, not to restart the process — that is what the liveness probe is for.',
+    example: {
+      success: false,
+      message: 'Service not ready',
+      data: {
+        status: 'not_ready',
+        timestamp: '2026-03-17T04:00:00.000Z',
+        database: 'connected',
+        redis: 'disconnected',
+      },
+    },
   },
 };
 

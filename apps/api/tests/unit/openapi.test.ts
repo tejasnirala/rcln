@@ -16,6 +16,7 @@ import { buildOpenApiDocument } from '../../src/openapi/document.js';
 import { assertMountsCover, MOUNTS, TAGS } from '../../src/openapi/mounts.js';
 import { countRoutes, introspectRouter, reachableRouters } from '../../src/openapi/introspect.js';
 import { DOCS } from '../../src/openapi/registry/index.js';
+import * as FIXTURES from '../../src/openapi/registry/fixtures.js';
 import { endpointKey } from '../../src/openapi/types.js';
 import { disconnectDb } from '../../src/db/prisma.js';
 import { redis } from '../../src/utils/redis.js';
@@ -157,6 +158,87 @@ describe('OpenAPI document', () => {
     const coverage = document['x-rcln-coverage'] as { endpoints: number; described: number };
     expect(coverage.endpoints).toBeGreaterThan(400);
     expect(coverage.described).toBe(Object.keys(DOCS).length);
+  });
+
+  /**
+   * ⚠️ EVERY ENDPOINT CARRIES PROSE, AND THIS IS A HARD FAILURE.
+   *
+   *   This case used to be the reverse: a route with no registry entry was
+   *   REPORTED as coverage rather than failed, on the reasoning that a new
+   *   endpoint should not block a deploy on its documentation. That reasoning is
+   *   what took the document to 425 endpoints of which 43 said anything — the
+   *   other 382 rendered as a bare `GET /api/v1/doctors` with no description, no
+   *   response shape and nothing to copy.
+   *
+   *   A summary is one line and the failure names the exact key to add, so the
+   *   cost of this gate is a minute. The cost of not having it is measured in
+   *   years and was paid once already.
+   */
+  it('has a registry entry for every route the API serves', () => {
+    const undocumented = [...declaredEndpointKeys()].filter((key) => DOCS[key] === undefined);
+    expect(undocumented).toEqual([]);
+  });
+
+  /**
+   * ⚠️ EVERY ID IN THE DOCUMENT COMES FROM `fixtures.ts`.
+   *
+   *   The examples are worth reading only if they tell ONE story: the patient in
+   *   Patients is the patient the appointment books, whose prescription the
+   *   pharmacy dispenses out of the batch procurement received. That property
+   *   holds only while every file imports the same id, and it is destroyed by a
+   *   single invented uuid — which is invisible in review, because one uuid looks
+   *   exactly like another.
+   *
+   *   So: no literal uuid in a registry file. Add it to `fixtures.ts` and import
+   *   it, which is also where it gets a name and a sentence saying what it is.
+   */
+  it('draws every identifier in its examples from the fixture set', () => {
+    const declared = new Set<string>();
+    /* Nested fixture objects (BRANCH, PATIENT, …) carry ids of their own. */
+    const collect = (value: unknown): void => {
+      if (typeof value === 'string') {
+        declared.add(value);
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const entry of value) collect(entry);
+        return;
+      }
+      if (typeof value === 'object' && value !== null) {
+        for (const entry of Object.values(value)) collect(entry);
+      }
+    };
+    collect(FIXTURES as unknown);
+
+    /*
+     * ⚠️ ONLY THE `example` / `examples` SUBTREES, NOT THE WHOLE DOCUMENT. A
+     *   uuid SCHEMA carries the nil and max uuids inside its validation
+     *   `pattern`, and those are part of the format rather than data anybody
+     *   wrote. Scanning the document wholesale reports them for ever.
+     */
+    const UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/g;
+    const strays = new Set<string>();
+
+    const scan = (value: unknown, insideExample: boolean): void => {
+      if (typeof value === 'string') {
+        if (!insideExample) return;
+        for (const id of value.match(UUID) ?? []) {
+          if (!declared.has(id)) strays.add(id);
+        }
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const entry of value) scan(entry, insideExample);
+        return;
+      }
+      if (typeof value !== 'object' || value === null) return;
+      for (const [key, entry] of Object.entries(value)) {
+        scan(entry, insideExample || key === 'example' || key === 'examples');
+      }
+    };
+    scan(document, false);
+
+    expect([...strays]).toEqual([]);
   });
 
   it('gives every operation a tag drawn from the declared set', () => {
