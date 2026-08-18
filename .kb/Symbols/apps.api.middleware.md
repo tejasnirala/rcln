@@ -10,7 +10,7 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `assignParsed` <sub>local</sub> | `(req: Request, source: ValidationSource, value: unknown): void` | `apps/api/src/middleware/validate.middleware.ts:26` |  |
+| `assignParsed` <sub>local</sub> | `(req: Request, source: ValidationSource, value: unknown): void` | `apps/api/src/middleware/validate.middleware.ts:61` |  |
 | `authenticate` | `(req: Request, _res: Response, next: NextFunction): Promise<void>` | `apps/api/src/middleware/auth.middleware.ts:47` |  |
 | `authorize` | `(permissions: PermissionCode[]): RequestHandler` | `apps/api/src/middleware/auth.middleware.ts:160` |  |
 | `bearerToken` <sub>local</sub> | `(req: Request): string \| null` | `apps/api/src/middleware/auth.middleware.ts:28` | `Authorization: Bearer <token>` -> the token, or null. |
@@ -18,6 +18,7 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 | `cacheKey` <sub>local</sub> | `(host: string): string` | `apps/api/src/middleware/tenant.middleware.ts:27` |  |
 | `callerFrom` | `(req: Request): CallerIdentity` | `apps/api/src/middleware/auth.middleware.ts:280` |  |
 | `callerHasPermission` | `(req: Request, permission: PermissionCode): Promise<boolean>` | `apps/api/src/middleware/auth.middleware.ts:307` |  |
+| `describeValidator` <sub>local</sub> | `(handler: T, shapes: ValidatedShape[]): T` | `apps/api/src/middleware/validate.middleware.ts:30` | Stamp the schemas a handler validates onto the handler itself. |
 | `errorHandler` | `(err: Error, req: Request, res: Response, _next: NextFunction): Response` | `apps/api/src/middleware/error.middleware.ts:33` | Global error handler middleware Must be registered LAST in middleware chain |
 | `formatZodErrors` <sub>local</sub> | `(error: ZodError): Record<string, string[]>` | `apps/api/src/middleware/error.middleware.ts:16` | Format Zod validation errors |
 | `invalidateTenantCache` | `(host: string): Promise<void>` | `apps/api/src/middleware/tenant.middleware.ts:167` | Called after any change to organizations/organization_domains. |
@@ -33,8 +34,9 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 | `resolveTenant` | `(req: Request, _res: Response, next: NextFunction): Promise<void>` | `apps/api/src/middleware/tenant.middleware.ts:116` |  |
 | `store` <sub>local</sub> | `(prefix: string): RedisStore` | `apps/api/src/middleware/rateLimiter.middleware.ts:14` |  |
 | `tenantContextFrom` | `(req: Request): TenantContext` | `apps/api/src/middleware/auth.middleware.ts:324` |  |
-| `validate` | `(schema: ZodSchema, source: ValidationSource)` | `apps/api/src/middleware/validate.middleware.ts:48` | Validation middleware factory |
-| `validateMultiple` | `(schemas: Partial<Record<ValidationSource, ZodSchema>>)` | `apps/api/src/middleware/validate.middleware.ts:87` | Validate multiple sources at once |
+| `validate` | `(schema: ZodSchema, source: ValidationSource): RequestHandler` | `apps/api/src/middleware/validate.middleware.ts:83` | Validation middleware factory |
+| `validatedShapesOf` | `(handler: unknown): readonly ValidatedShape[] \| null` | `apps/api/src/middleware/validate.middleware.ts:39` | The shapes a `validate(...)` / `validateMultiple(...)` handler enforces, if it is one. |
+| `validateMultiple` | `(schemas: Partial<Record<ValidationSource, ZodSchema>>): RequestHandler` | `apps/api/src/middleware/validate.middleware.ts:124` | Validate multiple sources at once |
 
 ## const
 
@@ -62,9 +64,10 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 | --- | --- | --- | --- |
 | `CallerIdentity` | `{ isPlatformAdmin, branchId }` | `apps/api/src/middleware/auth.middleware.ts:275` |  |
 | `ResolvedTenant` | `{ organizationId, slug, status, currency, timezone }` | `apps/api/src/middleware/tenant.middleware.ts:18` |  |
+| `ValidatedShape` | `{ schema, source }` | `apps/api/src/middleware/validate.middleware.ts:24` |  |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ValidationSource` <sub>local</sub> | `'body' \| 'query' \| 'params'` | `apps/api/src/middleware/validate.middleware.ts:8` | Location of data to validate |
+| `ValidationSource` | `'body' \| 'query' \| 'params'` | `apps/api/src/middleware/validate.middleware.ts:8` | Location of data to validate |

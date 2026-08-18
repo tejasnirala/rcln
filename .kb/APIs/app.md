@@ -8,18 +8,19 @@ Source: `apps/api/src/app.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `helmet(…)` | `apps/api/src/app.ts:57` |
-| USE | `*` | `cors(…)` | `apps/api/src/app.ts:66` |
-| USE | `/api/v1/webhooks` | `webhookRoutes` | `apps/api/src/app.ts:111` |
-| USE | `*` | `express.json(…)` | `apps/api/src/app.ts:113` |
-| USE | `*` | `express.urlencoded(…)` | `apps/api/src/app.ts:114` |
-| USE | `*` | `compression(…)` | `apps/api/src/app.ts:115` |
-| USE | `*` | `pinoHttp(…)` | `apps/api/src/app.ts:117` |
-| USE | `*` | `generalLimiter` | `apps/api/src/app.ts:133` |
-| USE | `*` | `resolveTenant` | `apps/api/src/app.ts:134` |
-| USE | `/api` | `routes` | `apps/api/src/app.ts:136` |
-| GET | `/` | `<inline>` | `apps/api/src/app.ts:138` |
-| USE | `*` | `notFoundHandler` | `apps/api/src/app.ts:146` |
-| USE | `*` | `<inline>` | `apps/api/src/app.ts:147` |
+| USE | `*` | `helmet(…)` | `apps/api/src/app.ts:58` |
+| USE | `*` | `cors(…)` | `apps/api/src/app.ts:67` |
+| USE | `/api/v1/webhooks` | `webhookRoutes` | `apps/api/src/app.ts:112` |
+| USE | `*` | `express.json(…)` | `apps/api/src/app.ts:114` |
+| USE | `*` | `express.urlencoded(…)` | `apps/api/src/app.ts:115` |
+| USE | `*` | `compression(…)` | `apps/api/src/app.ts:116` |
+| USE | `*` | `pinoHttp(…)` | `apps/api/src/app.ts:118` |
+| USE | `*` | `generalLimiter` | `apps/api/src/app.ts:134` |
+| USE | `/docs` | `docsRoutes` | `apps/api/src/app.ts:143` |
+| USE | `*` | `resolveTenant` | `apps/api/src/app.ts:145` |
+| USE | `/api` | `routes` | `apps/api/src/app.ts:147` |
+| GET | `/` | `<inline>` | `apps/api/src/app.ts:149` |
+| USE | `*` | `notFoundHandler` | `apps/api/src/app.ts:157` |
+| USE | `*` | `<inline>` | `apps/api/src/app.ts:158` |
 
 Symbols in this module: [apps.api.md](../Symbols/apps.api.md)

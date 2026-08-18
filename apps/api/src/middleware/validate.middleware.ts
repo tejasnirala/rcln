@@ -1,11 +1,46 @@
-import { type Request, type Response, type NextFunction } from 'express';
+import { type Request, type Response, type NextFunction, type RequestHandler } from 'express';
 import { type ZodSchema, ZodError, type ZodIssue } from 'zod';
 import { sendError } from '../utils/response.js';
 
 /**
  * Location of data to validate
  */
-type ValidationSource = 'body' | 'query' | 'params';
+export type ValidationSource = 'body' | 'query' | 'params';
+
+/**
+ * What a `validate(...)` handler was built with, legible from outside the
+ * closure.
+ *
+ * ⚠️ THE SAME TRICK `authorize()` USES, FOR THE SAME REASON AND WITH ONE MORE.
+ *   An Express router stack is a list of anonymous functions, so "what shape does
+ *   this endpoint accept" is a question nothing could ask — and the OpenAPI
+ *   document has to answer it for 289 endpoints without anybody maintaining a
+ *   second copy of every contract by hand. A second copy is not merely tedious;
+ *   it is wrong the first time a contract changes and nothing fails.
+ *
+ *   Non-enumerable so it stays out of logs and out of anything that serialises a
+ *   middleware stack, exactly as `requiredPermissions` is.
+ */
+export interface ValidatedShape {
+  readonly schema: ZodSchema;
+  readonly source: ValidationSource;
+}
+
+/** Stamp the schemas a handler validates onto the handler itself. */
+function describeValidator<T extends object>(handler: T, shapes: ValidatedShape[]): T {
+  Object.defineProperty(handler, 'validatedShapes', {
+    value: Object.freeze(shapes),
+    enumerable: false,
+  });
+  return handler;
+}
+
+/** The shapes a `validate(...)` / `validateMultiple(...)` handler enforces, if it is one. */
+export function validatedShapesOf(handler: unknown): readonly ValidatedShape[] | null {
+  if (typeof handler !== 'function') return null;
+  const shapes = (handler as { validatedShapes?: unknown }).validatedShapes;
+  return Array.isArray(shapes) ? (shapes as ValidatedShape[]) : null;
+}
 
 /**
  * Write the parsed value back onto the request.
@@ -45,8 +80,8 @@ function assignParsed(req: Request, source: ValidationSource, value: unknown): v
  * router.post('/users', validate(createUserSchema, 'body'), createUser);
  * router.get('/users/:id', validate(userIdSchema, 'params'), getUser);
  */
-export const validate = (schema: ZodSchema, source: ValidationSource = 'body') => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const validate = (schema: ZodSchema, source: ValidationSource = 'body'): RequestHandler => {
+  const handler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const data: unknown = req[source];
       const validated: unknown = await schema.parseAsync(data);
@@ -73,6 +108,8 @@ export const validate = (schema: ZodSchema, source: ValidationSource = 'body') =
       next(error);
     }
   };
+
+  return describeValidator(handler, [{ schema, source }]);
 };
 
 /**
@@ -84,8 +121,10 @@ export const validate = (schema: ZodSchema, source: ValidationSource = 'body') =
  *   updateUser
  * );
  */
-export const validateMultiple = (schemas: Partial<Record<ValidationSource, ZodSchema>>) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const validateMultiple = (
+  schemas: Partial<Record<ValidationSource, ZodSchema>>
+): RequestHandler => {
+  const handler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       for (const [source, schema] of Object.entries(schemas)) {
         if (schema) {
@@ -113,4 +152,11 @@ export const validateMultiple = (schemas: Partial<Record<ValidationSource, ZodSc
       next(error);
     }
   };
+
+  return describeValidator(
+    handler,
+    Object.entries(schemas)
+      .filter((entry): entry is [ValidationSource, ZodSchema] => entry[1] !== undefined)
+      .map(([source, schema]) => ({ schema, source }))
+  );
 };

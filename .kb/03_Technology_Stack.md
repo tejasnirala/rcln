@@ -33,7 +33,7 @@ stated paths. Where a technology is _documented but absent_, it is marked.
 | Package              | Version               | Role                                                                    |
 | -------------------- | --------------------- | ----------------------------------------------------------------------- |
 | `express`            | `^5.2.1`              | HTTP framework                                                          |
-| `helmet`             | `^8.1.0`              | Security headers. CSP disabled in dev so Swagger UI loads               |
+| `helmet`             | `^8.1.0`              | Security headers. Also a route-scoped CSP for `/docs`                   |
 | `cors`               | `^2.8.5`              | Dynamic per-tenant origin check against the root domain                 |
 | `compression`        | `^1.8.1`              | Response compression                                                    |
 | `express-rate-limit` | `^8.2.1`              | Rate limiting                                                           |
@@ -49,8 +49,13 @@ stated paths. Where a technology is _documented but absent_, it is marked.
 Dev: `jest`, `ts-jest`, `supertest`, `tsx`, `pino-pretty`, `pg`, `eslint`,
 `prettier`, `typescript`.
 
-**Notable absences:** no OpenAPI/Swagger generator despite a CSP comment
-referencing Swagger UI; no OpenTelemetry; no Sentry.
+API documentation: `@scalar/express-api-reference` renders `/docs`;
+`@scalar/api-reference` is a dependency for its prebuilt browser bundle, which is
+served from `/docs/assets` rather than a CDN so the page survives helmet's
+production CSP and an air-gapped network. `@scalar/openapi-parser` (dev) checks
+the generated document against the specification.
+
+**Notable absences:** no OpenTelemetry; no Sentry.
 
 ---
 

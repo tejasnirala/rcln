@@ -8,9 +8,37 @@
 | `APIs/<group>.md`                                          | **Generated.** One file per route group, with the group's own design notes and its contracts                       |
 | This file                                                  | The conventions every endpoint obeys — auth, envelope, errors, rate limits                                         |
 | [`packages/contracts/src/`](Symbols/packages.contracts.md) | The request and response schemas themselves                                                                        |
+| `GET /docs`                                                | **Generated.** The interactive OpenAPI 3.1 reference, with try-it-out                                              |
+| `GET /docs/openapi.json`                                   | **Generated.** The document itself, for Postman/Bruno/Insomnia or client generation                                |
 
-There is **no OpenAPI document**. The Zod contracts are the machine-readable
-spec; a generator would be a reasonable addition and does not exist.
+## The OpenAPI document
+
+**Verified.** `apps/api/src/openapi/` builds an OpenAPI 3.1 document by walking
+the Express routers at runtime and converting the Zod contracts with Zod 4's own
+`z.toJSONSchema`. 425 endpoints, 311 paths, 335 component schemas.
+
+Nothing in it is transcribed, which is the point: `authorize()` stamps its
+permission codes onto the handler and `validate()` stamps its schemas, so method,
+path, gate and every request shape are read off the running routers and cannot
+drift. Only the prose — what an endpoint is FOR, what comes back, worked examples
+— is hand-written, in `openapi/registry/`, one file per domain.
+
+- `mounts.ts` is the one hand-maintained list, because Express 5 compiles a mount
+  path into a matcher and keeps no copy of the string. It is checked against the
+  app by **object identity**, so a router mounted and not declared fails a test
+  rather than vanishing from the documentation.
+- `tests/unit/openapi.test.ts` asserts the structural invariants: every reachable
+  route documented, no orphan registry keys, no dangling `$ref`, every path
+  variable declared, every gated operation naming its permission code.
+- `pnpm --filter @rcln/api docs:validate` checks conformance against the 3.1
+  specification. It is a script rather than a test case because
+  `@scalar/openapi-parser` misreports validity under Jest's experimental VM
+  modules.
+
+Served at `/docs`, mounted on the app ahead of `resolveTenant` so it answers on
+the apex host too. **Off in production unless `DOCS_ENABLED=true`** — the
+document names every endpoint, payload and permission code, which is exactly the
+reconnaissance an attacker would otherwise do by hand.
 
 ---
 

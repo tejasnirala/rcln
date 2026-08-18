@@ -16,6 +16,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:rls": "NODE_OPTIONS=--experimental-vm-modules jest tests/integration/tenant-isolation",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "docs:validate": "tsx scripts/validate-openapi.ts",
     "clean": "rm -rf dist coverage *.tsbuildinfo"
   },
   "engines": {
@@ -36,6 +37,8 @@
     "@rcln/regulatory": "workspace:*",
     "@rcln/storage": "workspace:*",
     "@rcln/tax": "workspace:*",
+    "@scalar/api-reference": "^1.65.1",
+    "@scalar/express-api-reference": "^0.10.14",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -53,6 +56,7 @@
   },
   "devDependencies": {
     "@rcln/config": "workspace:*",
+    "@scalar/openapi-parser": "^0.28.14",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

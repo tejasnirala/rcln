@@ -192,9 +192,10 @@ late delays the phase that needs them.
    that would catch a broken screen the API suite cannot see.
 2. **MFA for platform admins.** `otplib` is installed.
 3. **Dependency and image scanning in CI.** A day of work; currently absent.
-4. **An OpenAPI document generated from the Zod contracts.** The contracts are
-   already the single source of truth; a generated spec makes the API
-   consumable by anyone who is not reading the source.
+4. ~~**An OpenAPI document generated from the Zod contracts.**~~ **Done** —
+   `apps/api/src/openapi/`, served at `/docs`. What remains is prose coverage:
+   43 of 425 endpoints carry hand-written summaries, descriptions, response
+   schemas and worked examples; the rest are generated-only.
 5. **Runtime response parsing on the web side**, so a backend shape change is a
    clear error rather than an undefined-property crash.
 6. **A tamper-evident audit log** — an append-only constraint, at minimum.

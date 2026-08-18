@@ -112,6 +112,21 @@ export const config = {
   isDevelopment: env === 'development',
   isTest: env === 'test',
 
+  /**
+   * The interactive API reference at `/docs`, and the OpenAPI document behind it.
+   *
+   * ⚠️ OFF IN PRODUCTION UNLESS SOMEBODY TURNS IT ON, AND THAT IS THE SAFE
+   *   DIRECTION. The document describes 289 endpoints, every payload shape and
+   *   the permission code gating each one — which is exactly the reconnaissance
+   *   an attacker would otherwise have to do by hand against a system holding
+   *   patient records. Set `DOCS_ENABLED=true` deliberately, when the audience
+   *   is a customer or an integrator rather than the open internet.
+   *
+   *   Everywhere else it is on by default, because documentation nobody can
+   *   reach while developing against it is documentation nobody reads.
+   */
+  docsEnabled: getEnvVar('DOCS_ENABLED', isProduction ? 'false' : 'true') === 'true',
+
   // Tenancy
   rootDomain: getEnvVar('ROOT_DOMAIN', 'lvh.me'),
   webUrl: getEnvVar('WEB_URL', 'http://lvh.me:3000'),

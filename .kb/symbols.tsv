@@ -298,6 +298,7 @@ assertJurisdiction	fn	local	apps/api/src/services/branch/branch.service.ts:62	ap
 assertKeyMatchesEnvironment	fn	local	packages/payments/src/providers/razorpay.ts:1536	packages/payments/providers	(keyId: string, environment: 'sandbox' | 'production'): void	
 assertLotIsReceivable	fn/async	local	apps/api/src/services/procurement/goods-receipt.service.ts:335	apps/api/services/procurement	(tx: TxClient, branchId: string, productName: string, expiresOn: Date | null): Promise<void>	
 assertMayOverride	fn	export	apps/api/src/services/consumption/shared.ts:131	apps/api/services/consumption	(options: ConsumptionActionOptions, productName: string, expected: string, actual: string): void	
+assertMountsCover	fn	export	apps/api/src/openapi/mounts.ts:197	apps/api/openapi	(reachable: ReadonlySet<IRouter>): void	
 assertMutable	fn	local	apps/api/src/services/clinical/master.service.ts:45	apps/api/services/clinical	(row: { organization_id: string | null }): void	
 assertMutable	fn	local	apps/api/src/services/clinical/template.service.ts:60	apps/api/services/clinical	(row: { organizationId: string | null }): void	
 assertMutable	fn	local	apps/api/src/services/clinical/visual-map.service.ts:112	apps/api/services/clinical	(row: { organizationId: string | null }): void	
@@ -347,7 +348,7 @@ assertWithinTolerance	fn	local	apps/api/src/services/procurement/goods-receipt.s
 assign	fn	local	apps/api/src/services/clinical/encounter-content.service.ts:599	apps/api/services/clinical	(input: T, keys: readonly (keyof T)[]): Record<string, unknown>	`patch`, flattened for Prisma's scalar update shape.
 assignment	fn	local	packages/permissions/tests/resolver.test.ts:37	packages/permissions/tests	(branchId: string | null, permissions): RoleAssignment	
 assignmentParams	var	local	apps/api/src/routes/v1/members.routes.ts:60	apps/api/routes/v1	memberParams.extend(…)	
-assignParsed	fn	local	apps/api/src/middleware/validate.middleware.ts:26	apps/api/middleware	(req: Request, source: ValidationSource, value: unknown): void	
+assignParsed	fn	local	apps/api/src/middleware/validate.middleware.ts:61	apps/api/middleware	(req: Request, source: ValidationSource, value: unknown): void	
 assignRole	fn/async	export	apps/api/src/services/iam/member.service.ts:323	apps/api/services/iam	(ctx: TenantContext, caller: Caller, membershipId: string, input: AssignRoleRequest, options: MemberActionOptions): Promise<MemberDetail>	
 assignRoleRequest	zod	export	packages/contracts/src/tenancy.ts:377	packages/contracts	z.object(…)	
 AssignRoleRequest	type	export	packages/contracts/src/tenancy.ts:977	packages/contracts	z.infer<typeof assignRoleRequest>	
@@ -409,6 +410,7 @@ auditOptions	fn	export	apps/api/src/services/invoicing/invoice.service.ts:81	app
 AuditRow	type	local	apps/api/src/services/clinical/encounter.service.ts:131	apps/api/services/clinical	Prisma.EncounterGetPayload<{ select: typeof AUDIT_SELECT }>	
 auditRows	fn/async	local	apps/api/tests/integration/verification.test.ts:128	apps/api/tests/integration	(userId: string): Promise< { organization_id: string | null; before_data: Rec…	
 AuditSnapshot	type	export	apps/api/src/services/audit/audit.service.ts:185	apps/api/services/audit	Record<string, unknown>	A row shape as handed to the audit trail: flat, JSON-serialisable.
+authDocs	var	export	apps/api/src/openapi/registry/auth.ts:75	apps/api/openapi/registry	: DocRegistry	
 authed	fn/async	local	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:42	apps/web/app/(tenant)/t/[slug]/(app)/branches	(): Promise<string | undefined>	
 authenticate	fn/async	export	apps/api/src/middleware/auth.middleware.ts:47	apps/api/middleware	(req: Request, _res: Response, next: NextFunction): Promise<void>	
 AuthenticatedUser	interface	export	apps/api/src/services/auth/login.service.ts:27	apps/api/services/auth	{ id, fullName, email, phone, isPlatformAdmin, mfaEnabled, emailVerified, phoneVerified, lastPlatformOrganizationId }	
@@ -533,6 +535,7 @@ boxFor	fn	local	apps/web/src/components/tenant/vitals-panel.tsx:563	apps/web/com
 BRANCH_A	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:29	apps/api/tests/integration/tenant-isolation	'aaaaaaaa-0000-0000-0000-0000000000a1'	
 BRANCH_B1	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:30	apps/api/tests/integration/tenant-isolation	'bbbbbbbb-0000-0000-0000-0000000000b1'	
 BRANCH_B2	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:31	apps/api/tests/integration/tenant-isolation	'bbbbbbbb-0000-0000-0000-0000000000b2'	
+BRANCH_ID_NOTE	const	local	apps/api/src/openapi/registry/branches.ts:40	apps/api/openapi/registry	"The branch's `id`, as returned by `GET /api/v1/branches`. …	
 BRANCH_SELECT	const	local	apps/api/src/services/branch/branch.service.ts:115	apps/api/services/branch	{ id: true, name: true, code: true, branchType: true, status: true, isPrimary: true, time…	The shape Prisma is asked for, so list and detail cannot drift apart.
 BRANCH_STATUSES	const	local	apps/web/src/components/tenant/branch-list.tsx:30	apps/web/components/tenant	: SelectOption[]	"Open/Paused/Closed", not ACTIVE/INACTIVE/CLOSED — nobody pauses a branch by setting it inactive.
 BRANCH_TYPES	const	local	apps/web/src/components/tenant/branch-list.tsx:21	apps/web/components/tenant	: SelectOption[]	What kind of place this is. The API enum, named the way a clinic says it.
@@ -544,6 +547,7 @@ branchClosureRequest	zod	export	packages/contracts/src/tenancy.ts:230	packages/c
 BranchClosureRequest	type	export	packages/contracts/src/tenancy.ts:962	packages/contracts	z.infer<typeof branchClosureRequest>	
 branchDetail	zod	export	packages/contracts/src/tenancy.ts:578	packages/contracts	z.object(…)	
 BranchDetail	type	export	packages/contracts/src/tenancy.ts:959	packages/contracts	z.infer<typeof branchDetail>	
+branchDocs	var	export	apps/api/src/openapi/registry/branches.ts:43	apps/api/openapi/registry	: DocRegistry	
 BRANCHES_PER_TICK	const	local	apps/worker/src/inventory/expiry.processor.ts:57	apps/worker/inventory	200	
 BRANCHES_PER_TICK	const	local	apps/worker/src/inventory/reservation.processor.ts:50	apps/worker/inventory	200	
 branchesInScope	fn/async	export	apps/web/src/lib/session.ts:134	apps/web/lib	(slug: string): Promise<BranchSummary[]>	
@@ -583,6 +587,7 @@ buildAuthSession	fn/async	export	apps/api/src/services/auth/login.service.ts:248
 buildDraft	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:175	apps/web/components/tenant	(prescription: PharmacyPrescriptionDetail, plans: LinePlan[]): DraftLine[]	
 BUILDERS	const	local	packages/payments/src/registry.ts:35	packages/payments	: Record<ProviderName, (config: PaymentsConfig) => PaymentProvider>	
 buildKey	fn	export	packages/storage/src/keys.ts:94	packages/storage	(parts: readonly string[]): string	
+buildOpenApiDocument	fn	export	apps/api/src/openapi/document.ts:179	apps/api/openapi	(): Record<string, unknown>	Build the whole document. Pure; the caller decides when to cache it.
 BuildSessionInput	interface	export	apps/api/src/services/auth/login.service.ts:233	apps/api/services/auth	{ user, organizationId, ipAddress, userAgent }	
 buildTree	fn	export	apps/web/src/lib/taxonomy.ts:41	apps/web/lib	(nodes: SpecialtySummary[]): TaxonomyTree	
 buildUnitGraph	fn	export	packages/inventory/src/units.ts:236	packages/inventory	(units: UnitRow[], conversions: ConversionRow[]): UnitGraph	
@@ -594,6 +599,7 @@ byOrderThenName	fn	local	apps/web/src/lib/taxonomy.ts:38	apps/web/lib	(a: Specia
 cache	var	local	apps/worker/src/billing/runtime.ts:53	apps/worker/billing	: Redis | null	
 CACHE_TTL_SECONDS	const	local	apps/api/src/middleware/tenant.middleware.ts:26	apps/api/middleware	300	
 CACHE_TTL_SECONDS	const	local	apps/api/src/services/auth/access.service.ts:52	apps/api/services/auth	60	
+cached	var	local	apps/api/src/routes/docs.routes.ts:40	apps/api/routes	: Record<string, unknown> | null	
 CachedAccess	interface	local	apps/api/src/services/auth/access.service.ts:57	apps/api/services/auth	{ roleAssignments }	Dates do not survive JSON, so validity windows are revived on read.
 cacheKey	fn	local	apps/api/src/middleware/tenant.middleware.ts:27	apps/api/middleware	(host: string): string	
 cacheKey	fn	local	apps/api/src/services/auth/access.service.ts:53	apps/api/services/auth	(userId: string, organizationId: string): string	
@@ -901,6 +907,7 @@ codeSettableMaturity	zod	export	packages/contracts/src/regulatory.ts:63	packages
 CodeSettableMaturity	type	export	packages/contracts/src/regulatory.ts:674	packages/contracts	z.infer<typeof codeSettableMaturity>	
 codingsFor	fn/async	local	apps/api/src/services/clinical/master.service.ts:53	apps/api/services/clinical	(tx: TxClient, itemIds: string[]): Promise<Map<string, ClinicalMasterItem['codings']>>	
 ColGroup	component	local	packages/documents/src/invoice/items.tsx:208	packages/documents/invoice	({ fixed, taxColumns, }: { /** Every column except the descr…): JSX.Element	
+collectEndpoints	fn	local	apps/api/src/openapi/document.ts:51	apps/api/openapi	(): Endpoint[]	Every documented endpoint, in mount order.
 COLLECTIONS	const	local	apps/api/src/routes/v1/encounters.routes.ts:301	apps/api/routes/v1	[ { path: 'symptoms', create: createEncounterSymptomRequest, update: updateEncounterSympt…	
 Column	component	local	apps/web/src/components/tenant/classification-picker.tsx:441	apps/web/components/tenant	({ nodes, openId, alreadyChosen, tree, onOpen, onChoose, }: …)	
 columnLabel	fn	export	apps/web/src/lib/taxonomy.ts:122	apps/web/lib	(nodes: SpecialtySummary[]): string	
@@ -943,7 +950,7 @@ config	var	local	packages/queue/jest.config.ts:3	packages/queue	: Config
 config	var	local	packages/regulatory/jest.config.ts:3	packages/regulatory	: Config	
 config	var	local	packages/storage/jest.config.ts:3	packages/storage	: Config	
 config	var	local	packages/tax/jest.config.ts:3	packages/tax	: Config	
-Config	type	export	apps/api/src/config/index.ts:459	apps/api/config	typeof config	
+Config	type	export	apps/api/src/config/index.ts:474	apps/api/config	typeof config	
 configured	var	local	apps/api/src/services/billing/provider.ts:54	apps/api/services/billing	false	
 configureDocumentStore	fn	export	packages/documents/src/store/runtime.ts:57	packages/documents/store	(next: DocumentStoreConfig): void	Called once at boot by the API and by the worker.
 configurePayments	fn	export	packages/payments/src/registry.ts:70	packages/payments	(config: PaymentsConfig): PaymentProvider	Called once at boot, from the app's config module.
@@ -1077,6 +1084,8 @@ ContentSectionProps	interface	export	apps/web/src/components/tenant/consultation
 contentSnapshot	fn	local	apps/api/src/services/clinical/encounter-content.service.ts:550	apps/api/services/clinical	(kind: string, row: { id: string; itemId?: string | null; productId?: stri…): Record<string, unknown>	
 contextFor	fn	local	apps/api/tests/integration/invoicing-tax.test.ts:153	apps/api/tests/integration	(ctx: TenantContext, branchId: string)	
 ContinueLink	component	local	apps/web/src/components/tenant/login-form.tsx:93	apps/web/components/tenant	({ state }: { state: LoginFormState })	
+CONTRACT_NAMES	const	local	apps/api/src/openapi/schema.ts:39	apps/api/openapi	new Map(…)	
+contractNameOf	fn	export	apps/api/src/openapi/schema.ts:47	apps/api/openapi	(schema: ZodType): string | null	The name `@rcln/contracts` exports this schema under, if it exports it.
 ControlIdentity	type	local	apps/web/src/components/ui/field.tsx:175	apps/web/components/ui	{ id: string; name?: string } | { id?: string; name: string }	
 ControlledScheduleParameters	interface	export	packages/regulatory/src/parameters.ts:144	packages/regulatory	{ scheduleName, registerRequired, witnessRequired, storageLocationKinds }	
 controlProps	fn	local	apps/web/src/components/ui/field.tsx:216	apps/web/components/ui	(fieldId: string, hint: string | undefined, invalid: boolean): { id: string; 'aria-invalid': boolean; 'aria-describedby': …	
@@ -1084,6 +1093,7 @@ ControlShell	interface	local	apps/web/src/components/ui/field.tsx:177	apps/web/c
 conversionFactor	fn	export	packages/inventory/src/units.ts:296	packages/inventory	(graph: UnitGraph, fromUnitId: string, toUnitId: string): Rational	
 ConversionResult	interface	export	packages/inventory/src/units.ts:73	packages/inventory	{ quantity, exact }	
 ConversionRow	interface	export	packages/inventory/src/units.ts:59	packages/inventory	{ fromUnitId, toUnitId, numerator, denominator }	
+convert	fn	local	apps/api/src/openapi/schema.ts:56	apps/api/openapi	(ids: ReadonlyMap<ZodType, string>, io: Io): Record<string, JsonSchema>	Convert one registry's worth of schemas in a single pass.
 convert	fn	export	packages/inventory/src/units.ts:340	packages/inventory	(graph: UnitGraph, quantity: string, fromUnitId: string, toUnitId: string): ConversionResult	Convert a quantity between two units. See `ConversionResult.exact`.
 convertFromBase	fn	export	packages/inventory/src/units.ts:361	packages/inventory	(graph: UnitGraph, baseQuantity: string, baseUnitId: string, toUnitId: string): ConversionResult	Express a base-unit quantity in something a human reads. Display only.
 convertPackagingToBase	fn	export	packages/inventory/src/units.ts:462	packages/inventory	(levels: PackagingLevelRow[], quantity: string, level: number): ConversionResult	A quantity entered at a packaging level, expressed in base units.
@@ -1104,6 +1114,7 @@ countFor	fn/async	local	apps/api/src/services/clinical/encounter.service.ts:813	
 countFor	fn/async	local	apps/api/tests/integration/demo-requests.test.ts:54	apps/api/tests/integration	(email: string): Promise<number>	
 COUNTRIES	const	export	packages/contracts/src/locale.ts:305	packages/contracts	: readonly CountryInfo[]	
 COUNTRIES_BY_CURRENCY	const	local	packages/payments/src/currency.ts:96	packages/payments	: Readonly<Record<BillingCurrency, readonly string[]>>	
+countRoutes	fn	export	apps/api/src/openapi/introspect.ts:132	apps/api/openapi	(router: IRouter): number	
 COUNTRY_OPTIONS	const	local	apps/web/src/components/tenant/branch-list.tsx:61	apps/web/components/tenant	: SelectOption[]	
 countryCode	var	export	packages/contracts/src/products.ts:152	packages/contracts	z .string() .trim() .length(2) .regex(/^[A-Za-z]{2}$/, 'two…	ISO 3166-1 alpha-2. Uppercased, so `in` from a form stores as `IN`.
 countryCode	var	local	packages/contracts/src/tax.ts:58	packages/contracts	z .string() .length(2) .regex(/^[A-Za-z]{2}$/, 'two letters…	
@@ -1112,6 +1123,8 @@ countryInfo	fn	export	packages/contracts/src/locale.ts:572	packages/contracts	(c
 CountryInfo	interface	export	packages/contracts/src/locale.ts:169	packages/contracts	{ code, name, currency, timezones, regions, tax, dial, labels, postal, taxId, temperatureUnit }	
 countryOf	fn/async	export	apps/web/src/lib/session.ts:160	apps/web/lib	(slug: string): Promise<string>	
 countsFor	fn	local	apps/web/src/components/tenant/visit-history.tsx:285	apps/web/components/tenant	(encounter: NonNullable<VisitHistoryVisit['encounter']>): string[]	
+coverage	var	local	apps/api/scripts/validate-openapi.ts:26	apps/api/scripts	document['x-rcln-coverage'] as Coverage	
+Coverage	interface	local	apps/api/scripts/validate-openapi.ts:19	apps/api/scripts	{ endpoints, described, routers }	
 COVERAGE_MODES	const	export	packages/contracts/src/tax.ts:149	packages/contracts	['EXPLICIT', 'JURISDICTION'] as const	
 CoverageEditor	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:468	apps/web/components/tenant	({ registration, branches, pending, onSave, }: { registratio…)	
 CoverageMode	type	export	packages/contracts/src/tax.ts:150	packages/contracts	(typeof COVERAGE_MODES)[number]	
@@ -1126,7 +1139,7 @@ CREATE	const	local	apps/api/src/routes/v1/recalls.routes.ts:103	apps/api/routes/
 createActiveIngredient	fn/async	export	apps/api/src/services/product/catalogue.service.ts:239	apps/api/services/product	(ctx: TenantContext, input: CreateActiveIngredientRequest, options: CatalogueActionOptions): Promise<ActiveIngredientSummary>	
 createActiveIngredientRequest	zod	export	packages/contracts/src/products.ts:323	packages/contracts	z.object(…)	
 CreateActiveIngredientRequest	type	export	packages/contracts/src/products.ts:872	packages/contracts	z.infer<typeof createActiveIngredientRequest>	
-createApp	fn	export	apps/api/src/app.ts:28	apps/api	(): Express	
+createApp	fn	export	apps/api/src/app.ts:29	apps/api	(): Express	
 createAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:773	apps/api/services/appointment	(ctx: TenantContext, input: CreateAppointmentRequest, options: AppointmentActionOptions): Promise<AppointmentDetail>	
 createAppointmentInvoiceRequest	zod	export	packages/contracts/src/invoices.ts:674	packages/contracts	z.object(…)	
 CreateAppointmentInvoiceRequest	type	export	packages/contracts/src/invoices.ts:689	packages/contracts	z.infer<typeof createAppointmentInvoiceRequest>	
@@ -1423,6 +1436,7 @@ decimalToString	fn	export	apps/api/src/services/product/values.ts:100	apps/api/s
 decision	fn	local	apps/api/tests/unit/regulatory-enforcement.test.ts:25	apps/api/tests/unit	(over: Partial<RegulatoryDecisionResponse>): RegulatoryDecisionResponse	
 decisionFromSnapshot	fn	local	apps/api/src/services/pharmacy/dispense.service.ts:119	apps/api/services/pharmacy	(row: DetailRow['lines'][number]['regulatoryDecision']): { outcome: 'PERMITTED' | 'PERMITTED_WITH_CONDITIONS' | 'REF…	
 DecisionSnapshotInput	interface	export	apps/api/src/services/pharmacy/shared.ts:137	apps/api/services/pharmacy	{ branchId, productId, transaction, quantityBase, decision }	
+declaredEndpointKeys	fn	local	apps/api/tests/unit/openapi.test.ts:36	apps/api/tests/unit	(): Set<string>	Every `METHOD /full/path` the mount table can reach.
 declineRecall	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/recall/actions.ts:66	apps/web/app/(tenant)/t/[slug]/(app)/recall	(slug: string, recommendationId: string, reason: string | undefined): Promise<RecallActionState>	
 DEDUPE_TTL_SECONDS	const	local	apps/api/src/services/audit/data-access.service.ts:65	apps/api/services/audit	300	How long the same actor re-reading the same record stays deduplicated.
 DEDUPE_WINDOW_MS	const	local	apps/api/src/routes/v1/public.routes.ts:46	apps/api/routes/v1	24 * 60 * 60 * 1000	One clinic re-submitting inside this window is the same lead, not a new one.
@@ -1481,7 +1495,9 @@ describe	fn	local	packages/db/prisma/seed/permissions.ts:10	packages/db/prisma/s
 describe	fn	local	packages/storage/src/providers/local.ts:356	packages/storage/providers	(error: unknown): string	Never returned to a client — `StorageError.detail` is server-side only.
 describedBy	fn	export	apps/web/src/components/ui/field.tsx:30	apps/web/components/ui	(name: string, hint: boolean, invalid: boolean): string | undefined	
 describeImpersonation	fn/async	export	apps/api/src/services/platform/impersonation.service.ts:334	apps/api/services/platform	(organizationId: string | null, impersonatedByUserId: string | null, sessionStartedAt: Date): Promise<ImpersonationDescriptor | null>	The banner's content, for the endpoints that re-describe an existing session. Returns null for an ordinary session, so …
+describeOperation	fn	local	apps/api/src/openapi/document.ts:142	apps/api/openapi	(endpoint: Endpoint): string	
 describeSession	fn/async	export	apps/api/src/services/auth/login.service.ts:352	apps/api/services/auth	(userId: string, organizationId: string | null, branchId: string | null, tokens: { accessToken: string; refreshToken: string }, impersonation: ImpersonationDescriptor | null): Promise<AuthSession>	Re-assemble the session response for an already-authenticated caller, without minting new tokens. Backs GET /auth/sessi…
+describeValidator	fn	local	apps/api/src/middleware/validate.middleware.ts:30	apps/api/middleware	(handler: T, shapes: ValidatedShape[]): T	Stamp the schemas a handler validates onto the handler itself.
 DESCRIPTION_LIMIT	const	local	apps/web/src/components/tenant/checkout/razorpay-checkout.tsx:60	apps/web/components/tenant/checkout	255	Razorpay truncates past this, and a cut-off summary reads as a bug.
 DescriptionCell	component	local	packages/documents/src/invoice/items.tsx:64	packages/documents/invoice	({ line, className, }: { line: InvoiceDocumentLine; classNam…): JSX.Element	
 descriptorSection	fn	local	apps/api/tests/integration/consultation-journey.test.ts:176	apps/api/tests/integration	(configuration: SectionConfig[]): SectionConfig	
@@ -1607,6 +1623,8 @@ displayName	fn	local	apps/api/src/services/pharmacy/queue.service.ts:68	apps/api
 displayOrder	zod	local	packages/contracts/src/encounter-content.ts:171	packages/contracts	z.number().int().min(0).max(9999).optional(…)	
 divideRationalHalfUp	fn	local	packages/inventory/src/costing.ts:255	packages/inventory	(value: Rational): number	
 divideRounded	fn	export	packages/payments/src/money.ts:116	packages/payments	(numerator: number, denominator: number, rounding: Rounding): number	Integer division with an explicit rounding mode, correct for negatives.
+DocRegistry	type	export	apps/api/src/openapi/types.ts:50	apps/api/openapi	Readonly<Record<string, EndpointDoc>>	`GET /api/v1/branches/:branchId` -> the prose for it.
+DOCS	const	export	apps/api/src/openapi/registry/index.ts:22	apps/api/openapi/registry	: DocRegistry	
 DOCTOR_SELECT	const	local	apps/api/src/services/doctor/doctor.service.ts:56	apps/api/services/doctor	{ id: true, userId: true, registrationNumber: true, registrationCouncil: true, registrati…	The shape Prisma is asked for, so list and detail cannot drift apart.
 DoctorAboutPanel	component	export	apps/web/src/components/tenant/doctor-sections.tsx:332	apps/web/components/tenant	({ slug, doctor, canEdit, }: { slug: string; doctor: DoctorD…)	
 DoctorActionOptions	interface	export	apps/api/src/services/doctor/doctor.service.ts:46	apps/api/services/doctor	{ ipAddress, userAgent }	
@@ -1657,6 +1675,7 @@ doctorSpecialtyDetail	zod	export	packages/contracts/src/doctors.ts:397	packages/
 DoctorSpecialtyDetail	type	export	packages/contracts/src/doctors.ts:571	packages/contracts	z.infer<typeof doctorSpecialtyDetail>	
 doctorSummary	zod	export	packages/contracts/src/doctors.ts:519	packages/contracts	z.object(…)	The list row: enough to choose a doctor, without loading their whole file.
 DoctorSummary	type	export	packages/contracts/src/doctors.ts:576	packages/contracts	z.infer<typeof doctorSummary>	
+document	var	local	apps/api/scripts/validate-openapi.ts:25	apps/api/scripts	buildOpenApiDocument(…)	
 document	fn	local	packages/clinical/tests/definition.test.ts:39	packages/clinical/tests	(over: Record<string, unknown>): Record<string, unknown>	
 DOCUMENT_JOB	const	export	packages/queue/src/index.ts:93	packages/queue	{ INVOICE_PDF: 'INVOICE_PDF', } as const	
 DOCUMENT_LIMITS	const	export	packages/clinical/src/validate.ts:317	packages/clinical	{ fieldsPerSection: MAX_FIELDS_PER_SECTION, keyLength: MAX_KEY_LENGTH, textLength: MAX_TE…	
@@ -1709,6 +1728,7 @@ DueSubscription	interface	export	packages/billing/src/engine/renewal.ts:47	packa
 dummyHash	fn	export	apps/api/src/services/auth/password.service.ts:54	apps/api/services/auth	(): Promise<string>	
 dummyHashPromise	var	local	apps/api/src/services/auth/password.service.ts:52	apps/api/services/auth	: Promise<string> | null	
 DUNNING_SCHEDULE_DAYS	const	export	packages/billing/src/policy.ts:39	packages/billing	[1, 3, 7, 12] as const	
+duplicateCheckResponse	zod	local	apps/api/src/openapi/registry/patients.ts:64	apps/api/openapi/registry	z.object(…)	What `POST /patients/duplicate-check` answers with. Not a contract export.
 duplicateProbeRequest	zod	local	apps/api/src/routes/v1/patients.routes.ts:98	apps/api/routes/v1	z.object(…)	The duplicate probe. A GET would put a phone number in the access log.
 DuplicateRow	interface	local	apps/api/src/services/patient/patient.service.ts:485	apps/api/services/patient	{ id, uhid, first_name, last_name, date_of_birth, approx_age_years, gender, phone, matched_phone, matched_name_dob, matched_abha, matched_national_id }	
 DURATION_UNITS	const	local	apps/web/src/components/tenant/consultation-content.tsx:379	apps/web/components/tenant	[ { value: 'HOURS', label: 'hours' }, { value: 'DAYS', label: 'days' }, { value: 'WEEKS',…	
@@ -1794,6 +1814,10 @@ EncounterVisitSummary	type	export	packages/contracts/src/visit-history.ts:78	pac
 endClinicTaxRule	fn/async	export	apps/api/src/services/tax/clinic-tax.service.ts:1066	apps/api/services/tax	(ctx: TenantContext, id: string, effectiveTo: string, options: ClinicTaxActionOptions): Promise<ClinicTaxRuleSummary>	
 EndingControls	component	local	apps/web/src/components/tenant/billing-screen.tsx:317	apps/web/components/tenant	({ slug, subscription, }: { slug: string; subscription: Subs…)	
 endOfMonth	fn	export	apps/web/src/lib/calendar-range.ts:97	apps/web/lib	(date: string): string	
+Endpoint	interface	local	apps/api/src/openapi/document.ts:43	apps/api/openapi	{ mount, route, path, doc }	
+EndpointDoc	interface	export	apps/api/src/openapi/types.ts:20	apps/api/openapi	{ summary, description, response, status, message, paginated, errors, requestExamples, responseExamples, params, phi, deprecated }	
+EndpointExample	interface	export	apps/api/src/openapi/types.ts:13	apps/api/openapi	{ summary, description, value }	
+endpointKey	fn	export	apps/api/src/openapi/types.ts:53	apps/api/openapi	(method: string, path: string): string	Key an endpoint the way the registry does.
 endRegistration	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/taxes/actions.ts:144	apps/web/app/(tenant)/t/[slug]/(app)/taxes	(slug: string, registrationId: string, effectiveTo: string): Promise<TaxFormState>	
 endRule	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/taxes/actions.ts:284	apps/web/app/(tenant)/t/[slug]/(app)/taxes	(slug: string, ruleId: string, effectiveTo: string): Promise<TaxFormState>	
 endRuleBody	zod	local	apps/api/src/routes/v1/tax.routes.ts:264	apps/api/routes/v1	z.object(…)	
@@ -1812,6 +1836,7 @@ Entry	component	local	apps/web/src/components/tenant/record-history.tsx:229	apps
 ENTRY_SELECT	const	local	apps/api/src/services/fees/fee-schedule.service.ts:59	apps/api/services/fees	{ id: true, branchId: true, doctorProfileId: true, feeType:…	
 EntryRow	type	local	apps/api/src/services/fees/fee-schedule.service.ts:68	apps/api/services/fees	Prisma.FeeScheduleEntryGetPayload<{ select: typeof ENTRY_SELECT }>	
 env	var	local	apps/api/src/config/index.ts:52	apps/api/config	getEnvVar(…)	
+ENVELOPE_SCHEMAS	const	export	apps/api/src/openapi/envelope.ts:19	apps/api/openapi	: Record<string, JsonSchema>	
 EPISODE_PREFIX	const	local	apps/api/src/services/clinical/episode.service.ts:37	apps/api/services/clinical	'EP'	
 EpisodePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:38	apps/web/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]	({ params, }: { params: Promise<{ slug: string; episodeId: s…)	
 episodeParams	zod	local	apps/api/src/routes/v1/clinical.routes.ts:88	apps/api/routes/v1	z.object(…)	
@@ -1820,9 +1845,13 @@ Equal	type	local	apps/api/src/services/clinical/sections.ts:26	apps/api/services
 equivalentProductsResponse	zod	export	packages/contracts/src/products.ts:836	packages/contracts	z.object(…)	
 EquivalentProductsResponse	type	export	packages/contracts/src/products.ts:910	packages/contracts	z.infer<typeof equivalentProductsResponse>	
 EquivalentsTab	component	local	apps/web/src/components/tenant/product-panel.tsx:1036	apps/web/components/tenant	({ products }: { products: ProductSummary[] })	
+ERROR_CASES	const	export	apps/api/src/openapi/envelope.ts:113	apps/api/openapi	: Record<number, ErrorCase>	
 ERROR_KEYS	const	local	apps/web/src/components/marketing/signup-form.tsx:102	apps/web/components/marketing	: Record<string, readonly string[]>	
+ErrorCase	interface	local	apps/api/src/openapi/envelope.ts:101	apps/api/openapi	{ description, example }	
 errorHandler	fn	export	apps/api/src/middleware/error.middleware.ts:33	apps/api/middleware	(err: Error, req: Request, res: Response, _next: NextFunction): Response	Global error handler middleware Must be registered LAST in middleware chain
+errorResponse	fn	export	apps/api/src/openapi/envelope.ts:169	apps/api/openapi	(status: number): JsonSchema	The OpenAPI response object for one failure status.
 Errors	type	local	apps/web/src/components/marketing/signup-form.tsx:90	apps/web/components/marketing	Record<string, string[]>	
+errorStatusesFor	fn	local	apps/api/src/openapi/document.ts:108	apps/api/openapi	(endpoint: Endpoint): number[]	
 escapeHtml	fn	local	apps/api/src/services/notification/templates.ts:23	apps/api/services/notification	(value: string): string	Every value that reaches the HTML body goes through this.
 escapeHtml	fn	local	packages/documents/src/invoice/render.tsx:114	packages/documents/invoice	(value: string): string	
 ESSENTIAL_KEY	const	local	packages/clinical/src/descriptors.ts:103	packages/clinical	: Readonly<Record<ConsultationFieldType, string | null>>	The key a type is MEANINGLESS without. `null` = the type is complete on its own, which is a statement rather than an om…
@@ -2064,7 +2093,9 @@ fromTime	fn	local	apps/api/src/services/branch/branch.service.ts:108	apps/api/se
 fromTime	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:44	apps/api/services/doctor	(value: Date): string	
 fulfilRecommendation	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:1449	apps/api/services/appointment	(tx: TxClient, recommendationId: string, appointmentId: string, patientId: string): Promise<void>	
 fullNameOf	fn	local	apps/api/src/services/patient/patient.service.ts:151	apps/api/services/patient	(firstName: string, lastName: string | null): string	
+fullPath	fn	local	apps/api/src/openapi/document.ts:28	apps/api/openapi	(prefix: string, path: string): string	Join a mount prefix to a router-relative path without doubling the slash.
 gapsOf	fn	local	apps/web/src/components/tenant/charge-queue.tsx:69	apps/web/components/tenant	(charge: ChargeRequestSummary): string[]	The three reasons a charge cannot go on a bill as it stands.
+GATE_NAMES	const	local	apps/api/src/openapi/introspect.ts:30	apps/api/openapi	new Set(…)	The middleware this codebase gates on, recognised by function name.
 gcd	fn	local	packages/inventory/src/units.ts:86	packages/inventory	(a: bigint, b: bigint): bigint	
 gender	zod	export	packages/contracts/src/patients.ts:65	packages/contracts	z.enum(…)	
 Gender	type	export	packages/contracts/src/patients.ts:539	packages/contracts	z.infer<typeof gender>	
@@ -2361,6 +2392,8 @@ Interval	type	export	packages/billing/src/periods.ts:25	packages/billing	'MONTH'
 INTERVAL_UNITS	const	local	apps/web/src/components/tenant/consultation-content.tsx:1353	apps/web/components/tenant	[ { value: 'DAYS', label: 'days' }, { value: 'WEEKS', label: 'weeks' }, { value: 'MONTHS'…	
 INTERVALS	component	local	apps/web/src/components/tenant/doctor-create-form.tsx:72	apps/web/components/tenant	: SelectOption[]	
 INTERVALS	component	local	apps/web/src/components/tenant/doctor-pay-panel.tsx:30	apps/web/components/tenant	: SelectOption[]	
+IntrospectedRoute	interface	export	apps/api/src/openapi/introspect.ts:37	apps/api/openapi	{ method, path, permissions, validated, gates }	
+introspectRouter	fn	export	apps/api/src/openapi/introspect.ts:75	apps/api/openapi	(router: IRouter): IntrospectedRoute[]	
 invalid	fn	export	packages/inventory/src/errors.ts:32	packages/inventory	(message: string): InventoryError	
 INVALID_CREDENTIALS	const	local	apps/api/src/services/auth/login.service.ts:57	apps/api/services/auth	'Those credentials are not valid.'	
 invalidateOrganizationAccess	fn/async	export	apps/api/src/services/auth/access.service.ts:203	apps/api/services/auth	(organizationId: string): Promise<void>	
@@ -2487,6 +2520,7 @@ InvoiceTaxTreatment	type	export	packages/documents/src/invoice/types.ts:42	packa
 InvoiceTaxTreatmentValue	type	export	packages/contracts/src/invoices.ts:79	packages/contracts	| 'STANDARD' | 'EXEMPT' | 'ZERO_RATED' | 'REVERSE_CHARGE' | 'NOT_REGISTERED' | 'UNRATED' | 'PROVIDER_REQUIRED'	
 InvoiceView	interface	export	packages/billing/src/engine/read.ts:221	packages/billing/engine	{ id, invoiceNumber, status, currency, totalMinor, amountPaidMinor, periodStart, periodEnd, issuedAt, paidAt, dueDate, lines }	
 InvoiceVisibility	interface	export	apps/api/src/services/invoicing/invoice-visibility.ts:74	apps/api/services/invoicing	{ scopedToOwnWork, practitionerProfileId, all, sources }	
+Io	type	export	apps/api/src/openapi/schema.ts:23	apps/api/openapi	'input' | 'output'	
 isActive	fn	local	packages/permissions/src/resolver.ts:55	packages/permissions	(a: RoleAssignment, now: Date): boolean	
 isBillable	fn	export	apps/api/src/services/charging/policy.service.ts:86	apps/api/services/charging	(policy: ChargePolicyValue): boolean	Does this policy produce an invoice line without asking anybody?
 isBillingCurrency	fn	export	packages/payments/src/currency.ts:83	packages/payments	(value: string): value is BillingCurrency	
@@ -2561,6 +2595,8 @@ isValidTaxId	fn	export	packages/contracts/src/locale.ts:1033	packages/contracts	
 isWithin	fn	export	apps/web/src/lib/calendar-range.ts:159	apps/web/lib	(range: DateRange, date: string): boolean	
 isWithinGrace	fn	export	packages/billing/src/policy.ts:115	packages/billing	(subject: EntitlementSubject, at: Date): boolean	
 isZero	fn	export	packages/payments/src/money.ts:78	packages/payments	(a: Money): boolean	
+isZodType	fn	local	apps/api/src/openapi/document.ts:19	apps/api/openapi	(value: unknown): value is ZodType	
+isZodType	fn	local	apps/api/src/openapi/schema.ts:25	apps/api/openapi	(value: unknown): value is ZodType	
 ITEM_TABLES	const	export	packages/documents/src/invoice/items.tsx:403	packages/documents/invoice	: Record<InvoiceDocumentSourceType, ItemTable>	
 itemLevelExit	fn	local	packages/tax/src/engine.ts:101	packages/tax	(registration: IssuerRegistration, rate: ResolvedRate, untaxed: ReturnType<typeof untaxedWith>): Quote | null	
 itemParams	zod	local	apps/api/src/routes/v1/clinical.routes.ts:87	apps/api/routes/v1	z.object(…)	
@@ -2589,6 +2625,7 @@ joinUrl	fn	local	apps/api/src/services/invitation/invitation.service.ts:158	apps
 JourneyRail	component	export	apps/web/src/components/marketing/journey-rail.tsx:118	apps/web/components/marketing	()	
 Json	type	local	apps/api/src/services/organization/setting.service.ts:54	apps/api/services/organization	SettingItem['value']	
 Json	type	export	packages/payments/src/providers/shared.ts:19	packages/payments/providers	Record<string, unknown>	Anything JSON-shaped. Read through the accessors below, never indexed raw.
+JsonSchema	type	export	apps/api/src/openapi/schema.ts:22	apps/api/openapi	Record<string, unknown>	
 Jurisdiction	interface	export	packages/regulatory/src/types.ts:106	packages/regulatory	{ countryCode, regionCode }	
 Jurisdiction	interface	export	packages/tax/src/types.ts:63	packages/tax	{ countryCode, regionCode }	
 JurisdictionFields	component	local	apps/web/src/components/tenant/branch-list.tsx:80	apps/web/components/tenant	({ idPrefix, countryCode, onCountryChange, regionCode, onReg…)	
@@ -2887,6 +2924,7 @@ LOWER_Y	const	local	packages/db/prisma/seed/data/visual-maps.ts:76	packages/db/p
 main	fn/async	local	packages/db/prisma/seed.ts:47	packages/db/prisma	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/apply-grants.ts:94	packages/db/scripts	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/check-rls.ts:108	packages/db/scripts	(): Promise<void>	
+MAIN_BRANCH	const	local	apps/api/src/openapi/registry/branches.ts:12	apps/api/openapi/registry	{ id: '8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f', name: 'Alpha Clinic — Indiranagar', code: '…	One fully-populated branch, used as the response example throughout.
 maintainsPlatformLaw	fn	local	packages/permissions/src/roles.ts:145	packages/permissions	(p: PermissionCode): boolean	
 majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:95	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(value: FormDataEntryValue | null): number | null	
 majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:103	apps/web/app/(tenant)/t/[slug]/(app)/stock	(value: FormDataEntryValue | null): number | null	
@@ -3144,6 +3182,8 @@ monthCells	fn	local	apps/web/src/components/tenant/working-day-picker.tsx:323	ap
 monthLabel	fn	export	apps/web/src/lib/calendar-range.ts:242	apps/web/lib	(date: string): string	"August 2026" — the heading over a month grid.
 MONTHS	const	local	packages/db/prisma/seed/setting-definitions.ts:15	packages/db/prisma/seed	[ 'January', 'February', 'March', 'April', 'May', 'June', '…	
 mostSpecific	fn	export	packages/regulatory/src/selection.ts:159	packages/regulatory	(rules: readonly RegulatoryRule[]): RegulatoryRule[]	
+Mount	interface	export	apps/api/src/openapi/mounts.ts:105	apps/api/openapi	{ prefix, router, tag }	
+MOUNTS	const	export	apps/api/src/openapi/mounts.ts:114	apps/api/openapi	: readonly Mount[]	
 moveAppointment	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:328	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, status: 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPL…): Promise<BookingState>	Confirm, check in, start, complete — one step at a time.
 MOVEMENT_LABEL	const	local	apps/web/src/components/tenant/stock-ledger-view.tsx:30	apps/web/components/tenant	: Record<string, string>	
 MOVEMENT_TYPES	const	local	apps/web/src/components/tenant/adjustment-form.tsx:43	apps/web/components/tenant	[ { value: 'ADJUSTMENT', label: 'Correct the count' }, { value: 'DAMAGE', label: 'Damaged…	
@@ -3233,6 +3273,7 @@ OnlineSalePosition	type	export	packages/contracts/src/regulatory.ts:682	packages
 onPaymentFailed	fn/async	local	packages/billing/src/engine/checkout.ts:706	packages/billing/engine	(tx: TxClient, ctx: TenantContext, subscriptionId: string | null, purpose: string, invoiceId: string | null, now: Date): Promise<void>	
 ONSETS	component	local	apps/web/src/components/tenant/consultation-engine.tsx:121	apps/web/components/tenant	[ { value: 'SUDDEN', label: 'Sudden' }, { value: 'GRADUAL', label: 'Gradual' }, { value: …	
 onVitalsRecorded	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:445	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, currentStatus: AppointmentStatusValue): Promise<void>	Vitals were taken, so the patient is here. BOOKED and CONFIRMED both advance; anything from CHECKED_IN onwards is alrea…
+openApiDocument	fn	export	apps/api/src/routes/docs.routes.ts:49	apps/api/routes	(): Record<string, unknown>	
 openConsultation	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:746	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions): Promise<AppointmentDetail>	
 openConsultation	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:54	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string): Promise<{ ok: true; encounter: EncounterDetail } | { ok: fa…	
 openEncounter	fn/async	export	apps/api/src/services/clinical/encounter.service.ts:445	apps/api/services/clinical	(ctx: TenantContext, input: OpenEncounterRequest, options: EncounterRequestOptions): Promise<EncounterDetail>	
@@ -3243,6 +3284,7 @@ openEpisode	fn/async	export	apps/api/src/services/clinical/episode.service.ts:12
 OpenEpisodeInput	interface	local	apps/api/src/services/clinical/episode.service.ts:104	apps/api/services/clinical	{ patientId, branchId, title, primarySpecialtyId }	
 operatingHour	zod	export	packages/contracts/src/tenancy.ts:206	packages/contracts	z.object(…)	0 = Sunday, matching Postgres `extract(dow)` and JS `Date#getDay`.
 OperatingHour	type	export	packages/contracts/src/tenancy.ts:958	packages/contracts	z.infer<typeof operatingHour>	
+operationId	fn	local	apps/api/src/openapi/document.ts:34	apps/api/openapi	(method: string, path: string): string	`POST /api/v1/branches` -> `postApiV1Branches`, stable across runs.
 optional	fn	local	apps/worker/src/index.ts:35	apps/worker	(value: string | undefined): string | undefined	An optional variable, where blank means unset. Mirrors the API's config.
 Optional	type	export	apps/api/src/types/index.ts:6	apps/api/types	T | undefined	
 optionProblem	fn	local	packages/clinical/src/validate.ts:130	packages/clinical	(field: FieldDescriptor, value: unknown): string | null	
@@ -3290,6 +3332,7 @@ overlayDescription	fn	local	apps/web/src/components/tenant/checkout/razorpay-che
 OverrideEffect	type	export	packages/permissions/src/resolver.ts:18	packages/permissions	'GRANT' | 'DENY'	
 overrideParams	var	local	apps/api/src/routes/v1/members.routes.ts:61	apps/api/routes/v1	memberParams.extend(…)	
 OverrideRow	interface	export	packages/billing/src/entitlements.ts:35	packages/billing	{ featureKey, intValue, boolValue }	
+OVERVIEW	const	local	apps/api/src/openapi/document.ts:385	apps/api/openapi	` A multi-tenant API for running a clinic: appointments, th…	
 owner	var	export	apps/api/tests/integration/tenant-isolation/harness.ts:63	apps/api/tests/integration/tenant-isolation	lazyClient(…)	Connects as `rcln_owner`: migrations' role, bypasses RLS. Seeds the fixtures.
 ownership	fn	local	apps/api/src/services/clinical/encounter-content.service.ts:533	apps/api/services/clinical	(ctx: TenantContext, parent: DraftParent): { organizationId: string; branchId: string; encounterId: st…	The columns every child carries, taken from the parent and never the caller.
 OwnProfilePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/profile/page.tsx:31	apps/web/app/(tenant)/t/[slug]/(app)/profile	({ params }: { params: Promise<{ slug: string }> })	
@@ -3323,6 +3366,7 @@ PanelEmpty	component	export	apps/web/src/components/tenant/doctor-panel.tsx:47	a
 PanelHeading	component	local	apps/web/src/components/tenant/patient-chart.tsx:265	apps/web/components/tenant	({ title, note, action, }: { title: string; note?: string; a…)	
 PanelLine	interface	local	apps/web/src/components/tenant/consumption-panel.tsx:66	apps/web/components/tenant	{ key, templateLineId, productId, productName, unitId, unitSymbol, expectedQuantity, expectedQuantityBase, baseUnitSymbol, isOptional, availableQuantityBase, quantity, overrideReason, lots, lotsChose…	
 PanelLot	interface	local	apps/web/src/components/tenant/consumption-panel.tsx:50	apps/web/components/tenant	{ key, locationId, locationName, batchId, lotNumber, expiresOn, serialId, serialNumber, availableQuantityBase, plannedQuantityBase, quantityBase, overrideReason }	
+parametersFrom	fn	local	apps/api/src/openapi/document.ts:70	apps/api/openapi	(schema: ZodType, location: 'path' | 'query', notes: Readonly<Record<string, string>> | undefined): JsonSchema[]	Split a `params`/`query` object schema into individual OpenAPI parameters.
 PARENT_SCOPED	const	local	packages/db/scripts/check-rls.ts:91	packages/db/scripts	: Record<string, string>	
 parse	fn	local	apps/web/src/lib/calendar-range.ts:44	apps/web/lib	(date: string): Date	
 parseAgeRestriction	fn	export	packages/regulatory/src/parameters.ts:290	packages/regulatory	(parameters: unknown): Parsed<AgeRestrictionParameters>	
@@ -3353,6 +3397,7 @@ parseTraceability	fn	export	packages/regulatory/src/parameters.ts:400	packages/r
 parseViewBox	fn	export	packages/clinical/src/regions.ts:172	packages/clinical	(value: unknown): Parsed<ViewBox>	
 parseVisualMap	fn	export	packages/clinical/src/regions.ts:330	packages/clinical	(input: { code: string; viewBox: unknown; regions: readonly …): Parsed<VisualMapDocument>	
 Parties	component	local	packages/documents/src/invoice/document.tsx:203	packages/documents/invoice	({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element	
+pascalCase	fn	local	apps/api/src/openapi/schema.ts:30	apps/api/openapi	(name: string): string	
 password	var	export	packages/contracts/src/common.ts:135	packages/contracts	z .string() .min(12, 'at least 12 characters') .max(128) .r…	
 PasswordControl	component	export	apps/web/src/components/ui/password-control.tsx:32	apps/web/components/ui	({ className, disabled, ...rest }: React.ComponentPropsWitho…)	
 PasswordForm	component	local	apps/web/src/components/tenant/login-form.tsx:136	apps/web/components/tenant	({ slug }: { slug: string })	
@@ -3361,9 +3406,12 @@ patch	fn	local	apps/api/src/services/clinical/encounter-content.service.ts:594	a
 patchBranch	fn	local	apps/api/tests/integration/audit-history.test.ts:97	apps/api/tests/integration	(slug: string, token: string, branchId: string, body: object)	
 patchHours	fn	local	apps/web/src/components/tenant/doctor-create-form.tsx:567	apps/web/components/tenant	(set: React.Dispatch<React.SetStateAction<HoursRow[]>>, key: string, change: Partial<HoursRow>): void	
 PATH_PATTERN	const	local	packages/clinical/src/regions.ts:143	packages/clinical	/^[MmLlHhVvCcSsQqTtAaZz0-9,.\s+-]+$/	
+paths	var	local	apps/api/scripts/validate-openapi.ts:27	apps/api/scripts	document['paths'] as Record<string, unknown>	
 PathShape	interface	export	packages/clinical/src/regions.ts:100	packages/clinical	{ kind, d }	
 pathTo	fn	export	apps/web/src/lib/taxonomy.ts:76	apps/web/lib	(tree: TaxonomyTree, id: string): SpecialtySummary[]	
 patient	fn	local	packages/tax/tests/rules.test.ts:53	packages/tax/tests	(over: Partial<TaxableCustomer>): TaxableCustomer	A walk-in patient: no GSTIN, and their address is not the place of supply.
+PATIENT_EXAMPLE	const	local	apps/api/src/openapi/registry/patients.ts:27	apps/api/openapi/registry	{ id: '6d1e4b82-3f70-4a5c-9d18-2e7b0c9a4f63', uhid: 'ALP-000241', fullName: 'Ravi Subrama…	
+PATIENT_ID	const	local	apps/api/src/openapi/registry/patients.ts:24	apps/api/openapi/registry	"The patient's `id` (not their UHID). A patient at another …	
 PATIENT_SELECT	const	local	apps/api/src/services/patient/patient.service.ts:66	apps/api/services/patient	{ id: true, uhid: true, firstName: true, lastName: true, dateOfBirth: true, approxAgeYear…	
 PatientActionOptions	interface	export	apps/api/src/services/patient/patient.service.ts:53	apps/api/services/patient	{ ipAddress, userAgent, route }	Request metadata, carried onto both trails.
 patientAddressDetail	zod	export	packages/contracts/src/patients.ts:386	packages/contracts	z.object(…)	
@@ -3385,6 +3433,7 @@ patientContactRequest	zod	export	packages/contracts/src/patients.ts:234	packages
 PatientContactRequest	type	export	packages/contracts/src/patients.ts:548	packages/contracts	z.infer<typeof patientContactRequest>	
 patientDetail	var	export	packages/contracts/src/patients.ts:468	packages/contracts	patientSummary.extend(…)	
 PatientDetail	type	export	packages/contracts/src/patients.ts:560	packages/contracts	z.infer<typeof patientDetail>	
+patientDocs	var	export	apps/api/src/openapi/registry/patients.ts:70	apps/api/openapi/registry	: DocRegistry	
 patientDuplicateMatch	zod	export	packages/contracts/src/patients.ts:520	packages/contracts	z.object(…)	
 PatientDuplicateMatch	type	export	packages/contracts/src/patients.ts:563	packages/contracts	z.infer<typeof patientDuplicateMatch>	
 patientDuplicateResponse	zod	export	packages/contracts/src/patients.ts:531	packages/contracts	z.object(…)	
@@ -3909,6 +3958,7 @@ RazorpayHandlerResponse	interface	local	apps/web/src/components/tenant/checkout/
 RazorpayInstance	interface	local	apps/web/src/components/tenant/checkout/razorpay-checkout.tsx:45	apps/web/components/tenant/checkout	{ open, close, on }	
 RazorpayOptions	interface	local	apps/web/src/components/tenant/checkout/razorpay-checkout.tsx:31	apps/web/components/tenant/checkout	{ key, order_id, amount, currency, name, description, theme, prefill, retry, handler, modal }	
 RazorpayProvider	class	export	packages/payments/src/providers/razorpay.ts:333	packages/payments/providers	{ name, capabilities, config, authorization, request, createCharge, createEmbeddedCharge, recoverLinkByReference, chargeMandate, getCharge, chargeFromLink, chargeFromPayment, createMandate, getMandat…	
+reachableRouters	fn	export	apps/api/src/openapi/introspect.ts:160	apps/api/openapi	(router: IRouter): Set<IRouter>	
 read	fn	local	apps/web/src/app/(platform)/platform/taxes/actions.ts:51	apps/web/app/(platform)/platform/taxes	(formData: FormData)	
 READ	const	local	apps/api/src/routes/v1/inventory.routes.ts:165	apps/api/routes/v1	PERMISSIONS.STOCK_READ	
 READ	const	local	apps/api/src/routes/v1/product-catalogue.routes.ts:93	apps/api/routes/v1	PERMISSIONS.PRODUCT_DEFINITION_READ	
@@ -4039,6 +4089,8 @@ REDACTED_KEYS	const	local	apps/api/src/services/audit/audit.service.ts:38	apps/a
 redis	var	export	apps/api/src/utils/redis.ts:12	apps/api/utils	new Redis(…)	
 redisMockStore	var	local	apps/api/src/services/billing/provider.ts:28	apps/api/services/billing	: MockStore	`ioredis`, narrowed to the two operations the mock provider needs.
 redisUrl	var	local	apps/worker/src/index.ts:47	apps/worker	process.env['REDIS_URL'] ?? 'redis://localhost:6379'	
+REF_PREFIX	const	local	apps/api/src/openapi/schema.ts:50	apps/api/openapi	'#/components/schemas/'	
+referencedFrom	fn	local	apps/api/src/openapi/schema.ts:103	apps/api/openapi	(root: JsonSchema, pool: Record<string, JsonSchema>, found: Set<string>): void	Every `$ref` target reachable from `root`, followed transitively.
 refererHost	fn	local	apps/api/src/routes/v1/public.routes.ts:54	apps/api/routes/v1	(req: Request): string | undefined	The referring site, host only. Never the full URL: a referrer's path and query can carry anything the other site put th…
 REFERRAL_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:187	apps/api/services/clinical	{ id: true, specialtyId: true, doctorProfileId: true, externalName: true, reason: true, u…	
 referralDestination	var	local	packages/contracts/src/encounter-content.ts:512	packages/contracts	{ /** "See a cardiologist." A taxonomy node, which may be a platform row. */ specialtyId:…	
@@ -4395,6 +4447,7 @@ resolveViaProvider	fn	local	packages/tax/src/engine.ts:475	packages/tax	(supply:
 restateLine	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1321	apps/api/services/consumption	(tx: TxClient, ctx: TenantContext, record: StoredRecord, existing: StoredLine, requested: ConsumptionLineRequest, context: PrepareContext): Promise<void>	
 RestoreButton	component	local	apps/web/src/components/tenant/member-list.tsx:758	apps/web/components/tenant	({ slug, member }: { slug: string; member: MemberDetail })	
 restoreMember	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:243	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, _previous: MemberFormState): Promise<MemberFormState>	
+result	var	local	apps/api/scripts/validate-openapi.ts:37	apps/api/scripts	await validate(document)	
 ResultRow	component	local	apps/web/src/components/tenant/patient-search.tsx:405	apps/web/components/tenant	({ patient }: { patient: PatientSummary })	
 Results	component	local	apps/web/src/components/tenant/patient-search.tsx:319	apps/web/components/tenant	({ state, pending, registered, }: { state: SearchState; pend…)	
 resume	fn/async	export	apps/api/src/services/billing/billing.service.ts:292	apps/api/services/billing	(ctx: TenantContext, slug: string, actor: BillingActor): Promise<ResumeSubscriptionResponse>	
@@ -4468,6 +4521,8 @@ ROOTS	const	export	apps/web/src/lib/taxonomy.ts:36	apps/web/lib	'__roots__'
 rotateRefreshToken	fn/async	export	apps/api/src/services/auth/session.service.ts:172	apps/api/services/auth	(presentedToken: string): Promise<IssuedSession>	Exchange a refresh token for a new one. Throws `AuthenticationError` on anything suspicious, having first revoked the f…
 Rounding	type	export	packages/payments/src/money.ts:86	packages/payments	'up' | 'down' | 'half-up'	
 ROUTE_WORDS	const	local	apps/web/src/components/tenant/previous-visit-summary.tsx:39	apps/web/components/tenant	: Record<string, string>	
+RouteLayer	interface	local	apps/api/src/openapi/introspect.ts:51	apps/api/openapi	{ path, methods, stack }	Express does not type its own stack. This is the shape it has in 5.x.
+router	var	local	apps/api/src/routes/docs.routes.ts:38	apps/api/routes	: IRouter	
 router	var	local	apps/api/src/routes/index.ts:4	apps/api/routes	: IRouter	
 router	var	local	apps/api/src/routes/v1/appointments.routes.ts:98	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/audit.routes.ts:42	apps/api/routes/v1	: IRouter	
@@ -4589,6 +4644,7 @@ saveTemplateVersionRequest	zod	export	packages/contracts/src/consultation.ts:180
 SaveTemplateVersionRequest	type	export	packages/contracts/src/consultation.ts:183	packages/contracts	z.infer<typeof saveTemplateVersionRequest>	
 saveVitals	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:649	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, _previous: VitalsState, formData: FormData): Promise<VitalsState>	Record a set of observations. Side effect at the API: this may check the patient in. The board is revalidated for that …
 sayNothing	fn	local	packages/regulatory/src/parameters.ts:225	packages/regulatory	(key: string, what: string): Parsed<T>	The essential key is missing. The rule says nothing, so it permits nothing.
+scalarAssetsDir	fn	local	apps/api/src/routes/docs.routes.ts:55	apps/api/routes	(): string	Where the prebuilt Scalar browser bundle lives inside node_modules.
 scaleMoney	fn	export	packages/payments/src/money.ts:96	packages/payments	(amount: Money, numerator: number, denominator: number, rounding: Rounding): Money	
 scaleOf	fn	local	packages/regulatory/src/decimal.ts:77	packages/regulatory	(value: string): number	
 SCALP_CX	const	local	packages/db/prisma/seed/data/visual-maps.ts:150	packages/db/prisma/seed/data	180	
@@ -4606,6 +4662,8 @@ scheduled	var	local	packages/db/prisma/seed/data/regulatory-in.ts:207	packages/d
 scheduleParams	var	local	apps/api/src/routes/v1/doctors.routes.ts:100	apps/api/routes/v1	doctorParams.extend(…)	
 scheduleRecurring	fn/async	local	apps/worker/src/index.ts:266	apps/worker	(): Promise<void>	Schedule the billing sweep. Repeatable jobs are keyed by name and pattern, so re-registering on every boot is safe and …
 ScheduleRow	type	local	apps/api/src/services/doctor/doctor-schedule.service.ts:89	apps/api/services/doctor	Prisma.DoctorScheduleGetPayload<{ select: typeof SCHEDULE_SELECT }>	
+schemas	var	local	apps/api/scripts/validate-openapi.ts:28	apps/api/scripts	(document['components'] as { schemas: Record<string, unknow…	
+SchemaSpace	class	export	apps/api/src/openapi/schema.ts:141	apps/api/openapi	{ roots, anonymous, components, inputSuffixed, built, add, build, inputPool, outputPool, refTo }	
 SCHEMES	component	local	apps/web/src/components/platform/tax-registration-list.tsx:37	apps/web/components/platform	[ { value: 'GST', label: 'GST', note: 'India, Australia, Singapore' }, { value: 'VAT', la…	
 SCHEMES	component	local	apps/web/src/components/tenant/supplier-panel.tsx:38	apps/web/components/tenant	[ { value: 'GST', label: 'GST' }, { value: 'VAT', label: 'VAT' }, { value: 'SALES_TAX', l…	
 SCHEMES	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:741	apps/web/components/tenant	[ { value: 'GST', label: 'GST' }, { value: 'VAT', label: 'VAT' }, { value: 'SALES_TAX', l…	
@@ -4710,6 +4768,7 @@ serialSummary	zod	export	packages/contracts/src/inventory.ts:544	packages/contra
 SerialSummary	type	export	packages/contracts/src/inventory.ts:883	packages/contracts	z.infer<typeof serialSummary>	
 serverIsLight	fn	local	apps/web/src/components/shell/theme-settings.tsx:154	apps/web/components/shell	()	The server has no device. It renders the default, and the client corrects it.
 ServerSelect	component	local	apps/web/src/components/tenant/field-renderer.tsx:322	apps/web/components/tenant	({ field, name, value, disabled, slug, scopeId, onChange, }:…)	
+SESSION_EXAMPLE	const	local	apps/api/src/openapi/registry/auth.ts:12	apps/api/openapi/registry	{ accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3ZjNh…', refreshToken…	
 SessionRecord	interface	export	apps/api/src/services/auth/session.service.ts:74	apps/api/services/auth	{ id, userId, activeOrganizationId, activeBranchId, impersonatedByUserId, expiresAt, createdAt }	
 SET_TENANT_SQL	const	local	packages/db/src/tenant.ts:36	packages/db	` SELECT set_config('app.current_org', $1, true), set_confi…	
 setActiveScope	fn/async	export	apps/api/src/services/auth/session.service.ts:289	apps/api/services/auth	(sessionId: string, organizationId: string | null, branchId: string | null): Promise<void>	
@@ -4771,6 +4830,7 @@ SEVERITY_WORDS	const	local	apps/web/src/components/tenant/patient-chart.tsx:63	a
 shape	var	local	apps/web/src/components/marketing/signup-form.tsx:88	apps/web/components/marketing	registerOrganizationRequest.shape	Which schema each step's fields belong to, for validating before advancing.
 shape	fn	local	packages/tax/tests/countries.test.ts:74	packages/tax/tests	(supply: TaxableSupply)	`[name, rateBps, minorAmount, jurisdiction]` for each printed line.
 shapeProblem	fn	local	packages/clinical/src/validate.ts:93	packages/clinical	(field: FieldDescriptor, value: unknown): string | null	
+SHARED	const	local	apps/api/src/openapi/schema.ts:53	apps/api/openapi	'Shared'	Where Zod's recursive/repeated subschemas end up. See `convert()`.
 Shell	component	local	apps/web/src/components/tenant/sandbox-checkout.tsx:190	apps/web/components/tenant	({ children }: { children: React.ReactNode })	
 shiftDays	fn	export	apps/web/src/lib/calendar-range.ts:53	apps/web/lib	(date: string, days: number): string	`YYYY-MM-DD` shifted by whole days.
 shiftMonths	fn	export	apps/web/src/lib/calendar-range.ts:67	apps/web/lib	(date: string, months: number): string	
@@ -4788,6 +4848,7 @@ sign	fn	local	packages/payments/tests/razorpay-webhook.test.ts:39	packages/payme
 signAccessToken	fn	export	apps/api/src/services/auth/token.service.ts:58	apps/api/services/auth	(claims: AccessTokenClaims, lifetimeSeconds?: number): string	
 SIGNATURE_HEADER	const	local	packages/payments/src/providers/razorpay.ts:329	packages/payments/providers	'x-razorpay-signature'	Razorpay signs the raw body only, hex-encoded. See `parseWebhook`.
 signedDecimalString	var	export	packages/contracts/src/inventory.ts:185	packages/contracts	z .string() .regex(…)	
+signedIn	fn	local	apps/api/src/openapi/registry/auth.ts:54	apps/api/openapi/registry	(summary: string, message: string)	Every endpoint that mints a session answers with the same object.
 SignedUrlOptions	interface	export	packages/storage/src/types.ts:54	packages/storage	{ expiresInSeconds, downloadFilename }	
 signIn	action/async	export	apps/web/src/app/(tenant)/t/[slug]/actions.ts:41	apps/web/app/(tenant)/t/[slug]	(slug: string, _previous: LoginFormState, formData: FormData): Promise<LoginFormState>	
 signOut	action/async	export	apps/web/src/app/(tenant)/t/[slug]/actions.ts:162	apps/web/app/(tenant)/t/[slug]	(slug: string): Promise<void>	
@@ -4848,6 +4909,8 @@ SpecialtySummary	type	export	packages/contracts/src/doctors.ts:569	packages/cont
 specificity	fn	export	packages/regulatory/src/selection.ts:132	packages/regulatory	(rule: RegulatoryRule): number	
 splitE164	fn	export	packages/contracts/src/locale.ts:1065	packages/contracts	(value: string | null | undefined): { countryCode: string | null; national: string; }	
 splitMandateId	fn	local	packages/payments/src/providers/razorpay.ts:1476	packages/payments/providers	(providerMandateId: string): { customerId: string | undefined; tokenId: string | undefin…	
+StackLayer	interface	local	apps/api/src/openapi/introspect.ts:56	apps/api/openapi	{ name, handle, route }	
+stackOf	fn	local	apps/api/src/openapi/introspect.ts:62	apps/api/openapi	(router: IRouter): readonly StackLayer[]	
 STAFF_CHIP	const	local	apps/web/src/components/shell/platform-strip.tsx:34	apps/web/components/shell	'rcln staff'	
 StagedLine	interface	local	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:948	apps/api/services/invoicing	{ lineNumber, itemCode, creditedInvoiceItemId, input }	
 stampOrganization	fn/async	local	apps/api/src/services/billing/webhook.service.ts:233	apps/api/services/billing	(event: WebhookEvent, organizationId: string): Promise<void>	Label the ledger row with the tenant, once we know it. For the console.
@@ -5059,6 +5122,7 @@ subtract	fn	local	packages/inventory/src/allocate.ts:134	packages/inventory	(a: 
 subtractMoney	fn	export	packages/payments/src/money.ts:64	packages/payments	(a: Money, b: Money): Money	
 subtractQuantities	fn	local	packages/inventory/src/costing.ts:277	packages/inventory	(a: string, b: string): string	
 subtreeIds	fn	export	apps/web/src/lib/taxonomy.ts:154	apps/web/lib	(tree: TaxonomyTree, id: string): Set<string>	Every id at or beneath `id`. Used to filter the roster by a subtree.
+successEnvelope	fn	export	apps/api/src/openapi/envelope.ts:77	apps/api/openapi	(data: JsonSchema | null, options: { readonly message: string; readonly paginated?: b…): JsonSchema	Wrap a `data` schema in the success envelope.
 suggestSlug	fn	local	apps/web/src/components/platform/demo-request-list.tsx:128	apps/web/components/platform	(name: string): string	`Sunrise Clinic` -> `sunrise-clinic`, as a starting suggestion only.
 summarise	fn	export	apps/api/src/services/regulatory/enforcement.ts:91	apps/api/services/regulatory	(decision: RegulatoryDecisionResponse, productId: string): { productId: string; outcome: string; jurisdiction: string;…	
 summarise	fn	local	apps/web/src/components/tenant/vitals-panel.tsx:585	apps/web/components/tenant	(reading: VitalsReading, unit: TemperatureUnit): string	
@@ -5149,6 +5213,9 @@ TABS	component	local	apps/web/src/components/tenant/recall-list.tsx:35	apps/web/
 TABS	component	local	apps/web/src/components/tenant/regulatory-nav.tsx:26	apps/web/components/tenant	[ { href: '/regulatory/jurisdictions', label: 'Places' }, { href: '/regulatory/authoritie…	
 TABS	component	local	apps/web/src/components/tenant/stock-nav.tsx:26	apps/web/components/tenant	[ { href: '/stock', label: 'Overview' }, { href: '/stock/lots', label: 'Lots' }, { href: …	
 TABS	component	local	apps/web/src/components/tenant/usage-nav.tsx:26	apps/web/components/tenant	[ { href: '/usage', label: 'Used', exact: true }, { href: '/usage/templates', label: 'Tem…	
+Tag	type	export	apps/api/src/openapi/mounts.ts:103	apps/api/openapi	(typeof TAGS)[number]	
+TAG_DESCRIPTIONS	const	export	apps/api/src/openapi/registry/index.ts:29	apps/api/openapi/registry	: Partial<Record<Tag, string>>	What each section of the API is, in one paragraph a stranger can read.
+TAGS	const	export	apps/api/src/openapi/mounts.ts:77	apps/api/openapi	[ 'Health', 'Authentication', 'Public', 'Organization', 'Branches', 'Members & Roles', 'D…	The documentation's own sections, in the order a reader should meet them.
 takeRoleAway	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:81	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, assignmentId: string, _previous: MemberFormState): Promise<MemberFormState>	
 targetOrganizationId	fn	local	apps/api/src/routes/v1/auth.routes.ts:89	apps/api/routes/v1	(req: Request): string | null	The tenant this request is signing in to, or null on the apex/admin host.
 TAX_REGISTRATION_STATUSES	const	export	packages/contracts/src/tax.ts:137	packages/contracts	['SCHEDULED', 'ACTIVE', 'LAPSED'] as const	
@@ -5361,6 +5428,7 @@ toItem	fn	local	apps/api/src/services/organization/setting.service.ts:178	apps/a
 toItemDetail	fn	local	apps/api/src/services/invoicing/invoice.service.ts:891	apps/api/services/invoicing	(item: DetailRow['items'][number], currency: string): InvoiceItemDetail	
 toJson	fn	local	apps/api/src/services/billing/webhook.service.ts:255	apps/api/services/billing	(raw: unknown): Prisma.InputJsonValue	The provider's payload, as JSON the column will accept.
 toJurisdictionSummary	fn	export	apps/api/src/services/regulatory/shared.ts:52	apps/api/services/regulatory	(row: JurisdictionRow): JurisdictionSummary	
+TOKEN_LIFECYCLE	const	local	apps/api/src/openapi/registry/auth.ts:61	apps/api/openapi/registry	` ### What you get back \`accessToken\` is a short-lived JW…	
 TOKEN_STATUS	const	local	packages/payments/src/providers/razorpay.ts:216	packages/payments/providers	: Readonly<Record<string, MandateStatus>>	
 tokenFor	fn/async	local	apps/api/tests/integration/appointments.test.ts:104	apps/api/tests/integration	(slug: string): Promise<string>	
 tokenFor	fn/async	local	apps/api/tests/integration/audit-history.test.ts:78	apps/api/tests/integration	(slug: string): Promise<string>	
@@ -5392,6 +5460,8 @@ TONE	component	local	apps/web/src/components/tenant/stock-status.tsx:75	apps/web
 TONES	component	local	apps/web/src/components/marketing/section.tsx:3	apps/web/components/marketing	{ paper: 'bg-paper text-ink', card: 'bg-card text-ink', // `on-ink` re-points the focus r…	
 TONES	component	local	apps/web/src/components/ui/alert.tsx:30	apps/web/components/ui	{ error: { className: 'ring-danger/30 bg-danger-tint text-danger', Icon: CircleAlert, wor…	
 toNode	fn	local	apps/api/src/services/doctor/clinical-taxonomy.service.ts:81	apps/api/services/doctor	(row: NodeRow): TaxonomyNode	
+toOpenApiPath	fn	local	apps/api/src/openapi/document.ts:25	apps/api/openapi	(path: string): string	`/:branchId/operating-hours` -> `/{branchId}/operating-hours`.
+toOpenApiPath	fn	local	apps/api/tests/unit/openapi.test.ts:33	apps/api/tests/unit	(path: string): string	
 TOOTH_HEIGHT	const	local	packages/db/prisma/seed/data/visual-maps.ts:71	packages/db/prisma/seed/data	60	
 TOOTH_PITCH	const	local	packages/db/prisma/seed/data/visual-maps.ts:72	packages/db/prisma/seed/data	38	
 TOOTH_WIDTH	const	local	packages/db/prisma/seed/data/visual-maps.ts:70	packages/db/prisma/seed/data	34	Tooth box: 34 wide, 38 apart, with 12 more across the midline.
@@ -5731,13 +5801,16 @@ uuid	zod	export	packages/contracts/src/common.ts:3	packages/contracts	z.uuid(…
 UUID	const	local	apps/api/src/services/billing/webhook.service.ts:240	apps/api/services/billing	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{…	
 UuidParam	type	export	apps/api/src/schemas/common.schema.ts:58	apps/api/schemas	z.infer<typeof uuidParamSchema>	
 uuidParamSchema	zod	export	apps/api/src/schemas/common.schema.ts:6	apps/api/schemas	z.object(…)	UUID parameter schema
-validate	fn	export	apps/api/src/middleware/validate.middleware.ts:48	apps/api/middleware	(schema: ZodSchema, source: ValidationSource)	Validation middleware factory
+V1	const	local	apps/api/src/openapi/mounts.ts:112	apps/api/openapi	'/api/v1'	
+validate	fn	export	apps/api/src/middleware/validate.middleware.ts:83	apps/api/middleware	(schema: ZodSchema, source: ValidationSource): RequestHandler	Validation middleware factory
+ValidatedShape	interface	export	apps/api/src/middleware/validate.middleware.ts:24	apps/api/middleware	{ schema, source }	
+validatedShapesOf	fn	export	apps/api/src/middleware/validate.middleware.ts:39	apps/api/middleware	(handler: unknown): readonly ValidatedShape[] | null	The shapes a `validate(...)` / `validateMultiple(...)` handler enforces, if it is one.
 validateEncounter	fn	export	packages/clinical/src/validate.ts:482	packages/clinical	(definition: TemplateDefinition, answers: readonly SectionAnswers[]): Parsed<true>	
-validateMultiple	fn	export	apps/api/src/middleware/validate.middleware.ts:87	apps/api/middleware	(schemas: Partial<Record<ValidationSource, ZodSchema>>)	Validate multiple sources at once
+validateMultiple	fn	export	apps/api/src/middleware/validate.middleware.ts:124	apps/api/middleware	(schemas: Partial<Record<ValidationSource, ZodSchema>>): RequestHandler	Validate multiple sources at once
 validateSection	fn	local	packages/clinical/src/validate.ts:157	packages/clinical	(section: TemplateSection, answers: Readonly<Record<string, unknown>> | undefined): ValidationProblem[]	
 ValidationError	class	export	apps/api/src/utils/errors.ts:32	apps/api/utils	{ errors }	400 - Validation Error
 ValidationProblem	interface	export	packages/clinical/src/validate.ts:43	packages/clinical	{ sectionKey, fieldKey, problem }	Everything wrong with a consultation, not merely the first thing.
-ValidationSource	type	local	apps/api/src/middleware/validate.middleware.ts:8	apps/api/middleware	'body' | 'query' | 'params'	Location of data to validate
+ValidationSource	type	export	apps/api/src/middleware/validate.middleware.ts:8	apps/api/middleware	'body' | 'query' | 'params'	Location of data to validate
 valueOf	fn	local	packages/billing/src/entitlements.ts:59	packages/billing	(row: FeatureRow | OverrideRow, type?: FeatureValueType): number | boolean | null	
 valueOf	fn	export	packages/inventory/src/costing.ts:241	packages/inventory	(unitCostBase: number | bigint, quantityBase: string): bigint	`unitCostBase * quantityBase`, rounded HALF-UP — what a quantity of stock is worth at a given unit cost.
 valueProblem	fn	local	packages/clinical/src/validate.ts:335	packages/clinical	(value: unknown): string | null	
