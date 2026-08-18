@@ -5,6 +5,76 @@ discussed.
 
 ---
 
+## 2026-08-18 — PI-10: getting it back off the shelf
+
+**Phase:** PI-10 · **Branch:** `feat/pi-10-recall-traceability` · **Result:**
+complete, **not reviewed** · **Tests:** +21 unit, +23 integration, +14 isolation,
++5 route-gate cases. Lint (0 errors, 3 pre-existing warnings), typecheck and
+`db:rls:check` (128 tables) green. ⚠️ `/code-review` and `security-reviewer` NOT
+run.
+
+Two tables, and the smallest phase in the programme to reach the furthest:
+executing one row makes a product un-dispensable and un-consumable at every
+branch at once, and its second half is a list of named people who already have
+it.
+
+### What the phase had to decide, and what it decided
+
+**A recall is a document, not two columns on a batch.** PI-2 shipped
+`batches.recalled_at` and `.recall_reference` and said the workflow was PI-10.
+Those answer "is this lot recalled" and cannot answer "which of the eleven lots
+have we found, which branch still has some, and how much did we pull". Both are
+now written in one transaction with the movement that makes them true — the
+discipline `setBatchHold` already applied to one lot.
+
+**⚠️ A branch-scoped executor pulls only their own lots.** `recall_batches` is in
+the branch RLS loop, so the rest are invisible to the statement that reads them.
+That is correct — they cannot reach another site's shelf physically either — and
+the consequences are written down rather than discovered: execution is idempotent
+over PENDING rows, `EXECUTED` means "somebody executed it", and `closeRecall`
+refuses while anything is still PENDING.
+
+**⚠️ The counts and the names are two routes and two permissions.**
+TRACEABILITY.md says the link always exists in the data and who may SEE it is an
+access-control question. `/forward` answers "37 supplies, 4 procedures, 29
+people" and names nobody; `/affected` answers with names under
+`recall.trace.patients` ON TOP OF the read code, and files one `RECALL_TRACE`
+row carrying the count. Both halves are asserted in `route-gates.test.ts`.
+
+**`RECALL_RELEASE` is its own movement type**, for the reason `PURCHASE_RETURN`
+is not a `TRANSFER_OUT`: the statuses would be right and the word would be wrong,
+and every report grouping by `movement_type` would file a withdrawn notice
+alongside a fridge that came back up to temperature.
+
+**The screen is "Product recalls".** `/recall` already means the front desk's
+patient follow-up list (CE-5).
+
+### ⚠️ The PI-2 defect it found
+
+**A serialised lot could not be held at all.** `recordMovementIn` refuses a
+movement of a serial-tracked product that names no serial, and `setBatchHold`
+read the balance rows without `serial_id`. So `POST /batches/:id/hold` — live
+since PI-2 — raised a validation error for every implant in the clinic and pulled
+nothing. Nothing in the inventory suite had ever held a serialised lot, so it
+shipped. Fixed on both paths; the serials now follow the lot, `ISSUED` ones
+excepted. **The regression test was verified to fail against the reverted code.**
+
+### What landed
+
+| Area        | What                                                                                                                               |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | `recalls` (org-only), `recall_batches` (org + branch); `RecallStatus`, `RecallClassification`, `RecallSource`, `RecallBatchStatus` |
+| Enums       | `StockMovementType.RECALL_RELEASE`, `NumberSequenceType.RECALL`, `DataAccessResource.RECALL_TRACE`                                 |
+| RLS         | `db:rls:check` green at **128** (was 126). One `product_visible`; `recall_batches.batch_id` needs none — it is composite           |
+| Permissions | `recall.notice.read` / `.create` / `.execute` and `recall.trace.patients`; a new `recall` module                                   |
+| Contracts   | `packages/contracts/src/recall.ts`                                                                                                 |
+| Services    | `services/recall/{shared,recall,trace}.service.ts`                                                                                 |
+| Routes      | `/v1/recalls` · `/v1/traceability/{forward,backward,affected}`                                                                     |
+| Web         | `/product-recalls` (notices, one notice, trace a lot) plus a "Product recalls" nav entry                                           |
+| Fixed       | `setBatchHold` on a serialised lot, and serial status following its lot                                                            |
+
+---
+
 ## 2026-08-17 — PI-9: what the procedure used
 
 **Phase:** PI-9 · **Branch:** `feat/pi-9-clinical-consumption` · **Result:**

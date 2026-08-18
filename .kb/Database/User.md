@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 66 |
+| relations | 69 |
 
 ## Columns
 
@@ -107,6 +107,9 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `consumptionsRecorded` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptionsRecorded ClinicalConsumption[] @relation("ConsumptionRecordedBy")` |
 | `consumptionsAmended` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptionsAmended ClinicalConsumption[] @relation("ConsumptionAmendedBy")` |
 | `consumptionTemplatesUpdated` | [`ConsumptionTemplate`](ConsumptionTemplate.md) | `consumptionTemplatesUpdated ConsumptionTemplate[] @relation("ConsumptionTemplateUpdatedBy")` |
+| `recallsRaised` | [`Recall`](Recall.md) | `recallsRaised Recall[] @relation("RecallRaisedBy")` |
+| `recallsExecuted` | [`Recall`](Recall.md) | `recallsExecuted Recall[] @relation("RecallExecutedBy")` |
+| `recallsClosed` | [`Recall`](Recall.md) | `recallsClosed Recall[] @relation("RecallClosedBy")` |
 
 ## Indexes and constraints
 
@@ -159,4 +162,5 @@ erDiagram
     User }o--o{ ProductPrice : relates
     User }o--o{ ClinicalConsumption : relates
     User }o--o{ ConsumptionTemplate : relates
+    User }o--o{ Recall : relates
 ```

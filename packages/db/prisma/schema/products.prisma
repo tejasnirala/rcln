@@ -738,6 +738,10 @@ model Product {
   /// `product_visible`.
   consumptionTemplateLines ConsumptionTemplateLine[] @relation("ConsumptionTemplateLineProduct")
   consumptionLines         ConsumptionLine[]         @relation("ConsumptionLineProduct")
+  /// Recall (PI-10). A plain FK for the same reason, and the recall is the one
+  /// that would hurt most: a notice naming another clinic's private product
+  /// would read its name straight back out of the join that renders the list.
+  recalls                  Recall[]                  @relation("RecallProduct")
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   /// Which specialties this product is relevant to. ⚠️ RANKS, NEVER FILTERS —

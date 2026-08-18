@@ -4,16 +4,16 @@ The single source of truth for the **Product Platform** work stream. Everything
 about this programme lives in this directory. Start here.
 
 ```text
-CURRENT PHASE:        PI-0 — Discovery & Architecture
-CURRENT STATUS:       PI-0..PI-7 COMPLETE
-LAST COMPLETED PHASE: PI-7 — Pharmacy Dispensing
+CURRENT PHASE:        none in flight
+CURRENT STATUS:       PI-0..PI-10 COMPLETE
+LAST COMPLETED PHASE: PI-10 — Recall & Traceability
 CURRENT WORK:         none
-NEXT PHASE:           PI-8 — Billing & Tax Integration
-BLOCKERS:             none for PI-8, PI-10, PI-11.
-                      PI-9 (Clinical consumption) needs `procedures`; CE-4
-                      shipped `encounter_procedures`, so it is now a scoping
-                      question rather than a hard block.
-LAST UPDATED:         2026-08-16
+NEXT PHASE:           PI-11 (Veterinary) or PI-12 (Online Pharmacy); both open
+BLOCKERS:             none.
+                      ⚠️ PI-9 and PI-10 are built and NEITHER IS REVIEWED —
+                      `/code-review` and `security-reviewer` must run over both
+                      before merge. See NEXT_SESSION.md.
+LAST UPDATED:         2026-08-18
 ```
 
 ---

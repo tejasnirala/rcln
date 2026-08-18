@@ -452,7 +452,27 @@ DECLARE
     'consumption_template_lines',
     'clinical_consumptions',
     'consumption_lines',
-    'consumption_allocations'
+    'consumption_allocations',
+    -- ---------------------------------------------------------------------
+    -- Recall & traceability (PI-10). Two tables, TWO tenancy classes again —
+    -- the split PI-8 and PI-9 both made, for the third time.
+    --
+    -- ⚠️ `recalls` IS ORG-ONLY AND IS **NOT** IN THE branch_scoped ARRAY BELOW.
+    --   It has no `branch_id` column at all: a manufacturer's notice arrives
+    --   once for the whole clinic group and does not become a different notice
+    --   at each site. The branch loop's predicate would name a column that does
+    --   not exist and the CREATE POLICY would raise at migration time.
+    --
+    --   ⚠️ THE COST: a branch-scoped member reads every recall the organization
+    --     has raised. Intended — the header carries a product, a lot count and a
+    --     reason, no patient and no quantity — and it is why nothing
+    --     branch-confidential may be added to that table.
+    --
+    -- `recall_batches` is in BOTH loops. Each row names ONE lot, a lot is held
+    -- at ONE site, and what the satellite pharmacy still has on its shelf is
+    -- that site's stock position.
+    'recalls',
+    'recall_batches'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -1305,6 +1325,30 @@ CREATE POLICY unit_visible ON consumption_lines AS RESTRICTIVE
       AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
   ));
 
+-- ---------------------------------------------------------------------------
+-- Recall (PI-10). ONE plain FK: `recalls.product_id`.
+--
+-- ⚠️ `recall_batches.batch_id` NEEDS NO POLICY OF ITS OWN, and the difference is
+--   worth stating. `batches` is a strictly-tenant table — nothing in
+--   `inventory.prisma` allows a NULL `organization_id` — so the reference is a
+--   COMPOSITE `(organization_id, branch_id, batch_id)` FK and the database
+--   tenant-checks it. `products` is platform-extensible, a NOT NULL
+--   `organization_id` cannot compose with a platform row's NULL, and the
+--   RESTRICTIVE policy below is therefore the ENTIRE control on that side.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS product_visible ON recalls;
+CREATE POLICY product_visible ON recalls AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = recalls.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = recalls.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
 -- Who the patient was sent to. Nullable — a referral to a named colleague or
 -- to somebody outside the organization names no specialty at all.
 DROP POLICY IF EXISTS specialty_visible ON encounter_referrals;
@@ -1694,7 +1738,17 @@ DECLARE
     --   treatment room is not another site's record to read.
     'clinical_consumptions',
     'consumption_lines',
-    'consumption_allocations'
+    'consumption_allocations',
+    -- Recall (PI-10). ⚠️ ONE OF THE TWO — `recalls` is org-wide and has no
+    --   `branch_id`; see the note in the org_scoped array above.
+    --
+    --   `branch_id` is NOT NULL here, so the `IS NULL` half below is dead code
+    --   for it and the policy is absolute. ⚠️ AND IT IS LOAD-BEARING RATHER THAN
+    --     COSMETIC: a branch-scoped storekeeper executing a recall pulls the
+    --     lots at THEIR OWN site and no others, because the rest are invisible.
+    --     That is the intended answer — they cannot reach another site's shelf
+    --     physically either — and `recall.service.ts` says so in its header.
+    'recall_batches'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP

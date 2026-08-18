@@ -37,5 +37,9 @@ export * from './charging.js';
    relative to that line is arbitrary and the placement is alphabetical drift,
    not a dependency. */
 export * from './consumption.js';
+/* ⚠️ AFTER `common.js` only. Recall imports nothing from inventory, pharmacy or
+   consumption — it names lots and patients by id and answers in counts — so the
+   placement carries no dependency, unlike the two notes above. */
+export * from './recall.js';
 export * from './tax.js';
 export * from './locale.js';

@@ -298,6 +298,17 @@ enum DataAccessResource {
   ///   discloses no diagnosis, prescription or note, which is the line `VITALS`
   ///   draws against `ENCOUNTER`.
   CLINICAL_CONSUMPTION
+  /// Turning a recalled lot into the NAMES of the people who received it
+  /// (PI-10).
+  ///
+  /// ⚠️ ITS OWN RESOURCE, AND IT IS THE BROADEST DISCLOSURE THE PLATFORM MAKES.
+  ///   Every other member here is one patient, or a search that named one.
+  ///   This is "give me everybody who got lot AB12" — dozens of identifiable
+  ///   people in one response, returned to a storekeeper rather than to a
+  ///   clinician. A disclosure review must be able to see those reads on their
+  ///   own, which folding them into `INVENTORY_SERIAL` or `PRESCRIPTION` would
+  ///   prevent.
+  RECALL_TRACE
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/products.prisma:611`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `visible` policy |
 | columns | 25 |
-| relations | 33 |
+| relations | 34 |
 
 ## Columns
 
@@ -77,6 +77,7 @@ Declared at `packages/db/prisma/schema/products.prisma:611`.
 | `chargeRequests` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequests ChargeRequest[] @relation("ChargeRequestProduct")` |
 | `consumptionTemplateLines` | [`ConsumptionTemplateLine`](ConsumptionTemplateLine.md) | `consumptionTemplateLines ConsumptionTemplateLine[] @relation("ConsumptionTemplateLineProduct")` |
 | `consumptionLines` | [`ConsumptionLine`](ConsumptionLine.md) | `consumptionLines ConsumptionLine[] @relation("ConsumptionLineProduct")` |
+| `recalls` | [`Recall`](Recall.md) | `recalls Recall[] @relation("RecallProduct")` |
 | `clinicalScopes` | [`ProductClinicalScope`](ProductClinicalScope.md) | `clinicalScopes ProductClinicalScope[]` |
 | `prescriptions` | [`EncounterPrescription`](EncounterPrescription.md) | `prescriptions EncounterPrescription[]` |
 
@@ -124,6 +125,7 @@ erDiagram
     Product }o--o{ ChargeRequest : relates
     Product }o--o{ ConsumptionTemplateLine : relates
     Product }o--o{ ConsumptionLine : relates
+    Product }o--o{ Recall : relates
     Product }o--o{ ProductClinicalScope : relates
     Product }o--o{ EncounterPrescription : relates
 ```

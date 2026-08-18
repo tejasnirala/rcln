@@ -1,0 +1,68 @@
+-- ---------------------------------------------------------------------------
+-- Three enum members PI-10 needs, in their own migration (PI-10).
+--
+-- ⚠️ POSTGRES REFUSES TO **USE** A NEW ENUM VALUE IN THE TRANSACTION THAT ADDED
+--   IT, and Prisma runs each migration inside one transaction. `RECALL_RELEASE`
+--   is named by a CHECK constraint in `..091000` immediately after this, so
+--   adding it beside the tables would abort the whole migration with
+--   `unsafe use of new value of enum type StockMovementType`.
+--
+--   The failure is invisible until it is run: the SQL parses, the values exist
+--   in the schema files, and `prisma validate` is perfectly happy. PI-4 found
+--   this the same way and left the note this one is copied from.
+--
+-- ⚠️ AND UNTIL THESE RUN THE SYSTEM IS FAIL-CLOSED, WHICH IS WHY SPLITTING IS
+--   SAFE. Nothing writes any of the three until the recall service exists.
+-- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- 1. Putting a recalled lot back on sale.
+--
+-- ⚠️ ITS OWN MEMBER RATHER THAN `QUARANTINE_RELEASE` WITH A DIFFERENT
+--   `status_from`, and the reasoning is the one `PURCHASE_RETURN` gives about
+--   `TRANSFER_OUT`. The statuses would be right and the WORD would be wrong:
+--   every report that groups by `movement_type` would file "the manufacturer
+--   withdrew the notice and we put the lot back on sale" alongside "the fridge
+--   came back up to temperature". Those are two different conversations with a
+--   regulator.
+--
+-- FOUR PLACES MUST AGREE:
+--   1. the Prisma enum        inventory.prisma                          ✔
+--   2. the direction CHECK    ..091000_recall_release_movement_direction ✔
+--   3. `DIRECTION`            packages/inventory/src/movement.ts         ✔
+--   4. `DEFAULT_STATUS`       the same file — RECALLED -> AVAILABLE      ✔
+-- `apps/api/tests/unit/inventory-movement.test.ts` asserts every member of the
+-- enum appears in `DIRECTION`, which catches 3. Nothing catches 2, which is why
+-- ..091000 is written out at length.
+-- ---------------------------------------------------------------------------
+ALTER TYPE "StockMovementType" ADD VALUE 'RECALL_RELEASE';
+
+-- ---------------------------------------------------------------------------
+-- 2. The recall's own filing reference.
+--
+-- ⚠️ ORG-WIDE AND NEVER RESETS, unlike every procurement counter. A recall
+--   reaches every branch at once, so a per-branch counter would give one notice
+--   three different numbers; and the number is quoted back to a regulator years
+--   later, so it has to mean one thing for ever.
+--
+-- ⚠️ AND IT IS ISSUED AT CREATE, WHICH IS THE OPPOSITE OF THE PROCUREMENT RULE
+--   ("issued when the document leaves draft, so an abandoned one burns no
+--   number"). A recall notice EXISTS from the moment it arrives; a draft
+--   abandoned after somebody decided the lot was not affected is a far smaller
+--   problem than a notice nobody can cite while they are still working out what
+--   it covers.
+-- ---------------------------------------------------------------------------
+ALTER TYPE "NumberSequenceType" ADD VALUE 'RECALL';
+
+-- ---------------------------------------------------------------------------
+-- 3. Turning a recalled lot into the NAMES of the people who received it.
+--
+-- ⚠️ THE BROADEST DISCLOSURE THIS PLATFORM MAKES, AND IT GETS ITS OWN RESOURCE
+--   FOR EXACTLY THAT REASON. Every other member of this enum is one patient, or
+--   a search that named one. This is "give me everybody who got lot AB12" —
+--   dozens of identifiable people in one response, returned to a storekeeper
+--   rather than to a clinician. A disclosure review has to be able to see those
+--   reads on their own, which folding them into `INVENTORY_SERIAL` or
+--   `PRESCRIPTION` would prevent.
+-- ---------------------------------------------------------------------------
+ALTER TYPE "DataAccessResource" ADD VALUE 'RECALL_TRACE';

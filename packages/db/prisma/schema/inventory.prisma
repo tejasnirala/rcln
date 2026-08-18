@@ -208,6 +208,19 @@ enum StockMovementType {
   RELEASE
   QUARANTINE
   QUARANTINE_RELEASE
+  /// Coming BACK out of the RECALLED bucket, into AVAILABLE (PI-10).
+  ///
+  /// ⚠️ ITS OWN MEMBER RATHER THAN `QUARANTINE_RELEASE` WITH A DIFFERENT
+  ///   `status_from`, and the reasoning is the one `PURCHASE_RETURN` gives about
+  ///   `TRANSFER_OUT`. The statuses would be right and the WORD would be wrong:
+  ///   every report that groups by `movement_type` would file "the manufacturer
+  ///   withdrew the notice and we put the lot back on sale" under quarantine
+  ///   releases, alongside a fridge that came back up to temperature. Those are
+  ///   two different conversations with a regulator.
+  ///
+  /// ⚠️ AND IT IS THE ONE MOVEMENT THAT MAKES RECALLED STOCK SELLABLE AGAIN, so
+  ///   it is worth being able to count on its own.
+  RECALL_RELEASE
 }
 
 /// What a movement was FOR. Half of the traceability key.
@@ -475,6 +488,11 @@ model Batch {
   /// procedure never went out of a counter, so a recall that walked only
   /// `dispense_allocations` would miss every implant ever fitted.
   consumptionAllocations ConsumptionAllocation[] @relation("ConsumptionAllocationBatch")
+  /// PI-10. Which recall notices name this lot. ⚠️ A LOT MAY APPEAR IN MORE THAN
+  /// ONE: a manufacturer's notice and a later regulator's notice covering the
+  /// same production run are two documents, and collapsing them would lose the
+  /// one the clinic has to report against.
+  recallBatches          RecallBatch[]           @relation("RecallBatchBatch")
 
   @@unique([organizationId, branchId, productId, lotNumber])
   @@unique([organizationId, id])

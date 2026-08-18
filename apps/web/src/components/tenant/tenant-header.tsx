@@ -262,6 +262,34 @@ function clinicNav(permissions: string[]): NavLink[] {
      *   in it. A clinic's own regulatory work is on its products, under
      *   Catalogue, which is why there is no manage code in this list.
      */
+    /*
+     * When something has to come back off the shelf (PI-10).
+     *
+     * ⚠️ "PRODUCT RECALLS", BECAUSE "RECALL" IS ALREADY TAKEN — by the front
+     *   desk's list of patients who were told to come back and have not (CE-5),
+     *   twelve entries above. Two tabs called Recall would send the person
+     *   chasing a contaminated implant to a list of missed follow-ups. The API
+     *   keeps the shorter word; the screen takes the longer one, because a
+     *   screen is read by somebody in a hurry.
+     *
+     * ⚠️ ITS OWN TAB RATHER THAN A SCREEN INSIDE STOCK, AND THE REASON IS THE ONE
+     *   USAGE GIVES. Stock says what the clinic HOLDS; a recall is a piece of
+     *   WORK with a beginning and an end, spanning every branch, whose second
+     *   half is contacting people who already received the product. Folding it
+     *   into Stock would file "who has this implant" beside "how many boxes are
+     *   in the fridge".
+     *
+     * ⚠️ AND IT IS FINDABLE WHEN NOTHING IS WRONG, WHICH IS THE POINT. "Trace a
+     *   lot" is opened about a suspicious delivery or a device that failed, long
+     *   before anybody decides there is a recall — a tab that only appeared once
+     *   a notice existed would be a tab nobody could find on the day they need
+     *   it.
+     *
+     * Sits after Pharmacy because it is what happens when something that left
+     * has to be reached again. Gated on `recall.notice.read`, which a pharmacist
+     * and a branch administrator hold.
+     */
+    { href: '/product-recalls', label: 'Product recalls', permission: ['recall.notice.read'] },
     { href: '/regulatory/jurisdictions', label: 'Rules', permission: ['regulatory.rule.read'] },
     /*
      * The clinical vocabulary. Sits after Rules rather than beside Patients

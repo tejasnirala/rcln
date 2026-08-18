@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-17 (PI-9 complete)
+**Last updated:** 2026-08-18 (PI-10 complete)
 
 ## Status vocabulary
 
@@ -46,7 +46,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-7      | Pharmacy Dispensing                                     | **COMPLETE** (2026-08-16) | —                                        |
 | PI-8      | Billing & Tax Integration                               | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
 | PI-9      | Clinical Consumption                                    | **COMPLETE** (2026-08-17) | —                                        |
-| PI-10     | Recall & Traceability                                   | PLANNED                   | PI-2, PI-4                               |
+| PI-10     | Recall & Traceability                                   | **COMPLETE** (2026-08-18) | —                                        |
 | PI-11     | Veterinary Enablement                                   | PLANNED                   | PI-1, PI-5                               |
 | PI-12     | Online Pharmacy                                         | PLANNED                   | **UNBLOCKED** — PI-8 landed              |
 | PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                     |
@@ -1277,3 +1277,121 @@ survives because the happy path is unaffected.
 - **A comment that describes intent must describe the code beneath it.** Two
   separate CRITICAL/MEDIUM findings have now been comments documenting controls
   nobody had written.
+
+---
+
+# PI-10 — Recall & Traceability · COMPLETE (2026-08-18)
+
+**Dependencies:** PI-2 (batches, serials, the ledger) + PI-4 (goods receipts) +
+PI-7 (`dispense_allocations`) + PI-9 (`consumption_allocations`), **all
+satisfied**. **Design:** [TRACEABILITY.md](TRACEABILITY.md) — the nine questions
+and the two directions; it is the whole specification.
+
+**Migrations:** `20260909090000_recall_traceability` (2 tables, 4 enums, 6
+CHECKs, 3 policies) · `..090500_recall_enum_members` (`StockMovementType.RECALL_RELEASE`,
+`NumberSequenceType.RECALL`, `DataAccessResource.RECALL_TRACE`) ·
+`..091000_recall_release_movement_direction` (the `stock_ledger_direction` CHECK,
+restated for the third time).
+
+| Task    | Description                                                             | Status                                                                                        |
+| ------- | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| PI-10.1 | `recalls` + `recall_batches` — the notice and the lots it names         | COMPLETE — two tenancy classes, org-only and org+branch                                       |
+| PI-10.2 | RLS on both, the isolation cases, and the `*_visible` sweep             | COMPLETE — 1 plain FK, 1 `product_visible`, 14 cases                                          |
+| PI-10.3 | `recall.notice.read` / `.create` / `.execute` / `recall.trace.patients` | COMPLETE — four codes; see the note on the fourth                                             |
+| PI-10.4 | Contracts in `@rcln/contracts`                                          | COMPLETE — `packages/contracts/src/recall.ts`                                                 |
+| PI-10.5 | The workflow — draft, scope, execute, resolve per lot, close, cancel    | COMPLETE — one transaction per execution, no draft movement                                   |
+| PI-10.6 | Forward and backward traceability queries                               | COMPLETE — counts under the read code, names under the PHI one                                |
+| PI-10.7 | ⚠️ The PI-2 defect it found: a serialised lot could not be held at all  | COMPLETE — fixed in `setBatchHold` and covered by a test that FAILS against the reverted code |
+| PI-10.8 | Screens — notices, one notice, trace a lot                              | COMPLETE — 3 screens under `/product-recalls`                                                 |
+| PI-10.9 | Tests — unit, integration, isolation                                    | COMPLETE — 21 unit · 23 integration · 14 isolation · 5 route-gate                             |
+
+### Completion gate
+
+`DB` migration + RLS + isolation ✓ · `BE` every service through `withTenant` ✓ ·
+`API` contracts + routes + the standard chain ✓ · `FE` 3 screens ✓ · `VAL` Zod on
+every surface ✓ · `AUTHZ` four codes, all new ✓ · `AUDIT` `recordAudit` on every
+write, `recordDataAccess` on the one read that discloses ✓ · `REG` n/a —
+deliberately: no rule type in PI-5 addresses WITHDRAWING a product, the call site
+is marked, and a rule engine that could REFUSE a recall would be a defect wearing
+a control's clothes · `TEST` ✓ · `DOC` this directory ✓ · `REGRESS` lint (0
+errors, 3 pre-existing warnings), typecheck, `db:rls:check` at **128** tables,
+**276 unit · 443 isolation · 1 090 integration** all green ✓.
+
+### The five decisions PI-10 was required to make
+
+**1. A recall is a DOCUMENT, not two columns on a batch.** PI-2 gave `batches`
+`recalled_at` and `recall_reference` and said the workflow was PI-10. Those two
+answer "is this lot recalled"; they cannot answer "what is the manufacturer's
+notice, which of the eleven lots have we found, which branch still has some, and
+how much did we actually pull". Both are now written in ONE transaction, with the
+movement that makes them true.
+
+**2. ⚠️ A BRANCH-SCOPED EXECUTOR PULLS ONLY THEIR OWN LOTS, AND THAT IS THE
+CORRECT ANSWER RATHER THAN A LEAK IN THE FEATURE.** `recall_batches` is in the
+branch RLS loop, so the rest are invisible to the statement that reads them —
+which mirrors the fact that they cannot reach another site's shelf physically
+either. The consequences are written down: execution is idempotent over PENDING
+rows so the other site executes the same notice, `EXECUTED` means "somebody
+executed it" rather than "everything is held", and `closeRecall` refuses while
+anything is still PENDING.
+
+**3. ⚠️ THE COUNTS AND THE NAMES ARE TWO ROUTES, TWO PERMISSIONS AND TWO AUDIT
+STORIES.** TRACEABILITY.md says the patient link ALWAYS exists in the data and
+that who may SEE it is an access-control question. So `/v1/traceability/forward`
+answers "37 supplies, 4 procedures, 29 people" under `recall.notice.read` and
+names nobody; `/v1/traceability/affected` answers with names and phone numbers
+under `recall.trace.patients` ON TOP OF it, and files one `RECALL_TRACE`
+disclosure row carrying the count. `route-gates.test.ts` asserts both halves.
+
+**4. `RECALL_RELEASE` is its own movement type.** `QUARANTINE_RELEASE` with a
+different `status_from` would have been correct in the statuses and wrong in the
+WORD: every report grouping by `movement_type` would file "the manufacturer
+withdrew the notice and we put the lot back on sale" alongside "the fridge came
+back up to temperature". The `PURCHASE_RETURN`-over-`TRANSFER_OUT` argument,
+applied again.
+
+**5. The screen is "Product recalls", not "Recalls".** ⚠️ `/recall` ALREADY
+EXISTS — it is the front desk's list of patients who were told to come back and
+have not (CE-5). Two tabs called Recall would send the person chasing a
+contaminated implant to a list of missed follow-ups. The API keeps the shorter
+word because `recall.notice.*` has no such neighbour.
+
+### ⚠️ The PI-2 defect this phase found
+
+**A SERIALISED LOT COULD NOT BE HELD AT ALL, ON EITHER PATH.**
+`recordMovementIn` refuses a movement of a `SERIAL` / `LOT_AND_SERIAL` product
+that names no serial — and `setBatchHold` selected the lot's balance rows without
+`serial_id` and passed none. So `POST /batches/:id/hold`, which has existed since
+PI-2, raised "this product is serial-tracked, so every movement of it must name a
+serial number" for every implant in the clinic, and pulled nothing. Nothing in
+the inventory suite had ever held a serialised lot, so it shipped.
+
+Fixed in both paths, and the serials now follow the lot: without that, a recalled
+implant reads `IN_STOCK` on the serial screen while its quantity sits in the
+RECALLED bucket — two answers to "may this be fitted", and the screen a theatre
+nurse looks at is the one that says yes. `ISSUED` serials are untouched, because
+that device is already in a patient and is the trace's business.
+
+**The regression test was verified to FAIL against the reverted code.**
+
+### What is open, and honestly so
+
+- **Nothing has been clicked in a browser.** The same item every phase has left,
+  now across three more screens.
+- **`/code-review` and `security-reviewer` have NOT been run.** This diff touches
+  the schema, tenancy, permissions, patient data and raw SQL, so CLAUDE.md makes
+  the security review mandatory before merge. Point a reviewer at `executeRecall`
+  (the row lock and the per-lot loop), `resolveRecallBatch` (the "no OTHER live
+  recall" check that decides whether a lot goes back on sale), and
+  `listAffectedParties` (the one PHI read, and its empty-scope guard).
+- **The affected-party list is unioned and paginated IN MEMORY.** Two tables with
+  different shapes; a database-side union needs raw SQL over both. Bounded by
+  what one lot can reach, and written down in the service rather than discovered.
+- **The head count on the notice screen sums per-lot traces**, so a person who
+  received two recalled lots is counted twice. It is an upper bound, the screen
+  says "received one of these lots", and the exact figure is the affected list's
+  own total — available only to somebody who may see it.
+- **A recall blocks TODAY's stock, not tomorrow's delivery.** A lot of the same
+  number received after the notice is a new `batches` row and is not
+  automatically held. PI-23's identifier resolution is where a lot-number rule
+  would live.

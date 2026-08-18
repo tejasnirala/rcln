@@ -26,6 +26,7 @@ accessTokenLifetimeSeconds	fn	export	apps/api/src/services/auth/token.service.ts
 ACTION_LABEL	const	local	apps/web/src/components/tenant/record-history.tsx:217	apps/web/components/tenant	: Record<AuditEntry['action'], string>	Past tense, because every one of these has already happened.
 actionFor	fn	local	apps/worker/src/billing/processor.ts:108	apps/worker/billing	(reason: DueSubscription['reason']): BillingJob['action']	
 actionLabel	fn	export	apps/web/src/lib/permission-labels.ts:55	apps/web/lib	(code: string): string	
+actionOptions	fn	local	apps/api/src/routes/v1/recalls.routes.ts:118	apps/api/routes/v1	(req: Request, route: string): RecallActionOptions	
 Actions	component	local	apps/web/src/components/tenant/payment-return.tsx:139	apps/web/components/tenant	({ slug: _slug, primary }: { slug: string; primary: string })	
 activeIngredientRoutes	var	export	apps/api/src/routes/v1/product-catalogue.routes.ts:305	apps/api/routes/v1	: IRouter	
 activeIngredientSummary	zod	export	packages/contracts/src/products.ts:340	packages/contracts	z.object(…)	
@@ -64,6 +65,10 @@ addQualification	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:
 addQualification	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:420	apps/web/app/(tenant)/t/[slug]/(app)/doctors	(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>	
 AddQualificationForm	component	local	apps/web/src/components/tenant/doctor-sections.tsx:663	apps/web/components/tenant	({ slug, doctorId, qualifications, }: { slug: string; doctor…)	
 addQuantities	fn	local	packages/inventory/src/costing.ts:273	packages/inventory	(a: string, b: string): string	
+addRecallBatches	fn/async	export	apps/api/src/services/recall/recall.service.ts:485	apps/api/services/recall	(ctx: TenantContext, id: string, input: AddRecallBatchesRequest, options: RecallActionOptions): Promise<RecallDetail>	
+addRecallBatchesAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:110	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>	
+addRecallBatchesRequest	zod	export	packages/contracts/src/recall.ts:106	packages/contracts	z.object(…)	
+AddRecallBatchesRequest	type	export	packages/contracts/src/recall.ts:381	packages/contracts	z.infer<typeof addRecallBatchesRequest>	
 addReferral	fn/async	export	apps/api/src/services/clinical/encounter-content.service.ts:1485	apps/api/services/clinical	(ctx: TenantContext, encounterId: string, input: CreateEncounterReferralRequest, options: ContentRequestOptions): Promise<EncounterContent>	
 addRegion	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/visual-maps/actions.ts:93	apps/web/app/(tenant)/t/[slug]/(app)/visual-maps	(slug: string, mapId: string, _prev: ChartFormState, formData: FormData): Promise<ChartFormState>	
 addRegistration	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/taxes/actions.ts:83	apps/web/app/(tenant)/t/[slug]/(app)/taxes	(slug: string, input: { countryCode: string; regionCode?: string; scheme: …): Promise<TaxFormState>	
@@ -90,6 +95,12 @@ ADVANCE_MS	const	local	apps/web/src/components/marketing/journey-rail.tsx:116	ap
 advanceAutomatically	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:409	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, from: AppointmentStatusValue, to: AppointmentStatusValue, note: string): Promise<void>	Advance to `to` only if that is a legal forward step from where we are. Silent by design: the caller is an event handle…
 ADVICE_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:179	apps/api/services/clinical	{ id: true, customText: true, isEdited: true, displayOrder: true, item: TERM_SELECT, } as…	
 AdviceSection	component	export	apps/web/src/components/tenant/consultation-content.tsx:1081	apps/web/components/tenant	(props: ContentSectionProps)	
+affectedParty	zod	export	packages/contracts/src/recall.ts:343	packages/contracts	z.object(…)	
+AffectedParty	type	export	packages/contracts/src/recall.ts:402	packages/contracts	z.infer<typeof affectedParty>	
+affectedPartyQuery	var	export	packages/contracts/src/recall.ts:326	packages/contracts	paginationQuery .extend({ recallId: uuid.optional(), batchI…	⚠️ THE PHI SHAPE. One route returns it, gated on `recall.trace.patients`, and every read writes a `data_access_logs` ro…
+AffectedPartyQuery	type	export	packages/contracts/src/recall.ts:401	packages/contracts	z.infer<typeof affectedPartyQuery>	
+affectedPartyResponse	zod	export	packages/contracts/src/recall.ts:361	packages/contracts	z.object(…)	
+AffectedPartyResponse	type	export	packages/contracts/src/recall.ts:403	packages/contracts	z.infer<typeof affectedPartyResponse>	
 ageFrom	fn	local	apps/api/src/services/patient/patient.service.ts:140	apps/api/services/patient	(dateOfBirth: Date | null, approxAgeYears: number | null): number | null	
 ageFromDob	fn	local	apps/web/src/components/tenant/patient-search.tsx:97	apps/web/components/tenant	(value: string): number | null	
 ageLabel	fn	local	apps/web/src/components/tenant/patient-search.tsx:112	apps/web/components/tenant	(years: number): string	Plain words for the age line under the date field.
@@ -100,7 +111,7 @@ Alert	component	local	apps/web/src/components/tenant/login-form.tsx:112	apps/web
 Alert	component	export	apps/web/src/components/ui/alert.tsx:53	apps/web/components/ui	({ tone, children, className, }: { tone: keyof typeof TONES;…)	
 ALERT_DAYS_KEY	const	local	apps/api/src/services/inventory/expiry.service.ts:55	apps/api/services/inventory	'inventory.expiry_alert_days'	
 all	fn	local	packages/regulatory/src/parameters.ts:97	packages/regulatory	(readers: T): Parsed<{ [K in keyof T]: T[K] extends Parsed<infer V> ? V :…	Collects the first problem across several readers, or hands back the values.
-ALL_PERMISSIONS	const	export	packages/permissions/src/codes.ts:740	packages/permissions	Object.values(PERMISSIONS) as PermissionCode[]	
+ALL_PERMISSIONS	const	export	packages/permissions/src/codes.ts:798	packages/permissions	Object.values(PERMISSIONS) as PermissionCode[]	
 ALLERGEN_TYPES	const	local	apps/web/src/components/tenant/patient-chart.tsx:50	apps/web/components/tenant	: SelectOption[]	
 AllergyBand	component	local	apps/web/src/components/tenant/patient-chart.tsx:357	apps/web/components/tenant	({ allergies }: { allergies: PatientAllergyDetail[] })	
 AllergyForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:692	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
@@ -109,15 +120,16 @@ AllergyRows	component	local	apps/web/src/components/tenant/patient-chart.tsx:574
 AllocationCandidate	interface	export	packages/inventory/src/allocate.ts:56	packages/inventory	{ locationId, batchId, serialId, availableQuantityBase, expiresOn, receivedAt }	
 AllocationLine	interface	export	packages/inventory/src/allocate.ts:68	packages/inventory	{ candidate, quantityBase }	
 AllocationPlan	interface	export	packages/inventory/src/allocate.ts:74	packages/inventory	{ lines, requestedQuantityBase, allocatedQuantityBase, shortfallQuantityBase }	
-allocationPlanLine	zod	export	packages/contracts/src/inventory.ts:1278	packages/contracts	z.object(…)	
-AllocationPlanLine	type	export	packages/contracts/src/inventory.ts:1341	packages/contracts	z.infer<typeof allocationPlanLine>	
-allocationPlanRequest	zod	export	packages/contracts/src/inventory.ts:1263	packages/contracts	z.object(…)	
-AllocationPlanRequest	type	export	packages/contracts/src/inventory.ts:1340	packages/contracts	z.infer<typeof allocationPlanRequest>	
-allocationPlanResponse	zod	export	packages/contracts/src/inventory.ts:1292	packages/contracts	z.object(…)	
-AllocationPlanResponse	type	export	packages/contracts/src/inventory.ts:1342	packages/contracts	z.infer<typeof allocationPlanResponse>	
-allocationStrategy	zod	export	packages/contracts/src/inventory.ts:923	packages/contracts	z.enum(…)	
-AllocationStrategy	type	export	packages/contracts/src/inventory.ts:1315	packages/contracts	z.infer<typeof allocationStrategy>	
+allocationPlanLine	zod	export	packages/contracts/src/inventory.ts:1285	packages/contracts	z.object(…)	
+AllocationPlanLine	type	export	packages/contracts/src/inventory.ts:1348	packages/contracts	z.infer<typeof allocationPlanLine>	
+allocationPlanRequest	zod	export	packages/contracts/src/inventory.ts:1270	packages/contracts	z.object(…)	
+AllocationPlanRequest	type	export	packages/contracts/src/inventory.ts:1347	packages/contracts	z.infer<typeof allocationPlanRequest>	
+allocationPlanResponse	zod	export	packages/contracts/src/inventory.ts:1299	packages/contracts	z.object(…)	
+AllocationPlanResponse	type	export	packages/contracts/src/inventory.ts:1349	packages/contracts	z.infer<typeof allocationPlanResponse>	
+allocationStrategy	zod	export	packages/contracts/src/inventory.ts:930	packages/contracts	z.enum(…)	
+AllocationStrategy	type	export	packages/contracts/src/inventory.ts:1322	packages/contracts	z.infer<typeof allocationStrategy>	
 AllocationStrategy	type	export	packages/inventory/src/allocate.ts:46	packages/inventory	'FEFO' | 'FIFO' | 'LIFO'	Which lot goes out first when several could. Mirrors the Prisma enum.
+allocationWhere	fn	local	apps/api/src/services/recall/trace.service.ts:150	apps/api/services/recall	(subject: { batchId: string | null; serialId: string | null;…): { batchId: string } | { serialId: string }	The `where` that selects allocations for whichever subject was named.
 allowedScopes	fn	local	apps/api/src/services/organization/setting.service.ts:80	apps/api/services/organization	(value: Prisma.JsonValue): string[]	
 amendConsultation	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/consultation-actions.ts:158	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, encounterId: string, reason: string): Promise<{ ok: true } | { ok: false; message: string }>	Correct a signed record by starting a new one that cites it (CD-2).
 amendConsumption	fn/async	export	apps/api/src/services/consumption/consumption.service.ts:1149	apps/api/services/consumption	(ctx: TenantContext, id: string, body: AmendConsumptionRequest, options: ConsumptionActionOptions): Promise<ConsumptionDetail>	
@@ -262,7 +274,7 @@ assertBranchInScope	fn	local	apps/api/src/services/clinical/episode.service.ts:6
 assertBranchInScope	fn	export	apps/api/src/services/consumption/shared.ts:16	apps/api/services/consumption	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/allocation.service.ts:37	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/balance.service.ts:33	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
-assertBranchInScope	fn	local	apps/api/src/services/inventory/batch.service.ts:124	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
+assertBranchInScope	fn	local	apps/api/src/services/inventory/batch.service.ts:134	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/expiry.service.ts:60	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/location.service.ts:96	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	local	apps/api/src/services/inventory/reservation.service.ts:101	apps/api/services/inventory	(ctx: TenantContext, branchId: string): void	
@@ -271,6 +283,7 @@ assertBranchInScope	fn	local	apps/api/src/services/inventory/transfer.service.ts
 assertBranchInScope	fn	local	apps/api/src/services/patient/patient.service.ts:270	apps/api/services/patient	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	export	apps/api/src/services/pharmacy/shared.ts:23	apps/api/services/pharmacy	(ctx: TenantContext, branchId: string): void	
 assertBranchInScope	fn	export	apps/api/src/services/procurement/shared.ts:20	apps/api/services/procurement	(ctx: TenantContext, branchId: string): void	
+assertBranchInScope	fn	export	apps/api/src/services/recall/shared.ts:14	apps/api/services/recall	(ctx: TenantContext, branchId: string): void	
 assertCoherent	fn	local	apps/api/src/services/platform/tax-rule-default.service.ts:101	apps/api/services/platform	(input: { treatment?: string | undefined; rateBps?: number |…): void	
 assertCoherent	fn	local	apps/api/src/services/tax/clinic-tax.service.ts:267	apps/api/services/tax	(input: { treatment?: string | undefined; rateBps?: number |…): void	
 assertCreditable	fn	local	apps/api/src/services/invoicing/credit-note.service.ts:260	apps/api/services/invoicing	(original: Original): void	
@@ -339,8 +352,8 @@ assignRole	fn/async	export	apps/api/src/services/iam/member.service.ts:323	apps/
 assignRoleRequest	zod	export	packages/contracts/src/tenancy.ts:377	packages/contracts	z.object(…)	
 AssignRoleRequest	type	export	packages/contracts/src/tenancy.ts:977	packages/contracts	z.infer<typeof assignRoleRequest>	
 assignSerial	fn/async	export	apps/api/src/services/inventory/serial.service.ts:374	apps/api/services/inventory	(ctx: TenantContext, id: string, input: AssignSerialRequest, options: CatalogueActionOptions): Promise<SerialDetail>	
-assignSerialRequest	zod	export	packages/contracts/src/inventory.ts:521	packages/contracts	z.object(…)	
-AssignSerialRequest	type	export	packages/contracts/src/inventory.ts:874	packages/contracts	z.infer<typeof assignSerialRequest>	
+assignSerialRequest	zod	export	packages/contracts/src/inventory.ts:528	packages/contracts	z.object(…)	
+AssignSerialRequest	type	export	packages/contracts/src/inventory.ts:881	packages/contracts	z.infer<typeof assignSerialRequest>	
 asString	fn	local	apps/web/src/components/tenant/field-renderer.tsx:56	apps/web/components/tenant	(value: FieldValue): string	
 asTenant	fn/async	local	apps/api/tests/integration/registration.test.ts:45	apps/api/tests/integration	(organizationId: string, branchIds: string[], fn: () => Promise<T>): Promise<T>	Run a query with the tenant session variables set, exactly as withTenant does. `branchIds` matters: membership_roles ca…
 asTenant	fn/async	export	apps/api/tests/integration/tenant-isolation/harness.ts:69	apps/api/tests/integration/tenant-isolation	(organizationId: string, fn: () => Promise<T>): Promise<T>	Run a unit of work with the tenant session variables set, as the app does.
@@ -352,6 +365,7 @@ asUser	fn	local	apps/api/tests/integration/invoices.test.ts:112	apps/api/tests/i
 asUser	fn	local	apps/api/tests/integration/settings.test.ts:93	apps/api/tests/integration	(slug: string, token: () => string)	
 atBranch	fn	local	packages/tax/tests/countries.test.ts:54	packages/tax/tests	(reg: IssuerRegistration, rules: TaxRule[], currency: string, over: Partial<TaxableSupply>): TaxableSupply	A patient at the clinic's own branch — the ordinary case in every country.
 atHost	fn	local	apps/api/tests/integration/invitations.test.ts:116	apps/api/tests/integration	(slug: string)	The accept side is unauthenticated and lives on the auth router.
+attachBatches	fn/async	local	apps/api/src/services/recall/recall.service.ts:314	apps/api/services/recall	(tx: TxClient, ctx: TenantContext, recall: { id: string; productId: string }, batchIds: readonly string[]): Promise<number>	
 ATTACHMENT_KINDS	const	local	apps/web/src/components/tenant/consultation-content.tsx:1288	apps/web/components/tenant	[ { value: 'PHOTO', label: 'Photograph' }, { value: 'REPORT', label: 'Report' }, { value:…	
 ATTACHMENT_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:200	apps/api/services/clinical	{ id: true, storedFileId: true, kind: true, caption: true, displayOrder: true, storedFile…	
 AttachmentsSection	component	export	apps/web/src/components/tenant/consultation-content.tsx:1303	apps/web/components/tenant	(props: ContentSectionProps)	
@@ -390,6 +404,7 @@ auditMeta	fn	local	apps/api/src/routes/v1/visual-maps.routes.ts:68	apps/api/rout
 auditMeta	fn	export	apps/api/src/services/charging/policy.service.ts:498	apps/api/services/charging	(options: ChargingActionOptions): { ipAddress?: string | undefined; userAgent?: string | unde…	The audit metadata a route hands down, narrowed to what `audit_logs` holds.
 auditMeta	fn	export	apps/api/src/services/consumption/shared.ts:87	apps/api/services/consumption	(options: { ipAddress?: string | undefined; userAgent?: stri…): { ipAddress?: string; userAgent?: string }	
 auditMeta	fn	export	apps/api/src/services/pharmacy/shared.ts:328	apps/api/services/pharmacy	(options: { ipAddress?: string | undefined; userAgent?: stri…): { ipAddress?: string; userAgent?: string }	
+auditMeta	fn	export	apps/api/src/services/recall/shared.ts:42	apps/api/services/recall	(options: RecallActionOptions): { ipAddress?: string; userAgent?: string; }	
 auditOptions	fn	export	apps/api/src/services/invoicing/invoice.service.ts:81	apps/api/services/invoicing	(options: InvoiceActionOptions): InvoiceAuditOptions	
 AuditRow	type	local	apps/api/src/services/clinical/encounter.service.ts:131	apps/api/services/clinical	Prisma.EncounterGetPayload<{ select: typeof AUDIT_SELECT }>	
 auditRows	fn/async	local	apps/api/tests/integration/verification.test.ts:128	apps/api/tests/integration	(userId: string): Promise< { organization_id: string | null; before_data: Rec…	
@@ -424,6 +439,13 @@ availableByProduct	fn/async	local	apps/api/src/services/pharmacy/queue.service.t
 availableSlug	var	export	packages/contracts/src/common.ts:52	packages/contracts	slug.refine(…)	
 averageCostBase	fn	export	packages/inventory/src/costing.ts:157	packages/inventory	(valuedCostMinor: bigint, valuedQuantityBase: string): number	
 backdateEverything	fn/async	local	apps/api/tests/integration/quantity-limit.test.ts:142	apps/api/tests/integration	(days: number): Promise<void>	Backdate a supply, so the window can be tested from both sides.
+backwardTrace	fn/async	export	apps/api/src/services/recall/trace.service.ts:280	apps/api/services/recall	(ctx: TenantContext, query: BackwardTraceQuery): Promise<BackwardTraceResponse>	
+backwardTraceQuery	var	export	packages/contracts/src/recall.ts:291	packages/contracts	traceSubject.refine(…)	BACKWARD — "where did this come from". A lot to the delivery that introduced it, to the order, to the supplier. No PHI …
+BackwardTraceQuery	type	export	packages/contracts/src/recall.ts:398	packages/contracts	z.infer<typeof backwardTraceQuery>	
+backwardTraceReceipt	zod	export	packages/contracts/src/recall.ts:293	packages/contracts	z.object(…)	
+BackwardTraceReceipt	type	export	packages/contracts/src/recall.ts:399	packages/contracts	z.infer<typeof backwardTraceReceipt>	
+backwardTraceResponse	zod	export	packages/contracts/src/recall.ts:308	packages/contracts	z.object(…)	
+BackwardTraceResponse	type	export	packages/contracts/src/recall.ts:400	packages/contracts	z.infer<typeof backwardTraceResponse>	
 balanceInclude	var	local	apps/api/src/services/inventory/balance.service.ts:37	apps/api/services/inventory	Prisma.validator<Prisma.StockBalanceInclude>()(…)	
 balanceOf	fn/async	local	apps/api/tests/integration/pharmacy.test.ts:110	apps/api/tests/integration	(batchId: string, status: string): Promise<number>	
 balanceOf	fn/async	local	apps/api/tests/integration/procurement.test.ts:122	apps/api/tests/integration	(productId: string, status: string): Promise<number>	
@@ -434,20 +456,21 @@ BASE_SCALE	const	export	packages/inventory/src/units.ts:51	packages/inventory	6	
 baseCookie	var	export	apps/web/src/lib/session-cookie.ts:21	apps/web/lib	{ httpOnly: true, // Lax, not Strict: Strict would drop the cookie on the cross-host redi…	
 BATCH_MANAGE	const	local	apps/api/src/routes/v1/inventory.routes.ts:167	apps/api/routes/v1	PERMISSIONS.BATCH_MANAGE	
 BATCH_STATUS_LABEL	const	export	apps/web/src/components/tenant/stock-status.tsx:46	apps/web/components/tenant	: Record<BatchStatus, string>	
-batchDetail	var	export	packages/contracts/src/inventory.ts:450	packages/contracts	batchSummary.extend(…)	
-BatchDetail	type	export	packages/contracts/src/inventory.ts:868	packages/contracts	z.infer<typeof batchDetail>	
-batchHoldRequest	var	export	packages/contracts/src/inventory.ts:476	packages/contracts	z .object({ action: z.enum(['QUARANTINE', 'QUARANTINE_RELEA…	
-BatchHoldRequest	type	export	packages/contracts/src/inventory.ts:870	packages/contracts	z.infer<typeof batchHoldRequest>	
-batchListResponse	zod	export	packages/contracts/src/inventory.ts:440	packages/contracts	z.object(…)	
-BatchListResponse	type	export	packages/contracts/src/inventory.ts:869	packages/contracts	z.infer<typeof batchListResponse>	
+batchDetail	var	export	packages/contracts/src/inventory.ts:457	packages/contracts	batchSummary.extend(…)	
+BatchDetail	type	export	packages/contracts/src/inventory.ts:875	packages/contracts	z.infer<typeof batchDetail>	
+batchHoldRequest	var	export	packages/contracts/src/inventory.ts:483	packages/contracts	z .object({ action: z.enum(['QUARANTINE', 'QUARANTINE_RELEA…	
+BatchHoldRequest	type	export	packages/contracts/src/inventory.ts:877	packages/contracts	z.infer<typeof batchHoldRequest>	
+batchListResponse	zod	export	packages/contracts/src/inventory.ts:447	packages/contracts	z.object(…)	
+BatchListResponse	type	export	packages/contracts/src/inventory.ts:876	packages/contracts	z.infer<typeof batchListResponse>	
 batchParams	zod	local	apps/api/src/routes/v1/inventory.routes.ts:293	apps/api/routes/v1	z.object(…)	
-batchQuery	zod	export	packages/contracts/src/inventory.ts:391	packages/contracts	z.object(…)	
-BatchQuery	type	export	packages/contracts/src/inventory.ts:866	packages/contracts	z.infer<typeof batchQuery>	
+batchQuery	zod	export	packages/contracts/src/inventory.ts:398	packages/contracts	z.object(…)	
+BatchQuery	type	export	packages/contracts/src/inventory.ts:873	packages/contracts	z.infer<typeof batchQuery>	
 batchRoutes	var	export	apps/api/src/routes/v1/inventory.routes.ts:291	apps/api/routes/v1	: IRouter	
 batchStatus	zod	export	packages/contracts/src/inventory.ts:55	packages/contracts	z.enum(…)	
-BatchStatus	type	export	packages/contracts/src/inventory.ts:847	packages/contracts	z.infer<typeof batchStatus>	
-batchSummary	zod	export	packages/contracts/src/inventory.ts:413	packages/contracts	z.object(…)	
-BatchSummary	type	export	packages/contracts/src/inventory.ts:867	packages/contracts	z.infer<typeof batchSummary>	
+BatchStatus	type	export	packages/contracts/src/inventory.ts:854	packages/contracts	z.infer<typeof batchStatus>	
+batchStatusOf	fn/async	local	apps/api/tests/integration/recall.test.ts:176	apps/api/tests/integration	(batchId: string): Promise<string>	
+batchSummary	zod	export	packages/contracts/src/inventory.ts:420	packages/contracts	z.object(…)	
+BatchSummary	type	export	packages/contracts/src/inventory.ts:874	packages/contracts	z.infer<typeof batchSummary>	
 bearerToken	fn	local	apps/api/src/middleware/auth.middleware.ts:28	apps/api/middleware	(req: Request): string | null	`Authorization: Bearer <token>` -> the token, or null.
 BILLABLE_BY_DEFAULT	const	local	apps/api/src/services/charging/policy.service.ts:58	apps/api/services/charging	: ReadonlySet<string>	
 BillableAppointment	type	local	apps/api/src/services/invoicing/appointment-billing.service.ts:229	apps/api/services/invoicing	Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>	
@@ -546,12 +569,13 @@ BranchSummary	type	export	packages/contracts/src/auth.ts:337	packages/contracts	
 BranchSwitcher	component	export	apps/web/src/components/tenant/branch-switcher.tsx:17	apps/web/components/tenant	({ slug, branches, activeBranchId, }: { slug: string; branch…)	
 browser	var	local	apps/worker/src/documents/browser.ts:73	apps/worker/documents	: Browser | null	
 Browser	component	local	apps/web/src/components/tenant/classification-picker.tsx:328	apps/web/components/tenant	({ tree, alreadyChosen, onChoose, onCancel, }: { tree: Retur…)	
+bucket	fn/async	local	apps/api/tests/integration/recall.test.ts:167	apps/api/tests/integration	(batchId: string, status: string): Promise<string>	What one lot holds in one bucket. The ledger's answer, read from the cache.
 Bucket	interface	export	apps/web/src/components/tenant/stock-status.tsx:87	apps/web/components/tenant	{ status, quantity }	
 BUCKET_LABEL	const	local	apps/web/src/components/tenant/purchase-return-panel.tsx:34	apps/web/components/tenant	: Record<string, string>	
 BucketBar	component	export	apps/web/src/components/tenant/stock-status.tsx:134	apps/web/components/tenant	({ buckets, unit, label, }: { buckets: Bucket[]; unit: strin…)	One lot's holding, drawn. `unit` is the product's base unit symbol — every quantity in the programme is denominated in …
-bucketKey	fn	local	packages/inventory/src/movement.ts:264	packages/inventory	(key: BucketKey): string	
-BucketKey	interface	local	packages/inventory/src/movement.ts:217	packages/inventory	{ organizationId, branchId, productId, batchId, serialId, locationId, status }	
-bucketQuantity	fn/async	local	packages/inventory/src/movement.ts:318	packages/inventory	(tx: TxClient, key: BucketKey): Promise<string>	
+bucketKey	fn	local	packages/inventory/src/movement.ts:271	packages/inventory	(key: BucketKey): string	
+BucketKey	interface	local	packages/inventory/src/movement.ts:224	packages/inventory	{ organizationId, branchId, productId, batchId, serialId, locationId, status }	
+bucketQuantity	fn/async	local	packages/inventory/src/movement.ts:325	packages/inventory	(tx: TxClient, key: BucketKey): Promise<string>	
 BUCKETS	component	local	apps/web/src/components/tenant/adjustment-form.tsx:67	apps/web/components/tenant	: Record<string, { from?: string; to?: string; explains: string }>	
 BUCKETS	component	local	apps/web/src/components/tenant/purchase-return-form.tsx:34	apps/web/components/tenant	[ { value: '', label: 'Which stock is going back?' }, { value: 'AVAILABLE', label: 'Sound…	
 budget	fn	local	apps/api/src/middleware/rateLimiter.middleware.ts:31	apps/api/middleware	(max: number): number	
@@ -618,9 +642,13 @@ CancelPurchaseOrderRequest	type	export	packages/contracts/src/procurement.ts:106
 cancelPurchaseReturn	fn/async	export	apps/api/src/services/procurement/purchase-return.service.ts:770	apps/api/services/procurement	(ctx: TenantContext, id: string, input: CancelPurchaseReturnRequest, options: CatalogueActionOptions): Promise<PurchaseReturnDetail>	
 cancelPurchaseReturnRequest	zod	export	packages/contracts/src/procurement.ts:909	packages/contracts	z.object(…)	
 CancelPurchaseReturnRequest	type	export	packages/contracts/src/procurement.ts:1085	packages/contracts	z.infer<typeof cancelPurchaseReturnRequest>	
+cancelRecall	fn/async	export	apps/api/src/services/recall/recall.service.ts:929	apps/api/services/recall	(ctx: TenantContext, id: string, input: CancelRecallRequest, options: RecallActionOptions): Promise<RecallDetail>	
+cancelRecallAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:250	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>	
+cancelRecallRequest	zod	export	packages/contracts/src/recall.ts:133	packages/contracts	z.object(…)	
+CancelRecallRequest	type	export	packages/contracts/src/recall.ts:385	packages/contracts	z.infer<typeof cancelRecallRequest>	
 cancelRequisition	fn/async	export	apps/api/src/services/procurement/requisition.service.ts:577	apps/api/services/procurement	(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseRequisitionDetail>	
-cancelStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1079	packages/contracts	z.object(…)	
-CancelStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1327	packages/contracts	z.infer<typeof cancelStockTransferRequest>	
+cancelStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1086	packages/contracts	z.object(…)	
+CancelStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1334	packages/contracts	z.infer<typeof cancelStockTransferRequest>	
 cancelSubscription	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/actions.ts:153	apps/web/app/(tenant)/t/[slug]/(app)/billing	(slug: string, _previous: BillingFormState, formData: FormData): Promise<BillingFormState>	
 cancelSubscription	fn/async	export	packages/billing/src/engine/lifecycle.ts:447	packages/billing/engine	(ctx: TenantContext, runtime: BillingRuntime, input: CancelInput, run: TenantRunner): Promise<{ status: string; endsAt: Date }>	
 cancelSubscriptionRequest	zod	export	packages/contracts/src/billing.ts:64	packages/contracts	z.object(…)	
@@ -656,7 +684,7 @@ CategoryRow	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:570
 categorySubtreeIds	fn/async	export	apps/api/src/services/product/category.service.ts:234	apps/api/services/product	(tx: TxClient, id: string): Promise<string[]>	
 CELSIUS_PLACES	const	local	packages/contracts/src/locale.ts:1102	packages/contracts	100	Decimal places `temperature_c` is stored at — `Decimal(4, 2)`, so 0.01 °C.
 CERTAINTIES	component	local	apps/web/src/components/tenant/consultation-content.tsx:509	apps/web/components/tenant	[ { value: 'CONFIRMED', label: 'Confirmed' }, { value: 'PROVISIONAL', label: 'Provisional…	
-chainOf	fn	local	apps/api/tests/unit/route-gates.test.ts:218	apps/api/tests/unit	(router: IRouter): string[]	
+chainOf	fn	local	apps/api/tests/unit/route-gates.test.ts:231	apps/api/tests/unit	(router: IRouter): string[]	
 Change	component	local	apps/web/src/components/tenant/vitals-history.tsx:211	apps/web/components/tenant	({ change, temperatureUnit, }: { change: VitalsChange; tempe…)	
 ChangeDirection	type	export	packages/billing/src/proration.ts:106	packages/billing	'UPGRADE' | 'LATERAL' | 'DOWNGRADE'	
 changedMeasurements	fn	local	apps/api/src/services/appointment/vitals.service.ts:314	apps/api/services/appointment	(before: VitalsRow, after: VitalsRow): string[]	Which measurements differ between two versions of a row. Names, never values.
@@ -733,6 +761,7 @@ CircleShape	interface	export	packages/clinical/src/regions.ts:83	packages/clinic
 claimAt	fn/async	local	apps/api/tests/integration/impersonation.test.ts:110	apps/api/tests/integration	(slug: string, handoffToken: string)	Spend a ticket at a clinic's own host, which is the only place it works.
 claimImpersonation	fn/async	export	apps/api/src/services/platform/impersonation.service.ts:177	apps/api/services/platform	(input: ClaimImpersonationInput): Promise<AuthSession>	
 ClaimImpersonationInput	interface	export	apps/api/src/services/platform/impersonation.service.ts:161	apps/api/services/platform	{ organizationId, handoffToken, ipAddress, userAgent }	
+CLASS_LABEL	const	local	apps/web/src/components/tenant/product-recall-list.tsx:46	apps/web/components/tenant	: Record<RecallSummary['classification'], string>	
 classificationData	fn	local	apps/api/src/services/doctor/doctor.service.ts:458	apps/api/services/doctor	(entry: DoctorClassificationInput, organizationId: string, primaryId: string | undefined): { organizationId: string; specialtyId: string; isPrimary: b…	
 ClassificationEntry	interface	export	apps/web/src/components/tenant/classification-picker.tsx:37	apps/web/components/tenant	{ specialtyId, isPrimary, proficiency, effectiveFrom, effectiveTo }	One row's editable detail. Everything but the id is optional.
 ClassificationPicker	component	export	apps/web/src/components/tenant/classification-picker.tsx:61	apps/web/components/tenant	({ specialties, defaultValue = [], label = 'Clinical classif…)	
@@ -854,6 +883,10 @@ closeBrowser	fn/async	export	apps/worker/src/documents/browser.ts:143	apps/worke
 closePurchaseOrder	fn/async	export	apps/api/src/services/procurement/purchase-order.service.ts:730	apps/api/services/procurement	(ctx: TenantContext, id: string, input: ClosePurchaseOrderRequest, options: CatalogueActionOptions): Promise<PurchaseOrderDetail>	
 closePurchaseOrderRequest	zod	export	packages/contracts/src/procurement.ts:544	packages/contracts	z.object(…)	
 ClosePurchaseOrderRequest	type	export	packages/contracts/src/procurement.ts:1063	packages/contracts	z.infer<typeof closePurchaseOrderRequest>	
+closeRecall	fn/async	export	apps/api/src/services/recall/recall.service.ts:877	apps/api/services/recall	(ctx: TenantContext, id: string, input: CloseRecallRequest, options: RecallActionOptions): Promise<RecallDetail>	
+closeRecallAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:219	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>	
+closeRecallRequest	zod	export	packages/contracts/src/recall.ts:129	packages/contracts	z.object(…)	
+CloseRecallRequest	type	export	packages/contracts/src/recall.ts:384	packages/contracts	z.infer<typeof closeRecallRequest>	
 Closing	component	local	packages/documents/src/invoice/document.tsx:421	packages/documents/invoice	({ data }: { data: InvoiceDocumentData }): JSX.Element	
 cn	fn	export	apps/web/src/lib/cn.ts:9	apps/web/lib	(inputs: ClassValue[]): string	Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be ov…
 CODE_PATTERN	const	local	packages/clinical/src/definition.ts:43	packages/clinical	/^[A-Z][A-Z0-9_]*$/	A taxonomy or map code, spelled the way every other code in this repo is.
@@ -1089,6 +1122,7 @@ coversEveryBranch	fn/async	export	apps/api/src/services/iam/guards.ts:108	apps/a
 coversJurisdiction	fn	export	packages/regulatory/src/selection.ts:74	packages/regulatory	(rule: Jurisdiction, place: Jurisdiction): boolean	
 coversProduct	fn	export	packages/regulatory/src/selection.ts:100	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): boolean	
 coversTransaction	fn	export	packages/regulatory/src/selection.ts:82	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): boolean	Empty means every transaction — see the schema comment.
+CREATE	const	local	apps/api/src/routes/v1/recalls.routes.ts:103	apps/api/routes/v1	PERMISSIONS.RECALL_CREATE	
 createActiveIngredient	fn/async	export	apps/api/src/services/product/catalogue.service.ts:239	apps/api/services/product	(ctx: TenantContext, input: CreateActiveIngredientRequest, options: CatalogueActionOptions): Promise<ActiveIngredientSummary>	
 createActiveIngredientRequest	zod	export	packages/contracts/src/products.ts:323	packages/contracts	z.object(…)	
 CreateActiveIngredientRequest	type	export	packages/contracts/src/products.ts:872	packages/contracts	z.infer<typeof createActiveIngredientRequest>	
@@ -1099,9 +1133,9 @@ CreateAppointmentInvoiceRequest	type	export	packages/contracts/src/invoices.ts:6
 createAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:134	packages/contracts	z.object(…)	
 CreateAppointmentRequest	type	export	packages/contracts/src/appointments.ts:812	packages/contracts	z.infer<typeof createAppointmentRequest>	
 createAuthority	fn/async	export	apps/api/src/services/platform/regulatory.service.ts:224	apps/api/services/platform	(input: CreateRegulatoryAuthorityRequest): Promise<RegulatoryAuthoritySummary>	
-createBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:220	apps/api/services/inventory	(ctx: TenantContext, input: CreateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>	
-createBatchRequest	zod	export	packages/contracts/src/inventory.ts:342	packages/contracts	z.object(…)	
-CreateBatchRequest	type	export	packages/contracts/src/inventory.ts:864	packages/contracts	z.infer<typeof createBatchRequest>	
+createBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:230	apps/api/services/inventory	(ctx: TenantContext, input: CreateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>	
+createBatchRequest	zod	export	packages/contracts/src/inventory.ts:349	packages/contracts	z.object(…)	
+CreateBatchRequest	type	export	packages/contracts/src/inventory.ts:871	packages/contracts	z.infer<typeof createBatchRequest>	
 createBranch	fn/async	export	apps/api/src/services/branch/branch.service.ts:222	apps/api/services/branch	(ctx: TenantContext, input: CreateBranchRequest, options: BranchActionOptions): Promise<BranchDetail>	
 createBranch	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:46	apps/web/app/(tenant)/t/[slug]/(app)/branches	(slug: string, _previous: BranchFormState, formData: FormData): Promise<BranchFormState>	
 createBranchRequest	zod	export	packages/contracts/src/tenancy.ts:162	packages/contracts	z.object(…)	
@@ -1181,8 +1215,8 @@ createGoodsReceipt	fn/async	export	apps/api/src/services/procurement/goods-recei
 createGoodsReceiptAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:535	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>	
 createGoodsReceiptRequest	zod	export	packages/contracts/src/procurement.ts:677	packages/contracts	z.object(…)	
 CreateGoodsReceiptRequest	type	export	packages/contracts/src/procurement.ts:1072	packages/contracts	z.infer<typeof createGoodsReceiptRequest>	
-createInventoryLocationRequest	zod	export	packages/contracts/src/inventory.ts:229	packages/contracts	z.object(…)	
-CreateInventoryLocationRequest	type	export	packages/contracts/src/inventory.ts:854	packages/contracts	z.infer<typeof createInventoryLocationRequest>	
+createInventoryLocationRequest	zod	export	packages/contracts/src/inventory.ts:236	packages/contracts	z.object(…)	
+CreateInventoryLocationRequest	type	export	packages/contracts/src/inventory.ts:861	packages/contracts	z.infer<typeof createInventoryLocationRequest>	
 createInvitation	fn/async	export	apps/api/src/services/invitation/invitation.service.ts:212	apps/api/services/invitation	(ctx: TenantContext, input: InviteMemberRequest, options: InvitationActionOptions): Promise<InvitationSummary>	
 createInvoice	fn/async	export	apps/api/src/services/invoicing/invoice.service.ts:441	apps/api/services/invoicing	(ctx: TenantContext, input: CreateInvoiceServiceInput, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>	
 createInvoiceForAppointment	fn/async	export	apps/api/src/services/invoicing/appointment-billing.service.ts:555	apps/api/services/invoicing	(ctx: TenantContext, appointmentId: string, input: CreateAppointmentInvoiceRequest, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>	
@@ -1232,6 +1266,10 @@ CreatePurchaseReturnRequest	type	export	packages/contracts/src/procurement.ts:10
 createQualificationRow	fn/async	local	apps/api/src/services/doctor/doctor.service.ts:621	apps/api/services/doctor	(tx: TxClient, ctx: TenantContext, doctorId: string, input: DoctorQualificationRequest, options: DoctorActionOptions): Promise<void>	
 createQueues	fn	export	packages/queue/src/index.ts:63	packages/queue	(connection: Redis): Record<QueueName, Queue>	
 createReasonCode	fn/async	export	apps/api/src/services/inventory/reason-code.service.ts:218	apps/api/services/inventory	(ctx: TenantContext, input: CreateStockReasonCodeRequest, options: CatalogueActionOptions): Promise<StockReasonCodeSummary>	
+createRecall	fn/async	export	apps/api/src/services/recall/recall.service.ts:361	apps/api/services/recall	(ctx: TenantContext, input: CreateRecallRequest, options: RecallActionOptions): Promise<RecallDetail>	
+createRecallAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:67	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>	
+createRecallRequest	zod	export	packages/contracts/src/recall.ts:65	packages/contracts	z.object(…)	
+CreateRecallRequest	type	export	packages/contracts/src/recall.ts:379	packages/contracts	z.infer<typeof createRecallRequest>	
 createRedisConnection	fn	export	packages/queue/src/index.ts:55	packages/queue	(url: string): Redis	
 createRegistration	fn/async	local	apps/api/src/services/patient/patient.service.ts:305	apps/api/services/patient	(tx: TxClient, ctx: TenantContext, patientId: string, branchId: string): Promise<{ id: string; mrn: string }>	
 createRegulatoryAuthorityRequest	zod	export	packages/contracts/src/regulatory.ts:219	packages/contracts	z.object(…)	
@@ -1255,17 +1293,17 @@ createScheduleRow	fn/async	export	apps/api/src/services/doctor/doctor-schedule.s
 createSerial	fn/async	export	apps/api/src/services/inventory/serial.service.ts:221	apps/api/services/inventory	(ctx: TenantContext, input: CreateSerialRequest, options: CatalogueActionOptions): Promise<SerialDetail>	
 createSerialAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:281	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
 createSerialIfNeeded	fn/async	local	apps/api/src/services/procurement/goods-receipt.service.ts:1236	apps/api/services/procurement	(tx: TxClient, ctx: TenantContext, branchId: string, locationId: string, batchId: string | null, line: LineRow): Promise<string | null>	
-createSerialRequest	zod	export	packages/contracts/src/inventory.ts:492	packages/contracts	z.object(…)	
-CreateSerialRequest	type	export	packages/contracts/src/inventory.ts:872	packages/contracts	z.infer<typeof createSerialRequest>	
+createSerialRequest	zod	export	packages/contracts/src/inventory.ts:499	packages/contracts	z.object(…)	
+CreateSerialRequest	type	export	packages/contracts/src/inventory.ts:879	packages/contracts	z.infer<typeof createSerialRequest>	
 createSession	fn/async	export	apps/api/src/services/auth/session.service.ts:117	apps/api/services/auth	(input: CreateSessionInput): Promise<IssuedSession>	
 CreateSessionInput	interface	export	apps/api/src/services/auth/session.service.ts:102	apps/api/services/auth	{ userId, activeOrganizationId, activeBranchId, impersonatedByUserId, ipAddress, userAgent, expiresAt }	
 createSource	fn/async	export	apps/api/src/services/platform/regulatory.service.ts:307	apps/api/services/platform	(input: CreateRegulatorySourceRequest): Promise<RegulatorySourceSummary>	
-createStockReasonCodeRequest	zod	export	packages/contracts/src/inventory.ts:937	packages/contracts	z.object(…)	
-CreateStockReasonCodeRequest	type	export	packages/contracts/src/inventory.ts:1317	packages/contracts	z.infer<typeof createStockReasonCodeRequest>	
-createStockReservationRequest	zod	export	packages/contracts/src/inventory.ts:1177	packages/contracts	z.object(…)	
-CreateStockReservationRequest	type	export	packages/contracts/src/inventory.ts:1334	packages/contracts	z.infer<typeof createStockReservationRequest>	
-createStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1011	packages/contracts	z.object(…)	
-CreateStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1324	packages/contracts	z.infer<typeof createStockTransferRequest>	
+createStockReasonCodeRequest	zod	export	packages/contracts/src/inventory.ts:944	packages/contracts	z.object(…)	
+CreateStockReasonCodeRequest	type	export	packages/contracts/src/inventory.ts:1324	packages/contracts	z.infer<typeof createStockReasonCodeRequest>	
+createStockReservationRequest	zod	export	packages/contracts/src/inventory.ts:1184	packages/contracts	z.object(…)	
+CreateStockReservationRequest	type	export	packages/contracts/src/inventory.ts:1341	packages/contracts	z.infer<typeof createStockReservationRequest>	
+createStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1018	packages/contracts	z.object(…)	
+CreateStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1331	packages/contracts	z.infer<typeof createStockTransferRequest>	
 createStorageProfile	fn/async	export	apps/api/src/services/product/catalogue.service.ts:620	apps/api/services/product	(ctx: TenantContext, input: CreateStorageProfileRequest, options: CatalogueActionOptions): Promise<StorageProfileSummary>	
 createStorageProfileRequest	var	export	packages/contracts/src/products.ts:414	packages/contracts	z .object({ code: catalogueCode, name: z.string().trim().mi…	
 CreateStorageProfileRequest	type	export	packages/contracts/src/products.ts:882	packages/contracts	z.infer<typeof createStorageProfileRequest>	
@@ -1396,7 +1434,7 @@ DEFAULT_JOB_OPTIONS	const	export	packages/queue/src/index.ts:47	packages/queue	:
 DEFAULT_LIMIT	const	local	apps/api/src/services/audit/history.service.ts:31	apps/api/services/audit	50	One page. A record with more history than this is a scroll, not a page.
 DEFAULT_MRN_PREFIX	const	local	apps/api/src/services/patient/patient.service.ts:64	apps/api/services/patient	'MRN'	
 DEFAULT_SLOT_MINUTES	const	local	apps/api/src/services/doctor/doctor.service.ts:52	apps/api/services/doctor	15	Fallback when no `appointment.slot_minutes` is set anywhere. Matches the seed.
-DEFAULT_STATUS	const	local	packages/inventory/src/movement.ts:166	packages/inventory	: Partial<Record<StockMovementType, { from?: StockStatus; to?: StockStatus }>>	
+DEFAULT_STATUS	const	local	packages/inventory/src/movement.ts:172	packages/inventory	: Partial<Record<StockMovementType, { from?: StockStatus; to?: StockStatus }>>	
 DEFAULT_TIME_FORMAT	const	export	packages/contracts/src/locale.ts:1176	packages/contracts	: TimeFormat	What a clinic gets before anybody chooses. Must match the seeded default.
 DEFAULT_UHID_PREFIX	const	local	apps/api/src/services/patient/patient.service.ts:63	apps/api/services/patient	'P'	Fallbacks when the settings are unset. Both match the seed.
 defaultBranchId	fn/async	export	apps/api/src/services/auth/login.service.ts:197	apps/api/services/auth	(organizationId: string, userId: string, branchIds: string[], membershipId: string): Promise<string | null>	
@@ -1463,7 +1501,7 @@ DETAIL_INCLUDE	const	local	apps/api/src/services/consumption/consumption.service
 DETAIL_INCLUDE	const	local	apps/api/src/services/consumption/template.service.ts:47	apps/api/services/consumption	Prisma.validator<Prisma.ConsumptionTemplateInclude>()(…)	
 DETAIL_SELECT	const	local	apps/api/src/services/clinical/encounter.service.ts:112	apps/api/services/clinical	{ ...AUDIT_SELECT, branchId: true, templateId: true, templateSnapshot: true, chiefComplai…	
 DETAIL_SELECT	const	local	apps/api/src/services/invoicing/invoice.service.ts:112	apps/api/services/invoicing	{ ...LIST_SELECT, appointmentId: true, /* Not printed — `lo…	
-detailInclude	var	local	apps/api/src/services/inventory/batch.service.ts:48	apps/api/services/inventory	Prisma.validator<Prisma.BatchInclude>()(…)	
+detailInclude	var	local	apps/api/src/services/inventory/batch.service.ts:57	apps/api/services/inventory	Prisma.validator<Prisma.BatchInclude>()(…)	
 detailInclude	var	local	apps/api/src/services/inventory/location.service.ts:42	apps/api/services/inventory	Prisma.validator<Prisma.InventoryLocationInclude>()(…)	
 detailInclude	var	local	apps/api/src/services/inventory/transfer.service.ts:78	apps/api/services/inventory	Prisma.validator<Prisma.StockTransferInclude>()(…)	
 detailInclude	var	local	apps/api/src/services/pharmacy/dispense.service.ts:73	apps/api/services/pharmacy	Prisma.validator<Prisma.DispenseInclude>()(…)	
@@ -1474,10 +1512,11 @@ detailInclude	var	local	apps/api/src/services/procurement/requisition.service.ts
 detailInclude	var	local	apps/api/src/services/procurement/supplier-product.service.ts:46	apps/api/services/procurement	Prisma.validator<Prisma.SupplierProductInclude>()(…)	
 detailInclude	var	local	apps/api/src/services/procurement/supplier.service.ts:41	apps/api/services/procurement	Prisma.validator<Prisma.SupplierInclude>()(…)	
 detailInclude	var	local	apps/api/src/services/product/product.service.ts:70	apps/api/services/product	Prisma.validator<Prisma.ProductInclude>()(…)	
+detailInclude	var	local	apps/api/src/services/recall/recall.service.ts:84	apps/api/services/recall	Prisma.validator<Prisma.RecallInclude>()(…)	
 detailOf	fn	local	apps/api/src/services/appointment/appointment.service.ts:1631	apps/api/services/appointment	(row: AppointmentRow, statusHistory: AppointmentDetail['statusHistory'], chain: { parentAppointmentNumber?: string | null; followUps…): AppointmentDetail	
 DetailRow	type	local	apps/api/src/services/clinical/encounter.service.ts:132	apps/api/services/clinical	Prisma.EncounterGetPayload<{ select: typeof DETAIL_SELECT }>	
 DetailRow	type	local	apps/api/src/services/consumption/consumption.service.ts:113	apps/api/services/consumption	Prisma.ClinicalConsumptionGetPayload<{ include: typeof DETAIL_INCLUDE }>	
-DetailRow	type	local	apps/api/src/services/inventory/batch.service.ts:61	apps/api/services/inventory	Prisma.BatchGetPayload<{ include: typeof detailInclude }>	
+DetailRow	type	local	apps/api/src/services/inventory/batch.service.ts:71	apps/api/services/inventory	Prisma.BatchGetPayload<{ include: typeof detailInclude }>	
 DetailRow	type	local	apps/api/src/services/inventory/location.service.ts:51	apps/api/services/inventory	Prisma.InventoryLocationGetPayload<{ include: typeof detailInclude }>	
 DetailRow	type	local	apps/api/src/services/inventory/transfer.service.ts:105	apps/api/services/inventory	Prisma.StockTransferGetPayload<{ include: typeof detailInclude }>	
 DetailRow	type	local	apps/api/src/services/invoicing/invoice.service.ts:206	apps/api/services/invoicing	Prisma.InvoiceGetPayload<{ select: typeof DETAIL_SELECT }>	
@@ -1488,6 +1527,7 @@ DetailRow	type	local	apps/api/src/services/procurement/purchase-return.service.t
 DetailRow	type	local	apps/api/src/services/procurement/requisition.service.ts:78	apps/api/services/procurement	Prisma.PurchaseRequisitionGetPayload<{ include: typeof detailInclude }>	
 DetailRow	type	local	apps/api/src/services/procurement/supplier-product.service.ts:52	apps/api/services/procurement	Prisma.SupplierProductGetPayload<{ include: typeof detailInclude }>	
 DetailRow	type	local	apps/api/src/services/procurement/supplier.service.ts:46	apps/api/services/procurement	Prisma.SupplierGetPayload<{ include: typeof detailInclude }>	
+DetailRow	type	local	apps/api/src/services/recall/recall.service.ts:100	apps/api/services/recall	Prisma.RecallGetPayload<{ include: typeof detailInclude }>	
 DetailsForm	component	local	apps/web/src/components/tenant/member-list.tsx:593	apps/web/components/tenant	({ slug, member, designations, }: { slug: string; member: Me…)	
 DetailsTab	component	local	apps/web/src/components/tenant/product-panel.tsx:431	apps/web/components/tenant	({ product, editable, pending, onSave, }: { product: Product…)	
 deviceIsDark	fn	local	apps/web/src/components/shell/theme-settings.tsx:151	apps/web/components/shell	()	
@@ -1823,6 +1863,11 @@ ExceptionRow	interface	local	apps/api/src/services/appointment/availability.serv
 ExceptionRow	type	local	apps/api/src/services/doctor/doctor-schedule.service.ts:90	apps/api/services/doctor	Prisma.DoctorScheduleExceptionGetPayload<{ select: typeof EXCEPTION_SELECT }>	
 exceptions	fn/async	local	apps/api/src/services/appointment/availability.service.ts:163	apps/api/services/appointment	(tx: TxClient, branchId: string, doctorProfileId: string, dayStart: Date, dayEnd: Date): Promise<ExceptionRow[]>	
 EXECUTABLE_PATH	const	local	apps/worker/src/documents/browser.ts:42	apps/worker/documents	process.env['CHROMIUM_EXECUTABLE_PATH'] ?? '/usr/bin/chromi…	
+EXECUTE	const	local	apps/api/src/routes/v1/recalls.routes.ts:104	apps/api/routes/v1	PERMISSIONS.RECALL_EXECUTE	
+executeRecall	fn/async	export	apps/api/src/services/recall/recall.service.ts:653	apps/api/services/recall	(ctx: TenantContext, id: string, input: ExecuteRecallRequest, options: RecallActionOptions): Promise<RecallDetail>	
+executeRecallAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:161	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>	
+executeRecallRequest	zod	export	packages/contracts/src/recall.ts:118	packages/contracts	z.object(…)	
+ExecuteRecallRequest	type	export	packages/contracts/src/recall.ts:382	packages/contracts	z.infer<typeof executeRecallRequest>	
 EXEMPT	const	local	packages/db/scripts/check-rls.ts:29	packages/db/scripts	: Record<string, string>	Tables intentionally not tenant-scoped. Keep in sync with prisma/rls/enable-rls.sql.
 expectationsOf	fn	local	apps/api/src/services/consumption/consumption.service.ts:981	apps/api/services/consumption	(template: Awaited<ReturnType<typeof resolveTemplateInForceW…, graph: Parameters<typeof templateLineBase>[0]): Map<string, { productId: string; expectedBase: string }>	The template's expectations, keyed by line id and already in base units.
 EXPECTED	const	local	apps/api/src/services/organization/setting.service.ts:108	apps/api/services/organization	: Record<DataType, string>	
@@ -1837,10 +1882,10 @@ expiryFrom	fn	local	apps/api/src/services/invitation/invitation.service.ts:165	a
 expiryNeedsBatchTracking	fn	local	packages/contracts/src/products.ts:494	packages/contracts	(schema: T): T	
 expiryPhrase	fn	export	apps/web/src/components/tenant/stock-status.tsx:196	apps/web/components/tenant	(daysRemaining: number): string	
 expiryReport	fn/async	export	apps/api/src/services/inventory/expiry.service.ts:101	apps/api/services/inventory	(ctx: TenantContext, query: ExpiryReportQuery): Promise<ExpiryReportResponse>	
-expiryReportQuery	zod	export	packages/contracts/src/inventory.ts:814	packages/contracts	z.object(…)	
-ExpiryReportQuery	type	export	packages/contracts/src/inventory.ts:892	packages/contracts	z.infer<typeof expiryReportQuery>	
-expiryReportResponse	zod	export	packages/contracts/src/inventory.ts:822	packages/contracts	z.object(…)	
-ExpiryReportResponse	type	export	packages/contracts/src/inventory.ts:893	packages/contracts	z.infer<typeof expiryReportResponse>	
+expiryReportQuery	zod	export	packages/contracts/src/inventory.ts:821	packages/contracts	z.object(…)	
+ExpiryReportQuery	type	export	packages/contracts/src/inventory.ts:899	packages/contracts	z.infer<typeof expiryReportQuery>	
+expiryReportResponse	zod	export	packages/contracts/src/inventory.ts:829	packages/contracts	z.object(…)	
+ExpiryReportResponse	type	export	packages/contracts/src/inventory.ts:900	packages/contracts	z.infer<typeof expiryReportResponse>	
 ExpiryRow	interface	local	apps/api/src/services/inventory/expiry.service.ts:80	apps/api/services/inventory	{ batch_id, branch_id, product_id, product_name, lot_number, expires_on, days_remaining, quantity_available, base_unit_symbol, status }	
 EXPONENT_OVERRIDES	const	local	packages/payments/src/currency.ts:35	packages/payments	: Readonly<Record<string, number>>	
 extension	fn	local	apps/web/src/components/tenant/invoice-draft-editor.tsx:519	apps/web/components/tenant	(line: EditableLine, currency: string): string	
@@ -1910,8 +1955,8 @@ FinalizeEncounterRequest	type	export	packages/contracts/src/encounters.ts:152	pa
 finalizeInvoice	fn/async	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:488	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, input: FinalizeInvoiceInput, options: InvoiceAuditOptions): Promise<FinalizedInvoice>	
 FinalizeInvoiceInput	interface	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:145	apps/api/services/invoicing	{ invoiceId, issuedAt }	
 FINANCIAL_YEAR_COUNTRIES	const	local	apps/api/src/services/invoicing/invoice-number.service.ts:98	apps/api/services/invoicing	new Set(…)	
-financialYearOf	fn	export	apps/api/src/services/numbering/number-sequence.service.ts:221	apps/api/services/numbering	(localDate: Date): string	
-findBatchOrThrow	fn/async	local	apps/api/src/services/inventory/batch.service.ts:128	apps/api/services/inventory	(tx: TxClient, id: string): Promise<DetailRow>	
+financialYearOf	fn	export	apps/api/src/services/numbering/number-sequence.service.ts:233	apps/api/services/numbering	(localDate: Date): string	
+findBatchOrThrow	fn/async	local	apps/api/src/services/inventory/batch.service.ts:138	apps/api/services/inventory	(tx: TxClient, id: string): Promise<DetailRow>	
 findCompositionOrThrow	fn/async	local	apps/api/src/services/product/catalogue.service.ts:366	apps/api/services/product	(tx: TxClient, id: string)	
 findDue	fn/async	export	packages/billing/src/engine/renewal.ts:77	packages/billing/engine	(tx: TxClient, at: Date, limit): Promise<DueSubscription[]>	
 findDueReservations	fn/async	export	packages/inventory/src/reservation-sweep.ts:69	packages/inventory	(tx: TxClient, branchId: string): Promise<DueReservation[]>	
@@ -1934,6 +1979,7 @@ findOrCreateBatch	fn/async	local	apps/api/src/services/procurement/goods-receipt
 findOrCreateDestinationBatch	fn/async	local	apps/api/src/services/inventory/transfer.service.ts:1043	apps/api/services/inventory	(tx: TxClient, ctx: TenantContext, line: { productId: string; lotNumber: string | null; manufa…, toBranchId: string): Promise<string | null>	
 findOrderOrThrow	fn/async	local	apps/api/src/services/procurement/purchase-order.service.ts:160	apps/api/services/procurement	(tx: TxClient, id: string): Promise<DetailRow>	
 findProductOrThrow	fn/async	local	apps/api/src/services/product/product.service.ts:92	apps/api/services/product	(tx: TxClient, id: string)	
+findRecallOrThrow	fn/async	local	apps/api/src/services/recall/recall.service.ts:175	apps/api/services/recall	(tx: TxClient, id: string): Promise<DetailRow>	
 findReceiptOrThrow	fn/async	local	apps/api/src/services/procurement/goods-receipt.service.ts:191	apps/api/services/procurement	(tx: TxClient, id: string): Promise<DetailRow>	
 findRequisitionOrThrow	fn/async	local	apps/api/src/services/procurement/requisition.service.ts:135	apps/api/services/procurement	(tx: TxClient, id: string): Promise<DetailRow>	
 findReturnOrThrow	fn/async	local	apps/api/src/services/procurement/purchase-return.service.ts:154	apps/api/services/procurement	(tx: TxClient, id: string): Promise<DetailRow>	
@@ -1973,7 +2019,7 @@ FOOD_RELATIONS	const	local	apps/web/src/components/tenant/consultation-content.t
 FOOTER_BAND	const	export	packages/documents/src/chrome/styles.ts:115	packages/documents/chrome	'10mm'	The band along the foot: a rule, the document's small print, the page count.
 FOOTER_TEMPLATE_ID	const	export	packages/documents/src/chrome/template.tsx:57	packages/documents/chrome	'rcln-pdf-footer'	
 forgotPasswordRequest	zod	export	packages/contracts/src/auth.ts:42	packages/contracts	z.object(…)	
-format	fn	local	apps/api/src/services/numbering/number-sequence.service.ts:206	apps/api/services/numbering	(prefix: string, value: number, padding: number): string	
+format	fn	local	apps/api/src/services/numbering/number-sequence.service.ts:218	apps/api/services/numbering	(prefix: string, value: number, padding: number): string	
 format	fn	local	apps/web/src/components/tenant/checkout/provider-checkout.tsx:281	apps/web/components/tenant/checkout	(minor: number, currency: string): string	
 format	fn	local	apps/web/src/components/tenant/record-history.tsx:406	apps/web/components/tenant	(value: unknown): string	
 format	fn	local	apps/web/src/lib/calendar-range.ts:48	apps/web/lib	(at: Date): string	
@@ -1998,6 +2044,13 @@ formatRationalQuantity	fn	local	packages/inventory/src/costing.ts:296	packages/i
 formatZodErrors	fn	local	apps/api/src/middleware/error.middleware.ts:16	apps/api/middleware	(error: ZodError): Record<string, string[]>	Format Zod validation errors
 forTemperatureBox	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:538	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(errors: Record<string, string[]>): Record<string, string[]>	`temperatureC` (the contract's field) -> `temperature` (the form's box).
 forTenant	fn	export	packages/db/src/tenant.ts:200	packages/db	(ctx: TenantContext): ReturnType<PrismaClient['$extends']>	
+forwardTrace	fn/async	export	apps/api/src/services/recall/trace.service.ts:171	apps/api/services/recall	(ctx: TenantContext, query: ForwardTraceQuery): Promise<ForwardTraceResponse>	
+forwardTraceLocation	zod	export	packages/contracts/src/recall.ts:257	packages/contracts	z.object(…)	
+ForwardTraceLocation	type	export	packages/contracts/src/recall.ts:396	packages/contracts	z.infer<typeof forwardTraceLocation>	
+forwardTraceQuery	var	export	packages/contracts/src/recall.ts:255	packages/contracts	traceSubject.refine(…)	
+ForwardTraceQuery	type	export	packages/contracts/src/recall.ts:395	packages/contracts	z.infer<typeof forwardTraceQuery>	
+forwardTraceResponse	zod	export	packages/contracts/src/recall.ts:266	packages/contracts	z.object(…)	
+ForwardTraceResponse	type	export	packages/contracts/src/recall.ts:397	packages/contracts	z.infer<typeof forwardTraceResponse>	
 freezeFee	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:133	apps/api/services/appointment	(tx: TxClient, args: { doctorProfileId: string; branchId: string; visitTyp…): Promise<Prisma.Decimal | null>	
 FREQUENCY_UNITS	const	local	apps/web/src/components/tenant/consultation-content.tsx:777	apps/web/components/tenant	[ { value: 'DAY', label: 'per day' }, { value: 'WEEK', label: 'per week' }, { value: 'MON…	
 fromCelsius	fn	export	packages/contracts/src/locale.ts:1135	packages/contracts	(celsius: number, unit: TemperatureUnit): number	Celsius as stored → what this country reads it in.
@@ -2032,7 +2085,7 @@ getAncestors	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.serv
 getAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:650	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions, scope: { withBilling?: boolean }): Promise<AppointmentDetail>	
 getAppointmentBilling	fn/async	export	apps/api/src/services/invoicing/appointment-billing.service.ts:472	apps/api/services/invoicing	(ctx: TenantContext, appointmentId: string): Promise<AppointmentBilling>	
 getAvailability	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:490	apps/api/services/appointment	(ctx: TenantContext, input: { branchId: string; doctorProfileId: string; date: s…): Promise<AvailabilityResponse>	
-getBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:212	apps/api/services/inventory	(ctx: TenantContext, id: string): Promise<BatchDetail>	
+getBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:222	apps/api/services/inventory	(ctx: TenantContext, id: string): Promise<BatchDetail>	
 getBillingCurrency	fn/async	export	apps/api/src/services/billing/billing.service.ts:132	apps/api/services/billing	(ctx: TenantContext, countryCode: string | null): Promise<string>	Which currency this clinic is quoted in, for a screen that only needs that.
 getBillingOverview	fn/async	export	packages/billing/src/engine/read.ts:286	packages/billing/engine	(tx: TxClient, ctx: TenantContext, provider: PaymentProvider, countryCode: string | null, at: Date): Promise<BillingOverview>	
 getBranch	fn/async	export	apps/api/src/services/branch/branch.service.ts:208	apps/api/services/branch	(ctx: TenantContext, branchId: string): Promise<BranchDetail>	
@@ -2078,6 +2131,7 @@ getPreviousVisit	fn/async	export	apps/api/src/services/clinical/visit-history.se
 getProduct	fn/async	export	apps/api/src/services/product/product.service.ts:327	apps/api/services/product	(ctx: TenantContext, productId: string): Promise<ProductDetail>	
 getPurchaseOrder	fn/async	export	apps/api/src/services/procurement/purchase-order.service.ts:449	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<PurchaseOrderDetail>	
 getPurchaseReturn	fn/async	export	apps/api/src/services/procurement/purchase-return.service.ts:449	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<PurchaseReturnDetail>	
+getRecall	fn/async	export	apps/api/src/services/recall/recall.service.ts:228	apps/api/services/recall	(ctx: TenantContext, id: string): Promise<RecallDetail>	
 getRefreshToken	fn/async	export	apps/web/src/lib/session.ts:90	apps/web/lib	(): Promise<string | undefined>	
 getRequisition	fn/async	export	apps/api/src/services/procurement/requisition.service.ts:304	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<PurchaseRequisitionDetail>	
 getRulePack	fn/async	export	apps/api/src/services/regulatory/catalogue.service.ts:171	apps/api/services/regulatory	(ctx: TenantContext, packId: string): Promise<RulePackListResponse['packs'][number]>	
@@ -2141,6 +2195,7 @@ groupingLocale	fn	local	packages/documents/src/invoice/format.ts:65	packages/doc
 guarded	fn	local	apps/api/src/routes/v1/inventory.routes.ts:206	apps/api/routes/v1	(): IRouter	Applied to each router below. Extracted so one cannot be missed.
 guarded	fn	local	apps/api/src/routes/v1/procurement.routes.ts:228	apps/api/routes/v1	(): IRouter	Applied to each router below. Extracted so one cannot be missed.
 guarded	fn	local	apps/api/src/routes/v1/product-catalogue.routes.ts:110	apps/api/routes/v1	(): IRouter	Applied to each router below. Extracted so one cannot be missed.
+guarded	fn	local	apps/api/src/routes/v1/recalls.routes.ts:107	apps/api/routes/v1	(): IRouter	
 HAIR_SCALP_CONSULTATION	const	local	packages/db/prisma/seed/data/consultation-templates.ts:380	packages/db/prisma/seed/data	{ schemaVersion: 1, /* * ⚠️ DERMATOLOGY FIRST, THEN TRICHOLOGY, AND THE ORDER IS LOAD-BEA…	
 handle	fn	local	apps/api/src/routes/v1/billing.routes.ts:126	apps/api/routes/v1	(fn: (req: Request, res: Response) => Promise<void>): (req: Request, res: Response) => Promise<void>	Every handler goes through this, so the mapping above cannot be forgotten.
 Handoff	component	local	apps/web/src/components/tenant/billing-screen.tsx:885	apps/web/components/tenant	({ state }: { state: BillingFormState })	Pay without leaving the page, when the server hands back a widget instead of a URL. The sibling of `useRedirectOnAction…
@@ -2173,6 +2228,7 @@ HISTORY_ALSO_READABLE_BY	const	local	apps/api/src/routes/v1/audit.routes.ts:78	a
 HistoryDialog	component	export	apps/web/src/components/tenant/record-history.tsx:117	apps/web/components/tenant	({ ref, label, children, }: { ref: React.RefObject<HTMLDialo…)	
 historyOf	fn	local	apps/api/tests/integration/audit-history.test.ts:90	apps/api/tests/integration	(slug: string, token: string, entityType: string, entityId: string)	
 HistoryState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:23	apps/web/app/(tenant)/t/[slug]/(app)	| { status: 'ok'; history: AuditHistoryResponse; /** * The clinic's zone, so the drawer can stamp each entry in it. * * ⚠️ RETURNED WITH THE PAYLOAD RATHER THA…	
+holdBatchWithin	fn/async	local	apps/api/src/services/recall/recall.service.ts:571	apps/api/services/recall	(tx: TxClient, ctx: TenantContext, recall: { id: string; reference: string; noticeReference: s…, row: { id: string; batchId: string; branchId: string; lotNu…, note: string | null, options: RecallActi…	
 holderCounts	fn/async	local	apps/api/src/services/iam/role.service.ts:94	apps/api/services/iam	(tx: TxClient, roleIds: string[]): Promise<Map<string, number>>	
 HomePage	component	export	apps/web/src/app/(marketing)/page.tsx:161	apps/web/app/(marketing)	()	
 HostedCharge	interface	export	packages/payments/src/types.ts:247	packages/payments	{ redirectUrl, embedded, sessionToken }	A charge that needs the customer present.
@@ -2244,10 +2300,12 @@ IDLE_FORM	action	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/act
 IDLE_FORM	action	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:68	apps/web/app/(tenant)/t/[slug]/(app)/products	: ProductFormState	
 IDLE_FORM	action	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:61	apps/web/app/(tenant)/t/[slug]/(app)/stock	: StockFormState	
 IDLE_LOOKUP	const	local	apps/web/src/components/tenant/appointment-board.tsx:79	apps/web/components/tenant	: LookupState	
+IDLE_RECALL_FORM	action	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:44	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	: RecallFormState	
 IDLE_REGISTER	const	local	apps/web/src/components/tenant/appointment-board.tsx:82	apps/web/components/tenant	: QuickRegisterState	Same rule, same reason — see `IDLE_LOOKUP` above.
 IDLE_USAGE_FORM	action	export	apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:45	apps/web/app/(tenant)/t/[slug]/(app)/usage	: UsageFormState	
 idParams	zod	local	apps/api/src/routes/v1/charging.routes.ts:103	apps/api/routes/v1	z.object(…)	
 idParams	zod	local	apps/api/src/routes/v1/consumption.routes.ts:98	apps/api/routes/v1	z.object(…)	
+idParams	zod	local	apps/api/src/routes/v1/recalls.routes.ts:132	apps/api/routes/v1	z.object(…)	
 ids	fn	local	apps/api/tests/unit/inventory-allocation.test.ts:28	apps/api/tests/unit	(candidates: AllocationCandidate[]): (string | null)[]	
 impersonateRequest	zod	export	packages/contracts/src/auth.ts:131	packages/contracts	z.object(…)	
 ImpersonateRequest	type	export	packages/contracts/src/auth.ts:331	packages/contracts	z.infer<typeof impersonateRequest>	
@@ -2315,15 +2373,15 @@ INVENTORY_SWEEP_JOB	const	export	packages/queue/src/index.ts:183	packages/queue	
 InventoryError	class	export	packages/inventory/src/errors.ts:19	packages/inventory	{ kind }	
 InventoryErrorKind	type	export	packages/inventory/src/errors.ts:17	packages/inventory	'VALIDATION' | 'NOT_FOUND' | 'CONFLICT'	
 InventoryJob	interface	export	packages/queue/src/index.ts:166	packages/queue	{ organizationId, branchId, action }	
-inventoryLocationDetail	var	export	packages/contracts/src/inventory.ts:302	packages/contracts	inventoryLocationSummary.extend(…)	
-InventoryLocationDetail	type	export	packages/contracts/src/inventory.ts:858	packages/contracts	z.infer<typeof inventoryLocationDetail>	
-inventoryLocationListResponse	zod	export	packages/contracts/src/inventory.ts:306	packages/contracts	z.object(…)	
-InventoryLocationListResponse	type	export	packages/contracts/src/inventory.ts:859	packages/contracts	z.infer<typeof inventoryLocationListResponse>	
-inventoryLocationQuery	zod	export	packages/contracts/src/inventory.ts:265	packages/contracts	z.object(…)	
-InventoryLocationQuery	type	export	packages/contracts/src/inventory.ts:856	packages/contracts	z.infer<typeof inventoryLocationQuery>	
+inventoryLocationDetail	var	export	packages/contracts/src/inventory.ts:309	packages/contracts	inventoryLocationSummary.extend(…)	
+InventoryLocationDetail	type	export	packages/contracts/src/inventory.ts:865	packages/contracts	z.infer<typeof inventoryLocationDetail>	
+inventoryLocationListResponse	zod	export	packages/contracts/src/inventory.ts:313	packages/contracts	z.object(…)	
+InventoryLocationListResponse	type	export	packages/contracts/src/inventory.ts:866	packages/contracts	z.infer<typeof inventoryLocationListResponse>	
+inventoryLocationQuery	zod	export	packages/contracts/src/inventory.ts:272	packages/contracts	z.object(…)	
+InventoryLocationQuery	type	export	packages/contracts/src/inventory.ts:863	packages/contracts	z.infer<typeof inventoryLocationQuery>	
 inventoryLocationRoutes	var	export	apps/api/src/routes/v1/inventory.routes.ts:216	apps/api/routes/v1	: IRouter	
-inventoryLocationSummary	zod	export	packages/contracts/src/inventory.ts:286	packages/contracts	z.object(…)	
-InventoryLocationSummary	type	export	packages/contracts/src/inventory.ts:857	packages/contracts	z.infer<typeof inventoryLocationSummary>	
+inventoryLocationSummary	zod	export	packages/contracts/src/inventory.ts:293	packages/contracts	z.object(…)	
+InventoryLocationSummary	type	export	packages/contracts/src/inventory.ts:864	packages/contracts	z.infer<typeof inventoryLocationSummary>	
 invert	fn	export	packages/inventory/src/units.ts:129	packages/inventory	(a: Rational): Rational	
 INVESTIGATION_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:169	apps/api/services/clinical	{ id: true, reason: true, priority: true, instructions: true, status: true, displayOrder:…	
 INVESTIGATION_STATUSES	const	local	apps/web/src/components/tenant/consultation-content.tsx:997	apps/web/components/tenant	[ { value: 'ORDERED', label: 'Ordered' }, { value: 'COLLECTED', label: 'Sample taken' }, …	
@@ -2476,7 +2534,7 @@ issue	fn	local	apps/api/tests/integration/invoice-numbering.test.ts:119	apps/api
 issueChallenge	fn/async	export	apps/api/src/services/auth/challenge.service.ts:68	apps/api/services/auth	(input: { userId: string; purpose: AuthTokenPurpose; /** The…): Promise<IssuedChallenge>	
 IssuedChallenge	interface	export	apps/api/src/services/auth/challenge.service.ts:54	apps/api/services/auth	{ code, expiresAt }	
 issuedInvoice	fn/async	local	apps/api/tests/integration/invoice-document.test.ts:159	apps/api/tests/integration	(ctx: TenantContext, org: Org, lines: ReturnType<typeof line>[], extra: Record<string, unknown>): Promise<string>	
-IssuedNumber	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:122	apps/api/services/numbering	{ number, formatted }	
+IssuedNumber	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:134	apps/api/services/numbering	{ number, formatted }	
 IssuedSession	interface	export	apps/api/src/services/auth/session.service.ts:93	apps/api/services/auth	{ refreshToken }	
 issueInvoice	fn/async	export	apps/api/src/services/invoicing/issue-invoice.ts:37	apps/api/services/invoicing	(ctx: TenantContext, input: { invoiceId: string; issuedAt: Date }, options: InvoiceAuditOptions): Promise<FinalizedInvoice>	
 issueInvoice	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:178	apps/web/app/(tenant)/t/[slug]/(app)/invoices	(slug: string, invoiceId: string): Promise<InvoiceFormState>	
@@ -2485,8 +2543,8 @@ issueInvoiceById	fn/async	export	apps/api/src/services/invoicing/invoice.service
 issueInvoiceNumber	fn/async	export	apps/api/src/services/invoicing/invoice-number.service.ts:123	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, spec: InvoiceNumberSpec): Promise<IssuedNumber>	Take the next invoice number for a branch, source and period. Runs on the caller's transaction, so a finalisation that …
 issueInvoiceRequest	zod	export	packages/contracts/src/invoices.ts:229	packages/contracts	z.object(…)	
 IssueInvoiceRequest	type	export	packages/contracts/src/invoices.ts:232	packages/contracts	z.infer<typeof issueInvoiceRequest>	
-issueNumber	fn/async	export	apps/api/src/services/numbering/number-sequence.service.ts:141	apps/api/services/numbering	(tx: TxClient, ctx: TenantContext, spec: IssueNumberSpec): Promise<IssuedNumber>	Take the next number for a counter, creating the counter if it is the first. Runs on the caller's transaction so the nu…
-IssueNumberSpec	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:107	apps/api/services/numbering	{ type, branchId, periodKey, prefix, padding }	
+issueNumber	fn/async	export	apps/api/src/services/numbering/number-sequence.service.ts:153	apps/api/services/numbering	(tx: TxClient, ctx: TenantContext, spec: IssueNumberSpec): Promise<IssuedNumber>	Take the next number for a counter, creating the counter if it is the first. Runs on the caller's transaction so the nu…
+IssueNumberSpec	interface	export	apps/api/src/services/numbering/number-sequence.service.ts:119	apps/api/services/numbering	{ type, branchId, periodKey, prefix, padding }	
 issuePurchaseOrder	fn/async	export	apps/api/src/services/procurement/purchase-order.service.ts:648	apps/api/services/procurement	(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseOrderDetail>	
 IssuerRegistration	interface	export	packages/tax/src/types.ts:78	packages/tax	{ id, legalName, scheme, registrationNumber, effectiveFrom, standardRateBps }	
 issuesToErrors	fn	local	apps/web/src/components/marketing/signup-form.tsx:124	apps/web/components/marketing	(issues: { path: PropertyKey[]; message: string }[], prefix: string): Errors	
@@ -2614,10 +2672,11 @@ LinkRow	type	local	apps/api/src/services/invoicing/appointment-billing.service.t
 List	component	export	apps/web/src/components/marketing/legal.tsx:173	apps/web/components/marketing	({ items }: { items: ReactNode[] })	
 LIST_SELECT	const	local	apps/api/src/services/invoicing/invoice.service.ts:92	apps/api/services/invoicing	{ id: true, invoiceNumber: true, /* PI-8: a charge or a rev…	
 listActiveIngredients	fn/async	export	apps/api/src/services/product/catalogue.service.ts:203	apps/api/services/product	(ctx: TenantContext, query: { q?: string | undefined; includeInactive: boolean; …): Promise<ActiveIngredientSummary[]>	
+listAffectedParties	fn/async	export	apps/api/src/services/recall/trace.service.ts:358	apps/api/services/recall	(ctx: TenantContext, query: AffectedPartyQuery, options: RecallActionOptions): Promise<AffectedPartyResponse>	
 listAuthorities	fn/async	export	apps/api/src/services/regulatory/catalogue.service.ts:77	apps/api/services/regulatory	(ctx: TenantContext, query: RegulatoryAuthorityQuery): Promise<RegulatoryAuthorityListResponse>	
 listAuthoritiesForPlatform	fn/async	export	apps/api/src/services/platform/regulatory.service.ts:199	apps/api/services/platform	(query: RegulatoryAuthorityQuery): Promise<RegulatoryAuthorityListResponse>	
 listBalances	fn/async	export	apps/api/src/services/inventory/balance.service.ts:58	apps/api/services/inventory	(ctx: TenantContext, query: StockBalanceQuery): Promise<StockBalanceListResponse>	
-listBatches	fn/async	export	apps/api/src/services/inventory/batch.service.ts:138	apps/api/services/inventory	(ctx: TenantContext, query: BatchQuery): Promise<BatchListResponse>	
+listBatches	fn/async	export	apps/api/src/services/inventory/batch.service.ts:148	apps/api/services/inventory	(ctx: TenantContext, query: BatchQuery): Promise<BatchListResponse>	
 listBranches	fn/async	export	apps/api/src/services/branch/branch.service.ts:196	apps/api/services/branch	(ctx: TenantContext): Promise<BranchDetail[]>	
 listCategories	fn/async	export	apps/api/src/services/product/category.service.ts:193	apps/api/services/product	(ctx: TenantContext, includeInactive: boolean): Promise<ProductCategory[]>	
 listChargePolicyRules	fn/async	export	apps/api/src/services/charging/policy.service.ts:321	apps/api/services/charging	(ctx: TenantContext, query: ListChargePolicyRulesQuery): Promise<ChargePolicyRuleListResponse>	
@@ -2675,6 +2734,8 @@ listQuery	zod	local	apps/api/src/routes/v1/product-catalogue.routes.ts:102	apps/
 ListQuery	type	local	apps/api/src/routes/v1/product-catalogue.routes.ts:107	apps/api/routes/v1	z.infer<typeof listQuery>	
 listReasonCodes	fn/async	export	apps/api/src/services/inventory/reason-code.service.ts:101	apps/api/services/inventory	(ctx: TenantContext, query: StockReasonCodeQuery): Promise<StockReasonCodeListResponse>	
 listRecall	fn/async	export	apps/api/src/services/clinical/recall.service.ts:107	apps/api/services/clinical	(ctx: TenantContext, query: FollowUpRecommendationQuery, options: RecallRequestOptions): Promise<FollowUpRecallResponse>	
+listRecallCandidates	fn/async	export	apps/api/src/services/recall/recall.service.ts:240	apps/api/services/recall	(ctx: TenantContext, recallId: string): Promise<RecallCandidatesResponse>	
+listRecalls	fn/async	export	apps/api/src/services/recall/recall.service.ts:181	apps/api/services/recall	(ctx: TenantContext, query: RecallQuery): Promise<RecallListResponse>	
 listRegulatoryProfiles	fn/async	export	apps/api/src/services/regulatory/profile.service.ts:94	apps/api/services/regulatory	(ctx: TenantContext, productId: string): Promise<ProductRegulatoryProfileDetail[]>	
 listRequisitions	fn/async	export	apps/api/src/services/procurement/requisition.service.ts:253	apps/api/services/procurement	(ctx: TenantContext, query: PurchaseRequisitionQuery): Promise<PurchaseRequisitionListResponse>	
 listReservations	fn/async	export	apps/api/src/services/inventory/reservation.service.ts:109	apps/api/services/inventory	(ctx: TenantContext, query: StockReservationQuery): Promise<StockReservationListResponse>	
@@ -2760,14 +2821,14 @@ Located	interface	local	apps/api/src/services/billing/webhook.service.ts:176	app
 LOCATION_MANAGE	const	local	apps/api/src/routes/v1/inventory.routes.ts:166	apps/api/routes/v1	PERMISSIONS.INVENTORY_LOCATION_MANAGE	
 LocationForm	component	export	apps/web/src/components/tenant/location-form.tsx:59	apps/web/components/tenant	({ slug, branches, storageProfiles, location }: Props)	
 locationKind	zod	export	packages/contracts/src/inventory.ts:39	packages/contracts	z.enum(…)	
-LocationKind	type	export	packages/contracts/src/inventory.ts:846	packages/contracts	z.infer<typeof locationKind>	
+LocationKind	type	export	packages/contracts/src/inventory.ts:853	packages/contracts	z.infer<typeof locationKind>	
 LocationKind	type	export	packages/regulatory/src/types.ts:96	packages/regulatory	string	Mirrors `LocationKind` in inventory.prisma, as far as this package needs it.
 LocationList	component	export	apps/web/src/components/tenant/location-list.tsx:41	apps/web/components/tenant	({ locations, canManage, }: { locations: InventoryLocationLi…)	
 LocationPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/[locationId]/page.tsx:20	apps/web/app/(tenant)/t/[slug]/(app)/stock/locations/[locationId]	({ params, }: { params: Promise<{ slug: string; locationId: …)	
 locationParams	zod	local	apps/api/src/routes/v1/inventory.routes.ts:218	apps/api/routes/v1	z.object(…)	
 LocationsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/locations/page.tsx:24	apps/web/app/(tenant)/t/[slug]/(app)/stock/locations	({ params }: { params: Promise<{ slug: string }> })	
 lockAppointment	fn/async	local	apps/api/src/services/invoicing/appointment-billing.service.ts:704	apps/api/services/invoicing	(tx: TxClient, appointmentId: string): Promise<void>	
-lockBuckets	fn/async	local	packages/inventory/src/movement.ts:276	packages/inventory	(tx: TxClient, keys: BucketKey[]): Promise<void>	
+lockBuckets	fn/async	local	packages/inventory/src/movement.ts:283	packages/inventory	(tx: TxClient, keys: BucketKey[]): Promise<void>	
 lockChargeRequest	fn/async	local	apps/api/src/services/charging/charge-request.service.ts:857	apps/api/services/charging	(tx: TxClient, chargeRequestId: string): Promise<void>	
 lockCharges	fn/async	local	apps/api/src/services/invoicing/charge-billing.service.ts:366	apps/api/services/invoicing	(tx: TxClient, ids: readonly string[]): Promise<void>	
 lockConsumption	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1566	apps/api/services/consumption	(tx: TxClient, consumptionId: string): Promise<void>	
@@ -2815,9 +2876,12 @@ LookupState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/ac
 lookupTenant	fn/async	local	apps/api/src/middleware/tenant.middleware.ts:70	apps/api/middleware	(host: string): Promise<ResolvedTenant | null>	
 lookupZippopotam	fn/async	local	apps/web/src/lib/postal.ts:122	apps/web/lib	(country: string, postalCode: string): Promise<PostalLookup | null>	
 lot	fn	local	apps/api/tests/unit/inventory-allocation.test.ts:17	apps/api/tests/unit	(partial: Partial<AllocationCandidate> & { batchId: string }): AllocationCandidate	A candidate with sensible defaults, so each test states only what it means.
+LOT_LABEL	const	local	apps/web/src/components/tenant/product-recall-detail.tsx:44	apps/web/components/tenant	: Record<RecallDetailShape['batches'][number]['status'], string>	
 LotForm	component	export	apps/web/src/components/tenant/lot-form.tsx:46	apps/web/components/tenant	({ slug, branches, products, manufacturers, moreProducts }: …)	
 lotKey	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:108	apps/web/components/tenant	(lot: { locationId: string; batchId: string | null; serialId…): string	
 LotList	component	export	apps/web/src/components/tenant/lot-list.tsx:42	apps/web/components/tenant	({ batches, meta, canManage }: Props)	
+lotParams	zod	local	apps/api/src/routes/v1/recalls.routes.ts:133	apps/api/routes/v1	z.object(…)	
+LotResolution	component	local	apps/web/src/components/tenant/product-recall-detail.tsx:408	apps/web/components/tenant	({ slug, recallId, recallBatchId, onDone, }: { slug: string;…)	
 LotsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/page.tsx:21	apps/web/app/(tenant)/t/[slug]/(app)/stock/lots	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 LOWER_Y	const	local	packages/db/prisma/seed/data/visual-maps.ts:76	packages/db/prisma/seed/data	150	
 main	fn/async	local	packages/db/prisma/seed.ts:47	packages/db/prisma	(): Promise<void>	
@@ -2827,9 +2891,11 @@ maintainsPlatformLaw	fn	local	packages/permissions/src/roles.ts:145	packages/per
 majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:95	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(value: FormDataEntryValue | null): number | null	
 majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:103	apps/web/app/(tenant)/t/[slug]/(app)/stock	(value: FormDataEntryValue | null): number | null	
 makeAppointment	fn/async	local	apps/api/tests/integration/visit-history.test.ts:199	apps/api/tests/integration	(episodeId: string, number: string, offsetDays: number, parentId: string | null): Promise<string>	A booking on a journey, checked in and ready for a consultation.
+makeLot	fn/async	local	apps/api/tests/integration/recall.test.ts:138	apps/api/tests/integration	(productId: string, lotNumber: string, expiresOn: string): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/charging.test.ts:116	apps/api/tests/integration	(code: string, type: string): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/consumption.test.ts:126	apps/api/tests/integration	(code: string, type: string, tracking): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/india-rule-pack.test.ts:90	apps/api/tests/integration	(key: string, type: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	A product of `type`, with a profile asserting `classification` where given.
+makeProduct	fn/async	local	apps/api/tests/integration/recall.test.ts:125	apps/api/tests/integration	(code: string, type: string, tracking): Promise<string>	
 makeTerm	fn/async	local	apps/api/tests/integration/consultation-journey.test.ts:151	apps/api/tests/integration	(kind: string, code: string, name: string): Promise<string>	
 makeTerm	fn/async	local	apps/api/tests/integration/encounter-content.test.ts:142	apps/api/tests/integration	(kind: string, code: string, name: string): Promise<string>	A clinical word this clinic owns, so no platform row is left behind.
 makeTerm	fn/async	local	apps/api/tests/integration/reference-configurations.test.ts:156	apps/api/tests/integration	(kind: string, code: string, name: string): Promise<string>	
@@ -2847,8 +2913,8 @@ MandateStatus	type	export	packages/payments/src/types.ts:90	packages/payments	'P
 MandateStatusResponse	interface	export	packages/contracts/src/billing.ts:335	packages/contracts	{ mandateId, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }	
 MandateSummary	interface	export	packages/contracts/src/billing.ts:125	packages/contracts	{ id, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }	
 MandateView	interface	export	packages/billing/src/engine/read.ts:142	packages/billing/engine	{ id, status, method, instrumentLabel, maxAmountMinor, currency, activatedAt }	
-manualMovementType	zod	export	packages/contracts/src/inventory.ts:142	packages/contracts	z.enum(…)	
-ManualMovementType	type	export	packages/contracts/src/inventory.ts:852	packages/contracts	z.infer<typeof manualMovementType>	
+manualMovementType	zod	export	packages/contracts/src/inventory.ts:149	packages/contracts	z.enum(…)	
+ManualMovementType	type	export	packages/contracts/src/inventory.ts:859	packages/contracts	z.infer<typeof manualMovementType>	
 manufacturerRoutes	var	export	apps/api/src/routes/v1/product-catalogue.routes.ts:256	apps/api/routes/v1	: IRouter	
 manufacturerSummary	zod	export	packages/contracts/src/products.ts:308	packages/contracts	z.object(…)	
 ManufacturerSummary	type	export	packages/contracts/src/products.ts:870	packages/contracts	z.infer<typeof manufacturerSummary>	
@@ -2997,6 +3063,9 @@ metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/supplie
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/suppliers/[supplierId]/page.tsx:14	apps/web/app/(tenant)/t/[slug]/(app)/procurement/suppliers/[supplierId]	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/suppliers/new/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/procurement/suppliers/new	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/suppliers/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/procurement/suppliers	: Metadata	
+metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/[recallId]/page.tsx:15	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls/[recallId]	: Metadata	
+metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	: Metadata	
+metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/trace/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls/trace	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/[productId]/page.tsx:19	apps/web/app/(tenant)/t/[slug]/(app)/products/[productId]	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/new/page.tsx:14	apps/web/app/(tenant)/t/[slug]/(app)/products/new	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/products	: Metadata	
@@ -3053,12 +3122,12 @@ MockProvider	class	export	packages/payments/src/providers/mock.ts:117	packages/p
 MockStore	interface	export	packages/payments/src/providers/mock.ts:52	packages/payments/providers	{ read, write }	Two methods, so Redis and a `Map` are both trivially conformant.
 Mode	type	local	apps/web/src/components/tenant/vitals-panel.tsx:359	apps/web/components/tenant	{ kind: 'closed' } | { kind: 'new' } | { kind: 'edit'; id: string }	Which form is on screen, if any.
 ModePreview	component	local	apps/web/src/components/shell/theme-settings.tsx:266	apps/web/components/shell	({ mode, accent }: { mode: Appearance; accent: Accent })	
-Module	type	export	packages/permissions/src/codes.ts:30	packages/permissions	(typeof MODULES)[number]	
+Module	type	export	packages/permissions/src/codes.ts:40	packages/permissions	(typeof MODULES)[number]	
 MODULE_GATED	const	local	apps/api/src/services/invoicing/invoice-visibility.ts:65	apps/api/services/invoicing	{ LAB: PERMISSIONS.LAB_ORDER_READ, PHARMACY: PERMISSIONS.DI…	
 MODULE_LABEL	const	local	apps/web/src/lib/permission-labels.ts:16	apps/web/lib	: Record<string, string>	
 moduleLabel	fn	export	apps/web/src/lib/permission-labels.ts:44	apps/web/lib	(module: string): string	
 moduleOf	fn	export	apps/web/src/lib/permission-labels.ts:40	apps/web/lib	(code: string): string	
-moduleOf	fn	export	packages/permissions/src/codes.ts:743	packages/permissions	(code: PermissionCode): string	Split `pharmacy.dispense.create` into its module for grouping in the UI.
+moduleOf	fn	export	packages/permissions/src/codes.ts:801	packages/permissions	(code: PermissionCode): string	Split `pharmacy.dispense.create` into its module for grouping in the UI.
 MODULES	component	local	apps/web/src/app/(marketing)/page.tsx:53	apps/web/app/(marketing)	[ { name: 'Appointments and queue', body: 'Slots per doctor per branch, walk-ins, tokens,…	
 MODULES	const	export	packages/permissions/src/codes.ts:10	packages/permissions	[ 'platform', 'organization', 'branch', 'iam', 'doctor', 'patient', 'appointment', 'clini…	
 ModuleStrip	component	local	apps/web/src/components/tenant/role-list.tsx:52	apps/web/components/tenant	({ role }: { role: RoleDetail })	
@@ -3081,12 +3150,13 @@ MOVEMENT_TYPES	const	local	apps/web/src/components/tenant/adjustment-form.tsx:43
 movementDeps	var	export	apps/api/src/services/inventory/movement.service.ts:46	apps/api/services/inventory	: MovementDeps	
 movementDeps	var	export	apps/worker/src/inventory/deps.ts:26	apps/worker/inventory	: MovementDeps	
 MovementDeps	interface	export	packages/inventory/src/movement.ts:76	packages/inventory	{ recordAudit, loadUnitGraph }	
-MovementInput	interface	export	packages/inventory/src/movement.ts:193	packages/inventory	{ branchId, productId, batchId, serialId, movementType, quantity, adjustmentDirection, unitId, packagingLevel, locationId, statusFrom, statusTo, reasonCode, reasonNote, occurredAt, referenceType, ref…	
+MovementInput	interface	export	packages/inventory/src/movement.ts:200	packages/inventory	{ branchId, productId, batchId, serialId, movementType, quantity, adjustmentDirection, unitId, packagingLevel, locationId, statusFrom, statusTo, reasonCode, reasonNote, occurredAt, referenceType, ref…	
 MovementOptions	interface	export	packages/inventory/src/movement.ts:96	packages/inventory	{ ipAddress, userAgent }	Request provenance, carried into the audit row.
 moveSerial	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1106	apps/api/services/consumption	(tx: TxClient, serialId: string, patientId: string | null): Promise<void>	
 MRN_PREFIX_KEY	const	local	apps/api/src/services/patient/patient.service.ts:61	apps/api/services/patient	'patient.mrn_prefix'	
 MS_PER_DAY	const	local	packages/billing/src/periods.ts:32	packages/billing	86_400_000	
 multiply	fn	export	packages/inventory/src/units.ts:115	packages/inventory	(a: Rational, b: Rational): Rational	
+namesOneSubject	fn	local	packages/contracts/src/recall.ts:248	packages/contracts	(value: { batchId?: string | undefined; serialId?: string | …): boolean	
 NATIONAL_IDS	const	local	packages/contracts/src/locale.ts:644	packages/contracts	: Readonly<Record<string, readonly NationalIdFormat[]>>	
 NationalIdFormat	interface	export	packages/contracts/src/locale.ts:118	packages/contracts	{ code, label, pattern, example, mask, maxLength, numeric }	
 nationalIdFormatFor	fn	export	packages/contracts/src/locale.ts:851	packages/contracts	(countryCode: string | null | undefined, typeCode: string | null | undefined): NationalIdFormat | null	One ID format by country and type code, or null if that pairing is unknown.
@@ -3097,7 +3167,7 @@ NavArrow	component	local	apps/web/src/components/tenant/appointment-board.tsx:60
 NavLink	interface	export	apps/web/src/components/shell/app-nav.tsx:17	apps/web/components/shell	{ href, label }	
 needsClassificationButHasNone	fn	export	packages/regulatory/src/selection.ts:239	packages/regulatory	(request: RegulatoryRequest): boolean	
 needsDecision	fn	export	apps/api/src/services/charging/policy.service.ts:100	apps/api/services/charging	(policy: ChargePolicyValue): boolean	
-negate	fn	local	packages/inventory/src/movement.ts:405	packages/inventory	(quantity: string): string	Negate a decimal string without going through a float.
+negate	fn	local	packages/inventory/src/movement.ts:412	packages/inventory	(quantity: string): string	Negate a decimal string without going through a float.
 negateMoney	fn	export	packages/payments/src/money.ts:69	packages/payments	(a: Money): Money	
 negative	fn	local	packages/billing/src/engine/lifecycle.ts:689	packages/billing/engine	(amount: Money): Money	A credit, as a negative invoice line.
 netOf	fn	export	packages/tax/src/arithmetic.ts:27	packages/tax	(gross: Money, rateBps: number): Money	
@@ -3153,6 +3223,7 @@ ObjectMetadata	interface	export	packages/storage/src/types.ts:45	packages/storag
 ObligationParameters	interface	export	packages/regulatory/src/parameters.ts:191	packages/regulatory	{ detail, fields, years, cadence, recipient, method, witnessRequired }	
 offsetMsAt	fn	local	apps/web/src/lib/format.ts:158	apps/web/lib	(instant: Date, timeZone: string): number	How far the zone is from UTC AT THAT INSTANT — DST included, by construction.
 onConsultationOpened	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:470	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, currentStatus: AppointmentStatusValue): Promise<void>	
+ONE_SUBJECT	const	local	packages/contracts/src/recall.ts:253	packages/contracts	{ message: 'Name exactly one of batchId or serialId.' }	
 oneClassificationForm	fn	local	packages/contracts/src/doctors.ts:96	packages/contracts	(v: { specialtyIds?: string[] | undefined; classifications?:…, ctx: z.RefinementCtx): void	Reject the two request forms being used at once. `specialtyIds` defaults to `[]`, so "both supplied" is `classification…
 oneQuantityBasis	fn	local	packages/contracts/src/procurement.ts:115	packages/contracts	(v: { unitId?: string | null | undefined; packagingLevel?: n…): boolean	
 oneQuantityBasisMessage	var	local	packages/contracts/src/procurement.ts:120	packages/contracts	'give either a unit or a packaging level, not both — a quan…	
@@ -3332,6 +3403,7 @@ PatientMedicationRequest	type	export	packages/contracts/src/patients.ts:551	pack
 patientName	fn	local	apps/api/src/services/appointment/appointment.service.ts:210	apps/api/services/appointment	(parts: { firstName: string; lastName: string | null }): string	
 patientName	fn	local	apps/api/src/services/consumption/consumption.service.ts:116	apps/api/services/consumption	(patient: { firstName: string; lastName: string | null }): string	A patient's name from its two halves. Users carry one `full_name` instead.
 patientName	fn	local	apps/api/src/services/pharmacy/dispense.service.ts:107	apps/api/services/pharmacy	(patient: { firstName: string; lastName: string | null }): string	A patient's name from its two halves. Users carry one `full_name` instead.
+patientName	fn	local	apps/api/src/services/recall/trace.service.ts:343	apps/api/services/recall	(patient: { firstName: string; lastName: string | null }): string	
 PatientPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:34	apps/web/app/(tenant)/t/[slug]/(app)/patients/[patientId]	({ params, }: { params: Promise<{ slug: string; patientId: s…)	
 patientParams	zod	local	apps/api/src/routes/v1/patients.routes.ts:90	apps/api/routes/v1	z.object(…)	
 PatientPicker	component	local	apps/web/src/components/tenant/appointment-board.tsx:1612	apps/web/components/tenant	({ slug, branchId, chosen, canRegister, onChoose, }: { slug:…)	
@@ -3377,6 +3449,7 @@ payload	fn	local	apps/api/tests/integration/patients.test.ts:63	apps/api/tests/i
 payload	fn	local	apps/api/tests/integration/pharmacy.test.ts:83	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/procurement.test.ts:99	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/product-resolvers.test.ts:55	apps/api/tests/integration	(slug: string, label: string)	
+payload	fn	local	apps/api/tests/integration/recall.test.ts:102	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/reference-configurations.test.ts:72	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/registration.test.ts:66	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/regulatory.test.ts:59	apps/api/tests/integration	(slug: string, label: string)	
@@ -3411,15 +3484,16 @@ periodFrom	fn	export	packages/billing/src/periods.ts:79	packages/billing	(start:
 PeriodStrip	component	export	apps/web/src/components/tenant/period-strip.tsx:70	apps/web/components/tenant	({ start, end, at, proration, muted }: PeriodStripProps)	
 PeriodStripProps	interface	export	apps/web/src/components/tenant/period-strip.tsx:28	apps/web/components/tenant	{ start, end, at, proration, muted }	
 PermissionCatalogue	type	local	apps/web/src/components/tenant/role-list.tsx:25	apps/web/components/tenant	RoleListResponse['permissions']	
-PermissionCode	type	export	packages/permissions/src/codes.ts:738	packages/permissions	(typeof PERMISSIONS)[keyof typeof PERMISSIONS]	
+PermissionCode	type	export	packages/permissions/src/codes.ts:796	packages/permissions	(typeof PERMISSIONS)[keyof typeof PERMISSIONS]	
 PermissionOverride	interface	export	packages/permissions/src/resolver.ts:30	packages/permissions	{ permission, branchId, effect }	
 permissionOverrideRequest	zod	export	packages/contracts/src/tenancy.ts:393	packages/contracts	z.object(…)	
 PermissionOverrideRequest	type	export	packages/contracts/src/tenancy.ts:979	packages/contracts	z.infer<typeof permissionOverrideRequest>	
 PermissionPicker	component	local	apps/web/src/components/tenant/role-list.tsx:87	apps/web/components/tenant	({ permissions, grantable, selected, }: { permissions: Permi…)	
-PERMISSIONS	const	export	packages/permissions/src/codes.ts:32	packages/permissions	{ // -- platform (super admin only) ------------------------------------------- PLATFORM_…	
+PERMISSIONS	const	export	packages/permissions/src/codes.ts:42	packages/permissions	{ // -- platform (super admin only) ------------------------------------------- PLATFORM_…	
 permissionsFor	fn	export	apps/api/src/services/auth/access.service.ts:261	apps/api/services/auth	(access: UserAccess, userId: string, branchId: string | null, isPlatformAdmin: boolean): string[]	
 permissionsOf	fn	local	packages/permissions/tests/roles.test.ts:24	packages/permissions/tests	(code: SystemRoleCode): string[]	
 permitted	fn	local	packages/regulatory/src/engine.ts:78	packages/regulatory	(message: string, conditions: RegulatoryCondition[]): RuleVerdict	
+personName	fn	local	apps/api/src/services/recall/recall.service.ts:102	apps/api/services/recall	(person: { fullName: string } | null): string | null	
 pharmacyAccess	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts:26	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy	(slug: string): Promise<PharmacyAccess>	
 PharmacyAccess	interface	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts:17	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy	{ canRead, canVerify, canDispense, canTakeReturns, any }	
 PharmacyActionOptions	interface	export	apps/api/src/services/pharmacy/queue.service.ts:45	apps/api/services/pharmacy	{ ipAddress, userAgent, route, actingBranchId, roleCodes }	The audit/data-access metadata a route hands down.
@@ -3447,6 +3521,7 @@ PhoneInput	component	export	apps/web/src/components/ui/phone-input.tsx:33	apps/w
 pick	fn	local	apps/api/src/services/fees/fee-schedule.service.ts:127	apps/api/services/fees	(rows: EntryRow[], feeType: string, doctorProfileId: string | null, branchId: string | null): ResolvedFee | null	Pick the winner out of a candidate set. The rule, and nothing else.
 pickAttempt	fn	local	packages/payments/src/providers/razorpay.ts:1513	packages/payments/providers	(attempts: Json[]): Json | undefined	The attempt that is the answer: the successful one if there is one, otherwise the most recent — so a customer who faile…
 PickedClassification	type	local	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:74	apps/web/app/(tenant)/t/[slug]/(app)/doctors	{ specialtyId: string; isPrimary?: boolean; proficiency?: string | null; effectiveFrom?: string | null; effectiveTo?: string | null; }	
+PICKER_LIMIT	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx:12	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	200	How many products the create form's picker offers before it needs a search.
 PICKER_LIMIT	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:19	apps/web/app/(tenant)/t/[slug]/(app)/stock/adjustments/new	100	How many products the picker offers before it admits it is showing a page.
 PICKER_LIMIT	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/lots/new/page.tsx:14	apps/web/app/(tenant)/t/[slug]/(app)/stock/lots/new	100	How many products the picker offers before it admits it is showing a page.
 PICKER_LIMIT	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/new/page.tsx:17	apps/web/app/(tenant)/t/[slug]/(app)/stock/serials/new	100	
@@ -3498,7 +3573,7 @@ POLL_MS	const	local	apps/web/src/components/tenant/payment-return.tsx:30	apps/we
 pollMandateStatus	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/return/actions.ts:38	apps/web/app/(tenant)/t/[slug]/(app)/billing/return	(slug: string, mandateId: string): Promise<MandateStatusResponse | null>	
 pollPaymentStatus	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billing/return/actions.ts:18	apps/web/app/(tenant)/t/[slug]/(app)/billing/return	(slug: string, intentId: string): Promise<PaymentStatusResponse | null>	
 pool	var	local	packages/db/src/client.ts:20	packages/db	: pg.Pool | undefined	
-positiveQuantity	var	export	packages/contracts/src/inventory.ts:164	packages/contracts	decimalString.refine(…)	
+positiveQuantity	var	export	packages/contracts/src/inventory.ts:171	packages/contracts	decimalString.refine(…)	
 post	fn/async	local	apps/api/tests/integration/demo-requests.test.ts:49	apps/api/tests/integration	(body: Record<string, unknown>)	
 POST	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/impersonate/route.ts:87	apps/web/app/(tenant)/t/[slug]/impersonate	(request: NextRequest, { params }: { params: Promise<{ slug: string }> }): Promise<NextResponse>	
 PostalFormat	interface	export	packages/contracts/src/locale.ts:73	packages/contracts	{ pattern, example, numeric }	
@@ -3628,6 +3703,9 @@ productParams	zod	local	apps/api/src/routes/v1/products.routes.ts:105	apps/api/r
 ProductPriceDetail	interface	export	packages/contracts/src/charging.ts:175	packages/contracts	{ id, productId, productName, branchId, branchName, unitId, unitSymbol, amountMinor, currency, updatedAt }	
 ProductPriceList	component	export	apps/web/src/components/tenant/product-price-list.tsx:42	apps/web/components/tenant	({ slug, prices, branches, canManage }: Props)	
 ProductPriceListResponse	interface	export	packages/contracts/src/charging.ts:196	packages/contracts	{ items, total, page, limit }	
+ProductRecallDetail	component	export	apps/web/src/components/tenant/product-recall-detail.tsx:66	apps/web/components/tenant	({ slug, recall, candidates, affected, patientCount, timeZon…)	
+ProductRecallList	component	export	apps/web/src/components/tenant/product-recall-list.tsx:69	apps/web/components/tenant	({ slug, recalls, meta, products, timeZone, canCreate }: Pro…)	
+ProductRecallNav	component	export	apps/web/src/components/tenant/product-recall-nav.tsx:24	apps/web/components/tenant	()	
 productRegistrationStatus	zod	export	packages/contracts/src/regulatory.ts:113	packages/contracts	z.enum(…)	
 ProductRegistrationStatus	type	export	packages/contracts/src/regulatory.ts:680	packages/contracts	z.infer<typeof productRegistrationStatus>	
 ProductRegulatoryProfile	interface	export	packages/regulatory/src/types.ts:145	packages/regulatory	{ id, jurisdiction, classification, controlledSchedule, prescriptionRequirement, registrationNumber, registrationStatus, onlineSalePosition, effectiveFrom, effectiveTo }	What a clinic asserts about this product here, from `product_regulatory_profiles`.
@@ -3677,6 +3755,8 @@ Props	interface	local	apps/web/src/components/tenant/product-create-form.tsx:63	
 Props	interface	local	apps/web/src/components/tenant/product-list.tsx:77	apps/web/components/tenant	{ products, meta, categories, manufacturers, canManage }	
 Props	interface	local	apps/web/src/components/tenant/product-panel.tsx:151	apps/web/components/tenant	{ slug, product, equivalents, medicine, units, canManage, canManageIdentifiers, canManageTax, canReadMedicine, canManageMedicine, regulatoryProfiles, jurisdictions, canReadRegulatory, canManageRegula…	
 Props	interface	local	apps/web/src/components/tenant/product-price-list.tsx:35	apps/web/components/tenant	{ slug, prices, branches, canManage }	
+Props	interface	local	apps/web/src/components/tenant/product-recall-detail.tsx:52	apps/web/components/tenant	{ slug, recall, candidates, affected, patientCount, timeZone, timeFormat, canCreate, canExecute, canSeePatients }	
+Props	interface	local	apps/web/src/components/tenant/product-recall-list.tsx:60	apps/web/components/tenant	{ slug, recalls, meta, products, timeZone, canCreate }	
 Props	interface	local	apps/web/src/components/tenant/purchase-order-form.tsx:35	apps/web/components/tenant	{ slug, branches, suppliers, products, locations, priceBook, requisition, moreProducts }	
 Props	interface	local	apps/web/src/components/tenant/purchase-order-list.tsx:38	apps/web/components/tenant	{ purchaseOrders, meta, branches, suppliers, canManage }	
 Props	interface	local	apps/web/src/components/tenant/purchase-order-panel.tsx:24	apps/web/components/tenant	{ slug, order, canManage, canReceive }	
@@ -3688,11 +3768,12 @@ Props	interface	local	apps/web/src/components/tenant/requisition-list.tsx:39	app
 Props	interface	local	apps/web/src/components/tenant/requisition-panel.tsx:28	apps/web/components/tenant	{ slug, requisition, canCreate, canApprove, canOrder }	
 Props	interface	local	apps/web/src/components/tenant/reservation-list.tsx:53	apps/web/components/tenant	{ slug, reservations, meta, branches, timezone, timeFormat, canReserve }	
 Props	interface	local	apps/web/src/components/tenant/serial-form.tsx:37	apps/web/components/tenant	{ slug, branches, products, batches, locations, moreLots }	
-Props	interface	local	apps/web/src/components/tenant/stock-ledger-view.tsx:53	apps/web/components/tenant	{ movements, meta, timezone, timeFormat, canAdjust }	
+Props	interface	local	apps/web/src/components/tenant/stock-ledger-view.tsx:55	apps/web/components/tenant	{ movements, meta, timezone, timeFormat, canAdjust }	
 Props	interface	local	apps/web/src/components/tenant/substitution-panel.tsx:25	apps/web/components/tenant	{ encounterId, substitution, baseUnitSymbol }	
 Props	interface	local	apps/web/src/components/tenant/supplier-form.tsx:35	apps/web/components/tenant	{ slug, supplier, currencies, countryCode }	
 Props	interface	local	apps/web/src/components/tenant/supplier-list.tsx:39	apps/web/components/tenant	{ suppliers, meta, canManage }	
 Props	interface	local	apps/web/src/components/tenant/supplier-panel.tsx:44	apps/web/components/tenant	{ slug, supplier, priceBook, products, units, canManage, moreProducts }	
+Props	interface	local	apps/web/src/components/tenant/traceability-view.tsx:21	apps/web/components/tenant	{ slug, forward, backward, batchId, message, timeZone, timeFormat }	
 Props	interface	local	apps/web/src/components/tenant/transfer-detail.tsx:45	apps/web/components/tenant	{ slug, transfer, locations, timezone, timeFormat, branchIds, canTransfer }	
 Props	interface	local	apps/web/src/components/tenant/transfer-form.tsx:41	apps/web/components/tenant	{ slug, branches, locations, products, batches, moreProducts }	
 Props	interface	local	apps/web/src/components/tenant/transfer-list.tsx:46	apps/web/components/tenant	{ transfers, meta, branches, canTransfer }	
@@ -3784,6 +3865,7 @@ PURPOSE	component	local	apps/web/src/components/tenant/contact-verification.tsx:
 PutObjectInput	interface	export	packages/storage/src/types.ts:29	packages/storage	{ key, body, contentType, overwrite }	
 q	fn	export	apps/api/src/services/consumption/shared.ts:98	apps/api/services/consumption	(value: Prisma.Decimal | number | string): string	A decimal as the wire wants it: a string, never a float.
 q	fn	export	apps/api/src/services/pharmacy/shared.ts:339	apps/api/services/pharmacy	(value: Prisma.Decimal | number | string): string	A decimal as the wire wants it: a string, never a float.
+q	fn	export	apps/api/src/services/recall/shared.ts:19	apps/api/services/recall	(value: Prisma.Decimal | number | string): string	A decimal as the wire wants it: a string, never a float.
 QUADRANTS	const	local	packages/db/prisma/seed/data/visual-maps.ts:125	packages/db/prisma/seed/data	: VisualRegionSeed[]	
 qualificationParams	var	local	apps/api/src/routes/v1/doctors.routes.ts:102	apps/api/routes/v1	doctorParams.extend(…)	
 QualificationRow	component	local	apps/web/src/components/tenant/doctor-sections.tsx:572	apps/web/components/tenant	({ slug, doctorId, row, qualifications, }: { slug: string; d…)	
@@ -3830,8 +3912,9 @@ RazorpayProvider	class	export	packages/payments/src/providers/razorpay.ts:333	pa
 read	fn	local	apps/web/src/app/(platform)/platform/taxes/actions.ts:51	apps/web/app/(platform)/platform/taxes	(formData: FormData)	
 READ	const	local	apps/api/src/routes/v1/inventory.routes.ts:165	apps/api/routes/v1	PERMISSIONS.STOCK_READ	
 READ	const	local	apps/api/src/routes/v1/product-catalogue.routes.ts:93	apps/api/routes/v1	PERMISSIONS.PRODUCT_DEFINITION_READ	
+READ	const	local	apps/api/src/routes/v1/recalls.routes.ts:102	apps/api/routes/v1	PERMISSIONS.RECALL_READ	
 READ	const	local	apps/api/src/routes/v1/regulatory.routes.ts:75	apps/api/routes/v1	PERMISSIONS.REGULATORY_READ	
-readableQuantity	fn	export	packages/contracts/src/inventory.ts:215	packages/contracts	(quantity: string): string	
+readableQuantity	fn	export	packages/contracts/src/inventory.ts:222	packages/contracts	(quantity: string): string	
 readBoolean	fn	local	packages/regulatory/src/parameters.ts:44	packages/regulatory	(source: Record<string, unknown>, key: string): Parsed<boolean | undefined>	
 readCodeList	fn	local	packages/clinical/src/definition.ts:64	packages/clinical	(raw: unknown, where: string, key: string): Parsed<readonly string[]>	
 readCookie	fn	export	apps/web/src/lib/theme.ts:192	apps/web/lib	(jar: string, name: string): string | undefined	Read a cookie out of a `document.cookie` string. Empty when absent.
@@ -3868,19 +3951,51 @@ realignUnbilledCurrency	fn/async	export	packages/billing/src/engine/lifecycle.ts
 realTax	fn	local	packages/invoicing/tests/pricing.test.ts:80	packages/invoicing/tests	(rules: TaxRule[]): InvoicePricingInput['quoteTax']	The real engine, wired the way `taxForItem` wires it: place of supply is the branch.
 REASON_CODE_MANAGE	const	local	apps/api/src/routes/v1/inventory.routes.ts:171	apps/api/routes/v1	PERMISSIONS.INVENTORY_REASON_CODE_MANAGE	
 REASON_WORDS	const	local	apps/web/src/components/tenant/working-day-picker.tsx:49	apps/web/components/tenant	: Record<WorkingDayReason, string>	
-reasonCode	var	export	packages/contracts/src/inventory.ts:187	packages/contracts	z .string() .trim() .min(2) .max(64) .regex(…)	
+reasonCode	var	export	packages/contracts/src/inventory.ts:194	packages/contracts	z .string() .trim() .min(2) .max(64) .regex(…)	
 reasonCodeParams	zod	local	apps/api/src/routes/v1/inventory.routes.ts:549	apps/api/routes/v1	z.object(…)	
+recallAccess	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts:30	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string): Promise<RecallAccess>	
+RecallAccess	interface	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts:21	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	{ canRead, canCreate, canExecute, canSeePatients, any }	
+RecallActionOptions	interface	export	apps/api/src/services/recall/shared.ts:24	apps/api/services/recall	{ route, ipAddress, userAgent }	What every recall route hands its service.
 RecallActionState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/recall/actions.ts:50	apps/web/app/(tenant)/t/[slug]/(app)/recall	{ status: 'idle' | 'error' | 'done'; message?: string }	
+recallBatchDetail	zod	export	packages/contracts/src/recall.ts:141	packages/contracts	z.object(…)	
+RecallBatchDetail	type	export	packages/contracts/src/recall.ts:387	packages/contracts	z.infer<typeof recallBatchDetail>	
+recallBatchResolution	zod	export	packages/contracts/src/recall.ts:59	packages/contracts	z.enum(…)	
+RecallBatchResolution	type	export	packages/contracts/src/recall.ts:377	packages/contracts	z.infer<typeof recallBatchResolution>	
+recallBatchStatus	zod	export	packages/contracts/src/recall.ts:49	packages/contracts	z.enum(…)	
+RecallBatchStatus	type	export	packages/contracts/src/recall.ts:376	packages/contracts	z.infer<typeof recallBatchStatus>	
+recallCandidateBatch	zod	export	packages/contracts/src/recall.ts:205	packages/contracts	z.object(…)	A lot of the recalled product that is NOT yet in the scope.
+RecallCandidateBatch	type	export	packages/contracts/src/recall.ts:392	packages/contracts	z.infer<typeof recallCandidateBatch>	
+recallCandidatesResponse	zod	export	packages/contracts/src/recall.ts:218	packages/contracts	z.object(…)	
+RecallCandidatesResponse	type	export	packages/contracts/src/recall.ts:393	packages/contracts	z.infer<typeof recallCandidatesResponse>	
+recallClassification	zod	export	packages/contracts/src/recall.ts:47	packages/contracts	z.enum(…)	
+RecallClassification	type	export	packages/contracts/src/recall.ts:374	packages/contracts	z.infer<typeof recallClassification>	
+recallDetail	var	export	packages/contracts/src/recall.ts:179	packages/contracts	recallSummary.extend(…)	
+RecallDetail	type	export	packages/contracts/src/recall.ts:389	packages/contracts	z.infer<typeof recallDetail>	
+RecallDetailPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/[recallId]/page.tsx:30	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls/[recallId]	({ params, }: { params: Promise<{ slug: string; recallId: st…)	
+RecallFormState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:36	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	{ status: 'idle' | 'error' | 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set on a successful create, so the screen can navigate to w…	
 RecallList	component	export	apps/web/src/components/tenant/recall-list.tsx:68	apps/web/components/tenant	({ slug, status, items, total, page, timezone, timeFormat, t…)	
+recallListResponse	zod	export	packages/contracts/src/recall.ts:197	packages/contracts	z.object(…)	
+RecallListResponse	type	export	packages/contracts/src/recall.ts:391	packages/contracts	z.infer<typeof recallListResponse>	
 RecallPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/recall/page.tsx:37	apps/web/app/(tenant)/t/[slug]/(app)/recall	({ params, searchParams, }: { params: Promise<{ slug: string…)	
+recallQuery	var	export	packages/contracts/src/recall.ts:189	packages/contracts	paginationQuery.extend(…)	
+RecallQuery	type	export	packages/contracts/src/recall.ts:390	packages/contracts	z.infer<typeof recallQuery>	
+recallReferenceFor	fn	export	apps/api/src/services/recall/shared.ts:60	apps/api/services/recall	(recall: { reference: string; noticeReference: string | null…): string	
 RecallRequestOptions	interface	export	apps/api/src/services/clinical/recall.service.ts:31	apps/api/services/clinical	{ ipAddress, userAgent, route }	
+recallRoutes	var	export	apps/api/src/routes/v1/recalls.routes.ts:130	apps/api/routes/v1	: IRouter	
 RecallRow	interface	local	apps/api/src/services/clinical/recall.service.ts:69	apps/api/services/clinical	{ id, encounter_id, appointment_id, patient_id, branch_id, is_required, interval_value, interval_unit, recommended_date, due_on, follow_up_type, reason, notes, fulfilled_by_appointment_id, fulfilled_…	
 RecallRow	component	local	apps/web/src/components/tenant/recall-list.tsx:188	apps/web/components/tenant	({ slug, row, timezone, timeFormat, today, canBook, canDecli…)	
+recallSource	zod	export	packages/contracts/src/recall.ts:48	packages/contracts	z.enum(…)	
+RecallSource	type	export	packages/contracts/src/recall.ts:375	packages/contracts	z.infer<typeof recallSource>	
+RecallsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx:21	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	({ params, searchParams, }: { params: Promise<{ slug: string…)	
+recallStatus	zod	export	packages/contracts/src/recall.ts:46	packages/contracts	z.enum(…)	
+RecallStatus	type	export	packages/contracts/src/recall.ts:373	packages/contracts	z.infer<typeof recallStatus>	
+recallSummary	zod	export	packages/contracts/src/recall.ts:158	packages/contracts	z.object(…)	
+RecallSummary	type	export	packages/contracts/src/recall.ts:388	packages/contracts	z.infer<typeof recallSummary>	
 RECEIPT_MANAGE	const	local	apps/api/src/routes/v1/procurement.routes.ts:192	apps/api/routes/v1	PERMISSIONS.GOODS_RECEIPT_MANAGE	
 receiptParams	zod	local	apps/api/src/routes/v1/procurement.routes.ts:663	apps/api/routes/v1	z.object(…)	
 ReceivePanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:272	apps/web/components/tenant	({ slug, transfer, locations, }: { slug: string; transfer: S…)	
-receiveStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1041	packages/contracts	z.object(…)	
-ReceiveStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1326	packages/contracts	z.infer<typeof receiveStockTransferRequest>	
+receiveStockTransferRequest	zod	export	packages/contracts/src/inventory.ts:1048	packages/contracts	z.object(…)	
+ReceiveStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1333	packages/contracts	z.infer<typeof receiveStockTransferRequest>	
 receiveTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.ts:1104	apps/api/services/inventory	(ctx: TenantContext, id: string, input: ReceiveStockTransferRequest, options: CatalogueActionOptions): Promise<StockTransferDetail>	
 receiveTransferAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:504	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>	
 RECOMMENDATION_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:209	apps/api/services/clinical	{ id: true, encounterId: true, appointmentId: true, patientId: true, isRequired: true, in…	
@@ -3906,11 +4021,11 @@ RecordHistory	component	export	apps/web/src/components/tenant/record-history.tsx
 recordInvoicePrint	fn/async	export	apps/api/src/services/invoicing/invoice.service.ts:655	apps/api/services/invoicing	(ctx: TenantContext, invoiceId: string, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<{ invoiceNumber: string | null; documentId: string …	The public half of the above, for the PDF route, which reads bytes not rows.
 recordMovement	fn/async	export	apps/api/src/services/inventory/movement.service.ts:77	apps/api/services/inventory	(ctx: TenantContext, input: RecordMovementRequest, options: MovementOptions): Promise<RecordMovementResponse>	
 recordMovementIn	fn/async	export	apps/api/src/services/inventory/movement.service.ts:52	apps/api/services/inventory	(tx: Parameters<typeof recordMovementInEngine>[0], ctx: TenantContext, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>	Record a movement inside a transaction the caller already holds.
-recordMovementIn	fn/async	export	packages/inventory/src/movement.ts:418	packages/inventory	(tx: TxClient, ctx: TenantContext, deps: MovementDeps, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>	
-recordMovementRequest	var	export	packages/contracts/src/inventory.ts:589	packages/contracts	z .object({ branchId: uuid, productId: uuid, batchId: uuid.…	
-RecordMovementRequest	type	export	packages/contracts/src/inventory.ts:880	packages/contracts	z.infer<typeof recordMovementRequest>	
-recordMovementResponse	zod	export	packages/contracts/src/inventory.ts:649	packages/contracts	z.object(…)	
-RecordMovementResponse	type	export	packages/contracts/src/inventory.ts:881	packages/contracts	z.infer<typeof recordMovementResponse>	
+recordMovementIn	fn/async	export	packages/inventory/src/movement.ts:425	packages/inventory	(tx: TxClient, ctx: TenantContext, deps: MovementDeps, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>	
+recordMovementRequest	var	export	packages/contracts/src/inventory.ts:596	packages/contracts	z .object({ branchId: uuid, productId: uuid, batchId: uuid.…	
+RecordMovementRequest	type	export	packages/contracts/src/inventory.ts:887	packages/contracts	z.infer<typeof recordMovementRequest>	
+recordMovementResponse	zod	export	packages/contracts/src/inventory.ts:656	packages/contracts	z.object(…)	
+RecordMovementResponse	type	export	packages/contracts/src/inventory.ts:888	packages/contracts	z.infer<typeof recordMovementResponse>	
 recordReversal	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1743	apps/api/services/consumption	(tx: TxClient, ctx: TenantContext, original: OriginalRecord, correctionId: string, occurredAt: Date, body: CorrectConsumptionRequest): Promise<void>	
 recordTransition	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:355	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, from: AppointmentStatusValue | null, to: AppointmentStatusValue, note?: string | undefined): Promise<void>	Write the status trail row. Append-only: nothing ever updates one.
 recordVitals	fn/async	export	apps/api/src/services/appointment/vitals.service.ts:216	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, input: RecordVitalsRequest, options: AppointmentActionOptions): Promise<VitalsReading>	
@@ -4068,8 +4183,8 @@ releaseDueReservation	fn/async	export	packages/inventory/src/reservation-sweep.t
 releaseReservation	fn/async	export	apps/api/src/services/inventory/reservation.service.ts:359	apps/api/services/inventory	(ctx: TenantContext, id: string, input: ReleaseStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>	
 releaseReservationAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:678	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>	
 releaseReservationIn	fn/async	export	apps/api/src/services/inventory/reservation.service.ts:302	apps/api/services/inventory	(tx: TxClient, ctx: TenantContext, reservation: { id: string; branchId: string; productId: str…, options: CatalogueActionOptions & { notes?: string | null |…): Promise<boolean>	
-releaseStockReservationRequest	var	export	packages/contracts/src/inventory.ts:1192	packages/contracts	z .object({ notes: z.string().trim().max(2000).nullish() })…	
-ReleaseStockReservationRequest	type	export	packages/contracts/src/inventory.ts:1335	packages/contracts	z.infer<typeof releaseStockReservationRequest>	
+releaseStockReservationRequest	var	export	packages/contracts/src/inventory.ts:1199	packages/contracts	z .object({ notes: z.string().trim().max(2000).nullish() })…	
+ReleaseStockReservationRequest	type	export	packages/contracts/src/inventory.ts:1342	packages/contracts	z.infer<typeof releaseStockReservationRequest>	
 releaseType	zod	export	packages/contracts/src/products.ts:104	packages/contracts	z.enum(…)	
 ReleaseType	type	export	packages/contracts/src/products.ts:852	packages/contracts	z.infer<typeof releaseType>	
 removeAddress	fn/async	export	apps/api/src/services/patient/patient.service.ts:1239	apps/api/services/patient	(ctx: TenantContext, patientId: string, addressId: string, options: PatientActionOptions): Promise<void>	
@@ -4093,6 +4208,8 @@ removePrescription	fn/async	export	apps/api/src/services/clinical/encounter-cont
 removeProcedure	fn/async	export	apps/api/src/services/clinical/encounter-content.service.ts:1032	apps/api/services/clinical	(ctx: TenantContext, encounterId: string, procedureId: string, options: ContentRequestOptions): Promise<EncounterContent>	
 removeQualification	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:1097	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, qualificationRowId: string, options: DoctorActionOptions): Promise<void>	
 removeQualification	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:512	apps/web/app/(tenant)/t/[slug]/(app)/doctors	(slug: string, doctorId: string, rowId: string): Promise<DoctorFormState>	`rowId` is the join row, not the qualification — a doctor can hold the same degree from two institutes, and the catalog…
+removeRecallBatch	fn/async	export	apps/api/src/services/recall/recall.service.ts:520	apps/api/services/recall	(ctx: TenantContext, recallId: string, recallBatchId: string, options: RecallActionOptions): Promise<RecallDetail>	
+removeRecallBatchAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:136	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId: string, recallBatchId: string, _previous: RecallFormState, _form: FormData): Promise<RecallFormState>	
 removeReferral	fn/async	export	apps/api/src/services/clinical/encounter-content.service.ts:1583	apps/api/services/clinical	(ctx: TenantContext, encounterId: string, referralId: string, options: ContentRequestOptions): Promise<EncounterContent>	
 removeRegion	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/visual-maps/actions.ts:131	apps/web/app/(tenant)/t/[slug]/(app)/visual-maps	(slug: string, mapId: string, regionId: string): Promise<ChartFormState>	
 removeReturnFromAverage	fn/async	export	apps/api/src/services/procurement/costing.service.ts:153	apps/api/services/procurement	(tx: TxClient, ctx: TenantContext, input: { branchId: string; productId: string; currency: str…): Promise<void>	
@@ -4129,8 +4246,8 @@ ReplaceProductTaxClassificationsRequest	type	export	packages/contracts/src/produ
 replaceRegulatoryProfiles	fn/async	export	apps/api/src/services/regulatory/profile.service.ts:109	apps/api/services/regulatory	(ctx: TenantContext, productId: string, input: ReplaceProductRegulatoryProfilesRequest, options: CatalogueActionOptions): Promise<ProductRegulatoryProfileDetail[]>	
 replaceRegulatoryProfilesAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:323	apps/web/app/(tenant)/t/[slug]/(app)/products	(slug: string, productId: string, profiles: unknown): Promise<ProductFormState>	
 replaceStorageAreas	fn/async	export	apps/api/src/services/inventory/location.service.ts:316	apps/api/services/inventory	(ctx: TenantContext, locationId: string, input: ReplaceStorageAreasRequest, options: CatalogueActionOptions): Promise<InventoryLocationDetail>	
-replaceStorageAreasRequest	zod	export	packages/contracts/src/inventory.ts:334	packages/contracts	z.object(…)	
-ReplaceStorageAreasRequest	type	export	packages/contracts/src/inventory.ts:862	packages/contracts	z.infer<typeof replaceStorageAreasRequest>	
+replaceStorageAreasRequest	zod	export	packages/contracts/src/inventory.ts:341	packages/contracts	z.object(…)	
+ReplaceStorageAreasRequest	type	export	packages/contracts/src/inventory.ts:869	packages/contracts	z.infer<typeof replaceStorageAreasRequest>	
 replaceTaxClassifications	fn/async	export	apps/api/src/services/product/tax-classification.service.ts:91	apps/api/services/product	(ctx: TenantContext, productId: string, input: ReplaceProductTaxClassificationsRequest, options: CatalogueActionOptions): Promise<ProductTaxClassificationDetail[]>	
 replaceTaxClassificationsAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:288	apps/web/app/(tenant)/t/[slug]/(app)/products	(slug: string, productId: string, classifications: unknown): Promise<ProductFormState>	
 ReplayRow	interface	local	apps/api/src/services/inventory/balance.service.ts:248	apps/api/services/inventory	{ product_id, batch_id, serial_id, location_id, status, replayed, cached }	
@@ -4253,12 +4370,17 @@ resolvePrefix	fn/async	local	apps/api/src/services/patient/patient.service.ts:28
 resolveProductForLine	fn/async	export	apps/api/src/services/procurement/shared.ts:134	apps/api/services/procurement	(tx: TxClient, productId: string): Promise<ProductForLine>	
 resolveProductPricesWithin	fn/async	export	apps/api/src/services/charging/price.service.ts:137	apps/api/services/charging	(tx: TxClient, ctx: TenantContext, productIds: readonly string[], branchId: string, currency: string): Promise<Map<string, ResolvedProductPrice>>	
 resolveProductPriceWithin	fn/async	export	apps/api/src/services/charging/price.service.ts:114	apps/api/services/charging	(tx: TxClient, ctx: TenantContext, productId: string, branchId: string, currency: string): Promise<ResolvedProductPrice | null>	
+resolveRecallBatch	fn/async	export	apps/api/src/services/recall/recall.service.ts:754	apps/api/services/recall	(ctx: TenantContext, recallId: string, recallBatchId: string, input: ResolveRecallBatchRequest, options: RecallActionOptions): Promise<RecallDetail>	
+resolveRecallBatchAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:189	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId: string, recallBatchId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>	
+resolveRecallBatchRequest	zod	export	packages/contracts/src/recall.ts:123	packages/contracts	z.object(…)	
+ResolveRecallBatchRequest	type	export	packages/contracts/src/recall.ts:383	packages/contracts	z.infer<typeof resolveRecallBatchRequest>	
 resolveReceivingPolicy	fn/async	export	apps/api/src/services/procurement/shared.ts:232	apps/api/services/procurement	(tx: TxClient, ctx: TenantContext, branchId: string): Promise<{ tolerancePercent: number; qualityHoldRequired: bo…	
 resolveSettingForBranches	fn/async	export	apps/api/src/services/settings/resolver.service.ts:166	apps/api/services/settings	(tx: TxClient, key: string, scopes: { organizationId: string; branchIds: string[] }): Promise<Map<string, SettingValue>>	
 resolveSettings	fn/async	export	apps/api/src/services/settings/resolver.service.ts:69	apps/api/services/settings	(tx: TxClient, keys: string[], scopes: SettingScopes): Promise<Map<string, SettingValue>>	
 resolveSlotEnd	fn	local	apps/api/src/services/appointment/appointment.service.ts:301	apps/api/services/appointment	(availability: AvailabilityResponse, startsAt: Date, durationMinutes: number | undefined): Date	
 resolveStoragePath	fn	local	apps/api/src/config/index.ts:41	apps/api/config	(value: string): string	Absolute paths pass through; relative ones are anchored to the repo root.
 resolveStrategy	fn	export	packages/inventory/src/allocate.ts:228	packages/inventory	(requested: AllocationStrategy | null | undefined, productStrategy: AllocationStrategy | null | undefined): { strategy: AllocationStrategy; source: 'REQUEST' | 'PRODUC…	
+resolveSubject	fn/async	local	apps/api/src/services/recall/trace.service.ts:77	apps/api/services/recall	(tx: TxClient, input: { batchId?: string | undefined; serialId?: string | …): Promise<TraceSubject>	
 resolveSupplierForDocument	fn/async	export	apps/api/src/services/procurement/shared.ts:40	apps/api/services/procurement	(tx: TxClient, supplierId: string): Promise<{ id: string; name: string; currency: string | null…	
 resolveTax	fn	export	packages/tax/src/engine.ts:75	packages/tax	(supply: TaxableSupply): TaxQuote	
 resolveTaxCategories	fn/async	export	apps/api/src/services/product/tax-classification.service.ts:231	apps/api/services/product	(tx: TxClient, productIds: readonly string[], jurisdiction: { countryCode: string; regionCode?: string | …, on: Date): Promise<Map<string, ResolvedTaxCategoryResponse>>	
@@ -4290,6 +4412,7 @@ returnParams	zod	local	apps/api/src/routes/v1/procurement.routes.ts:768	apps/api
 returnQuantity	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1498	apps/api/services/consumption	(tx: TxClient, ctx: TenantContext, record: StoredRecord, line: StoredLine, quantity: Prisma.Decimal): Promise<void>	
 ReturnsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/page.tsx:11	apps/web/app/(tenant)/t/[slug]/(app)/procurement/returns	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 returnUrlFor	fn	export	packages/billing/src/engine/checkout.ts:960	packages/billing/engine	(runtime: BillingRuntime, kind: 'charge' | 'mandate'): string	
+revalidate	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:59	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId?: string): void	
 revalidateDoctor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:34	apps/web/app/(tenant)/t/[slug]/(app)/doctors	(slug: string, doctorId?: string): void	
 reverseChargeForReturnWithin	fn/async	export	apps/api/src/services/charging/charge-request.service.ts:394	apps/api/services/charging	(tx: TxClient, ctx: TenantContext, input: Omit<RaiseChargeRequestsInput, 'lines' | 'kind'> & {…): Promise<{ raised: number; cancelled: number }>	
 ReversedLine	interface	export	apps/api/src/services/charging/charge-request.service.ts:490	apps/api/services/charging	{ originalDispenseLineId }	A return line, and the supply line it came off.
@@ -4361,7 +4484,7 @@ router	var	local	apps/api/src/routes/v1/doctors.routes.ts:95	apps/api/routes/v1	
 router	var	local	apps/api/src/routes/v1/encounters.routes.ts:109	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/fees.routes.ts:54	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/health.routes.ts:7	apps/api/routes/v1	: IRouter	
-router	var	local	apps/api/src/routes/v1/index.ts:55	apps/api/routes/v1	: IRouter	
+router	var	local	apps/api/src/routes/v1/index.ts:56	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/invitations.routes.ts:43	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/invoices.routes.ts:93	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/members.routes.ts:55	apps/api/routes/v1	: IRouter	
@@ -4378,7 +4501,7 @@ router	var	local	apps/api/src/routes/v1/visual-maps.routes.ts:61	apps/api/routes
 router	var	local	apps/api/src/routes/v1/webhooks.routes.ts:37	apps/api/routes/v1	: IRouter	
 ROUTES	component	local	apps/web/src/components/tenant/consultation-content.tsx:760	apps/web/components/tenant	[ { value: 'ORAL', label: 'By mouth' }, { value: 'TOPICAL', label: 'On the skin' }, { val…	
 ROUTES	component	local	apps/web/src/components/tenant/product-panel.tsx:119	apps/web/components/tenant	[ '', 'ORAL', 'SUBLINGUAL', 'BUCCAL', 'INTRAVENOUS', 'INTRAMUSCULAR', 'SUBCUTANEOUS', 'IN…	
-routesOf	fn	local	apps/api/tests/unit/route-gates.test.ts:64	apps/api/tests/unit	(router: IRouter): Route[]	
+routesOf	fn	local	apps/api/tests/unit/route-gates.test.ts:65	apps/api/tests/unit	(router: IRouter): Route[]	
 row	fn/async	local	apps/api/tests/integration/invoice-lifecycle.test.ts:205	apps/api/tests/integration	(sql: string, params: unknown[]): Promise<T>	Read a row back as the OWNER, so a test never mistakes an RLS miss for a value.
 Row	type	local	apps/api/src/services/inventory/reason-code.service.ts:58	apps/api/services/inventory	Prisma.StockReasonCodeGetPayload<object>	
 Row	type	local	apps/api/src/services/inventory/reservation.service.ts:64	apps/api/services/inventory	Prisma.StockReservationGetPayload<{ include: typeof summaryInclude }>	
@@ -4563,28 +4686,28 @@ SendPanel	component	local	apps/web/src/components/tenant/transfer-detail.tsx:226
 sendPurchaseReturn	fn/async	export	apps/api/src/services/procurement/purchase-return.service.ts:645	apps/api/services/procurement	(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseReturnDetail>	
 sendSuccess	fn	export	apps/api/src/utils/response.ts:22	apps/api/utils	(res: Response, data: T, message: string, statusCode: number, meta?: ApiResponse<T>['meta']): Response	Send success response
 sendVerificationCode	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:40	apps/web/app/(tenant)/t/[slug]/(app)/verify	(channel: VerifyChannel, slug: string, _previous: VerifyFormState): Promise<VerifyFormState>	
-SequenceRow	interface	local	apps/api/src/services/numbering/number-sequence.service.ts:129	apps/api/services/numbering	{ last_number, prefix, padding }	
+SequenceRow	interface	local	apps/api/src/services/numbering/number-sequence.service.ts:141	apps/api/services/numbering	{ last_number, prefix, padding }	
 SequenceType	type	export	apps/api/src/services/numbering/number-sequence.service.ts:39	apps/api/services/numbering	| 'UHID' | 'MRN' | 'APPOINTMENT' | 'QUEUE_TOKEN' | 'EMPLOYEE' /** * Treatment journeys (CE-1). * * ⚠️ THE ONLY COUNTER HERE THAT IS PER ORGANIZATION RATHER THA…	Matches the `NumberSequenceType` enum in schema.prisma.
-serialDetail	var	export	packages/contracts/src/inventory.ts:567	packages/contracts	serialSummary.extend(…)	
-SerialDetail	type	export	packages/contracts/src/inventory.ts:877	packages/contracts	z.infer<typeof serialDetail>	
+serialDetail	var	export	packages/contracts/src/inventory.ts:574	packages/contracts	serialSummary.extend(…)	
+SerialDetail	type	export	packages/contracts/src/inventory.ts:884	packages/contracts	z.infer<typeof serialDetail>	
 SerialForm	component	export	apps/web/src/components/tenant/serial-form.tsx:47	apps/web/components/tenant	({ slug, branches, products, batches, locations, moreLots }:…)	
 serialInclude	var	local	apps/api/src/services/inventory/serial.service.ts:48	apps/api/services/inventory	Prisma.validator<Prisma.SerialInclude>()(…)	
 SerialisedAllocation	interface	local	apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:74	apps/web/app/(tenant)/t/[slug]/(app)/usage	{ locationId, batchId, serialId, quantityBase, overrideReason }	
 SerialisedLine	interface	local	apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:82	apps/web/app/(tenant)/t/[slug]/(app)/usage	{ templateLineId, productId, quantity, unitId, overrideReason, allocations }	
 SerialisedTemplateLine	interface	local	apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:208	apps/web/app/(tenant)/t/[slug]/(app)/usage	{ productId, quantity, unitId, isOptional, displayOrder, note }	
 SerialList	component	export	apps/web/src/components/tenant/serial-list.tsx:35	apps/web/components/tenant	({ serials, meta, canManage, }: { serials: SerialListRespons…)	
-serialListResponse	zod	export	packages/contracts/src/inventory.ts:557	packages/contracts	z.object(…)	
-SerialListResponse	type	export	packages/contracts/src/inventory.ts:878	packages/contracts	z.infer<typeof serialListResponse>	
+serialListResponse	zod	export	packages/contracts/src/inventory.ts:564	packages/contracts	z.object(…)	
+SerialListResponse	type	export	packages/contracts/src/inventory.ts:885	packages/contracts	z.infer<typeof serialListResponse>	
 serialParams	zod	local	apps/api/src/routes/v1/inventory.routes.ts:383	apps/api/routes/v1	z.object(…)	
-serialQuery	zod	export	packages/contracts/src/inventory.ts:527	packages/contracts	z.object(…)	
-SerialQuery	type	export	packages/contracts/src/inventory.ts:875	packages/contracts	z.infer<typeof serialQuery>	
+serialQuery	zod	export	packages/contracts/src/inventory.ts:534	packages/contracts	z.object(…)	
+SerialQuery	type	export	packages/contracts/src/inventory.ts:882	packages/contracts	z.infer<typeof serialQuery>	
 serialRoutes	var	export	apps/api/src/routes/v1/inventory.routes.ts:381	apps/api/routes/v1	: IRouter	
 SerialRow	type	local	apps/api/src/services/inventory/serial.service.ts:54	apps/api/services/inventory	Prisma.SerialGetPayload<{ include: typeof serialInclude }>	
 SerialsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/page.tsx:21	apps/web/app/(tenant)/t/[slug]/(app)/stock/serials	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 serialStatus	zod	export	packages/contracts/src/inventory.ts:76	packages/contracts	z.enum(…)	
-SerialStatus	type	export	packages/contracts/src/inventory.ts:849	packages/contracts	z.infer<typeof serialStatus>	
-serialSummary	zod	export	packages/contracts/src/inventory.ts:537	packages/contracts	z.object(…)	
-SerialSummary	type	export	packages/contracts/src/inventory.ts:876	packages/contracts	z.infer<typeof serialSummary>	
+SerialStatus	type	export	packages/contracts/src/inventory.ts:856	packages/contracts	z.infer<typeof serialStatus>	
+serialSummary	zod	export	packages/contracts/src/inventory.ts:544	packages/contracts	z.object(…)	
+SerialSummary	type	export	packages/contracts/src/inventory.ts:883	packages/contracts	z.infer<typeof serialSummary>	
 serverIsLight	fn	local	apps/web/src/components/shell/theme-settings.tsx:154	apps/web/components/shell	()	The server has no device. It renders the default, and the client corrects it.
 ServerSelect	component	local	apps/web/src/components/tenant/field-renderer.tsx:322	apps/web/components/tenant	({ field, name, value, disabled, slug, scopeId, onChange, }:…)	
 SessionRecord	interface	export	apps/api/src/services/auth/session.service.ts:74	apps/api/services/auth	{ id, userId, activeOrganizationId, activeBranchId, impersonatedByUserId, expiresAt, createdAt }	
@@ -4595,7 +4718,7 @@ setAutoRenew	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/billin
 setAutoRenew	fn/async	export	packages/billing/src/engine/lifecycle.ts:562	packages/billing/engine	(ctx: TenantContext, runtime: BillingRuntime, enabled: boolean, run: TenantRunner): Promise<{ autoRenew: boolean }>	
 setAutoRenewRequest	zod	export	packages/contracts/src/billing.ts:72	packages/contracts	z.object(…)	Turn unattended renewal on or off. Turning it on needs a live mandate.
 SetAutoRenewRequest	type	export	packages/contracts/src/billing.ts:76	packages/contracts	z.infer<typeof setAutoRenewRequest>	
-setBatchHold	fn/async	export	apps/api/src/services/inventory/batch.service.ts:386	apps/api/services/inventory	(ctx: TenantContext, id: string, action: 'QUARANTINE' | 'QUARANTINE_RELEASE' | 'RECALL', input: { reason: string; recallReference?: string | null | …, options: CatalogueActionOptions): Promise<BatchD…	
+setBatchHold	fn/async	export	apps/api/src/services/inventory/batch.service.ts:396	apps/api/services/inventory	(ctx: TenantContext, id: string, action: 'QUARANTINE' | 'QUARANTINE_RELEASE' | 'RECALL', input: { reason: string; recallReference?: string | null | …, options: CatalogueActionOptions): Promise<BatchD…	
 setBranchSetting	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:939	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, input: DoctorBranchSettingRequest, options: DoctorActionOptions): Promise<void>	
 setBranchSetting	fn/async	local	apps/api/tests/integration/procurement.test.ts:142	apps/api/tests/integration	(key: string, value: unknown): Promise<void>	Set a branch-scoped setting, the way the settings screen would.
 setClinicTaxRegistrationBranches	fn/async	export	apps/api/src/services/tax/clinic-tax.service.ts:732	apps/api/services/tax	(ctx: TenantContext, id: string, input: SetClinicTaxRegistrationBranchesRequest, options: ClinicTaxActionOptions): Promise<ClinicTaxRegistrationSummary>	
@@ -4664,7 +4787,7 @@ sign	fn	local	packages/payments/tests/cashfree-webhook.test.ts:29	packages/payme
 sign	fn	local	packages/payments/tests/razorpay-webhook.test.ts:39	packages/payments/tests	(body: string, secret, eventId)	Sign exactly as Razorpay documents it: hex(HMAC-SHA256(rawBody)).
 signAccessToken	fn	export	apps/api/src/services/auth/token.service.ts:58	apps/api/services/auth	(claims: AccessTokenClaims, lifetimeSeconds?: number): string	
 SIGNATURE_HEADER	const	local	packages/payments/src/providers/razorpay.ts:329	packages/payments/providers	'x-razorpay-signature'	Razorpay signs the raw body only, hex-encoded. See `parseWebhook`.
-signedDecimalString	var	export	packages/contracts/src/inventory.ts:178	packages/contracts	z .string() .regex(…)	
+signedDecimalString	var	export	packages/contracts/src/inventory.ts:185	packages/contracts	z .string() .regex(…)	
 SignedUrlOptions	interface	export	packages/storage/src/types.ts:54	packages/storage	{ expiresInSeconds, downloadFilename }	
 signIn	action/async	export	apps/web/src/app/(tenant)/t/[slug]/actions.ts:41	apps/web/app/(tenant)/t/[slug]	(slug: string, _previous: LoginFormState, formData: FormData): Promise<LoginFormState>	
 signOut	action/async	export	apps/web/src/app/(tenant)/t/[slug]/actions.ts:162	apps/web/app/(tenant)/t/[slug]	(slug: string): Promise<void>	
@@ -4707,6 +4830,7 @@ snapshot	fn	local	apps/api/src/services/invitation/invitation.service.ts:147	app
 snapshot	fn	local	apps/api/src/services/patient/patient.service.ts:240	apps/api/services/patient	(row: PatientRow): Record<string, unknown>	
 snapshotSchedule	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:108	apps/api/services/doctor	(row: ScheduleRow): Record<string, unknown>	
 SOURCE_CODES	const	local	apps/api/src/services/invoicing/invoice-number.service.ts:56	apps/api/services/invoicing	{ APPOINTMENT: 'APP', PROCEDURE: 'PRO', SERVICE: 'SRV', LAB: 'LAB', PHARMACY: 'PHA', INVE…	
+SOURCE_OPTIONS	const	local	apps/web/src/components/tenant/product-recall-list.tsx:53	apps/web/components/tenant	[ { value: 'MANUFACTURER', label: 'The manufacturer' }, { value: 'REGULATOR', label: 'A r…	
 SOURCE_WORDS	const	local	apps/web/src/components/tenant/previous-visit-summary.tsx:33	apps/web/components/tenant	: Record<PreviousVisit['source'], string>	
 SourceList	component	export	apps/web/src/components/tenant/regulatory-lists.tsx:290	apps/web/components/tenant	({ sources, meta, timezone, }: { sources: RegulatorySourceLi…)	
 SourceRow	interface	export	apps/api/src/services/regulatory/shared.ts:89	apps/api/services/regulatory	{ id, jurisdictionId, authorityId, title, documentReference, sourceUrl, version, publishedOn, effectiveFrom, retrievedAt, reviewStatus, notes, jurisdiction, authority, _count }	
@@ -4765,6 +4889,8 @@ STATUS_LABEL	const	local	apps/web/src/components/tenant/invitation-list.tsx:44	a
 STATUS_LABEL	const	local	apps/web/src/components/tenant/member-list.tsx:32	apps/web/components/tenant	: Record<MemberDetail['status'], string>	
 STATUS_LABEL	const	local	apps/web/src/components/tenant/pharmacy-prescription.tsx:38	apps/web/components/tenant	: Record<string, string>	
 STATUS_LABEL	const	local	apps/web/src/components/tenant/prescription-queue.tsx:36	apps/web/components/tenant	: Record<string, string>	
+STATUS_LABEL	const	local	apps/web/src/components/tenant/product-recall-detail.tsx:37	apps/web/components/tenant	: Record<RecallDetailShape['status'], string>	
+STATUS_LABEL	const	local	apps/web/src/components/tenant/product-recall-list.tsx:39	apps/web/components/tenant	: Record<RecallSummary['status'], string>	
 STATUS_LABEL	const	local	apps/web/src/components/tenant/purchase-order-list.tsx:29	apps/web/components/tenant	: Record<string, string>	
 STATUS_LABEL	const	local	apps/web/src/components/tenant/purchase-order-panel.tsx:32	apps/web/components/tenant	: Record<string, string>	
 STATUS_LABEL	const	local	apps/web/src/components/tenant/purchase-return-list.tsx:19	apps/web/components/tenant	: Record<string, string>	
@@ -4813,65 +4939,66 @@ STEPS	component	local	apps/web/src/components/marketing/signup-form.tsx:80	apps/
 STOCK_READ	const	local	apps/api/src/routes/v1/procurement.routes.ts:193	apps/api/routes/v1	PERMISSIONS.STOCK_READ	
 STOCK_STATUS_LABEL	const	export	apps/web/src/components/tenant/stock-status.tsx:34	apps/web/components/tenant	: Record<StockStatus, string>	Statuses in the order they are drawn, and the words used for them. Sentence case, and the clinic's vocabulary rather th…
 STOCK_STATUSES	const	local	apps/web/src/components/tenant/adjustment-form.tsx:93	apps/web/components/tenant	[ { value: 'AVAILABLE', label: 'Available' }, { value: 'QUARANTINED', label: 'On hold' },…	
-stockBalanceListResponse	zod	export	packages/contracts/src/inventory.ts:701	packages/contracts	z.object(…)	
-StockBalanceListResponse	type	export	packages/contracts/src/inventory.ts:885	packages/contracts	z.infer<typeof stockBalanceListResponse>	
-stockBalanceQuery	zod	export	packages/contracts/src/inventory.ts:672	packages/contracts	z.object(…)	
-StockBalanceQuery	type	export	packages/contracts/src/inventory.ts:883	packages/contracts	z.infer<typeof stockBalanceQuery>	
-stockBalanceRow	zod	export	packages/contracts/src/inventory.ts:684	packages/contracts	z.object(…)	
-StockBalanceRow	type	export	packages/contracts/src/inventory.ts:884	packages/contracts	z.infer<typeof stockBalanceRow>	
+stockBalanceListResponse	zod	export	packages/contracts/src/inventory.ts:708	packages/contracts	z.object(…)	
+StockBalanceListResponse	type	export	packages/contracts/src/inventory.ts:892	packages/contracts	z.infer<typeof stockBalanceListResponse>	
+stockBalanceQuery	zod	export	packages/contracts/src/inventory.ts:679	packages/contracts	z.object(…)	
+StockBalanceQuery	type	export	packages/contracts/src/inventory.ts:890	packages/contracts	z.infer<typeof stockBalanceQuery>	
+stockBalanceRow	zod	export	packages/contracts/src/inventory.ts:691	packages/contracts	z.object(…)	
+StockBalanceRow	type	export	packages/contracts/src/inventory.ts:891	packages/contracts	z.infer<typeof stockBalanceRow>	
 StockConsultation	interface	export	apps/api/src/services/regulatory/consult.ts:44	apps/api/services/regulatory	{ branchId, productId, locationId, quantityBase, transaction, occurredAt, documentType, documentId, roleCodes }	
 StockFormState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:53	apps/web/app/(tenant)/t/[slug]/(app)/stock	{ status: 'idle' | 'error' | 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set on a successful create, so the form can navigate to wha…	
-stockLedgerListResponse	zod	export	packages/contracts/src/inventory.ts:765	packages/contracts	z.object(…)	
-StockLedgerListResponse	type	export	packages/contracts/src/inventory.ts:889	packages/contracts	z.infer<typeof stockLedgerListResponse>	
+stockLedgerListResponse	zod	export	packages/contracts/src/inventory.ts:772	packages/contracts	z.object(…)	
+StockLedgerListResponse	type	export	packages/contracts/src/inventory.ts:896	packages/contracts	z.infer<typeof stockLedgerListResponse>	
 StockLedgerPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/ledger/page.tsx:25	apps/web/app/(tenant)/t/[slug]/(app)/stock/ledger	({ params, searchParams, }: { params: Promise<{ slug: string…)	
-stockLedgerQuery	zod	export	packages/contracts/src/inventory.ts:718	packages/contracts	z.object(…)	
-StockLedgerQuery	type	export	packages/contracts/src/inventory.ts:887	packages/contracts	z.infer<typeof stockLedgerQuery>	
-stockLedgerRow	zod	export	packages/contracts/src/inventory.ts:733	packages/contracts	z.object(…)	
-StockLedgerRow	type	export	packages/contracts/src/inventory.ts:888	packages/contracts	z.infer<typeof stockLedgerRow>	
-StockLedgerView	component	export	apps/web/src/components/tenant/stock-ledger-view.tsx:62	apps/web/components/tenant	({ movements, meta, timezone, timeFormat, canAdjust }: Props)	
+stockLedgerQuery	zod	export	packages/contracts/src/inventory.ts:725	packages/contracts	z.object(…)	
+StockLedgerQuery	type	export	packages/contracts/src/inventory.ts:894	packages/contracts	z.infer<typeof stockLedgerQuery>	
+stockLedgerRow	zod	export	packages/contracts/src/inventory.ts:740	packages/contracts	z.object(…)	
+StockLedgerRow	type	export	packages/contracts/src/inventory.ts:895	packages/contracts	z.infer<typeof stockLedgerRow>	
+StockLedgerView	component	export	apps/web/src/components/tenant/stock-ledger-view.tsx:64	apps/web/components/tenant	({ movements, meta, timezone, timeFormat, canAdjust }: Props)	
 stockMovementType	zod	export	packages/contracts/src/inventory.ts:86	packages/contracts	z.enum(…)	
-StockMovementType	type	export	packages/contracts/src/inventory.ts:850	packages/contracts	z.infer<typeof stockMovementType>	
+StockMovementType	type	export	packages/contracts/src/inventory.ts:857	packages/contracts	z.infer<typeof stockMovementType>	
 StockNav	component	export	apps/web/src/components/tenant/stock-nav.tsx:36	apps/web/components/tenant	()	
 StockOverview	component	export	apps/web/src/components/tenant/stock-overview.tsx:30	apps/web/components/tenant	({ expiring, balances, }: { expiring: ExpiryReportResponse; …)	
 StockPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/page.tsx:27	apps/web/app/(tenant)/t/[slug]/(app)/stock	({ params }: { params: Promise<{ slug: string }> })	
-stockReasonCodeListResponse	zod	export	packages/contracts/src/inventory.ts:973	packages/contracts	z.object(…)	
-StockReasonCodeListResponse	type	export	packages/contracts/src/inventory.ts:1321	packages/contracts	z.infer<typeof stockReasonCodeListResponse>	
-stockReasonCodeQuery	zod	export	packages/contracts/src/inventory.ts:956	packages/contracts	z.object(…)	
-StockReasonCodeQuery	type	export	packages/contracts/src/inventory.ts:1319	packages/contracts	z.infer<typeof stockReasonCodeQuery>	
-stockReasonCodeSummary	zod	export	packages/contracts/src/inventory.ts:961	packages/contracts	z.object(…)	
-StockReasonCodeSummary	type	export	packages/contracts/src/inventory.ts:1320	packages/contracts	z.infer<typeof stockReasonCodeSummary>	
-stockReasonDirection	zod	export	packages/contracts/src/inventory.ts:911	packages/contracts	z.enum(…)	
-StockReasonDirection	type	export	packages/contracts/src/inventory.ts:1312	packages/contracts	z.infer<typeof stockReasonDirection>	
-stockReferenceType	zod	export	packages/contracts/src/inventory.ts:115	packages/contracts	z.enum(…)	
-StockReferenceType	type	export	packages/contracts/src/inventory.ts:851	packages/contracts	z.infer<typeof stockReferenceType>	
-stockReservationListResponse	zod	export	packages/contracts/src/inventory.ts:1235	packages/contracts	z.object(…)	
-StockReservationListResponse	type	export	packages/contracts/src/inventory.ts:1338	packages/contracts	z.infer<typeof stockReservationListResponse>	
-stockReservationQuery	zod	export	packages/contracts/src/inventory.ts:1196	packages/contracts	z.object(…)	
-StockReservationQuery	type	export	packages/contracts/src/inventory.ts:1336	packages/contracts	z.infer<typeof stockReservationQuery>	
-stockReservationStatus	zod	export	packages/contracts/src/inventory.ts:921	packages/contracts	z.enum(…)	
-StockReservationStatus	type	export	packages/contracts/src/inventory.ts:1314	packages/contracts	z.infer<typeof stockReservationStatus>	
-stockReservationSummary	zod	export	packages/contracts/src/inventory.ts:1207	packages/contracts	z.object(…)	
-StockReservationSummary	type	export	packages/contracts/src/inventory.ts:1337	packages/contracts	z.infer<typeof stockReservationSummary>	
+stockReasonCodeListResponse	zod	export	packages/contracts/src/inventory.ts:980	packages/contracts	z.object(…)	
+StockReasonCodeListResponse	type	export	packages/contracts/src/inventory.ts:1328	packages/contracts	z.infer<typeof stockReasonCodeListResponse>	
+stockReasonCodeQuery	zod	export	packages/contracts/src/inventory.ts:963	packages/contracts	z.object(…)	
+StockReasonCodeQuery	type	export	packages/contracts/src/inventory.ts:1326	packages/contracts	z.infer<typeof stockReasonCodeQuery>	
+stockReasonCodeSummary	zod	export	packages/contracts/src/inventory.ts:968	packages/contracts	z.object(…)	
+StockReasonCodeSummary	type	export	packages/contracts/src/inventory.ts:1327	packages/contracts	z.infer<typeof stockReasonCodeSummary>	
+stockReasonDirection	zod	export	packages/contracts/src/inventory.ts:918	packages/contracts	z.enum(…)	
+StockReasonDirection	type	export	packages/contracts/src/inventory.ts:1319	packages/contracts	z.infer<typeof stockReasonDirection>	
+stockReferenceType	zod	export	packages/contracts/src/inventory.ts:122	packages/contracts	z.enum(…)	
+StockReferenceType	type	export	packages/contracts/src/inventory.ts:858	packages/contracts	z.infer<typeof stockReferenceType>	
+stockReservationListResponse	zod	export	packages/contracts/src/inventory.ts:1242	packages/contracts	z.object(…)	
+StockReservationListResponse	type	export	packages/contracts/src/inventory.ts:1345	packages/contracts	z.infer<typeof stockReservationListResponse>	
+stockReservationQuery	zod	export	packages/contracts/src/inventory.ts:1203	packages/contracts	z.object(…)	
+StockReservationQuery	type	export	packages/contracts/src/inventory.ts:1343	packages/contracts	z.infer<typeof stockReservationQuery>	
+stockReservationStatus	zod	export	packages/contracts/src/inventory.ts:928	packages/contracts	z.enum(…)	
+StockReservationStatus	type	export	packages/contracts/src/inventory.ts:1321	packages/contracts	z.infer<typeof stockReservationStatus>	
+stockReservationSummary	zod	export	packages/contracts/src/inventory.ts:1214	packages/contracts	z.object(…)	
+StockReservationSummary	type	export	packages/contracts/src/inventory.ts:1344	packages/contracts	z.infer<typeof stockReservationSummary>	
 stockRoutes	var	export	apps/api/src/routes/v1/inventory.routes.ts:457	apps/api/routes/v1	: IRouter	
 stockStatus	zod	export	packages/contracts/src/inventory.ts:64	packages/contracts	z.enum(…)	
-StockStatus	type	export	packages/contracts/src/inventory.ts:848	packages/contracts	z.infer<typeof stockStatus>	
-stockTransferDetail	var	export	packages/contracts/src/inventory.ts:1148	packages/contracts	stockTransferSummary.extend(…)	
-StockTransferDetail	type	export	packages/contracts/src/inventory.ts:1331	packages/contracts	z.infer<typeof stockTransferDetail>	
-stockTransferLineDetail	zod	export	packages/contracts/src/inventory.ts:1101	packages/contracts	z.object(…)	
-StockTransferLineDetail	type	export	packages/contracts/src/inventory.ts:1329	packages/contracts	z.infer<typeof stockTransferLineDetail>	
-stockTransferLineRequest	var	export	packages/contracts/src/inventory.ts:989	packages/contracts	z .object({ productId: uuid, /** The SENDING branch's lot. …	
-StockTransferLineRequest	type	export	packages/contracts/src/inventory.ts:1323	packages/contracts	z.infer<typeof stockTransferLineRequest>	
-stockTransferListResponse	zod	export	packages/contracts/src/inventory.ts:1155	packages/contracts	z.object(…)	
-StockTransferListResponse	type	export	packages/contracts/src/inventory.ts:1332	packages/contracts	z.infer<typeof stockTransferListResponse>	
-stockTransferQuery	zod	export	packages/contracts/src/inventory.ts:1089	packages/contracts	z.object(…)	
-StockTransferQuery	type	export	packages/contracts/src/inventory.ts:1328	packages/contracts	z.infer<typeof stockTransferQuery>	
+StockStatus	type	export	packages/contracts/src/inventory.ts:855	packages/contracts	z.infer<typeof stockStatus>	
+stockTransferDetail	var	export	packages/contracts/src/inventory.ts:1155	packages/contracts	stockTransferSummary.extend(…)	
+StockTransferDetail	type	export	packages/contracts/src/inventory.ts:1338	packages/contracts	z.infer<typeof stockTransferDetail>	
+stockTransferLineDetail	zod	export	packages/contracts/src/inventory.ts:1108	packages/contracts	z.object(…)	
+StockTransferLineDetail	type	export	packages/contracts/src/inventory.ts:1336	packages/contracts	z.infer<typeof stockTransferLineDetail>	
+stockTransferLineRequest	var	export	packages/contracts/src/inventory.ts:996	packages/contracts	z .object({ productId: uuid, /** The SENDING branch's lot. …	
+StockTransferLineRequest	type	export	packages/contracts/src/inventory.ts:1330	packages/contracts	z.infer<typeof stockTransferLineRequest>	
+stockTransferListResponse	zod	export	packages/contracts/src/inventory.ts:1162	packages/contracts	z.object(…)	
+StockTransferListResponse	type	export	packages/contracts/src/inventory.ts:1339	packages/contracts	z.infer<typeof stockTransferListResponse>	
+stockTransferQuery	zod	export	packages/contracts/src/inventory.ts:1096	packages/contracts	z.object(…)	
+StockTransferQuery	type	export	packages/contracts/src/inventory.ts:1335	packages/contracts	z.infer<typeof stockTransferQuery>	
 stockTransferRoutes	var	export	apps/api/src/routes/v1/inventory.routes.ts:688	apps/api/routes/v1	: IRouter	
-stockTransferStatus	zod	export	packages/contracts/src/inventory.ts:913	packages/contracts	z.enum(…)	
-StockTransferStatus	type	export	packages/contracts/src/inventory.ts:1313	packages/contracts	z.infer<typeof stockTransferStatus>	
-stockTransferSummary	zod	export	packages/contracts/src/inventory.ts:1122	packages/contracts	z.object(…)	
-StockTransferSummary	type	export	packages/contracts/src/inventory.ts:1330	packages/contracts	z.infer<typeof stockTransferSummary>	
+stockTransferStatus	zod	export	packages/contracts/src/inventory.ts:920	packages/contracts	z.enum(…)	
+StockTransferStatus	type	export	packages/contracts/src/inventory.ts:1320	packages/contracts	z.infer<typeof stockTransferStatus>	
+stockTransferSummary	zod	export	packages/contracts/src/inventory.ts:1129	packages/contracts	z.object(…)	
+StockTransferSummary	type	export	packages/contracts/src/inventory.ts:1337	packages/contracts	z.infer<typeof stockTransferSummary>	
 stockUp	fn/async	local	apps/api/tests/integration/charging.test.ts:128	apps/api/tests/integration	(productId: string, batchId: string | null, quantity: string): Promise<void>	
 stockUp	fn/async	local	apps/api/tests/integration/consumption.test.ts:139	apps/api/tests/integration	(productId: string, quantity: string): Promise<void>	
+stockUp	fn/async	local	apps/api/tests/integration/recall.test.ts:148	apps/api/tests/integration	(productId: string, batchId: string, quantity: string, serialId?: string): Promise<void>	
 stockUp	fn/async	local	apps/api/tests/integration/stock-movements.test.ts:106	apps/api/tests/integration	(context: TenantContext, branchId: string, locationId: string, productId: string, batchId: string | null, quantity: string): Promise<void>	Put a known quantity into a bucket, through the one writer.
 stopImpersonation	fn/async	export	apps/api/src/services/platform/impersonation.service.ts:382	apps/api/services/platform	(input: StopImpersonationInput): Promise<void>	
 stopImpersonation	action/async	export	apps/web/src/app/(tenant)/t/[slug]/actions.ts:183	apps/web/app/(tenant)/t/[slug]	(slug: string): Promise<void>	
@@ -4880,11 +5007,11 @@ stopMedication	fn/async	export	apps/api/src/services/patient/patient-history.ser
 stopMedication	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:523	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, medicationId: string): Promise<void>	Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together.
 stopMedicationRequest	zod	local	apps/api/src/routes/v1/patients.routes.ts:109	apps/api/routes/v1	z.object(…)	
 STORAGE_PROFILES	const	export	packages/db/prisma/seed/data/product-masters.ts:213	packages/db/prisma/seed/data	: SeedStorageProfile[]	
-storageAreaDetail	zod	export	packages/contracts/src/inventory.ts:278	packages/contracts	z.object(…)	
-StorageAreaDetail	type	export	packages/contracts/src/inventory.ts:860	packages/contracts	z.infer<typeof storageAreaDetail>	
-storageAreaRequest	zod	export	packages/contracts/src/inventory.ts:318	packages/contracts	z.object(…)	
-storageBinDetail	zod	export	packages/contracts/src/inventory.ts:271	packages/contracts	z.object(…)	
-StorageBinDetail	type	export	packages/contracts/src/inventory.ts:861	packages/contracts	z.infer<typeof storageBinDetail>	
+storageAreaDetail	zod	export	packages/contracts/src/inventory.ts:285	packages/contracts	z.object(…)	
+StorageAreaDetail	type	export	packages/contracts/src/inventory.ts:867	packages/contracts	z.infer<typeof storageAreaDetail>	
+storageAreaRequest	zod	export	packages/contracts/src/inventory.ts:325	packages/contracts	z.object(…)	
+storageBinDetail	zod	export	packages/contracts/src/inventory.ts:278	packages/contracts	z.object(…)	
+StorageBinDetail	type	export	packages/contracts/src/inventory.ts:868	packages/contracts	z.infer<typeof storageBinDetail>	
 StorageConfig	interface	export	packages/storage/src/registry.ts:16	packages/storage	{ provider, local, s3 }	
 StorageError	class	export	packages/storage/src/errors.ts:23	packages/storage	{ code, detail }	
 StorageErrorCode	type	export	packages/storage/src/errors.ts:11	packages/storage	| 'NOT_FOUND' /** The key is malformed — traversal, absolute path, control characters. */ | 'INVALID_KEY' /** Writing would overwrite an object, and the caller…	
@@ -4944,11 +5071,14 @@ summaryInclude	var	local	apps/api/src/services/inventory/batch.service.ts:42	app
 summaryInclude	var	local	apps/api/src/services/inventory/location.service.ts:36	apps/api/services/inventory	Prisma.validator<Prisma.InventoryLocationInclude>()(…)	
 summaryInclude	var	local	apps/api/src/services/inventory/reservation.service.ts:55	apps/api/services/inventory	Prisma.validator<Prisma.StockReservationInclude>()(…)	
 summaryInclude	var	local	apps/api/src/services/product/product.service.ts:64	apps/api/services/product	Prisma.validator<Prisma.ProductInclude>()(…)	
+summaryInclude	var	local	apps/api/src/services/recall/recall.service.ts:78	apps/api/services/recall	Prisma.validator<Prisma.RecallInclude>()(…)	
 summaryQuery	zod	local	apps/api/src/routes/v1/charging.routes.ts:104	apps/api/routes/v1	z.object(…)	
 SummaryRow	type	local	apps/api/src/services/charging/charge-request.service.ts:536	apps/api/services/charging	Prisma.ChargeRequestGetPayload<{ select: typeof SUMMARY_SELECT }>	
-SummaryRow	type	local	apps/api/src/services/inventory/batch.service.ts:60	apps/api/services/inventory	Prisma.BatchGetPayload<{ include: typeof summaryInclude }>	
+SummaryRow	type	local	apps/api/src/services/inventory/batch.service.ts:70	apps/api/services/inventory	Prisma.BatchGetPayload<{ include: typeof summaryInclude }>	
 SummaryRow	type	local	apps/api/src/services/inventory/location.service.ts:50	apps/api/services/inventory	Prisma.InventoryLocationGetPayload<{ include: typeof summaryInclude }>	
-sumQuantities	fn	local	apps/api/src/services/inventory/batch.service.ts:72	apps/api/services/inventory	(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus?: string): string	
+SummaryRow	type	local	apps/api/src/services/recall/recall.service.ts:99	apps/api/services/recall	Prisma.RecallGetPayload<{ include: typeof summaryInclude }>	
+sumQuantities	fn	local	apps/api/src/services/inventory/batch.service.ts:82	apps/api/services/inventory	(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus?: string): string	
+sumQuantities	fn	local	apps/api/src/services/recall/recall.service.ts:111	apps/api/services/recall	(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus: string): string	
 sumQuantities	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:122	apps/web/components/tenant	(values: readonly string[]): string	Add decimal quantity strings without going through a float. ⚠️ SIX PLACES, BECAUSE THAT IS `stock_ledger`'s SCALE. Fixe…
 sumRationals	fn	local	packages/inventory/src/costing.ts:282	packages/inventory	(a: Rational, b: Rational): Rational	
 SUPPLIER_MANAGE	const	local	apps/api/src/routes/v1/procurement.routes.ts:187	apps/api/routes/v1	PERMISSIONS.SUPPLIER_MANAGE	
@@ -5014,6 +5144,7 @@ TableRow	interface	local	packages/db/scripts/check-rls.ts:101	packages/db/script
 TABS	component	local	apps/web/src/components/tenant/charges-nav.tsx:27	apps/web/components/tenant	[ { href: '/charges', label: 'Waiting', exact: true }, { href: '/charges/prices', label: …	
 TABS	component	local	apps/web/src/components/tenant/pharmacy-nav.tsx:23	apps/web/components/tenant	[ { href: '/pharmacy', label: 'Counter', exact: true }, { href: '/pharmacy/queue', label:…	
 TABS	component	local	apps/web/src/components/tenant/procurement-nav.tsx:30	apps/web/components/tenant	[ { href: '/procurement/suppliers', label: 'Suppliers' }, { href: '/procurement/price-boo…	
+TABS	component	local	apps/web/src/components/tenant/product-recall-nav.tsx:19	apps/web/components/tenant	[ { href: '/product-recalls', label: 'Notices' }, { href: '/product-recalls/trace', label…	
 TABS	component	local	apps/web/src/components/tenant/recall-list.tsx:35	apps/web/components/tenant	: { status: FollowUpRecallStatusValue; label: string; blurb: string }[]	The five windows, in the order the desk works them.
 TABS	component	local	apps/web/src/components/tenant/regulatory-nav.tsx:26	apps/web/components/tenant	[ { href: '/regulatory/jurisdictions', label: 'Places' }, { href: '/regulatory/authoritie…	
 TABS	component	local	apps/web/src/components/tenant/stock-nav.tsx:26	apps/web/components/tenant	[ { href: '/stock', label: 'Overview' }, { href: '/stock/lots', label: 'Lots' }, { href: …	
@@ -5153,8 +5284,9 @@ toAllocation	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:12
 toAppearance	fn	export	apps/web/src/lib/theme.ts:137	apps/web/lib	(value: string | undefined): Appearance	
 toAuthoritySummary	fn	export	apps/api/src/services/regulatory/shared.ts:76	apps/api/services/regulatory	(row: AuthorityRow): RegulatoryAuthoritySummary	
 toBase	fn/async	export	apps/api/src/services/procurement/shared.ts:180	apps/api/services/procurement	(tx: TxClient, product: ProductForLine, line: { quantity: string; unitId?: string | null | undefine…): Promise<string>	
-toBaseUnits	fn/async	export	packages/inventory/src/movement.ts:355	packages/inventory	(tx: TxClient, deps: MovementDeps, product: { id: string; baseUnitId: string; baseUnitCode: st…, input: Pick<MovementInput, 'quantity' | 'unitId' | 'packagi…): Promise<string>	
+toBaseUnits	fn/async	export	packages/inventory/src/movement.ts:362	packages/inventory	(tx: TxClient, deps: MovementDeps, product: { id: string; baseUnitId: string; baseUnitCode: st…, input: Pick<MovementInput, 'quantity' | 'unitId' | 'packagi…): Promise<string>	
 toBasisPoints	fn	local	apps/web/src/app/(platform)/platform/taxes/actions.ts:46	apps/web/app/(platform)/platform/taxes	(percent: string): number | null	
+toBatchDetail	fn	local	apps/api/src/services/recall/recall.service.ts:143	apps/api/services/recall	(row: DetailRow['batches'][number]): RecallBatchDetail	
 toBilledQuantity	fn	local	apps/api/src/services/charging/charge-request.service.ts:324	apps/api/services/charging	(graph: Parameters<typeof convertFromBase>[0], quantityBase: string, baseUnitId: string, pricedUnitId: string): string	
 toBoardView	fn	export	apps/web/src/lib/calendar-range.ts:40	apps/web/lib	(value: string | undefined): BoardView	Anything else — a hand-edited URL, a missing parameter — is the day view.
 toBox	fn	local	apps/web/src/components/tenant/fee-schedule-grid.tsx:62	apps/web/components/tenant	(amountMinor: number | null): string	Minor units to the major-unit string a person types back.
@@ -5193,7 +5325,7 @@ toDetail	fn	local	apps/api/src/services/consumption/template.service.ts:89	apps/
 toDetail	fn	local	apps/api/src/services/doctor/doctor.service.ts:190	apps/api/services/doctor	(row: DoctorRow, chains: AncestorChains): Omit<DoctorDetail, 'schedules' | 'exceptions'>	
 toDetail	fn	local	apps/api/src/services/iam/member.service.ts:153	apps/api/services/iam	(row: MemberRow, ctx: TenantContext): MemberDetail	
 toDetail	fn	local	apps/api/src/services/iam/role.service.ts:106	apps/api/services/iam	(row: RoleRow, memberCount: number): RoleDetail	
-toDetail	fn	local	apps/api/src/services/inventory/batch.service.ts:111	apps/api/services/inventory	(row: DetailRow): BatchDetail	
+toDetail	fn	local	apps/api/src/services/inventory/batch.service.ts:121	apps/api/services/inventory	(row: DetailRow): BatchDetail	
 toDetail	fn	local	apps/api/src/services/inventory/location.service.ts:70	apps/api/services/inventory	(row: DetailRow): InventoryLocationDetail	
 toDetail	fn	local	apps/api/src/services/inventory/transfer.service.ts:181	apps/api/services/inventory	(row: DetailRow): StockTransferDetail	
 toDetail	fn	local	apps/api/src/services/invoicing/invoice.service.ts:824	apps/api/services/invoicing	(row: DetailRow, document: Awaited<ReturnType<typeof currentDocument>>): InvoiceDetail	
@@ -5208,6 +5340,7 @@ toDetail	fn	local	apps/api/src/services/product/identifier.service.ts:42	apps/ap
 toDetail	fn	local	apps/api/src/services/product/medicine.service.ts:35	apps/api/services/product	(row: { id: string; productId: string; dosageForm: MedicineD…): MedicineDetail	
 toDetail	fn	local	apps/api/src/services/product/product.service.ts:152	apps/api/services/product	(row: ProductWithSummary): ProductDetail	
 toDetail	fn	local	apps/api/src/services/product/tax-classification.service.ts:41	apps/api/services/product	(row: { id: string; countryCode: string; regionCode: string …): ProductTaxClassificationDetail	
+toDetail	fn	local	apps/api/src/services/recall/recall.service.ts:160	apps/api/services/recall	(row: DetailRow): RecallDetail	
 toDetail	fn	local	apps/api/src/services/regulatory/profile.service.ts:52	apps/api/services/regulatory	(row: ProfileRow, on: Date): ProductRegulatoryProfileDetail	
 toDiscount	fn	local	apps/api/src/routes/v1/invoices.routes.ts:156	apps/api/routes/v1	(discount: DiscountInputRequest, currency: string): { type: 'PERCENTAGE'; bps: number } | { type: 'FIXED'; amou…	
 toE164	fn	export	packages/contracts/src/locale.ts:1051	packages/contracts	(countryCode: string | null | undefined, national: string): string	
@@ -5219,6 +5352,7 @@ toFieldConfig	fn	local	apps/api/src/services/clinical/consultation-config.servic
 toFormState	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:47	apps/web/app/(tenant)/t/[slug]/(app)/charges	(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ChargeFormState	
 toFormState	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:56	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy	(result: { ok: boolean; message?: string; fieldErrors?: Reco…): PharmacyFormState	
 toFormState	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:67	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProcurementFormState	
+toFormState	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:46	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(result: { ok: boolean; message?: string; fieldErrors?: Reco…): RecallFormState	
 toFormState	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:77	apps/web/app/(tenant)/t/[slug]/(app)/products	(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProductFormState	
 toFormState	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:70	apps/web/app/(tenant)/t/[slug]/(app)/stock	(result: { ok: boolean; message?: string; fieldErrors?: Reco…): StockFormState	
 toFormState	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:47	apps/web/app/(tenant)/t/[slug]/(app)/usage	(result: { ok: boolean; message?: string; fieldErrors?: Reco…): UsageFormState	
@@ -5282,7 +5416,7 @@ toSummary	fn	local	apps/api/src/services/charging/charge-request.service.ts:538	
 toSummary	fn	local	apps/api/src/services/consumption/consumption.service.ts:120	apps/api/services/consumption	(row: DetailRow): ConsumptionSummary	
 toSummary	fn	local	apps/api/src/services/consumption/template.service.ts:61	apps/api/services/consumption	(row: TemplateRow): ConsumptionTemplateSummary	
 toSummary	fn	local	apps/api/src/services/doctor/doctor.service.ts:162	apps/api/services/doctor	(row: DoctorRow, chains: AncestorChains): DoctorSummary	
-toSummary	fn	local	apps/api/src/services/inventory/batch.service.ts:82	apps/api/services/inventory	(row: SummaryRow): BatchSummary	
+toSummary	fn	local	apps/api/src/services/inventory/batch.service.ts:92	apps/api/services/inventory	(row: SummaryRow): BatchSummary	
 toSummary	fn	local	apps/api/src/services/inventory/location.service.ts:53	apps/api/services/inventory	(row: SummaryRow): InventoryLocationSummary	
 toSummary	fn	local	apps/api/src/services/inventory/reason-code.service.ts:60	apps/api/services/inventory	(row: Row): StockReasonCodeSummary	
 toSummary	fn	local	apps/api/src/services/inventory/reservation.service.ts:66	apps/api/services/inventory	(row: Row, now: Date): StockReservationSummary	
@@ -5300,6 +5434,7 @@ toSummary	fn	local	apps/api/src/services/procurement/requisition.service.ts:104	
 toSummary	fn	local	apps/api/src/services/procurement/supplier-product.service.ts:54	apps/api/services/procurement	(row: DetailRow): SupplierProductSummary	
 toSummary	fn	local	apps/api/src/services/procurement/supplier.service.ts:64	apps/api/services/procurement	(row: DetailRow): SupplierSummary	
 toSummary	fn	local	apps/api/src/services/product/product.service.ts:112	apps/api/services/product	(row: { id: string; organizationId: string | null; code: str…): ProductSummary	
+toSummary	fn	local	apps/api/src/services/recall/recall.service.ts:121	apps/api/services/recall	(row: SummaryRow): RecallSummary	
 TotalRow	component	local	packages/documents/src/invoice/document.tsx:408	packages/documents/invoice	({ label, value }: { label: string; value: string }): JSX.Element	
 Totals	component	local	apps/web/src/components/tenant/invoice-detail.tsx:496	apps/web/components/tenant	({ invoice, amount, }: { invoice: InvoiceDetail; amount: (mi…)	
 Totals	component	local	packages/documents/src/invoice/document.tsx:353	packages/documents/invoice	({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element	
@@ -5311,8 +5446,14 @@ toTime	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:40	apps/
 toTimeFormat	fn	export	packages/contracts/src/locale.ts:1187	packages/contracts	(value: unknown): TimeFormat	
 toUnit	fn	local	apps/api/src/services/product/unit.service.ts:84	apps/api/services/product	(row: UnitRow): UnitSummary	
 toWritable	fn	local	apps/api/src/services/organization/setting.service.ts:68	apps/api/services/organization	(value: Json): Prisma.InputJsonValue | typeof Prisma.JsonNull	
+TRACE_PATIENTS	const	local	apps/api/src/routes/v1/recalls.routes.ts:105	apps/api/routes/v1	PERMISSIONS.RECALL_TRACE_PATIENTS	
 TraceabilityEvidence	interface	export	packages/regulatory/src/types.ts:248	packages/regulatory	{ gtin, lotNumber, expiresOn, serial }	What the caller can prove about the physical stock in front of it.
 TraceabilityParameters	interface	export	packages/regulatory/src/parameters.ts:186	packages/regulatory	{ requiredIdentifiers }	
+traceabilityRoutes	var	export	apps/api/src/routes/v1/recalls.routes.ts:342	apps/api/routes/v1	: IRouter	
+TraceabilityView	component	export	apps/web/src/components/tenant/traceability-view.tsx:32	apps/web/components/tenant	({ forward, backward, batchId, message, timeZone, timeFormat…)	
+TracePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/trace/page.tsx:18	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls/trace	({ params, searchParams, }: { params: Promise<{ slug: string…)	
+traceSubject	zod	local	packages/contracts/src/recall.ts:237	packages/contracts	z.object(…)	
+TraceSubject	interface	local	apps/api/src/services/recall/trace.service.ts:64	apps/api/services/recall	{ batchId, serialId, productId, productName, baseUnitSymbol, lotNumber, serialNumber, manufacturerName, manufacturedOn, expiresOn }	
 track	fn	export	apps/web/src/lib/analytics.ts:24	apps/web/lib	(event: AnalyticsEvent, props?: Record<string, string | number>): void	
 TRACKING	component	local	apps/web/src/components/tenant/product-create-form.tsx:56	apps/web/components/tenant	[ { value: 'NONE', label: 'Not tracked individually' }, { value: 'LOT_BATCH', label: 'By …	
 trackingMode	zod	export	packages/contracts/src/products.ts:45	packages/contracts	z.enum(…)	
@@ -5340,7 +5481,7 @@ TYPE_LABELS	const	local	apps/web/src/lib/taxonomy.ts:107	apps/web/lib	: Record<T
 TYPE_WORDS	const	local	apps/web/src/components/tenant/recall-list.tsx:43	apps/web/components/tenant	: Record<string, string>	
 TYPES	component	local	apps/web/src/components/tenant/product-create-form.tsx:41	apps/web/components/tenant	[ { value: 'MEDICINE', label: 'Medicine' }, { value: 'VACCINE', label: 'Vaccine' }, { val…	
 TYPES	component	local	apps/web/src/components/tenant/product-list.tsx:36	apps/web/components/tenant	[ { value: '', label: 'Any kind' }, { value: 'MEDICINE', label: 'Medicine' }, { value: 'V…	
-TYPES	component	local	apps/web/src/components/tenant/stock-ledger-view.tsx:48	apps/web/components/tenant	[ { value: '', label: 'Any movement' }, ...Object.entries(MOVEMENT_LABEL).map(([value, la…	
+TYPES	component	local	apps/web/src/components/tenant/stock-ledger-view.tsx:50	apps/web/components/tenant	[ { value: '', label: 'Any movement' }, ...Object.entries(MOVEMENT_LABEL).map(([value, la…	
 UHID_PREFIX_KEY	const	local	apps/api/src/services/patient/patient.service.ts:60	apps/api/services/patient	'patient.uhid_prefix'	
 undeny	fn/async	local	apps/api/tests/integration/visit-history.test.ts:159	apps/api/tests/integration	(code: string, restoreGrant): Promise<void>	
 undetermined	fn	local	packages/regulatory/src/engine.ts:90	packages/regulatory	(message: string): RuleVerdict	
@@ -5382,9 +5523,9 @@ updateAppointmentRequest	zod	export	packages/contracts/src/appointments.ts:233	p
 UpdateAppointmentRequest	type	export	packages/contracts/src/appointments.ts:814	packages/contracts	z.infer<typeof updateAppointmentRequest>	
 updateAttachment	fn/async	export	apps/api/src/services/clinical/encounter-content.service.ts:1698	apps/api/services/clinical	(ctx: TenantContext, encounterId: string, attachmentId: string, input: UpdateEncounterAttachmentRequest, options: ContentRequestOptions): Promise<EncounterContent>	
 updateAuthority	fn/async	export	apps/api/src/services/platform/regulatory.service.ts:251	apps/api/services/platform	(id: string, input: UpdateRegulatoryAuthorityRequest): Promise<RegulatoryAuthoritySummary>	
-updateBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:311	apps/api/services/inventory	(ctx: TenantContext, id: string, input: UpdateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>	
-updateBatchRequest	var	export	packages/contracts/src/inventory.ts:366	packages/contracts	z .object({ manufacturedOn: effectiveDate.nullable(), expir…	
-UpdateBatchRequest	type	export	packages/contracts/src/inventory.ts:865	packages/contracts	z.infer<typeof updateBatchRequest>	
+updateBatch	fn/async	export	apps/api/src/services/inventory/batch.service.ts:321	apps/api/services/inventory	(ctx: TenantContext, id: string, input: UpdateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>	
+updateBatchRequest	var	export	packages/contracts/src/inventory.ts:373	packages/contracts	z .object({ manufacturedOn: effectiveDate.nullable(), expir…	
+UpdateBatchRequest	type	export	packages/contracts/src/inventory.ts:872	packages/contracts	z.infer<typeof updateBatchRequest>	
 updateBranch	fn/async	export	apps/api/src/services/branch/branch.service.ts:299	apps/api/services/branch	(ctx: TenantContext, branchId: string, input: UpdateBranchRequest, options: BranchActionOptions): Promise<BranchDetail>	
 updateBranch	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:102	apps/web/app/(tenant)/t/[slug]/(app)/branches	(slug: string, branchId: string, _previous: BranchFormState, formData: FormData): Promise<BranchFormState>	
 updateBranchRequest	var	export	packages/contracts/src/tenancy.ts:201	packages/contracts	createBranchRequest.partial().extend(…)	
@@ -5451,8 +5592,8 @@ updateFinding	fn/async	export	apps/api/src/services/clinical/encounter-content.s
 updateGoodsReceipt	fn/async	export	apps/api/src/services/procurement/goods-receipt.service.ts:746	apps/api/services/procurement	(ctx: TenantContext, id: string, input: UpdateGoodsReceiptRequest, options: CatalogueActionOptions): Promise<GoodsReceiptDetail>	
 updateGoodsReceiptRequest	var	export	packages/contracts/src/procurement.ts:702	packages/contracts	z .object({ locationId: uuid, receivedAt: z.iso.datetime(),…	
 UpdateGoodsReceiptRequest	type	export	packages/contracts/src/procurement.ts:1073	packages/contracts	z.infer<typeof updateGoodsReceiptRequest>	
-updateInventoryLocationRequest	var	export	packages/contracts/src/inventory.ts:245	packages/contracts	z .object({ kind: locationKind, name: z.string().trim().min…	
-UpdateInventoryLocationRequest	type	export	packages/contracts/src/inventory.ts:855	packages/contracts	z.infer<typeof updateInventoryLocationRequest>	
+updateInventoryLocationRequest	var	export	packages/contracts/src/inventory.ts:252	packages/contracts	z .object({ kind: locationKind, name: z.string().trim().min…	
+UpdateInventoryLocationRequest	type	export	packages/contracts/src/inventory.ts:862	packages/contracts	z.infer<typeof updateInventoryLocationRequest>	
 updateInvestigation	fn/async	export	apps/api/src/services/clinical/encounter-content.service.ts:1286	apps/api/services/clinical	(ctx: TenantContext, encounterId: string, investigationId: string, input: UpdateEncounterInvestigationRequest, options: ContentRequestOptions): Promise<EncounterContent>	
 updateInvoice	fn/async	export	apps/api/src/services/invoicing/invoice.service.ts:475	apps/api/services/invoicing	(ctx: TenantContext, input: UpdateInvoiceServiceInput, visibility: InvoiceVisibility, options: InvoiceActionOptions): Promise<InvoiceDetail>	
 updateInvoiceRequest	var	export	packages/contracts/src/invoices.ts:216	packages/contracts	invoiceBody .omit({ branchId: true, sourceType: true, appoi…	
@@ -5498,6 +5639,9 @@ UpdatePurchaseReturnRequest	type	export	packages/contracts/src/procurement.ts:10
 updateQualification	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:1022	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, qualificationRowId: string, input: UpdateDoctorQualificationRequest, options: DoctorActionOptions): Promise<void>	
 updateQualification	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:470	apps/web/app/(tenant)/t/[slug]/(app)/doctors	(slug: string, doctorId: string, rowId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>	
 updateReasonCode	fn/async	export	apps/api/src/services/inventory/reason-code.service.ts:267	apps/api/services/inventory	(ctx: TenantContext, id: string, input: UpdateStockReasonCodeRequest, options: CatalogueActionOptions): Promise<StockReasonCodeSummary>	
+updateRecall	fn/async	export	apps/api/src/services/recall/recall.service.ts:430	apps/api/services/recall	(ctx: TenantContext, id: string, input: UpdateRecallRequest, options: RecallActionOptions): Promise<RecallDetail>	
+updateRecallRequest	zod	export	packages/contracts/src/recall.ts:87	packages/contracts	z.object(…)	
+UpdateRecallRequest	type	export	packages/contracts/src/recall.ts:380	packages/contracts	z.infer<typeof updateRecallRequest>	
 updateReferral	fn/async	export	apps/api/src/services/clinical/encounter-content.service.ts:1548	apps/api/services/clinical	(ctx: TenantContext, encounterId: string, referralId: string, input: UpdateEncounterReferralRequest, options: ContentRequestOptions): Promise<EncounterContent>	
 updateRegulatoryAuthorityRequest	var	export	packages/contracts/src/regulatory.ts:228	packages/contracts	createRegulatoryAuthorityRequest .omit({ code: true }) .par…	
 UpdateRegulatoryAuthorityRequest	type	export	packages/contracts/src/regulatory.ts:692	packages/contracts	z.infer<typeof updateRegulatoryAuthorityRequest>	
@@ -5514,13 +5658,13 @@ updateRulePack	fn/async	export	apps/api/src/services/platform/regulatory.service
 updateRulePackRequest	var	export	packages/contracts/src/regulatory.ts:341	packages/contracts	createRulePackRequest .omit({ jurisdictionId: true, version…	Same restriction on the way through. Sign-off is its own request below.
 UpdateRulePackRequest	type	export	packages/contracts/src/regulatory.ts:704	packages/contracts	z.infer<typeof updateRulePackRequest>	
 updateSerial	fn/async	export	apps/api/src/services/inventory/serial.service.ts:295	apps/api/services/inventory	(ctx: TenantContext, id: string, input: UpdateSerialRequest, options: CatalogueActionOptions): Promise<SerialDetail>	
-updateSerialRequest	var	export	packages/contracts/src/inventory.ts:502	packages/contracts	z .object({ batchId: uuid.nullable(), currentLocationId: uu…	
-UpdateSerialRequest	type	export	packages/contracts/src/inventory.ts:873	packages/contracts	z.infer<typeof updateSerialRequest>	
+updateSerialRequest	var	export	packages/contracts/src/inventory.ts:509	packages/contracts	z .object({ batchId: uuid.nullable(), currentLocationId: uu…	
+UpdateSerialRequest	type	export	packages/contracts/src/inventory.ts:880	packages/contracts	z.infer<typeof updateSerialRequest>	
 updateSource	fn/async	export	apps/api/src/services/platform/regulatory.service.ts:340	apps/api/services/platform	(id: string, input: UpdateRegulatorySourceRequest): Promise<RegulatorySourceSummary>	
-updateStockReasonCodeRequest	var	export	packages/contracts/src/inventory.ts:945	packages/contracts	z .object({ label: z.string().trim().min(2).max(200), direc…	
-UpdateStockReasonCodeRequest	type	export	packages/contracts/src/inventory.ts:1318	packages/contracts	z.infer<typeof updateStockReasonCodeRequest>	
-updateStockTransferRequest	var	export	packages/contracts/src/inventory.ts:1022	packages/contracts	z .object({ toLocationId: uuid.nullable(), notes: z.string(…	A draft's lines are REPLACED wholesale, the way storage areas are.
-UpdateStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1325	packages/contracts	z.infer<typeof updateStockTransferRequest>	
+updateStockReasonCodeRequest	var	export	packages/contracts/src/inventory.ts:952	packages/contracts	z .object({ label: z.string().trim().min(2).max(200), direc…	
+UpdateStockReasonCodeRequest	type	export	packages/contracts/src/inventory.ts:1325	packages/contracts	z.infer<typeof updateStockReasonCodeRequest>	
+updateStockTransferRequest	var	export	packages/contracts/src/inventory.ts:1029	packages/contracts	z .object({ toLocationId: uuid.nullable(), notes: z.string(…	A draft's lines are REPLACED wholesale, the way storage areas are.
+UpdateStockTransferRequest	type	export	packages/contracts/src/inventory.ts:1332	packages/contracts	z.infer<typeof updateStockTransferRequest>	
 updateSupplier	fn/async	export	apps/api/src/services/procurement/supplier.service.ts:227	apps/api/services/procurement	(ctx: TenantContext, id: string, input: UpdateSupplierRequest, options: CatalogueActionOptions): Promise<SupplierDetail>	
 updateSupplierAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:209	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(slug: string, supplierId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>	
 updateSupplierProduct	fn/async	export	apps/api/src/services/procurement/supplier-product.service.ts:282	apps/api/services/procurement	(ctx: TenantContext, id: string, input: UpdateSupplierProductRequest, options: CatalogueActionOptions): Promise<SupplierProductSummary>	
@@ -5615,8 +5759,8 @@ verificationSecretLength	fn	local	apps/api/src/routes/v1/webhooks.routes.ts:63	a
 verifiedAt	fn/async	local	apps/api/tests/integration/verification.test.ts:120	apps/api/tests/integration	(userId: string): Promise<{ email: Date | null; phone: Date | null }>	
 verifyAccessToken	fn	export	apps/api/src/services/auth/token.service.ts:91	apps/api/services/auth	(token: string): AccessTokenClaims	
 verifyBalances	fn/async	export	apps/api/src/services/inventory/balance.service.ts:282	apps/api/services/inventory	(ctx: TenantContext, scope: { branchId?: string | undefined; productId?: string …): Promise<VerifyBalancesResponse>	
-verifyBalancesResponse	zod	export	packages/contracts/src/inventory.ts:782	packages/contracts	z.object(…)	The replay verifier's answer. `verifyBalances()` replays the ledger and compares. It NEVER silently repairs — a cache t…
-VerifyBalancesResponse	type	export	packages/contracts/src/inventory.ts:891	packages/contracts	z.infer<typeof verifyBalancesResponse>	
+verifyBalancesResponse	zod	export	packages/contracts/src/inventory.ts:789	packages/contracts	z.object(…)	The replay verifier's answer. `verifyBalances()` replays the ledger and compares. It NEVER silently repairs — a cache t…
+VerifyBalancesResponse	type	export	packages/contracts/src/inventory.ts:898	packages/contracts	z.infer<typeof verifyBalancesResponse>	
 VerifyChannel	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:29	apps/web/app/(tenant)/t/[slug]/(app)/verify	'email' | 'phone'	
 verifyCredentials	fn/async	export	apps/api/src/services/auth/login.service.ts:91	apps/api/services/auth	(identifier: string, password: string): Promise<string>	Verify a password, applying and maintaining the lockout counter. Returns the user id. Throws `AuthenticationError` for …
 VerifyFormState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/verify/actions.ts:23	apps/web/app/(tenant)/t/[slug]/(app)/verify	{ status: 'idle' | 'error' | 'sent' | 'verified'; message?: string; fieldErrors?: Record<string, string[]>; }	
