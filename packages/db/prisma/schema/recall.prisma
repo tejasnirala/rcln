@@ -1,0 +1,265 @@
+// ---------------------------------------------------------------------------
+// RECALL & TRACEABILITY — the notice, the stock it names, and the people it
+// reached (PI-10)
+//
+// ⚠️ THIS FILE OWNS NO QUANTITY AND MOVES NOTHING BY ITSELF. Pulling a lot off
+//   the shelf is a `stock_ledger` leg written by `recordMovement()` and by
+//   nothing else (PI-ADR-004), and the batch's own flags are maintained by
+//   `setBatchHold`. What lives here is the NOTICE — who said so, when, which
+//   lots it names, and what happened to each of them — because a recall that
+//   left no document behind is a quarantine somebody has to remember.
+//
+// ── WHY A TABLE AT ALL, WHEN `batches` ALREADY HAS `recalled_at` ────────────
+// PI-2 gave every lot `recalled_at` and `recall_reference` and said in the same
+// breath that the WORKFLOW is PI-10. Those two columns answer "is this lot
+// recalled"; they cannot answer "what is the manufacturer's notice, which of
+// the eleven lots it names have we actually found, which branch still has some
+// on the shelf, and who has already been contacted". A recall is a piece of
+// work with a beginning and an end, spanning branches, and its state is not
+// expressible as two nullable columns on the thing being recalled.
+//
+// ⚠️ AND THE TWO MUST NOT DISAGREE. `recall_batches.status` is the recall's view
+//   of one lot; `batches.status` is the lot's own disposition. Executing a
+//   recall writes both, in ONE transaction, along with the movement that makes
+//   them true — the discipline `setBatchHold` already applies to its two halves.
+//
+// ── TENANCY: TWO CLASSES, LIKE PI-8 AND PI-9 ────────────────────────────────
+// `recalls` is ORG-ONLY and has no `branch_id`. A manufacturer's notice arrives
+// once for the whole clinic group and does not become a different notice at each
+// site — the call `suppliers`, `charge_policy_rules` and `consumption_templates`
+// all make. ⚠️ THE COST, STATED: a branch-scoped member reads every recall the
+// organization has raised. Intended — the header carries a lot number and a
+// reason, no patient and no quantity — and it is why nothing branch-confidential
+// may be added to that table.
+//
+// `recall_batches` is ORG **AND** BRANCH scoped, and it is not the header's
+// tenancy re-stated. Each row names ONE lot, and a lot is held at one site: what
+// the satellite pharmacy still has on its shelf is that site's stock position.
+// A child that inherited only the organization half would re-open the branch
+// boundary the invoice children closed (see enable-rls.sql).
+//
+// ⚠️ THE CONSEQUENCE IS DELIBERATE AND IS WRITTEN DOWN RATHER THAN DISCOVERED:
+//   a branch-scoped storekeeper executing a recall pulls the lots AT THEIR OWN
+//   BRANCH and no others, because RLS makes the rest invisible. That is the
+//   correct answer — they cannot reach another site's shelf physically either —
+//   and it is why the recall's own status only reaches `EXECUTED` on the scope
+//   the executor could see. Somebody with org-wide scope closes it.
+//
+// ── PHI ─────────────────────────────────────────────────────────────────────
+// ⚠️ NOTHING IN THIS FILE HOLDS A PATIENT. "Which named people received this
+//   lot" is the most sensitive question a recall asks and it is answered by a
+//   QUERY over `dispense_allocations` and `consumption_allocations`, through
+//   `recordDataAccess`, never by a column here. Materialising that list into a
+//   recall row would make it re-readable for ever by anybody who can read the
+//   recall — which is a storekeeper — and would freeze an answer that must be
+//   re-derived as more of the lot is traced. See TRACEABILITY.md.
+// ---------------------------------------------------------------------------
+
+/// Where a recall is in its life.
+///
+/// ⚠️ `EXECUTED` MEANS "THE STOCK WAS PULLED", NOT "THE RECALL IS FINISHED".
+///   The clinic still has to work through who received the rest of it, which is
+///   the part that takes days. `CLOSED` is the human statement that the work is
+///   done; nothing computes it, because "we have contacted everyone we can" is
+///   not a fact the database holds.
+enum RecallStatus {
+  /// Being assembled: the notice is recorded and the lots are being identified.
+  /// ⚠️ NOTHING IS HELD YET — the stock is still dispensable, deliberately, so a
+  ///   half-built scope does not stop a pharmacy mid-shift.
+  DRAFT
+  /// The scope was executed: every lot in it moved into the RECALLED bucket.
+  EXECUTED
+  /// The work is finished. Kept for ever; a recall is the document a regulator
+  /// asks for years later.
+  CLOSED
+  /// Raised in error, or withdrawn by whoever issued the notice.
+  ///
+  /// ⚠️ CANCELLING AN EXECUTED RECALL DOES **NOT** PUT THE STOCK BACK. Releasing
+  ///   a lot is a movement with its own reason, taken per lot by somebody
+  ///   looking at it — see `RecallBatchStatus.RELEASED`.
+  CANCELLED
+}
+
+/// How bad it is. The Class I / II / III shape is the one the FDA, the EU and
+/// CDSCO all use, which is why it is modelled rather than left free text.
+///
+/// ⚠️ METADATA, NEVER AUTHORIZATION, and never a reason to skip a step. A
+///   CLASS_III recall of a mislabelled carton pulls stock exactly as hard as a
+///   CLASS_I recall of a contaminated implant; what the class changes is how
+///   urgently the clinic works through the people who already received it.
+enum RecallClassification {
+  /// Reasonable probability of serious harm or death.
+  CLASS_I
+  /// Temporary or reversible harm.
+  CLASS_II
+  /// Unlikely to cause harm — labelling, packaging, documentation.
+  CLASS_III
+  /// The notice did not say, or the jurisdiction does not classify.
+  UNCLASSIFIED
+}
+
+/// Who says so. Recorded because it decides who the clinic reports back TO, and
+/// because an internal quality hold is a different conversation from a
+/// regulator's notice even when the stock movement is identical.
+enum RecallSource {
+  MANUFACTURER
+  REGULATOR
+  SUPPLIER
+  /// The clinic's own quality decision — a fridge that failed overnight, a lot
+  /// that looks wrong.
+  INTERNAL
+}
+
+/// What happened to ONE lot inside a recall.
+enum RecallBatchStatus {
+  /// In the scope, not yet acted on. The state every row starts in.
+  PENDING
+  /// Moved into the RECALLED bucket. Un-dispensable and un-consumable from
+  /// every path, because allocation reads `stock_balances` and the quantity is
+  /// no longer in AVAILABLE.
+  HELD
+  /// Cleared: the notice did not cover this lot after all, or the manufacturer
+  /// withdrew it. The quantity went back to AVAILABLE by a movement, and the
+  /// row stays so the trail shows the lot was looked at.
+  RELEASED
+  /// Destroyed or sent back. ⚠️ THE ROW IS NOT DELETED — what happened to
+  ///   recalled stock is the question the regulator asks.
+  DISPOSED
+  /// The lot was already fully gone when the recall reached it. Distinguished
+  /// from `HELD` with a zero quantity because "nothing left to pull" is the
+  /// case where the patient-contact work is ALL of the work.
+  NO_STOCK
+}
+
+/// A recall notice, and the piece of work it starts.
+///
+/// ⚠️ ONE PRODUCT PER RECALL, AND THAT IS A MODELLING DECISION RATHER THAN A
+///   LIMITATION. A notice names a product and lists its lots; a notice covering
+///   three products is three pieces of work with three different clinical
+///   questions ("who has this implant" is not "who took this syrup"), and
+///   collapsing them would make every count on the screen ambiguous. The
+///   regulator's own notice number goes on all three, which is what ties them
+///   together.
+model Recall {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+
+  /// The clinic's own number for it — `REC-2026-0004`. Unique per organization,
+  /// never globally: it is this clinic's filing reference.
+  reference String @db.VarChar(64)
+
+  /// ⚠️ A PLAIN FK INTO A POSSIBLY-PLATFORM ROW, so it carries a RESTRICTIVE
+  ///   `product_visible` policy. The class that has produced a CRITICAL in four
+  ///   separate phases. `tenant_isolation` constrains THIS row's organization
+  ///   and says nothing whatsoever about the product it names.
+  productId String @map("product_id") @db.Uuid
+
+  title          String               @db.VarChar(255)
+  classification RecallClassification @default(UNCLASSIFIED)
+  source         RecallSource
+
+  /// The regulator's or manufacturer's own notice number, so the clinic's file
+  /// can be tied back to the announcement. Free text: every jurisdiction formats
+  /// it differently and a validated shape would refuse the real one.
+  noticeReference String? @map("notice_reference") @db.VarChar(128)
+  /// A DATE, not an instant. A notice is issued on a DAY in the issuer's
+  /// calendar, which is the same call `batches.expires_on` makes.
+  noticeOn        DateTime? @map("notice_on") @db.Date
+
+  /// Why. Required — a recall with no stated reason is un-auditable, and the
+  /// CHECK in the migration insists it is not blank.
+  reason String @db.Text
+
+  status RecallStatus @default(DRAFT)
+
+  raisedById  String    @map("raised_by_id") @db.Uuid
+  executedAt  DateTime? @map("executed_at") @db.Timestamptz(6)
+  executedById String?  @map("executed_by_id") @db.Uuid
+  closedAt    DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedById  String?   @map("closed_by_id") @db.Uuid
+  /// Why it was closed or cancelled. One column for both, because the question
+  /// is the same one — "how did this end" — and two would leave every reader
+  /// checking which of them is populated.
+  outcomeNote String?   @map("outcome_note") @db.Text
+
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product      @relation("RecallProduct", fields: [productId], references: [id], onDelete: Restrict)
+  raisedBy     User         @relation("RecallRaisedBy", fields: [raisedById], references: [id], onDelete: Restrict)
+  executedBy   User?        @relation("RecallExecutedBy", fields: [executedById], references: [id], onDelete: Restrict)
+  closedBy     User?        @relation("RecallClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
+
+  batches RecallBatch[]
+
+  @@unique([organizationId, reference])
+  /// The composite-FK target `recall_batches` references.
+  @@unique([organizationId, id])
+  @@index([organizationId, status, createdAt(sort: Desc)])
+  @@index([organizationId, productId])
+  @@map("recalls")
+}
+
+/// One lot inside one recall.
+///
+/// ⚠️ THE LOT NUMBER IS SNAPSHOTTED BESIDE THE FOREIGN KEY, and that is not
+///   duplication. A recall is read years later, and it is read as a DOCUMENT:
+///   what the notice named has to stay legible even if the batch row is
+///   eventually purged under a retention policy, exactly as
+///   `stock_ledger.reference_id` deliberately is not a foreign key. The FK is
+///   what makes the join fast today; the snapshot is what makes the row
+///   answerable tomorrow.
+model RecallBatch {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  /// ⚠️ DENORMALISED FROM THE BATCH so this table can be an ordinary member of
+  ///   the branch RLS loop rather than needing a hand-written parent predicate.
+  ///   See the note against `appointment_status_history` in enable-rls.sql for
+  ///   what happens otherwise.
+  branchId       String @map("branch_id") @db.Uuid
+  recallId       String @map("recall_id") @db.Uuid
+  batchId        String @map("batch_id") @db.Uuid
+
+  /// As printed on the pack, snapshotted. See the model comment.
+  lotNumber String @map("lot_number") @db.VarChar(128)
+
+  status RecallBatchStatus @default(PENDING)
+
+  /// What actually moved into the RECALLED bucket when this was executed, in the
+  /// product's BASE UNIT. ⚠️ A RECORD OF A MOVEMENT, NEVER A BALANCE — the
+  ///   ledger is still the only source of quantity truth. Zero is ordinary: a
+  ///   lot fully dispensed before the notice arrived is the case the recall
+  ///   exists for.
+  quantityHeldBase Decimal? @map("quantity_held_base") @db.Decimal(18, 6)
+
+  heldAt        DateTime? @map("held_at") @db.Timestamptz(6)
+  releasedAt    DateTime? @map("released_at") @db.Timestamptz(6)
+  /// Why this lot came out of the recall, or where it went. Required by CHECK
+  /// whenever the row is RELEASED or DISPOSED.
+  outcomeNote   String?   @map("outcome_note") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  recall       Recall       @relation(fields: [organizationId, recallId], references: [organizationId, id], onDelete: Cascade)
+  /// Branch-qualified, exactly as every other reference to a lot in this schema
+  /// is: a recall row at branch A citing a lot held at branch B is
+  /// unrepresentable rather than merely refused.
+  batch        Batch        @relation("RecallBatchBatch", fields: [organizationId, branchId, batchId], references: [organizationId, branchId, id], onDelete: Restrict)
+
+  /// ⚠️ ONE ROW PER LOT PER RECALL. Without it the same lot is added twice and
+  ///   executed twice, and the second execution moves a quantity that is already
+  ///   in the RECALLED bucket — which `recordMovement` refuses with a 409 that
+  ///   reads as a race rather than as a duplicate.
+  @@unique([organizationId, recallId, batchId])
+  @@unique([organizationId, id])
+  @@index([organizationId, recallId])
+  /// "Is this lot under recall" — asked from the STOCK side, by a lot screen.
+  @@index([organizationId, batchId])
+  @@index([organizationId, branchId, status])
+  @@map("recall_batches")
+}

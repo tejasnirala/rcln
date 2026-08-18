@@ -13,6 +13,7 @@ import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
 import chargingRoutes from './charging.routes.js';
 import consumptionRoutes from './consumption.routes.js';
+import { recallRoutes, traceabilityRoutes } from './recalls.routes.js';
 import invoiceRoutes from './invoices.routes.js';
 import taxRoutes from './tax.routes.js';
 import invitationRoutes from './invitations.routes.js';
@@ -339,6 +340,29 @@ router.use('/charging', chargingRoutes);
 // it — including the GET that only PLANS — files a disclosure row. The template
 // routes name a procedure and nobody, so they do not.
 router.use('/consumption', consumptionRoutes);
+
+// A manufacturer's or regulator's notice, and the piece of work it starts
+// (PI-10).
+//
+// ⚠️ NOT UNDER /inventory, AND THE REASON IS THE ONE /consumption GIVES ABOUT
+//    /clinical. A recall is not a stock operation that happens to be urgent: it
+//    reaches every branch at once, it makes a product un-dispensable
+//    organization-wide, and its second half is a list of NAMED PEOPLE who
+//    already received the product. Filing it under `inventory.*` would put the
+//    code that lets a storekeeper count a shelf beside the code that answers
+//    "which of our patients has this implant".
+//
+// PHI: exactly one route on the pair discloses anybody —
+// `GET /v1/traceability/affected`, which carries `recall.trace.patients` ON TOP
+// OF the read code and files one `RECALL_TRACE` row per read. Everything else
+// answers in lot numbers and counts.
+router.use('/recalls', recallRoutes);
+
+// The same questions asked WITHOUT a notice behind them, which is how a recall
+// usually starts: "where did this lot come from" about a suspicious delivery,
+// "who got this device" after one failed. Its own mount rather than
+// /recalls/:id/trace for exactly that reason.
+router.use('/traceability', traceabilityRoutes);
 
 // A record's own history, for any record in this clinic. Read-only, and the only
 // way rows leave `audit_logs` — which is append-only at the database, not merely

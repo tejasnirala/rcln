@@ -227,10 +227,19 @@ invoice engine's row rather than being written by this programme.
 | ---------------------------------- | --------------------- | ----- |
 | `consumption_templates` / `_lines` | ORG_SCOPED / CHILD    | PI-9  |
 | `consumption_records` / `_lines`   | BRANCH_SCOPED / CHILD | PI-9  |
-| `recalls` / `recall_batches`       | ORG_SCOPED            | PI-10 |
+| `recalls`                          | ORG_SCOPED            | PI-10 |
+| `recall_batches`                   | BRANCH_SCOPED         | PI-10 |
 | `animal_profiles`                  | CHILD of patient      | PI-11 |
 
 ---
+
+⚠️ **`recall_batches` SHIPPED BRANCH-SCOPED, NOT ORG-SCOPED AS PLANNED ABOVE, AND
+THE CHANGE IS LOAD-BEARING.** Each row names ONE lot, and a lot is held at one
+site — so a branch-scoped storekeeper executing a recall pulls the lots at their
+own branch and no others, because RLS makes the rest invisible. That is the
+correct answer: they cannot reach another site's shelf physically either. The
+NOTICE stays org-only, because a manufacturer's notice arrives once for the whole
+group. Two tenancy classes in one phase, the third time (PI-8, PI-9, PI-10).
 
 ## Non-negotiable schema rules for this programme
 

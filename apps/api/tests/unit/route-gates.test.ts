@@ -33,6 +33,7 @@ import consultationTemplateRoutes from '../../src/routes/v1/consultation-templat
 import visualMapRoutes from '../../src/routes/v1/visual-maps.routes.js';
 import pharmacyRoutes from '../../src/routes/v1/pharmacy.routes.js';
 import consumptionRoutes from '../../src/routes/v1/consumption.routes.js';
+import { recallRoutes, traceabilityRoutes } from '../../src/routes/v1/recalls.routes.js';
 
 /**
  * ⚠️ THIS SUITE TOUCHES NO DATABASE AND STILL HAS TO HANG UP.
@@ -126,6 +127,17 @@ const ROUTERS: { name: string; router: IRouter }[] = [
    *   this router carries a `clinical.*` code.
    */
   { name: 'consumption', router: consumptionRoutes },
+  /*
+   * ⚠️ RECALL IS AUDITED HERE BECAUSE OF ONE ROUTE (PI-10). Most of this pair
+   *   answers in lot numbers and counts and discloses nobody — but
+   *   `GET /v1/traceability/affected` returns a page of NAMED PATIENTS with
+   *   phone numbers, which is the broadest disclosure the platform serves and is
+   *   served to a storekeeper. The cases below assert the other half: that the
+   *   pair carries no `clinical.*` code, and that the one PHI route carries the
+   *   patient code ON TOP OF the read code rather than instead of it.
+   */
+  { name: 'recalls', router: recallRoutes },
+  { name: 'traceability', router: traceabilityRoutes },
 ];
 
 /**
@@ -183,6 +195,7 @@ const NOT_CLINICAL: string[] = [
 ];
 
 const AUDITED_FILES: string[] = [
+  'recalls.routes.ts',
   'pharmacy.routes.ts',
   'consumption.routes.ts',
   'encounters.routes.ts',
@@ -431,6 +444,73 @@ describe('consumption reads the consultation and never writes it', () => {
     expect(reads.length).toBeGreaterThan(0);
     for (const route of reads) {
       expect(route.permissions).toEqual([PERMISSIONS.CONSUMPTION_READ]);
+    }
+  });
+});
+
+/**
+ * ⚠️ THE PHI SPLIT PI-10 IS BUILT AROUND, ASSERTED RATHER THAN DESCRIBED.
+ *   TRACEABILITY.md says the patient link ALWAYS exists in the data and that who
+ *   may SEE it is an access-control question. If `recall.trace.patients` ever
+ *   stops being required on `/affected` — or starts being required on
+ *   `/forward` — the design has silently inverted, and neither change would fail
+ *   any other test in this repository.
+ */
+describe('recall separates the counts from the names', () => {
+  const routes = [...routesOf(recallRoutes), ...routesOf(traceabilityRoutes)];
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical authoring code on any route', () => {
+    const authoring = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(authoring).toEqual([]);
+  });
+
+  it('gates every route behind a recall code', () => {
+    for (const route of routes) {
+      expect(route.permissions?.length ?? 0).toBeGreaterThan(0);
+      for (const code of route.permissions ?? []) expect(code).toMatch(/^recall\./);
+    }
+  });
+
+  it('requires the patient code on the affected-party route, and only there', () => {
+    const trace = routesOf(traceabilityRoutes);
+    const affected = trace.find((route) => route.path === '/affected');
+    expect(affected?.permissions).toEqual([
+      PERMISSIONS.RECALL_READ,
+      PERMISSIONS.RECALL_TRACE_PATIENTS,
+    ]);
+
+    const others = [...routesOf(recallRoutes), ...trace].filter(
+      (route) => route.path !== '/affected'
+    );
+    expect(others.length).toBeGreaterThan(0);
+    for (const route of others) {
+      expect(route.permissions).not.toContain(PERMISSIONS.RECALL_TRACE_PATIENTS);
+    }
+  });
+
+  /**
+   * ⚠️ EXECUTING AND RESOLVING ARE THE STOCK-MOVING ACTS, and they are the ones
+   *   a clinic may want to withhold from whoever records the notice. A route
+   *   that moved quantity behind `recall.notice.create` would collapse the split
+   *   without changing a single permission name.
+   */
+  it('gates the stock-moving acts behind the execute code', () => {
+    const moving = routesOf(recallRoutes).filter(
+      (route) =>
+        route.path.endsWith('/execute') ||
+        route.path.endsWith('/resolve') ||
+        route.path.endsWith('/close') ||
+        route.path.endsWith('/cancel')
+    );
+    expect(moving.length).toBe(4);
+    for (const route of moving) {
+      expect(route.permissions).toEqual([PERMISSIONS.RECALL_EXECUTE]);
     }
   });
 });

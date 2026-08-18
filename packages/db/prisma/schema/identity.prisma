@@ -170,6 +170,15 @@ model User {
   consumptionsAmended       ClinicalConsumption[]             @relation("ConsumptionAmendedBy")
   consumptionTemplatesUpdated ConsumptionTemplate[]           @relation("ConsumptionTemplateUpdatedBy")
 
+  // -- Recall & traceability (PI-10) ------------------------------------------
+  /// ⚠️ THREE ACTS, THREE NAMES. Raising a notice, pulling the stock and
+  ///   declaring the work finished are decisions taken at different moments by
+  ///   different people, and a single `updated_by` would erase the one a
+  ///   regulator asks about: who authorised the hold.
+  recallsRaised             Recall[]                          @relation("RecallRaisedBy")
+  recallsExecuted           Recall[]                          @relation("RecallExecutedBy")
+  recallsClosed             Recall[]                          @relation("RecallClosedBy")
+
   @@index([status])
   @@index([isPlatformAdmin])
   @@map("users")

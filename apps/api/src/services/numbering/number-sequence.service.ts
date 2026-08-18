@@ -102,7 +102,19 @@ export type SequenceType =
    *   burns no number: a gap in a dispensing series is a gap an inspector asks
    *   about.
    */
-  | 'DISPENSE';
+  | 'DISPENSE'
+  /**
+   * Recall notices (PI-10). ⚠️ ORG-WIDE AND NEVER RESETS, unlike every
+   *   procurement counter above: a recall reaches every branch at once, so a
+   *   per-branch counter would give one notice three different numbers, and the
+   *   number is quoted back to a regulator years later.
+   *
+   * ⚠️ AND IT IS ISSUED AT CREATE, WHICH IS THE OPPOSITE OF THE PROCUREMENT
+   *   RULE. A notice EXISTS from the moment it arrives; a draft abandoned after
+   *   somebody decided the lot was not affected is a far smaller problem than a
+   *   notice nobody can cite while they are still working out what it covers.
+   */
+  | 'RECALL';
 
 export interface IssueNumberSpec {
   type: SequenceType;

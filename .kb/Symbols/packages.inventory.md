@@ -15,8 +15,8 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | `assertExactConversion` | `(result: ConversionResult, context: { from: string; to: string }): string` | `packages/inventory/src/units.ts:378` |  |
 | `assertValidPackaging` | `(levels: PackagingLevelRow[]): void` | `packages/inventory/src/units.ts:476` |  |
 | `averageCostBase` | `(valuedCostMinor: bigint, valuedQuantityBase: string): number` | `packages/inventory/src/costing.ts:157` |  |
-| `bucketKey` <sub>local</sub> | `(key: BucketKey): string` | `packages/inventory/src/movement.ts:264` |  |
-| `bucketQuantity` <sub>local</sub> | `(tx: TxClient, key: BucketKey): Promise<string>` | `packages/inventory/src/movement.ts:318` |  |
+| `bucketKey` <sub>local</sub> | `(key: BucketKey): string` | `packages/inventory/src/movement.ts:271` |  |
+| `bucketQuantity` <sub>local</sub> | `(tx: TxClient, key: BucketKey): Promise<string>` | `packages/inventory/src/movement.ts:325` |  |
 | `buildUnitGraph` | `(units: UnitRow[], conversions: ConversionRow[]): UnitGraph` | `packages/inventory/src/units.ts:236` |  |
 | `compareQuantities` | `(a: string, b: string): -1 \| 0 \| 1` | `packages/inventory/src/units.ts:207` |  |
 | `conflict` | `(message: string): InventoryError` | `packages/inventory/src/errors.ts:38` |  |
@@ -34,17 +34,17 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | `gcd` <sub>local</sub> | `(a: bigint, b: bigint): bigint` | `packages/inventory/src/units.ts:86` |  |
 | `invalid` | `(message: string): InventoryError` | `packages/inventory/src/errors.ts:32` |  |
 | `invert` | `(a: Rational): Rational` | `packages/inventory/src/units.ts:129` |  |
-| `lockBuckets` <sub>local</sub> | `(tx: TxClient, keys: BucketKey[]): Promise<void>` | `packages/inventory/src/movement.ts:276` |  |
+| `lockBuckets` <sub>local</sub> | `(tx: TxClient, keys: BucketKey[]): Promise<void>` | `packages/inventory/src/movement.ts:283` |  |
 | `missing` | `(resource: string): InventoryError` | `packages/inventory/src/errors.ts:35` |  |
 | `multiply` | `(a: Rational, b: Rational): Rational` | `packages/inventory/src/units.ts:115` |  |
-| `negate` <sub>local</sub> | `(quantity: string): string` | `packages/inventory/src/movement.ts:405` | Negate a decimal string without going through a float. |
+| `negate` <sub>local</sub> | `(quantity: string): string` | `packages/inventory/src/movement.ts:412` | Negate a decimal string without going through a float. |
 | `normalise` <sub>local</sub> | `(quantity: string): string` | `packages/inventory/src/allocate.ts:155` |  |
 | `orderCandidates` | `(candidates: AllocationCandidate[], strategy: AllocationStrategy): AllocationCandidate[]` | `packages/inventory/src/allocate.ts:101` |  |
 | `packagingFactorToBase` | `(levels: PackagingLevelRow[], level: number): Rational` | `packages/inventory/src/units.ts:419` |  |
 | `parseQuantity` | `(value: string): Rational` | `packages/inventory/src/units.ts:148` |  |
 | `planAllocation` | `(candidates: AllocationCandidate[], requestedQuantityBase: string, strategy: AllocationStrategy): AllocationPlan` | `packages/inventory/src/allocate.ts:180` |  |
 | `rational` | `(n: bigint, d: bigint): Rational` | `packages/inventory/src/units.ts:102` |  |
-| `recordMovementIn` | `(tx: TxClient, ctx: TenantContext, deps: MovementDeps, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>` | `packages/inventory/src/movement.ts:418` |  |
+| `recordMovementIn` | `(tx: TxClient, ctx: TenantContext, deps: MovementDeps, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>` | `packages/inventory/src/movement.ts:425` |  |
 | `releaseDueReservation` | `(tx: TxClient, ctx: TenantContext, deps: MovementDeps, reservation: DueReservation): Promise<boolean>` | `packages/inventory/src/reservation-sweep.ts:114` |  |
 | `removeFromAverage` | `(current: { valuedQuantityBase: string; valuedCostMinor: big…, quantityBase: string): { valuedQuantityBase: string; valuedCostMinor: bigint }` | `packages/inventory/src/costing.ts:214` |  |
 | `resolveStrategy` | `(requested: AllocationStrategy \| null \| undefined, productStrategy: AllocationStrategy \| null \| undefined): { strategy: AllocationStrategy; source: 'REQUEST' \| 'PRODUC…` | `packages/inventory/src/allocate.ts:228` |  |
@@ -54,7 +54,7 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | `sumRationals` <sub>local</sub> | `(a: Rational, b: Rational): Rational` | `packages/inventory/src/costing.ts:282` |  |
 | `sweepExpiredReservations` | `(ctx: TenantContext, deps: MovementDeps, run: RunInTenant, branchId: string, onError?: (reservation: DueReservation, error: unknown) => …): Promise<ReservationSweepResult>` | `packages/inventory/src/reservation-sweep.ts:159` |  |
 | `sweepExpiredStock` | `(ctx: TenantContext, deps: MovementDeps, run: RunInTenant, branchId: string, onError?: (bucket: ExpiredBucket, error: unknown) => void): Promise<SweepResult>` | `packages/inventory/src/expiry.ts:204` |  |
-| `toBaseUnits` | `(tx: TxClient, deps: MovementDeps, product: { id: string; baseUnitId: string; baseUnitCode: st…, input: Pick<MovementInput, 'quantity' \| 'unitId' \| 'packagi…): Promise<string>` | `packages/inventory/src/movement.ts:355` |  |
+| `toBaseUnits` | `(tx: TxClient, deps: MovementDeps, product: { id: string; baseUnitId: string; baseUnitCode: st…, input: Pick<MovementInput, 'quantity' \| 'unitId' \| 'packagi…): Promise<string>` | `packages/inventory/src/movement.ts:362` |  |
 | `unitCostFromPack` | `(pricePerPackMinor: number, quantityPerPack: string): number` | `packages/inventory/src/costing.ts:133` |  |
 | `valueOf` | `(unitCostBase: number \| bigint, quantityBase: string): bigint` | `packages/inventory/src/costing.ts:241` | `unitCostBase * quantityBase`, rounded HALF-UP — what a quantity of stock is worth at a given unit cost. |
 
@@ -69,7 +69,7 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `BASE_SCALE` | `6` | `packages/inventory/src/units.ts:51` | The ledger's precision. `Decimal(18,6)` in Postgres (PI-ADR-010). |
-| `DEFAULT_STATUS` <sub>local</sub> | `: Partial<Record<StockMovementType, { from?: StockStatus; to?: StockStatus }>>` | `packages/inventory/src/movement.ts:166` |  |
+| `DEFAULT_STATUS` <sub>local</sub> | `: Partial<Record<StockMovementType, { from?: StockStatus; to?: StockStatus }>>` | `packages/inventory/src/movement.ts:172` |  |
 | `DIRECTION` | `: Record<StockMovementType, Direction>` | `packages/inventory/src/movement.ts:121` |  |
 
 ## interface
@@ -79,14 +79,14 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | `AllocationCandidate` | `{ locationId, batchId, serialId, availableQuantityBase, expiresOn, receivedAt }` | `packages/inventory/src/allocate.ts:56` |  |
 | `AllocationLine` | `{ candidate, quantityBase }` | `packages/inventory/src/allocate.ts:68` |  |
 | `AllocationPlan` | `{ lines, requestedQuantityBase, allocatedQuantityBase, shortfallQuantityBase }` | `packages/inventory/src/allocate.ts:74` |  |
-| `BucketKey` <sub>local</sub> | `{ organizationId, branchId, productId, batchId, serialId, locationId, status }` | `packages/inventory/src/movement.ts:217` |  |
+| `BucketKey` <sub>local</sub> | `{ organizationId, branchId, productId, batchId, serialId, locationId, status }` | `packages/inventory/src/movement.ts:224` |  |
 | `ConversionResult` | `{ quantity, exact }` | `packages/inventory/src/units.ts:73` |  |
 | `ConversionRow` | `{ fromUnitId, toUnitId, numerator, denominator }` | `packages/inventory/src/units.ts:59` |  |
 | `DueReservation` | `{ id, branchId, productId, batchId, serialId, locationId, quantityBase }` | `packages/inventory/src/reservation-sweep.ts:42` | One reservation that has run out of time. |
 | `DueRow` <sub>local</sub> | `{ batch_id, product_id, serial_id, location_id, quantity, as_of }` | `packages/inventory/src/expiry.ts:95` |  |
 | `ExpiredBucket` | `{ batchId, productId, serialId, locationId, quantity, asOf }` | `packages/inventory/src/expiry.ts:77` | One (product, lot, serial, shelf) holding of expired stock. |
 | `MovementDeps` | `{ recordAudit, loadUnitGraph }` | `packages/inventory/src/movement.ts:76` |  |
-| `MovementInput` | `{ branchId, productId, batchId, serialId, movementType, quantity, adjustmentDirection, unitId, packagingLevel, locationId, statusFrom, statusTo, reasonCode, reasonNote, occurredAt, referenceType, ref…` | `packages/inventory/src/movement.ts:193` |  |
+| `MovementInput` | `{ branchId, productId, batchId, serialId, movementType, quantity, adjustmentDirection, unitId, packagingLevel, locationId, statusFrom, statusTo, reasonCode, reasonNote, occurredAt, referenceType, ref…` | `packages/inventory/src/movement.ts:200` |  |
 | `MovementOptions` | `{ ipAddress, userAgent }` | `packages/inventory/src/movement.ts:96` | Request provenance, carried into the audit row. |
 | `PackagingLevelRow` | `{ level, unitId, quantityOfChild }` | `packages/inventory/src/units.ts:395` |  |
 | `Rational` | `{ n, d }` | `packages/inventory/src/units.ts:68` | An exact non-negative rational. Always reduced, denominator always positive. |

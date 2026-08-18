@@ -19,7 +19,7 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 | `effectivePermissions` | `(ctx: AccessContext, now): PermissionCode[]` | `packages/permissions/src/resolver.ts:101` |  |
 | `isActive` <sub>local</sub> | `(a: RoleAssignment, now: Date): boolean` | `packages/permissions/src/resolver.ts:55` |  |
 | `maintainsPlatformLaw` <sub>local</sub> | `(p: PermissionCode): boolean` | `packages/permissions/src/roles.ts:145` |  |
-| `moduleOf` | `(code: PermissionCode): string` | `packages/permissions/src/codes.ts:743` | Split `pharmacy.dispense.create` into its module for grouping in the UI. |
+| `moduleOf` | `(code: PermissionCode): string` | `packages/permissions/src/codes.ts:801` | Split `pharmacy.dispense.create` into its module for grouping in the UI. |
 | `scopeApplies` <sub>local</sub> | `(assignmentBranchId: string \| null, targetBranchId: string \| null): boolean` | `packages/permissions/src/resolver.ts:47` |  |
 | `signsOffRulePacks` <sub>local</sub> | `(p: PermissionCode): boolean` | `packages/permissions/src/roles.ts:125` |  |
 
@@ -27,11 +27,11 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ALL_PERMISSIONS` | `Object.values(PERMISSIONS) as PermissionCode[]` | `packages/permissions/src/codes.ts:740` |  |
+| `ALL_PERMISSIONS` | `Object.values(PERMISSIONS) as PermissionCode[]` | `packages/permissions/src/codes.ts:798` |  |
 | `CLINICAL_AUTHORING` <sub>local</sub> | `: PermissionCode[]` | `packages/permissions/src/roles.ts:57` |  |
 | `MODULES` | `[ 'platform', 'organization', 'branch', 'iam', 'doctor', 'patient', 'appointment', 'clini…` | `packages/permissions/src/codes.ts:10` |  |
 | `P` <sub>local</sub> | `PERMISSIONS` | `packages/permissions/src/roles.ts:35` |  |
-| `PERMISSIONS` | `{ // -- platform (super admin only) ------------------------------------------- PLATFORM_…` | `packages/permissions/src/codes.ts:32` |  |
+| `PERMISSIONS` | `{ // -- platform (super admin only) ------------------------------------------- PLATFORM_…` | `packages/permissions/src/codes.ts:42` |  |
 | `PROFESSIONAL_ATTESTATION` <sub>local</sub> | `: PermissionCode[]` | `packages/permissions/src/roles.ts:98` |  |
 | `REGULATORY_SIGN_OFF` <sub>local</sub> | `: PermissionCode[]` | `packages/permissions/src/roles.ts:123` |  |
 | `SYSTEM_ROLE_DEFINITIONS` | `: SystemRoleDefinition[]` | `packages/permissions/src/roles.ts:147` |  |
@@ -56,8 +56,8 @@ Files: `packages/permissions/jest.config.ts` · `packages/permissions/src/codes.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `Module` | `(typeof MODULES)[number]` | `packages/permissions/src/codes.ts:30` |  |
+| `Module` | `(typeof MODULES)[number]` | `packages/permissions/src/codes.ts:40` |  |
 | `OverrideEffect` | `'GRANT' \| 'DENY'` | `packages/permissions/src/resolver.ts:18` |  |
-| `PermissionCode` | `(typeof PERMISSIONS)[keyof typeof PERMISSIONS]` | `packages/permissions/src/codes.ts:738` |  |
+| `PermissionCode` | `(typeof PERMISSIONS)[keyof typeof PERMISSIONS]` | `packages/permissions/src/codes.ts:796` |  |
 | `RoleScopeLevel` | `'PLATFORM' \| 'ORGANIZATION' \| 'BRANCH'` | `packages/permissions/src/roles.ts:25` |  |
 | `SystemRoleCode` | `(typeof SYSTEM_ROLES)[keyof typeof SYSTEM_ROLES]` | `packages/permissions/src/roles.ts:23` |  |

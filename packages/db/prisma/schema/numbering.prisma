@@ -64,6 +64,14 @@ enum NumberSequenceType {
   ///   a gap in this series is a question an auditor will ask. Never resets: the
   ///   number is quoted back years later.
   ENCOUNTER
+  /// Recall notices (PI-10). ⚠️ ORG-WIDE AND NEVER RESETS, unlike every
+  ///   procurement counter above. A recall reaches every branch at once, so a
+  ///   per-branch counter would give one notice three different numbers; and it
+  ///   is quoted back to a regulator years later, so it has to mean one thing
+  ///   for ever. Issued at CREATE rather than at execution — the document exists
+  ///   from the moment the notice arrives, and a recall abandoned in draft
+  ///   burning a number is a far smaller problem than a notice nobody can cite.
+  RECALL
 }
 
 /// One counter per (organization, branch, type, period). The issuer for every

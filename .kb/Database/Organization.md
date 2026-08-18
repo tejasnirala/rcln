@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 121 |
+| relations | 123 |
 
 ## Columns
 
@@ -136,6 +136,8 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `clinicalConsumptions` | [`ClinicalConsumption`](ClinicalConsumption.md) | `clinicalConsumptions ClinicalConsumption[]` |
 | `consumptionLines` | [`ConsumptionLine`](ConsumptionLine.md) | `consumptionLines ConsumptionLine[]` |
 | `consumptionAllocations` | [`ConsumptionAllocation`](ConsumptionAllocation.md) | `consumptionAllocations ConsumptionAllocation[]` |
+| `recalls` | [`Recall`](Recall.md) | `recalls Recall[]` |
+| `recallBatches` | [`RecallBatch`](RecallBatch.md) | `recallBatches RecallBatch[]` |
 | `clinicalMasterItems` | [`ClinicalMasterItem`](ClinicalMasterItem.md) | `clinicalMasterItems ClinicalMasterItem[]` |
 | `clinicalMasterCodings` | [`ClinicalMasterCoding`](ClinicalMasterCoding.md) | `clinicalMasterCodings ClinicalMasterCoding[]` |
 | `clinicalMasterScopes` | [`ClinicalMasterScope`](ClinicalMasterScope.md) | `clinicalMasterScopes ClinicalMasterScope[]` |
@@ -268,6 +270,8 @@ erDiagram
     Organization }o--o{ ClinicalConsumption : relates
     Organization }o--o{ ConsumptionLine : relates
     Organization }o--o{ ConsumptionAllocation : relates
+    Organization }o--o{ Recall : relates
+    Organization }o--o{ RecallBatch : relates
     Organization }o--o{ ClinicalMasterItem : relates
     Organization }o--o{ ClinicalMasterCoding : relates
     Organization }o--o{ ClinicalMasterScope : relates

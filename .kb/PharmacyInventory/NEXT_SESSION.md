@@ -2,11 +2,11 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-17 · **By:** session PI-9 (clinical consumption).
+**Written:** 2026-08-18 · **By:** session PI-10 (recall & traceability).
 
-⚠️ **PI-9 IS BUILT AND NOT REVIEWED.** `/code-review` and `security-reviewer`
-have not been run over it. The diff touches the schema, tenancy, permissions,
-patient data, billing and raw SQL, so CLAUDE.md makes the security review
+⚠️ **PI-9 AND PI-10 ARE BOTH BUILT AND NEITHER IS REVIEWED.** `/code-review` and
+`security-reviewer` have not been run over either. Both diffs touch the schema,
+tenancy, permissions and patient data, so CLAUDE.md makes the security review
 mandatory before merge — and it is not a formality: PI-1's review found two
 CRITICALs, PI-3's three, PI-5's four and PI-8.11's one.
 
@@ -30,87 +30,97 @@ foundation (PR #31). **PI-3** Movements (PR #32). **PI-4** Procurement (PR #33).
 **PI-5** Regulatory framework (PR #34). **PI-6** India rule pack (PR #35).
 **PI-7** Pharmacy dispensing. **PI-8** Billing & tax integration. **PI-8.11**
 The review gate over the whole PI-7 + PI-8 diff. **PI-9** Clinical consumption —
-`feat/pi-9-clinical-consumption`, **COMPLETE**, ⚠️ **not reviewed**.
+`feat/pi-9-clinical-consumption`, **COMPLETE**, ⚠️ **not reviewed**. **PI-10**
+Recall & traceability — `feat/pi-10-recall-traceability`, **COMPLETE**, ⚠️ **not
+reviewed**.
 
 ---
 
 ## What was changed in this session
 
-| Area        | What landed                                                                                                                                                                 |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema      | `consumption_templates` + lines, `clinical_consumptions` + lines + allocations; `charge_requests.consumption_line_id`; `encounter_procedures` gains its composite-FK target |
-| Migrations  | `20260908090000_clinical_consumption` (9 CHECKs, 2 partial uniques, 13 policies) · `..090500_data_access_resource_clinical_consumption`                                     |
-| RLS         | `db:rls:check` green at **126** (was 121). Five `*_visible` policies over three plain FKs                                                                                   |
-| Permissions | `consumption.record.read` / `.record` / `.override` / `.template.manage`                                                                                                    |
-| Engine      | **The `INVENTORY` charge-request writer** — the caller PI-8 built the path for and left unwritten. `raiseChargeRequestsWithin` now takes `sourceType`                       |
-| Services    | `services/consumption/{shared,template,consumption}.service.ts`                                                                                                             |
-| Screens     | `/usage` — used, templates, one template — plus the consumption panel on the consultation. The panel is the one that matters                                                |
+| Area        | What landed                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Schema      | `recalls` (org-only) + `recall_batches` (org + branch); four new enums; three members added to existing enums                  |
+| Migrations  | `20260909090000_recall_traceability` · `..090500_recall_enum_members` · `..091000_recall_release_movement_direction`           |
+| RLS         | `db:rls:check` green at **128** (was 126). One `product_visible`; `recall_batches.batch_id` needs none — it is a composite FK  |
+| Permissions | `recall.notice.read` / `.create` / `.execute`, and `recall.trace.patients` — the PHI one, implied by none of the other three   |
+| Services    | `services/recall/{shared,recall,trace}.service.ts`                                                                             |
+| Routes      | `/v1/recalls` and `/v1/traceability/{forward,backward,affected}`                                                               |
+| Screens     | `/product-recalls` — notices, one notice, trace a lot. ⚠️ NOT `/recalls`: `/recall` is already the front desk's follow-up list |
+| Fixed       | ⚠️ **`setBatchHold` could not hold a serialised lot at all** — a PI-2 defect, live since PI-2, on every implant in the clinic  |
 
 ---
 
 ## Decisions taken this session that a later phase must not undo
 
-**1. ⚠️ THE LAW IS NOT ASKED AT A CONSUMPTION.** No rule type in PI-5 addresses
-ADMINISTERING a product — every one of them is about supplying it to somebody —
-so `evaluateWithin` would answer `UNDETERMINED` for every product on the
-platform, which refuses. PI-6.7's enforcement gate would swallow that TODAY,
-which is precisely why it must not be relied on: the day a pack reaches
-`PRODUCTION_ENABLED`, every procedure in the clinic would stop. The call site is
-marked in `consumption.service.ts`'s header for whoever writes an administration
-rule type.
+**1. ⚠️ THE COUNTS AND THE NAMES ARE TWO ROUTES AND TWO PERMISSIONS.**
+`/v1/traceability/forward` answers "37 supplies, 4 procedures, 29 people" under
+`recall.notice.read` and names nobody. `/v1/traceability/affected` answers with
+names and phone numbers, requires `recall.trace.patients` ON TOP of the read
+code, and files one `RECALL_TRACE` disclosure row carrying the count.
+TRACEABILITY.md's "the link always exists in the data; who may see it is an
+access-control question" is exactly this, and `route-gates.test.ts` asserts both
+halves.
 
-**2. The variance is DERIVED and there is no `isOverride` on the request.**
-Whether a line departs from its template is arithmetic the server does over two
-numbers it already holds. A client-set flag is a control only the honest client
-applies — PI-8.11's CRITICAL, exactly — and the contract suite asserts the field
-is dropped rather than honoured if one is sent.
+**2. ⚠️ A BRANCH-SCOPED EXECUTOR PULLS ONLY THEIR OWN LOTS, AND THAT IS
+CORRECT.** `recall_batches.branch_isolation` makes the rest invisible; they
+cannot reach another site's shelf physically either. So execution is IDEMPOTENT
+over PENDING rows, `recalls.status = EXECUTED` means "somebody executed it"
+rather than "everything is held", and `closeRecall` refuses while anything is
+still PENDING.
 
-**3. An override is refused, never clamped.** Somebody without
-`consumption.override` gets an error telling them to ask a colleague. Recording
-the EXPECTED figure instead would put a quantity in the ledger nobody used,
-which is the one outcome CLINICAL_CONSUMPTION.md rules out.
+**3. Cancelling puts no stock back.** Releasing a held lot is a decision taken
+per lot by somebody looking at that lot, and it writes a movement and states a
+reason. `cancelRecall` refuses while anything is HELD rather than silently
+releasing everything under one sentence.
 
-**4. Two anchors are built and two are declared.** `LAB_ORDER` and
-`IMAGING_STUDY` are enum members with no column, refused by CHECK. The member
-saves the lab phase a migration; the CHECK stops anybody claiming an anchor with
-nothing behind it.
+**4. A recall is a document, not two columns on a batch.** `batches.recalled_at`
+answers "is this lot recalled"; it cannot answer "which of the eleven lots have
+we found, and how much did we pull". Both are written in one transaction.
 
-**5. A correction after the close is a second record; an amendment before it
-restates the first.** Both write DELTA ledger legs — the ledger is append-only
-either way. An amendment is refused once the consultation is signed OR once
-anything on it has reached an invoice.
+**5. `RECALL_RELEASE` is its own movement type**, for the reason
+`PURCHASE_RETURN` is not a `TRANSFER_OUT`. Four places must agree and the enum
+migration names them.
 
-**6. The consumption panel lives on the consultation, not in its own section.**
-The anchor is what makes the record traceable; a standalone form would have to
-ask which patient and which procedure, which is a question the person in the
-room has already answered and can get wrong.
+**6. The law is not asked at a recall, and the call site is marked.** No rule
+type in PI-5 addresses WITHDRAWING a product; `evaluateWithin` would answer
+`UNDETERMINED`, which refuses. A rule engine that could REFUSE a recall would be
+a defect wearing a control's clothes. The same call PI-9 made about administering.
 
 ---
 
 ## Where to start
 
-**⚠️ RUN THE REVIEWS FIRST.** `/code-review` and `security-reviewer` over the
-whole diff. Point a reviewer at these, because they are where the phase took its
-risks:
+**⚠️ RUN THE REVIEWS FIRST**, over PI-9 and PI-10 together. Point a reviewer at:
 
-- `restateLine` — the delta arithmetic on an amendment, and the
-  delete-and-re-raise of its charge request. It is the newest code in the phase
-  and the least exercised by a screen.
-- `recordReversal` — the ceiling ("what came off minus what has gone back") is
-  computed under the caller's row lock. PI-8.11's `alreadyCreditedByItem`
-  finding in this domain.
-- `assertMayOverride` — enforced in the SERVICE and not at the route, because
-  whether a body contains a variance is not knowable until the units are
-  converted. `permissionCodes` is resolved at the router and passed down.
-- `assertNoOverlap` — a read-then-write left deliberately unlocked, with the
-  reasoning recorded rather than assumed.
-- The five new `*_visible` policies, over three plain FKs.
+- `executeRecall` — the recall row is locked before its scope is read, then the
+  per-lot loop writes ledger legs, the lot's own status and the notice's row.
+- `resolveRecallBatch` — the "no OTHER live recall still names this lot" check is
+  what decides whether a lot goes back on sale. Two notices over one production
+  run is ordinary.
+- `listAffectedParties` — the one PHI read in the phase, its empty-scope guard
+  (`{ batchId: { in: [] } }` must never collapse to `{}`), and its in-memory
+  union.
+- `setBatchHold` — the PI-2 fix, and the serial-status sync beside it.
+- `recalls.product_visible`, the one plain FK in the phase.
 
-**Then PI-10 (Recall & Traceability)**, which is the natural next phase: PI-9
-just gave it the second half of the question. A recall that walked only
-`dispense_allocations` would miss every implant ever fitted;
-`consumption_allocations(organization_id, batch_id)` and `(…, serial_id)` are
-indexed for exactly that walk. PI-12 (Online Pharmacy) is also open.
+**Then PI-12 (Online Pharmacy)** or **PI-11 (Veterinary Enablement)**; both are
+unblocked. PI-22 (Reporting) now has recall and quarantine reports to write, and
+PI-23 (identifier resolution) is where a "hold every future receipt of this lot
+number" rule would belong — see the open item in the tracker.
+
+---
+
+## Files worth reading before touching recall
+
+|                                                              |                                                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `apps/api/src/services/recall/recall.service.ts`             | The four states, the one transaction, and what a branch-scoped executor does |
+| `apps/api/src/services/recall/trace.service.ts`              | The line between the counts and the names, and why it is two routes          |
+| `packages/db/prisma/schema/recall.prisma`                    | Why a recall is a document, and the two tenancy classes                      |
+| `apps/api/tests/integration/recall.test.ts`                  | The dispense, the procedure, the empty lot, and the serialised lot           |
+| `apps/api/tests/integration/tenant-isolation/recall.test.ts` | Two tables, two tenancy classes, and the CHECK constraints                   |
+| `.kb/PharmacyInventory/TRACEABILITY.md`                      | The nine questions. Read before changing either trace                        |
 
 ---
 

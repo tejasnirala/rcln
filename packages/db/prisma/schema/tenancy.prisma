@@ -220,6 +220,13 @@ model Organization {
   consumptionLines         ConsumptionLine[]
   consumptionAllocations   ConsumptionAllocation[]
 
+  // -- Recall & traceability (PI-10) ------------------------------------------
+  /// ⚠️ THE NOTICE IS ORG-ONLY AND IS **NOT** ON `Branch`. A manufacturer's
+  ///   notice arrives once for the whole group; which LOT is still on which
+  ///   shelf is the site's stock position, so the child below is on both.
+  recalls                  Recall[]
+  recallBatches            RecallBatch[]
+
   // -- Clinical consultation engine (CE-1) ------------------------------------
   clinicalMasterItems          ClinicalMasterItem[]
   clinicalMasterCodings        ClinicalMasterCoding[]
@@ -412,6 +419,11 @@ model Branch {
   clinicalConsumptions    ClinicalConsumption[]
   consumptionLines        ConsumptionLine[]
   consumptionAllocations  ConsumptionAllocation[]
+
+  // -- Recall & traceability (PI-10) ------------------------------------------
+  /// ⚠️ `recalls` IS **NOT** HERE, for the reason `consumption_templates` is
+  ///   not: the notice is the organization's. A LOT is held at one site.
+  recallBatches           RecallBatch[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   followUpRecommendations EncounterFollowUpRecommendation[]

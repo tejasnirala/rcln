@@ -42,7 +42,16 @@ import type { CatalogueActionOptions } from '../product/unit.service.js';
 const summaryInclude = Prisma.validator<Prisma.BatchInclude>()({
   product: { select: { code: true, name: true, baseUnit: { select: { symbol: true } } } },
   manufacturer: { select: { name: true } },
-  balances: { select: { status: true, quantity: true, locationId: true } },
+  /*
+   * ⚠️ `serialId` IS SELECTED FOR `setBatchHold`, NOT FOR THE SUMMARY. Balance
+   *   rows are keyed per serial for a serial-tracked product, and
+   *   `recordMovementIn` REFUSES a movement of one that names no serial. Without
+   *   it, holding a lot of implants raised "this product is serial-tracked, so
+   *   every movement of it must name a serial number" and pulled nothing —
+   *   which is a device recall failing at the one product class it matters most
+   *   for. See PI-10.
+   */
+  balances: { select: { status: true, quantity: true, locationId: true, serialId: true } },
 });
 
 const detailInclude = Prisma.validator<Prisma.BatchInclude>()({
@@ -52,6 +61,7 @@ const detailInclude = Prisma.validator<Prisma.BatchInclude>()({
       status: true,
       quantity: true,
       locationId: true,
+      serialId: true,
       location: { select: { name: true } },
     },
   },
@@ -415,6 +425,10 @@ export async function setBatchHold(
           branchId: existing.branchId,
           productId: existing.productId,
           batchId: existing.id,
+          // ⚠️ See the note on `summaryInclude`. A serial-tracked lot has one
+          //   balance row per device, and the engine refuses a movement of one
+          //   that does not name it.
+          serialId: balance.serialId,
           movementType: action,
           quantity: balance.quantity.toString(),
           locationId: balance.locationId,
@@ -427,6 +441,27 @@ export async function setBatchHold(
         options
       );
     }
+
+    /*
+     * The devices in the lot follow the lot (PI-10).
+     *
+     * ⚠️ WITHOUT THIS A HELD IMPLANT READS `IN_STOCK` ON THE SERIAL SCREEN while
+     *   its quantity sits in the QUARANTINED or RECALLED bucket — two answers to
+     *   "may this be fitted", and the screen a theatre nurse looks at is the one
+     *   that says yes. `ISSUED` serials are deliberately untouched: that device
+     *   is already in a patient, which is the recall trace's business and not a
+     *   status change.
+     */
+    const serialFrom = action === 'QUARANTINE_RELEASE' ? ['QUARANTINED', 'RECALLED'] : ['IN_STOCK'];
+    const serialTo =
+      action === 'QUARANTINE' ? 'QUARANTINED' : action === 'RECALL' ? 'RECALLED' : 'IN_STOCK';
+    await tx.serial.updateMany({
+      where: {
+        batchId: id,
+        status: { in: serialFrom as ('IN_STOCK' | 'QUARANTINED' | 'RECALLED')[] },
+      },
+      data: { status: serialTo },
+    });
 
     const now = new Date();
     const updated = await tx.batch.update({

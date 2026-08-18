@@ -110,6 +110,13 @@ export const stockMovementType = z.enum([
   'RELEASE',
   'QUARANTINE',
   'QUARANTINE_RELEASE',
+  /**
+   * Coming back OUT of the recalled bucket (PI-10). Written only by the recall
+   * service and deliberately absent from `manualMovementType` below: putting a
+   * recalled lot back on sale is a decision recorded against the notice that
+   * pulled it, never a free-standing adjustment somebody types.
+   */
+  'RECALL_RELEASE',
 ]);
 
 export const stockReferenceType = z.enum([

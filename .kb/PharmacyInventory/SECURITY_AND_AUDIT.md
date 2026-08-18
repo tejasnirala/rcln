@@ -85,9 +85,18 @@ them because nothing is built.
 | PI-5  | `regulatory.read` · `regulatory.manage` · `product.regulatory.read` · `product.regulatory.manage` · `platform.regulatory.manage` |
 | PI-7  | `pharmacy.dispense.verify`                                                                                                       |
 | PI-9  | `consumption.read` · `consumption.record` · `consumption.override`                                                               |
-| PI-10 | `recall.read` · `recall.create` · `recall.execute`                                                                               |
+| PI-10 | `recall.notice.read` · `recall.notice.create` · `recall.notice.execute` · `recall.trace.patients` ⚠️                             |
 
 `MODULES` gains `product`, `procurement`, `regulatory`, `consumption`, `recall`.
+
+⚠️ **PI-10 SHIPPED FOUR CODES, NOT THREE, AND THE NAMES CARRY A RESOURCE
+SEGMENT** — the format is `<module>.<resource>.<action>`, so `recall.read` has
+only two. The fourth, `recall.trace.patients`, is the one this document did not
+anticipate: reading a NOTICE is not reading WHO RECEIVED IT. The forward trace
+answers "37 supplies, 4 procedures, 29 people" under `recall.notice.read` and
+names nobody; resolving that to names and phone numbers is a separate act, gated
+separately, and it writes a `RECALL_TRACE` row in `data_access_logs`. See
+TRACEABILITY.md § "Patient linkage and its limits".
 
 ### Splits that matter
 

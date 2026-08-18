@@ -12,7 +12,7 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | --- | --- | --- | --- |
 | `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/inventory/allocation.service.ts:37` |  |
 | `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/inventory/balance.service.ts:33` |  |
-| `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/inventory/batch.service.ts:124` |  |
+| `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/inventory/batch.service.ts:134` |  |
 | `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/inventory/expiry.service.ts:60` |  |
 | `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/inventory/location.service.ts:96` |  |
 | `assertBranchInScope` <sub>local</sub> | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/inventory/reservation.service.ts:101` |  |
@@ -24,7 +24,7 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | `assertSerialReferences` <sub>local</sub> | `(tx: TxClient, product: { id: string; name: string }, branchId: string, refs: { batchId?: string \| null \| undefined; locationId?: s…): Promise<void>` | `apps/api/src/services/inventory/serial.service.ts:96` |  |
 | `assignSerial` | `(ctx: TenantContext, id: string, input: AssignSerialRequest, options: CatalogueActionOptions): Promise<SerialDetail>` | `apps/api/src/services/inventory/serial.service.ts:374` |  |
 | `cancelTransfer` | `(ctx: TenantContext, id: string, input: CancelStockTransferRequest, options: CatalogueActionOptions): Promise<StockTransferDetail>` | `apps/api/src/services/inventory/transfer.service.ts:1351` |  |
-| `createBatch` | `(ctx: TenantContext, input: CreateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>` | `apps/api/src/services/inventory/batch.service.ts:220` |  |
+| `createBatch` | `(ctx: TenantContext, input: CreateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>` | `apps/api/src/services/inventory/batch.service.ts:230` |  |
 | `createLocation` | `(ctx: TenantContext, input: CreateInventoryLocationRequest, options: CatalogueActionOptions): Promise<InventoryLocationDetail>` | `apps/api/src/services/inventory/location.service.ts:158` |  |
 | `createReasonCode` | `(ctx: TenantContext, input: CreateStockReasonCodeRequest, options: CatalogueActionOptions): Promise<StockReasonCodeSummary>` | `apps/api/src/services/inventory/reason-code.service.ts:218` |  |
 | `createSerial` | `(ctx: TenantContext, input: CreateSerialRequest, options: CatalogueActionOptions): Promise<SerialDetail>` | `apps/api/src/services/inventory/serial.service.ts:221` |  |
@@ -32,17 +32,17 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | `deleteReasonCode` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/inventory/reason-code.service.ts:316` |  |
 | `dispatchTransfer` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<StockTransferDetail>` | `apps/api/src/services/inventory/transfer.service.ts:830` |  |
 | `expiryReport` | `(ctx: TenantContext, query: ExpiryReportQuery): Promise<ExpiryReportResponse>` | `apps/api/src/services/inventory/expiry.service.ts:101` |  |
-| `findBatchOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/inventory/batch.service.ts:128` |  |
+| `findBatchOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/inventory/batch.service.ts:138` |  |
 | `findLocationOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/inventory/location.service.ts:100` |  |
 | `findOrCreateDestinationBatch` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, line: { productId: string; lotNumber: string \| null; manufa…, toBranchId: string): Promise<string \| null>` | `apps/api/src/services/inventory/transfer.service.ts:1043` |  |
 | `findSerialOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<SerialRow>` | `apps/api/src/services/inventory/serial.service.ts:78` |  |
 | `findTransferOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/inventory/transfer.service.ts:201` |  |
-| `getBatch` | `(ctx: TenantContext, id: string): Promise<BatchDetail>` | `apps/api/src/services/inventory/batch.service.ts:212` |  |
+| `getBatch` | `(ctx: TenantContext, id: string): Promise<BatchDetail>` | `apps/api/src/services/inventory/batch.service.ts:222` |  |
 | `getLocation` | `(ctx: TenantContext, id: string): Promise<InventoryLocationDetail>` | `apps/api/src/services/inventory/location.service.ts:147` |  |
 | `getSerial` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<SerialDetail>` | `apps/api/src/services/inventory/serial.service.ts:194` |  |
 | `getTransfer` | `(ctx: TenantContext, id: string): Promise<StockTransferDetail>` | `apps/api/src/services/inventory/transfer.service.ts:544` |  |
 | `listBalances` | `(ctx: TenantContext, query: StockBalanceQuery): Promise<StockBalanceListResponse>` | `apps/api/src/services/inventory/balance.service.ts:58` |  |
-| `listBatches` | `(ctx: TenantContext, query: BatchQuery): Promise<BatchListResponse>` | `apps/api/src/services/inventory/batch.service.ts:138` |  |
+| `listBatches` | `(ctx: TenantContext, query: BatchQuery): Promise<BatchListResponse>` | `apps/api/src/services/inventory/batch.service.ts:148` |  |
 | `listLedger` | `(ctx: TenantContext, query: StockLedgerQuery): Promise<StockLedgerListResponse>` | `apps/api/src/services/inventory/balance.service.ts:130` |  |
 | `listLocations` | `(ctx: TenantContext, query: InventoryLocationQuery): Promise<InventoryLocationListResponse>` | `apps/api/src/services/inventory/location.service.ts:125` |  |
 | `listReasonCodes` | `(ctx: TenantContext, query: StockReasonCodeQuery): Promise<StockReasonCodeListResponse>` | `apps/api/src/services/inventory/reason-code.service.ts:101` |  |
@@ -60,20 +60,20 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | `replaceStorageAreas` | `(ctx: TenantContext, locationId: string, input: ReplaceStorageAreasRequest, options: CatalogueActionOptions): Promise<InventoryLocationDetail>` | `apps/api/src/services/inventory/location.service.ts:316` |  |
 | `reserveStock` | `(ctx: TenantContext, input: CreateStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>` | `apps/api/src/services/inventory/reservation.service.ts:159` |  |
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, fromBranchId: string, lines: StockTransferLineRequest[]): Promise<ResolvedLine[]>` | `apps/api/src/services/inventory/transfer.service.ts:291` |  |
-| `setBatchHold` | `(ctx: TenantContext, id: string, action: 'QUARANTINE' \| 'QUARANTINE_RELEASE' \| 'RECALL', input: { reason: string; recallReference?: string \| null \| …, options: CatalogueActionOptions): Promise<BatchD…` | `apps/api/src/services/inventory/batch.service.ts:386` |  |
-| `sumQuantities` <sub>local</sub> | `(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus?: string): string` | `apps/api/src/services/inventory/batch.service.ts:72` |  |
+| `setBatchHold` | `(ctx: TenantContext, id: string, action: 'QUARANTINE' \| 'QUARANTINE_RELEASE' \| 'RECALL', input: { reason: string; recallReference?: string \| null \| …, options: CatalogueActionOptions): Promise<BatchD…` | `apps/api/src/services/inventory/batch.service.ts:396` |  |
+| `sumQuantities` <sub>local</sub> | `(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus?: string): string` | `apps/api/src/services/inventory/batch.service.ts:82` |  |
 | `sweepExpiredStock` | `(ctx: TenantContext, branchId: string): Promise<SweepResult>` | `apps/api/src/services/inventory/expiry.service.ts:189` |  |
-| `toDetail` <sub>local</sub> | `(row: DetailRow): BatchDetail` | `apps/api/src/services/inventory/batch.service.ts:111` |  |
+| `toDetail` <sub>local</sub> | `(row: DetailRow): BatchDetail` | `apps/api/src/services/inventory/batch.service.ts:121` |  |
 | `toDetail` <sub>local</sub> | `(row: DetailRow): InventoryLocationDetail` | `apps/api/src/services/inventory/location.service.ts:70` |  |
 | `toDetail` <sub>local</sub> | `(row: DetailRow): StockTransferDetail` | `apps/api/src/services/inventory/transfer.service.ts:181` |  |
 | `toLineDetail` <sub>local</sub> | `(line: LineRow): StockTransferLineDetail` | `apps/api/src/services/inventory/transfer.service.ts:108` |  |
-| `toSummary` <sub>local</sub> | `(row: SummaryRow): BatchSummary` | `apps/api/src/services/inventory/batch.service.ts:82` |  |
+| `toSummary` <sub>local</sub> | `(row: SummaryRow): BatchSummary` | `apps/api/src/services/inventory/batch.service.ts:92` |  |
 | `toSummary` <sub>local</sub> | `(row: SummaryRow): InventoryLocationSummary` | `apps/api/src/services/inventory/location.service.ts:53` |  |
 | `toSummary` <sub>local</sub> | `(row: Row): StockReasonCodeSummary` | `apps/api/src/services/inventory/reason-code.service.ts:60` |  |
 | `toSummary` <sub>local</sub> | `(row: Row, now: Date): StockReservationSummary` | `apps/api/src/services/inventory/reservation.service.ts:66` |  |
 | `toSummary` <sub>local</sub> | `(row: SerialRow): SerialSummary` | `apps/api/src/services/inventory/serial.service.ts:56` |  |
 | `toSummary` <sub>local</sub> | `(row: DetailRow): StockTransferSummary` | `apps/api/src/services/inventory/transfer.service.ts:145` |  |
-| `updateBatch` | `(ctx: TenantContext, id: string, input: UpdateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>` | `apps/api/src/services/inventory/batch.service.ts:311` |  |
+| `updateBatch` | `(ctx: TenantContext, id: string, input: UpdateBatchRequest, options: CatalogueActionOptions): Promise<BatchDetail>` | `apps/api/src/services/inventory/batch.service.ts:321` |  |
 | `updateLocation` | `(ctx: TenantContext, id: string, input: UpdateInventoryLocationRequest, options: CatalogueActionOptions): Promise<InventoryLocationDetail>` | `apps/api/src/services/inventory/location.service.ts:211` |  |
 | `updateReasonCode` | `(ctx: TenantContext, id: string, input: UpdateStockReasonCodeRequest, options: CatalogueActionOptions): Promise<StockReasonCodeSummary>` | `apps/api/src/services/inventory/reason-code.service.ts:267` |  |
 | `updateSerial` | `(ctx: TenantContext, id: string, input: UpdateSerialRequest, options: CatalogueActionOptions): Promise<SerialDetail>` | `apps/api/src/services/inventory/serial.service.ts:295` |  |
@@ -94,7 +94,7 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `balanceInclude` <sub>local</sub> | `Prisma.validator<Prisma.StockBalanceInclude>()(…)` | `apps/api/src/services/inventory/balance.service.ts:37` |  |
-| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.BatchInclude>()(…)` | `apps/api/src/services/inventory/batch.service.ts:48` |  |
+| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.BatchInclude>()(…)` | `apps/api/src/services/inventory/batch.service.ts:57` |  |
 | `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.InventoryLocationInclude>()(…)` | `apps/api/src/services/inventory/location.service.ts:42` |  |
 | `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.StockTransferInclude>()(…)` | `apps/api/src/services/inventory/transfer.service.ts:78` |  |
 | `ledgerInclude` <sub>local</sub> | `Prisma.validator<Prisma.StockLedgerEntryInclude>()(…)` | `apps/api/src/services/inventory/balance.service.ts:44` |  |
@@ -116,12 +116,12 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DetailRow` <sub>local</sub> | `Prisma.BatchGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/inventory/batch.service.ts:61` |  |
+| `DetailRow` <sub>local</sub> | `Prisma.BatchGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/inventory/batch.service.ts:71` |  |
 | `DetailRow` <sub>local</sub> | `Prisma.InventoryLocationGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/inventory/location.service.ts:51` |  |
 | `DetailRow` <sub>local</sub> | `Prisma.StockTransferGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/inventory/transfer.service.ts:105` |  |
 | `LineRow` <sub>local</sub> | `DetailRow['lines'][number]` | `apps/api/src/services/inventory/transfer.service.ts:106` |  |
 | `Row` <sub>local</sub> | `Prisma.StockReasonCodeGetPayload<object>` | `apps/api/src/services/inventory/reason-code.service.ts:58` |  |
 | `Row` <sub>local</sub> | `Prisma.StockReservationGetPayload<{ include: typeof summaryInclude }>` | `apps/api/src/services/inventory/reservation.service.ts:64` |  |
 | `SerialRow` <sub>local</sub> | `Prisma.SerialGetPayload<{ include: typeof serialInclude }>` | `apps/api/src/services/inventory/serial.service.ts:54` |  |
-| `SummaryRow` <sub>local</sub> | `Prisma.BatchGetPayload<{ include: typeof summaryInclude }>` | `apps/api/src/services/inventory/batch.service.ts:60` |  |
+| `SummaryRow` <sub>local</sub> | `Prisma.BatchGetPayload<{ include: typeof summaryInclude }>` | `apps/api/src/services/inventory/batch.service.ts:70` |  |
 | `SummaryRow` <sub>local</sub> | `Prisma.InventoryLocationGetPayload<{ include: typeof summaryInclude }>` | `apps/api/src/services/inventory/location.service.ts:50` |  |

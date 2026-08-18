@@ -290,6 +290,29 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        */
       P.INVENTORY_REASON_CODE_MANAGE,
       /*
+       * Recall (PI-10). All four, on the two roles that run a physical store.
+       *
+       * ⚠️ `.execute` IS GRANTED EVEN THOUGH IT IS THE STRONGER HALF OF THE
+       *   SPLIT, AND THAT IS DELIBERATE RATHER THAN AN OVERSIGHT. Both of these
+       *   roles already hold `inventory.batch.manage`, which quarantines a lot
+       *   through `POST /batches/:id/hold` — so withholding `.execute` would
+       *   withhold the CONVENIENT path and leave the same act reachable one lot
+       *   at a time. What the separate code buys is that a clinic which wants
+       *   the decision escalated can revoke it without also stopping its
+       *   storekeeper recording the notice. A default, not a ceiling.
+       *
+       * ⚠️ `recall.trace.patients` IS THE PHI ONE, and it is granted here
+       *   because both roles already read the dispensing register
+       *   (`pharmacy.dispense.read`) — which is the same list, asked patient
+       *   first instead of lot first. Granting it changes what is CONVENIENT,
+       *   not what is reachable, and every read of it files a
+       *   `data_access_logs` row that a lot-number read does not.
+       */
+      P.RECALL_READ,
+      P.RECALL_CREATE,
+      P.RECALL_EXECUTE,
+      P.RECALL_TRACE_PATIENTS,
+      /*
        * Both halves of the requisition split (PI-4.3), and this is the ONE
        * BRANCH-LEVEL ROLE THAT HOLDS BOTH.
        *
@@ -784,6 +807,13 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * store, and it decides what every future shrinkage report can aggregate.
        */
       P.INVENTORY_REASON_CODE_MANAGE,
+      // Recall (PI-10). See the note on BRANCH_ADMIN above — same four codes,
+      // same reasoning, and a pharmacist is usually the person the notice
+      // reaches first.
+      P.RECALL_READ,
+      P.RECALL_CREATE,
+      P.RECALL_EXECUTE,
+      P.RECALL_TRACE_PATIENTS,
       /*
        * Raises requisitions and deliberately does NOT approve them (PI-4.3).
        *

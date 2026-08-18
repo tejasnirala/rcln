@@ -21,6 +21,16 @@ export const MODULES = [
   'pharmacy',
   'inventory',
   'regulatory',
+  /*
+   * ⚠️ ITS OWN MODULE RATHER THAN `inventory.*` (PI-10), and the reason is the
+   *   one `consumption` gives. A recall is not a stock operation that happens to
+   *   be urgent: it reaches across every branch at once, it blocks dispensing,
+   *   and its second half is a list of NAMED PEOPLE who already received the
+   *   product. Filing it under `inventory` would mean the code that lets a
+   *   storekeeper count a shelf is adjacent to the code that answers "which of
+   *   our patients has this implant".
+   */
+  'recall',
   'billing',
   'report',
   'settings',
@@ -706,6 +716,54 @@ export const PERMISSIONS = {
    *   panel is on the surface that code gates.
    */
   CONSUMPTION_TEMPLATE_MANAGE: 'consumption.template.manage',
+
+  // -- recall & traceability -------------------------------------------------
+  /*
+   * A manufacturer's or regulator's notice, and the work it starts (PI-10).
+   *
+   * ⚠️ READING A RECALL IS NOT READING WHO RECEIVED IT. `recall.read` opens the
+   *   notice, the lots it names and the COUNTS of supplies and procedures that
+   *   touched them. Resolving those counts to named patients is a second,
+   *   separately-gated, separately-logged act — see `RECALL_TRACE_PATIENTS`
+   *   below and TRACEABILITY.md § "Patient linkage and its limits". A recall
+   *   that handed a storekeeper a patient list because they can read a lot
+   *   number would be the largest single PHI disclosure this platform can make.
+   */
+  RECALL_READ: 'recall.notice.read',
+  /*
+   * Recording the notice and assembling its scope. ⚠️ WRITES NO MOVEMENT — a
+   *   DRAFT recall holds nothing, deliberately, so a half-built scope does not
+   *   stop a pharmacy mid-shift.
+   */
+  RECALL_CREATE: 'recall.notice.create',
+  /*
+   * Pulling the stock.
+   *
+   * ⚠️ ITS OWN CODE, AND THE SPLIT IS THE `requisition.create` / `.approve`
+   *   SHAPE APPLIED TO STOCK. Recording that a notice arrived is clerical;
+   *   executing it moves quantity at every branch in one transaction and makes
+   *   the product un-dispensable across the organization. A clinic that wants
+   *   the second decision taken by a named person arranges it by not granting
+   *   this to everyone who can raise the first.
+   *
+   * ⚠️ AND IT IS NOT A NARROWER `inventory.batch.manage`. That code already
+   *   quarantines ONE lot at ONE branch through `POST /batches/:id/hold`, which
+   *   is the storekeeper's daily act. This is the same movement applied to
+   *   every lot a notice names, wherever it sits, from one screen.
+   */
+  RECALL_EXECUTE: 'recall.notice.execute',
+  /*
+   * Turning the counts into names.
+   *
+   * ⚠️ THE ONE PHI CODE IN THIS MODULE, AND IT IS NOT IMPLIED BY ANY OF THE
+   *   THREE ABOVE. TRACEABILITY.md is explicit that the LINK always exists in
+   *   the data — a recall that cannot reach the people who took the product is
+   *   not a recall — while WHO MAY SEE IT is an access-control question. So the
+   *   trace report answers "37 supplies, 4 procedures" under `recall.read`, and
+   *   answers "these 37 people" only here, and every such read writes a
+   *   `data_access_logs` row.
+   */
+  RECALL_TRACE_PATIENTS: 'recall.trace.patients',
 
   // -- reports ---------------------------------------------------------------
   REPORT_DASHBOARD: 'report.dashboard.read',

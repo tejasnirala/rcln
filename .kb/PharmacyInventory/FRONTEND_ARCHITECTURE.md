@@ -78,16 +78,16 @@ Rules that are not optional here:
 
 ### PI-2 / PI-3 — Inventory
 
-| Screen                       | Notes                                                                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Inventory dashboard          | Low stock, near expiry, expired, quarantined, recalled, pending transfers. Counts, not lists.                              |
-| Stock overview / by location | The location tree on the left, balances on the right.                                                                      |
-| Batch view                   | Lot, expiry, quantity, status, cost, supplier, origin GRN.                                                                 |
-| Serial view                  | Device history, including patient assignment where permitted.                                                              |
-| Expiry view                  | Buckets driven by the configured thresholds, never hard-coded windows.                                                     |
-| Quarantine / recall          | Read-only in PI-2; actions land in PI-10.                                                                                  |
-| Ledger                       | Paginated, filterable by product, batch, location, movement type, date. Append-only, so no edit affordance anywhere on it. |
-| Transfers / adjustments      | Adjustment requires a reason code before submit is enabled.                                                                |
+| Screen                       | Notes                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inventory dashboard          | Low stock, near expiry, expired, quarantined, recalled, pending transfers. Counts, not lists.                                                                          |
+| Stock overview / by location | The location tree on the left, balances on the right.                                                                                                                  |
+| Batch view                   | Lot, expiry, quantity, status, cost, supplier, origin GRN.                                                                                                             |
+| Serial view                  | Device history, including patient assignment where permitted.                                                                                                          |
+| Expiry view                  | Buckets driven by the configured thresholds, never hard-coded windows.                                                                                                 |
+| Quarantine / recall          | Read-only in PI-2. ⚠️ The workflow landed in PI-10 under **`/product-recalls`**, NOT `/recalls` — `/recall` is already the front desk's patient follow-up list (CE-5). |
+| Ledger                       | Paginated, filterable by product, batch, location, movement type, date. Append-only, so no edit affordance anywhere on it.                                             |
+| Transfers / adjustments      | Adjustment requires a reason code before submit is enabled.                                                                                                            |
 
 ### PI-4 — Procurement
 

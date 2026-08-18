@@ -1388,19 +1388,26 @@ Procurement + Regulatory platform serving clinical, dental, veterinary and lab
 workflows across ten jurisdictions, not a pharmacy module. Start at
 `PharmacyInventory/NEXT_SESSION.md`.
 
-**PI-0 through PI-9 are complete.** PI-1..PI-6 are merged to `main`; PI-7 and
+**PI-0 through PI-10 are complete.** PI-1..PI-6 are merged to `main`; PI-7 and
 PI-8 are on the programme branch and went through the PI-8.11 review gate —
-1 CRITICAL, 3 HIGH, 2 MEDIUM, 5 WARNING, all fixed. **PI-9 is on
-`feat/pi-9-clinical-consumption` and has NOT been through `/code-review` or
-`security-reviewer` yet** — required before merge, because it adds five tenant
-tables, a column on `charge_requests`, a unique index on a clinical table and
-four new permission codes.
+1 CRITICAL, 3 HIGH, 2 MEDIUM, 5 WARNING, all fixed. **PI-9 and PI-10 are on
+their own branches and NEITHER has been through `/code-review` or
+`security-reviewer`** — required before merge, because between them they add
+seven tenant tables, three enum members, eight permission codes and the one route
+in the product that returns a page of named patients to a storekeeper.
 
-**PI-9 was never blocked** — `encounters` and `encounter_procedures` had existed
-since the consultation engine merged, and the roll-up saying otherwise was stale
-for weeks. **PI-10 (Recall) and PI-12 (Online Pharmacy) are unblocked**, and
-PI-10 in particular now has the second half of its question: a recall that walked
-only `dispense_allocations` would miss every implant ever fitted.
+**PI-10 (Recall & Traceability) shipped on 2026-08-18.** Two tables — the notice
+and the lots it names — plus the two traceability directions. Executing one row
+makes a product un-dispensable and un-consumable at every branch at once, and
+`/v1/traceability/affected` is the second half: who already has it, behind
+`recall.trace.patients`, which none of the other three recall codes implies.
+⚠️ It also found a defect live since PI-2: **a serialised lot could not be held at
+all**, because `setBatchHold` passed no serial to an engine that refuses a
+movement of a serial-tracked product without one — so the quarantine button
+raised an error for every implant in the clinic. Fixed, with a test verified to
+fail against the reverted code.
+
+**PI-11 (Veterinary) and PI-12 (Online Pharmacy) are unblocked.**
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.
 
