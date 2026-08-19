@@ -48,7 +48,16 @@ export interface SupplyConsultation {
   productId: string;
   locationId: string;
   quantityBase: string;
-  transaction: 'DISPENSE' | 'COUNTER_SALE';
+  transaction: 'DISPENSE' | 'COUNTER_SALE' | 'ONLINE_DISPENSE';
+  /**
+   * Where the parcel is going, on a remote supply (PI-12).
+   *
+   * ⚠️ DERIVED BY THE ORDER SERVICE FROM THE ADDRESS THE ORDER FROZE, NEVER SENT
+   *   BY A CLIENT. `POST /v1/regulatory/evaluate` accepts one as a hypothesis,
+   *   for the reason it accepts a species as one; a supply must not, or the
+   *   person packing the parcel picks which country's rules apply to it.
+   */
+  destination?: { countryCode: string; regionCode: string | null };
   /** When it is handed over, which is not necessarily when it is keyed in. */
   occurredAt: Date;
   prescription?: EvaluateRegulatoryRequest['prescription'];
@@ -112,6 +121,14 @@ export async function consultForSupply(
       locationId: input.locationId,
       quantityBase: input.quantityBase,
       occurredAt: input.occurredAt.toISOString(),
+      ...(input.destination
+        ? {
+            destinationCountryCode: input.destination.countryCode,
+            ...(input.destination.regionCode !== null
+              ? { destinationRegionCode: input.destination.regionCode }
+              : {}),
+          }
+        : {}),
       ...(input.prescription ? { prescription: input.prescription } : {}),
       ...(input.patient ? { patient: input.patient } : {}),
       ...(input.substitution ? { substitution: input.substitution } : {}),

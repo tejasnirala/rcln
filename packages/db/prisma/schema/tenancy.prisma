@@ -227,6 +227,11 @@ model Organization {
   recalls                  Recall[]
   recallBatches            RecallBatch[]
 
+  // -- Online pharmacy (PI-12) ------------------------------------------------
+  onlineOrders             OnlineOrder[]
+  onlineOrderLines         OnlineOrderLine[]
+  onlineOrderShipments     OnlineOrderShipment[]
+
   // -- Clinical consultation engine (CE-1) ------------------------------------
   clinicalMasterItems          ClinicalMasterItem[]
   clinicalMasterCodings        ClinicalMasterCoding[]
@@ -424,6 +429,13 @@ model Branch {
   /// ⚠️ `recalls` IS **NOT** HERE, for the reason `consumption_templates` is
   ///   not: the notice is the organization's. A LOT is held at one site.
   recallBatches           RecallBatch[]
+
+  // -- Online pharmacy (PI-12) ------------------------------------------------
+  /// All three are branch-scoped: an order is fulfilled from ONE shelf, in ONE
+  /// jurisdiction, and the parcel leaves from that site.
+  onlineOrders            OnlineOrder[]
+  onlineOrderLines        OnlineOrderLine[]
+  onlineOrderShipments    OnlineOrderShipment[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   followUpRecommendations EncounterFollowUpRecommendation[]

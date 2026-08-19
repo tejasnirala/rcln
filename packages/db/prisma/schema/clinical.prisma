@@ -1028,6 +1028,7 @@ model Encounter {
   ///   own rows beside it — invariant 7.
   fulfilment      PrescriptionFulfilment?
   dispenses       Dispense[]
+  onlineOrders    OnlineOrder[]  @relation("OnlineOrderEncounter")
   /// What this visit consumed off the shelves (PI-9). ⚠️ ONE WAY, exactly as
   ///   `fulfilment` is: consumption reads the consultation and writes only its
   ///   own rows beside it. Nothing here is a clinical authoring code.
@@ -1559,6 +1560,7 @@ model EncounterPrescription {
   /// What the dispensary actually supplied against this line (PI-7). The
   /// fulfilment arithmetic lives here rather than in a column on this row.
   dispenseLines DispenseLine[]
+  onlineOrderLines OnlineOrderLine[] @relation("OnlineOrderLinePrescription")
 
   @@index([organizationId, encounterId, displayOrder])
   /// PI-7's read: what is outstanding against this product, and what was

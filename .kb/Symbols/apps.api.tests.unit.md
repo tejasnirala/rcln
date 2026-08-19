@@ -10,10 +10,10 @@ Files: `apps/api/tests/unit/audit-diff.test.ts` · `apps/api/tests/unit/charge-p
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `chainOf` <sub>local</sub> | `(router: IRouter): string[]` | `apps/api/tests/unit/route-gates.test.ts:231` |  |
+| `chainOf` <sub>local</sub> | `(router: IRouter): string[]` | `apps/api/tests/unit/route-gates.test.ts:243` |  |
 | `decision` <sub>local</sub> | `(over: Partial<RegulatoryDecisionResponse>): RegulatoryDecisionResponse` | `apps/api/tests/unit/regulatory-enforcement.test.ts:25` |  |
 | `declaredEndpointKeys` <sub>local</sub> | `(): Set<string>` | `apps/api/tests/unit/openapi.test.ts:37` | Every `METHOD /full/path` the mount table can reach. |
 | `ids` <sub>local</sub> | `(candidates: AllocationCandidate[]): (string \| null)[]` | `apps/api/tests/unit/inventory-allocation.test.ts:28` |  |
 | `lot` <sub>local</sub> | `(partial: Partial<AllocationCandidate> & { batchId: string }): AllocationCandidate` | `apps/api/tests/unit/inventory-allocation.test.ts:17` | A candidate with sensible defaults, so each test states only what it means. |
-| `routesOf` <sub>local</sub> | `(router: IRouter): Route[]` | `apps/api/tests/unit/route-gates.test.ts:65` |  |
+| `routesOf` <sub>local</sub> | `(router: IRouter): Route[]` | `apps/api/tests/unit/route-gates.test.ts:66` |  |
 | `toOpenApiPath` <sub>local</sub> | `(path: string): string` | `apps/api/tests/unit/openapi.test.ts:34` |  |

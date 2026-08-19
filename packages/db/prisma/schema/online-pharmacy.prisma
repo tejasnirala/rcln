@@ -1,0 +1,395 @@
+// ---------------------------------------------------------------------------
+// Online pharmacy — order, hold, pack, ship, deliver (PI-12)
+//
+// ⚠️ THIS FILE ADDS NO SECOND WAY TO MOVE STOCK, PRICE ANYTHING OR WRITE A
+//   PRESCRIPTION. An online order is a WORKFLOW that ends in a `dispenses` row
+//   written by the same function the counter writes one with — quantity still
+//   moves only through `recordMovement()` (PI-ADR-004), money still reaches the
+//   invoice engine only as a `charge_request` (PI-ADR-005/006), and the clinical
+//   content of a prescription is still READ and never written (invariant 7).
+//
+//   That is why there is no `online_order_allocations` table beside
+//   `dispense_allocations`, and no quantity column anywhere below that a report
+//   could disagree with the ledger about. What an order line holds is what
+//   somebody ASKED FOR; what left the building is on the dispense.
+//
+// ── THE FOUR ACTS, AND WHY THEY ARE FOUR ────────────────────────────────────
+//
+//   DRAFT      somebody keys what was asked for. Nothing is held, nothing is
+//              promised, and abandoning it costs the clinic nothing.
+//   CONFIRMED  the law is asked, the answer is snapshotted, and the stock is
+//              HELD — one `stock_reservations` row per lot, `RESERVATION`
+//              movements AVAILABLE -> RESERVED. From here the clinic has told
+//              somebody their medicine is coming, so the shelf must not sell it
+//              to the next person through the door.
+//   PACKED     the boxes leave the shelf. ONE transaction writes the dispense,
+//              its lines, its allocations, the `DISPENSING` legs out of the
+//              RESERVED bucket, the charge requests and the reservations'
+//              CONSUMED status. This is the irreversible act.
+//   SHIPPED    handed to a carrier -> DELIVERED, or DELIVERY_FAILED.
+//
+// ⚠️ CANCELLATION IS ONLY POSSIBLE BEFORE PACKING, AND THE CHECK CONSTRAINT SAYS
+//   SO. After packing, the medicine has physically left; undoing that is a
+//   `dispense_returns` row through the existing return path, exactly as it is
+//   for a counter supply. A `CANCELLED` status that could be reached after the
+//   ledger moved would be a cancellation the stock ledger has never heard of.
+//
+// ── WHAT THIS PHASE DELIBERATELY DOES NOT BUILD ─────────────────────────────
+//
+//   ⚠️ NO PATIENT-FACING SURFACE. There is no patient portal in this product and
+//     PI-12 does not invent one. An order ARRIVES — by telephone, by WhatsApp,
+//     through a form — and a member of staff records it, which is what
+//     `channel` says. Everything below is authenticated tenant staff acting on
+//     a named patient's behalf, so the RLS and permission story is the ordinary
+//     one rather than a new anonymous boundary.
+//
+//   ⚠️ NO CLICK-AND-COLLECT. An order placed remotely and collected in person is
+//     a different physical act — the patient is standing there and can be
+//     identified — and folding it in would make both the destination and the
+//     shipment nullable, which is two silent paths through the highest-risk
+//     write in the phase. A clinic doing that today takes the prescription at
+//     the counter, which is PI-7.
+//
+//   ⚠️ NO PARTIAL SHIPMENT. One order is packed once, into one consignment, and
+//     `online_order_shipments` is UNIQUE on the order. Splitting a consignment
+//     means splitting the dispense, the charge requests and the reservations
+//     three ways, and a clinic that genuinely must split places two orders. The
+//     unique index is what stops a second shipment appearing by accident and
+//     leaving two rows disagreeing about where the parcel is.
+//
+//   ⚠️ NO SUBSTITUTION ON AN ORDER. A substitution is a conversation with the
+//     patient, and an online order is confirmed before it is packed — so the
+//     conversation has to happen before the confirmation, which means cancelling
+//     and re-placing. `dispense_lines.substituted_for_product_id` therefore stays
+//     NULL on every line this workflow writes.
+//
+// ── PHI ──────────────────────────────────────────────────────────────────────
+// ⚠️ THIS IS THE ONLY TABLE GROUP IN THE PROGRAMME THAT HOLDS A PATIENT'S HOME
+//   ADDRESS BESIDE THE MEDICINES BEING SENT TO IT. "Send these four boxes of
+//   this to this house" is a clinical fact and a physical-safety fact at once,
+//   and it is why reading an order gets its own `DataAccessResource` member
+//   (`ONLINE_ORDER`) rather than being folded into `PRESCRIPTION`. Nothing here
+//   may be logged, cached in Redis, or put in a URL.
+// ---------------------------------------------------------------------------
+
+/// Where the order came from. What a clinic filters its day's work by.
+///
+/// ⚠️ IT RECORDS THE CHANNEL AND AUTHORISES NOTHING. Whether a remote supply is
+///   lawful is `@rcln/regulatory`'s answer and never a property of how the
+///   request arrived — a jurisdiction that requires an e-prescription requires
+///   one whether the order came by telephone or through a form.
+enum OnlineOrderChannel {
+  WEB
+  PHONE
+  WHATSAPP
+  EMAIL
+  /// Asked for in person, to be delivered. The order is still remote — the
+  /// medicine goes to a house rather than into a hand at the counter, which is
+  /// the fact every rule about remote supply turns on.
+  COUNTER
+}
+
+/// Where the order has got to.
+///
+/// ⚠️ `PACKED` IS THE POINT OF NO RETURN AND EVERY CONSTRAINT BELOW IS ARRANGED
+///   AROUND IT. Before it, nothing physical has happened and a cancellation
+///   releases the hold. After it, the ledger has moved, a charge request exists
+///   and a correction is a RETURN.
+enum OnlineOrderStatus {
+  DRAFT
+  CONFIRMED
+  PACKED
+  SHIPPED
+  DELIVERED
+  /// The carrier could not deliver it. ⚠️ NOT a terminal accounting state: the
+  ///   parcel is somewhere, and what comes back to the pharmacy comes back as a
+  ///   `dispense_returns` row like any other return.
+  DELIVERY_FAILED
+  CANCELLED
+}
+
+/// One request to have medicine sent to somebody.
+model OnlineOrder {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  /// ⚠️ THE BRANCH THAT WILL FULFIL IT, which is the branch whose jurisdiction
+  ///   the law is asked in and whose shelf the stock leaves. A group's patient
+  ///   may be prescribed at one site and supplied from another; this is the
+  ///   second one, exactly as `prescription_fulfilments.branch_id` is.
+  branchId       String @map("branch_id") @db.Uuid
+
+  /// Issued from `number_sequences` (`ONLINE_ORDER`, per branch, never resets)
+  /// at CONFIRM and not at create — a draft somebody abandons must burn no
+  /// number, the rule every procurement document follows.
+  orderNumber String? @map("order_number") @db.VarChar(64)
+
+  channel OnlineOrderChannel
+  status  OnlineOrderStatus  @default(DRAFT)
+
+  /// ⚠️ PHI, AND **NOT** NULLABLE, WHICH IS THE OPPOSITE CALL FROM `dispenses`.
+  ///   A counter sale may legitimately be to somebody who is not a patient of
+  ///   this clinic and never becomes one. A parcel cannot: somebody has to
+  ///   receive it, at an address, and a supply nobody can attribute is one that
+  ///   cannot be traced when the lot behind it is recalled.
+  patientId String @map("patient_id") @db.Uuid
+
+  /// The consultation whose prescription this supplies. NULL where the order is
+  /// for something no prescription was written for — which the regulatory
+  /// engine will refuse for anything prescription-only, and correctly.
+  encounterId String? @map("encounter_id") @db.Uuid
+
+  /// The dispensing point it will be packed out of. Branch-qualified, and
+  /// re-asserted at pack: `is_dispensing_point` is checked at both ends because
+  /// a clinic may retire a counter between the confirmation and the packing.
+  locationId String @map("location_id") @db.Uuid
+
+  // -------------------------------------------------------------------------
+  // Where it is going
+  //
+  // ⚠️ A SNAPSHOT, COPIED AT CONFIRM, AND NEVER A JOIN TO `patient_addresses`.
+  //   Three reasons, in increasing order of how badly the alternative fails:
+  //   an address a patient later corrects must not silently rewrite where a
+  //   parcel WAS sent; `patient_addresses` rows are editable and deletable and
+  //   a delivery record must outlive both; and the jurisdiction the law was
+  //   asked about is the one on THIS row, so a joined address that changed
+  //   would leave a frozen decision citing a destination nobody can reproduce.
+  //
+  //   `patient_address_id` below records which address it was copied from, for
+  //   a screen that wants to say "the home address". It is deliberately NOT a
+  //   foreign key the delivery depends on.
+  // -------------------------------------------------------------------------
+
+  /// ⚠️ PHI. Who signs for it — frequently not the patient. An elderly person's
+  ///   medicine received by their daughter is the ordinary case.
+  recipientName  String  @map("recipient_name") @db.VarChar(255)
+  /// ⚠️ PHI. What the carrier rings.
+  recipientPhone String  @map("recipient_phone") @db.VarChar(20)
+  /// ⚠️ PHI, all five.
+  addressLine1   String  @map("address_line1") @db.VarChar(255)
+  addressLine2   String? @map("address_line2") @db.VarChar(255)
+  city           String? @db.VarChar(100)
+  state          String? @db.VarChar(100)
+  pincode        String? @db.VarChar(10)
+
+  /// The destination jurisdiction, in the same two columns `jurisdictions` uses
+  /// and the same spelling: ISO 3166-1 alpha-2, and ISO 3166-2 WITHOUT the
+  /// country prefix (`KA`, never `IN-KA`).
+  ///
+  /// ⚠️ THIS IS WHAT THE ENGINE IS ASKED ABOUT AND IT IS NOT THE BRANCH'S. A
+  ///   supply happens where the counter is, EXCEPT that a parcel also arrives
+  ///   somewhere — and `ONLINE_DISPENSING` rules restrict exactly that. Taking
+  ///   the destination from the branch would make every cross-border rule inert
+  ///   while looking configured.
+  destinationCountryCode String  @map("destination_country_code") @db.Char(2)
+  destinationRegionCode  String? @map("destination_region_code") @db.VarChar(16)
+
+  /// Which stored address this was copied from, if any. Advisory — see above.
+  patientAddressId String? @map("patient_address_id") @db.Uuid
+
+  /// ⚠️ PHI. Anything the person taking the order wrote down.
+  notes String? @db.Text
+
+  placedAt   DateTime @default(now()) @map("placed_at") @db.Timestamptz(6)
+  placedById String   @map("placed_by_id") @db.Uuid
+
+  confirmedAt   DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  confirmedById String?   @map("confirmed_by_id") @db.Uuid
+
+  packedAt   DateTime? @map("packed_at") @db.Timestamptz(6)
+  packedById String?   @map("packed_by_id") @db.Uuid
+
+  cancelledAt   DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  /// ⚠️ REQUIRED WHENEVER THE ORDER IS CANCELLED, by CHECK. "The order was
+  ///   cancelled" with no reason is the state a patient rings up about.
+  cancellationReason String? @map("cancellation_reason") @db.Text
+
+  /// The supply this order became, written at PACK.
+  ///
+  /// ⚠️ THE ARROW POINTS THIS WAY ON PURPOSE. `dispenses` gains no column: it is
+  ///   the older, more heavily constrained table and the one PI-7's review
+  ///   covered, and an online order is a caller of the dispensing machinery
+  ///   rather than a property of a dispense. `@@unique([organizationId,
+  ///   dispenseId])` below is what makes the relationship one-to-one.
+  dispenseId String? @map("dispense_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch            @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  /// Restrict, not Cascade: a delivery record is a supply record, and a person's
+  /// dispensing history is a retention obligation in most jurisdictions.
+  patient      Patient           @relation("OnlineOrderPatient", fields: [organizationId, patientId], references: [organizationId, id], onDelete: Restrict)
+  encounter    Encounter?        @relation("OnlineOrderEncounter", fields: [organizationId, encounterId], references: [organizationId, id], onDelete: Restrict)
+  location     InventoryLocation @relation("OnlineOrderLocation", fields: [organizationId, branchId, locationId], references: [organizationId, branchId, id], onDelete: Restrict)
+  dispense     Dispense?         @relation("OnlineOrderDispense", fields: [organizationId, dispenseId], references: [organizationId, id], onDelete: Restrict)
+
+  placedBy    User  @relation("OnlineOrderPlacedBy", fields: [placedById], references: [id], onDelete: Restrict)
+  confirmedBy User? @relation("OnlineOrderConfirmedBy", fields: [confirmedById], references: [id], onDelete: Restrict)
+  packedBy    User? @relation("OnlineOrderPackedBy", fields: [packedById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("OnlineOrderCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+
+  lines    OnlineOrderLine[]
+  shipment OnlineOrderShipment?
+
+  /// ⚠️ LEFT AT POSTGRES' DEFAULT `NULLS DISTINCT`, WHICH IS THE OPPOSITE CALL
+  ///   FROM EVERY OTHER NULLABLE UNIQUE IN THIS SCHEMA — and the difference is
+  ///   the point. Elsewhere a NULL means "this dimension does not apply" and two
+  ///   such rows are the SAME row, so the migration rewrites the index NULLS NOT
+  ///   DISTINCT. Here a NULL means "no number has been issued yet", every draft
+  ///   has one, and collapsing them would let a branch hold exactly one draft
+  ///   order at a time. Issued numbers are still unique, which is the guarantee
+  ///   that matters.
+  @@unique([organizationId, orderNumber])
+  /// One order per dispense and one dispense per order, on the same default
+  /// `NULLS DISTINCT` reasoning: every unpacked order carries a NULL here.
+  ///
+  /// ⚠️ THIS IS THE IDEMPOTENCY GUARANTEE FOR PACKING. A retried pack that got
+  ///   past the service's status check would collide here rather than dispensing
+  ///   the same order twice — the database saying it, not a code path.
+  @@unique([organizationId, dispenseId])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  /// The dispensary's queue: what is outstanding at this branch, oldest first.
+  @@index([organizationId, branchId, status, placedAt])
+  /// "What has been sent to this person" — a PHI read, and its index.
+  @@index([organizationId, patientId, placedAt(sort: Desc)])
+  @@index([organizationId, encounterId])
+  @@map("online_orders")
+}
+
+/// One product on one order. What was ASKED FOR, never what left the building.
+model OnlineOrderLine {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  onlineOrderId  String @map("online_order_id") @db.Uuid
+
+  lineNumber Int @map("line_number") @db.SmallInt
+
+  /// The prescribed line this answers. NULL where the order is not against a
+  /// prescription, or where it asks for something the prescription did not list.
+  encounterPrescriptionId String? @map("encounter_prescription_id") @db.Uuid
+
+  productId String @map("product_id") @db.Uuid
+
+  /// What the person taking the order typed, and the unit they thought in.
+  quantityEntered Decimal @map("quantity_entered") @db.Decimal(18, 6)
+  unitId          String  @map("unit_id") @db.Uuid
+  /// The same amount in the product's base unit, through the one `toBaseUnits`
+  /// the ledger uses. Positive: nothing here carries a sign.
+  quantityBase    Decimal @map("quantity_base") @db.Decimal(18, 6)
+
+  /// What the engine said when the order was ACCEPTED, frozen (PI-ADR-008).
+  ///
+  /// ⚠️ NULLABLE, AND IT IS NOT THE LOAD-BEARING SNAPSHOT. A draft has not been
+  ///   consulted yet, so there is nothing to cite; the decision that PERMITS THE
+  ///   SUPPLY is the NOT NULL one on `dispense_lines`, written at pack under
+  ///   transaction `ONLINE_DISPENSE`. This one records the earlier, different
+  ///   question — "may we accept this order at all" — asked days before the
+  ///   parcel is made up, and it is worth keeping because a clinic that accepted
+  ///   an order it should have refused needs to be able to show what it was told
+  ///   on the day it accepted.
+  ///
+  /// ⚠️ AND THE PACK ASKS AGAIN RATHER THAN REUSING THIS. Rules change, packs are
+  ///   superseded, a prescription is amended and stock ages — a decision taken at
+  ///   confirmation is stale by definition at packing, and honouring it would be
+  ///   the "asked once, acted twice" shape PI-ADR-008 exists to prevent.
+  regulatoryDecisionId String? @map("regulatory_decision_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch        @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  onlineOrder  OnlineOrder   @relation(fields: [organizationId, onlineOrderId], references: [organizationId, id], onDelete: Cascade)
+  /// ⚠️ PLAIN FKs INTO PLATFORM-EXTENSIBLE ROWS, AND EACH CARRIES ITS OWN
+  ///   RESTRICTIVE `*_visible` POLICY — `product_visible` and `unit_visible`,
+  ///   written out in `enable-rls.sql` beside `dispense_lines`' three.
+  ///   `tenant_isolation` constrains this row's own `organization_id` and says
+  ///   nothing about which product it cites; without the policies a clinic can
+  ///   attach another clinic's private product to its own order line. That is
+  ///   KI-3, and it has produced a CRITICAL in five separate phases now —
+  ///   including this one, whose first draft argued the policies were
+  ///   unnecessary and cited two precedents that said the opposite.
+  product      Product       @relation("OnlineOrderLineProduct", fields: [productId], references: [id], onDelete: Restrict)
+  unit         UnitOfMeasure @relation("OnlineOrderLineUnit", fields: [unitId], references: [id], onDelete: Restrict)
+
+  encounterPrescription EncounterPrescription? @relation("OnlineOrderLinePrescription", fields: [organizationId, encounterPrescriptionId], references: [organizationId, id], onDelete: Restrict)
+  regulatoryDecision    RegulatoryDecision?    @relation("OnlineOrderLineDecision", fields: [organizationId, regulatoryDecisionId], references: [organizationId, id], onDelete: Restrict)
+
+  @@unique([organizationId, onlineOrderId, lineNumber])
+  /// ⚠️ ONE LINE PER PRODUCT, AND THE REASON IS THE HOLD RATHER THAN TIDINESS.
+  ///   Each line's `stock_reservations` cite THAT LINE's id, which is what lets
+  ///   packing put the right lots against the right line. Two lines naming one
+  ///   product would be two holds for one medicine, indistinguishable to any
+  ///   report reading reservations by product, and two answers to how much is
+  ///   coming. The service refuses it with a sentence; this is what holds when a
+  ///   fixture, a backfill or a second writer forgets to.
+  @@unique([organizationId, onlineOrderId, productId])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, onlineOrderId])
+  @@index([organizationId, productId])
+  @@index([organizationId, encounterPrescriptionId])
+  @@map("online_order_lines")
+}
+
+/// The parcel: who is carrying it, and what happened to it.
+///
+/// ⚠️ ONE PER ORDER, ENFORCED BY A UNIQUE INDEX. See the file header on why
+///   partial shipment is not built. A second row would be a second answer to
+///   "where is the parcel", and the two would be free to disagree.
+model OnlineOrderShipment {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  branchId       String @map("branch_id") @db.Uuid
+  onlineOrderId  String @map("online_order_id") @db.Uuid
+
+  /// Who is carrying it. Free text and never an enum: a clinic's courier is a
+  /// local firm as often as a national one, and a closed list would be a
+  /// migration per market.
+  carrierName       String  @map("carrier_name") @db.VarChar(128)
+  serviceLevel      String? @map("service_level") @db.VarChar(64)
+  /// The consignment note. ⚠️ NOT PHI on its own, and it is indexed because "the
+  ///   patient is on the phone with a tracking number" is the query this table
+  ///   exists to answer quickly.
+  trackingReference String? @map("tracking_reference") @db.VarChar(128)
+  packageCount      Int     @default(1) @map("package_count") @db.SmallInt
+
+  shippedAt   DateTime @default(now()) @map("shipped_at") @db.Timestamptz(6)
+  shippedById String   @map("shipped_by_id") @db.Uuid
+
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(6)
+  deliveredById String?   @map("delivered_by_id") @db.Uuid
+  /// ⚠️ PHI. Who actually took it, where that is recorded and is not the
+  ///   recipient the order named.
+  receivedByName String? @map("received_by_name") @db.VarChar(255)
+
+  failedAt      DateTime? @map("failed_at") @db.Timestamptz(6)
+  failedById    String?   @map("failed_by_id") @db.Uuid
+  /// ⚠️ REQUIRED WHENEVER THE DELIVERY FAILED, by CHECK, and PHI-adjacent: why a
+  ///   named person's medicine could not be delivered to their house.
+  failureReason String?   @map("failure_reason") @db.Text
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch       Branch       @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  onlineOrder  OnlineOrder  @relation(fields: [organizationId, onlineOrderId], references: [organizationId, id], onDelete: Cascade)
+
+  shippedBy   User  @relation("OnlineOrderShipmentShippedBy", fields: [shippedById], references: [id], onDelete: Restrict)
+  deliveredBy User? @relation("OnlineOrderShipmentDeliveredBy", fields: [deliveredById], references: [id], onDelete: Restrict)
+  failedBy    User? @relation("OnlineOrderShipmentFailedBy", fields: [failedById], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, onlineOrderId])
+  @@unique([organizationId, id])
+  @@unique([organizationId, branchId, id])
+  @@index([organizationId, branchId, shippedAt(sort: Desc)])
+  @@index([organizationId, trackingReference])
+  @@map("online_order_shipments")
+}

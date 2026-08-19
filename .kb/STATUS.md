@@ -2,7 +2,7 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-08-16 · **Current phase:** 0 complete; 1 complete except
+**Last updated:** 2026-08-19 · **Current phase:** 0 complete; 1 complete except
 the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
 management, email/phone verification, org settings, super-admin impersonation,
 one unified shell, remembered scope and per-record history); **2 complete except
@@ -16,7 +16,7 @@ Queue tokens and walk-in are stage 5; prescriptions come after. The consultation
 page exists as a route with a deliberate placeholder where the specialty-specific
 diagnosis form will go.
 
-**Phase 5 has started out of order, and deliberately: PI-1 through PI-6 are
+**Phase 5 has started out of order, and deliberately: PI-1 through PI-12 are
 done** — the product catalogue, the inventory foundation, movements, procurement,
 the regulatory framework and now the India rule pack. None of them depends on
 anything Phase 3 owns, and everything else in the pharmacy programme waits on
@@ -65,10 +65,37 @@ receiving stock. Enforcement is gated on `PRODUCTION_ENABLED`, which only a name
 human may set. India's sources are `UNVERIFIED` and no qualified person has read
 the pack, so nothing here claims compliance with anything.
 
-`db:rls:check` is green at **111** protected tables and **1507 API tests pass
-across 73 suites** (1314 integration + 193 unit).
+**PI-12 completes the pharmacy programme's supply side: online orders.** The
+same medicine, leaving in a parcel instead of into a hand — and it writes no
+second way to move stock, price anything or write a prescription. An order is
+taken as a draft, ACCEPTED (which asks the law, snapshots the answer and HOLDS
+the lots as `stock_reservations`), PACKED (which calls the same
+`createDispenseWithin` the counter calls, out of the `RESERVED` bucket), then
+shipped and delivered.
 
-**Both reviewer passes have run and been acted on** for PI-3 and PI-4. See
+⚠️ **ITS LOAD-BEARING DECISION IS THAT A REMOTE SUPPLY HAS TWO GATES.** A pack
+that regulates supply lists `ONLINE_DISPENSE` alongside `DISPENSE`, so a pack
+that says nothing about remote supply PERMITS it on the strength of rules about
+a counter — a fail-open that survived seven phases. `@rcln/regulatory` now makes
+`product_regulatory_profiles.online_sale_position` decisive for that one
+transaction, AND the order service refuses on it directly, because a regulatory
+refusal enforces nothing until a human signs a pack off.
+
+⚠️ **THE SECURITY REVIEW FOUND TWO CRITICALS IN PI-12 AND BOTH ARE FIXED**, each
+with a regression test verified to fail against the reverted code: a missing pair
+of `*_visible` policies on `online_order_lines` (KI-3 again, on a comment that
+claimed two precedents which said the opposite), and a bypass of the whole
+remote-supply gate through the counter's own dispense endpoint, opened by
+widening `DispenseKind`. **`/code-review` then ran too** — no CRITICAL, 8 WARNING
+and 7 INFO, all fixed; it confirmed the phase's five riskiest claims and found
+that three of them were argued from comments that said the wrong thing, which
+have been corrected.
+
+`db:rls:check` is green at **131** protected tables and **1897 API tests pass
+across 92 suites**.
+
+**Both reviewer passes have run and been acted on** for PI-3 and PI-4, and again
+over PI-9, PI-10 and PI-11 together, and again over PI-12. See
 § Phase 5 and `.kb/PharmacyInventory/NEXT_SESSION.md`.
 
 ⚠️ PHI is live from stage 3 onwards — `patients`, `appointments` and
@@ -1471,7 +1498,9 @@ said would differ.
   backfill could have reached it, which is exactly the set of writers a CHECK is
   for. The tenant-isolation case found it; a third migration made it symmetric.
 
-**PI-12 (Online Pharmacy) is unblocked.**
+**PI-13 (the US rule pack) is next. PI-22 and PI-23 are also open**, and PI-12
+gave both more to do: reporting now has deliveries to report on, and a recall
+cannot yet reach stock held for an order nobody has packed.
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.
 

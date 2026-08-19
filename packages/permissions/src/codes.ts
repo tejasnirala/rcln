@@ -361,6 +361,35 @@ export const PERMISSIONS = {
    */
   DISPENSE_VERIFY: 'pharmacy.dispense.verify',
   DISPENSE_RETURN: 'pharmacy.dispense.return',
+  /*
+   * Online pharmacy (PI-12). THREE codes for a workflow that ends in a dispense,
+   * and the split is where the risk changes rather than where the screens do.
+   *
+   *   `.read`      the order list, an order, where the parcel is. ⚠️ A BROADER
+   *                DISCLOSURE THAN `.dispense.read`: an order carries a named
+   *                person's HOME ADDRESS beside the medicines going to it, which
+   *                is why reading one writes its own `data_access_logs` resource.
+   *   `.manage`    taking the order, accepting it, standing it down. Accepting
+   *                one HOLDS STOCK — `RESERVATION` movements the shelf then
+   *                cannot sell — so this is a real inventory act and not data
+   *                entry, which is why it is not folded into `.read`.
+   *   `.dispatch`  handing the parcel to a carrier, closing out a delivery,
+   *                recording a failure. Logistics: it moves no stock and decides
+   *                no money, and it is routinely done by whoever is at the desk
+   *                rather than by a pharmacist.
+   *
+   * ⚠️ AND PACKING IS GATED ON `pharmacy.dispense.create`, WHICH IS NOT A NEW
+   *   CODE AND IS THE MOST IMPORTANT LINE IN THIS COMMENT. Making up the parcel
+   *   IS the supply — it writes the dispense, moves the ledger and raises the
+   *   charge request — so it is gated by the code that already means "this person
+   *   may hand medicine over", not by a fourth online-specific one. A separate
+   *   `.pack` code would be a second door to `pharmacy.dispense.create`'s
+   *   authority, grantable to somebody a clinic had deliberately kept away from
+   *   the counter.
+   */
+  ONLINE_ORDER_READ: 'pharmacy.online_order.read',
+  ONLINE_ORDER_MANAGE: 'pharmacy.online_order.manage',
+  ONLINE_ORDER_DISPATCH: 'pharmacy.online_order.dispatch',
   SUPPLIER_MANAGE: 'pharmacy.supplier.manage',
   PURCHASE_ORDER_READ: 'pharmacy.purchase_order.read',
   PURCHASE_ORDER_MANAGE: 'pharmacy.purchase_order.manage',

@@ -19,6 +19,18 @@ export interface PharmacyAccess {
   canVerify: boolean;
   canDispense: boolean;
   canTakeReturns: boolean;
+  /**
+   * Online orders (PI-12), and the three flags are three different jobs.
+   *
+   * ⚠️ THERE IS NO `canPack` HERE, DELIBERATELY. Making the parcel up IS the
+   *   supply — it writes the dispense and moves the ledger — so the screen reads
+   *   `canDispense` for that button, exactly as the counter does. A fourth flag
+   *   would be a second name for one permission, and the two would eventually
+   *   disagree on a screen.
+   */
+  canReadOrders: boolean;
+  canManageOrders: boolean;
+  canDispatchOrders: boolean;
   /** Whether any of the above is true — i.e. whether the counter is theirs at all. */
   any: boolean;
 }
@@ -33,6 +45,9 @@ export async function pharmacyAccess(slug: string): Promise<PharmacyAccess> {
     canVerify: has(PERMISSIONS.DISPENSE_VERIFY),
     canDispense: has(PERMISSIONS.DISPENSE_CREATE),
     canTakeReturns: has(PERMISSIONS.DISPENSE_RETURN),
+    canReadOrders: has(PERMISSIONS.ONLINE_ORDER_READ),
+    canManageOrders: has(PERMISSIONS.ONLINE_ORDER_MANAGE),
+    canDispatchOrders: has(PERMISSIONS.ONLINE_ORDER_DISPATCH),
   };
 
   return { ...access, any: Object.values(access).some(Boolean) };

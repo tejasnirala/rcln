@@ -45,6 +45,8 @@ import {
 import {
   formatJurisdiction,
   needsClassificationButHasNone,
+  onlineSaleGap,
+  onlineSaleGapMessage,
   selectApplicableRules,
   startOfCalendarDay,
 } from './selection.js';
@@ -890,6 +892,54 @@ export function evaluate(request: RegulatoryRequest): RegulatoryDecision {
       ? rule.packMaturity
       : lowest;
   }, null);
+
+  /*
+   * ⚠️ THE REMOTE-SUPPLY GATE, CHECKED BEFORE EVERYTHING INCLUDING THE "NO RULES"
+   *   BRANCH (PI-12). A remote supply is the one transaction in this package that
+   *   fails OPEN when a pack says nothing about it: a jurisdiction whose rules
+   *   list `ONLINE_DISPENSE` alongside `DISPENSE` — which every honest pack does,
+   *   so the prescription rules follow the medicine home — permits a remote
+   *   supply on the strength of rules written about a counter. No rule refused;
+   *   no rule was asked.
+   *
+   *   So a product is not onlineable until somebody has said so, per jurisdiction,
+   *   on its regulatory profile. See `onlineSaleGap` for why that field and not a
+   *   rule type.
+   *
+   * ⚠️ IT IS FIRST BECAUSE IT IS THE MOST ACTIONABLE ANSWER, not because it is the
+   *   most important. In an unconfigured country every one of these branches is
+   *   true at once, and the reasons list is what somebody reads to find out what
+   *   to do next — "record this product's position on remote supply" is a task,
+   *   "no rule covers this" is a project.
+   */
+  const remoteGap = onlineSaleGap(request.transaction, request.profile);
+  if (remoteGap !== null) {
+    const place = formatJurisdiction(request.jurisdiction);
+    return {
+      /*
+       * ⚠️ ONLY `PROHIBITED` IS A REFUSAL, AND THE DISTINCTION IS NOT COSMETIC.
+       *   A refusal says somebody looked and the answer is no; `UNDETERMINED`
+       *   says nobody has looked. Both stop the supply — `UNDETERMINED` refuses
+       *   everywhere in this package — and they send the clinic to two different
+       *   places: one to their regulator, the other to their own profile screen.
+       */
+      outcome: remoteGap === 'PROHIBITED' ? 'REFUSED' : 'UNDETERMINED',
+      conditions: [],
+      reasons: [
+        {
+          ruleId: null,
+          ruleCode: null,
+          ruleType: null,
+          packId: null,
+          packVersion: null,
+          outcome: remoteGap === 'PROHIBITED' ? 'REFUSED' : 'UNDETERMINED',
+          message: onlineSaleGapMessage(remoteGap, place),
+        },
+      ],
+      packVersionIds,
+      lowestPackMaturity,
+    };
+  }
 
   if (applicable.length === 0) {
     return {

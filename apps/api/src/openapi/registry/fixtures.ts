@@ -551,3 +551,36 @@ export const PLAN_PRICE_ID = '5b1e7a94-0c38-4d26-8f75-3a9c2b6e0d41';
 export const PAYMENT_INTENT_ID = 'c92a4f60-7b15-4e83-9d24-6c0b8a3e5f17';
 export const MANDATE_ID = '1d7f5c28-4a09-4b63-8e91-2f6a0c9b7d34';
 export const SUBSCRIPTION_INVOICE_ID = '8e0c3b47-2d95-4a18-9f62-5b7a1c0e4d38';
+
+/* ─────────────────────────── online pharmacy (PI-12) ────────────────────── */
+
+/**
+ * The same clinic sending the same patient the same medicine, by post.
+ *
+ * ⚠️ IT REUSES {@link PATIENT_ID}, {@link ENCOUNTER_ID} AND {@link PRODUCT_ID}
+ *   DELIBERATELY. The reference tells ONE story end to end — Ravi Subramanian's
+ *   amoxicillin, prescribed at his consultation, and here dispatched to his
+ *   house instead of handed over the counter — so a reader can follow the same
+ *   row from the prescription through the order to the parcel.
+ */
+export const ONLINE_ORDER_ID = 'c47a0e93-6b25-4f81-9d30-8a1c5e7b2f04';
+export const ONLINE_ORDER_LINE_ID = '2f95c108-7d43-4b60-8e19-5a0c3b6e9d72';
+export const ONLINE_ORDER_NUMBER = 'ORD-2026-000318';
+export const ONLINE_SHIPMENT_ID = '6a3d0b57-1e94-4c28-8f65-9b2c7a0e4d13';
+export const PATIENT_ADDRESS_ID = '9e4b2c76-0a38-4d51-8c97-3f1b6a5e0d24';
+/** A consignment note, quoted back by the patient on the telephone. */
+export const TRACKING_REFERENCE = 'BLR7742199814';
+
+/** Where the parcel goes. ⚠️ PHI in every field but the two jurisdiction codes. */
+export const DELIVERY_ADDRESS = {
+  recipientName: 'Ravi Subramanian',
+  recipientPhone: '+919845067890',
+  addressLine1: '42 Laburnum Road',
+  addressLine2: 'Indiranagar',
+  city: 'Bengaluru',
+  state: 'Karnataka',
+  pincode: '560038',
+  destinationCountryCode: 'IN',
+  destinationRegionCode: 'KA',
+  patientAddressId: PATIENT_ADDRESS_ID,
+} as const;

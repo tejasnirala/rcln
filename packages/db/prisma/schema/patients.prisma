@@ -219,6 +219,9 @@ model Patient {
   /// `onDelete: Restrict` on the other side: a dispensing record is a retention
   /// obligation in most jurisdictions and outlives their being a current patient.
   dispenses               Dispense[]
+  /// Online pharmacy (PI-12). ⚠️ NOT NULLABLE on the order, unlike a dispense:
+  /// somebody has to receive a parcel. See the model comment.
+  onlineOrders            OnlineOrder[]             @relation("OnlineOrderPatient")
   /// What this person is being billed for (PI-8). ⚠️ PHI, and `Restrict` on the
   /// other side for the reason `dispenses` is: a billing record is a retention
   /// obligation too.

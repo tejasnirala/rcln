@@ -4,7 +4,7 @@ Defects, gaps and debts in **this programme**. Repository-wide issues live in
 [`.kb/15_Known_Issues_and_Technical_Debt.md`](../15_Known_Issues_and_Technical_Debt.md)
 and [`.kb/Architecture/PITFALLS.md`](../Architecture/PITFALLS.md).
 
-**Last updated:** 2026-08-18 (PI-10)
+**Last updated:** 2026-08-19 (PI-12)
 
 ---
 
@@ -227,3 +227,49 @@ Add an entry the moment something is discovered, not at session end. Include
 severity, what it blocks, and the mitigation. Move resolved entries to a
 `## Resolved` section with the date and the fix — deleting them loses the reason
 the fix exists.
+
+---
+
+## PI-12 (Online Pharmacy)
+
+⚠️ **PI-12 HAS NOT BEEN REVIEWED.** Everything below is a gap the phase knows
+about and recorded itself, which is a weaker thing than a review finding.
+
+| #   | Item                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Severity                                                          | Mitigation                                                                                                                                                                          |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 23  | **An abandoned order keeps its `CONFIRMED` status after the sweep releases its hold.** The reservation sweep works on `expires_at` and knows nothing about `online_orders`, so the order reads as accepted with `heldQuantityBase: 0`. Nothing is unsafe — packing refuses with a 409 naming the hold — but the list is misleading and a clinic cannot filter for it.                                                                                                                                                                                        | LOW — visible, not dangerous                                      | A status the sweep can set, or a derived "hold lapsed" flag on the summary computed from the reservations the detail already reads. The latter is a screen change and no migration. |
+| 24  | **A recall cannot reach stock held for an order nobody has packed.** PI-10 walks `dispense_allocations`, so a PACKED parcel IS traced and un-dispensable stock is un-dispensable. An order that is merely `CONFIRMED` holds its lots in the `RESERVED` bucket, which `executeRecall` does not move — so the parcel could still be made up from a recalled lot after the notice was executed. ⚠️ **The most consequential gap this phase leaves.**                                                                                                            | MEDIUM — a recalled lot can reach a patient through an open order | Extend `executeRecall` to release or quarantine `ACTIVE` reservations over the recalled lots, and refuse the pack when a lot is no longer dispensable. PI-22/PI-23 territory.       |
+| 25  | **The order form asks a receptionist to type raw UUIDs.** "Patient" and "Consultation" are free-text `Input`s while every other id on the screen is a `Select`, and the hint copy ("The patient's id") names the database's concern rather than the user's, which `apps/web/AGENTS.md` asks against. Same family as the 100-row product picker below it: both are the identifier-resolution debt. ⚠️ It makes the screen effectively unusable by the person it is designed for — worse in practice than the cap, which at least works for a small catalogue. | LOW                                                               | PI-23.                                                                                                                                                                              |
+| 25b | **The product picker on the order form is capped at 100.** The same cap every picker in this programme has, and the same answer: PI-23's resolver replaces it.                                                                                                                                                                                                                                                                                                                                                                                               | LOW                                                               | PI-23.                                                                                                                                                                              |
+| 26  | **No worker, no notification.** An accepted order tells the patient nothing, and neither does a shipment. The programme has a notification service; this phase wired none of it, because who is told what about a medicine going to a house is a decision nobody has taken.                                                                                                                                                                                                                                                                                  | LOW — a product gap, not a defect                                 | A decision first, then a processor.                                                                                                                                                 |
+
+### ⚠️ The web container OOM-kills at boot, and it is not PI-12's doing
+
+`rcln-web` starts, prints `✓ Ready`, and is killed by the OOM killer within
+seconds — `docker inspect` reports `OOMKilled: true` against its `mem_limit: 3g`.
+It does this **alone**, with `api` and `worker` stopped, and it does it on a
+`git stash`ed tree with none of PI-12 present, so it is an environment or
+`next dev` problem rather than anything in this diff.
+
+⚠️ **THE CONSEQUENCE FOR PI-12: THE THREE NEW SCREENS HAVE NOT BEEN RENDERED.**
+They typecheck and lint clean and the API behind them is fully exercised, but
+nobody has seen them in a browser. Same class as #2 — the compose file asks for
+3 g + 3 g + 2 g on a Docker VM with 7.7 GiB — and worth fixing before anyone
+believes a screen works because it compiled.
+
+Mitigation: raise Docker Desktop's memory, or drop `web`'s `mem_limit`, or run
+`pnpm --filter @rcln/web dev` natively against the containerised API.
+
+### On #2 and #7, both hit again this session
+
+**#2 (`pnpm test` OOMs) reproduced, and there is a working invocation.**
+`NODE_OPTIONS="--experimental-vm-modules --max-old-space-size=2560" pnpm exec jest
+--workerIdleMemoryLimit=1G` runs the whole api suite in the 3 GB container. The
+entry's own mitigation — put those flags in `jest.config.ts` — is still the fix;
+this session used them on the command line rather than changing config outside
+its diff.
+
+**#7 (`tax-registration-coverage` flake) reproduced exactly as described:** failed
+in one full run, passed in the next and passed alone twice. Nothing in PI-12
+touches tax registrations. Recorded again because the entry predicts this and the
+prediction held.

@@ -632,6 +632,7 @@ model RegulatoryDecision {
   actor        User         @relation("RegulatoryDecisionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   dispenseLines   DispenseLine[]
+  onlineOrderLines OnlineOrderLine[] @relation("OnlineOrderLineDecision")
   dispenseReturns DispenseReturn[]
 
   @@unique([organizationId, id])

@@ -114,7 +114,19 @@ export type SequenceType =
    *   somebody decided the lot was not affected is a far smaller problem than a
    *   notice nobody can cite while they are still working out what it covers.
    */
-  | 'RECALL';
+  | 'RECALL'
+  /**
+   * Online orders (PI-12). Per BRANCH and never resets, the shape the four
+   * procurement counters have and for the same reason: the number goes on a
+   * delivery note somebody outside the clinic reads, so it has to mean one thing
+   * for ever.
+   *
+   * ⚠️ ISSUED AT CONFIRM AND NOT AT CREATE — the procurement rule rather than the
+   *   `RECALL` one. An order somebody keys over the telephone and abandons must
+   *   burn none, and it is taken after every line has been consulted and held, so
+   *   a refusal or a shortfall burns none either.
+   */
+  | 'ONLINE_ORDER';
 
 export interface IssueNumberSpec {
   type: SequenceType;

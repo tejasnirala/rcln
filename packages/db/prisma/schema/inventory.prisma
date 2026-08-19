@@ -310,6 +310,7 @@ model InventoryLocation {
   // off, and where a return was put back.
   dispenses               Dispense[]           @relation("DispenseLocation")
   dispenseAllocations     DispenseAllocation[] @relation("DispenseAllocationLocation")
+  onlineOrders            OnlineOrder[]        @relation("OnlineOrderLocation")
   dispenseReturns         DispenseReturn[]     @relation("DispenseReturnLocation")
   // PI-9. The trolley, cabinet or treatment room a procedure's material came
   // off. ⚠️ NOT required to be a dispensing point — see `ClinicalConsumption`.

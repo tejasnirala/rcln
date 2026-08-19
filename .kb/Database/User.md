@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 69 |
+| relations | 76 |
 
 ## Columns
 
@@ -110,6 +110,13 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `recallsRaised` | [`Recall`](Recall.md) | `recallsRaised Recall[] @relation("RecallRaisedBy")` |
 | `recallsExecuted` | [`Recall`](Recall.md) | `recallsExecuted Recall[] @relation("RecallExecutedBy")` |
 | `recallsClosed` | [`Recall`](Recall.md) | `recallsClosed Recall[] @relation("RecallClosedBy")` |
+| `onlineOrdersPlaced` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersPlaced OnlineOrder[] @relation("OnlineOrderPlacedBy")` |
+| `onlineOrdersConfirmed` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersConfirmed OnlineOrder[] @relation("OnlineOrderConfirmedBy")` |
+| `onlineOrdersPacked` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersPacked OnlineOrder[] @relation("OnlineOrderPackedBy")` |
+| `onlineOrdersCancelled` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersCancelled OnlineOrder[] @relation("OnlineOrderCancelledBy")` |
+| `onlineShipmentsShipped` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsShipped OnlineOrderShipment[] @relation("OnlineOrderShipmentShippedBy")` |
+| `onlineShipmentsDelivered` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsDelivered OnlineOrderShipment[] @relation("OnlineOrderShipmentDeliveredBy")` |
+| `onlineShipmentsFailed` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsFailed OnlineOrderShipment[] @relation("OnlineOrderShipmentFailedBy")` |
 
 ## Indexes and constraints
 
@@ -163,4 +170,6 @@ erDiagram
     User }o--o{ ClinicalConsumption : relates
     User }o--o{ ConsumptionTemplate : relates
     User }o--o{ Recall : relates
+    User }o--o{ OnlineOrder : relates
+    User }o--o{ OnlineOrderShipment : relates
 ```

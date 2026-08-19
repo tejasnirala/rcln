@@ -52,7 +52,12 @@ export const prescriptionFulfilmentStatus = z.enum([
   'CANCELLED',
 ]);
 
-export const dispenseKind = z.enum(['PRESCRIPTION', 'COUNTER_SALE']);
+/**
+ * ⚠️ `ONLINE` IS THE THIRD CHANNEL AND NOT A THIRD ANSWER TO "WAS THERE A
+ *   PRESCRIPTION" (PI-12). Whether one was presented is `encounterId` being
+ *   null or not, on every kind. See the enum comment in `pharmacy.prisma`.
+ */
+export const dispenseKind = z.enum(['PRESCRIPTION', 'COUNTER_SALE', 'ONLINE']);
 
 export const dispenseStatus = z.enum(['DISPENSED', 'PARTIALLY_RETURNED', 'RETURNED']);
 
@@ -406,6 +411,34 @@ export const createDispenseRequest = z
   .refine(
     (body) => body.kind !== 'PRESCRIPTION' || body.encounterId != null,
     'a dispense against a prescription has to say which consultation wrote it'
+  )
+  /**
+   * ⚠️ `ONLINE` IS REFUSED ON THIS ENDPOINT, AND THIS REFINEMENT IS A SECURITY
+   *   CONTROL RATHER THAN TIDINESS (PI-12, found by the security review).
+   *
+   *   `dispenseKind` was widened to carry `ONLINE` because the COLUMN needs the
+   *   member — a packed parcel writes a `dispenses` row of that kind. Widening
+   *   the shared enum silently widened this REQUEST too, and `createDispense`
+   *   maps `kind: 'ONLINE'` to transaction `ONLINE_DISPENSE` with no
+   *   `RemoteSupply` beside it. The result was a second, ungated door to a
+   *   remote supply:
+   *
+   *     - `assertRemoteSupplyIsOpen` never runs — it lives in
+   *       `confirmOnlineOrder` and nowhere else, so the clinic's own
+   *       remote-supply gate is skipped entirely;
+   *     - the ENGINE's gate does fire and refuses, and refusing changes nothing,
+   *       because no pack is `PRODUCTION_ENABLED` — which is the whole reason
+   *       the service-level gate exists;
+   *     - no destination is supplied, so every destination-scoped rule sits out;
+   *     - and the supply leaves no `online_orders` row, so nothing records where
+   *       the parcel went.
+   *
+   *   A remote supply is only ever constructed SERVER-SIDE, by `packOnlineOrder`
+   *   calling `createDispenseWithin` directly. Nothing may post one.
+   */
+  .refine(
+    (body) => body.kind !== 'ONLINE',
+    'a delivery is dispensed by packing its order, not by posting a dispense — see POST /v1/online-orders/{orderId}/pack'
   );
 
 export const dispenseAllocationDetail = z.object({

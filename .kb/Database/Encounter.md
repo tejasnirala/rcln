@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/clinical.prisma:905`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 29 |
-| relations | 26 |
+| relations | 27 |
 
 ## Columns
 
@@ -65,6 +65,7 @@ Declared at `packages/db/prisma/schema/clinical.prisma:905`.
 | `sections` | [`EncounterSection`](EncounterSection.md) | `sections EncounterSection[]` |
 | `fulfilment` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `fulfilment PrescriptionFulfilment?` |
 | `dispenses` | [`Dispense`](Dispense.md) | `dispenses Dispense[]` |
+| `onlineOrders` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrders OnlineOrder[] @relation("OnlineOrderEncounter")` |
 | `consumptions` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptions ClinicalConsumption[]` |
 | `recommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `recommendations EncounterFollowUpRecommendation[]` |
 | `symptoms` | [`EncounterSymptom`](EncounterSymptom.md) | `symptoms EncounterSymptom[]` |
@@ -103,6 +104,7 @@ erDiagram
     Encounter }o--o{ EncounterSection : relates
     Encounter }o--o{ PrescriptionFulfilment : relates
     Encounter }o--o{ Dispense : relates
+    Encounter }o--o{ OnlineOrder : relates
     Encounter }o--o{ ClinicalConsumption : relates
     Encounter }o--o{ EncounterFollowUpRecommendation : relates
     Encounter }o--o{ EncounterSymptom : relates

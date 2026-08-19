@@ -623,7 +623,17 @@ export const evaluateRegulatoryRequest = z.object({
     })
     .optional(),
   locationId: uuid.optional(),
+  /**
+   * Where an online order is going. The branch's own jurisdiction is where the
+   * supply HAPPENS; this is where it ARRIVES, and `ONLINE_DISPENSING` rules
+   * restrict exactly that.
+   *
+   * ⚠️ THE REGION IS ISO 3166-2 WITHOUT THE COUNTRY PREFIX — `KA`, never `IN-KA`
+   *   — matching every other region column in this schema, and it is IGNORED
+   *   unless a country is given too: a region with no country names no place.
+   */
   destinationCountryCode: countryCode.optional(),
+  destinationRegionCode: z.string().trim().max(16).optional(),
   traceability: z
     .object({
       gtin: z.string().trim().max(64).nullish(),

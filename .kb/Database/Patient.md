@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 23 |
-| relations | 21 |
+| relations | 22 |
 
 ## Columns
 
@@ -63,6 +63,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:123`.
 | `followUpRecommendations` | [`EncounterFollowUpRecommendation`](EncounterFollowUpRecommendation.md) | `followUpRecommendations EncounterFollowUpRecommendation[]` |
 | `encounters` | [`Encounter`](Encounter.md) | `encounters Encounter[]` |
 | `dispenses` | [`Dispense`](Dispense.md) | `dispenses Dispense[]` |
+| `onlineOrders` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrders OnlineOrder[] @relation("OnlineOrderPatient")` |
 | `chargeRequests` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequests ChargeRequest[]` |
 | `clinicalConsumptions` | [`ClinicalConsumption`](ClinicalConsumption.md) | `clinicalConsumptions ClinicalConsumption[]` |
 
@@ -96,6 +97,7 @@ erDiagram
     Patient }o--o{ EncounterFollowUpRecommendation : relates
     Patient }o--o{ Encounter : relates
     Patient }o--o{ Dispense : relates
+    Patient }o--o{ OnlineOrder : relates
     Patient }o--o{ ChargeRequest : relates
     Patient }o--o{ ClinicalConsumption : relates
 ```

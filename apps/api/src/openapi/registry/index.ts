@@ -35,6 +35,7 @@ import { memberDocs } from './members.js';
 import { organizationDocs } from './organization.js';
 import { patientDocs } from './patients.js';
 import { pharmacyDocs } from './pharmacy.js';
+import { onlinePharmacyDocs } from './online-pharmacy.js';
 import { procurementDocs } from './procurement.js';
 import { platformDocs } from './platform.js';
 import { productDocs } from './products.js';
@@ -67,6 +68,7 @@ export const DOCS: DocRegistry = {
   ...billingDocs,
   ...platformDocs,
   ...pharmacyDocs,
+  ...onlinePharmacyDocs,
   ...regulatoryDocs,
   ...auditDocs,
   ...webhookDocs,

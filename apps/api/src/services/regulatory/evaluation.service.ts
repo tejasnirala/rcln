@@ -163,7 +163,7 @@ async function loadRules(tx: TxClient, place: Jurisdiction, on: Date): Promise<R
  *   wins with `take: 1`, and every regional profile is configured, visible and
  *   unreachable. That is not a hypothetical: it shipped in `resolveTaxCategory`.
  */
-async function loadProfile(
+export async function loadProfile(
   tx: TxClient,
   productId: string,
   place: Jurisdiction,
@@ -467,8 +467,18 @@ export async function evaluateWithin(
           },
         }
       : {}),
+    /*
+     * ⚠️ THE REGION IS ONLY MEANINGFUL WITH A COUNTRY, AND IS DROPPED WITHOUT ONE
+     *   (PI-12). `KA` alone names no place; carrying it would put a half a
+     *   jurisdiction into a decision snapshot that a later report groups by.
+     */
     ...(input.destinationCountryCode
-      ? { destination: { countryCode: input.destinationCountryCode, regionCode: null } }
+      ? {
+          destination: {
+            countryCode: input.destinationCountryCode,
+            regionCode: input.destinationRegionCode ?? null,
+          },
+        }
       : {}),
     ...(input.traceability
       ? {
@@ -602,4 +612,40 @@ async function withPriorQuantity(
 
   const prior = await supplements.priorQuantityInPeriod(windowDays);
   return { ...request, priorQuantityInPeriodBase: prior };
+}
+
+// ---------------------------------------------------------------------------
+// The jurisdiction a branch is in (PI-12)
+// ---------------------------------------------------------------------------
+
+/**
+ * Where a branch is, as the rules see it.
+ *
+ * ⚠️ EXPORTED SO THE ONLINE-ORDER SERVICE ASKS THE SAME QUESTION `evaluateWithin`
+ *   ASKS, RATHER THAN A SECOND ONE. That service refuses an order for a product
+ *   nobody has cleared for remote supply — a gate it cannot leave to the engine,
+ *   because a REFUSED decision enforces nothing until a human signs the
+ *   jurisdiction's pack off (`enforcement.ts`) — and it has to look the profile
+ *   up in exactly the place the engine will. Two spellings of "which
+ *   jurisdiction is this branch in" is how a gate refuses a product the engine
+ *   permits, or worse.
+ */
+export async function branchJurisdictionWithin(
+  tx: TxClient,
+  organizationId: string,
+  branchId: string
+): Promise<Jurisdiction> {
+  /*
+   * ⚠️ `organizationId` EXPLICIT, NOT LEFT TO RLS (ADR-0005). The policy would
+   *   catch it, and the tenant column is stated anyway because that is the rule
+   *   for every tenant read in this codebase — `branches` carries
+   *   `@@unique([organizationId, id])` precisely so the second layer is free.
+   *   The first draft of this function used a bare `findUnique` on the id.
+   */
+  const branch = await tx.branch.findFirst({
+    where: { id: branchId, organizationId },
+    select: { countryCode: true, regionCode: true },
+  });
+  if (!branch) throw new NotFoundError('Branch');
+  return { countryCode: branch.countryCode, regionCode: branch.regionCode };
 }

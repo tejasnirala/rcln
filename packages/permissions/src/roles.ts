@@ -260,6 +260,20 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_REGULATORY_READ,
       P.PRODUCT_REGULATORY_MANAGE,
       P.DISPENSE_READ,
+      /*
+       * Online orders (PI-12): reads them and runs the desk that takes them, at
+       * sites that have no pharmacist at all — the same reasoning that gives
+       * this role the regulatory profile codes above.
+       *
+       * ⚠️ NO `pharmacy.dispense.create`, SO NO PACKING. This role reads the
+       *   dispensing surface and has never been able to supply from it; taking
+       *   an order and putting the parcel in a courier's hands are the halves
+       *   that move no stock, and the half that DOES is gated by the code this
+       *   role deliberately does not hold.
+       */
+      P.ONLINE_ORDER_READ,
+      P.ONLINE_ORDER_MANAGE,
+      P.ONLINE_ORDER_DISPATCH,
       P.SUPPLIER_MANAGE,
       P.PURCHASE_ORDER_READ,
       P.PURCHASE_ORDER_MANAGE,
@@ -752,6 +766,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.DISPENSE_VERIFY,
       P.DISPENSE_CREATE,
       P.DISPENSE_RETURN,
+      /*
+       * Online orders (PI-12). All three, on the role that also holds
+       * `.dispense.create` — which is what actually makes this the role that can
+       * carry an order all the way from the telephone to the courier. A
+       * dispensary with one pharmacist is the ordinary shape, exactly as it is
+       * for the verify/create split immediately above.
+       */
+      P.ONLINE_ORDER_READ,
+      P.ONLINE_ORDER_MANAGE,
+      P.ONLINE_ORDER_DISPATCH,
       /*
        * ⚠️ READ, AND POINTEDLY NOT MANAGE (PI-8). A pharmacist must be able to
        *   see that the medicine they handed over reached the charge queue — a

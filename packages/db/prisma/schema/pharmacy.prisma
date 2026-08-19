@@ -72,6 +72,19 @@ enum PrescriptionFulfilmentStatus {
 enum DispenseKind {
   PRESCRIPTION
   COUNTER_SALE
+  /// Ordered remotely and sent out (PI-12).
+  ///
+  /// ⚠️ ADDING THIS MEMBER RESTATES WHAT THE COLUMN ALWAYS WAS. The comment
+  ///   above asks "was there a prescription behind this supply?", and that
+  ///   question has always been answered by `encounter_id` being NULL or not —
+  ///   `PRESCRIPTION` and `COUNTER_SALE` are a COUNTER's two ways of supplying,
+  ///   which is a channel. `ONLINE` is the third, and an online supply may be
+  ///   prescription-backed or not, which is why the CHECK constraint does not
+  ///   tie it to an encounter.
+  ///
+  /// ⚠️ WHAT IT IS TIED TO IS A PATIENT. A parcel has to go to somebody, and a
+  ///   supply nobody can attribute cannot be traced when its lot is recalled.
+  ONLINE
 }
 
 enum DispenseStatus {
@@ -198,6 +211,10 @@ model Dispense {
 
   lines   DispenseLine[]
   returns DispenseReturn[]
+  /// The online order this supply fulfilled, where one did (PI-12). At most one,
+  /// by `@@unique([organizationId, dispenseId])` on that side — see the header
+  /// on `online-pharmacy.prisma` for why the foreign key lives there.
+  onlineOrder OnlineOrder? @relation("OnlineOrderDispense")
 
   @@unique([organizationId, dispenseNumber])
   @@unique([organizationId, id])
