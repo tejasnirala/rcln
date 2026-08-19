@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/patients.prisma:328`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | **MISSING — this is a tenant-isolation defect** |
 | columns | 11 |
-| relations | 2 |
+| relations | 3 |
 
 ## Columns
 
@@ -34,9 +34,11 @@ Declared at `packages/db/prisma/schema/patients.prisma:328`.
 | --- | --- | --- |
 | `organization` | [`Organization`](Organization.md) | `organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)` |
 | `patient` | [`Patient`](Patient.md) | `patient Patient @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)` |
+| `animalProfiles` | [`AnimalProfile`](AnimalProfile.md) | `animalProfiles AnimalProfile[]` |
 
 ## Indexes and constraints
 
+- `@@unique([organizationId, id])`
 - `@@index([organizationId, patientId])`
 
 ## Neighbourhood
@@ -45,4 +47,5 @@ Declared at `packages/db/prisma/schema/patients.prisma:328`.
 erDiagram
     PatientContact }o--o{ Organization : relates
     PatientContact }o--o{ Patient : relates
+    PatientContact }o--o{ AnimalProfile : relates
 ```

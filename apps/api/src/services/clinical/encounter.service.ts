@@ -214,6 +214,13 @@ async function toDetail(tx: TxClient, row: DetailRow): Promise<EncounterDetail> 
  * ⚠️ 404, NOT 403, FOR A BRANCH OUTSIDE THE CALLER'S SCOPE — whether a branch
  *   exists is itself tenant information, and the two responses tell an outsider
  *   apart from a colleague.
+ *
+ * ⚠️ DELIBERATELY NOT `shared/branch.ts`'s VERSION, AND THE DIFFERENCE IS THE
+ *   NOUN. That one answers `NotFoundError('Branch')`; this one says `Encounter`,
+ *   because the caller asked for an encounter and never mentioned a branch —
+ *   telling them "Branch not found" would disclose that a branch is what the
+ *   check was about. One word, and it is the whole reason this copy survived the
+ *   PI-11 sweep that folded the other ten into one.
  */
 function assertBranchInScope(ctx: TenantContext, branchId: string): void {
   if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Encounter');

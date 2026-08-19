@@ -5,15 +5,15 @@ about this programme lives in this directory. Start here.
 
 ```text
 CURRENT PHASE:        none in flight
-CURRENT STATUS:       PI-0..PI-10 COMPLETE
-LAST COMPLETED PHASE: PI-10 — Recall & Traceability
+CURRENT STATUS:       PI-0..PI-11 COMPLETE
+LAST COMPLETED PHASE: PI-11 — Veterinary Enablement
 CURRENT WORK:         none
-NEXT PHASE:           PI-11 (Veterinary) or PI-12 (Online Pharmacy); both open
+NEXT PHASE:           PI-12 (Online Pharmacy); PI-22, PI-23 also open
 BLOCKERS:             none.
-                      ⚠️ PI-9 and PI-10 are built and NEITHER IS REVIEWED —
-                      `/code-review` and `security-reviewer` must run over both
-                      before merge. See NEXT_SESSION.md.
-LAST UPDATED:         2026-08-18
+                      ⚠️ PI-9, PI-10 and PI-11 are built and NONE IS REVIEWED —
+                      `/code-review` and `security-reviewer` must run over all
+                      three before merge. See NEXT_SESSION.md.
+LAST UPDATED:         2026-08-19
 ```
 
 ---

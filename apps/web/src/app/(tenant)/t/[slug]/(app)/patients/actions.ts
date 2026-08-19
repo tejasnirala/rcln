@@ -2,12 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import {
+  animalProfileRequest,
   createPatientRequest,
+  doseCalculationRequest,
   patientAllergyRequest,
   patientConditionRequest,
   patientContactRequest,
   patientMedicationRequest,
   updatePatientRequest,
+  type DoseCalculationResponse,
   type PatientDetail,
   type PatientDuplicateMatch,
   type PatientDuplicateResponse,
@@ -192,9 +195,32 @@ export async function registerPatient(
   const line1 = text(formData, 'line1');
   const contactName = text(formData, 'contactName');
 
+  const isAnimal = text(formData, 'subjectType') === 'ANIMAL';
+  const species = text(formData, 'species');
+  const breed = text(formData, 'breed');
+
   const parsed = createPatientRequest.safeParse({
     firstName: String(formData.get('firstName') ?? ''),
     branchId: String(formData.get('branchId') ?? ''),
+    subjectType: isAnimal ? 'ANIMAL' : 'HUMAN',
+    /*
+     * ⚠️ ONLY SENT FOR AN ANIMAL, AND ONLY WHEN SOMETHING WAS TYPED. The
+     *   contract refuses an animal profile on a human record — a stray empty
+     *   object from a hidden fieldset would turn "the desk registered a person"
+     *   into a validation error about a field nobody could see.
+     *
+     * The WEIGHT is deliberately not on this form. It needs the date it was
+     * taken alongside it, and a registration desk with a queue is not where an
+     * animal gets put on the scales — that is the animal panel on the chart.
+     */
+    ...(isAnimal && (species !== undefined || breed !== undefined)
+      ? {
+          animalProfile: {
+            ...(species !== undefined ? { species } : {}),
+            ...(breed !== undefined ? { breed } : {}),
+          },
+        }
+      : {}),
     ...(text(formData, 'lastName') ? { lastName: text(formData, 'lastName') } : {}),
     ...(text(formData, 'dateOfBirth') ? { dateOfBirth: text(formData, 'dateOfBirth') } : {}),
     ...(number(formData, 'approxAgeYears') !== undefined
@@ -543,6 +569,138 @@ export async function stopMedication(
  * `null` (no data for that country, a timeout, a 404) is an ordinary answer that
  * simply leaves the fields to be typed.
  */
+// ---------------------------------------------------------------------------
+// The animal behind an ANIMAL record (PI-11)
+// ---------------------------------------------------------------------------
+
+/**
+ * Species, breed, weight and owner.
+ *
+ * ⚠️ A REPLACE, NOT A PATCH, AND THE FORM HAS TO SEND EVERY FIELD. `PUT` clears
+ *   what it is not sent — which is the behaviour that makes clearing a weight
+ *   actually clear it, and the reason the panel renders every field as an input
+ *   pre-filled from the record rather than as a set of optional additions.
+ */
+export async function saveAnimalProfile(
+  slug: string,
+  patientId: string,
+  _previous: PatientFormState,
+  formData: FormData
+): Promise<PatientFormState> {
+  const guardianContactId = text(formData, 'guardianContactId');
+
+  const parsed = animalProfileRequest.safeParse({
+    ...(text(formData, 'species') ? { species: text(formData, 'species') } : {}),
+    ...(text(formData, 'breed') ? { breed: text(formData, 'breed') } : {}),
+    ...(text(formData, 'weightKg') ? { weightKg: text(formData, 'weightKg') } : {}),
+    ...(text(formData, 'weightRecordedOn')
+      ? { weightRecordedOn: text(formData, 'weightRecordedOn') }
+      : {}),
+    /*
+     * The owner is one form or the other, never both — the contract refuses the
+     * pair. The select wins when it has a value, so the free-text inputs are not
+     * even read: sending both would surface as a field error on a control the
+     * person did not touch.
+     */
+    ...(guardianContactId !== undefined
+      ? { guardianContactId }
+      : {
+          ...(text(formData, 'guardianName')
+            ? { guardianName: text(formData, 'guardianName') }
+            : {}),
+          ...(text(formData, 'guardianPhone')
+            ? { guardianPhone: text(formData, 'guardianPhone') }
+            : {}),
+        }),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Check the highlighted fields.',
+      fieldErrors: fieldErrorsFrom(parsed.error.issues),
+    };
+  }
+
+  const result = await api<PatientDetail>(`/api/v1/patients/${patientId}/animal-profile`, {
+    method: 'PUT',
+    slug,
+    accessToken: await getAccessToken(),
+    body: parsed.data,
+  });
+
+  if (!result.ok) {
+    return {
+      status: 'error',
+      message: result.message ?? 'The animal details could not be saved.',
+      ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}),
+    };
+  }
+
+  revalidatePath(`/t/${slug}/patients/${patientId}`);
+  return { status: 'saved', message: 'Animal details saved' };
+}
+
+export type DoseState = {
+  status: 'idle' | 'error' | 'done';
+  message?: string;
+  fieldErrors?: Record<string, string[]>;
+  dose?: DoseCalculationResponse;
+};
+
+/**
+ * "How much do I give?"
+ *
+ * ⚠️ THE ANSWER IS RETURNED INTO COMPONENT STATE AND NEVER INTO A URL, for the
+ *   reason the search is an action rather than a navigation — see the header.
+ *   A link that reproduces "276 mg for patient 6d1e…" is an artefact we do not
+ *   want to exist, and this one would additionally be a therapeutic quantity
+ *   attached to an identifiable record.
+ *
+ * ⚠️ AND THE WEIGHT IS NOT ON THIS FORM. It comes off the record on the server.
+ *   A field here would let somebody retype it, and the whole value of the
+ *   calculator is that they cannot.
+ */
+export async function calculateDose(
+  slug: string,
+  patientId: string,
+  _previous: DoseState,
+  formData: FormData
+): Promise<DoseState> {
+  const parsed = doseCalculationRequest.safeParse({
+    dosePerKg: String(formData.get('dosePerKg') ?? ''),
+    unit: String(formData.get('unit') ?? ''),
+    ...(number(formData, 'dosesPerDay') !== undefined
+      ? { dosesPerDay: number(formData, 'dosesPerDay') }
+      : {}),
+    ...(text(formData, 'maxSingleDose') ? { maxSingleDose: text(formData, 'maxSingleDose') } : {}),
+    ...(text(formData, 'maxDailyDose') ? { maxDailyDose: text(formData, 'maxDailyDose') } : {}),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Check the highlighted fields.',
+      fieldErrors: fieldErrorsFrom(parsed.error.issues),
+    };
+  }
+
+  const result = await api<DoseCalculationResponse>(
+    `/api/v1/patients/${patientId}/dose-calculations`,
+    { method: 'POST', slug, accessToken: await getAccessToken(), body: parsed.data }
+  );
+
+  if (!result.ok || !result.data) {
+    return {
+      status: 'error',
+      message: result.message ?? 'The dose could not be calculated.',
+      ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}),
+    };
+  }
+
+  return { status: 'done', dose: result.data };
+}
+
 export async function lookupPostalCode(
   countryCode: string,
   postalCode: string

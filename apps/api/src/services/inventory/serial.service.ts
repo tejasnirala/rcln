@@ -44,6 +44,7 @@ import { recordAudit } from '../audit/audit.service.js';
 import { recordDataAccess } from '../audit/data-access.service.js';
 import { toCalendarDate, toDateColumn } from '../product/values.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 const serialInclude = Prisma.validator<Prisma.SerialInclude>()({
   product: { select: { name: true } },
@@ -69,10 +70,6 @@ function toSummary(row: SerialRow): SerialSummary {
     assignedPatientId: row.assignedPatientId,
     assignedAt: row.assignedAt?.toISOString() ?? null,
   };
-}
-
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 async function findSerialOrThrow(tx: TxClient, id: string): Promise<SerialRow> {

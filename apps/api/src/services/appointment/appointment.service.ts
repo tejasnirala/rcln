@@ -49,6 +49,7 @@ import {
   computeAvailability,
   computeWorkingDays,
 } from './availability.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 /** Request metadata, carried onto both trails. */
 export interface AppointmentActionOptions {
@@ -280,14 +281,6 @@ function isOverlapViolation(err: unknown): boolean {
  */
 function slotTakenError(): ConflictError {
   return new ConflictError('That time is no longer free. Pick another slot.');
-}
-
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  /*
-   * 404, not 403. Whether a branch exists is itself tenant information, and the
-   * two responses tell an outsider apart from a colleague.
-   */
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 /**

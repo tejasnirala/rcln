@@ -52,6 +52,24 @@
  *   because the customer was on a website would be a reading of the rule that
  *   the rule does not support.
  *
+ * ⚠️ NO `SPECIES_RESTRICTION` RULE, ADDED DELIBERATELY AS A NON-ADDITION BY
+ *   PI-11. That phase introduced the rule type — "who may this be supplied FOR"
+ *   — and then did not write one here, which is worth stating explicitly because
+ *   the obvious move was to write one.
+ *
+ *   Rules 65(20) and 97(3) require a veterinary medicine to be LABELLED "Not for
+ *   human use" and stored apart. `IN-LABEL-VETERINARY` below carries exactly
+ *   that, and it is a labelling obligation. Neither rule prohibits the SALE of a
+ *   veterinary medicine for a human, and the step from "the box must say so" to
+ *   "the sale is unlawful" is an inference, not a published rule. Writing it as
+ *   one would be inventing law — the same call the paragraphs above make about
+ *   quantity limits and about e-pharmacy.
+ *
+ *   The rule type is exercised by `packages/regulatory/tests/engine.test.ts`
+ *   against synthetic packs, which is where every rule type in this framework is
+ *   tested. A jurisdiction that DOES prohibit the supply gets the rule when its
+ *   pack is written, and the framework is ready for it today.
+ *
  * ⚠️ NO SUB-NATIONAL PACK. India's state drugs controllers license and inspect,
  *   and whether any of them varies these particular obligations is
  *   `RESEARCH_REQUIRED`. The framework is ready for one — a pack on `(IN, KA)`

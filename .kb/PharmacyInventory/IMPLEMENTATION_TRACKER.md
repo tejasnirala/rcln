@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-18 (PI-10 complete)
+**Last updated:** 2026-08-19 (PI-11 complete)
 
 ## Status vocabulary
 
@@ -47,7 +47,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-8      | Billing & Tax Integration                               | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
 | PI-9      | Clinical Consumption                                    | **COMPLETE** (2026-08-17) | —                                        |
 | PI-10     | Recall & Traceability                                   | **COMPLETE** (2026-08-18) | —                                        |
-| PI-11     | Veterinary Enablement                                   | PLANNED                   | PI-1, PI-5                               |
+| PI-11     | Veterinary Enablement                                   | **COMPLETE** (2026-08-19) | —                                        |
 | PI-12     | Online Pharmacy                                         | PLANNED                   | **UNBLOCKED** — PI-8 landed              |
 | PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                     |
 | PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                     |
@@ -1395,3 +1395,237 @@ that device is already in a patient and is the trace's business.
   number received after the notice is a new `batches` row and is not
   automatically held. PI-23's identifier resolution is where a lot-number rule
   would live.
+
+---
+
+# PI-11 — Veterinary Enablement · COMPLETE (2026-08-19)
+
+**Dependencies:** PI-1, PI-5. **Branch:** `feat/pi-11-veterinary-enablement`.
+
+**⚠️ THIS PHASE ADDED NO TABLE, AND THAT IS THE HEADLINE.** CD-4 landed
+`patients.subject_type` and `animal_profiles` back in CE-1 and deliberately built
+nothing on them — §42.7 forbade veterinary functionality at the time. The table
+had therefore existed **empty and unreachable ever since**: no contract field, no
+service, no route, no screen, and no tenant-isolation case despite being named in
+that suite's header. PI-11 is the enablement layer.
+
+| Task                                                               | Status                                                       |
+| ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| PI-11.1 `subject_type` and the animal profile end to end           | COMPLETE — contract, service, routes, chart, search          |
+| PI-11.2 The owner as a `patient_contacts` row (ADR-0017)           | COMPLETE — composite FK + the check the FK cannot do         |
+| PI-11.3 `SPECIES_RESTRICTION` rule type in `@rcln/regulatory`      | COMPLETE — engine, parser, 10 unit cases; **no India rule**  |
+| PI-11.4 Species into every regulatory call site that has a patient | COMPLETE — dispense reads it off the profile, never a client |
+| PI-11.5 Weight-based dosing in `@rcln/clinical`                    | COMPLETE — exact rationals, rounds DOWN                      |
+| PI-11.6 Tests: isolation, CHECKs, the PHI grep, the arithmetic     | COMPLETE                                                     |
+
+### What landed
+
+| Area        | What                                                                                                                             |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | 3 columns on `animal_profiles`; `patient_contacts` gains its composite-FK target; `SPECIES_RESTRICTION` on `RegulatoryRuleType`  |
+| Migrations  | `..090000_species_restriction_rule_type` · `..090500_pi_11_veterinary_enablement` · `..091000_animal_weight_needs_its_date`      |
+| RLS         | `db:rls:check` green at **128** — no new table, and the one new FK is composite so it needs no `*_visible` (same call as PI-10)  |
+| Permissions | **None added.** The profile is `patient.read`/`.update`; the dose calculator is `patient.medical_history.read`                   |
+| Packages    | `@rcln/clinical/dosing.ts` — `weightBasedDose`, exact `bigint` rationals                                                         |
+| Routes      | `PUT /v1/patients/{id}/animal-profile` · `POST /v1/patients/{id}/dose-calculations` — 427 endpoints, 427 documented              |
+| Screens     | Animal panel + dose calculator on the chart; subject-type toggle on registration; `Animal` marker in search; species in pharmacy |
+| Setting     | `patient.animal_weight_stale_days`, default 90 (PI-ADR-015 — a threshold is never a constant)                                    |
+
+### Decisions a later phase must not undo
+
+**1. ⚠️ INDIA DELIBERATELY GETS NO SPECIES RULE, AND THE NON-ADDITION IS WRITTEN
+DOWN.** Rules 65(20) and 97(3) require a veterinary medicine to be **labelled**
+"Not for human use" and stored apart. `IN-LABEL-VETERINARY` carries exactly that
+and is a `LABELLING_REQUIREMENT`. Neither rule prohibits the **sale** of one for a
+human, and the step from "the box must say so" to "the sale is unlawful" is an
+inference, not a published rule — writing it would be inventing law, the same
+call PI-6 made about quantity limits and e-pharmacy. The rule type is proved
+against TESTLAND in `packages/regulatory/tests/engine.test.ts`, which is where
+every rule type in this framework is proved.
+
+**2. ⚠️ NO SUBJECT AT ALL IS `UNDETERMINED`, NOT `PERMITTED`.** A counter sale
+names nobody, so a species rule cannot be checked there — and PERMITTED would make
+the anonymous path the way around the rule, which is the path somebody buying a
+veterinary drug for themselves would take. The cost is visible and is the pack
+author's to accept by listing `COUNTER_SALE` in `appliesToTransactions`.
+
+**3. `SPECIES_RESTRICTION` is its own rule type and not a parameter on
+`AGE_RESTRICTION`.** That handler stands aside **entirely** for an animal — "a
+human age limit is not a statement about a dog" — so a veterinary prohibition
+written as an age parameter would sit behind a handler that exempts every animal
+from itself, and would be inert in exactly the case it was written for.
+
+**4. The species on a DISPENSE is read off the animal's profile, never sent by a
+client.** `POST /v1/regulatory/evaluate` accepts one as a hypothesis, for the
+reason it accepts `repeatsAuthorised` as one. A dispense must not, or the person
+at the counter picks which species rule applies to them.
+
+**5. `subject_type` is absent from the update contract.** A record does not change
+species. It governs which care-context ROOT the consultation engine resolves, so
+flipping it would leave a chart written under one taxonomy being read under
+another and orphan the profile row. A record registered as the wrong kind is a
+merge, not an edit.
+
+**6. The dose calculator holds no formulary and recommends nothing.** Every mg/kg
+figure comes from a clinician reading a label. It multiplies, reports which
+ceiling bound, and writes no clinical record. A daily ceiling reduces the SINGLE
+dose rather than trimming the total, so the two figures always multiply — the
+obvious implementation returns "220 mg, three times a day, 500 mg daily", which is
+two instructions that contradict each other.
+
+**7. ⚠️ ROUNDING IS DOWNWARD — THE ONLY PLACE IN THE CODEBASE THAT DIFFERS FROM
+HALF-UP ON PURPOSE.** `@rcln/inventory` rounds a stock conversion half-up because a
+count that is systematically low is its own kind of wrong. Rounding a dose up past
+a maximum is an overdose. The errors are not comparable.
+
+**8. `weightKg` on the wire is `"18.4"`, not `"18.400"`.** Every decimal goes
+through `decimalToString`, which does not pad to the column's scale. The computed
+dose fields DO pad, because they report at a declared precision rather than
+echoing a column.
+
+### A defect this phase introduced and found
+
+⚠️ **THE FIRST WEIGHT/DATE CHECK GUARDED THE HARMLESS DIRECTION.**
+`..090500` wrote `CHECK (weight_recorded_on IS NULL OR weight_kg IS NOT NULL)` —
+refusing a date that says nothing, and **accepting a weight nobody can date**,
+which is the exact state the feature exists to prevent. The contract had refused
+both directions all along, so the gap was reachable only by a fixture, a backfill
+or a second service, which is precisely the set of writers a CHECK exists to
+catch. The tenant-isolation case found it. `..091000` replaced it with
+`("weight_kg" IS NULL) = ("weight_recorded_on" IS NULL)`.
+
+### A second correction, and a note on how big it was not
+
+`resolveWeightStaleDays` originally hand-rolled `typeof resolved === 'number'`
+instead of calling `asPositiveInt`, the shared helper that already existed for
+exactly this. Replaced.
+
+⚠️ **THE DUPLICATION WAS REAL; THE SEVERITY FIRST CLAIMED FOR IT WAS NOT.** It was
+described in-session as a live "configured, visible and completely inert" setting.
+It is not: `fits()` in `organization/setting.service.ts` refuses anything but a
+JSON number for an `INT` definition, so a stringified value is unreachable through
+the product and the hand-rolled guard would have worked. The state is reachable
+only by editing `setting_values` directly. The fix stands on the duplication rule
+alone — `pnpm kb:find` exists so nobody re-derives a coercion — and the test says
+so rather than implying a clinic could trip it.
+
+The same sweep cleared the other five `resolveSettings` call sites: all pass an
+explicit `(scopeType, scopeId)` pair, and the two that hand-roll coercion
+(`procurement/shared.ts`, `invoicing/pricing.service.ts`) fall back in the STRICT
+direction and document why. Left alone deliberately.
+
+---
+
+# PI-11.7 — The review gate over PI-9 + PI-10 + PI-11 · COMPLETE (2026-08-19)
+
+`code-reviewer` and `security-reviewer` run over the combined diff — 147 files,
+`git diff 1f8375f~1 HEAD` plus the PI-11 working tree. None of the three phases
+had ever been reviewed. **1 CRITICAL, 1 HIGH, 1 MEDIUM, 6 WARNING, 5 INFO. All
+fixed.** Every finding was re-verified against the source before being acted on,
+and each of the three top findings has a regression test **verified to fail
+against the reverted code**.
+
+### ⚠️ CRITICAL — a recall pulled only `AVAILABLE`, so it under-reported and left stock dispensable
+
+`holdBatchWithin` filtered `b.status === 'AVAILABLE'` while the serial sweep
+beside it flipped `IN_STOCK` **and** `QUARANTINED` devices. Two consequences:
+
+1. **A false answer to the one question a recall exists to ask.** The
+   responsible storekeeper — the one who quarantines the lot on hearing the
+   notice — got a recall that moved nothing, recorded `NO_STOCK` and
+   `quantity_held_base: 0` for a lot on the shelf, and wrote no ledger leg.
+2. ⚠️ **`RESERVED` stock became dispensable again.** The un-dispensable
+   guarantee is the BALANCE, not the flag. Quantity left in `RESERVED` is handed
+   back to `AVAILABLE` by `releaseReservation` or the expiry sweep, neither of
+   which consults the recall, and the allocator then dispenses it — while
+   `batches.status` says RECALLED and nothing reads it.
+
+Fixed in both the recall service and `setBatchHold`'s manual `RECALL` path: pull
+`AVAILABLE`, `RESERVED`, `QUARANTINED`, `BLOCKED`, `DAMAGED`, `EXPIRED`, pass
+`statusFrom` per balance, take the quarantined devices too, and close any ACTIVE
+reservation on the lot (`RELEASED`, `released_by_id` NULL — "taken back", not
+"given back") so nothing is orphaned.
+
+### ⚠️ HIGH — a recalled lot could be released through the quarantine door
+
+PI-10 added `'RECALLED'` to `QUARANTINE_RELEASE`'s serial source set. The
+storekeeper's ordinary "the fridge came back up" button, on a recalled lot,
+flipped every serial to `IN_STOCK`, moved no quantity (release reads the
+QUARANTINED bucket) so wrote **no ledger leg**, set the batch `ACTIVE` while
+leaving `recalled_at` populated, and left `recall_batches.status` on `HELD`. It
+sits behind `inventory.batch.manage`, which does **not** imply `recall.execute`.
+`resolveRecallBatch` is the only door, and it is the one that checks no OTHER
+live notice still names the lot.
+
+### The rest
+
+| Sev     | What                                                                                                                             | Where                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| MEDIUM  | `guardianName`/`guardianPhone` missing from `REDACTED_KEYS` — the allow-list snapshot was right, the backstop was not            | `audit/audit.service.ts`        |
+| WARNING | `.trim()` after `.min(1)` accepts whitespace-only and yields `""` — **12 fields**, most predating PI-11                          | `contracts/patients.ts`         |
+| WARNING | The chart resolved the stale-weight window org-wide while the calculator resolved it per branch — two answers to one safety flag | `patient.service.ts`            |
+| WARNING | The staleness rule existed twice and had already drifted (one copy omitted the null-weight guard)                                | now `weightIsStale()`           |
+| WARNING | `dailyDose` was derived from the un-truncated value, so the reported pair did not multiply — `166.666 ×3` beside `500.000`       | `clinical/dosing.ts`            |
+| WARNING | `assertBranchInScope`/`resolveBranchId`/`auditMeta`/`q` duplicated across four service directories                               | now `services/shared/branch.ts` |
+| INFO    | `MAX_INPUT_SCALE` was 18 (the _precision_ of `Decimal(18,6)`) under a comment claiming it was the scale                          | `clinical/dosing.ts`            |
+| INFO    | No `maxSingleDose` input, so `cappedBy: 'SINGLE'` was copy the UI could never produce                                            | `patient-chart.tsx`             |
+| INFO    | A future weigh-in date made staleness negative — the flag switched off permanently                                               | `contracts/patients.ts`         |
+| INFO    | `prohibitedSubjectTypes` comment promised upper-casing nothing did                                                               | `regulatory/parameters.ts`      |
+
+⚠️ **The dose pair now multiplies, and the daily total under a cap reads
+`499.998` rather than `500.000`.** That is deliberate: the printed single dose is
+what will actually be given, three times. Reporting the ceiling itself would put
+two disagreeing figures on one screen and overstate what the animal receives.
+
+### The two follow-ups, both since done
+
+**1. The renderer is out of the production image.** `@scalar/*` was ~116 MB of
+browser bundle in runtime `dependencies` for a page that is off by default in
+production, and it is the reason `/docs` has to relax the CSP with `unsafe-eval`.
+
+⚠️ **MOVING IT TO `devDependencies` ALONE WOULD HAVE CRASHED PRODUCTION AT BOOT.**
+`app.ts` statically imported the docs router, which statically imported the
+package — and `scalarAssetsDir()` was called at module load, resolving the other
+package off disk. Both had to become lazy first. So: the import is dynamic, the
+asset path resolves inside it, the result is memoized including the failure, and
+`/docs` answers **503 with a sentence** rather than 404 — the operator DID turn
+the flag on and silence would read as "the flag is broken".
+
+⚠️ **NOTHING AN INTEGRATOR NEEDS WAS LOST.** `/docs/openapi.json` is built
+entirely by our own code, needs no Scalar, and still answers in production; any
+viewer renders it. Only the pretty page went. `config.docsEnabled`'s comment was
+rewritten, because it promised a production capability that no longer exists.
+
+Verified by hiding both packages from `node_modules` and restarting: the API
+booted, `/api/v1/health` and `/docs/openapi.json` answered 200, `/docs` answered
+503 with the message, and six requests produced exactly one log line.
+
+**2. `assertBranchInScope` went from sixteen copies to three.** Ten byte-identical
+ones now import `services/shared/branch.ts`.
+
+⚠️ **TWO HAD ALREADY DRIFTED, WHICH IS THE ARGUMENT FOR THE WHOLE EXERCISE, AND
+BOTH WERE LEFT ALONE ON PURPOSE.** `clinical/encounter.service.ts` answers
+`NotFoundError('Encounter')` — the caller asked for an encounter and never
+mentioned a branch, so naming one would disclose what the check was about.
+`patient/patient.service.ts` answers **403**, not 404, because a receptionist
+picking a clinic from a list on their own screen needs an actionable message, and
+it discloses nothing: the response is identical for another org's branch, an
+unscoped branch of this org, and an id that never existed. Both now carry a
+comment saying so, so the next sweep does not "fix" them.
+
+### Deliberately not changed
+
+- **`procurement/shared.ts` and `invoicing/pricing.service.ts` hand-rolled
+  setting coercion.** Both fall back in the STRICT direction and say why.
+
+### Open
+
+- **No `GET` for the animal profile.** It comes back on the patient record, so a
+  second endpoint would be a second disclosure to log and a second shape to keep
+  in step. Revisit only if a caller genuinely needs it alone.
+- **Consumption still does not consult the law**, and PI-11 did not change that.
+  PI-9's reasoning stands: no rule type addresses administering rather than
+  supplying, so `evaluateWithin` would answer `UNDETERMINED` for every product.
+  A species rule for `CONSUME` needs that decision reversed first.
+- **PI-11 has not been through `/code-review` or `security-reviewer`.** Neither
+  have PI-9 and PI-10. The diff touches the schema, tenancy and patient data.

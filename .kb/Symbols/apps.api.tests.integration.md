@@ -45,11 +45,11 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `balanceOf` <sub>local</sub> | `(productId: string, status: string): Promise<number>` | `apps/api/tests/integration/procurement.test.ts:122` |  |
 | `balanceOf` <sub>local</sub> | `(batchId: string, locationId: string, status: string): Promise<number>` | `apps/api/tests/integration/stock-ledger.test.ts:192` | How much of one bucket the cache says there is. Read straight, not derived. |
 | `balanceOf` <sub>local</sub> | `(locationId: string, status: string, productId: string): Promise<number>` | `apps/api/tests/integration/stock-movements.test.ts:125` |  |
-| `batchStatusOf` <sub>local</sub> | `(batchId: string): Promise<string>` | `apps/api/tests/integration/recall.test.ts:176` |  |
+| `batchStatusOf` <sub>local</sub> | `(batchId: string): Promise<string>` | `apps/api/tests/integration/recall.test.ts:177` |  |
 | `billing` <sub>local</sub> | `(appointmentId: string)` | `apps/api/tests/integration/appointment-billing.test.ts:187` |  |
 | `book` <sub>local</sub> | `(startsAt: string): Promise<string>` | `apps/api/tests/integration/appointment-billing.test.ts:176` | Book a visit, or explain why not. |
 | `bookAt` <sub>local</sub> | `(startsAt: string, doctorProfileId: string, visitType)` | `apps/api/tests/integration/fee-schedule.test.ts:175` |  |
-| `bucket` <sub>local</sub> | `(batchId: string, status: string): Promise<string>` | `apps/api/tests/integration/recall.test.ts:167` | What one lot holds in one bucket. The ledger's answer, read from the cache. |
+| `bucket` <sub>local</sub> | `(batchId: string, status: string): Promise<string>` | `apps/api/tests/integration/recall.test.ts:168` | What one lot holds in one bucket. The ledger's answer, read from the cache. |
 | `cardFor` <sub>local</sub> | `(category: string): Promise<CategoryCard \| undefined>` | `apps/api/tests/integration/clinic-tax.test.ts:235` |  |
 | `chargesFor` <sub>local</sub> | `(dispenseId: string): Promise< { id: string; status: string; policy: string; poli…` | `apps/api/tests/integration/charging.test.ts:141` | The charge requests raised against one supply, oldest first. |
 | `chargesFor` <sub>local</sub> | `(consumptionId: string): Promise< { status: string; policy: string; kind: string; de…` | `apps/api/tests/integration/consumption.test.ts:162` | The charge requests raised against one consumption, in line order. |
@@ -185,11 +185,11 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `login` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/invoices.test.ts:129` |  |
 | `login` <sub>local</sub> | `(slug: string, identifier: string, secret: string): Promise<string>` | `apps/api/tests/integration/settings.test.ts:118` |  |
 | `makeAppointment` <sub>local</sub> | `(episodeId: string, number: string, offsetDays: number, parentId: string \| null): Promise<string>` | `apps/api/tests/integration/visit-history.test.ts:199` | A booking on a journey, checked in and ready for a consultation. |
-| `makeLot` <sub>local</sub> | `(productId: string, lotNumber: string, expiresOn: string): Promise<string>` | `apps/api/tests/integration/recall.test.ts:138` |  |
+| `makeLot` <sub>local</sub> | `(productId: string, lotNumber: string, expiresOn: string): Promise<string>` | `apps/api/tests/integration/recall.test.ts:139` |  |
 | `makeProduct` <sub>local</sub> | `(code: string, type: string): Promise<string>` | `apps/api/tests/integration/charging.test.ts:116` |  |
 | `makeProduct` <sub>local</sub> | `(code: string, type: string, tracking): Promise<string>` | `apps/api/tests/integration/consumption.test.ts:126` |  |
 | `makeProduct` <sub>local</sub> | `(key: string, type: string, classification: string \| null, unitId: string, jurisdictionId: string): Promise<void>` | `apps/api/tests/integration/india-rule-pack.test.ts:90` | A product of `type`, with a profile asserting `classification` where given. |
-| `makeProduct` <sub>local</sub> | `(code: string, type: string, tracking): Promise<string>` | `apps/api/tests/integration/recall.test.ts:125` |  |
+| `makeProduct` <sub>local</sub> | `(code: string, type: string, tracking): Promise<string>` | `apps/api/tests/integration/recall.test.ts:126` |  |
 | `makeTerm` <sub>local</sub> | `(kind: string, code: string, name: string): Promise<string>` | `apps/api/tests/integration/consultation-journey.test.ts:151` |  |
 | `makeTerm` <sub>local</sub> | `(kind: string, code: string, name: string): Promise<string>` | `apps/api/tests/integration/encounter-content.test.ts:142` | A clinical word this clinic owns, so no platform row is left behind. |
 | `makeTerm` <sub>local</sub> | `(kind: string, code: string, name: string): Promise<string>` | `apps/api/tests/integration/reference-configurations.test.ts:156` |  |
@@ -230,7 +230,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/pharmacy.test.ts:83` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/procurement.test.ts:99` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/product-resolvers.test.ts:55` |  |
-| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/recall.test.ts:102` |  |
+| `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/recall.test.ts:103` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/reference-configurations.test.ts:72` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/registration.test.ts:66` |  |
 | `payload` <sub>local</sub> | `(slug: string, label: string)` | `apps/api/tests/integration/regulatory.test.ts:59` |  |
@@ -266,7 +266,7 @@ Files: `apps/api/tests/integration/appointment-billing.test.ts` · `apps/api/tes
 | `setValue` <sub>local</sub> | `(key: string, scopeType: string, scopeId: string \| null, value: unknown): Promise<void>` | `apps/api/tests/integration/setting-resolver.test.ts:73` | Written as the owner: these are fixtures, not behaviour under test. |
 | `stockUp` <sub>local</sub> | `(productId: string, batchId: string \| null, quantity: string): Promise<void>` | `apps/api/tests/integration/charging.test.ts:128` |  |
 | `stockUp` <sub>local</sub> | `(productId: string, quantity: string): Promise<void>` | `apps/api/tests/integration/consumption.test.ts:139` |  |
-| `stockUp` <sub>local</sub> | `(productId: string, batchId: string, quantity: string, serialId?: string): Promise<void>` | `apps/api/tests/integration/recall.test.ts:148` |  |
+| `stockUp` <sub>local</sub> | `(productId: string, batchId: string, quantity: string, serialId?: string): Promise<void>` | `apps/api/tests/integration/recall.test.ts:149` |  |
 | `stockUp` <sub>local</sub> | `(context: TenantContext, branchId: string, locationId: string, productId: string, batchId: string \| null, quantity: string): Promise<void>` | `apps/api/tests/integration/stock-movements.test.ts:106` | Put a known quantity into a bucket, through the one writer. |
 | `submission` <sub>local</sub> | `(overrides: Record<string, unknown>)` | `apps/api/tests/integration/demo-requests.test.ts:28` |  |
 | `supply` <sub>local</sub> | `(quantity: string, subject: string \| null): Promise<{ outcome: string; reasons: unknown }>` | `apps/api/tests/integration/quantity-limit.test.ts:119` | Supply some, and hand back the decision that was snapshotted for the line. |

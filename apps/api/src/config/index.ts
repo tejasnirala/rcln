@@ -124,6 +124,21 @@ export const config = {
    *
    *   Everywhere else it is on by default, because documentation nobody can
    *   reach while developing against it is documentation nobody reads.
+   *
+   * ⚠️ AND IN A PRODUCTION IMAGE THIS FLAG NO LONGER RENDERS THE PAGE, WHICH IS
+   *   A DELIBERATE NARROWING OF WHAT IT PROMISES. The Scalar renderer is ~116 MB
+   *   of browser bundle and is the reason `/docs` has to relax the CSP with
+   *   `unsafe-eval`; it is now a `devDependency` and `pnpm --prod deploy` prunes
+   *   it, so it is not in the runtime image at all rather than merely switched
+   *   off in it. Turning this on in production answers 503 with a sentence
+   *   saying so.
+   *
+   *   WHAT STILL WORKS EVERYWHERE, INCLUDING PRODUCTION, IS THE DOCUMENT:
+   *   `/docs/openapi.json` is built entirely by our own code and needs no
+   *   third-party renderer. An integrator points Swagger UI, Postman, Insomnia
+   *   or Scalar's hosted client at it and loses nothing — which is why this was
+   *   the right half to keep. ⚠️ Note the flag still gates that endpoint too, so
+   *   the reconnaissance argument above is unchanged.
    */
   docsEnabled: getEnvVar('DOCS_ENABLED', isProduction ? 'false' : 'true') === 'true',
 

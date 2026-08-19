@@ -12,14 +12,13 @@ Files: `apps/api/src/services/recall/recall.service.ts` · `apps/api/src/service
 | --- | --- | --- | --- |
 | `addRecallBatches` | `(ctx: TenantContext, id: string, input: AddRecallBatchesRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:485` |  |
 | `allocationWhere` <sub>local</sub> | `(subject: { batchId: string \| null; serialId: string \| null;…): { batchId: string } \| { serialId: string }` | `apps/api/src/services/recall/trace.service.ts:150` | The `where` that selects allocations for whichever subject was named. |
-| `assertBranchInScope` | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/recall/shared.ts:14` |  |
 | `attachBatches` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, recall: { id: string; productId: string }, batchIds: readonly string[]): Promise<number>` | `apps/api/src/services/recall/recall.service.ts:314` |  |
-| `auditMeta` | `(options: RecallActionOptions): { ipAddress?: string; userAgent?: string; }` | `apps/api/src/services/recall/shared.ts:42` |  |
+| `auditMeta` | `(options: RecallActionOptions): { ipAddress?: string; userAgent?: string; }` | `apps/api/src/services/recall/shared.ts:33` |  |
 | `backwardTrace` | `(ctx: TenantContext, query: BackwardTraceQuery): Promise<BackwardTraceResponse>` | `apps/api/src/services/recall/trace.service.ts:280` |  |
-| `cancelRecall` | `(ctx: TenantContext, id: string, input: CancelRecallRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:929` |  |
-| `closeRecall` | `(ctx: TenantContext, id: string, input: CloseRecallRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:877` |  |
+| `cancelRecall` | `(ctx: TenantContext, id: string, input: CancelRecallRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:985` |  |
+| `closeRecall` | `(ctx: TenantContext, id: string, input: CloseRecallRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:933` |  |
 | `createRecall` | `(ctx: TenantContext, input: CreateRecallRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:361` |  |
-| `executeRecall` | `(ctx: TenantContext, id: string, input: ExecuteRecallRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:653` |  |
+| `executeRecall` | `(ctx: TenantContext, id: string, input: ExecuteRecallRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:709` |  |
 | `findRecallOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/recall/recall.service.ts:175` |  |
 | `forwardTrace` | `(ctx: TenantContext, query: ForwardTraceQuery): Promise<ForwardTraceResponse>` | `apps/api/src/services/recall/trace.service.ts:171` |  |
 | `getRecall` | `(ctx: TenantContext, id: string): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:228` |  |
@@ -29,10 +28,9 @@ Files: `apps/api/src/services/recall/recall.service.ts` · `apps/api/src/service
 | `listRecalls` | `(ctx: TenantContext, query: RecallQuery): Promise<RecallListResponse>` | `apps/api/src/services/recall/recall.service.ts:181` |  |
 | `patientName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/recall/trace.service.ts:343` |  |
 | `personName` <sub>local</sub> | `(person: { fullName: string } \| null): string \| null` | `apps/api/src/services/recall/recall.service.ts:102` |  |
-| `q` | `(value: Prisma.Decimal \| number \| string): string` | `apps/api/src/services/recall/shared.ts:19` | A decimal as the wire wants it: a string, never a float. |
-| `recallReferenceFor` | `(recall: { reference: string; noticeReference: string \| null…): string` | `apps/api/src/services/recall/shared.ts:60` |  |
+| `recallReferenceFor` | `(recall: { reference: string; noticeReference: string \| null…): string` | `apps/api/src/services/recall/shared.ts:51` |  |
 | `removeRecallBatch` | `(ctx: TenantContext, recallId: string, recallBatchId: string, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:520` |  |
-| `resolveRecallBatch` | `(ctx: TenantContext, recallId: string, recallBatchId: string, input: ResolveRecallBatchRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:754` |  |
+| `resolveRecallBatch` | `(ctx: TenantContext, recallId: string, recallBatchId: string, input: ResolveRecallBatchRequest, options: RecallActionOptions): Promise<RecallDetail>` | `apps/api/src/services/recall/recall.service.ts:810` |  |
 | `resolveSubject` <sub>local</sub> | `(tx: TxClient, input: { batchId?: string \| undefined; serialId?: string \| …): Promise<TraceSubject>` | `apps/api/src/services/recall/trace.service.ts:77` |  |
 | `sumQuantities` <sub>local</sub> | `(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus: string): string` | `apps/api/src/services/recall/recall.service.ts:111` |  |
 | `toBatchDetail` <sub>local</sub> | `(row: DetailRow['batches'][number]): RecallBatchDetail` | `apps/api/src/services/recall/recall.service.ts:143` |  |
@@ -51,7 +49,7 @@ Files: `apps/api/src/services/recall/recall.service.ts` · `apps/api/src/service
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `RecallActionOptions` | `{ route, ipAddress, userAgent }` | `apps/api/src/services/recall/shared.ts:24` | What every recall route hands its service. |
+| `RecallActionOptions` | `{ route, ipAddress, userAgent }` | `apps/api/src/services/recall/shared.ts:15` | What every recall route hands its service. |
 | `TraceSubject` <sub>local</sub> | `{ batchId, serialId, productId, productName, baseUnitSymbol, lotNumber, serialNumber, manufacturerName, manufacturedOn, expiresOn }` | `apps/api/src/services/recall/trace.service.ts:64` |  |
 
 ## type

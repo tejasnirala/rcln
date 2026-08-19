@@ -11,15 +11,11 @@ import { NotFoundError, ValidationError } from '../../utils/errors.js';
 import { movementDeps } from '../inventory/movement.service.js';
 import { resolveSettings } from '../settings/resolver.service.js';
 
-/**
- * ⚠️ NOT FOUND, NOT FORBIDDEN — the rule the whole codebase follows. A branch
- *   outside the caller's scope is invisible to RLS anyway, so it is
- *   indistinguishable from one that does not exist, and a 403 confirms to
- *   somebody probing that the id is real.
+/*
+ * ⚠️ RE-EXPORTED, NOT REDEFINED (PI-11 review). This was a fourth copy of the
+ *   same function. `services/shared/branch.ts` is the single source.
  */
-export function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
-}
+export { assertBranchInScope } from '../shared/branch.js';
 
 /**
  * The supplier, as this document will name them.

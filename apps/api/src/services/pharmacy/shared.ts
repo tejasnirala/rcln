@@ -13,40 +13,28 @@ import { Prisma, type TenantContext, type TxClient } from '@rcln/db';
 import type { DispenseRegulatorySummary } from '@rcln/contracts';
 import type { RegulatoryDecisionResponse } from '@rcln/contracts';
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
+import { resolveBranchId as resolveBranchIdShared } from '../shared/branch.js';
 import { isEnforceable } from '../regulatory/enforcement.js';
 
-/**
- * ⚠️ NOT FOUND, NEVER FORBIDDEN, for a branch outside the caller's scope. RLS has
- *   already made the row invisible, and a 403 would confirm to somebody probing
- *   that the id is real. Every branch-scoped service in this codebase does this.
+/*
+ * ⚠️ RE-EXPORTED, NOT REDEFINED (PI-11 review). These lived here AND in
+ *   `consumption/shared.ts` as byte-for-byte copies — on the two functions that
+ *   decide which tenant's branch a write is attributed to. `services/shared/
+ *   branch.ts` is the single source; every call site in this domain is unchanged.
  */
-export function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
-}
+export { assertBranchInScope, auditMeta, q } from '../shared/branch.js';
 
 /**
- * Which counter is this request about?
- *
- * ⚠️ THE BRANCH THE REQUEST NAMES, OR THE ONE IT IS ACTING ON — NEVER THE FIRST
- *   ONE IN SCOPE. A pharmacist covering two sites in two states must not be
- *   evaluated against whichever branch id happened to sort first: the
- *   jurisdiction of the supply is where the counter is, and picking arbitrarily
- *   is wrong silently and about half the time. The evaluation service learned
- *   this the same way (see its `branchId` comment).
+ * The pharmacy domain's wording of the shared resolver. The security-relevant
+ * body is in `shared/branch.ts`; only the noun in the sentence differs — for a
+ * supply, the jurisdiction is where the counter is.
  */
 export function resolveBranchId(
   ctx: TenantContext,
   named: string | undefined,
   acting: string | null | undefined
 ): string {
-  const branchId = named ?? acting ?? (ctx.branchIds.length === 1 ? ctx.branchIds[0] : undefined);
-  if (!branchId) {
-    throw new ValidationError(
-      'Say which branch this is for. You work at more than one and a supply happens at exactly one counter.'
-    );
-  }
-  assertBranchInScope(ctx, branchId);
-  return branchId;
+  return resolveBranchIdShared(ctx, named, acting, 'a supply happens at exactly one counter');
 }
 
 export interface DispensingLocation {
@@ -315,27 +303,4 @@ export function ageYearsOn(dateOfBirth: Date | null, on: Date): number | undefin
   const monthDelta = on.getUTCMonth() - dateOfBirth.getUTCMonth();
   if (monthDelta < 0 || (monthDelta === 0 && on.getUTCDate() < dateOfBirth.getUTCDate())) age -= 1;
   return age < 0 ? undefined : age;
-}
-
-/**
- * The two fields `recordAudit` takes, pulled out of the wider options object.
- *
- * ⚠️ EXPLICIT RATHER THAN `...options`, BECAUSE THE PHARMACY OPTIONS CARRY MORE
- *   THAN AUDIT WANTS — a route pattern, the acting branch, the caller's
- *   permission codes. Spreading them would put the caller's effective
- *   permissions into an audit row's shape and nobody would notice for a while.
- */
-export function auditMeta(options: {
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
-}): { ipAddress?: string; userAgent?: string } {
-  return {
-    ...(options.ipAddress !== undefined ? { ipAddress: options.ipAddress } : {}),
-    ...(options.userAgent !== undefined ? { userAgent: options.userAgent } : {}),
-  };
-}
-
-/** A decimal as the wire wants it: a string, never a float. */
-export function q(value: Prisma.Decimal | number | string): string {
-  return new Prisma.Decimal(value).toString();
 }

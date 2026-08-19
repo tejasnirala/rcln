@@ -39,10 +39,10 @@
  */
 import { type Prisma, withTenant, type TenantContext } from '@rcln/db';
 import type { ExpiryReportQuery, ExpiryReportResponse } from '@rcln/contracts';
-import { NotFoundError } from '../../utils/errors.js';
 import { sweepExpiredStock as sweepEngine, type SweepResult } from '@rcln/inventory';
 import { resolveSettings } from '../settings/resolver.service.js';
 import { movementDeps } from './movement.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 /*
  * ⚠️ THE SWEEP ITSELF LIVES IN `@rcln/inventory`, NOT HERE, AND IS RE-EXPORTED
@@ -56,10 +56,6 @@ const ALERT_DAYS_KEY = 'inventory.expiry_alert_days';
 
 /** The default the setting definition carries. Duplicated nowhere else. */
 const FALLBACK_ALERT_DAYS = [90, 60, 30, 7];
-
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
-}
 
 /**
  * The widest configured warning window, in days.

@@ -11,6 +11,24 @@
  *   gate answers 404 rather than 403 for the reason the tenant guard does: a 403
  *   confirms the thing exists.
  *
+ * ⚠️ THE RENDERER IS NOT IN THE PRODUCTION IMAGE, AND THAT IS THE POINT OF THE
+ *   LAZY IMPORT BELOW. `@scalar/*` is ~116 MB of browser bundle — a Vue app, an
+ *   HTTP client and an icon set — and it is the reason this router has to relax
+ *   the CSP with `unsafe-eval`. None of that belongs in the runtime image of a
+ *   system holding patient records, for a page that is off by default there.
+ *
+ *   So the packages are `devDependencies`, `pnpm --prod deploy` leaves them out,
+ *   and this file imports them DYNAMICALLY on first use. `app.ts` still mounts
+ *   this router unconditionally and `/docs/openapi.json` still answers — that
+ *   endpoint is built entirely by our own code and needs no Scalar at all.
+ *
+ *   ⚠️ WHICH MEANS `DOCS_ENABLED=true` IN PRODUCTION NO LONGER RENDERS THE PAGE.
+ *     It answers 503 with a sentence saying why, rather than 404 — because the
+ *     operator DID turn it on and silence would read as "the flag does not
+ *     work". The document itself is still there, and any viewer — Swagger UI,
+ *     Postman, Insomnia, Scalar's hosted client — renders it from
+ *     `/docs/openapi.json`. `config.docsEnabled` says the same thing.
+ *
  * ⚠️ THE RENDERER IS SERVED FROM HERE, NOT FROM A CDN, AND THAT IS NOT
  *   PREFERENCE. Scalar's own integration points its `<script>` at
  *   `cdn.jsdelivr.net`, which fails in exactly the two situations this product
@@ -26,13 +44,14 @@ import express, {
   Router,
   type IRouter,
   type Request,
+  type RequestHandler,
   type Response,
   type NextFunction,
 } from 'express';
 import helmet from 'helmet';
-import { apiReference } from '@scalar/express-api-reference';
 
 import { config } from '../config/index.js';
+import { logger } from '../utils/logger.js';
 import { buildOpenApiDocument } from '../openapi/document.js';
 
 const router: IRouter = Router();
@@ -57,6 +76,75 @@ const scalarAssetsDir = (): string => {
   // Resolves to `<pkg>/dist/index.js`; the browser build sits beside it.
   return join(dirname(require.resolve('@scalar/api-reference')), 'browser');
 };
+
+/**
+ * The renderer, loaded on first use — or `null` where it is not installed.
+ *
+ * ⚠️ RESOLVED ONCE AND REMEMBERED, INCLUDING THE FAILURE. Without the memo every
+ *   request into a production image would pay a failing module resolution and
+ *   write a log line, which turns a disabled feature into a log flood somebody
+ *   has to go and silence.
+ *
+ * ⚠️ AND IT IS `null`, NOT A THROW. A missing optional renderer must not be able
+ *   to take a request thread down in an API that also serves clinical traffic;
+ *   the callers below turn `null` into a 503 that says what happened.
+ */
+type Renderer = { assets: RequestHandler; reference: RequestHandler };
+
+let rendererOnce: Promise<Renderer | null> | undefined;
+
+async function renderer(): Promise<Renderer | null> {
+  rendererOnce ??= (async (): Promise<Renderer | null> => {
+    try {
+      const { apiReference } = await import('@scalar/express-api-reference');
+      return {
+        assets: express.static(scalarAssetsDir(), {
+          immutable: true,
+          maxAge: '1y',
+          index: false,
+          fallthrough: false,
+        }),
+        reference: apiReference(REFERENCE_OPTIONS) as RequestHandler,
+      };
+    } catch (err) {
+      /*
+       * Expected in production and only there. Logged at WARN rather than ERROR
+       * because it is a deliberate build-time choice, not a fault — but logged,
+       * because an operator who set `DOCS_ENABLED=true` needs to find out why
+       * nothing rendered without reading this file.
+       */
+      logger.warn(
+        { err },
+        'The API reference renderer is not installed in this image, so /docs cannot render. ' +
+          'The document itself is still served at /docs/openapi.json. This is expected in ' +
+          'production: @scalar/* is a devDependency and is pruned by `pnpm --prod deploy`.'
+      );
+      return null;
+    }
+  })();
+  return rendererOnce;
+}
+
+/** What a caller gets when the renderer is absent. */
+function rendererUnavailable(res: Response): void {
+  res
+    .status(503)
+    .type('application/json')
+    .set('Cache-Control', 'no-store')
+    .send(
+      JSON.stringify(
+        {
+          success: false,
+          message:
+            'The interactive API reference is not available in this deployment. The OpenAPI ' +
+            'document is served at /docs/openapi.json — open it with any viewer, or run the ' +
+            'reference from a non-production environment.',
+        },
+        null,
+        2
+      )
+    );
+}
 
 router.use((req: Request, res: Response, next: NextFunction): void => {
   if (!config.docsEnabled) {
@@ -105,15 +193,22 @@ router.use(
 );
 
 /** The renderer itself. Immutable, content-addressed filenames — cache hard. */
-router.use(
-  '/assets',
-  express.static(scalarAssetsDir(), {
-    immutable: true,
-    maxAge: '1y',
-    index: false,
-    fallthrough: false,
-  })
-);
+/*
+ * ⚠️ THE PATH IS RESOLVED INSIDE `renderer()`, NOT HERE. This mount used to call
+ *   `scalarAssetsDir()` at module load, which resolves `@scalar/api-reference`
+ *   off disk — so the import being dynamic would have achieved nothing: the
+ *   module would still have been required the moment `app.ts` pulled this file
+ *   in, and the production image would still have crashed at boot.
+ */
+router.use('/assets', (req: Request, res: Response, next: NextFunction): void => {
+  void renderer().then((loaded) => {
+    if (!loaded) {
+      rendererUnavailable(res);
+      return;
+    }
+    loaded.assets(req, res, next);
+  });
+});
 
 /**
  * The machine-readable document.
@@ -201,26 +296,37 @@ const THEME = `
 }
 `;
 
-router.use(
-  '/',
-  apiReference({
-    url: '/docs/openapi.json',
-    cdn: '/docs/assets/standalone.js',
-    pageTitle: 'rcln API reference',
-    theme: 'none',
-    darkMode: true,
-    forceDarkModeState: 'dark',
-    hideDarkModeToggle: true,
-    customCss: THEME,
-    /*
-     * The `Host` header selects the clinic, so the address the reference is
-     * being read at is already the right server for a live call — try-it-out
-     * from `alpha.lvh.me:5000/docs` reaches `alpha`. Nothing to configure, which
-     * is the whole reason the reference is served by the API itself rather than
-     * from a static site.
-     */
-    hideClientButton: false,
-  })
-);
+/**
+ * The renderer's configuration, hoisted out of the mount so `renderer()` can
+ * build the middleware after the dynamic import resolves.
+ */
+const REFERENCE_OPTIONS = {
+  url: '/docs/openapi.json',
+  cdn: '/docs/assets/standalone.js',
+  pageTitle: 'rcln API reference',
+  theme: 'none',
+  darkMode: true,
+  forceDarkModeState: 'dark',
+  hideDarkModeToggle: true,
+  customCss: THEME,
+  /*
+   * The `Host` header selects the clinic, so the address the reference is
+   * being read at is already the right server for a live call — try-it-out
+   * from `alpha.lvh.me:5000/docs` reaches `alpha`. Nothing to configure, which
+   * is the whole reason the reference is served by the API itself rather than
+   * from a static site.
+   */
+  hideClientButton: false,
+} as const;
+
+router.use('/', (req: Request, res: Response, next: NextFunction): void => {
+  void renderer().then((loaded) => {
+    if (!loaded) {
+      rendererUnavailable(res);
+      return;
+    }
+    loaded.reference(req, res, next);
+  });
+});
 
 export default router;

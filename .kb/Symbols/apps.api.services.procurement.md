@@ -13,10 +13,9 @@ Files: `apps/api/src/services/procurement/costing.service.ts` · `apps/api/src/s
 | `addSupplierTaxIdentifier` | `(ctx: TenantContext, supplierId: string, input: CreateSupplierTaxIdentifierRequest, options: CatalogueActionOptions): Promise<SupplierDetail>` | `apps/api/src/services/procurement/supplier.service.ts:350` |  |
 | `apportionLanded` <sub>local</sub> | `(header: { freight: bigint; duty: bigint; handling: bigint }, lines: ResolvedLine[]): number[]` | `apps/api/src/services/procurement/goods-receipt.service.ts:479` |  |
 | `approveRequisition` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseRequisitionDetail>` | `apps/api/src/services/procurement/requisition.service.ts:480` |  |
-| `assertBranchInScope` | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/procurement/shared.ts:20` |  |
 | `assertIdentityForProduct` <sub>local</sub> | `(product: ProductForLine, line: GoodsReceiptLineRequest): void` | `apps/api/src/services/procurement/goods-receipt.service.ts:288` |  |
 | `assertLotIsReceivable` <sub>local</sub> | `(tx: TxClient, branchId: string, productName: string, expiresOn: Date \| null): Promise<void>` | `apps/api/src/services/procurement/goods-receipt.service.ts:335` |  |
-| `assertNoDuplicateLines` | `(keys: string[], message): void` | `apps/api/src/services/procurement/shared.ts:206` |  |
+| `assertNoDuplicateLines` | `(keys: string[], message): void` | `apps/api/src/services/procurement/shared.ts:202` |  |
 | `assertNotOwnRequisition` <sub>local</sub> | `(row: DetailRow, ctx: TenantContext): void` | `apps/api/src/services/procurement/requisition.service.ts:168` |  |
 | `assertSerialIsStillStock` <sub>local</sub> | `(tx: TxClient, serialId: string): Promise<void>` | `apps/api/src/services/procurement/purchase-return.service.ts:182` |  |
 | `assertWithinTolerance` <sub>local</sub> | `(orderLine: { orderedQuantityBase: Prisma.Decimal; receivedQ…, takenThisRequest: Prisma.Decimal, receiving: Prisma.Decimal, tolerancePercent: number, productName: string, unitSymbol: string): void` | `apps/api/src/services/procurement/goods-receipt.service.ts:891` |  |
@@ -42,7 +41,7 @@ Files: `apps/api/src/services/procurement/costing.service.ts` · `apps/api/src/s
 | `findRequisitionOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/procurement/requisition.service.ts:135` |  |
 | `findReturnOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/procurement/purchase-return.service.ts:154` |  |
 | `findSupplierOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/procurement/supplier.service.ts:99` |  |
-| `fromDateString` | `(value: string): Date` | `apps/api/src/services/procurement/shared.ts:309` |  |
+| `fromDateString` | `(value: string): Date` | `apps/api/src/services/procurement/shared.ts:305` |  |
 | `getGoodsReceipt` | `(ctx: TenantContext, id: string): Promise<GoodsReceiptDetail>` | `apps/api/src/services/procurement/goods-receipt.service.ts:602` |  |
 | `getPurchaseOrder` | `(ctx: TenantContext, id: string): Promise<PurchaseOrderDetail>` | `apps/api/src/services/procurement/purchase-order.service.ts:449` |  |
 | `getPurchaseReturn` | `(ctx: TenantContext, id: string): Promise<PurchaseReturnDetail>` | `apps/api/src/services/procurement/purchase-return.service.ts:449` |  |
@@ -75,16 +74,16 @@ Files: `apps/api/src/services/procurement/costing.service.ts` · `apps/api/src/s
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, lines: PurchaseOrderLineRequest[], supplierId: string, currency: string): Promise<ResolvedLine[]>` | `apps/api/src/services/procurement/purchase-order.service.ts:301` |  |
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, branchId: string, goodsReceiptId: string \| null, currency: string, lines: PurchaseReturnLineRequest[]): Promise<ResolvedLine[]>` | `apps/api/src/services/procurement/purchase-return.service.ts:216` |  |
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, lines: PurchaseRequisitionLineRequest[]): Promise<ResolvedLine[]>` | `apps/api/src/services/procurement/requisition.service.ts:185` |  |
-| `resolveLocation` | `(tx: TxClient, branchId: string, locationId: string, verb: string): Promise<{ id: string; name: string }>` | `apps/api/src/services/procurement/shared.ts:92` | A shelf at this branch, active, and readable by this caller. |
-| `resolveProductForLine` | `(tx: TxClient, productId: string): Promise<ProductForLine>` | `apps/api/src/services/procurement/shared.ts:134` |  |
-| `resolveReceivingPolicy` | `(tx: TxClient, ctx: TenantContext, branchId: string): Promise<{ tolerancePercent: number; qualityHoldRequired: bo…` | `apps/api/src/services/procurement/shared.ts:232` |  |
-| `resolveSupplierForDocument` | `(tx: TxClient, supplierId: string): Promise<{ id: string; name: string; currency: string \| null…` | `apps/api/src/services/procurement/shared.ts:40` |  |
+| `resolveLocation` | `(tx: TxClient, branchId: string, locationId: string, verb: string): Promise<{ id: string; name: string }>` | `apps/api/src/services/procurement/shared.ts:88` | A shelf at this branch, active, and readable by this caller. |
+| `resolveProductForLine` | `(tx: TxClient, productId: string): Promise<ProductForLine>` | `apps/api/src/services/procurement/shared.ts:130` |  |
+| `resolveReceivingPolicy` | `(tx: TxClient, ctx: TenantContext, branchId: string): Promise<{ tolerancePercent: number; qualityHoldRequired: bo…` | `apps/api/src/services/procurement/shared.ts:228` |  |
+| `resolveSupplierForDocument` | `(tx: TxClient, supplierId: string): Promise<{ id: string; name: string; currency: string \| null…` | `apps/api/src/services/procurement/shared.ts:36` |  |
 | `resolveUnitCost` <sub>local</sub> | `(tx: TxClient, line: PurchaseOrderLineRequest, supplierId: string, productName: string, currency: string): Promise<{ unitCostBase: bigint; pricePerPackMinor: bigint \|…` | `apps/api/src/services/procurement/purchase-order.service.ts:200` |  |
 | `rollReceiptIntoAverage` | `(tx: TxClient, ctx: TenantContext, input: { branchId: string; productId: string; currency: str…): Promise<void>` | `apps/api/src/services/procurement/costing.service.ts:59` |  |
 | `sendPurchaseReturn` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseReturnDetail>` | `apps/api/src/services/procurement/purchase-return.service.ts:645` |  |
 | `submitRequisition` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<PurchaseRequisitionDetail>` | `apps/api/src/services/procurement/requisition.service.ts:432` |  |
-| `toBase` | `(tx: TxClient, product: ProductForLine, line: { quantity: string; unitId?: string \| null \| undefine…): Promise<string>` | `apps/api/src/services/procurement/shared.ts:180` |  |
-| `toDateString` | `(value: Date \| null): string \| null` | `apps/api/src/services/procurement/shared.ts:283` | A `date` column as `YYYY-MM-DD`, which is what `effectiveDate` is. |
+| `toBase` | `(tx: TxClient, product: ProductForLine, line: { quantity: string; unitId?: string \| null \| undefine…): Promise<string>` | `apps/api/src/services/procurement/shared.ts:176` |  |
+| `toDateString` | `(value: Date \| null): string \| null` | `apps/api/src/services/procurement/shared.ts:279` | A `date` column as `YYYY-MM-DD`, which is what `effectiveDate` is. |
 | `toDetail` <sub>local</sub> | `(row: DetailRow): GoodsReceiptDetail` | `apps/api/src/services/procurement/goods-receipt.service.ts:178` |  |
 | `toDetail` <sub>local</sub> | `(row: DetailRow): PurchaseOrderDetail` | `apps/api/src/services/procurement/purchase-order.service.ts:147` |  |
 | `toDetail` <sub>local</sub> | `(row: DetailRow): PurchaseReturnDetail` | `apps/api/src/services/procurement/purchase-return.service.ts:144` |  |
@@ -94,9 +93,9 @@ Files: `apps/api/src/services/procurement/costing.service.ts` · `apps/api/src/s
 | `toLineDetail` <sub>local</sub> | `(line: LineRow): PurchaseOrderLineDetail` | `apps/api/src/services/procurement/purchase-order.service.ts:84` |  |
 | `toLineDetail` <sub>local</sub> | `(line: LineRow): PurchaseReturnLineDetail` | `apps/api/src/services/procurement/purchase-return.service.ts:87` |  |
 | `toLineDetail` <sub>local</sub> | `(line: LineRow): PurchaseRequisitionLineDetail` | `apps/api/src/services/procurement/requisition.service.ts:81` |  |
-| `toMinorNumber` | `(value: bigint): number` | `apps/api/src/services/procurement/shared.ts:270` |  |
-| `toQuantityString` | `(value: Prisma.Decimal): string` | `apps/api/src/services/procurement/shared.ts:278` | A `Decimal(18,6)` column as the decimal STRING the wire uses. |
-| `toRequiredDateString` | `(value: Date): string` | `apps/api/src/services/procurement/shared.ts:295` |  |
+| `toMinorNumber` | `(value: bigint): number` | `apps/api/src/services/procurement/shared.ts:266` |  |
+| `toQuantityString` | `(value: Prisma.Decimal): string` | `apps/api/src/services/procurement/shared.ts:274` | A `Decimal(18,6)` column as the decimal STRING the wire uses. |
+| `toRequiredDateString` | `(value: Date): string` | `apps/api/src/services/procurement/shared.ts:291` |  |
 | `toSummary` <sub>local</sub> | `(row: DetailRow): GoodsReceiptSummary` | `apps/api/src/services/procurement/goods-receipt.service.ts:145` |  |
 | `toSummary` <sub>local</sub> | `(row: DetailRow): PurchaseOrderSummary` | `apps/api/src/services/procurement/purchase-order.service.ts:116` |  |
 | `toSummary` <sub>local</sub> | `(row: DetailRow): PurchaseReturnSummary` | `apps/api/src/services/procurement/purchase-return.service.ts:118` |  |
@@ -117,8 +116,8 @@ Files: `apps/api/src/services/procurement/costing.service.ts` · `apps/api/src/s
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `OVER_RECEIPT_TOLERANCE_KEY` | `'procurement.over_receipt_tolerance_percent'` | `apps/api/src/services/procurement/shared.ts:213` |  |
-| `QUALITY_HOLD_KEY` | `'procurement.quality_hold_required'` | `apps/api/src/services/procurement/shared.ts:214` |  |
+| `OVER_RECEIPT_TOLERANCE_KEY` | `'procurement.over_receipt_tolerance_percent'` | `apps/api/src/services/procurement/shared.ts:209` |  |
+| `QUALITY_HOLD_KEY` | `'procurement.quality_hold_required'` | `apps/api/src/services/procurement/shared.ts:210` |  |
 
 ## var
 
@@ -135,7 +134,7 @@ Files: `apps/api/src/services/procurement/costing.service.ts` · `apps/api/src/s
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ProductForLine` | `{ id, code, name, baseUnitId, baseUnitCode, trackingMode, isExpiryControlled }` | `apps/api/src/services/procurement/shared.ts:115` | What a document line needs to know about the product it names. |
+| `ProductForLine` | `{ id, code, name, baseUnitId, baseUnitCode, trackingMode, isExpiryControlled }` | `apps/api/src/services/procurement/shared.ts:111` | What a document line needs to know about the product it names. |
 | `ResolvedLine` <sub>local</sub> | `{ productId, purchaseOrderLineId, receivedQuantityBase, quantityEntered, unitId, lotNumber, manufacturedOn, expiresOn, retestOn, manufacturerId, serialNumber, unitCostBase, currency, lineSubtotalMino…` | `apps/api/src/services/procurement/goods-receipt.service.ts:251` |  |
 | `ResolvedLine` <sub>local</sub> | `{ productId, supplierProductId, orderedQuantityBase, quantityEntered, unitId, unitCostBase, pricePerPackMinor, packQuantityBase, lineSubtotalMinor, taxRateBps, taxAmountMinor, lineTotalMinor, notes }` | `apps/api/src/services/procurement/purchase-order.service.ts:176` |  |
 | `ResolvedLine` <sub>local</sub> | `{ productId, goodsReceiptLineId, batchId, serialId, quantityBase, quantityEntered, unitId, statusFrom, unitCostBase, currency, lineTotalMinor, notes }` | `apps/api/src/services/procurement/purchase-return.service.ts:201` |  |

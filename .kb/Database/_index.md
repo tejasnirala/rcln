@@ -10,7 +10,7 @@ One file per model in this directory; the tables below are the overview.
 | model | table | org col | RLS | columns |
 | --- | --- | --- | --- | --- |
 | [`ActiveIngredient`](ActiveIngredient.md) | `active_ingredients` | yes | **MISSING** | `id` `organizationId` `code` `name` `innName` `synonyms` `description` `isActive` `createdAt` `updatedAt` `deletedAt` |
-| [`AnimalProfile`](AnimalProfile.md) | `animal_profiles` | yes | **MISSING** | `id` `organizationId` `patientId` `species` `breed` `weightKg` `guardianName` `guardianPhone` `createdAt` `updatedAt` |
+| [`AnimalProfile`](AnimalProfile.md) | `animal_profiles` | yes | **MISSING** | `id` `organizationId` `patientId` `species` `breed` `weightKg` `weightRecordedOn` `guardianName` `guardianPhone` `guardianContactId` `createdAt` `updatedAt` |
 | [`Appointment`](Appointment.md) | `appointments` | yes | **MISSING** | `id` `organizationId` `branchId` `patientId` `patientRegistrationId` `doctorProfileId` `appointmentNumber` `scheduledStart` `scheduledEnd` `visitType` `source` `status` `parentAppointmentId` `clinicalEpisodeId` `reason` `checkedInAt` `startedAt` `completedAt` `bookedBy` `cancelledBy` `cancellationReason` `bookedFee` `createdAt` `updatedAt` `deletedAt` |
 | [`AppointmentReschedule`](AppointmentReschedule.md) | `appointment_reschedules` | yes | **MISSING** | `id` `organizationId` `branchId` `appointmentId` `fromStart` `toStart` `fromDoctorProfileId` `toDoctorProfileId` `initiatedBy` `reason` `chargeAmount` `createdAt` `createdBy` |
 | [`AppointmentStatusHistory`](AppointmentStatusHistory.md) | `appointment_status_history` | yes | explicit | `id` `organizationId` `appointmentId` `fromStatus` `toStatus` `changedBy` `note` `changedAt` |
@@ -198,7 +198,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | model | relation fields |
 | --- | --- |
 | `ActiveIngredient` | `organization: Organization?` `compositions: CompositionIngredient[]` |
-| `AnimalProfile` | `organization: Organization` `patient: Patient` |
+| `AnimalProfile` | `organization: Organization` `patient: Patient` `guardianContact: PatientContact?` |
 | `Appointment` | `organization: Organization` `branch: Branch` `patient: Patient` `registration: PatientRegistration` `doctorProfile: DoctorProfile` `booker: User?` `canceller: User?` `statusHistory: AppointmentStatusHistory[]` `vitals: AppointmentVital[]` `invoices: Invoice[]` `reschedules: AppointmentReschedule[]` `parent: Appointment?` `followUps: Appointment[]` `clinicalEpisode: ClinicalEpisode` `recommendationsMade: EncounterFollowUpRecommendation[]` `recommendationsFulfilled: EncounterFollowUpRecommendation[]` `encounters: Encounter[]` |
 | `AppointmentReschedule` | `organization: Organization` `branch: Branch` `appointment: Appointment` |
 | `AppointmentStatusHistory` | `organization: Organization` `appointment: Appointment` `changer: User?` |
@@ -276,7 +276,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `PatientAddress` | `organization: Organization` `patient: Patient` |
 | `PatientAllergy` | `organization: Organization` `patient: Patient` `noter: User?` |
 | `PatientCondition` | `organization: Organization` `patient: Patient` `noter: User?` |
-| `PatientContact` | `organization: Organization` `patient: Patient` |
+| `PatientContact` | `organization: Organization` `patient: Patient` `animalProfiles: AnimalProfile[]` |
 | `PatientMedication` | `organization: Organization` `patient: Patient` `noter: User?` |
 | `PatientRegistration` | `organization: Organization` `patient: Patient` `branch: Branch` `registrar: User?` `appointments: Appointment[]` |
 | `PaymentIntent` | `organization: Organization` `subscription: Subscription?` `invoice: SubscriptionInvoice?` `mandate: PaymentMandate?` `payments: SubscriptionPayment[]` |
@@ -446,7 +446,7 @@ Source: `packages/db/scripts/check-rls.ts` — a table here is gated in the appl
 | `ReferralUrgency` | `ROUTINE` `URGENT` `EMERGENCY` |
 | `RegulatoryDecisionOutcome` | `PERMITTED` `PERMITTED_WITH_CONDITIONS` `REFUSED` `UNDETERMINED` |
 | `RegulatoryRuleStatus` | `DRAFT` `ACTIVE` `SUPERSEDED` `WITHDRAWN` |
-| `RegulatoryRuleType` | `PRESCRIPTION_REQUIRED` `PRESCRIBER_AUTHORITY` `PHARMACIST_AUTHORITY` `CONTROLLED_SCHEDULE` `QUANTITY_LIMIT` `REFILL_RULE` `AGE_RESTRICTION` `SUBSTITUTION` `ONLINE_DISPENSING` `STORAGE_REQUIREMENT` `RECORD_RETENTION` `TRACEABILITY_REQUIREMENT` `LABELLING_REQUIREMENT` `REPORTING_REQUIREMENT` `DISPOSAL_REQUIREMENT` `IMPORT_RESTRICTION` |
+| `RegulatoryRuleType` | `PRESCRIPTION_REQUIRED` `PRESCRIBER_AUTHORITY` `PHARMACIST_AUTHORITY` `CONTROLLED_SCHEDULE` `QUANTITY_LIMIT` `REFILL_RULE` `AGE_RESTRICTION` `SPECIES_RESTRICTION` `SUBSTITUTION` `ONLINE_DISPENSING` `STORAGE_REQUIREMENT` `RECORD_RETENTION` `TRACEABILITY_REQUIREMENT` `LABELLING_REQUIREMENT` `REPORTING_REQUIREMENT` `DISPOSAL_REQUIREMENT` `IMPORT_RESTRICTION` |
 | `RegulatorySourceStatus` | `UNVERIFIED` `VERIFIED` `UNAVAILABLE` `SUPERSEDED` |
 | `RegulatoryTransactionType` | `DISPENSE` `COUNTER_SALE` `ONLINE_DISPENSE` `CONSUME` `STOCK` `TRANSFER` `DISPOSE` |
 | `ReleaseType` | `IMMEDIATE` `MODIFIED` `SUSTAINED` `EXTENDED` `DELAYED` `CONTROLLED` |

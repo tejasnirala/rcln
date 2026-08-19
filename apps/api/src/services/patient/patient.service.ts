@@ -31,6 +31,8 @@
  */
 import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcln/db';
 import type {
+  AnimalProfileDetail,
+  AnimalProfileRequest,
   CreatePatientRequest,
   PatientAddressRequest,
   PatientContactRequest,
@@ -43,11 +45,17 @@ import type {
   UpdatePatientRequest,
 } from '@rcln/contracts';
 import { normalizeNationalId } from '@rcln/contracts';
-import { AuthorizationError, ConflictError, NotFoundError } from '../../utils/errors.js';
+import {
+  AuthorizationError,
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { recordDataAccess } from '../audit/data-access.service.js';
 import { issueNumber } from '../numbering/number-sequence.service.js';
-import { resolveSettings } from '../settings/resolver.service.js';
+import { decimalToString } from '../product/values.js';
+import { asPositiveInt, resolveSettings } from '../settings/resolver.service.js';
 
 /** Request metadata, carried onto both trails. */
 export interface PatientActionOptions {
@@ -59,9 +67,12 @@ export interface PatientActionOptions {
 
 const UHID_PREFIX_KEY = 'patient.uhid_prefix';
 const MRN_PREFIX_KEY = 'patient.mrn_prefix';
-/** Fallbacks when the settings are unset. Both match the seed. */
+/** How long an animal's recorded weight is treated as current (PI-11). */
+const WEIGHT_STALE_DAYS_KEY = 'patient.animal_weight_stale_days';
+/** Fallbacks when the settings are unset. All three match the seed. */
 const DEFAULT_UHID_PREFIX = 'P';
 const DEFAULT_MRN_PREFIX = 'MRN';
+const DEFAULT_WEIGHT_STALE_DAYS = 90;
 
 const PATIENT_SELECT = {
   id: true,
@@ -70,6 +81,7 @@ const PATIENT_SELECT = {
   lastName: true,
   dateOfBirth: true,
   approxAgeYears: true,
+  subjectType: true,
   gender: true,
   bloodGroup: true,
   phone: true,
@@ -118,6 +130,29 @@ const PATIENT_SELECT = {
     },
     orderBy: { isEmergency: 'desc' },
   },
+  /*
+   * ⚠️ A LEFT JOIN THAT IS NULL FOR EVERY HUMAN ON THE PLATFORM, WHICH IS THE
+   *   WHOLE ARGUMENT FOR THE TABLE EXISTING (CD-4, PI-11). It costs a join only
+   *   a veterinary practice ever pays for, where six nullable columns on
+   *   `patients` would cost every clinic six NULLs on every row forever.
+   *
+   * `guardianContact` is a second hop, and it is here rather than resolved
+   * separately so `toDetail` can present ONE owner shape whichever way the
+   * clinic recorded it — see `animalProfileDetail`.
+   */
+  animalProfile: {
+    select: {
+      id: true,
+      species: true,
+      breed: true,
+      weightKg: true,
+      weightRecordedOn: true,
+      guardianContactId: true,
+      guardianName: true,
+      guardianPhone: true,
+      guardianContact: { select: { name: true, phone: true } },
+    },
+  },
 } as const;
 
 type PatientRow = Prisma.PatientGetPayload<{ select: typeof PATIENT_SELECT }>;
@@ -163,6 +198,7 @@ function toSummary(row: PatientRow): PatientSummary {
     id: row.id,
     uhid: row.uhid,
     fullName: fullNameOf(row.firstName, row.lastName),
+    subjectType: row.subjectType,
     gender: row.gender,
     age: ageFrom(row.dateOfBirth, row.approxAgeYears),
     ageIsApproximate: row.dateOfBirth === null && row.approxAgeYears !== null,
@@ -174,7 +210,93 @@ function toSummary(row: PatientRow): PatientSummary {
   };
 }
 
-function toDetail(row: PatientRow): PatientDetail {
+/**
+ * The animal behind an `ANIMAL` record, presented as ONE owner shape whichever
+ * way the clinic recorded it (PI-11).
+ *
+ * ⚠️ THE CONTACT ROW WINS WHEN THERE IS ONE, and the free-text pair is null on
+ *   that row anyway — the `animal_profiles_one_guardian_form` CHECK makes both
+ *   forms at once unrepresentable, so the coalesce below can never be silently
+ *   choosing between two different owners.
+ *
+ * `staleAfterDays` is resolved from the settings ladder by the caller and passed
+ * in, so this stays a pure mapping (PI-ADR-015 — a threshold is never a constant
+ * in a service, and it is not a hard-coded 90 hidden in a shaping function
+ * either).
+ */
+function toAnimalProfile(
+  profile: NonNullable<PatientRow['animalProfile']>,
+  staleAfterDays: number,
+  now: Date
+): AnimalProfileDetail {
+  const recordedOn = profile.weightRecordedOn;
+  return {
+    id: profile.id,
+    species: profile.species,
+    breed: profile.breed,
+    /*
+     * ⚠️ `Decimal` -> STRING, NEVER `Number()`. `Decimal(8,3)` does not survive a
+     *   JSON number, and this is the value a dose is multiplied by. Through the
+     *   SHARED serialiser rather than a local `.toString()`, so this field cannot
+     *   drift into a second decimal format — note it does NOT pad to the column's
+     *   scale, which is the platform's convention on every quantity.
+     */
+    weightKg: decimalToString(profile.weightKg),
+    weightRecordedOn: isoDate(recordedOn),
+    /*
+     * ⚠️ A WEIGHT WITH NO DATE IS STALE, NOT FRESH. The
+     *   `animal_profiles_weight_and_date_together` CHECK makes that pair
+     *   unrepresentable, so this branch is unreachable through the database as
+     *   it stands — it is kept because reading "we do not know when this was
+     *   weighed" as "weighed today" is the one direction this flag must never
+     *   fail in, and a future column default or backfill is one edit away from
+     *   making it reachable again.
+     */
+    weightIsStale: weightIsStale(recordedOn, profile.weightKg, staleAfterDays, now),
+    guardianContactId: profile.guardianContactId,
+    guardianName: profile.guardianContact?.name ?? profile.guardianName,
+    guardianPhone: profile.guardianContact?.phone ?? profile.guardianPhone,
+  };
+}
+
+/** Whole days from a bare date to an instant, in UTC. Both ends are UTC-stored. */
+function daysBetween(from: Date, to: Date): number {
+  return Math.floor((to.getTime() - from.getTime()) / 86_400_000);
+}
+
+/**
+ * "Should somebody weigh this animal again before dosing from this number?"
+ *
+ * ⚠️ ONE IMPLEMENTATION, EXPORTED, BECAUSE TWO ENDPOINTS ANSWER THIS AND THEY
+ *   MUST NOT DISAGREE (PI-11 review). The chart reads it here and
+ *   `calculateDose` reads it in `animal-profile.service.ts`; a second inlined
+ *   copy had already drifted — it omitted the `weightKg !== null` guard — and
+ *   two answers to a safety flag on one record is worse than either answer.
+ *
+ * ⚠️ A WEIGHT WITH NO DATE IS STALE, NOT FRESH. The
+ *   `animal_profiles_weight_and_date_together` CHECK makes that pair
+ *   unrepresentable today; the branch stays because reading "we do not know when
+ *   this was weighed" as "weighed today" is the one direction this must never
+ *   fail in, and a future default or backfill is one edit from reaching it.
+ *
+ * ⚠️ AND A DATE IN THE FUTURE IS STALE TOO. `daysBetween` goes negative for one,
+ *   which would sit below any threshold and switch the flag off permanently —
+ *   the contract now refuses a future date, and this is the second layer under
+ *   that, because the column can still be written directly.
+ */
+export function weightIsStale(
+  recordedOn: Date | null,
+  weightKg: unknown,
+  staleAfterDays: number,
+  now: Date = new Date()
+): boolean {
+  if (weightKg === null || weightKg === undefined) return false;
+  if (recordedOn === null) return true;
+  const days = daysBetween(recordedOn, now);
+  return days < 0 || days > staleAfterDays;
+}
+
+function toDetail(row: PatientRow, staleAfterDays: number): PatientDetail {
   return {
     ...toSummary(row),
     firstName: row.firstName,
@@ -217,7 +339,77 @@ function toDetail(row: PatientRow): PatientDetail {
       isEmergency: c.isEmergency,
       isGuardian: c.isGuardian,
     })),
+    animalProfile:
+      row.animalProfile === null
+        ? null
+        : toAnimalProfile(row.animalProfile, staleAfterDays, new Date()),
   };
+}
+
+/**
+ * The stale-weight window, from the settings ladder.
+ *
+ * ⚠️ THE `(scopeType, scopeId)` PAIR IS PASSED EXPLICITLY AND IT IS THE ONLY
+ *   TENANT ISOLATION THIS READ HAS. `setting_values` is RLS-EXEMPT — it has no
+ *   `organization_id` and no policy — so `db:rls:check` cannot notice a missing
+ *   predicate, because there is nothing for it to find missing. A read pinned
+ *   only to the KEY returns every clinic's row.
+ */
+export async function resolveWeightStaleDays(
+  tx: TxClient,
+  ctx: TenantContext,
+  branchId?: string
+): Promise<number> {
+  const settings = await resolveSettings(tx, [WEIGHT_STALE_DAYS_KEY], {
+    organizationId: ctx.organizationId,
+    ...(branchId !== undefined ? { branchId } : {}),
+  });
+  /*
+   * ⚠️ THROUGH `asPositiveInt`, NOT A HAND-ROLLED `typeof === 'number'` CHECK.
+   *   `setting_values.value` is JSONB, so an INT setting can legitimately arrive
+   *   as the string `"90"` — the resolver's own comment says so. A check that
+   *   accepted only a JS number would fall through to the default for such a
+   *   row, leaving the setting configured, visible on the settings screen, and
+   *   completely inert. That is the failure this programme keeps finding, and
+   *   there is a shared helper precisely so nobody re-derives it.
+   *
+   * ⚠️ IT REJECTS ZERO, AND THE SETTING'S HELP TEXT SAYS SO. A clinic wanting
+   *   "recheck at every visit" sets 1, not 0 — 0 would take the fallback and be
+   *   inert in the same way.
+   */
+  /* `?? null`: `Map.get` is `| undefined` and `SettingValue` is not. An unset
+   * setting and a missing definition both mean "take the fallback". */
+  return asPositiveInt(settings.get(WEIGHT_STALE_DAYS_KEY) ?? null, DEFAULT_WEIGHT_STALE_DAYS);
+}
+
+/**
+ * `toDetail`, with the one setting it needs fetched first.
+ *
+ * ⚠️ THE SETTING IS READ ONLY FOR AN ANIMAL, AND THAT IS A DELIBERATE ASYMMETRY
+ *   RATHER THAN A MICRO-OPTIMISATION. Every clinic on the platform reads a
+ *   patient record; almost none of them treat animals. Paying a settings
+ *   resolution on every one of those reads to compute a flag that is always
+ *   `false` would be a cost the feature does not earn — the same trade
+ *   `animal_profiles` itself makes about the join.
+ */
+async function toDetailFor(ctx: TenantContext, row: PatientRow): Promise<PatientDetail> {
+  if (row.animalProfile === null) return toDetail(row, DEFAULT_WEIGHT_STALE_DAYS);
+  /*
+   * ⚠️ SCOPED TO THE BRANCH THE PATIENT ATTENDS, NOT JUST THE ORGANIZATION
+   *   (PI-11 review). The setting allows both scopes, and `calculateDose` passes
+   *   a branch — so without this a clinic with a 30-day window on its greyhound
+   *   branch got `weightIsStale: true` from the dose calculator and `false` on
+   *   the chart, for the same animal on the same day. Two answers to a safety
+   *   flag from two endpoints on one record.
+   *
+   *   The branch comes from a `patient_registrations` row already read under
+   *   RLS — never from the request — which is the same rule `calculateDose`
+   *   follows. `setting_values` is RLS-exempt, so the explicit pair is the only
+   *   isolation this read has.
+   */
+  const branchId = row.registrations[0]?.branchId;
+  const staleAfterDays = await withTenant(ctx, (tx) => resolveWeightStaleDays(tx, ctx, branchId));
+  return toDetail(row, staleAfterDays);
 }
 
 /**
@@ -240,6 +432,13 @@ function toDetail(row: PatientRow): PatientDetail {
 function snapshot(row: PatientRow): Record<string, unknown> {
   return {
     uhid: row.uhid,
+    /*
+     * Person or animal (PI-11). Safe in a mutation trail for the reason the
+     * enums below it are: it discloses nothing about who anybody is, and
+     * "somebody registered this record as an animal" is exactly the kind of
+     * change an audit trail exists to show.
+     */
+    subjectType: row.subjectType,
     gender: row.gender,
     bloodGroup: row.bloodGroup,
     maritalStatus: row.maritalStatus,
@@ -266,6 +465,19 @@ function snapshot(row: PatientRow): Record<string, unknown> {
  * The `branch_isolation` policy on `patient_registrations` would refuse the
  * INSERT anyway — as a row-level security violation with no field name on it.
  * This turns that into an error the front desk can act on.
+ *
+ * ⚠️ THE ONE PLACE THAT ANSWERS 403 RATHER THAN 404, AND IT IS DELIBERATE — it
+ *   survived the PI-11 sweep that folded ten copies of `assertBranchInScope`
+ *   into `shared/branch.ts` for this reason, so do not "tidy" it into that one.
+ *
+ *   Everywhere else the caller is reaching for a record and a 404 keeps them
+ *   from learning a branch exists. Here the caller is a receptionist who has
+ *   just picked a clinic from a list on their own screen: "not found" reads as a
+ *   broken form and they retry, where "you do not have access to that clinic" is
+ *   actionable. It discloses nothing, because it answers identically for a
+ *   branch of another organization, a branch of this one the caller is not
+ *   scoped to, and an id that never existed — the response cannot distinguish
+ *   them, which is the property that matters rather than the status code.
  */
 function assertBranchInScope(ctx: TenantContext, branchId: string): void {
   if (!ctx.branchIds.includes(branchId)) {
@@ -475,6 +687,44 @@ function contactData(input: PatientContactRequest): {
     isEmergency: input.isEmergency,
     isGuardian: input.isGuardian,
     ...(input.email !== undefined ? { email: input.email } : {}),
+  };
+}
+
+/**
+ * The animal profile, mapped explicitly rather than spread — for the reason
+ * `addressData` gives, with one addition (PI-11).
+ *
+ * ⚠️ EVERY ABSENT KEY BECOMES `null`, NOT "LEAVE IT ALONE", BECAUSE THIS FEEDS
+ *   AN UPSERT AND NOT A PATCH. `PUT /animal-profile` replaces the profile: a
+ *   clinic clearing the breed sends the object without a breed, and a mapper
+ *   that omitted the key would leave the old breed in place while the screen
+ *   showed it gone. The one field that must never silently persist is the
+ *   weight, and a `PATCH`-shaped mapper is exactly how a stale one survives an
+ *   edit that meant to remove it.
+ */
+export function animalProfileData(input: AnimalProfileRequest): {
+  species: string | null;
+  breed: string | null;
+  weightKg: string | null;
+  weightRecordedOn: Date | null;
+  guardianContactId: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+} {
+  return {
+    species: input.species ?? null,
+    breed: input.breed ?? null,
+    /*
+     * A STRING handed to Prisma, which parses it into the `Decimal(8,3)` column
+     * exactly. `Number(input.weightKg)` here would be the one float in the whole
+     * dosing path, and it would be the one at the bottom of it.
+     */
+    weightKg: input.weightKg ?? null,
+    weightRecordedOn:
+      input.weightRecordedOn === undefined ? null : toDateColumn(input.weightRecordedOn),
+    guardianContactId: input.guardianContactId ?? null,
+    guardianName: input.guardianName ?? null,
+    guardianPhone: input.guardianPhone ?? null,
   };
 }
 
@@ -759,6 +1009,12 @@ async function createPatientRow(
         uhid: uhid.formatted,
         // `identityData` takes a partial; the contract guarantees firstName.
         firstName: input.firstName,
+        /*
+         * ⚠️ SET HERE AND NOWHERE ELSE, BECAUSE IT IS NOT ON `identityData` AND
+         *   MUST NOT BE (PI-11). That mapper is shared with the UPDATE path, and
+         *   a patient does not change species — see the note on the contract.
+         */
+        subjectType: input.subjectType,
         ...identityData(input),
       },
       select: { id: true },
@@ -791,6 +1047,30 @@ async function createPatientRow(
       });
     }
 
+    /*
+     * ⚠️ THE OWNER CANNOT BE A CONTACT ROW ON THIS CALL, AND SAYING SO IS BETTER
+     *   THAN FAILING ON THE FOREIGN KEY (PI-11). `guardianContactId` names a
+     *   `patient_contacts` row, and at this moment the only such rows are the
+     *   ones being created a few lines above — whose ids the client cannot have
+     *   known when it built the request. A uuid here therefore names either
+     *   another animal's owner or nothing at all, and both deserve a sentence
+     *   rather than a 23503.
+     */
+    if (input.animalProfile !== undefined) {
+      if (input.animalProfile.guardianContactId !== undefined) {
+        throw new ValidationError(
+          'Register the animal first, then link its owner — the contact does not exist yet.'
+        );
+      }
+      await tx.animalProfile.create({
+        data: {
+          organizationId: ctx.organizationId,
+          patientId: created.id,
+          ...animalProfileData(input.animalProfile),
+        },
+      });
+    }
+
     await createRegistration(tx, ctx, created.id, input.branchId);
 
     const full = await tx.patient.findUniqueOrThrow({
@@ -810,7 +1090,7 @@ async function createPatientRow(
     return full;
   });
 
-  return toDetail(row);
+  return toDetailFor(ctx, row);
 }
 
 /**
@@ -871,7 +1151,7 @@ export async function registerAtBranch(
     return full;
   });
 
-  return toDetail(row);
+  return toDetailFor(ctx, row);
 }
 
 // ---------------------------------------------------------------------------
@@ -1081,7 +1361,7 @@ export async function getPatient(
     return patient;
   });
 
-  return toDetail(row);
+  return toDetailFor(ctx, row);
 }
 
 // ---------------------------------------------------------------------------
@@ -1138,7 +1418,7 @@ async function updatePatientRow(
     return after;
   });
 
-  return toDetail(row);
+  return toDetailFor(ctx, row);
 }
 
 /**
@@ -1233,7 +1513,7 @@ export async function addAddress(
     });
   });
 
-  return toDetail(row);
+  return toDetailFor(ctx, row);
 }
 
 export async function removeAddress(
@@ -1296,7 +1576,7 @@ export async function addContact(
     });
   });
 
-  return toDetail(row);
+  return toDetailFor(ctx, row);
 }
 
 export async function removeContact(

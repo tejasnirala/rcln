@@ -698,3 +698,336 @@ describe('erasure', () => {
     expect(rows.rows[0].deleted_at).not.toBeNull();
   });
 });
+
+/**
+ * Veterinary enablement (PI-11).
+ *
+ * ⚠️ THE CASES HERE ARE THE ONES NOTHING ELSE CATCHES. That an animal can be
+ *   registered is barely a test — the interesting facts are the ones a typechecked
+ *   change would break silently:
+ *
+ *   1. An animal is a `patients` row. Same UHID series, same MRN, same chart.
+ *      There is no parallel model (ADR-0017), and a test that went through a
+ *      separate endpoint would not notice one being introduced.
+ *   2. The two CHECK constraints hold from the API side: a weight cannot be
+ *      recorded without the day it was taken, and an owner cannot be recorded
+ *      twice in two different forms.
+ *   3. A profile cannot be attached to a human record, and a contact belonging
+ *      to a DIFFERENT animal cannot be named as an owner — the half the composite
+ *      FK cannot enforce.
+ *   4. The dose calculator computes from the weight ON THE RECORD, refuses when
+ *      there is none, and reports staleness rather than hiding it.
+ *   5. ⚠️ NO PHI REACHES `audit_logs` FROM THIS PATH EITHER. The species, the
+ *      breed and the owner's name are greppped for, exactly as the human
+ *      identity fields are above.
+ */
+describe('animal patients', () => {
+  /** Distinctive enough that finding any of it in an audit row is unambiguous. */
+  const ANIMAL = {
+    firstName: 'Kaapi',
+    lastName: 'Ramanathan',
+    species: 'Beauceron',
+    breed: 'Wirehaired Vizsla',
+    guardianName: 'Padmanabhan Iyengar',
+  };
+
+  let animalId: string;
+  let ownerContactId: string;
+
+  beforeAll(async () => {
+    const created = await registerAt(A, orgA.branchId, {
+      firstName: ANIMAL.firstName,
+      lastName: ANIMAL.lastName,
+      subjectType: 'ANIMAL',
+      gender: 'MALE',
+      dateOfBirth: '2023-05-20',
+      contacts: [
+        { relation: 'Owner', name: ANIMAL.guardianName, phone: '+919812345690', isGuardian: true },
+      ],
+      animalProfile: { species: ANIMAL.species, breed: ANIMAL.breed },
+    });
+    expect(created.status).toBe(201);
+    animalId = created.body.data.id as string;
+    ownerContactId = created.body.data.contacts[0].id as string;
+  });
+
+  it('registers an animal as a patient row, with a UHID and an MRN like anybody else', async () => {
+    const res = await A.get(`/${animalId}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.subjectType).toBe('ANIMAL');
+    expect(res.body.data.uhid).toMatch(/^P\d{6}$/);
+    expect(res.body.data.registrations[0].mrn).toMatch(/^MRN\d{6}$/);
+    expect(res.body.data.animalProfile.species).toBe(ANIMAL.species);
+    expect(res.body.data.animalProfile.breed).toBe(ANIMAL.breed);
+    /* Nothing weighed yet, so nothing to be stale about. */
+    expect(res.body.data.animalProfile.weightKg).toBeNull();
+    expect(res.body.data.animalProfile.weightIsStale).toBe(false);
+  });
+
+  it('shows the animal in the search, marked as one', async () => {
+    const res = await A.get(`/?q=${ANIMAL.firstName}&scope=ORGANIZATION`);
+    expect(res.body.data.patients[0].subjectType).toBe('ANIMAL');
+  });
+
+  /**
+   * ⚠️ THE KIND IS FIXED AT REGISTRATION. `subjectType` is deliberately absent
+   *   from the update contract, so an attempt to flip it is IGNORED rather than
+   *   honoured — a chart written under one care-context taxonomy cannot be read
+   *   under another, and the `animal_profiles` row would be orphaned without
+   *   being deleted.
+   */
+  it('does not let a record change species through an edit', async () => {
+    const res = await A.patch(`/${animalId}`, { subjectType: 'HUMAN' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.subjectType).toBe('ANIMAL');
+  });
+
+  it('refuses an animal profile on a human record, from both directions', async () => {
+    const human = await registerAt(A, orgA.branchId, {
+      firstName: 'Definitely',
+      lastName: 'Human',
+    });
+    const humanId = human.body.data.id as string;
+
+    /* At registration: the contract refuses it. */
+    const atRegistration = await registerAt(A, orgA.branchId, {
+      firstName: 'Also',
+      lastName: 'Human',
+      animalProfile: { species: 'Dog' },
+    });
+    expect(atRegistration.status).toBe(400);
+
+    /* Afterwards: the service refuses it. */
+    const later = await A.put(`/${humanId}/animal-profile`, { species: 'Dog' });
+    expect(later.status).toBe(400);
+    expect(later.body.message).toMatch(/person/i);
+  });
+
+  describe('recording the profile', () => {
+    it('refuses a weight with no date, and a date with no weight', async () => {
+      expect((await A.put(`/${animalId}/animal-profile`, { weightKg: '18.400' })).status).toBe(400);
+      expect(
+        (await A.put(`/${animalId}/animal-profile`, { weightRecordedOn: '2026-03-02' })).status
+      ).toBe(400);
+    });
+
+    it('refuses an owner recorded twice, in two different forms', async () => {
+      const res = await A.put(`/${animalId}/animal-profile`, {
+        guardianContactId: ownerContactId,
+        guardianName: 'Somebody Else',
+      });
+      expect(res.status).toBe(400);
+    });
+
+    /**
+     * ⚠️ THE HALF THE COMPOSITE FK CANNOT ENFORCE. `(organization_id,
+     *   guardian_contact_id)` makes another CLINIC's contact unrepresentable; it
+     *   says nothing about a contact belonging to a different animal at this
+     *   same clinic, which would put one household's phone number on another
+     *   household's pet.
+     */
+    it('refuses a contact that belongs to a different patient', async () => {
+      const other = await registerAt(A, orgA.branchId, {
+        firstName: 'Another',
+        lastName: 'Animal',
+        subjectType: 'ANIMAL',
+        contacts: [{ relation: 'Owner', name: 'Not This Owner', phone: '+919812345691' }],
+      });
+      const strangerContactId = other.body.data.contacts[0].id as string;
+
+      const res = await A.put(`/${animalId}/animal-profile`, {
+        guardianContactId: strangerContactId,
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/not on this record/i);
+    });
+
+    it('resolves the owner to a name and a phone whichever way it is stored', async () => {
+      const res = await A.put(`/${animalId}/animal-profile`, {
+        species: ANIMAL.species,
+        weightKg: '18.400',
+        weightRecordedOn: new Date().toISOString().slice(0, 10),
+        guardianContactId: ownerContactId,
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.animalProfile.guardianContactId).toBe(ownerContactId);
+      expect(res.body.data.animalProfile.guardianName).toBe(ANIMAL.guardianName);
+      expect(res.body.data.animalProfile.guardianPhone).toBe('+919812345690');
+      /* ⚠️ `18.4`, NOT `18.400`. Every decimal on this platform's wire goes
+       through `decimalToString`, which is `Decimal.toString()` — it preserves
+       every significant digit and does not pad to the column's scale. Expecting
+       the padded form here would be this one field inventing a second
+       serialisation. */
+      expect(res.body.data.animalProfile.weightKg).toBe('18.4');
+      expect(res.body.data.animalProfile.weightIsStale).toBe(false);
+    });
+
+    /**
+     * ⚠️ IT IS A PUT AND IT REPLACES. A field left out is CLEARED, and that is
+     *   the behaviour that makes clearing a weight actually clear it. A `PATCH`
+     *   here would let a stale weight survive an edit that meant to remove it.
+     */
+    it('clears what it is not sent', async () => {
+      const res = await A.put(`/${animalId}/animal-profile`, { species: ANIMAL.species });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.animalProfile.weightKg).toBeNull();
+      expect(res.body.data.animalProfile.breed).toBeNull();
+      expect(res.body.data.animalProfile.guardianContactId).toBeNull();
+    });
+  });
+
+  describe('the dose calculator', () => {
+    it('refuses when there is no weight to calculate from', async () => {
+      const res = await A.post(`/${animalId}/dose-calculations`, { dosePerKg: '15', unit: 'mg' });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/weight/i);
+    });
+
+    it('computes from the weight on the record, and reports the ceiling that bound', async () => {
+      await A.put(`/${animalId}/animal-profile`, {
+        weightKg: '18.400',
+        weightRecordedOn: new Date().toISOString().slice(0, 10),
+      });
+
+      const plain = await A.post(`/${animalId}/dose-calculations`, {
+        dosePerKg: '15',
+        unit: 'mg',
+        dosesPerDay: 3,
+      });
+      expect(plain.status).toBe(200);
+      expect(plain.body.data.weightKg).toBe('18.4');
+      expect(plain.body.data.singleDose).toBe('276.000');
+      expect(plain.body.data.dailyDose).toBe('828.000');
+      expect(plain.body.data.cappedBy).toBeNull();
+      expect(plain.body.data.weightIsStale).toBe(false);
+
+      const capped = await A.post(`/${animalId}/dose-calculations`, {
+        dosePerKg: '15',
+        unit: 'mg',
+        dosesPerDay: 3,
+        maxDailyDose: '500',
+      });
+      expect(capped.body.data.cappedBy).toBe('DAILY');
+      expect(capped.body.data.dailyDose).toBe('500.000');
+    });
+
+    /**
+     * ⚠️ THE ONE PROPERTY THIS ENDPOINT EXISTS FOR. The arithmetic is a
+     *   multiplication anybody could do at the counter; noticing that the weight
+     *   was taken seven months ago is not.
+     */
+    it('flags a weight old enough to need rechecking', async () => {
+      const longAgo = new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10);
+      await A.put(`/${animalId}/animal-profile`, { weightKg: '18.400', weightRecordedOn: longAgo });
+
+      const res = await A.post(`/${animalId}/dose-calculations`, { dosePerKg: '15', unit: 'mg' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.weightIsStale).toBe(true);
+      /* Still ANSWERS. A calculator that refused would be worked around. */
+      expect(res.body.data.singleDose).toBe('276.000');
+    });
+
+    /**
+     * ⚠️ THE SETTING MUST ACTUALLY BITE. `patient.animal_weight_stale_days` is a
+     *   threshold and therefore a setting rather than a constant (PI-ADR-015) —
+     *   and a setting that resolves to its own fallback whatever the clinic puts
+     *   in it is the "configured, visible and completely inert" failure this
+     *   programme keeps finding. Nothing else in this suite would notice: the
+     *   seeded default and the code's fallback are both 90, so every other
+     *   assertion passes identically whether the resolver works or not.
+     *
+     * ⚠️ THE SECOND HALF WRITES THE VALUE AS A JSON *STRING*, WHICH THE API
+     *   CANNOT PRODUCE. `fits()` in `organization/setting.service.ts` refuses
+     *   anything but a JSON number for an INT definition, so that state is
+     *   reachable only by editing the row directly. It is asserted anyway as
+     *   defence in depth — `setting_values.value` is JSONB, the resolver's own
+     *   comment says a stringified INT is a state it expects to cope with, and
+     *   `asPositiveInt` exists precisely so no caller re-derives the coercion
+     *   and gets it subtly wrong. Do not read it as a claim that a clinic can
+     *   reach this through the product.
+     */
+    it('honours the clinic’s own staleness window', async () => {
+      const weighedOn = new Date(Date.now() - 10 * 86_400_000).toISOString().slice(0, 10);
+      await A.put(`/${animalId}/animal-profile`, {
+        weightKg: '18.400',
+        weightRecordedOn: weighedOn,
+      });
+
+      /* 10 days old is fresh under the seeded 90-day default. */
+      const before = await A.post(`/${animalId}/dose-calculations`, {
+        dosePerKg: '15',
+        unit: 'mg',
+      });
+      expect(before.body.data.weightIsStale).toBe(false);
+
+      /* The reachable case: a JSON number, exactly as the settings API writes it. */
+      const setWindow = async (value: string): Promise<void> => {
+        await owner.query(
+          `INSERT INTO setting_values (id, setting_key, scope_type, scope_id, value, updated_at)
+           VALUES (gen_random_uuid(), 'patient.animal_weight_stale_days',
+                   'ORGANIZATION', $1, $2::jsonb, now())
+           ON CONFLICT (setting_key, scope_type, scope_id)
+           DO UPDATE SET value = EXCLUDED.value`,
+          [orgA.organizationId, value]
+        );
+      };
+
+      try {
+        await setWindow('3');
+        const after = await A.post(`/${animalId}/dose-calculations`, {
+          dosePerKg: '15',
+          unit: 'mg',
+        });
+        expect(after.body.data.weightIsStale).toBe(true);
+
+        /* Defence in depth only — see the note above. */
+        await setWindow('"3"');
+        const stringy = await A.post(`/${animalId}/dose-calculations`, {
+          dosePerKg: '15',
+          unit: 'mg',
+        });
+        expect(stringy.body.data.weightIsStale).toBe(true);
+      } finally {
+        await owner.query(
+          `DELETE FROM setting_values
+            WHERE scope_type = 'ORGANIZATION' AND scope_id = $1
+              AND setting_key = 'patient.animal_weight_stale_days'`,
+          [orgA.organizationId]
+        );
+      }
+    });
+
+    it('is answered 404 for an animal at another clinic', async () => {
+      expect(
+        (await B.post(`/${animalId}/dose-calculations`, { dosePerKg: '15', unit: 'mg' })).status
+      ).toBe(404);
+      expect((await B.put(`/${animalId}/animal-profile`, { species: 'Dog' })).status).toBe(404);
+    });
+  });
+
+  /**
+   * ⚠️ THE ASSERTION THE ALLOW-LIST SNAPSHOT EXISTS FOR, EXTENDED TO THIS PATH.
+   *   "Golden Retriever, 34 kg, owner Padmanabhan Iyengar" in a mutation trail
+   *   read by compliance staff is an identifiable household. The weight IS
+   *   allowed through — it identifies nobody, and "somebody changed this animal's
+   *   weight from 34 to 3.4 the day before it was dosed" is exactly what the
+   *   trail is for.
+   */
+  it('puts no species, breed or owner name into audit_logs', async () => {
+    const rows = await owner.query(
+      "SELECT before_data::text AS b, after_data::text AS a FROM audit_logs WHERE organization_id = $1 AND entity_type = 'animal_profile'",
+      [orgA.organizationId]
+    );
+    expect(rows.rows.length).toBeGreaterThan(0);
+
+    const blob = rows.rows.map((r) => `${r.b ?? ''}${r.a ?? ''}`).join('|');
+    for (const secret of [ANIMAL.species, ANIMAL.breed, ANIMAL.guardianName]) {
+      expect(blob).not.toContain(secret);
+    }
+    /* The weight IS there, deliberately. */
+    expect(blob).toContain('18.4');
+  });
+});

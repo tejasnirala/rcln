@@ -231,6 +231,17 @@ export const pharmacyPrescriptionDetail = z.object({
   patientUhid: z.string(),
   patientAgeYears: z.number().int().nullable(),
   patientSubjectType: z.enum(['HUMAN', 'ANIMAL']),
+  /**
+   * The animal's species, when there is one (PI-11).
+   *
+   * ⚠️ NULL FOR EVERY HUMAN, AND ALSO NULL FOR AN ANIMAL WITH NO PROFILE ROW —
+   *   the two are not distinguishable here and do not need to be, because the
+   *   screen renders `patientSubjectType` for the first distinction and this
+   *   only refines it. Reading "Dog" beside a name is the difference between a
+   *   pharmacist checking a veterinary label and not knowing there is one to
+   *   check.
+   */
+  patientSpecies: z.string().nullable(),
   prescriberName: z.string().nullable(),
   prescriberRegistrationNumber: z.string().nullable(),
   /**

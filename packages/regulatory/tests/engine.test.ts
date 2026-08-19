@@ -864,3 +864,168 @@ describe('a prescriber dispensing to their own patient', () => {
     expect(decision.outcome).toBe('REFUSED');
   });
 });
+
+/**
+ * `SPECIES_RESTRICTION` — WHO the product may be supplied FOR (PI-11).
+ *
+ * ⚠️ NO COUNTRY'S RULES APPEAR HERE EITHER, AND THAT IS LOAD-BEARING FOR THIS
+ *   RULE TYPE IN PARTICULAR. India's pack deliberately carries no species rule —
+ *   rules 65(20) and 97(3) require a veterinary medicine to be LABELLED "Not for
+ *   human use" and do not prohibit the sale, and inventing the prohibition would
+ *   be inventing law. So this type is exercised entirely against TESTLAND, which
+ *   is where every rule type in this framework is proved.
+ */
+describe('species restriction', () => {
+  const speciesRule = (parameters: unknown, over: Partial<RegulatoryRule> = {}): RegulatoryRule =>
+    rule({
+      ruleType: 'SPECIES_RESTRICTION',
+      code: 'TL_SPECIES',
+      statement: 'This is not for human use — for the treatment of animals only.',
+      parameters,
+      ...over,
+    });
+
+  it('refuses a veterinary product supplied for a person', () => {
+    const decision = evaluate(
+      request({
+        rules: [speciesRule({ prohibitedSubjectTypes: ['HUMAN'] })],
+        patient: { subjectType: 'HUMAN', ageYears: 40 },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+    expect(decision.reasons.some((r) => r.ruleCode === 'TL_SPECIES')).toBe(true);
+  });
+
+  it('permits the same product for an animal', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule({ prohibitedSubjectTypes: ['HUMAN'] })],
+          patient: { subjectType: 'ANIMAL', species: 'Dog' },
+        })
+      ).outcome
+    ).toBe('PERMITTED');
+  });
+
+  /**
+   * ⚠️ THE ONE CASE WORTH ARGUING WITH, PINNED SO NOBODY QUIETLY CHANGES IT. A
+   *   counter sale names nobody, so a rule about who a product may be supplied
+   *   for cannot be checked — and PERMITTED there would make the anonymous path
+   *   the way around the rule, which is the path somebody buying a veterinary
+   *   drug for themselves would take. Silence never permits.
+   */
+  it('is UNDETERMINED when the transaction names no subject', () => {
+    expect(
+      evaluate(
+        request({
+          transaction: 'COUNTER_SALE',
+          rules: [speciesRule({ prohibitedSubjectTypes: ['HUMAN'] })],
+        })
+      ).outcome
+    ).toBe('UNDETERMINED');
+  });
+
+  it('refuses a species that is not on an allow-list, and permits one that is', () => {
+    const allow = speciesRule({ permittedSpecies: ['Dog', 'Cat'] });
+
+    expect(
+      evaluate(request({ rules: [allow], patient: { subjectType: 'ANIMAL', species: 'Horse' } }))
+        .outcome
+    ).toBe('REFUSED');
+
+    /* Case-folded: `"dog"` off a chart and `"Dog"` in a pack are one species. */
+    expect(
+      evaluate(request({ rules: [allow], patient: { subjectType: 'ANIMAL', species: 'dog' } }))
+        .outcome
+    ).toBe('PERMITTED');
+  });
+
+  it('refuses a species on a deny-list and permits everything else', () => {
+    const deny = speciesRule({ prohibitedSpecies: ['Cat'] });
+
+    expect(
+      evaluate(request({ rules: [deny], patient: { subjectType: 'ANIMAL', species: 'Cat' } }))
+        .outcome
+    ).toBe('REFUSED');
+    expect(
+      evaluate(request({ rules: [deny], patient: { subjectType: 'ANIMAL', species: 'Dog' } }))
+        .outcome
+    ).toBe('PERMITTED');
+  });
+
+  /**
+   * ⚠️ AN ALLOW-LIST DOES NOT MAKE A HUMAN "AN ANIMAL NOT ON THE LIST". Reading
+   *   it that way is how a rule naming three species refuses every person in the
+   *   country — a rule that says which animals may have something says nothing
+   *   about people, and the subject-type list is where a human prohibition goes.
+   */
+  it('does not refuse a person on the strength of a species allow-list', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule({ permittedSpecies: ['Dog'] })],
+          patient: { subjectType: 'HUMAN', ageYears: 40 },
+        })
+      ).outcome
+    ).toBe('PERMITTED');
+  });
+
+  it('is UNDETERMINED for an animal whose species nobody recorded', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule({ permittedSpecies: ['Dog'] })],
+          patient: { subjectType: 'ANIMAL' },
+        })
+      ).outcome
+    ).toBe('UNDETERMINED');
+  });
+
+  /**
+   * The discipline `parameters.ts`'s header sets out, on this rule type: a rule
+   * that says nothing checkable is BROKEN, not permissive.
+   */
+  it.each([
+    ['names nobody', {}],
+    [
+      'states both an allow-list and a deny-list',
+      { permittedSpecies: ['Dog'], prohibitedSpecies: ['Cat'] },
+    ],
+    ['names a subject type that does not exist', { prohibitedSubjectTypes: ['PLANT'] }],
+    ['states an empty list', { permittedSpecies: [] }],
+    ['is not an object', 'not for humans'],
+  ])('is UNDETERMINED when the rule %s', (_label, parameters) => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule(parameters)],
+          patient: { subjectType: 'ANIMAL', species: 'Dog' },
+        })
+      ).outcome
+    ).toBe('UNDETERMINED');
+  });
+
+  /**
+   * ⚠️ THE REASON THIS IS ITS OWN RULE TYPE, ASSERTED RATHER THAN ARGUED IN A
+   *   COMMENT. `evaluateAgeRestriction` stands aside entirely for an animal, so a
+   *   veterinary prohibition written as an age parameter would be inert in
+   *   exactly the case it was written for.
+   */
+  it('an age restriction still says nothing about an animal', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [
+            rule({
+              ruleType: 'AGE_RESTRICTION',
+              code: 'TL_AGE',
+              parameters: { minimumAgeYears: 18 },
+            }),
+          ],
+          patient: { subjectType: 'ANIMAL', species: 'Dog' },
+        })
+      ).outcome
+    ).toBe('PERMITTED');
+  });
+});

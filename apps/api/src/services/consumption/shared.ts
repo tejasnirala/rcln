@@ -5,40 +5,29 @@
  *
  * NO PHI IS LOGGED FROM THIS FILE.
  */
-import { Prisma, type TenantContext, type TxClient } from '@rcln/db';
+import { type TenantContext, type TxClient } from '@rcln/db';
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
+import { resolveBranchId as resolveBranchIdShared } from '../shared/branch.js';
 
-/**
- * ⚠️ NOT FOUND, NEVER FORBIDDEN, for a branch outside the caller's scope. RLS has
- *   already made the row invisible and a 403 would confirm to somebody probing
- *   that the id is real. Every branch-scoped service in this codebase does this.
+/*
+ * ⚠️ THESE FOUR ARE RE-EXPORTED, NOT REDEFINED (PI-11 review). They lived here as
+ *   byte-for-byte copies of `pharmacy/shared.ts`'s, including the doc comments —
+ *   on the two functions that decide which tenant's branch a write is attributed
+ *   to. `services/shared/branch.ts` is now the single source; the import list
+ *   below keeps every existing call site in this domain unchanged.
  */
-export function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
-}
+export { assertBranchInScope, auditMeta, q } from '../shared/branch.js';
 
 /**
- * Which place is this request about?
- *
- * ⚠️ THE BRANCH THE REQUEST NAMES, OR THE ONE IT IS ACTING ON — NEVER THE FIRST
- *   ONE IN SCOPE. A clinician covering two sites must not have a procedure filed
- *   against whichever branch id happened to sort first: the stock came off one
- *   trolley, and picking arbitrarily is wrong silently and about half the time.
- *   `pharmacy/shared.ts` learned this the same way.
+ * The consumption domain's wording of the shared resolver. The security-relevant
+ * body is in `shared/branch.ts`; only the noun in the sentence differs.
  */
 export function resolveBranchId(
   ctx: TenantContext,
   named: string | undefined,
   acting: string | null | undefined
 ): string {
-  const branchId = named ?? acting ?? (ctx.branchIds.length === 1 ? ctx.branchIds[0] : undefined);
-  if (!branchId) {
-    throw new ValidationError(
-      'Say which branch this is for. You work at more than one and a procedure happens at exactly one of them.'
-    );
-  }
-  assertBranchInScope(ctx, branchId);
-  return branchId;
+  return resolveBranchIdShared(ctx, named, acting, 'a procedure happens at exactly one of them');
 }
 
 export interface ConsumptionLocation {
@@ -74,29 +63,6 @@ export async function resolveConsumptionLocation(
     throw new ValidationError(`${location.name} is no longer in use, so nothing can come off it.`);
   }
   return { id: location.id, name: location.name };
-}
-
-/**
- * The two fields `recordAudit` takes, pulled out of the wider options object.
- *
- * ⚠️ EXPLICIT RATHER THAN `...options`, for the reason `pharmacy/shared.ts` gives:
- *   the wider options carry a route pattern, an acting branch and the caller's
- *   permission codes, and spreading them would put a caller's effective
- *   permissions into an audit row's shape.
- */
-export function auditMeta(options: {
-  ipAddress?: string | undefined;
-  userAgent?: string | undefined;
-}): { ipAddress?: string; userAgent?: string } {
-  return {
-    ...(options.ipAddress !== undefined ? { ipAddress: options.ipAddress } : {}),
-    ...(options.userAgent !== undefined ? { userAgent: options.userAgent } : {}),
-  };
-}
-
-/** A decimal as the wire wants it: a string, never a float. */
-export function q(value: Prisma.Decimal | number | string): string {
-  return new Prisma.Decimal(value).toString();
 }
 
 /** What every consumption route hands its service. */

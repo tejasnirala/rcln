@@ -36,6 +36,7 @@ import {
   parseQuantityLimit,
   parseRefillRule,
   parseStorageRequirement,
+  parseSpeciesRestriction,
   parseSubstitution,
   parseTraceability,
   type Parsed,
@@ -505,6 +506,90 @@ function evaluateAgeRestriction(rule: RegulatoryRule, request: RegulatoryRequest
   return permitted(`${rule.code}: the patient meets the minimum age.`, conditions);
 }
 
+/**
+ * WHO the product may be supplied FOR (PI-11).
+ *
+ * ⚠️ ITS OWN RULE TYPE, NOT A PARAMETER ON `AGE_RESTRICTION`, AND THE HANDLER
+ *   DIRECTLY ABOVE IS THE ARGUMENT. `evaluateAgeRestriction` stands aside
+ *   entirely when the subject is an animal — "a human age limit is not a
+ *   statement about a dog" — so a veterinary prohibition expressed as an age
+ *   parameter would sit behind a handler that exempts every animal from itself,
+ *   and would be inert in exactly the case it was written for.
+ *
+ * ⚠️ NO SUBJECT AT ALL IS `UNDETERMINED`, NOT `PERMITTED`, AND THIS IS THE ONE
+ *   DECISION IN THIS FUNCTION WORTH ARGUING WITH. A counter sale names nobody,
+ *   so a jurisdiction that prohibits supplying a veterinary medicine for human
+ *   use cannot be checked at a counter — and answering PERMITTED there would let
+ *   the anonymous path be the way around the rule, which is precisely the path
+ *   somebody buying it for themselves would take. Silence never permits.
+ *
+ *   The cost is bounded and visible: a pack whose species rule applies to
+ *   `COUNTER_SALE` makes every anonymous counter sale of that product
+ *   UNDETERMINED. That is a decision for the pack author to take deliberately by
+ *   listing the transaction, not one this engine takes on their behalf, and it
+ *   is why `appliesToTransactions` on a species rule is worth being explicit
+ *   about.
+ */
+function evaluateSpeciesRestriction(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict {
+  const parsed = parseSpeciesRestriction(rule.parameters);
+  if (!parsed.ok) return unreadable(rule, parsed);
+
+  const patient = request.patient;
+  if (patient === undefined) {
+    return undetermined(
+      `${rule.code} restricts who ${rule.appliesToProductType === null ? 'this' : 'this product'} ` +
+        'may be supplied for, and this transaction names no subject.'
+    );
+  }
+
+  const { prohibitedSubjectTypes, permittedSpecies, prohibitedSpecies } = parsed.value;
+
+  if (prohibitedSubjectTypes?.includes(patient.subjectType) === true) {
+    return refused(rule.statement);
+  }
+
+  /*
+   * The species lists speak about animals only. A human subject that survived
+   * the check above is not made unlawful by a rule listing which animals may
+   * have the product — and reading a human as "an animal not on the list" is how
+   * an allow-list of three species refuses every person in the country.
+   */
+  if (patient.subjectType !== 'ANIMAL') {
+    return permitted(`${rule.code}: the subject is not one this rule restricts.`);
+  }
+  if (permittedSpecies === undefined && prohibitedSpecies === undefined) {
+    return permitted(`${rule.code}: the subject is not one this rule restricts.`);
+  }
+
+  const species = patient.species?.trim();
+  if (species === undefined || species === '') {
+    return undetermined(
+      `${rule.code} restricts which species this may be supplied for, and no species is ` +
+        "recorded on the patient's record."
+    );
+  }
+
+  /*
+   * ⚠️ CASE-INSENSITIVE, AND THAT IS THE ONLY NORMALISATION APPLIED. `"dog"` and
+   *   `"Dog"` are one species; `"Canine"` and `"Dog"` are two, and this engine
+   *   deliberately does not own a synonym table — a species vocabulary
+   *   maintained in TypeScript is a clinical dictionary nobody signed off. See
+   *   the comment on `RegulatoryPatient.species`.
+   */
+  const folded = species.toLowerCase();
+  const matches = (list: readonly string[]): boolean =>
+    list.some((entry) => entry.trim().toLowerCase() === folded);
+
+  if (prohibitedSpecies !== undefined && matches(prohibitedSpecies)) {
+    return refused(rule.statement);
+  }
+  if (permittedSpecies !== undefined && !matches(permittedSpecies)) {
+    return refused(rule.statement);
+  }
+
+  return permitted(`${rule.code}: this may be supplied for a ${species}.`);
+}
+
 function evaluateSubstitution(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict {
   const parsed = parseSubstitution(rule.parameters);
   if (!parsed.ok) return unreadable(rule, parsed);
@@ -743,6 +828,8 @@ function evaluateRule(rule: RegulatoryRule, request: RegulatoryRequest): RuleVer
       return evaluateRefillRule(rule, request);
     case 'AGE_RESTRICTION':
       return evaluateAgeRestriction(rule, request);
+    case 'SPECIES_RESTRICTION':
+      return evaluateSpeciesRestriction(rule, request);
     case 'SUBSTITUTION':
       return evaluateSubstitution(rule, request);
     case 'ONLINE_DISPENSING':

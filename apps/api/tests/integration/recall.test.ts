@@ -45,6 +45,7 @@ import { redis } from '../../src/utils/redis.js';
 import { createLocation } from '../../src/services/inventory/location.service.js';
 import { createBatch, setBatchHold } from '../../src/services/inventory/batch.service.js';
 import { createSerial } from '../../src/services/inventory/serial.service.js';
+import { reserveStock } from '../../src/services/inventory/reservation.service.js';
 import { recordMovement } from '../../src/services/inventory/movement.service.js';
 import { planStockAllocation } from '../../src/services/inventory/allocation.service.js';
 import { createDispense } from '../../src/services/pharmacy/dispense.service.js';
@@ -633,6 +634,164 @@ describe('holding a serialised lot one at a time', () => {
       [serial]
     );
     expect(rows[0]?.status).toBe('QUARANTINED');
+  });
+});
+
+describe('a recall pulls every bucket, not just AVAILABLE', () => {
+  /**
+   * ⚠️ THE PI-11 REVIEW'S CRITICAL. `holdBatchWithin` filtered
+   *   `b.status === 'AVAILABLE'` while the serial sweep beside it flipped
+   *   `IN_STOCK` **and** `QUARANTINED` devices — an asymmetry with two
+   *   consequences, and the second reaches a patient.
+   */
+
+  /**
+   * The responsible storekeeper is the one this punished: hearing the notice and
+   * quarantining the lot BEFORE the recall was raised meant the recall then moved
+   * nothing, and reported `NO_STOCK` and `0` pulled for a lot on the shelf. That
+   * is a false answer to the one question a recall exists to ask.
+   *
+   * ⚠️ VERIFIED TO FAIL AGAINST THE REVERTED CODE.
+   */
+  it('pulls a lot that was already quarantined, and says how much', async () => {
+    const lot = await makeLot(medicine, 'RCL-QTN-LOT', '2029-06-30');
+    await stockUp(medicine, lot, '40');
+
+    await setBatchHold(ctx, lot, 'QUARANTINE', { reason: 'Held on hearing the notice.' });
+    expect(await bucket(lot, 'QUARANTINED')).toBe('40.000000');
+
+    const recall = await createRecall(ctx, {
+      productId: medicine,
+      title: 'Rcl quarantined lot',
+      classification: 'CLASS_II',
+      source: 'MANUFACTURER',
+      reason: 'Out-of-specification assay.',
+      batchIds: [lot],
+    } as never);
+    const executed = await executeRecall(ctx, recall.id, {});
+
+    expect(executed.batches[0]?.status).toBe('HELD');
+    expect(executed.batches[0]?.quantityHeldBase).toBe('40');
+    expect(await bucket(lot, 'RECALLED')).toBe('40.000000');
+    expect(await bucket(lot, 'QUARANTINED')).toBe('0.000000');
+  });
+
+  /**
+   * ⚠️ THE HALF THAT REACHES A PATIENT. The un-dispensable guarantee is the
+   *   BALANCE, not the flag — "both go through one allocator and it reads the
+   *   balance". Quantity left in `RESERVED` is handed back to `AVAILABLE` by
+   *   `releaseReservation` or by the expiry sweep, neither of which consults the
+   *   recall, and the allocator then dispenses it. The batch says RECALLED the
+   *   whole time and nothing reads it.
+   *
+   * ⚠️ VERIFIED TO FAIL AGAINST THE REVERTED CODE.
+   */
+  it('pulls reserved stock and closes the reservation, so it cannot come back', async () => {
+    const lot = await makeLot(medicine, 'RCL-RSV-LOT', '2029-06-30');
+    await stockUp(medicine, lot, '30');
+
+    const reservation = await reserveStock(ctx, {
+      branchId: org.branchId,
+      productId: medicine,
+      batchId: lot,
+      locationId: counter,
+      quantity: '30',
+      expiresAt: new Date(Date.now() + 3 * 86_400_000).toISOString(),
+    } as never);
+    expect(await bucket(lot, 'RESERVED')).toBe('30.000000');
+    expect(await bucket(lot, 'AVAILABLE')).toBe('0.000000');
+
+    const recall = await createRecall(ctx, {
+      productId: medicine,
+      title: 'Rcl reserved lot',
+      classification: 'CLASS_I',
+      source: 'REGULATOR',
+      reason: 'Sterility failure.',
+      batchIds: [lot],
+    } as never);
+    const executed = await executeRecall(ctx, recall.id, {});
+
+    /* It was pulled, and the notice says so. */
+    expect(executed.batches[0]?.status).toBe('HELD');
+    expect(executed.batches[0]?.quantityHeldBase).toBe('30');
+    expect(await bucket(lot, 'RECALLED')).toBe('30.000000');
+    expect(await bucket(lot, 'RESERVED')).toBe('0.000000');
+
+    /* And nothing is spoken for any more, so no release can hand it back. */
+    const { rows } = await owner.query<{ status: string; released_at: Date | null }>(
+      `SELECT status::text AS status, released_at FROM stock_reservations WHERE id = $1`,
+      [reservation.id]
+    );
+    expect(rows[0]?.status).toBe('RELEASED');
+    expect(rows[0]?.released_at).not.toBeNull();
+  });
+});
+
+describe('a recalled lot cannot be released through the quarantine door', () => {
+  /**
+   * ⚠️ THE PI-11 REVIEW'S ONE HIGH, AND IT WAS OPENED BY PI-10 ITSELF. That phase
+   *   added `'RECALLED'` to the serial source set of `QUARANTINE_RELEASE` — so
+   *   the storekeeper's ordinary "the fridge came back up to temperature" button
+   *   also un-recalled every device in the lot.
+   *
+   *   What made it a HIGH rather than a tidiness bug is what it BYPASSED. It sits
+   *   behind `inventory.batch.manage`, which does not imply `recall.execute`, and
+   *   `QUARANTINE_RELEASE` reads its quantity out of the QUARANTINED bucket — so
+   *   for a RECALLED lot it moved nothing, wrote no ledger leg, left
+   *   `recall_batches.status` on HELD and `batches.recalled_at` set, and flipped
+   *   every serial to `IN_STOCK`. A lot under an active recall, back on the
+   *   theatre shelf, with no trace in the ledger that it had ever moved.
+   *
+   *   `resolveRecallBatch` is the only door: it refuses while another live notice
+   *   still names the lot, clears the recall columns with the status, and writes a
+   *   `RECALL_RELEASE` leg.
+   *
+   *   ⚠️ VERIFIED TO FAIL AGAINST THE REVERTED CODE.
+   */
+  it('refuses, and leaves the recall and the serial exactly as they were', async () => {
+    const lot = await makeLot(implant, 'RCL-IMP-LOT-3', '2029-06-30');
+    const serial = (
+      await createSerial(ctx, {
+        branchId: org.branchId,
+        productId: implant,
+        batchId: lot,
+        serialNumber: 'RCL-SER-3',
+      } as never)
+    ).id;
+    await stockUp(implant, lot, '1', serial);
+
+    const recall = await createRecall(ctx, {
+      productId: implant,
+      title: 'Rcl implant, second run',
+      classification: 'CLASS_I',
+      source: 'REGULATOR',
+      reason: 'Fracture reports against this production run.',
+      batchIds: [lot],
+    } as never);
+    await executeRecall(ctx, recall.id, {});
+
+    expect(await batchStatusOf(lot)).toBe('RECALLED');
+
+    await expect(
+      setBatchHold(ctx, lot, 'QUARANTINE_RELEASE', { reason: 'Fridge is fine now.' })
+    ).rejects.toThrow(/under a recall/i);
+
+    /* Nothing moved, nothing changed — the lot is still pulled. */
+    expect(await batchStatusOf(lot)).toBe('RECALLED');
+    expect(await bucket(lot, 'RECALLED')).toBe('1.000000');
+    expect(await bucket(lot, 'AVAILABLE')).toBe('0.000000');
+
+    const { rows } = await owner.query<{ status: string }>(
+      `SELECT status::text AS status FROM serials WHERE id = $1`,
+      [serial]
+    );
+    expect(rows[0]?.status).toBe('RECALLED');
+
+    const held = await owner.query<{ status: string }>(
+      `SELECT status::text AS status FROM recall_batches WHERE batch_id = $1`,
+      [lot]
+    );
+    expect(held.rows[0]?.status).toBe('HELD');
   });
 });
 

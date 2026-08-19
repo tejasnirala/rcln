@@ -534,7 +534,16 @@ export async function createDispense(
               finalizedAt: true,
               startedAt: true,
               doctorProfile: { select: { userId: true } },
-              patient: { select: { dateOfBirth: true, subjectType: true } },
+              /* `animalProfile` is a LEFT join that is null for every human on
+               * the platform — see the model comment. PI-11 reads its species so
+               * a `SPECIES_RESTRICTION` rule can be evaluated. */
+              patient: {
+                select: {
+                  dateOfBirth: true,
+                  subjectType: true,
+                  animalProfile: { select: { species: true } },
+                },
+              },
               prescriptions: {
                 select: {
                   id: true,
@@ -788,6 +797,18 @@ export async function createDispense(
                 subjectType: encounter.patient.subjectType,
                 ...(ageYearsOn(encounter.patient.dateOfBirth, dispensedAt) !== undefined
                   ? { ageYears: ageYearsOn(encounter.patient.dateOfBirth, dispensedAt) as number }
+                  : {}),
+                /*
+                 * ⚠️ READ OFF THE ANIMAL'S PROFILE, NEVER SENT BY A CLIENT
+                 *   (PI-11). The evaluate endpoint accepts a species as a
+                 *   hypothesis; a DISPENSE must not, or the person at the
+                 *   counter chooses which species rule applies to them. Absent
+                 *   stays absent, and a species rule then answers UNDETERMINED,
+                 *   which refuses — see `evaluateSpeciesRestriction`.
+                 */
+                ...(encounter.patient.animalProfile?.species != null &&
+                encounter.patient.animalProfile.species !== ''
+                  ? { species: encounter.patient.animalProfile.species }
                   : {}),
               },
             }

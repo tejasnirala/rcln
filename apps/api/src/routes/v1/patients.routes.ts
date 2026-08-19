@@ -1,7 +1,9 @@
 import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
+  animalProfileRequest,
   createPatientRequest,
+  doseCalculationRequest,
   patientAddressRequest,
   patientAllergyRequest,
   patientConditionRequest,
@@ -11,7 +13,9 @@ import {
   searchPatientQuery,
   updatePatientRequest,
   visitHistoryQuery,
+  type AnimalProfileRequest,
   type CreatePatientRequest,
+  type DoseCalculationRequest,
   type PatientAddressRequest,
   type PatientAllergyRequest,
   type PatientConditionRequest,
@@ -57,6 +61,7 @@ import {
   stopMedication,
   updateCondition,
 } from '../../services/patient/patient-history.service.js';
+import { calculateDose, setAnimalProfile } from '../../services/patient/animal-profile.service.js';
 import { getVisitHistory } from '../../services/clinical/visit-history.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
@@ -332,6 +337,77 @@ router.delete(
       meta(req, '/:patientId/contacts/:contactId')
     );
     sendSuccess(res, null, 'Contact removed');
+  }
+);
+
+// --- the animal behind an ANIMAL record (PI-11) -----------------------------
+
+/**
+ * Species, breed, weight and owner.
+ *
+ * ⚠️ BEHIND `patient.read` / `patient.update`, NOT BEHIND THE MEDICAL-HISTORY
+ *   PAIR, AND THE SPLIT AT THE TOP OF THIS FILE IS WHY. Species, breed and owner
+ *   are how the front desk identifies the right animal at a counter — the same
+ *   job `phone` does for a person — and putting them behind
+ *   `patient.medical_history.read` would mean the receptionist registering the
+ *   animal cannot see which animal they registered. The weight is a measurement,
+ *   not a diagnosis; the problem list is still where it was.
+ *
+ * ⚠️ THERE IS NO `GET`. The profile comes back on the patient record itself, so
+ *   a second endpoint returning the same rows would be a second disclosure to
+ *   log and a second shape to keep in step. `PUT` alone is not an oversight.
+ *
+ * A `PUT` and not a `PATCH`: the profile is replaced wholesale, so that clearing
+ * a weight actually clears it. See the service header.
+ */
+router.put(
+  '/:patientId/animal-profile',
+  authorize(PERMISSIONS.PATIENT_UPDATE),
+  validate(patientParams, 'params'),
+  validate(animalProfileRequest, 'body'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { patientId } = req.params as z.infer<typeof patientParams>;
+    const patient = await setAnimalProfile(
+      tenantContextFrom(req),
+      patientId,
+      req.body as AnimalProfileRequest,
+      meta(req, '/:patientId/animal-profile')
+    );
+    sendSuccess(res, patient, 'Animal details saved');
+  }
+);
+
+/**
+ * Weight × rate, from the weight ON THE RECORD.
+ *
+ * ⚠️ A `POST` THAT WRITES NOTHING, AND THAT IS DELIBERATE RATHER THAN SLOPPY.
+ *   The rate, the frequency and the two ceilings are clinical parameters, and
+ *   the header of this file says why nothing about a patient may travel as a
+ *   query parameter: a `GET` would put them in `data_access_logs.route`, in the
+ *   referrer header and in browser history, beside a patient id. The same call
+ *   `POST /patients/duplicate-check` makes about a phone number.
+ *
+ * ⚠️ BEHIND `patient.medical_history.read`, WHICH IS THE TIGHTER OF THE TWO, AND
+ *   NOT BECAUSE OF WHAT IT DISCLOSES. It discloses a weight the profile above
+ *   already shows to anyone holding `patient.read`. What is different is what it
+ *   RETURNS: a therapeutic quantity, presented with the authority of a computed
+ *   number. That is a clinician's tool, and the receptionist who may register
+ *   the animal has no business being handed one.
+ */
+router.post(
+  '/:patientId/dose-calculations',
+  authorize(PERMISSIONS.PATIENT_MEDICAL_HISTORY_READ),
+  validate(patientParams, 'params'),
+  validate(doseCalculationRequest, 'body'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { patientId } = req.params as z.infer<typeof patientParams>;
+    const dose = await calculateDose(
+      tenantContextFrom(req),
+      patientId,
+      req.body as DoseCalculationRequest,
+      meta(req, '/:patientId/dose-calculations')
+    );
+    sendSuccess(res, dose);
   }
 );
 

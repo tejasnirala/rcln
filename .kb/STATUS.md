@@ -1388,11 +1388,19 @@ Procurement + Regulatory platform serving clinical, dental, veterinary and lab
 workflows across ten jurisdictions, not a pharmacy module. Start at
 `PharmacyInventory/NEXT_SESSION.md`.
 
-**PI-0 through PI-10 are complete.** PI-1..PI-6 are merged to `main`; PI-7 and
+**PI-0 through PI-11 are complete.** PI-1..PI-6 are merged to `main`; PI-7 and
 PI-8 are on the programme branch and went through the PI-8.11 review gate —
-1 CRITICAL, 3 HIGH, 2 MEDIUM, 5 WARNING, all fixed. **PI-9 and PI-10 are on
-their own branches and NEITHER has been through `/code-review` or
-`security-reviewer`** — required before merge, because between them they add
+1 CRITICAL, 3 HIGH, 2 MEDIUM, 5 WARNING, all fixed. **PI-9, PI-10 and PI-11 have now all been through `/code-review` and
+`security-reviewer`, together, on 2026-08-19 — 1 CRITICAL, 1 HIGH, 1 MEDIUM,
+6 WARNING, 5 INFO, all fixed.** ⚠️ The CRITICAL and the HIGH were both in PI-10's
+recall code and both ended with recalled stock reachable from a shelf: a recall
+pulled only the `AVAILABLE` bucket, so reserved stock stayed dispensable and a
+quarantined lot reported `NO_STOCK`; and a plain quarantine release un-recalled
+every device in a lot, with no ledger leg, under a permission that does not imply
+`recall.execute`. Both have regression tests verified to fail against the reverted
+code. Between them they are the case for the programme's own rule that the
+un-dispensable guarantee is the BALANCE and never the flag. Originally these
+three** — required before merge, because between them they add
 seven tenant tables, three enum members, eight permission codes and the one route
 in the product that returns a page of named patients to a storekeeper.
 
@@ -1433,7 +1441,37 @@ Two things now hold it there:
 `mem_limit` and is SIGKILLed. Pre-existing — it reproduces on a clean checkout —
 and unrelated to the documentation. Run it in batches until that is addressed.
 
-**PI-11 (Veterinary) and PI-12 (Online Pharmacy) are unblocked.**
+**PI-11 (Veterinary Enablement) shipped on 2026-08-19, and it added no table.**
+That is the headline rather than an omission. CD-4 landed `patients.subject_type`
+and the `animal_profiles` extension row back in CE-1 — §4 asked that the
+architecture stop assuming humans, §42.7 forbade building veterinary features —
+and the table then sat **empty and unreachable for the entire intervening
+programme**: no contract field, no service, no route, no screen, and no
+tenant-isolation case despite being named in that suite's own header. PI-11 is
+the enablement layer: three columns, two endpoints, and the two things ADR-0017
+said would differ.
+
+- **The owner is a `patient_contacts` row now**, which is what ADR-0017 always
+  said and not what CD-4 shipped. ⚠️ The composite FK constrains the TENANT, not
+  the parent — naming a _different animal's_ owner at the same clinic is
+  representable, and the service checks it. There is a test.
+- **`SPECIES_RESTRICTION` is a new rule type in `@rcln/regulatory`**, and **India
+  deliberately gets no rule of it**. Rules 65(20) and 97(3) require a veterinary
+  medicine to be _labelled_ "Not for human use"; neither prohibits the sale, and
+  the step between the two is an inference. Writing it would be inventing law —
+  the same call PI-6 made about quantity limits and e-pharmacy.
+- **Weight-based dosing lives in `@rcln/clinical`**, on exact `bigint` rationals.
+  ⚠️ It rounds **down**, the only place in the codebase that deliberately differs
+  from half-up: rounding a dose up past a stated maximum is an overdose, and the
+  two errors are not comparable.
+- ⚠️ **It also introduced and then caught a defect of its own.** The first
+  weight/date CHECK guarded a date with no weight — a row that says nothing — and
+  accepted a **weight with no date**, which is the state the feature exists to
+  prevent. The contract had refused both all along, so only a fixture or a
+  backfill could have reached it, which is exactly the set of writers a CHECK is
+  for. The tenant-isolation case found it; a third migration made it symmetric.
+
+**PI-12 (Online Pharmacy) is unblocked.**
 
 What PI-1 built: the catalogue, and nothing with a quantity in it.
 

@@ -3,22 +3,13 @@
  *
  * NO PHI IS LOGGED FROM THIS FILE.
  */
-import { Prisma, type TenantContext } from '@rcln/db';
-import { NotFoundError } from '../../utils/errors.js';
-
-/**
- * ⚠️ NOT FOUND, NEVER FORBIDDEN, for a branch outside the caller's scope. RLS has
- *   already made the row invisible and a 403 would confirm to somebody probing
- *   that the id is real. Every branch-scoped service in this codebase does this.
+/*
+ * ⚠️ RE-EXPORTED, NOT REDEFINED (PI-11 review). `assertBranchInScope` and `q`
+ *   were copies of the same two functions in three other service directories.
+ *   `services/shared/branch.ts` is the single source — see its header for why
+ *   this particular pair must not drift.
  */
-export function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
-}
-
-/** A decimal as the wire wants it: a string, never a float. */
-export function q(value: Prisma.Decimal | number | string): string {
-  return new Prisma.Decimal(value).toString();
-}
+export { assertBranchInScope, q } from '../shared/branch.js';
 
 /** What every recall route hands its service. */
 export interface RecallActionOptions {

@@ -21,6 +21,7 @@ export type RegulatoryRuleType =
   | 'QUANTITY_LIMIT'
   | 'REFILL_RULE'
   | 'AGE_RESTRICTION'
+  | 'SPECIES_RESTRICTION'
   | 'SUBSTITUTION'
   | 'ONLINE_DISPENSING'
   | 'STORAGE_REQUIREMENT'
@@ -242,6 +243,24 @@ export interface RegulatoryActor {
 export interface RegulatoryPatient {
   ageYears?: number;
   subjectType: 'HUMAN' | 'ANIMAL';
+  /**
+   * The animal's species, as the clinic recorded it (PI-11).
+   *
+   * ⚠️ FREE TEXT, COMPARED CASE-INSENSITIVELY, AND NEVER AN ENUM — the same call
+   *   `animal_profiles.species` makes. A veterinary clinic that treats a
+   *   tortoise must not need a migration, and a rule pack that names species
+   *   must be written in the same vocabulary the chart is.
+   *
+   *   The cost is real and is accepted: `"Canine"` and `"Dog"` are two species
+   *   to a `SPECIES_RESTRICTION` rule, so a pack naming one and a clinic typing
+   *   the other silently miss each other. That is why `evaluateSpeciesRestriction`
+   *   answers UNDETERMINED — not PERMITTED — when the subject is an animal whose
+   *   species nobody recorded, and why a pack that names species should say so in
+   *   its rule statement.
+   *
+   * Absent for a human, and absent for an animal with no profile row.
+   */
+  species?: string;
 }
 
 /** What the caller can prove about the physical stock in front of it. */

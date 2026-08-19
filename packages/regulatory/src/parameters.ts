@@ -141,6 +141,39 @@ export interface AgeRestrictionParameters {
   verificationRequired: boolean | undefined;
 }
 
+/**
+ * WHO the product may be supplied FOR (PI-11).
+ *
+ * ⚠️ THE TWO LISTS ARE NOT SYMMETRIC AND THE ASYMMETRY IS THE DESIGN.
+ *   `prohibitedSubjectTypes` is a closed vocabulary of two — a jurisdiction
+ *   saying "not for human use" or "not for animals" — and it is checkable
+ *   against every request, because every request either has a subject or does
+ *   not name one at all.
+ *
+ *   `permittedSpecies` and `prohibitedSpecies` are FREE TEXT compared
+ *   case-insensitively, matching `animal_profiles.species`, which is free text
+ *   for the reason `patients.national_id_type` is. A pack that names species is
+ *   accepting that it has to spell them the way the clinic's charts do, and
+ *   `evaluateSpeciesRestriction` answers UNDETERMINED rather than PERMITTED when
+ *   it cannot tell — which refuses.
+ */
+export interface SpeciesRestrictionParameters {
+  /**
+   * `HUMAN`, `ANIMAL`, or both. Compared exactly, and NOT case-folded.
+   *
+   * ⚠️ THE COMMENT USED TO SAY "upper-cased", WHICH NOTHING DID (PI-11 review).
+   *   A pack author trusting it would write `"human"` and get a parse failure —
+   *   `UNDETERMINED`, which refuses — rather than the coercion promised. The
+   *   strict behaviour is the right one for a closed two-member vocabulary; it
+   *   is the sentence that was wrong.
+   */
+  prohibitedSubjectTypes: readonly string[] | undefined;
+  /** An allow-list. Anything not on it is refused. */
+  permittedSpecies: readonly string[] | undefined;
+  /** A deny-list. Everything else is permitted. */
+  prohibitedSpecies: readonly string[] | undefined;
+}
+
 export interface ControlledScheduleParameters {
   scheduleName: string | undefined;
   registerRequired: boolean | undefined;
@@ -297,6 +330,53 @@ export function parseAgeRestriction(parameters: unknown): Parsed<AgeRestrictionP
   if (!parsed.ok) return parsed;
   if (parsed.value.minimumAgeYears === undefined) {
     return fail('it is an age restriction that states no age');
+  }
+  return parsed;
+}
+
+/**
+ * ⚠️ A SPECIES RULE THAT NAMES NOBODY IS A BROKEN RULE, NOT A PERMISSIVE ONE —
+ *   the discipline the header paragraph above sets out, applied here. `{}` would
+ *   otherwise be a rule that permits every supply to every subject while sitting
+ *   in the pack looking perfectly configured, which is the "visible and inert"
+ *   failure this programme keeps finding.
+ *
+ * ⚠️ AND AN ALLOW-LIST AND A DENY-LIST TOGETHER ARE REFUSED. They can be made to
+ *   contradict each other — `permittedSpecies: ["Dog"]` beside
+ *   `prohibitedSpecies: ["Dog"]` — and there is no reading of that pair that is
+ *   obviously right. A jurisdiction states one or the other.
+ */
+export function parseSpeciesRestriction(parameters: unknown): Parsed<SpeciesRestrictionParameters> {
+  const source = asRecord(parameters);
+  if (!source.ok) return fail(source.problem);
+  const parsed = all({
+    prohibitedSubjectTypes: readStringArray(source.value, 'prohibitedSubjectTypes'),
+    permittedSpecies: readStringArray(source.value, 'permittedSpecies'),
+    prohibitedSpecies: readStringArray(source.value, 'prohibitedSpecies'),
+  });
+  if (!parsed.ok) return parsed;
+
+  const { prohibitedSubjectTypes, permittedSpecies, prohibitedSpecies } = parsed.value;
+  if (
+    prohibitedSubjectTypes === undefined &&
+    permittedSpecies === undefined &&
+    prohibitedSpecies === undefined
+  ) {
+    return sayNothing('prohibitedSubjectTypes', 'who the product may not be supplied for');
+  }
+  if (permittedSpecies !== undefined && prohibitedSpecies !== undefined) {
+    return fail(
+      'it states both a permitted and a prohibited species list, and the two can contradict each other'
+    );
+  }
+  if (prohibitedSubjectTypes?.some((entry) => entry !== 'HUMAN' && entry !== 'ANIMAL')) {
+    return fail('"prohibitedSubjectTypes" may only contain "HUMAN" and "ANIMAL"');
+  }
+  if (permittedSpecies?.length === 0 || prohibitedSpecies?.length === 0) {
+    /* An empty allow-list refuses every animal alive and an empty deny-list
+     * refuses none — both are far more likely to be a truncated edit than an
+     * intention, and neither is worth guessing at. */
+    return fail('it states an empty species list');
   }
   return parsed;
 }

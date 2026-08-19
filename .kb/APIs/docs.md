@@ -4,14 +4,14 @@
 
 Source: `apps/api/src/routes/docs.routes.ts`
 
-> The interactive API reference, at `/docs`. ⚠️ MOUNTED ON THE APP RATHER THAN UNDER `/api`, AND AHEAD OF `resolveTenant`. The reference is not a tenant resource — it describes the API rather than any clinic's data — and putting it behind the tenant guard would answer 404 on the apex host, which is the host somebody evaluating the product is most likely to be on. It reads no database. ⚠️ OFF IN PRODUCTION UNLESS `DOCS_ENABLED=true`. See `config.docsEnabled`. The gate answers 404 rather than 403 for the reason the tenant guard does: a 403 confirms the thing exists. ⚠️ THE RENDERER IS SERVED FROM HERE, NOT FROM A CDN, AND THAT IS NOT PREFERENCE. Scalar's own integration points its `<script>` at…
+> The interactive API reference, at `/docs`. ⚠️ MOUNTED ON THE APP RATHER THAN UNDER `/api`, AND AHEAD OF `resolveTenant`. The reference is not a tenant resource — it describes the API rather than any clinic's data — and putting it behind the tenant guard would answer 404 on the apex host, which is the host somebody evaluating the product is most likely to be on. It reads no database. ⚠️ OFF IN PRODUCTION UNLESS `DOCS_ENABLED=true`. See `config.docsEnabled`. The gate answers 404 rather than 403 for the reason the tenant guard does: a 403 confirms the thing exists. ⚠️ THE RENDERER IS NOT IN THE PRODUCTION IMAGE, AND THAT IS THE POINT OF THE LAZY IMPORT BELOW. `@scalar/*` is ~116 MB of browser …
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `<inline>` | `apps/api/src/routes/docs.routes.ts:61` |
-| USE | `*` | `helmet(…)` | `apps/api/src/routes/docs.routes.ts:88` |
-| USE | `/assets` | `express.static(scalarAssetsDir())` | `apps/api/src/routes/docs.routes.ts:108` |
-| GET | `/openapi.json` | `<inline>` | `apps/api/src/routes/docs.routes.ts:125` |
-| USE | `/` | `apiReference(…)` | `apps/api/src/routes/docs.routes.ts:204` |
+| USE | `*` | `<inline>` | `apps/api/src/routes/docs.routes.ts:149` |
+| USE | `*` | `helmet(…)` | `apps/api/src/routes/docs.routes.ts:176` |
+| USE | `/assets` | `<inline>` | `apps/api/src/routes/docs.routes.ts:203` |
+| GET | `/openapi.json` | `<inline>` | `apps/api/src/routes/docs.routes.ts:220` |
+| USE | `/` | `<inline>` | `apps/api/src/routes/docs.routes.ts:322` |
 
 Symbols in this module: [apps.api.routes.md](../Symbols/apps.api.routes.md)
