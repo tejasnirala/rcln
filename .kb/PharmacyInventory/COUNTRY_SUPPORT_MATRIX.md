@@ -125,6 +125,18 @@ country is visibly partial. India is exactly that: some cells sourced, most not.
   prescription, substitution and labelling rules apply to `ONLINE_DISPENSE` as
   much as to a counter sale, because rule 65(9)(a) speaks about a "sale by
   retail" and says nothing about the channel.
+
+  ⚠️ **PI-12 MADE THAT CELL OPERATIVE, AND THE CONSEQUENCE IS DELIBERATE.**
+  Because the pack applies its counter rules to `ONLINE_DISPENSE`, a remote supply
+  in India would have been decided entirely by rules about a counter — permitted
+  where a prescription was presented, and nothing anywhere asking whether the
+  product may be sent out at all. The engine now refuses a remote supply until
+  somebody records a position on `product_regulatory_profiles
+.online_sale_position` **per product, per jurisdiction**. The cost is that
+  every online order in India is refused out of the box, which is the honest
+  reading of "the rules were never notified": a clinic that has taken a view
+  records it against its own products and owns that view.
+
 - **Storage / cold chain — `RR`.** Only Schedule X's lock-and-key requirement
   (rule 65(12)) is sourced. General cold-chain obligations were not researched.
 - **Sub-national variation — `RR`.** India's state drugs controllers license and

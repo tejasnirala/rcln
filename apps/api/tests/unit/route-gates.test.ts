@@ -32,6 +32,7 @@ import clinicalRoutes from '../../src/routes/v1/clinical.routes.js';
 import consultationTemplateRoutes from '../../src/routes/v1/consultation-templates.routes.js';
 import visualMapRoutes from '../../src/routes/v1/visual-maps.routes.js';
 import pharmacyRoutes from '../../src/routes/v1/pharmacy.routes.js';
+import onlineOrderRoutes from '../../src/routes/v1/online-pharmacy.routes.js';
 import consumptionRoutes from '../../src/routes/v1/consumption.routes.js';
 import { recallRoutes, traceabilityRoutes } from '../../src/routes/v1/recalls.routes.js';
 
@@ -119,6 +120,16 @@ const ROUTERS: { name: string; router: IRouter }[] = [
    */
   { name: 'pharmacy', router: pharmacyRoutes },
   /*
+   * ⚠️ ONLINE ORDERS ARE AUDITED FOR THE REASON PHARMACY IS, PLUS ONE OF THEIR
+   *   OWN (PI-12). Every read discloses a named person's HOME ADDRESS beside the
+   *   medicine going to it — a broader disclosure than the counter makes — and
+   *   one route on this router IS a dispense. The case below asserts the split
+   *   that matters: packing carries `pharmacy.dispense.create` and every other
+   *   write carries an `online_order` code, so a clinic cannot hand somebody the
+   *   authority to supply by giving them the desk that takes telephone orders.
+   */
+  { name: 'online-orders', router: onlineOrderRoutes },
+  /*
    * ⚠️ CONSUMPTION IS AUDITED FOR THE REASON PHARMACY IS (PI-9), AND IT IS THE
    *   CLOSER CALL OF THE TWO. It is anchored to a consultation, it is reached
    *   from the consultation's own screen, and it names a patient beside a device
@@ -197,6 +208,7 @@ const NOT_CLINICAL: string[] = [
 const AUDITED_FILES: string[] = [
   'recalls.routes.ts',
   'pharmacy.routes.ts',
+  'online-pharmacy.routes.ts',
   'consumption.routes.ts',
   'encounters.routes.ts',
   'clinical.routes.ts',
@@ -387,6 +399,75 @@ describe('the dispensary reads the clinical record and never writes it', () => {
     expect(reads.length).toBeGreaterThan(0);
     for (const route of reads) {
       expect(route.permissions).toEqual([PERMISSIONS.DISPENSE_READ]);
+    }
+  });
+});
+
+/**
+ * ⚠️ THE ONE ROUTER WHERE ONE ROUTE IS A DISPENSE AND THE REST ARE NOT (PI-12).
+ *   Packing a parcel writes the `dispenses` row, moves the ledger and raises the
+ *   charge requests, so it is gated on `pharmacy.dispense.create` — the code that
+ *   already means "this person may hand medicine over". Everything else on the
+ *   router is order-taking and logistics behind `pharmacy.online_order.*`.
+ *
+ *   The failure this catches is the tidy one: somebody noticing the odd code out
+ *   and "fixing" it to `pharmacy.online_order.manage`, which would hand the
+ *   authority to supply to whoever answers the telephone.
+ */
+describe('taking an order is not supplying against it', () => {
+  const routes = routesOf(onlineOrderRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical code on any route', () => {
+    const clinical = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(clinical).toEqual([]);
+  });
+
+  it('reads behind the online-order read code, and nothing else', () => {
+    const reads = routes.filter((route) => route.method === 'GET');
+    expect(reads.length).toBeGreaterThan(0);
+    for (const route of reads) {
+      expect(route.permissions).toEqual([PERMISSIONS.ONLINE_ORDER_READ]);
+    }
+  });
+
+  it('gates packing on the code that means "may hand medicine over"', () => {
+    const pack = routes.find((route) => route.path.endsWith('/pack'));
+    expect(pack?.permissions).toEqual([PERMISSIONS.DISPENSE_CREATE]);
+  });
+
+  it('gates every other write behind an online-order code', () => {
+    const writes = routes.filter(
+      (route) => route.method !== 'GET' && !route.path.endsWith('/pack')
+    );
+    expect(writes.length).toBeGreaterThan(0);
+    for (const route of writes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^pharmacy\.online_order\./);
+    }
+  });
+
+  /**
+   * ⚠️ ACCEPTING AN ORDER HOLDS STOCK, SO IT IS NOT A READ. `confirm` writes
+   *   `RESERVATION` movements that take quantity out of `AVAILABLE`; gated on
+   *   `.read` it would let anybody who can see the queue empty the shelf.
+   */
+  it('keeps accepting and standing down on the manage code', () => {
+    for (const suffix of ['/confirm', '/cancel']) {
+      const route = routes.find((entry) => entry.path.endsWith(suffix));
+      expect(route?.permissions).toEqual([PERMISSIONS.ONLINE_ORDER_MANAGE]);
+    }
+  });
+
+  it('keeps the courier half on the dispatch code', () => {
+    for (const suffix of ['/ship', '/deliver', '/delivery-failed']) {
+      const route = routes.find((entry) => entry.path.endsWith(suffix));
+      expect(route?.permissions).toEqual([PERMISSIONS.ONLINE_ORDER_DISPATCH]);
     }
   });
 });

@@ -288,9 +288,9 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `recordMovementResponse` | zod | `packages/contracts/src/inventory.ts:656` |
 | `RecordMovementResponse` | type | `packages/contracts/src/inventory.ts:888` |
 | `releaseDueReservation` | fn | `packages/inventory/src/reservation-sweep.ts:114` |
-| `releaseReservation` | fn | `apps/api/src/services/inventory/reservation.service.ts:356` |
+| `releaseReservation` | fn | `apps/api/src/services/inventory/reservation.service.ts:412` |
 | `releaseReservationAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:678` |
-| `releaseReservationIn` | fn | `apps/api/src/services/inventory/reservation.service.ts:299` |
+| `releaseReservationIn` | fn | `apps/api/src/services/inventory/reservation.service.ts:355` |
 | `releaseStockReservationRequest` | var | `packages/contracts/src/inventory.ts:1199` |
 | `ReleaseStockReservationRequest` | type | `packages/contracts/src/inventory.ts:1342` |
 | `removeFromAverage` | fn | `packages/inventory/src/costing.ts:214` |
@@ -301,6 +301,8 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `ReservationSweepResult` | interface | `packages/inventory/src/reservation-sweep.ts:52` |
 | `reserveStock` | fn | `apps/api/src/services/inventory/reservation.service.ts:156` |
 | `reserveStockAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:618` |
+| `reserveStockIn` | fn | `apps/api/src/services/inventory/reservation.service.ts:259` |
+| `ReserveStockInput` | interface | `apps/api/src/services/inventory/reservation.service.ts:225` |
 | `resolveStrategy` | fn | `packages/inventory/src/allocate.ts:228` |
 | `rollIntoAverage` | fn | `packages/inventory/src/costing.ts:180` |
 | `RunInTenant` | type | `packages/inventory/src/expiry.ts:192` |

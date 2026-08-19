@@ -39,6 +39,7 @@ import memberRoutes from '../routes/v1/members.routes.js';
 import organizationRoutes from '../routes/v1/organization.routes.js';
 import patientRoutes from '../routes/v1/patients.routes.js';
 import pharmacyRoutes from '../routes/v1/pharmacy.routes.js';
+import onlineOrderRoutes from '../routes/v1/online-pharmacy.routes.js';
 import platformRoutes from '../routes/v1/platform.routes.js';
 import productRoutes from '../routes/v1/products.routes.js';
 import publicRoutes from '../routes/v1/public.routes.js';
@@ -169,6 +170,7 @@ export const MOUNTS: readonly Mount[] = [
 
   { prefix: `${V1}/regulatory`, router: regulatoryRoutes, tag: 'Regulatory' },
   { prefix: `${V1}/pharmacy`, router: pharmacyRoutes, tag: 'Pharmacy' },
+  { prefix: `${V1}/online-orders`, router: onlineOrderRoutes, tag: 'Pharmacy' },
   { prefix: `${V1}/charging`, router: chargingRoutes, tag: 'Charging & consumption' },
   { prefix: `${V1}/consumption`, router: consumptionRoutes, tag: 'Charging & consumption' },
   { prefix: `${V1}/recalls`, router: recallRoutes, tag: 'Recall & traceability' },

@@ -494,9 +494,21 @@ describe('the other rule types', () => {
       parameters: { permitted: true, destinationCountryCodes: ['TL'] },
     });
 
+    /*
+     * ⚠️ THE PROFILE HAS TO OPEN REMOTE SUPPLY BEFORE THE RULE IS EVEN ASKED
+     *   (PI-12). The default fixture's `onlineSalePosition` is `UNKNOWN`, which
+     *   is now `UNDETERMINED` for an `ONLINE_DISPENSE` — no product is onlineable
+     *   by default, and this case is about what the RULE says once it is. Without
+     *   this the case passed for the wrong reason and would have kept passing
+     *   with the rule deleted; see `online-sale-gap.test.ts`.
+     */
     const decision = evaluate(
       request({
         transaction: 'ONLINE_DISPENSE',
+        profile: {
+          ...(request().profile as NonNullable<RegulatoryRequest['profile']>),
+          onlineSalePosition: 'PERMITTED',
+        },
         rules: [online],
         destination: { countryCode: 'ZZ', regionCode: null },
       })

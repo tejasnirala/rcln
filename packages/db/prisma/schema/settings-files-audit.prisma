@@ -309,6 +309,15 @@ enum DataAccessResource {
   ///   own, which folding them into `INVENTORY_SERIAL` or `PRESCRIPTION` would
   ///   prevent.
   RECALL_TRACE
+  /// An order to be DELIVERED to a named person's home (PI-12).
+  ///
+  /// ⚠️ ITS OWN RESOURCE, AND THE REASON IS AN ADDRESS. Every other member here
+  ///   discloses what a clinic knows about somebody's health. This one
+  ///   additionally discloses WHERE THEY LIVE, beside the medicines being sent
+  ///   there — which is a physical-safety fact as much as a clinical one, and is
+  ///   exactly the read a disclosure review would want to see on its own rather
+  ///   than buried among `PRESCRIPTION` rows.
+  ONLINE_ORDER
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

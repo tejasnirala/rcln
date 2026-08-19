@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/regulatory.prisma:585`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `org` policy |
 | columns | 18 |
-| relations | 6 |
+| relations | 7 |
 
 ## Columns
 
@@ -44,6 +44,7 @@ Declared at `packages/db/prisma/schema/regulatory.prisma:585`.
 | `product` | [`Product`](Product.md) | `product Product @relation(fields: [productId], references: [id], onDelete: Restrict)` |
 | `actor` | [`User`](User.md) | `actor User @relation("RegulatoryDecisionActor", fields: [actorUserId], references: [id], onDelete: Restrict)` |
 | `dispenseLines` | [`DispenseLine`](DispenseLine.md) | `dispenseLines DispenseLine[]` |
+| `onlineOrderLines` | [`OnlineOrderLine`](OnlineOrderLine.md) | `onlineOrderLines OnlineOrderLine[] @relation("OnlineOrderLineDecision")` |
 | `dispenseReturns` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturns DispenseReturn[]` |
 
 ## Indexes and constraints
@@ -62,5 +63,6 @@ erDiagram
     RegulatoryDecision }o--o{ Product : relates
     RegulatoryDecision }o--o{ User : relates
     RegulatoryDecision }o--o{ DispenseLine : relates
+    RegulatoryDecision }o--o{ OnlineOrderLine : relates
     RegulatoryDecision }o--o{ DispenseReturn : relates
 ```

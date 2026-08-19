@@ -48,7 +48,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-9      | Clinical Consumption                                    | **COMPLETE** (2026-08-17) | —                                        |
 | PI-10     | Recall & Traceability                                   | **COMPLETE** (2026-08-18) | —                                        |
 | PI-11     | Veterinary Enablement                                   | **COMPLETE** (2026-08-19) | —                                        |
-| PI-12     | Online Pharmacy                                         | PLANNED                   | **UNBLOCKED** — PI-8 landed              |
+| PI-12     | Online Pharmacy                                         | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
 | PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                     |
 | PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                     |
 | PI-23     | Identifier Resolution / Barcode                         | NOT_STARTED               | PI-1, PI-2                               |
@@ -1629,3 +1629,229 @@ comment saying so, so the next sweep does not "fix" them.
   A species rule for `CONSUME` needs that decision reversed first.
 - **PI-11 has not been through `/code-review` or `security-reviewer`.** Neither
   have PI-9 and PI-10. The diff touches the schema, tenancy and patient data.
+
+---
+
+# PI-12 — Online Pharmacy · COMPLETE (2026-08-19)
+
+Branch `feat/pi-12-online-pharmacy`. **NOT REVIEWED.**
+
+Three tables, ten endpoints, three screens — and the phase's whole argument is
+about the two things it deliberately did NOT build a second copy of.
+
+| Area        | What landed                                                                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Engine      | `onlineSaleGap` in `@rcln/regulatory` — `online_sale_position` becomes decisive for `ONLINE_DISPENSE`, and only for it                                         |
+| Schema      | `online_orders` · `online_order_lines` · `online_order_shipments`; `DispenseKind.ONLINE`, `NumberSequenceType.ONLINE_ORDER`, `DataAccessResource.ONLINE_ORDER` |
+| Migrations  | `..090000_online_pharmacy_enum_members` · `..090500_pi_12_online_pharmacy`                                                                                     |
+| RLS         | `db:rls:check` green at **131**. Three tables, ONE tenancy class — all branch-scoped                                                                           |
+| Permissions | `pharmacy.online_order.read` / `.manage` / `.dispatch`. ⚠️ Packing is gated on `pharmacy.dispense.create`                                                      |
+| Services    | `pharmacy/online-order.service.ts` (order) · `pharmacy/fulfilment.service.ts` (parcel); `createDispenseWithin` extracted; `reserveStockIn` extracted           |
+| Routes      | `/v1/online-orders` — 10 endpoints. **437 endpoints, 437 documented**                                                                                          |
+| Screens     | Deliveries list, Take an order, the order page with a stage rail and one action at a time                                                                      |
+| Tests       | +22 integration, +18 isolation, +9 regulatory unit, +7 route-gate cases                                                                                        |
+
+## PI-12.1 — The gate that makes "no product is onlineable by default" true
+
+⚠️ **THE FAIL-OPEN WAS REAL AND SURVIVED SEVEN PHASES.** A real pack lists
+`ONLINE_DISPENSE` alongside `DISPENSE` on its prescription rules — it has to, or
+the prescription requirement stops applying the moment a medicine goes in a
+parcel — and the consequence is that a pack which says NOTHING about remote
+supply PERMITS it, on the strength of rules written about a counter. India's pack
+is exactly that shape (PI-6 recorded the e-pharmacy position as `UNKNOWN` and
+wrote no rule). No rule refused; no rule was asked.
+
+`product_regulatory_profiles.online_sale_position` has existed since PI-5, been
+written by the profile screen since PI-5, and been read by nothing. It is now
+decisive for exactly one transaction: `PROHIBITED` → `REFUSED`, anything else
+that is not `PERMITTED`/`RESTRICTED` → `UNDETERMINED`, which refuses. An
+unrecognised string fails CLOSED, which is why the field stays a `string` in the
+package.
+
+⚠️ **AND IT IS CHECKED IN THE SERVICE AS WELL, WHICH IS NOT BELT-AND-BRACES BUT
+LOAD-BEARING.** A `REFUSED` decision enforces nothing until a named human signs
+the jurisdiction's pack off, and no pack is `PRODUCTION_ENABLED`. If the engine
+were the only gate, every product in every configured country would have been
+sendable by post the day this shipped. `confirmOnlineOrder` therefore refuses
+directly, on the CLINIC's own configuration — the same class of check as
+`is_dispensing_point` and `products.status` — and `onlineSaleGapMessage` is shared
+so the two never word it differently.
+
+## PI-12.2 — One supply path, and one hold
+
+**`createDispense` was split into `createDispenseWithin`.** Packing a parcel has
+to write the dispense, consume the holds and move the order's status in ONE
+transaction, so it could not call a function that opens its own. The alternative
+was a parallel posting function, and PI-11's review already wrote down what that
+costs: _a second door into a status change is a second door into the hazard_. The
+seam is `RemoteSupply` — three fields a client must never be able to state.
+
+**Accepting an order HOLDS; packing SUPPLIES.** Confirm plans FEFO and writes one
+`RESERVATION` leg per lot (AVAILABLE → RESERVED). Pack claims the reservations
+CONSUMED **before** any ledger leg — the claim-before-you-move discipline
+`releaseReservationIn` documents — and then dispenses with `statusFrom: RESERVED`.
+Taking from AVAILABLE at pack time would remove the quantity twice.
+
+⚠️ **A HOLD CITES THE ORDER _LINE_, NOT THE ORDER.** `stock_reservations` carries
+a product and a lot and no line, so an order naming one product twice would leave
+packing unable to say which line each lot belonged to. `online_order_lines` is
+therefore UNIQUE on `(organization_id, online_order_id, product_id)` as well, and
+the service refuses a duplicate with a sentence.
+
+`StockReservationStatus.CONSUMED`, `StockReferenceType.ONLINE_ORDER` and
+`NumberSequenceType.ONLINE_ORDER` were all added by earlier phases and left
+unreached on purpose. This is the phase that reaches them; none needed a
+migration for it.
+
+## PI-12.3 — What this phase deliberately did not build
+
+- **No patient-facing surface.** There is no patient portal in this product and
+  PI-12 does not invent one. An order ARRIVES and staff record it, which is what
+  `channel` says — so the RLS and permission story is the ordinary one rather
+  than a new anonymous boundary.
+- **No click-and-collect.** Folding it in makes both the destination and the
+  shipment nullable, which is two silent paths through the highest-risk write in
+  the phase.
+- **No partial shipment.** One consignment per order, by unique index. Splitting
+  one means splitting the dispense, the charge requests and the reservations
+  three ways.
+- **No substitution on an order.** The conversation happens before the
+  confirmation, so the remedy is to cancel and re-place.
+- **A failed delivery moves no stock.** The parcel is somewhere and the clinic
+  does not have it back; putting the quantity on the shelf on a courier's status
+  update would make the balance say the clinic holds medicine it cannot find.
+  What comes back comes back as a `dispense_returns` row.
+
+## PI-12.4 — Two defects found in code this phase did not write
+
+**1. ⚠️ `dispenses_prescription_has_patient` WOULD HAVE REFUSED EVERY PARCEL.**
+PI-7 wrote it as a two-way choice between the counter's two kinds; an `ONLINE`
+dispense satisfies neither arm. Rewritten with a third arm tying ONLINE to a
+PATIENT and deliberately not to an encounter.
+
+**2. ⚠️ A PI-11 TEST ASSERTED THE OPPOSITE OF WHAT ITS OWN REVIEW FIXED.**
+`patients.test.ts` expected `dailyDose: '500.000'` under a daily cap, while
+`weightBasedDose` had been changed — by PI-11's review, with the number `499.998`
+written into the code comment — so the reported pair always MULTIPLIES. The
+assertion was stale and the suite has been red since PI-11 landed. Corrected to
+`166.666` × 3 = `499.998`, with the reasoning beside it.
+
+## PI-12.5 — The security review, and what it found
+
+`security-reviewer` ran over the whole diff. **2 CRITICAL, 1 HIGH, 3 MEDIUM,
+4 LOW — all acted on.** Both CRITICALs had a regression test written and verified
+to FAIL against the reverted code.
+
+⚠️ **`/code-review` DID NOT COMPLETE** — the agent died on a session limit part
+way through. The invariant/quality pass was done by hand instead and is the
+weaker of the two; it should be re-run.
+
+**⚠️ CRITICAL 1 — `online_order_lines` shipped without its `*_visible` policies,
+and the comment saying it did not need them was false on both counts.** It cited
+`dispense_lines` as having "the identical absence" (it has all three, added in
+PI-8 as a CRITICAL fix whose own note calls the earlier gap "a hole rather than a
+choice") and `recall_batches.batch_id` as precedent (`batches` is ORG-SCOPED and
+can never hold a platform row — that difference IS KI-3). `tenant_isolation`
+constrains the LINE's `organization_id` and says nothing about which `products`
+row it cites, so a clinic could attach another clinic's private product to its
+own order and read the name back through the join. Fixed with both policies in
+`enable-rls.sql` and the migration, plus three isolation cases — two of which
+fail with the policies dropped, verified.
+
+**⚠️ CRITICAL 2 — the remote-supply gate was bypassable through the counter
+endpoint.** `DispenseKind` had to gain `ONLINE` for the column's sake, and
+widening the shared enum silently widened `createDispenseRequest` with it. A
+caller holding `pharmacy.dispense.create` could post `kind: 'ONLINE'` to
+`POST /v1/pharmacy/dispenses`; `createDispenseWithin` evaluated it under
+`ONLINE_DISPENSE` with no `RemoteSupply`, so `assertRemoteSupplyIsOpen` never
+ran, no destination was supplied, and the supply left no `online_orders` row
+recording where the parcel went. The engine's own gate refused and refusing
+changed nothing — no pack is `PRODUCTION_ENABLED`, which is the entire reason the
+service gate exists. **The phase opened its own second door by widening an enum.**
+Refused now at the contract AND in `createDispense`; the regression test creates
+a dispense when either is reverted.
+
+**HIGH — the destination jurisdiction is DECLARED, not derived**, and the
+contract header claimed otherwise. The claim was wrong; the code was always
+going to be. Corrected to say so plainly.
+
+⚠️ **A VALIDATION WAS WRITTEN FOR IT AND THEN REMOVED, WHICH IS WORTH RECORDING.**
+`assertDestinationIsAPlace` refused a region naming no `jurisdictions` row — and
+refused `IN-KA` on its first run. That table lists places rcln has written RULES
+for, not places that exist, so it cannot tell Karnataka from a typo. Nor could it
+be narrowed to "once we know a country's regions": seeding `IN-KA` says nothing
+about Maharashtra. The region is therefore unvalidated, said plainly, and bounded
+by evidence instead — the pair is frozen beside the address, cited by the
+snapshotted decision, and on the audit row (which now carries the region as well
+as the country).
+
+Also fixed: `assertBranchInScope` on the list (house pattern, was missing);
+`organizationId` explicit on the reservation claim; the new PHI fields added to
+the logger's redact paths; `patientAddressId` now checked to belong to the
+order's patient; and the branch-vs-destination profile lookup documented as the
+deliberate call it is rather than left to be rediscovered.
+
+One finding of my own, outside both agents: `online-order-detail.tsx` imported a
+string map from `online-order-list.tsx`, dragging the whole list client component
+into the detail bundle. Split into `online-order-status.tsx`.
+
+## PI-12.6 — The code review, on the second attempt
+
+`/code-review`'s invariant agent died on a session limit the first time and was
+re-run. **No CRITICAL, no HIGH. 8 WARNING, 7 INFO — all acted on.**
+
+⚠️ **IT CONFIRMED THE FIVE THINGS THE PHASE WAS MOST EXPOSED ON**, which is worth
+recording because three of them were argued from comments that were wrong:
+
+- **`RemoteSupply.held` keyed by the request-line OBJECT is correct on every
+  path** — `[...body.lines].sort()` copies the array, not the elements. ⚠️ AND IT
+  DOES NOT DEPEND ON THE ONE-LINE-PER-PRODUCT INDEX, which two comments implied
+  it did. Both corrected: the index exists so RESERVATIONS can be attributed to
+  a line, a different problem one layer down.
+- **The encounter-load condition change is behaviour-preserving.** The contract
+  already refuses `encounterId` on a counter sale, so widening it added exactly
+  one case — `ONLINE`.
+- **`confirmOnlineOrder`'s ordering is right, for a reason the comment got
+  wrong.** It credited the canonical sort with preventing oversell; the sort
+  prevents DEADLOCK, and what makes acting on a stale plan safe is that
+  `reserveStockIn` writes the movement first and the movement takes the bucket
+  lock. Comment corrected.
+- **`packOnlineOrder`'s claim-then-move is a proper compare-and-swap** and cannot
+  leave the order and the buckets disagreeing.
+- **The web layer honours the Next 16, colour-token, date and link conventions.**
+
+Fixed: the whole 460-line order screen was `'use client'` to run four forms —
+`OnlineOrderActionCard` is now the only client component and the actions reach it
+already bound; `fieldErrors` were computed and discarded on both new forms, so an
+error was on screen and unlinked (AGENTS.md: it "does not exist to a screen
+reader"); neither form used `useOutcomeFocus`; a 12px stage label carried
+`opacity-70`, the exact contrast bug AGENTS.md names; `STATUSES` retyped all seven
+labels nine lines below importing the module created to hold them;
+`branchJurisdictionWithin` read a branch without `organizationId` (ADR-0005);
+`req.body.notes` and the town/state were missing from the redact paths; and the
+`IDLE_FORM` re-export from a `'use server'` module — the one shape the file's own
+comment forbids two lines above it — is gone.
+
+Also: a self-enforcing assert on the `RemoteSupply` seam (ONLINE and `remote`
+travel together or not at all), the condition-list key collision, a decimal
+string no longer parsed through a float for a display decision, `timeFormatOf`
+lifted out of the order's dependency chain, and the pagination controls sized
+past 24×24 (WCAG 2.5.8).
+
+## Open
+
+- **Nothing from either review is outstanding.** Both agents have run over the
+  whole diff and every finding is fixed or recorded in KNOWN_ISSUES.
+- The identifier-resolution debt (#25, #25b) is what a reviewer would notice
+  first about the order screen, and it is PI-23's.
+- **No worker sweep releases a hold when an order is abandoned.** The existing
+  reservation sweep does it by `expires_at`, which is why `holdForDays` is
+  capped — but the ORDER is then left CONFIRMED with nothing held, and only
+  `heldQuantityBase: 0` on the screen says so. A status of its own would be
+  honest; it needs a decision about who moves it.
+- **Recall does not walk online orders.** It walks `dispense_allocations`, which
+  a packed order writes — so a PACKED parcel IS traced. An order that is merely
+  CONFIRMED holds recalled stock in the `RESERVED` bucket and PI-10's execution
+  cannot reach it. PI-22/PI-23 territory.
+- **The product picker is still capped at 100** on the order form, like every
+  other picker in this programme. PI-23.

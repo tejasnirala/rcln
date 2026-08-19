@@ -318,7 +318,15 @@ export async function getDispense(
  */
 const EVERYTHING_ON_THE_SHELF = '999999999999';
 
-interface ResolvedAllocation {
+/**
+ * One lot a line is made up from, with the traceability evidence beside it.
+ *
+ * ⚠️ EXPORTED SINCE PI-12, because packing an online order builds these from
+ *   `stock_reservations` rather than from a FEFO plan and hands them straight to
+ *   `createDispenseWithin`. Nothing outside this domain may construct one: the
+ *   fields are what a `TRACEABILITY_REQUIREMENT` rule is shown.
+ */
+export interface ResolvedAllocation {
   locationId: string;
   batchId: string | null;
   serialId: string | null;
@@ -501,6 +509,43 @@ async function resolveAllocations(
 }
 
 /**
+ * What an ONLINE order supplies that a counter does not (PI-12).
+ *
+ * ⚠️ INTERNAL ONLY, AND DELIBERATELY NOT ON `CreateDispenseRequest`. Every field
+ *   here is one a client must never be able to state:
+ *
+ *   `onlineOrderId`  the document being fulfilled, which the ORDER service knows
+ *                    and a caller of `POST /v1/pharmacy/dispenses` must not be
+ *                    able to claim
+ *   `destination`    where the parcel is going, derived from the address the
+ *                    order froze. A client that could send this could declare
+ *                    an address in one country and a jurisdiction in another,
+ *                    and have `ONLINE_DISPENSING` asked about the wrong one.
+ *   `held`           which lots the parcel is made up from. They were chosen by
+ *                    FEFO and RESERVED at confirmation; accepting them from a
+ *                    caller here would be a second allocation decision over
+ *                    stock already spoken for.
+ *
+ * ⚠️ `held` IS KEYED BY THE REQUEST LINE **OBJECT**, NOT BY PRODUCT AND NOT BY
+ *   INDEX. A product key would merge two lines naming one medicine; an index key
+ *   would follow the wrong line, because the loop below sorts into a canonical
+ *   order before touching a bucket. Object identity survives the sort — `[...
+ *   body.lines].sort()` copies the ARRAY, not the elements — which is the only
+ *   one of the three that does.
+ *
+ * ⚠️ AND IT DOES NOT DEPEND ON `online_order_lines`' ONE-LINE-PER-PRODUCT INDEX,
+ *   WHICH IS WORTH SAYING BECAUSE THE OBVIOUS READING IS THAT IT DOES (PI-12
+ *   review). Two lines for one product would still key correctly here; the index
+ *   exists so the RESERVATIONS can be attributed to a line, which is a different
+ *   problem one layer down. Removing the index would break that, not this.
+ */
+export interface RemoteSupply {
+  onlineOrderId: string;
+  destination: { countryCode: string; regionCode: string | null };
+  held: Map<DispenseLineRequest, ResolvedAllocation[]>;
+}
+
+/**
  * Supply it.
  *
  * @throws RegulatoryRefusalError 422 when the rules of this place refuse a line
@@ -511,10 +556,72 @@ export async function createDispense(
   body: CreateDispenseRequest,
   options: PharmacyActionOptions = {}
 ): Promise<DispenseDetail> {
+  /*
+   * ⚠️ THE SECOND HALF OF THE `ONLINE` REFUSAL, AND IT IS HERE RATHER THAN ONLY
+   *   IN THE CONTRACT BECAUSE THIS FUNCTION IS THE HTTP-FACING ONE (PI-12,
+   *   security review). `createDispenseWithin` is shared with `packOnlineOrder`,
+   *   which legitimately supplies `ONLINE` — so the refusal cannot live there,
+   *   and a Zod refinement alone is one `safeParse` bypass away from being the
+   *   only thing standing between a caller and an ungated remote supply. A
+   *   parcel is dispensed by packing its order; see the refinement's comment on
+   *   `createDispenseRequest` for what the door opened onto.
+   */
+  if (body.kind === 'ONLINE') {
+    throw new ValidationError(
+      'A delivery is dispensed by packing its order, not by posting a dispense. Use POST /v1/online-orders/{orderId}/pack.'
+    );
+  }
+
   const branchId = resolveBranchId(ctx, body.branchId, options.actingBranchId);
+
+  const id = await withTenant(ctx, async (tx) =>
+    createDispenseWithin(tx, ctx, branchId, body, options)
+  );
+
+  return getDispense(ctx, id, options);
+}
+
+/**
+ * The same supply, inside a transaction the caller already owns.
+ *
+ * ⚠️ IT EXISTS SO THERE IS EXACTLY ONE FUNCTION THAT DISPENSES (PI-12). Packing
+ *   an online order has to write the dispense, consume the reservations behind
+ *   it and move the order's own status in ONE transaction — so it cannot call
+ *   `createDispense`, which opens its own. The alternative was a parallel
+ *   posting function for parcels, and the PI-11 review already wrote down what
+ *   that costs: "a second door into a status change is a second door into the
+ *   hazard". This is the same door, with the caller holding it open.
+ *
+ * ⚠️ AND IT RETURNS AN ID RATHER THAN A DETAIL, because reading the dispense
+ *   back logs a PHI disclosure, and a caller that is midway through its own
+ *   transaction has not finished doing the thing it would be logging.
+ */
+export async function createDispenseWithin(
+  tx: TxClient,
+  ctx: TenantContext,
+  branchId: string,
+  body: CreateDispenseRequest,
+  options: PharmacyActionOptions = {},
+  remote?: RemoteSupply
+): Promise<string> {
+  /*
+   * ⚠️ THE SEAM, ASSERTED RATHER THAN ASSUMED (PI-12 review). This function is
+   *   exported and takes an UNVALIDATED `CreateDispenseRequest`, so the two
+   *   contract refinements that guard the HTTP surface bind `createDispense` and
+   *   not this. Today the only other caller is `packOnlineOrder` and it is
+   *   correct — but "ONLINE with no `remote`" is exactly the shape the security
+   *   review found reachable from HTTP, and a future internal caller could
+   *   recreate it. The pair travels together or not at all.
+   */
+  if ((body.kind === 'ONLINE') !== (remote !== undefined)) {
+    throw new ValidationError(
+      'A remote supply is dispensed with the order that holds its stock. Pack the order instead.'
+    );
+  }
+
   const dispensedAt = body.dispensedAt ? new Date(body.dispensedAt) : new Date();
 
-  const id = await withTenant(ctx, async (tx) => {
+  {
     const location = await resolveDispensingLocation(tx, branchId, body.locationId);
 
     /*
@@ -523,44 +630,53 @@ export async function createDispense(
      *   and dispensing against a superseded consultation supplies exactly what the
      *   correction was made to stop.
      */
-    const encounter =
-      body.kind === 'PRESCRIPTION' && body.encounterId
-        ? await tx.encounter.findFirst({
-            where: { id: body.encounterId, organizationId: ctx.organizationId, deletedAt: null },
-            select: {
-              id: true,
-              status: true,
-              patientId: true,
-              finalizedAt: true,
-              startedAt: true,
-              doctorProfile: { select: { userId: true } },
-              /* `animalProfile` is a LEFT join that is null for every human on
-               * the platform — see the model comment. PI-11 reads its species so
-               * a `SPECIES_RESTRICTION` rule can be evaluated. */
-              patient: {
-                select: {
-                  dateOfBirth: true,
-                  subjectType: true,
-                  animalProfile: { select: { species: true } },
-                },
-              },
-              prescriptions: {
-                select: {
-                  id: true,
-                  productId: true,
-                  quantity: true,
-                  instructions: true,
-                  /* The prescriber's endorsement of a repeat (PI-8, #8). */
-                  repeatsAuthorised: true,
-                  repeatsAuthorisedLimit: true,
-                },
+    /*
+     * ⚠️ THE CONDITION IS "AN ENCOUNTER WAS CITED", NOT "THE KIND IS PRESCRIPTION"
+     *   (PI-12). An ONLINE supply may or may not be against a prescription, and
+     *   reading `kind` here would have loaded no encounter for the one that IS —
+     *   so the prescription rules would never have been given a prescription to
+     *   look at, and every prescription-only medicine sent by post would have
+     *   been refused for want of one. The contract already refuses an
+     *   `encounterId` on a counter sale, so this is the same set plus online.
+     */
+    const encounter = body.encounterId
+      ? await tx.encounter.findFirst({
+          where: { id: body.encounterId, organizationId: ctx.organizationId, deletedAt: null },
+          select: {
+            id: true,
+            status: true,
+            patientId: true,
+            finalizedAt: true,
+            startedAt: true,
+            doctorProfile: { select: { userId: true } },
+            /* `animalProfile` is a LEFT join that is null for every human on
+             * the platform — see the model comment. PI-11 reads its species so
+             * a `SPECIES_RESTRICTION` rule can be evaluated. */
+            patient: {
+              select: {
+                dateOfBirth: true,
+                subjectType: true,
+                animalProfile: { select: { species: true } },
               },
             },
-          })
-        : null;
+            prescriptions: {
+              select: {
+                id: true,
+                productId: true,
+                quantity: true,
+                instructions: true,
+                /* The prescriber's endorsement of a repeat (PI-8, #8). */
+                repeatsAuthorised: true,
+                repeatsAuthorisedLimit: true,
+              },
+            },
+          },
+        })
+      : null;
 
-    if (body.kind === 'PRESCRIPTION') {
-      if (!encounter) throw new NotFoundError('Prescription');
+    if (body.kind === 'PRESCRIPTION' && !encounter) throw new NotFoundError('Prescription');
+
+    if (encounter) {
       if (encounter.status !== 'FINALIZED') {
         throw new ValidationError(
           encounter.status === 'DRAFT'
@@ -702,15 +818,54 @@ export async function createDispense(
         { quantity: line.quantity, unitId: line.unitId }
       );
 
-      const allocations = await resolveAllocations(
-        tx,
-        ctx,
-        branchId,
-        product.id,
-        product.name,
-        quantityBase,
-        line.allocations
-      );
+      /*
+       * ⚠️ A REMOTE SUPPLY DOES NOT PLAN, AND MUST NOT (PI-12). Its lots were
+       *   chosen by FEFO at CONFIRMATION and have sat in the `RESERVED` bucket
+       *   ever since — which is exactly why `resolveAllocations` cannot be asked:
+       *   its candidate filter is `AVAILABLE`, so every held lot would come back
+       *   "expired, on hold, recalled or no longer where it was" and no online
+       *   order could ever be packed. Re-planning against AVAILABLE instead would
+       *   be worse: it would hand out lots the shelf still shows as sellable and
+       *   leave the order's own reservation stranded.
+       *
+       * ⚠️ AND THE SUM IS RE-ASSERTED BELOW RATHER THAN TRUSTED. The held lots
+       *   come from `stock_reservations`, which the sweep may have partially
+       *   released since — a hold that expired between confirmation and packing
+       *   is an ordinary outcome, and packing a parcel that is short is not.
+       */
+      const held = remote?.held.get(line);
+      if (remote && (held === undefined || held.length === 0)) {
+        throw new ConflictError(
+          `The stock held for ${product.name} on this order is no longer held. It may have been ` +
+            'released while the order sat. Cancel the order and place it again, or check the shelf.'
+        );
+      }
+
+      const allocations =
+        held ??
+        (await resolveAllocations(
+          tx,
+          ctx,
+          branchId,
+          product.id,
+          product.name,
+          quantityBase,
+          line.allocations
+        ));
+
+      if (held) {
+        const heldTotal = held.reduce(
+          (sum, allocation) => sum.add(allocation.quantityBase),
+          new Prisma.Decimal(0)
+        );
+        if (!heldTotal.eq(new Prisma.Decimal(quantityBase))) {
+          throw new ConflictError(
+            `${heldTotal.toString()} of ${product.name} is still held for this order and the line ` +
+              `is for ${quantityBase}. Part of the hold has been released — a parcel whose lots do ` +
+              'not add up is a parcel nobody can trace.'
+          );
+        }
+      }
 
       /*
        * ⚠️ THE EVIDENCE HANDED TO THE ENGINE IS THE FIRST LOT'S, WHICH IS A KNOWN
@@ -780,7 +935,20 @@ export async function createDispense(
         productId: product.id,
         locationId: location.id,
         quantityBase,
-        transaction: body.kind === 'COUNTER_SALE' ? 'COUNTER_SALE' : 'DISPENSE',
+        /*
+         * ⚠️ THE THIRD TRANSACTION TYPE IS WHAT MAKES EVERY `ONLINE_DISPENSING`
+         *   RULE — AND THE PROFILE'S OWN REMOTE-SUPPLY POSITION — SPEAK AT ALL
+         *   (PI-12). Asking under `DISPENSE` for a parcel would evaluate the
+         *   counter's rules against a supply nobody is standing in front of, and
+         *   the remote-supply gate in `@rcln/regulatory` would sit out entirely.
+         */
+        transaction:
+          body.kind === 'COUNTER_SALE'
+            ? 'COUNTER_SALE'
+            : body.kind === 'ONLINE'
+              ? 'ONLINE_DISPENSE'
+              : 'DISPENSE',
+        ...(remote ? { destination: remote.destination } : {}),
         occurredAt: dispensedAt,
         documentId: dispenseId,
         /*
@@ -935,7 +1103,24 @@ export async function createDispense(
           movementType: 'DISPENSING',
           quantity: q(allocation.quantityBase),
           locationId: allocation.locationId,
-          statusFrom: 'AVAILABLE',
+          /*
+           * ⚠️ A PARCEL COMES OUT OF THE `RESERVED` BUCKET, NOT THE AVAILABLE ONE
+           *   (PI-12). The quantity moved there when the order was confirmed, and
+           *   taking it from AVAILABLE here would remove it twice: once at
+           *   confirmation and again at packing, draining the shelf on behalf of
+           *   somebody else's hold. The `stock_reservations` row is marked
+           *   CONSUMED in the same transaction — which is the state PI-2 added and
+           *   deliberately left unreachable until something dispensed a hold.
+           */
+          statusFrom: remote ? 'RESERVED' : 'AVAILABLE',
+          /*
+           * ⚠️ `DISPENSE`, ON EVERY KIND INCLUDING A PARCEL. The leg that takes
+           *   stock off a shelf is a dispense whatever channel asked for it, and
+           *   `StockReferenceType.ONLINE_ORDER` names the HOLD rather than the
+           *   supply — a reservation leg cites the order line it is held for.
+           *   Two reference types for one physical movement would split every
+           *   "what went out of this branch" report in half.
+           */
           referenceType: 'DISPENSE',
           referenceId: dispenseId,
           occurredAt: dispensedAt,
@@ -1025,14 +1210,13 @@ export async function createDispense(
         lineCount: prepared.length,
         encounterId: encounter?.id ?? null,
         locationId: location.id,
+        ...(remote ? { onlineOrderId: remote.onlineOrderId } : {}),
       },
       ...auditMeta(options),
     });
 
     return dispenseId;
-  });
-
-  return getDispense(ctx, id, options);
+  }
 }
 
 /**

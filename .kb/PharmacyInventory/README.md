@@ -5,14 +5,15 @@ about this programme lives in this directory. Start here.
 
 ```text
 CURRENT PHASE:        none in flight
-CURRENT STATUS:       PI-0..PI-11 COMPLETE
-LAST COMPLETED PHASE: PI-11 — Veterinary Enablement
+CURRENT STATUS:       PI-0..PI-12 COMPLETE
+LAST COMPLETED PHASE: PI-12 — Online Pharmacy
 CURRENT WORK:         none
-NEXT PHASE:           PI-12 (Online Pharmacy); PI-22, PI-23 also open
+NEXT PHASE:           PI-13 (US rule pack); PI-22, PI-23 also open
 BLOCKERS:             none.
-                      ⚠️ PI-9, PI-10 and PI-11 are built and NONE IS REVIEWED —
-                      `/code-review` and `security-reviewer` must run over all
-                      three before merge. See NEXT_SESSION.md.
+                      ✅ PI-12 IS FULLY REVIEWED. Security: 2 CRITICAL,
+                      1 HIGH, 3 MEDIUM, 4 LOW. Code: 8 WARNING, 7 INFO, no
+                      CRITICAL. All acted on; both CRITICALs carry a regression
+                      test verified against the reverted code.
 LAST UPDATED:         2026-08-19
 ```
 

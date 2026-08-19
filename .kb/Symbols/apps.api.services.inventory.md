@@ -47,10 +47,11 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | `receiveTransfer` | `(ctx: TenantContext, id: string, input: ReceiveStockTransferRequest, options: CatalogueActionOptions): Promise<StockTransferDetail>` | `apps/api/src/services/inventory/transfer.service.ts:1095` |  |
 | `recordMovement` | `(ctx: TenantContext, input: RecordMovementRequest, options: MovementOptions): Promise<RecordMovementResponse>` | `apps/api/src/services/inventory/movement.service.ts:77` |  |
 | `recordMovementIn` | `(tx: Parameters<typeof recordMovementInEngine>[0], ctx: TenantContext, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>` | `apps/api/src/services/inventory/movement.service.ts:52` | Record a movement inside a transaction the caller already holds. |
-| `releaseReservation` | `(ctx: TenantContext, id: string, input: ReleaseStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>` | `apps/api/src/services/inventory/reservation.service.ts:356` |  |
-| `releaseReservationIn` | `(tx: TxClient, ctx: TenantContext, reservation: { id: string; branchId: string; productId: str…, options: CatalogueActionOptions & { notes?: string \| null \|…): Promise<boolean>` | `apps/api/src/services/inventory/reservation.service.ts:299` |  |
+| `releaseReservation` | `(ctx: TenantContext, id: string, input: ReleaseStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>` | `apps/api/src/services/inventory/reservation.service.ts:412` |  |
+| `releaseReservationIn` | `(tx: TxClient, ctx: TenantContext, reservation: { id: string; branchId: string; productId: str…, options: CatalogueActionOptions & { notes?: string \| null \|…): Promise<boolean>` | `apps/api/src/services/inventory/reservation.service.ts:355` |  |
 | `replaceStorageAreas` | `(ctx: TenantContext, locationId: string, input: ReplaceStorageAreasRequest, options: CatalogueActionOptions): Promise<InventoryLocationDetail>` | `apps/api/src/services/inventory/location.service.ts:305` |  |
 | `reserveStock` | `(ctx: TenantContext, input: CreateStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>` | `apps/api/src/services/inventory/reservation.service.ts:156` |  |
+| `reserveStockIn` | `(tx: TxClient, ctx: TenantContext, input: ReserveStockInput, options: CatalogueActionOptions): Promise<Row>` | `apps/api/src/services/inventory/reservation.service.ts:259` |  |
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, fromBranchId: string, lines: StockTransferLineRequest[]): Promise<ResolvedLine[]>` | `apps/api/src/services/inventory/transfer.service.ts:282` |  |
 | `setBatchHold` | `(ctx: TenantContext, id: string, action: 'QUARANTINE' \| 'QUARANTINE_RELEASE' \| 'RECALL', input: { reason: string; recallReference?: string \| null \| …, options: CatalogueActionOptions): Promise<BatchD…` | `apps/api/src/services/inventory/batch.service.ts:393` |  |
 | `sumQuantities` <sub>local</sub> | `(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus?: string): string` | `apps/api/src/services/inventory/batch.service.ts:83` |  |
@@ -102,6 +103,7 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | --- | --- | --- | --- |
 | `ExpiryRow` <sub>local</sub> | `{ batch_id, branch_id, product_id, product_name, lot_number, expires_on, days_remaining, quantity_available, base_unit_symbol, status }` | `apps/api/src/services/inventory/expiry.service.ts:76` |  |
 | `ReplayRow` <sub>local</sub> | `{ product_id, batch_id, serial_id, location_id, status, replayed, cached }` | `apps/api/src/services/inventory/balance.service.ts:244` |  |
+| `ReserveStockInput` | `{ branchId, productId, batchId, serialId, locationId, quantityBase, referenceType, referenceId, expiresAt, notes }` | `apps/api/src/services/inventory/reservation.service.ts:225` | What a hold needs once the quantity is already in base units. |
 | `ResolvedLine` <sub>local</sub> | `{ productId, batchId, serialId, sentQuantityBase, quantityEntered, unitId, notes, lotNumber, manufacturedOn, expiresOn, manufacturerId, unitCostBase, currency }` | `apps/api/src/services/inventory/transfer.service.ts:242` |  |
 
 ## type

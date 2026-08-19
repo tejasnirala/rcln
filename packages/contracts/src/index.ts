@@ -41,5 +41,10 @@ export * from './consumption.js';
    consumption — it names lots and patients by id and answers in counts — so the
    placement carries no dependency, unlike the two notes above. */
 export * from './recall.js';
+/* ⚠️ AFTER `pharmacy.js` and `products.js`. It imports `dispenseRegulatorySummary`
+   from the first and `countryCode`/`decimalString` from the second, and a Zod
+   module cycle fails at runtime rather than at lint — the note `charging.js`
+   carries, for the same reason. */
+export * from './online-pharmacy.js';
 export * from './tax.js';
 export * from './locale.js';

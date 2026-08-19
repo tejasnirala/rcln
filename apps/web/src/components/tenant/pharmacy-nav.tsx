@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 /**
- * The four places a dispensary works from, as tabs.
+ * The five places a dispensary works from, as tabs.
  *
  * ⚠️ THE ORDER IS THE COUNTER'S DAY, not a numbered sequence: what is waiting,
  *   what has gone out, what came back, and the view over all three. Numbering
@@ -25,6 +25,14 @@ const TABS = [
   { href: '/pharmacy/queue', label: 'Waiting' },
   { href: '/pharmacy/dispenses', label: 'Dispensed' },
   { href: '/pharmacy/sales/new', label: 'Counter sale' },
+  /*
+   * ⚠️ "DELIVERIES" AND NOT "ONLINE ORDERS". What a dispensary is looking at is
+   *   the medicine that has to go out in a parcel today; "online" describes how
+   *   the request arrived, which is the least useful thing about it once it is
+   *   on the list. Same choice the rest of this product makes — Waiting over
+   *   Queue, Stock over Inventory.
+   */
+  { href: '/pharmacy/orders', label: 'Deliveries' },
 ];
 
 export function PharmacyNav() {

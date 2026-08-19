@@ -31,6 +31,27 @@ export const logger = pino({
       // the day a serializer changes is not the day to start writing the list.
       'req.body.guardianName',
       'req.body.guardianPhone',
+      // Where a parcel is going, and who signs for it (PI-12). ⚠️ THE MOST
+      // SENSITIVE BODY FIELDS THIS PRODUCT HAS EVER CARRIED — a named person's
+      // home address beside the medicine being sent to it, which is a
+      // physical-safety fact as much as a clinical one. Nested one level down,
+      // so each needs its own literal path for the reason spelled out below.
+      // Same defensive argument as the two lines above: nothing reaches this
+      // today, and the day a serializer changes is not the day to start.
+      'req.body.address.recipientName',
+      'req.body.address.recipientPhone',
+      'req.body.address.addressLine1',
+      'req.body.address.addressLine2',
+      'req.body.address.city',
+      'req.body.address.state',
+      'req.body.address.pincode',
+      'req.body.receivedByName',
+      // ⚠️ AND THE FREE TEXT BESIDE IT. `online_orders.notes` is marked PHI in
+      // the schema — "anything the person taking the order wrote down" — and it
+      // reaches three routes. A town and a name is a narrower disclosure than a
+      // full address and it is the same CLASS of fact, which is why `city` and
+      // `state` are above rather than left out beside `pincode`.
+      'req.body.notes',
       // Registration nests the owner's credentials one level down. pino's redact
       // paths are literal, not recursive: 'req.body.password' does NOT cover
       // 'req.body.owner.password', so the whole signup payload would otherwise

@@ -5,6 +5,87 @@ discussed.
 
 ---
 
+## 2026-08-19 — PI-12: the same medicine, leaving in a parcel
+
+**Phase:** PI-12 · **Branch:** `feat/pi-12-online-pharmacy` · **Result:**
+complete, **not reviewed** · **Tests:** +22 integration, +18 isolation, +9
+regulatory unit, +7 route-gate cases. Lint (0 errors, 3 pre-existing warnings),
+typecheck, `db:rls:check` (131 tables) and `docs:validate` (437/437) green.
+⚠️ `/code-review` and `security-reviewer` NOT run.
+
+Three tables and ten endpoints, and almost all of the argument is about the two
+things that were deliberately NOT copied.
+
+### What the phase had to decide, and what it decided
+
+**⚠️ No product is onlineable by default, and the fail-open it closes was real.**
+A pack that regulates supply lists `ONLINE_DISPENSE` alongside `DISPENSE` on its
+prescription rules — it has to, or the prescription requirement stops applying
+the moment a medicine goes in a parcel — so a pack that says NOTHING about remote
+supply PERMITS it, on the strength of rules written about a counter.
+`product_regulatory_profiles.online_sale_position` has existed since PI-5 and been
+read by nothing; it is now decisive for exactly one transaction, and an
+unrecognised value fails closed.
+
+**⚠️ And the same gate is enforced in the SERVICE, which is load-bearing rather
+than defensive.** A regulatory refusal stops nothing until a human signs a pack
+off, and no pack is `PRODUCTION_ENABLED` — so the engine alone would have made
+every product in every configured country sendable by post on day one.
+`confirmOnlineOrder` refuses on the clinic's own configuration, and shares the
+engine's wording so the two can never say it differently.
+
+**There is one function that dispenses, and packing calls it.** `createDispense`
+was split into `createDispenseWithin` so the pack can consume the holds, write
+the dispense and move the order in one transaction. A parallel posting function
+would have been a second door into the highest-risk write in the programme —
+PI-11's review already wrote down what that costs.
+
+**Accepting an order holds stock; packing supplies it.** Confirm plans FEFO and
+writes `RESERVATION` legs; pack claims the reservations CONSUMED _before_ any
+ledger leg — the claim-before-you-move discipline `releaseReservationIn`
+documents — then dispenses out of the `RESERVED` bucket. `CONSUMED`,
+`StockReferenceType.ONLINE_ORDER` and `NumberSequenceType.ONLINE_ORDER` were all
+added by earlier phases and left unreached; none needed a migration now.
+
+**⚠️ A hold cites the order LINE, not the order.** Reservations carry a product
+and a lot and no line, so an order naming one product twice would leave packing
+unable to say which lots belonged to which line. `online_order_lines` is unique
+on `(organization_id, online_order_id, product_id)` as well.
+
+**A failed delivery moves no stock.** The parcel is somewhere and the clinic does
+not have it back. What comes back comes back as a `dispense_returns` row, which
+asks the law where it may go and quarantines it by default — a sharper question
+for a parcel than for a counter return, because nobody can attest to how it was
+stored in a van.
+
+**Packing is gated on `pharmacy.dispense.create`, not on an online code.** It IS
+the supply. A fourth online-specific code would be a second door to that
+authority, grantable to somebody a clinic had deliberately kept away from the
+counter. `route-gates.test.ts` pins it, along with the router living at
+`/v1/online-orders` rather than under `/pharmacy` — where the existing audit
+requires every route to carry a `pharmacy.dispense.*` code.
+
+### Two defects found in code this phase did not write
+
+**⚠️ `dispenses_prescription_has_patient` would have refused every parcel.**
+PI-7 wrote it as a two-way choice between the counter's two kinds; an ONLINE
+dispense satisfies neither. Rewritten with a third arm tying ONLINE to a PATIENT
+and deliberately not to an encounter.
+
+**⚠️ A PI-11 assertion contradicted the fix its own review made.**
+`patients.test.ts` expected a capped `dailyDose` of `500.000` while
+`weightBasedDose` had been changed so the reported pair always multiplies — with
+`499.998` written into the code comment. The suite has been red since PI-11
+landed. Corrected, with the reasoning beside it.
+
+### Deliberately not built
+
+No patient portal, no click-and-collect, no partial shipment, no substitution on
+an order. Each is argued in the header of `online-pharmacy.prisma`; each would
+have added a nullable path through the phase's one irreversible write.
+
+---
+
 ## 2026-08-18 — PI-10: getting it back off the shelf
 
 **Phase:** PI-10 · **Branch:** `feat/pi-10-recall-traceability` · **Result:**

@@ -72,6 +72,14 @@ enum NumberSequenceType {
   ///   from the moment the notice arrives, and a recall abandoned in draft
   ///   burning a number is a far smaller problem than a notice nobody can cite.
   RECALL
+  /// Online orders (PI-12). ⚠️ PER BRANCH AND NEVER RESETS, the shape every
+  ///   procurement counter has and for the same reason: the number goes on a
+  ///   delivery note somebody outside the clinic reads, so it has to mean one
+  ///   thing for ever.
+  ///
+  /// ⚠️ ISSUED AT CONFIRM, NOT AT CREATE — the rule a purchase order follows. An
+  ///   order somebody keys and abandons must burn no number.
+  ONLINE_ORDER
 }
 
 /// One counter per (organization, branch, type, period). The issuer for every

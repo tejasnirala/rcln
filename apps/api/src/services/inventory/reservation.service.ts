@@ -199,36 +199,10 @@ export async function reserveStock(
       input
     );
 
-    /*
-     * ⚠️ THE MOVEMENT FIRST, THE ROW SECOND, AND BOTH IN ONE TRANSACTION. The
-     *   movement is what takes the bucket lock and refuses a hold the shelf
-     *   cannot cover — with the same 409 a dispense gets, which is the correct
-     *   outcome and not an error. Writing the row first would mean a refused
-     *   movement rolled back a row that had already been reported as created.
-     */
-    await recordMovementIn(
+    const created = await reserveStockIn(
       tx,
       ctx,
       {
-        branchId: input.branchId,
-        productId: input.productId,
-        batchId: input.batchId ?? null,
-        serialId: input.serialId ?? null,
-        movementType: 'RESERVATION',
-        quantity: quantityBase,
-        locationId: input.locationId,
-        statusFrom: 'AVAILABLE',
-        statusTo: 'RESERVED',
-        referenceType: input.referenceType,
-        referenceId: input.referenceId ?? null,
-        reasonNote: input.notes ?? null,
-      },
-      options
-    );
-
-    const created = await tx.stockReservation.create({
-      data: {
-        organizationId: ctx.organizationId,
         branchId: input.branchId,
         productId: input.productId,
         batchId: input.batchId ?? null,
@@ -239,28 +213,110 @@ export async function reserveStock(
         referenceId: input.referenceId ?? null,
         expiresAt,
         notes: input.notes ?? null,
-        createdById: ctx.userId,
       },
-      include: summaryInclude,
-    });
-
-    await recordAudit(tx, ctx, {
-      action: 'CREATE',
-      entityType: 'stock_reservation',
-      entityId: created.id,
-      branchId: input.branchId,
-      after: {
-        productId: created.productId,
-        locationId: created.locationId,
-        quantityBase: created.quantityBase.toString(),
-        expiresAt: created.expiresAt.toISOString(),
-        referenceType: created.referenceType,
-      },
-      ...options,
-    });
+      options
+    );
 
     return toSummary(created, now);
   });
+}
+
+/** What a hold needs once the quantity is already in base units. */
+export interface ReserveStockInput {
+  branchId: string;
+  productId: string;
+  batchId: string | null;
+  serialId: string | null;
+  locationId: string;
+  /** In the product's BASE unit, positive. Already converted by the caller. */
+  quantityBase: string;
+  referenceType: CreateStockReservationRequest['referenceType'];
+  referenceId: string | null;
+  expiresAt: Date;
+  notes: string | null;
+}
+
+/**
+ * Hold it, inside a transaction the caller already owns.
+ *
+ * ⚠️ IT EXISTS FOR THE REASON `releaseReservationIn` DOES, AND PI-12 IS THE
+ *   CALLER THAT NEEDED IT. Confirming an online order holds one lot per
+ *   allocation AND issues the order's number AND moves its status, and all of
+ *   that has to commit together — a hold that committed without the order that
+ *   explains it is stock nobody can release except by reading the ledger.
+ *
+ * ⚠️ THE MOVEMENT FIRST, THE ROW SECOND, AND BOTH IN ONE TRANSACTION. The
+ *   movement is what takes the bucket lock and refuses a hold the shelf cannot
+ *   cover — with the same 409 a dispense gets, which is the correct outcome and
+ *   not an error. Writing the row first would mean a refused movement rolled
+ *   back a row that had already been reported as created.
+ *
+ * ⚠️ AND IT DOES NOT RE-CHECK `expiresAt`. The ninety-day cap and the
+ *   "not in the past" check belong to the HTTP surface, where a human typed a
+ *   date; an internal caller computes one from a bounded contract field. Both
+ *   callers still get the same movement, the same row and the same audit line.
+ */
+export async function reserveStockIn(
+  tx: TxClient,
+  ctx: TenantContext,
+  input: ReserveStockInput,
+  options: CatalogueActionOptions = {}
+): Promise<Row> {
+  await recordMovementIn(
+    tx,
+    ctx,
+    {
+      branchId: input.branchId,
+      productId: input.productId,
+      batchId: input.batchId,
+      serialId: input.serialId,
+      movementType: 'RESERVATION',
+      quantity: input.quantityBase,
+      locationId: input.locationId,
+      statusFrom: 'AVAILABLE',
+      statusTo: 'RESERVED',
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+      reasonNote: input.notes,
+    },
+    options
+  );
+
+  const created = await tx.stockReservation.create({
+    data: {
+      organizationId: ctx.organizationId,
+      branchId: input.branchId,
+      productId: input.productId,
+      batchId: input.batchId,
+      serialId: input.serialId,
+      locationId: input.locationId,
+      quantityBase: input.quantityBase,
+      referenceType: input.referenceType,
+      referenceId: input.referenceId,
+      expiresAt: input.expiresAt,
+      notes: input.notes,
+      createdById: ctx.userId,
+    },
+    include: summaryInclude,
+  });
+
+  await recordAudit(tx, ctx, {
+    action: 'CREATE',
+    entityType: 'stock_reservation',
+    entityId: created.id,
+    branchId: input.branchId,
+    after: {
+      productId: created.productId,
+      locationId: created.locationId,
+      quantityBase: created.quantityBase.toString(),
+      expiresAt: created.expiresAt.toISOString(),
+      referenceType: created.referenceType,
+      referenceId: created.referenceId,
+    },
+    ...options,
+  });
+
+  return created;
 }
 
 /**

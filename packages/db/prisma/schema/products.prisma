@@ -306,6 +306,7 @@ model UnitOfMeasure {
   /// Pharmacy (PI-7). The unit the person at the counter thought in — twelve
   /// tablets, one bottle — before conversion to the product's base unit.
   dispenseLines       DispenseLine[]            @relation("DispenseLineUnit")
+  onlineOrderLines    OnlineOrderLine[]         @relation("OnlineOrderLineUnit")
   /// Charging (PI-8). The unit a price is PER — a clinic prices a strip, not a
   /// tablet — and the unit the invoice line's quantity is therefore expressed in.
   productPrices       ProductPrice[]            @relation("ProductPriceUnit")
@@ -742,6 +743,8 @@ model Product {
   /// that would hurt most: a notice naming another clinic's private product
   /// would read its name straight back out of the join that renders the list.
   recalls                  Recall[]                  @relation("RecallProduct")
+  /// Online pharmacy (PI-12). A plain FK, for the reason the dispense line is.
+  onlineOrderLines         OnlineOrderLine[]         @relation("OnlineOrderLineProduct")
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   /// Which specialties this product is relevant to. ⚠️ RANKS, NEVER FILTERS —

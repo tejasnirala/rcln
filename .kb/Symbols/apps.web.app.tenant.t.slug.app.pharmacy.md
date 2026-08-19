@@ -27,7 +27,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts` · `apps/w
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `linesFrom` <sub>local</sub> | `(form: FormData): DispenseLineRequest[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:173` |  |
-| `pharmacyAccess` | `(slug: string): Promise<PharmacyAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts:26` |  |
+| `pharmacyAccess` | `(slug: string): Promise<PharmacyAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts:38` |  |
 | `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): PharmacyFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:56` |  |
 
 ## var
@@ -40,7 +40,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PharmacyAccess` | `{ canRead, canVerify, canDispense, canTakeReturns, any }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts:17` |  |
+| `PharmacyAccess` | `{ canRead, canVerify, canDispense, canTakeReturns, canReadOrders, canManageOrders, canDispatchOrders, any }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts:17` |  |
 
 ## type
 

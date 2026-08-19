@@ -472,7 +472,17 @@ DECLARE
     -- at ONE site, and what the satellite pharmacy still has on its shelf is
     -- that site's stock position.
     'recalls',
-    'recall_batches'
+    'recall_batches',
+    -- ---------------------------------------------------------------------
+    -- Online pharmacy (PI-12). Three tables, ONE tenancy class — the first
+    -- phase since PI-7 whose tables all share one, and the reason is that
+    -- nothing here is configuration. PI-8, PI-9 and PI-10 each had a table
+    -- answering "how does this ORGANIZATION practise"; an order is fulfilled
+    -- from one shelf, in one jurisdiction, and the parcel leaves from that
+    -- site. All three are in the branch_scoped array below as well.
+    'online_orders',
+    'online_order_lines',
+    'online_order_shipments'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -1075,6 +1085,55 @@ CREATE POLICY unit_visible ON dispense_lines AS RESTRICTIVE
   WITH CHECK (EXISTS (
     SELECT 1 FROM units_of_measure u
     WHERE u.id = dispense_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
+-- What was ORDERED for delivery (PI-12), and what it was counted in.
+--
+-- ⚠️ ADDED AFTER THE SECURITY REVIEW, AND THE DIFF THAT SHIPPED WITHOUT THEM
+--   CARRIED A COMMENT ASSERTING THEY WERE UNNECESSARY BECAUSE "`dispense_lines`
+--   has the identical pair and the identical absence". `dispense_lines` has the
+--   pair — the three policies immediately above — added in PI-8 as a CRITICAL
+--   fix, with a note calling their earlier absence "a hole rather than a
+--   choice". The claim was false and the hole was reinstated one table over.
+--
+-- ⚠️ AND THE OTHER HALF OF THAT CLAIM — that `recall_batches.batch_id` is the
+--   precedent for omitting one — does not transfer either. `batches` is an
+--   ORG-SCOPED table: it can never hold a platform row, so there is nothing for
+--   a `*_visible` policy to distinguish. `products` and `units_of_measure` are
+--   PLATFORM-EXTENSIBLE, and that difference is the whole of KI-3.
+--
+--   Without these, a clinic attaches another clinic's PRIVATE product to its own
+--   order line — `tenant_isolation` passes, because the LINE is the attacker's —
+--   and reads the name back through the join the order screen makes. The service
+--   happens to block it today by resolving the product under RLS first; that is
+--   exactly the "the caller happens not to pass an attacker-controlled id"
+--   guarantee this layer exists to replace.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS product_visible ON online_order_lines;
+CREATE POLICY product_visible ON online_order_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = online_order_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM products p
+    WHERE p.id = online_order_lines.product_id
+      AND (p.organization_id IS NULL OR p.organization_id = app_current_org())
+  ));
+
+DROP POLICY IF EXISTS unit_visible ON online_order_lines;
+CREATE POLICY unit_visible ON online_order_lines AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = online_order_lines.unit_id
+      AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM units_of_measure u
+    WHERE u.id = online_order_lines.unit_id
       AND (u.organization_id IS NULL OR u.organization_id = app_current_org())
   ));
 
@@ -1748,7 +1807,17 @@ DECLARE
     --     lots at THEIR OWN site and no others, because the rest are invisible.
     --     That is the intended answer — they cannot reach another site's shelf
     --     physically either — and `recall.service.ts` says so in its header.
-    'recall_batches'
+    'recall_batches',
+    -- Online pharmacy (PI-12). All three, and `branch_id` is NOT NULL on every
+    -- one of them — so the `IS NULL` half below is dead code for them and the
+    -- policy is absolute, like the pharmacy seven. ⚠️ WHAT IT ACTUALLY BUYS:
+    --   an order carries a named person's HOME ADDRESS beside the medicine
+    --   going to it, which is the broadest single-row disclosure in the
+    --   product, and a member scoped to the satellite has no business reading
+    --   the main site's delivery book.
+    'online_orders',
+    'online_order_lines',
+    'online_order_shipments'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP

@@ -49,6 +49,7 @@ import {
 } from './product-catalogue.routes.js';
 import regulatoryRoutes from './regulatory.routes.js';
 import pharmacyRoutes from './pharmacy.routes.js';
+import onlineOrderRoutes from './online-pharmacy.routes.js';
 import platformRoutes from './platform.routes.js';
 import publicRoutes from './public.routes.js';
 import roleRoutes from './roles.routes.js';
@@ -260,6 +261,28 @@ router.use('/regulatory', regulatoryRoutes);
 //
 // ⚠️ A REGULATORY REFUSAL IS A 422 WITH THE RULE'S OWN SENTENCE, NEVER A 403.
 router.use('/pharmacy', pharmacyRoutes);
+
+// The same medicine, leaving in a parcel instead of into a hand (PI-12).
+//
+// ⚠️ MOUNTED AT `/online-orders` AND **NOT** UNDER `/pharmacy`, WHICH IS A
+//    DELIBERATE DEPARTURE FROM THE OBVIOUS. Everything under `/pharmacy` is
+//    gated by one of the four `pharmacy.dispense.*` codes and a unit test
+//    asserts exactly that, route by route; an order surface nested there would
+//    either break that assertion or be forced behind the dispensing codes —
+//    which would mean the person who takes orders over the telephone has to be
+//    somebody a clinic trusts to hand controlled drugs across a counter. The
+//    codes are still `pharmacy.online_order.*`: it is a pharmacy concern, and
+//    the URL is not what decides that.
+//
+// ⚠️ PACKING IS THE EXCEPTION AND IS GATED ON `pharmacy.dispense.create`,
+//    because making the parcel up IS the supply — the ledger moves, the charge
+//    request is raised, and the only difference from the counter is that the
+//    person receiving it is not in the room.
+//
+// ⚠️ EVERY READ DISCLOSES A HOME ADDRESS BESIDE A MEDICINE, which is why these
+//    reads log under their own `ONLINE_ORDER` data-access resource rather than
+//    under `PRESCRIPTION`.
+router.use('/online-orders', onlineOrderRoutes);
 
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather

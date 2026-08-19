@@ -911,7 +911,18 @@ describe('animal patients', () => {
         maxDailyDose: '500',
       });
       expect(capped.body.data.cappedBy).toBe('DAILY');
-      expect(capped.body.data.dailyDose).toBe('500.000');
+      /*
+       * ⚠️ `499.998`, NOT THE CEILING, AND THIS ASSERTION WAS LEFT STALE BY PI-11.
+       *   Its own review changed `weightBasedDose` so the reported pair always
+       *   MULTIPLIES — `dailyDose` is the ROUNDED single dose times the frequency
+       *   — precisely so a clinician is never handed "166.666 three times a day,
+       *   500.000 daily", which is two instructions that contradict each other.
+       *   The daily CAP is 500; what giving the printed dose three times actually
+       *   delivers is 499.998, and that is what the label has to say. The comment
+       *   at the foot of `weightBasedDose` names this exact number.
+       */
+      expect(capped.body.data.singleDose).toBe('166.666');
+      expect(capped.body.data.dailyDose).toBe('499.998');
     });
 
     /**
