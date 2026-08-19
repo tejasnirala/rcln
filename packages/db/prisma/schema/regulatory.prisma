@@ -142,6 +142,23 @@ enum RegulatoryRuleType {
   QUANTITY_LIMIT
   REFILL_RULE
   AGE_RESTRICTION
+  /// WHO the product may be supplied FOR — a person, or an animal of a named
+  /// species (PI-11).
+  ///
+  /// ⚠️ NOT `AGE_RESTRICTION` WITH ANOTHER PARAMETER, AND THE SPLIT IS THE
+  ///   POINT. An age limit is a fact about a human being and
+  ///   `evaluateAgeRestriction` says so out loud — it stands aside entirely when
+  ///   the subject is an animal. Folding "not for human use" into it would make
+  ///   one rule type mean two incompatible things and would put a veterinary
+  ///   prohibition behind a handler that exempts every animal from itself.
+  ///
+  /// ⚠️ AND IT IS A SUPPLY RULE, NOT A LABELLING ONE. `LABELLING_REQUIREMENT`
+  ///   already carries "Not for human use" as words that must appear on a box;
+  ///   this type is whether the transaction may happen at all. A jurisdiction
+  ///   that requires the label and does not prohibit the sale gets the first and
+  ///   not the second, which is exactly the position India is in — see
+  ///   `seed/data/regulatory-in.ts`.
+  SPECIES_RESTRICTION
   SUBSTITUTION
   ONLINE_DISPENSING
   STORAGE_REQUIREMENT

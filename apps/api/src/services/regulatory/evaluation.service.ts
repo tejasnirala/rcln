@@ -425,6 +425,18 @@ export async function evaluateWithin(
              *   the answer a missing date of birth deserves.
              */
             ...(input.patient.ageYears !== undefined ? { ageYears: input.patient.ageYears } : {}),
+            /*
+             * ⚠️ ABSENT STAYS ABSENT HERE TOO, AND FOR A SHARPER REASON (PI-11).
+             *   `SPECIES_RESTRICTION` answers `UNDETERMINED` for an animal whose
+             *   species nobody recorded — which refuses — and an empty string
+             *   arriving as a species would be compared against the rule's list,
+             *   match nothing, and REFUSE with a message claiming the animal is
+             *   the wrong species. Two different failures, and only one of them
+             *   tells the clinic what to fix.
+             */
+            ...(input.patient.species !== undefined && input.patient.species !== ''
+              ? { species: input.patient.species }
+              : {}),
           },
         }
       : {}),

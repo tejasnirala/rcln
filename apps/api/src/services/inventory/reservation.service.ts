@@ -38,6 +38,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../utils/error
 import { recordAudit } from '../audit/audit.service.js';
 import { movementDeps, recordMovementIn } from './movement.service.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 /**
  * How far ahead a reservation may be set to expire.
@@ -96,10 +97,6 @@ function toSummary(row: Row, now: Date): StockReservationSummary {
     releasedAt: row.releasedAt?.toISOString() ?? null,
     releasedByName: row.releasedBy?.fullName ?? null,
   };
-}
-
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 // ---------------------------------------------------------------------------

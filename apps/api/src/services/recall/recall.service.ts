@@ -587,8 +587,44 @@ async function holdBatchWithin(
   });
   if (!batch) throw new NotFoundError('Batch');
 
+  /*
+   * ⚠️ EVERY BUCKET HOLDING PHYSICAL STOCK, NOT JUST `AVAILABLE` (PI-11 review,
+   *   CRITICAL). This filter read `b.status === 'AVAILABLE'` while the serial
+   *   sweep forty lines below flipped `IN_STOCK` **and** `QUARANTINED` devices to
+   *   RECALLED — an asymmetry with two consequences, and the second one reaches a
+   *   patient:
+   *
+   *   1. A lot the storekeeper had already quarantined on hearing the notice —
+   *      the obvious, responsible thing to do — moved NO quantity. `held` came
+   *      back zero, so the notice recorded `NO_STOCK` and `quantity_held_base: 0`
+   *      for a lot sitting on the shelf. That is a false statement to a regulator
+   *      about the one question a recall exists to answer.
+   *
+   *   2. ⚠️ AND `RESERVED` STOCK BECAME DISPENSABLE AGAIN. The un-dispensable
+   *      guarantee is the BALANCE, not the flag — "both go through one allocator
+   *      and it reads the balance". Quantity left in `RESERVED` is released back
+   *      to `AVAILABLE` by `releaseReservation` or by the sweep, neither of which
+   *      consults the recall, and the allocator then hands it to a patient. The
+   *      batch says RECALLED the whole time and nothing reads it.
+   *
+   *   `DISPOSED` is excluded because it has already gone, `RECALLED` because it
+   *   is already there, and `IN_TRANSIT` because this programme never fills it
+   *   (PI-3 decision 1). The ledger's `stock_ledger_direction` CHECK constrains a
+   *   MOVE only to a non-null, differing pair, so every one of these is a legal
+   *   `status_from` — and `statusFrom` is passed per balance below rather than
+   *   hard-coded, which is what makes the leg say where the stock actually came
+   *   from.
+   */
+  const RECALLABLE: readonly string[] = [
+    'AVAILABLE',
+    'RESERVED',
+    'QUARANTINED',
+    'BLOCKED',
+    'DAMAGED',
+    'EXPIRED',
+  ];
   const movable = batch.balances.filter(
-    (b) => b.status === 'AVAILABLE' && b.quantity.greaterThan(0)
+    (b) => RECALLABLE.includes(b.status) && b.quantity.greaterThan(0)
   );
 
   let held = new Prisma.Decimal(0);
@@ -604,7 +640,8 @@ async function holdBatchWithin(
         movementType: 'RECALL',
         quantity: balance.quantity.toString(),
         locationId: balance.locationId,
-        statusFrom: 'AVAILABLE',
+        /* Where it actually came from — see the filter above. */
+        statusFrom: balance.status,
         statusTo: 'RECALLED',
         reasonCode: 'RECALL',
         reasonNote: note ?? recall.reason,
@@ -636,6 +673,25 @@ async function holdBatchWithin(
   await tx.serial.updateMany({
     where: { batchId: batch.id, status: { in: ['IN_STOCK', 'QUARANTINED'] } },
     data: { status: 'RECALLED' },
+  });
+
+  /*
+   * ⚠️ AND NOTHING IS SPOKEN FOR ANY MORE (PI-11 review, CRITICAL). Pulling the
+   *   `RESERVED` bucket above without closing the rows that put it there would
+   *   leave a live `stock_reservations` row whose release moves quantity out of a
+   *   bucket that no longer holds any — an orphan that fails, or worse, drives
+   *   the balance negative.
+   *
+   *   `RELEASED` rather than a new terminal state: the existing vocabulary says
+   *   exactly what happened — the hold is over and the stock went somewhere else
+   *   — and `released_by_id` is deliberately left NULL, which is how a screen
+   *   already distinguishes "a person gave it back" from "it was taken back".
+   *   The `stock_reservations_terminal_dated` CHECK wants `released_at` set with
+   *   any non-ACTIVE status, and it is.
+   */
+  await tx.stockReservation.updateMany({
+    where: { batchId: batch.id, status: 'ACTIVE' },
+    data: { status: 'RELEASED', releasedAt: new Date() },
   });
 
   await tx.batch.update({

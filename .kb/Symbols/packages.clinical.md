@@ -4,7 +4,7 @@
 
 > Parsing a whole `consultation_template_versions.definition`.
 
-Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.ts` · `packages/clinical/src/descriptors.ts` · `packages/clinical/src/index.ts` · `packages/clinical/src/regions.ts` · `packages/clinical/src/registry.ts` · `packages/clinical/src/resolve.ts` · `packages/clinical/src/types.ts` · `packages/clinical/src/validate.ts`
+Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.ts` · `packages/clinical/src/descriptors.ts` · `packages/clinical/src/dosing.ts` · `packages/clinical/src/index.ts` · `packages/clinical/src/regions.ts` · `packages/clinical/src/registry.ts` · `packages/clinical/src/resolve.ts` · `packages/clinical/src/types.ts` · `packages/clinical/src/validate.ts`
 
 ## fn
 
@@ -14,20 +14,24 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `asRecord` <sub>local</sub> | `(value: unknown, what: string): Parsed<Record<string, unknown>>` | `packages/clinical/src/descriptors.ts:47` |  |
 | `asRecord` <sub>local</sub> | `(value: unknown, what: string): Parsed<Record<string, unknown>>` | `packages/clinical/src/regions.ts:40` |  |
 | `capabilityOf` | `(type: ConsultationSectionType): SectionCapability` | `packages/clinical/src/registry.ts:201` |  |
+| `compare` <sub>local</sub> | `(a: Rational, b: Rational): -1 \| 0 \| 1` | `packages/clinical/src/dosing.ts:162` | `-1`, `0` or `1`. Cross-multiplied, so nothing is divided and nothing rounds. |
 | `documentProblems` | `(sectionKey: string, data: Readonly<Record<string, unknown>>): readonly ValidationProblem[]` | `packages/clinical/src/validate.ts:376` |  |
 | `drawableRegions` | `(map: VisualMapDocument): readonly MapRegion[]` | `packages/clinical/src/regions.ts:409` |  |
 | `encounterProblems` | `(definition: TemplateDefinition, answers: readonly SectionAnswers[]): readonly ValidationProblem[]` | `packages/clinical/src/validate.ts:221` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/definition.ts:37` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/descriptors.ts:43` |  |
 | `fail` <sub>local</sub> | `(problem: string): Parsed<T>` | `packages/clinical/src/regions.ts:36` |  |
+| `gcd` <sub>local</sub> | `(a: bigint, b: bigint): bigint` | `packages/clinical/src/dosing.ts:139` |  |
 | `isBlank` <sub>local</sub> | `(value: unknown): boolean` | `packages/clinical/src/validate.ts:49` |  |
 | `isCalendarDate` <sub>local</sub> | `(value: string): boolean` | `packages/clinical/src/validate.ts:72` |  |
 | `isInstant` <sub>local</sub> | `(value: string): boolean` | `packages/clinical/src/validate.ts:88` |  |
 | `isSectionType` | `(value: unknown): value is ConsultationSectionType` | `packages/clinical/src/registry.ts:189` | Is this string a section type the engine has a component for? |
 | `labelAnchorOf` | `(region: MapRegion): LabelAnchor \| null` | `packages/clinical/src/regions.ts:441` |  |
 | `mapCodesOf` | `(definition: TemplateDefinition): readonly string[]` | `packages/clinical/src/definition.ts:311` | Every visual-map code the definition names, once. Resolved to rows in CE-6. |
+| `multiply` <sub>local</sub> | `(a: Rational, b: Rational): Rational` | `packages/clinical/src/dosing.ts:153` |  |
 | `optionProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:130` |  |
 | `ordered` <sub>local</sub> | `(regions: readonly MapRegion[]): readonly MapRegion[]` | `packages/clinical/src/regions.ts:391` |  |
+| `parseDecimal` <sub>local</sub> | `(value: string, what: string): Parsed<Rational>` | `packages/clinical/src/dosing.ts:177` |  |
 | `parseFieldDescriptor` | `(input: unknown, where: string): Parsed<FieldDescriptor>` | `packages/clinical/src/descriptors.ts:247` |  |
 | `parseFieldDescriptors` | `(input: unknown, where: string): Parsed<readonly FieldDescriptor[]>` | `packages/clinical/src/descriptors.ts:374` |  |
 | `parseRegionGeometry` | `(metadata: unknown, where: string): Parsed<RegionGeometry \| null>` | `packages/clinical/src/regions.ts:252` | A region's `metadata`, as geometry. ⚠️ ABSENT IS LEGAL AND MALFORMED IS NOT. See the header — a quadrant has no shape and that is a statement; `{ "shape": {} }… |
@@ -37,6 +41,7 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `parseViewBox` | `(value: unknown): Parsed<ViewBox>` | `packages/clinical/src/regions.ts:172` |  |
 | `parseVisualMap` | `(input: { code: string; viewBox: unknown; regions: readonly …): Parsed<VisualMapDocument>` | `packages/clinical/src/regions.ts:330` |  |
 | `rangeProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:142` |  |
+| `rational` <sub>local</sub> | `(n: bigint, d: bigint): Rational` | `packages/clinical/src/dosing.ts:148` |  |
 | `readCodeList` <sub>local</sub> | `(raw: unknown, where: string, key: string): Parsed<readonly string[]>` | `packages/clinical/src/definition.ts:64` |  |
 | `readNumber` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string): Parsed<number>` | `packages/clinical/src/regions.ts:145` |  |
 | `readOptionalNumber` <sub>local</sub> | `(source: Record<string, unknown>, key: string, where: string, options: { integer?: boolean; min?: number; max?: number }): Parsed<number \| undefined>` | `packages/clinical/src/descriptors.ts:163` |  |
@@ -51,10 +56,12 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `scopeCodesOf` | `(definition: TemplateDefinition): readonly string[]` | `packages/clinical/src/definition.ts:302` |  |
 | `sectionTypesInDefaultOrder` | `(): readonly ConsultationSectionType[]` | `packages/clinical/src/registry.ts:206` | Every section type, in the order the default consultation renders them. |
 | `shapeProblem` <sub>local</sub> | `(field: FieldDescriptor, value: unknown): string \| null` | `packages/clinical/src/validate.ts:93` |  |
+| `toDecimal` <sub>local</sub> | `(value: Rational): { text: string; exact: boolean }` | `packages/clinical/src/dosing.ts:201` |  |
 | `validateEncounter` | `(definition: TemplateDefinition, answers: readonly SectionAnswers[]): Parsed<true>` | `packages/clinical/src/validate.ts:482` |  |
 | `validateSection` <sub>local</sub> | `(section: TemplateSection, answers: Readonly<Record<string, unknown>> \| undefined): ValidationProblem[]` | `packages/clinical/src/validate.ts:157` |  |
 | `valueProblem` <sub>local</sub> | `(value: unknown): string \| null` | `packages/clinical/src/validate.ts:335` |  |
 | `visibleSections` | `(sections: readonly TemplateSection[]): readonly TemplateSection[]` | `packages/clinical/src/registry.ts:224` |  |
+| `weightBasedDose` | `(request: DoseRequest): Parsed<DoseResult>` | `packages/clinical/src/dosing.ts:241` |  |
 
 ## const
 
@@ -65,11 +72,13 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `CONSULTATION_FIELD_TYPES` | `: readonly ConsultationFieldType[]` | `packages/clinical/src/types.ts:99` |  |
 | `CONSULTATION_SECTION_TYPES` | `: readonly ConsultationSectionType[]` | `packages/clinical/src/types.ts:53` |  |
 | `DOCUMENT_LIMITS` | `{ fieldsPerSection: MAX_FIELDS_PER_SECTION, keyLength: MAX_KEY_LENGTH, textLength: MAX_TE…` | `packages/clinical/src/validate.ts:317` |  |
+| `DOSE_SCALE` | `3` | `packages/clinical/src/dosing.ts:60` |  |
 | `ESSENTIAL_KEY` <sub>local</sub> | `: Readonly<Record<ConsultationFieldType, string \| null>>` | `packages/clinical/src/descriptors.ts:103` | The key a type is MEANINGLESS without. `null` = the type is complete on its own, which is a statement rather than an omission. |
 | `KEY_PATTERN` <sub>local</sub> | `/^[a-z][a-z0-9_]*$/` | `packages/clinical/src/definition.ts:41` |  |
 | `KEY_PATTERN` <sub>local</sub> | `/^[a-z][a-z0-9_]*$/` | `packages/clinical/src/descriptors.ts:60` |  |
 | `MAX_DOCUMENT_BYTES` <sub>local</sub> | `64 * 1024` | `packages/clinical/src/validate.ts:297` |  |
 | `MAX_FIELDS_PER_SECTION` <sub>local</sub> | `200` | `packages/clinical/src/validate.ts:293` |  |
+| `MAX_INPUT_SCALE` <sub>local</sub> | `6` | `packages/clinical/src/dosing.ts:75` |  |
 | `MAX_KEY_LENGTH` <sub>local</sub> | `64` | `packages/clinical/src/validate.ts:294` |  |
 | `MAX_LIST_ENTRIES` <sub>local</sub> | `200` | `packages/clinical/src/validate.ts:296` |  |
 | `MAX_REPORTED_PROBLEMS` <sub>local</sub> | `20` | `packages/clinical/src/validate.ts:325` | How many problems one document reports before it stops counting. See below. |
@@ -79,6 +88,7 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `REGISTRY` <sub>local</sub> | `: Readonly<Record<ConsultationSectionType, SectionCapability>>` | `packages/clinical/src/registry.ts:50` |  |
 | `SECTION_KEYS` <sub>local</sub> | `: readonly string[]` | `packages/clinical/src/definition.ts:52` |  |
 | `TYPE_KEYS` <sub>local</sub> | `: Readonly<Record<ConsultationFieldType, readonly string[]>>` | `packages/clinical/src/descriptors.ts:80` |  |
+| `UNSIGNED_DECIMAL` <sub>local</sub> | `/^(\d+)(?:\.(\d+))?$/` | `packages/clinical/src/dosing.ts:63` | Digits, optionally with a decimal part. No sign: nothing here may be negative. |
 | `VOCABULARY_KINDS` <sub>local</sub> | `: readonly ClinicalVocabularyKind[]` | `packages/clinical/src/descriptors.ts:62` |  |
 
 ## var
@@ -92,11 +102,14 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `CircleShape` | `{ kind, cx, cy, r }` | `packages/clinical/src/regions.ts:83` |  |
+| `DoseRequest` | `{ weightKg, dosePerKg, dosesPerDay, maxSingleDose, maxDailyDose }` | `packages/clinical/src/dosing.ts:83` |  |
+| `DoseResult` | `{ singleDose, dailyDose, cappedBy, exact }` | `packages/clinical/src/dosing.ts:113` |  |
 | `FieldDescriptor` | `{ key, type, label, required, hint, placeholder, options, unit, precision, min, max, maxLength, masterKind, source }` | `packages/clinical/src/types.ts:130` |  |
 | `FieldOption` | `{ value, label }` | `packages/clinical/src/types.ts:116` | One choice in a SELECT, MULTI_SELECT, RADIO_GROUP or CHECKBOX_GROUP. |
 | `LabelAnchor` | `{ x, y }` | `packages/clinical/src/regions.ts:108` | Where a region's label sits, if the map says. Defaults to the shape's centre. |
 | `MapRegion` | `{ id, code, label, parentId, displayOrder, geometry }` | `packages/clinical/src/regions.ts:120` | One region of a map, after parsing. |
 | `PathShape` | `{ kind, d }` | `packages/clinical/src/regions.ts:100` |  |
+| `Rational` <sub>local</sub> | `{ n, d }` | `packages/clinical/src/dosing.ts:78` | An exact non-negative rational. Always reduced, denominator always positive. |
 | `RectShape` | `{ kind, x, y, width, height, radius }` | `packages/clinical/src/regions.ts:73` | A rounded rectangle. The odontogram's tooth. |
 | `RegionGeometry` | `{ shape, label }` | `packages/clinical/src/regions.ts:114` | A region's geometry document, parsed. |
 | `RegionGroup` | `{ region, children }` | `packages/clinical/src/regions.ts:138` | A region and the regions grouped under it. One level, which is all any map has. |
@@ -119,6 +132,7 @@ Files: `packages/clinical/jest.config.ts` · `packages/clinical/src/definition.t
 | `ClinicalVocabularyKind` | `\| 'SYMPTOM' \| 'DIAGNOSIS' \| 'PROCEDURE' \| 'INVESTIGATION' \| 'ADVICE' \| 'HISTORY_ITEM' \| 'FINDING_TYPE'` | `packages/clinical/src/types.ts:71` | The clinical vocabulary a section draws on. Mirrors `ClinicalMasterKind`. |
 | `ConsultationFieldType` | `\| 'TEXT' \| 'TEXTAREA' \| 'NUMBER' \| 'SELECT' \| 'MULTI_SELECT' \| 'RADIO_GROUP' \| 'CHECKBOX_GROUP' \| 'BOOLEAN' \| 'DATE' \| 'DATETIME' \| 'MEASUREMENT' \| 'SEARCH_SEL…` | `packages/clinical/src/types.ts:84` | What `FieldRenderer` can render, and therefore what a descriptor may claim to be. A field type the renderer has no component for is a rejected descriptor. |
 | `ConsultationSectionType` | `\| 'CHIEF_COMPLAINT' \| 'SYMPTOMS' \| 'HISTORY' \| 'EXAMINATION' \| 'VISUAL_MAPPING' \| 'DIAGNOSIS' \| 'PROCEDURE' \| 'PRESCRIPTION' \| 'INVESTIGATION' \| 'ADVICE' \| 'RE…` | `packages/clinical/src/types.ts:37` |  |
+| `DoseCap` | `'SINGLE' \| 'DAILY'` | `packages/clinical/src/dosing.ts:111` | Which ceiling bound the answer, when one did. |
 | `Parsed` | `{ readonly ok: true; readonly value: T } \| { readonly ok: false; readonly problem: string }` | `packages/clinical/src/types.ts:203` |  |
 | `RegionShape` | `RectShape \| CircleShape \| PathShape` | `packages/clinical/src/regions.ts:105` |  |
 | `RegionShapeKind` | `'RECT' \| 'CIRCLE' \| 'PATH'` | `packages/clinical/src/regions.ts:68` |  |

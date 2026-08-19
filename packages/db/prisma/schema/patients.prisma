@@ -344,7 +344,14 @@ model PatientContact {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  /// The animals this person brings in (PI-11). Almost always none, and never
+  /// more than a handful — a household with three dogs is three rows.
+  animalProfiles AnimalProfile[]
 
+  /// Composite-FK target. `animal_profiles.guardian_contact_id` points at
+  /// (organization_id, id) so an animal can never name another tenant's owner
+  /// (ADR-0004). Added by PI-11.
+  @@unique([organizationId, id])
   @@index([organizationId, patientId])
   @@map("patient_contacts")
 }

@@ -235,6 +235,8 @@ export async function getPharmacyPrescription(
             uhid: true,
             dateOfBirth: true,
             subjectType: true,
+            /* Null for every human on the platform — see the model comment. */
+            animalProfile: { select: { species: true } },
           },
         },
         doctorProfile: {
@@ -356,6 +358,7 @@ export async function getPharmacyPrescription(
       patientUhid: encounter.patient.uhid,
       patientAgeYears: ageYearsOn(encounter.patient.dateOfBirth, new Date()) ?? null,
       patientSubjectType: encounter.patient.subjectType,
+      patientSpecies: encounter.patient.animalProfile?.species ?? null,
       prescriberName: prescriber?.fullName ?? null,
       prescriberRegistrationNumber: encounter.doctorProfile?.registrationNumber ?? null,
       /*

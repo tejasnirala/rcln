@@ -24,6 +24,13 @@ export const logger = pino({
       // into. Not PHI by design, but not something to keep in log storage.
       'req.body.contactName',
       'req.body.message',
+      // The animal's owner (PI-11). A person's name and mobile number, on the
+      // animal-profile body. Defensive in the same way every entry above it is:
+      // `pino-http` runs with the default serializers, which log method, url and
+      // headers and never `req.body` at all — so nothing reaches this today, and
+      // the day a serializer changes is not the day to start writing the list.
+      'req.body.guardianName',
+      'req.body.guardianPhone',
       // Registration nests the owner's credentials one level down. pino's redact
       // paths are literal, not recursive: 'req.body.password' does NOT cover
       // 'req.body.owner.password', so the whole signup payload would otherwise

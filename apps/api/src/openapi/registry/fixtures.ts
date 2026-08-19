@@ -47,6 +47,18 @@ export const PHARMACIST_MEMBERSHIP_ID = 'a9e3f570-6b12-4c84-8d95-1e4b8c0d7a63';
 export const PATIENT_ID = '6d1e4b82-3f70-4a5c-9d18-2e7b0c9a4f63';
 /** Meera Pillai — a SECOND patient, for list examples and duplicate matching. */
 export const PATIENT_TWO_ID = 'b93f2c05-8a41-4e6d-97b2-0f5a1d3c8e74';
+/**
+ * Kaapi — Ravi's dog, and the document's one ANIMAL patient (PI-11).
+ *
+ * ⚠️ A `patients` ROW LIKE ANY OTHER, WITH `subjectType: 'ANIMAL'`. There is no
+ *   parallel model for animals (ADR-0017), and the reference has to show that
+ *   rather than describe it: the same UHID series, the same registration, the
+ *   same chart.
+ */
+export const PATIENT_ANIMAL_ID = 'c5e21b74-9a30-4d68-8f52-1b7e0c4a3d96';
+/** Ravi, as the OWNER on Kaapi's record — a `patient_contacts` row, per ADR-0017. */
+export const ANIMAL_GUARDIAN_CONTACT_ID = '9b4e70c2-6d15-4a83-9e07-2f8c5b1a3d64';
+export const ANIMAL_PROFILE_ID = '4d8f2a61-0c93-4b57-8e14-6a2d9f0b7c35';
 
 export const APPOINTMENT_ID = '4e7b1a93-2c58-4f06-b9d4-8a3e5c1f7b20';
 export const ENCOUNTER_ID = '9c2f6d18-7a43-4e95-8b01-3d6a2e9f4c57';
@@ -178,6 +190,7 @@ export const DOCTOR = {
 export const PATIENT = {
   id: PATIENT_ID,
   uhid: 'ALP-000241',
+  subjectType: 'HUMAN',
   fullName: 'Ravi Subramanian',
   firstName: 'Ravi',
   lastName: 'Subramanian',
@@ -216,6 +229,78 @@ export const PATIENT_TWO = {
   email: 'lakshmi.p@example.in',
   maritalStatus: 'SINGLE',
   mrn: 'IND-1102',
+} as const;
+
+/**
+ * Kaapi — the one ANIMAL patient in the reference (PI-11).
+ *
+ * ⚠️ THE HUMAN FIELDS ARE STILL HERE AND STILL MEAN SOMETHING, WHICH IS THE
+ *   WHOLE POINT OF ADR-0017. `gender` is the animal's sex, `dateOfBirth` is when
+ *   it was born, `phone` is null because a dog does not have one, and the OWNER
+ *   is a `patient_contacts` row rather than a column. Nothing here is a parallel
+ *   model; it is one `patients` row with `subjectType: 'ANIMAL'` and an
+ *   extension row hanging off it.
+ */
+export const PATIENT_ANIMAL = {
+  id: PATIENT_ANIMAL_ID,
+  uhid: 'ALP-000402',
+  subjectType: 'ANIMAL',
+  fullName: 'Kaapi Subramanian',
+  firstName: 'Kaapi',
+  lastName: 'Subramanian',
+  gender: 'MALE',
+  age: 3,
+  ageIsApproximate: false,
+  dateOfBirth: '2023-05-20',
+  approxAgeYears: null,
+  bloodGroup: 'UNKNOWN',
+  phone: null,
+  email: null,
+  abhaNumber: null,
+  nationalId: null,
+  nationalIdType: null,
+  maritalStatus: 'UNKNOWN',
+  status: 'ACTIVE',
+  deceasedOn: null,
+  mergedIntoId: null,
+  mrn: 'IND-1178',
+  branchId: BRANCH_ID,
+  crossBranch: false,
+} as const;
+
+/** Ravi, as the owner on Kaapi's record. The `patient_contacts` row ADR-0017 means. */
+export const ANIMAL_GUARDIAN_CONTACT = {
+  id: ANIMAL_GUARDIAN_CONTACT_ID,
+  relation: 'Owner',
+  name: 'Ravi Subramanian',
+  phone: '+919845067890',
+  email: 'ravi.s@example.in',
+  isEmergency: true,
+  isGuardian: true,
+} as const;
+
+/**
+ * ⚠️ `weightKg` IS A STRING AND THE EXAMPLE SAYS SO ON PURPOSE. `Decimal(8,3)`
+ *   does not survive a JSON number, and this is the value a dose is multiplied
+ *   by — a consumer that writes `weightKg * dosePerKg` against a number in the
+ *   reference has been told the wrong thing about the wire.
+ *
+ * ⚠️ AND IT IS `"18.4"`, NOT `"18.400"`. Every decimal on this platform's wire
+ *   goes through `decimalToString`, which preserves every significant digit and
+ *   does NOT pad to the column's scale. The computed dose fields DO pad, because
+ *   they are reported at a declared precision rather than echoed from a column —
+ *   an example showing both padded would be quietly wrong about one of them.
+ */
+export const ANIMAL_PROFILE = {
+  id: ANIMAL_PROFILE_ID,
+  species: 'Dog',
+  breed: 'Indie',
+  weightKg: '18.4',
+  weightRecordedOn: '2026-03-02',
+  weightIsStale: false,
+  guardianContactId: ANIMAL_GUARDIAN_CONTACT_ID,
+  guardianName: 'Ravi Subramanian',
+  guardianPhone: '+919845067890',
 } as const;
 
 /* ────────────────────────── catalogue and stock ────────────────────────── */

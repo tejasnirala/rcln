@@ -440,14 +440,16 @@ model ClinicalEpisode {
   @@map("clinical_episodes")
 }
 
-/// Species, breed and weight, when the patient is not a person (CD-4).
+/// Species, breed and weight, when the patient is not a person (CD-4, PI-11).
 ///
-/// ⚠️ DELIBERATELY THIN, AND DELIBERATELY NOT ON `patients`. §42.7 forbids
-///   building veterinary functionality now; §4 asks only that the architecture
-///   stop assuming humans. Six nullable columns on `patients` that are NULL for
+/// ⚠️ DELIBERATELY THIN, AND DELIBERATELY NOT ON `patients`. CD-4 landed the
+///   table empty and unreachable; §4 asked only that the architecture stop
+///   assuming humans. Six nullable columns on `patients` that are NULL for
 ///   every row in every clinic on the platform would be the wrong trade — this
-///   table exists, has no rows, and costs a join that only a veterinary practice
-///   ever pays for.
+///   table costs a join that only a veterinary practice ever pays for.
+///
+///   PI-11 is what makes it reachable. It stayed thin: three columns were added
+///   and no clinical model was invented.
 ///
 ///   `weightKg` is here rather than on the encounter on purpose: it is the
 ///   animal's current recorded weight for the record, NOT the observation taken
@@ -463,21 +465,57 @@ model AnimalProfile {
   species        String?  @db.VarChar(64)
   breed          String?  @db.VarChar(128)
   /// Recorded weight in kilograms. ⚠️ Decimal, never a float — a dose is
-  /// calculated from it.
+  /// calculated from it, in `@rcln/clinical`'s `weightBasedDose`.
   weightKg       Decimal? @map("weight_kg") @db.Decimal(8, 3)
+  /// The day `weight_kg` was put on the scales (PI-11).
+  ///
+  /// ⚠️ THE COLUMN EXISTS BECAUSE A WEIGHT WITH NO DATE IS A DOSING HAZARD. A
+  ///   puppy weighed at eight weeks and dosed at eight months is the error this
+  ///   whole table exists to avoid, and a bare `weight_kg` cannot distinguish
+  ///   "weighed this morning" from "weighed in 2023". `updated_at` is not an
+  ///   answer: correcting a spelling of the breed moves it.
+  ///
+  ///   It is a DATE, not a timestamp, for the reason `patients.deceased_on` is:
+  ///   the hour an animal was weighed changes no decision.
+  ///
+  /// ⚠️ THE WEIGHT AND THIS DATE ARE ONE ANSWER, AND A CHECK CONSTRAINT SAYS SO:
+  ///   `animal_profiles_weight_and_date_together` requires both or neither. The
+  ///   first version of it guarded only a date with no weight and let a weight
+  ///   with no date through — which is the hazard, not the harmless half — and
+  ///   `..091000_animal_weight_needs_its_date` replaced it.
+  weightRecordedOn DateTime? @map("weight_recorded_on") @db.Date
   /// Who brings the animal in and is billed. NOT a `patients` row: the guardian
   /// is not the patient, and making them one would put a human's identity on an
   /// animal's chart.
+  ///
+  /// ⚠️ THE TWO FREE-TEXT COLUMNS ARE THE FALLBACK, NOT THE MODEL (PI-11).
+  ///   ADR-0017 says the owner is an existing contact, and `guardianContactId`
+  ///   below is that. These stay for the walk-in whose owner has not been
+  ///   recorded as a `patient_contacts` row yet, and the service refuses to let
+  ///   both a contact and a name be set at once — two spellings of one owner is
+  ///   how a recall notice gets posted to the wrong address.
   guardianName   String?  @map("guardian_name") @db.VarChar(255)
   guardianPhone  String?  @map("guardian_phone") @db.VarChar(20)
+  /// The owner, as a row rather than as two strings (PI-11, ADR-0017).
+  ///
+  /// ⚠️ A `patient_contacts` ROW OF THIS SAME ANIMAL, composite-FK'd on
+  ///   (organization_id, id) so it can never name another tenant's contact
+  ///   (ADR-0004). The service additionally checks the contact belongs to THIS
+  ///   patient — the composite FK constrains the tenant, not the parent, and
+  ///   naming some other animal's owner is representable without that check.
+  ///
+  /// `SetNull`: deleting the contact row must not delete the animal.
+  guardianContactId String? @map("guardian_contact_id") @db.Uuid
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  guardianContact PatientContact? @relation(fields: [organizationId, guardianContactId], references: [organizationId, id], onDelete: SetNull)
 
   @@unique([organizationId, patientId])
+  @@index([organizationId, guardianContactId])
   @@map("animal_profiles")
 }
 

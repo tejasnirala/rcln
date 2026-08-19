@@ -18,6 +18,7 @@
  */
 import { z } from 'zod';
 import { uuid } from './common.js';
+import { careSubjectType } from './clinical.js';
 import { isValidNationalId, nationalIdFormatFor } from './locale.js';
 
 /** `YYYY-MM-DD`, a calendar date in the branch's timezone. */
@@ -93,7 +94,18 @@ const abhaNumber = z
  * number is a collision waiting for the second front desk to open.
  */
 const patientIdentityFields = {
-  firstName: z.string().min(1).max(100).trim(),
+  /*
+   * ⚠️ `.trim()` COMES BEFORE `.min(1)`, AND THE ORDER IS THE CHECK. Zod runs
+   *   checks in declaration order and a transform does not re-run the ones
+   *   before it, so `z.string().min(1).max(100).trim()` accepts `"   "` and
+   *   hands back `""` — a required field satisfied by whitespace. Verified
+   *   against the pinned zod: `.min(1).max(64).trim().safeParse('   ')` is
+   *   `{ success: true, data: '' }`.
+   *
+   *   Every `.trim()` in this file is ordered this way for that reason (PI-11
+   *   review). It is not a style preference and it is not safe to "tidy" back.
+   */
+  firstName: z.string().trim().min(1).max(100),
   lastName: z.string().max(100).trim().optional(),
   /** Mutually exclusive with `approxAgeYears` — see the refinement below. */
   dateOfBirth: calendarDate.optional(),
@@ -129,6 +141,21 @@ const patientIdentityFields = {
   nationalIdType: z.string().max(32).trim().toUpperCase().optional(),
   maritalStatus: maritalStatus.default('UNKNOWN'),
 };
+
+/**
+ * Whether the record is a person or an animal (PI-11).
+ *
+ * ⚠️ ON THE CREATE CONTRACT ONLY, AND DELIBERATELY ABSENT FROM THE UPDATE ONE.
+ *   A patient does not change species. What `subject_type` actually governs is
+ *   which care-context ROOT the consultation engine resolves — so flipping it on
+ *   a record that already has encounters against it would leave a chart written
+ *   under one taxonomy being read under another, and would orphan the
+ *   `animal_profiles` row without deleting it. A record registered as the wrong
+ *   kind is a merge, not an edit.
+ *
+ * Defaults to HUMAN, so every existing caller is unchanged.
+ */
+const subjectTypeField = { subjectType: careSubjectType.default('HUMAN') };
 
 /**
  * Two sources for one age is how a paediatric dose gets computed from the stale
@@ -193,7 +220,7 @@ function refineNationalId(
 
 export const patientAddressRequest = z.object({
   addressType: z.enum(['HOME', 'WORK', 'OTHER']).default('HOME'),
-  line1: z.string().min(1).max(255).trim(),
+  line1: z.string().trim().min(1).max(255),
   line2: z.string().max(255).trim().optional(),
   city: z.string().max(100).trim().optional(),
   state: z.string().max(100).trim().optional(),
@@ -231,10 +258,135 @@ export const commonContactRelations = [
   'Employer',
 ] as const;
 
+/**
+ * A weight in kilograms, as a decimal string.
+ *
+ * ⚠️ A STRING AND NOT A NUMBER, ALL THE WAY DOWN. `animal_profiles.weight_kg` is
+ *   `Decimal(8,3)` and a JSON number is a double — 3.2 kg does not survive the
+ *   round trip as 3.2, and this is the value a dose is multiplied by. The same
+ *   call `decimalString` in `products.ts` makes about a pack size, for a reason
+ *   with more at stake.
+ *
+ * Up to five whole digits and three decimals, matching the column. Zero is
+ * refused: an animal that weighs nothing has not been weighed.
+ */
+const weightKg = z
+  .string()
+  .trim()
+  .regex(/^\d{1,5}(\.\d{1,3})?$/, 'expected a weight in kilograms, e.g. 3.200')
+  .refine((value) => Number.parseFloat(value) > 0, 'a weight must be greater than zero');
+
+/**
+ * The animal behind an `ANIMAL` patient record (PI-11, ADR-0017).
+ *
+ * ⚠️ EVERY FIELD IS OPTIONAL, INCLUDING THE SPECIES, AND THAT IS NOT LAZINESS.
+ *   A cat arrives at a veterinary clinic already ill and the owner does not know
+ *   the breed, has not weighed it, and is not the registered owner. Refusing the
+ *   registration until all of that is known is how the animal gets no record at
+ *   all — the same argument `patients.date_of_birth` records about a fabricated
+ *   1st-January birthday. What is NOT optional is that anything recorded is
+ *   recorded honestly, which is what the refinements below enforce.
+ */
+export const animalProfileRequest = z
+  .object({
+    /** Free text. A clinic that treats a tortoise must not need a migration. */
+    species: z.string().trim().min(1).max(64).optional(),
+    breed: z.string().trim().min(1).max(128).optional(),
+    weightKg: weightKg.optional(),
+    /**
+     * The day the animal was put on the scales.
+     *
+     * ⚠️ REQUIRED WHENEVER A WEIGHT IS GIVEN, and mirrored by the
+     *   `animal_profiles_weight_date_needs_weight` CHECK. A weight with no date
+     *   is a dosing hazard: a puppy weighed at eight weeks and dosed at eight
+     *   months is the error the calculator exists to make visible, and it cannot
+     *   see it without this.
+     */
+    weightRecordedOn: calendarDate
+      /*
+       * ⚠️ NOT IN THE FUTURE, AND THIS IS A SAFETY CHECK RATHER THAN TIDINESS
+       *   (PI-11 review). `2027-03-02` typed for `2026-03-02` makes the
+       *   staleness calculation negative, which sits below every threshold — so
+       *   the weight would read as fresh forever and the one signal this feature
+       *   exists to raise would be switched off for that animal until somebody
+       *   re-weighed it.
+       *
+       *   Compared in UTC against the server's day. A clinic a day ahead of UTC
+       *   could in principle be refused its own "today" for a few hours; that is
+       *   the safe direction, and the alternative — a branch timezone this
+       *   contract does not have — is not available here.
+       */
+      .refine(
+        (value) => value <= new Date().toISOString().slice(0, 10),
+        'a weigh-in cannot be in the future'
+      )
+      .optional(),
+    /**
+     * The owner, as an existing `patient_contacts` row on this same animal.
+     *
+     * ADR-0017's "the owner is an existing contact". Mutually exclusive with the
+     * two free-text fields below, mirroring the
+     * `animal_profiles_one_guardian_form` CHECK.
+     */
+    guardianContactId: uuid.optional(),
+    /** The owner as written on a scrap of paper, when no contact row exists. */
+    guardianName: z.string().trim().min(1).max(255).optional(),
+    guardianPhone: contactPhone.optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.weightKg !== undefined && v.weightRecordedOn === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['weightRecordedOn'],
+        message: 'say when the animal was weighed — a weight with no date cannot be dosed from',
+      });
+    }
+    if (v.weightRecordedOn !== undefined && v.weightKg === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['weightKg'],
+        message: 'enter the weight, or clear the date',
+      });
+    }
+    /*
+     * Two spellings of one owner is how a recall notice gets posted to the wrong
+     * address. The contact row is the better answer, so the free text is what
+     * gives way — but the message says so rather than silently dropping it.
+     */
+    if (v.guardianContactId !== undefined && (v.guardianName ?? v.guardianPhone) !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['guardianName'],
+        message: 'the owner is either a contact on this record or a typed name, not both',
+      });
+    }
+  });
+
+/**
+ * An animal profile on a human record, and a human record with none.
+ *
+ * The first is refused for the reason given on `createPatientRequest`. The
+ * second is PERMITTED — an animal registered in a hurry with nothing known about
+ * it yet is a real and common state, and the profile is filled in later through
+ * `PUT /patients/{patientId}/animal-profile`.
+ */
+function refineSubject(
+  v: { subjectType?: string | undefined; animalProfile?: unknown },
+  ctx: z.RefinementCtx
+): void {
+  if (v.animalProfile !== undefined && v.subjectType !== 'ANIMAL') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['animalProfile'],
+      message: 'only an animal patient has an animal profile',
+    });
+  }
+}
+
 export const patientContactRequest = z.object({
   /** Free text — a closed enum of family relations is a cultural assumption. */
-  relation: z.string().min(1).max(64).trim(),
-  name: z.string().min(1).max(255).trim(),
+  relation: z.string().trim().min(1).max(64),
+  name: z.string().trim().min(1).max(255),
   phone: contactPhone,
   email: z.email().max(255).toLowerCase().optional(),
   isEmergency: z.boolean().default(false),
@@ -253,12 +405,24 @@ export const patientContactRequest = z.object({
 export const createPatientRequest = z
   .object({
     ...patientIdentityFields,
+    ...subjectTypeField,
     branchId: uuid,
     address: patientAddressRequest.optional(),
     contacts: z.array(patientContactRequest).max(5).default([]),
+    /**
+     * Species, breed, weight and owner, when the patient is an animal (PI-11).
+     *
+     * ⚠️ REFUSED ALONGSIDE `subjectType: 'HUMAN'`, in the refinement below. An
+     *   animal profile on a human record is not merely untidy: `animal_profiles`
+     *   is a LEFT join the dispensing path reads a species out of, and a row
+     *   sitting under a human patient would feed a species to a
+     *   `SPECIES_RESTRICTION` rule about a person.
+     */
+    animalProfile: animalProfileRequest.optional(),
   })
   .superRefine(refineAge)
-  .superRefine(refineNationalId);
+  .superRefine(refineNationalId)
+  .superRefine(refineSubject);
 
 /**
  * `branchId` is absent: moving a patient between branches is a registration,
@@ -294,7 +458,7 @@ export const registerPatientAtBranchRequest = z.object({
  * created (ADR-0016) — and every widened search is logged as such.
  */
 export const searchPatientQuery = z.object({
-  q: z.string().min(2).max(100).trim().optional(),
+  q: z.string().trim().min(2).max(100).optional(),
   scope: z.enum(['BRANCH', 'ORGANIZATION']).default('BRANCH'),
   status: z.enum(patientStatusValues).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -307,7 +471,7 @@ export const searchPatientQuery = z.object({
 
 export const patientAllergyRequest = z.object({
   allergenType: z.enum(['DRUG', 'FOOD', 'ENVIRONMENT', 'OTHER']).default('DRUG'),
-  allergenText: z.string().min(1).max(255).trim(),
+  allergenText: z.string().trim().min(1).max(255),
   severity: z.enum(['MILD', 'MODERATE', 'SEVERE']).default('MODERATE'),
   reaction: z.string().max(255).trim().optional(),
   notedOn: calendarDate.optional(),
@@ -315,7 +479,7 @@ export const patientAllergyRequest = z.object({
 
 export const patientConditionRequest = z
   .object({
-    conditionText: z.string().min(1).max(255).trim(),
+    conditionText: z.string().trim().min(1).max(255),
     status: z.enum(['ACTIVE', 'RESOLVED', 'CHRONIC']).default('ACTIVE'),
     onsetDate: calendarDate.optional(),
     resolvedDate: calendarDate.optional(),
@@ -346,7 +510,7 @@ export const patientConditionRequest = z
 
 export const patientMedicationRequest = z
   .object({
-    medicineText: z.string().min(1).max(255).trim(),
+    medicineText: z.string().trim().min(1).max(255),
     /** "500mg twice daily after food" — one string, transcribed as written. */
     dosage: z.string().max(255).trim().optional(),
     startedOn: calendarDate.optional(),
@@ -405,6 +569,38 @@ export const patientContactDetail = z.object({
   isGuardian: z.boolean(),
 });
 
+/**
+ * The animal behind an `ANIMAL` record, as it comes back.
+ *
+ * ⚠️ THE OWNER IS RESOLVED TO A NAME AND A PHONE WHATEVER FORM IT IS STORED IN.
+ *   A screen must not have to know whether this clinic recorded the owner as a
+ *   contact row or as free text — it renders `guardianName` and `guardianPhone`
+ *   either way, and `guardianContactId` tells it whether there is a contact to
+ *   link to. Making the caller branch on that is how one of the two forms ends
+ *   up never being rendered.
+ */
+export const animalProfileDetail = z.object({
+  id: uuid,
+  species: z.string().nullable(),
+  breed: z.string().nullable(),
+  /** ⚠️ A decimal STRING. See `weightKg` on the request. */
+  weightKg: z.string().nullable(),
+  weightRecordedOn: z.string().nullable(),
+  /**
+   * True when the recorded weight is old enough that it should be checked before
+   * anything is dosed from it, or when there is a weight and no date at all.
+   *
+   * ⚠️ COMPUTED SERVER-SIDE AGAINST THE BRANCH'S DAY, NOT IN THE BROWSER. A
+   *   staleness threshold evaluated against the viewer's clock is a different
+   *   answer in a different timezone, and this one is safety-relevant.
+   */
+  weightIsStale: z.boolean(),
+  /** Set when the owner is a contact row on this record. Null when typed. */
+  guardianContactId: uuid.nullable(),
+  guardianName: z.string().nullable(),
+  guardianPhone: z.string().nullable(),
+});
+
 export const patientAllergyDetail = z.object({
   id: uuid,
   allergenType: z.enum(['DRUG', 'FOOD', 'ENVIRONMENT', 'OTHER']),
@@ -447,6 +643,13 @@ export const patientSummary = z.object({
   id: uuid,
   uhid: z.string(),
   fullName: z.string(),
+  /**
+   * Person or animal (PI-11). On the SUMMARY as well as the detail, because a
+   * list that renders an animal exactly like a person is a list a receptionist
+   * reads the wrong row off — and because `gender` and `age` mean something
+   * different on each.
+   */
+  subjectType: careSubjectType,
   gender: gender,
   /** Whole years, from `dateOfBirth` if known, else the stated approximation. */
   age: z.number().int().nullable(),
@@ -482,6 +685,17 @@ export const patientDetail = patientSummary.extend({
   registrations: z.array(patientRegistrationDetail),
   addresses: z.array(patientAddressDetail),
   contacts: z.array(patientContactDetail),
+  /**
+   * Present only when `subjectType` is `ANIMAL`, and null even then until
+   * somebody fills it in (PI-11).
+   *
+   * ⚠️ ON THE IDENTITY RESPONSE AND NOT BEHIND `patient.medical_history.read`.
+   *   Species, breed and owner are how the front desk identifies the right
+   *   animal at a counter — the same job `phone` does for a person — and the
+   *   weight is a measurement, not a diagnosis. What IS behind the history
+   *   permission is everything on `patientHistoryResponse`, unchanged.
+   */
+  animalProfile: animalProfileDetail.nullable(),
 });
 
 /**
@@ -533,6 +747,88 @@ export const patientDuplicateResponse = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Weight-based dosing (PI-11)
+// ---------------------------------------------------------------------------
+
+/** A dose amount, as a decimal string. See `weightKg` for why it is not a number. */
+const doseAmount = z
+  .string()
+  .trim()
+  .regex(/^\d{1,9}(\.\d{1,6})?$/, 'expected an amount, e.g. 15.5')
+  .refine((value) => Number.parseFloat(value) > 0, 'an amount must be greater than zero');
+
+/**
+ * "How much of this do I give a 3.2 kg cat?"
+ *
+ * ⚠️ THE WEIGHT IS NOT ON THIS REQUEST, AND ITS ABSENCE IS THE POINT OF THE
+ *   ENDPOINT. The server reads it off `animal_profiles`, so the answer is
+ *   computed from the weight in the RECORD rather than from a number retyped at
+ *   a keyboard — and the response says how old that weight is. A calculator that
+ *   accepted a weight would be a calculator anybody could run in their head, and
+ *   would lose the one safety property this one has.
+ *
+ * ⚠️ AND EVERY OTHER NUMBER HERE COMES FROM THE CLINICIAN READING A LABEL. The
+ *   platform holds no formulary and originates no mg/kg figure — see the header
+ *   of `@rcln/clinical`'s `dosing.ts`. This endpoint multiplies; it does not
+ *   recommend.
+ */
+export const doseCalculationRequest = z
+  .object({
+    /** How much per kilogram, per single administration. */
+    dosePerKg: doseAmount,
+    /**
+     * What the amounts are in — `mg`, `ml`, `IU`. Echoed back verbatim and never
+     * converted: this endpoint does no unit algebra, and a caller that mixes mg
+     * and ml across the fields below gets an answer in a unit of their own
+     * invention. `@rcln/inventory`'s conversion engine is the place for that, and
+     * a dose is not a stock quantity.
+     */
+    unit: z.string().trim().min(1).max(16),
+    /** Omit to ask only for the single dose; the daily total then comes back null. */
+    dosesPerDay: z.number().int().min(1).max(24).optional(),
+    /** The label's ceiling on one dose, where it states one. */
+    maxSingleDose: doseAmount.optional(),
+    /** The label's ceiling on a day's total. Requires `dosesPerDay`. */
+    maxDailyDose: doseAmount.optional(),
+  })
+  .superRefine((v, ctx) => {
+    /*
+     * Mirrors the same refusal in `weightBasedDose`, so the error names a field
+     * instead of arriving as a sentence from a package. A stated cap that
+     * nothing can evaluate is an error, never a cap quietly ignored.
+     */
+    if (v.maxDailyDose !== undefined && v.dosesPerDay === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['dosesPerDay'],
+        message: 'a daily maximum needs the number of doses a day',
+      });
+    }
+  });
+
+export const doseCalculationResponse = z.object({
+  /** The weight the answer was computed from, straight off the record. */
+  weightKg: z.string(),
+  weightRecordedOn: z.string().nullable(),
+  /** ⚠️ True means CHECK THE WEIGHT, not "this answer is wrong". */
+  weightIsStale: z.boolean(),
+  unit: z.string(),
+  /** One administration, to three decimal places. */
+  singleDose: z.string(),
+  /** `singleDose × dosesPerDay`, or null when no frequency was given. */
+  dailyDose: z.string().nullable(),
+  /**
+   * Which stated maximum the answer is sitting on, or null when neither bound.
+   *
+   * ⚠️ WHEN SET, `singleDose` IS THE CAPPED FIGURE. A screen that renders this as
+   *   a footnote beside an uncapped number has shown a dose the label prohibits.
+   */
+  cappedBy: z.enum(['SINGLE', 'DAILY']).nullable(),
+  /** False when the exact value needed more places and was rounded DOWN. */
+  exact: z.boolean(),
+});
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -562,3 +858,7 @@ export type PatientHistoryResponse = z.infer<typeof patientHistoryResponse>;
 export type PatientListResponse = z.infer<typeof patientListResponse>;
 export type PatientDuplicateMatch = z.infer<typeof patientDuplicateMatch>;
 export type PatientDuplicateResponse = z.infer<typeof patientDuplicateResponse>;
+export type AnimalProfileRequest = z.infer<typeof animalProfileRequest>;
+export type AnimalProfileDetail = z.infer<typeof animalProfileDetail>;
+export type DoseCalculationRequest = z.infer<typeof doseCalculationRequest>;
+export type DoseCalculationResponse = z.infer<typeof doseCalculationResponse>;

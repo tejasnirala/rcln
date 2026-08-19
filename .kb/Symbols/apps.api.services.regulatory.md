@@ -14,7 +14,7 @@ Files: `apps/api/src/services/regulatory/actor.service.ts` · `apps/api/src/serv
 | `blocks` | `(decision: RegulatoryDecisionResponse): boolean` | `apps/api/src/services/regulatory/enforcement.ts:79` |  |
 | `categoryPath` <sub>local</sub> | `(tx: TxClient, categoryId: string \| null): Promise<string[]>` | `apps/api/src/services/regulatory/evaluation.service.ts:64` |  |
 | `consultForStockMovement` | `(tx: TxClient, ctx: TenantContext, input: StockConsultation): Promise<void>` | `apps/api/src/services/regulatory/consult.ts:79` |  |
-| `evaluateFor` | `(ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput, supplements: EvaluationSupplements): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:496` | The same question, for a caller that is not already in a transaction. |
+| `evaluateFor` | `(ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput, supplements: EvaluationSupplements): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:508` | The same question, for a caller that is not already in a transaction. |
 | `evaluateWithin` | `(tx: TxClient, ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput, supplements: EvaluationSupplements): Promise<RegulatoryDecisionResponse>` | `apps/api/src/services/regulatory/evaluation.service.ts:278` |  |
 | `getRulePack` | `(ctx: TenantContext, packId: string): Promise<RulePackListResponse['packs'][number]>` | `apps/api/src/services/regulatory/catalogue.service.ts:171` |  |
 | `isBlockingOutcome` | `(outcome: RegulatoryDecisionResponse['outcome']): outcome is BlockingOutcome` | `apps/api/src/services/regulatory/enforcement.ts:56` |  |
@@ -42,7 +42,7 @@ Files: `apps/api/src/services/regulatory/actor.service.ts` · `apps/api/src/serv
 | `toRuleDetail` | `(row: RuleRow, on: Date): RegulatoryRuleDetail` | `apps/api/src/services/regulatory/shared.ts:198` |  |
 | `toRulePackSummary` | `(row: RulePackRow): RulePackSummary` | `apps/api/src/services/regulatory/shared.ts:147` |  |
 | `toSourceSummary` | `(row: SourceRow): RegulatorySourceSummary` | `apps/api/src/services/regulatory/shared.ts:107` |  |
-| `withPriorQuantity` <sub>local</sub> | `(request: RegulatoryRequest, supplements: EvaluationSupplements): Promise<RegulatoryRequest>` | `apps/api/src/services/regulatory/evaluation.service.ts:557` |  |
+| `withPriorQuantity` <sub>local</sub> | `(request: RegulatoryRequest, supplements: EvaluationSupplements): Promise<RegulatoryRequest>` | `apps/api/src/services/regulatory/evaluation.service.ts:569` |  |
 
 ## const
 
@@ -57,7 +57,7 @@ Files: `apps/api/src/services/regulatory/actor.service.ts` · `apps/api/src/serv
 | --- | --- | --- | --- |
 | `AuthorityRow` | `{ id, jurisdictionId, code, name, websiteUrl, remit, isActive, jurisdiction }` | `apps/api/src/services/regulatory/shared.ts:65` |  |
 | `CategoryAncestorRow` <sub>local</sub> | `{ id }` | `apps/api/src/services/regulatory/evaluation.service.ts:51` |  |
-| `EvaluationSupplements` | `{ priorQuantityInPeriod }` | `apps/api/src/services/regulatory/evaluation.service.ts:509` |  |
+| `EvaluationSupplements` | `{ priorQuantityInPeriod }` | `apps/api/src/services/regulatory/evaluation.service.ts:521` |  |
 | `JurisdictionRow` | `{ id, countryCode, regionCode, name, isActive, _count }` | `apps/api/src/services/regulatory/shared.ts:43` |  |
 | `ProfileRow` <sub>local</sub> | `{ id, jurisdictionId, registrationNumber, registrationStatus, classification, controlledSchedule, prescriptionRequirement, onlineSalePosition, dispensingNotes, effectiveFrom, effectiveTo, jurisdictio…` | `apps/api/src/services/regulatory/profile.service.ts:37` |  |
 | `RegulatoryActorInput` | `{ roleCodes, licenceTypes, isPrescriber }` | `apps/api/src/services/regulatory/evaluation.service.ts:234` |  |

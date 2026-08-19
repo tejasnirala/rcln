@@ -33,6 +33,7 @@ import { ConflictError, NotFoundError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { recordDataAccess } from '../audit/data-access.service.js';
 import { issueNumber } from '../numbering/number-sequence.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 const EPISODE_PREFIX = 'EP';
 
@@ -54,19 +55,6 @@ export interface EpisodeReadOptions {
  */
 function toCalendarDate(value: Date): string {
   return value.toISOString().slice(0, 10);
-}
-
-/**
- * ⚠️ 404, NOT 403. Whether a branch exists is itself tenant information, and the
- *   two responses tell an outsider apart from a colleague.
- *
- * Deliberately a local copy of the appointment service's identical guard rather
- * than an import: that module imports THIS one to resolve an episode at booking,
- * so importing back would be a cycle. Four lines duplicated beats a cycle, and
- * lifting it to a shared util is a wider change than CE-1 should make.
- */
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 /**

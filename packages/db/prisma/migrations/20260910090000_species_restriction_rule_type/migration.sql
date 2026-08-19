@@ -1,0 +1,28 @@
+-- ---------------------------------------------------------------------------
+-- PI-11 — one new `RegulatoryRuleType` member, in its own migration.
+--
+-- ⚠️ SPLIT FROM THE TABLE CHANGES FOR THE REASON PI-10's `..090500` WAS SPLIT.
+--   Postgres refuses to USE a new enum value in the transaction that added it,
+--   and Prisma runs each migration inside one transaction. Nothing in
+--   `..090500_pi_11_veterinary_enablement` names this value today — but a seed,
+--   a CHECK or a backfill added to that file later would abort it with
+--   `unsafe use of new value of enum type RegulatoryRuleType`, and the failure
+--   is invisible until it is run: the SQL parses and `prisma validate` is happy.
+--
+-- ⚠️ ADDING THE MEMBER ENABLES NOTHING BY ITSELF, WHICH IS WHY THIS IS SAFE TO
+--   RUN AHEAD OF ANYTHING. A rule type only does work when a PACK carries a rule
+--   of that type, and no pack does — see the note in `seed/data/regulatory-in.ts`
+--   about why India gets the LABELLING obligation and not a supply prohibition.
+--   The engine handles the type from the moment this lands (`evaluateRule` in
+--   `@rcln/regulatory` is an exhaustive switch and would not compile otherwise),
+--   so there is no window in which a rule of this type is silently skipped.
+-- ---------------------------------------------------------------------------
+
+-- WHO a product may be supplied FOR — a person, or an animal of a named species.
+--
+-- ⚠️ NOT A SECOND PARAMETER ON `AGE_RESTRICTION`, WHICH IS THE OBVIOUS AND WRONG
+--   PLACE FOR IT. `evaluateAgeRestriction` stands aside ENTIRELY when the subject
+--   is an animal — a human age limit is not a statement about a dog — so folding
+--   a veterinary prohibition in there would put it behind a handler that exempts
+--   every animal from itself. See the enum comment in `regulatory.prisma`.
+ALTER TYPE "RegulatoryRuleType" ADD VALUE 'SPECIES_RESTRICTION';

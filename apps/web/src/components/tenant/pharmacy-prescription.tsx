@@ -67,8 +67,10 @@ export function PharmacyPrescription({ slug, prescription, canVerify, canDispens
             {prescription.patientAgeYears !== null
               ? ` · ${prescription.patientAgeYears} years`
               : ''}
-            {prescription.patientSubjectType === 'ANIMAL' ? ' · animal patient' : ''} ·{' '}
-            {prescription.branchName}
+            {prescription.patientSubjectType === 'ANIMAL'
+              ? ` · ${prescription.patientSpecies ?? 'animal patient'}`
+              : ''}{' '}
+            · {prescription.branchName}
           </p>
           <p className="text-muted mt-1 text-[0.875rem]">
             Prescribed by {prescription.prescriberName ?? 'a clinician at this clinic'}

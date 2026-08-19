@@ -231,6 +231,13 @@ invoice engine's row rather than being written by this programme.
 | `recall_batches`                   | BRANCH_SCOPED         | PI-10 |
 | `animal_profiles`                  | CHILD of patient      | PI-11 |
 
+⚠️ **`animal_profiles` DID NOT ARRIVE IN PI-11.** CE-1 built it, empty and
+unreachable, long before this programme reached it. PI-11 added three columns —
+`weight_recorded_on`, `guardian_contact_id` and nothing else — and no table at
+all. It is ORG-SCOPED and deliberately NOT branch-isolated, following `patients`
+for the reason `patients` gives (ADR-0016): an animal's weight must follow it to
+whichever branch it walks into, because a dose is calculated from that weight.
+
 ---
 
 ⚠️ **`recall_batches` SHIPPED BRANCH-SCOPED, NOT ORG-SCOPED AS PLANNED ABOVE, AND

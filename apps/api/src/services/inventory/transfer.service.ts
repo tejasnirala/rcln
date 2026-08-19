@@ -74,6 +74,7 @@ import { issueNumber } from '../numbering/number-sequence.service.js';
 import { movementDeps, recordMovementIn } from './movement.service.js';
 import { consultForStockMovement } from '../regulatory/consult.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 const detailInclude = Prisma.validator<Prisma.StockTransferInclude>()({
   fromBranch: { select: { name: true } },
@@ -186,16 +187,6 @@ function toDetail(row: DetailRow): StockTransferDetail {
     cancelledByName: row.cancelledBy?.fullName ?? null,
     lines: row.lines.map(toLineDetail),
   };
-}
-
-/**
- * ⚠️ NOT FOUND, NOT FORBIDDEN — the rule the whole codebase follows. A branch
- *   outside the caller's scope is invisible to RLS anyway, so it is
- *   indistinguishable from one that does not exist, and a 403 confirms to
- *   somebody probing that the id is real.
- */
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 async function findTransferOrThrow(tx: TxClient, id: string): Promise<DetailRow> {

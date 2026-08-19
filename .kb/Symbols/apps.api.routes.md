@@ -10,19 +10,29 @@ Files: `apps/api/src/routes/docs.routes.ts` · `apps/api/src/routes/index.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `openApiDocument` | `(): Record<string, unknown>` | `apps/api/src/routes/docs.routes.ts:49` |  |
-| `scalarAssetsDir` <sub>local</sub> | `(): string` | `apps/api/src/routes/docs.routes.ts:55` | Where the prebuilt Scalar browser bundle lives inside node_modules. |
+| `openApiDocument` | `(): Record<string, unknown>` | `apps/api/src/routes/docs.routes.ts:68` |  |
+| `renderer` <sub>local</sub> | `(): Promise<Renderer \| null>` | `apps/api/src/routes/docs.routes.ts:96` |  |
+| `rendererUnavailable` <sub>local</sub> | `(res: Response): void` | `apps/api/src/routes/docs.routes.ts:129` | What a caller gets when the renderer is absent. |
+| `scalarAssetsDir` <sub>local</sub> | `(): string` | `apps/api/src/routes/docs.routes.ts:74` | Where the prebuilt Scalar browser bundle lives inside node_modules. |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `THEME` <sub>local</sub> | `` :root { --scalar-color-1: #ffffff; --scalar-color-2: #b8b…` | `apps/api/src/routes/docs.routes.ts:154` |  |
+| `REFERENCE_OPTIONS` <sub>local</sub> | `{ url: '/docs/openapi.json', cdn: '/docs/assets/standalone.js', pageTitle: 'rcln API refe…` | `apps/api/src/routes/docs.routes.ts:303` | The renderer's configuration, hoisted out of the mount so `renderer()` can build the middleware after the dynamic import resolves. |
+| `THEME` <sub>local</sub> | `` :root { --scalar-color-1: #ffffff; --scalar-color-2: #b8b…` | `apps/api/src/routes/docs.routes.ts:249` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `cached` <sub>local</sub> | `: Record<string, unknown> \| null` | `apps/api/src/routes/docs.routes.ts:40` |  |
-| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/docs.routes.ts:38` |  |
+| `cached` <sub>local</sub> | `: Record<string, unknown> \| null` | `apps/api/src/routes/docs.routes.ts:59` |  |
+| `rendererOnce` <sub>local</sub> | `: Promise<Renderer \| null> \| undefined` | `apps/api/src/routes/docs.routes.ts:94` |  |
+| `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/docs.routes.ts:57` |  |
 | `router` <sub>local</sub> | `: IRouter` | `apps/api/src/routes/index.ts:4` |  |
+
+## type
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `Renderer` <sub>local</sub> | `{ assets: RequestHandler; reference: RequestHandler }` | `apps/api/src/routes/docs.routes.ts:92` |  |

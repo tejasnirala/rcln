@@ -80,6 +80,8 @@ export const regulatoryRuleType = z.enum([
   'QUANTITY_LIMIT',
   'REFILL_RULE',
   'AGE_RESTRICTION',
+  /** WHO it may be supplied FOR — a person, or an animal of a named species (PI-11). */
+  'SPECIES_RESTRICTION',
   'SUBSTITUTION',
   'ONLINE_DISPENSING',
   'STORAGE_REQUIREMENT',
@@ -597,6 +599,20 @@ export const evaluateRegulatoryRequest = z.object({
     .object({
       ageYears: z.number().int().min(0).max(150).optional(),
       subjectType: z.enum(['HUMAN', 'ANIMAL']).default('HUMAN'),
+      /**
+       * The animal's species, where the subject is one (PI-11).
+       *
+       * ⚠️ FREE TEXT, MATCHING `animal_profiles.species`, AND NOT VALIDATED
+       *   AGAINST A LIST. A veterinary clinic that treats a tortoise must not
+       *   need a migration, and a closed enum here would be a second vocabulary
+       *   that drifts from the chart's.
+       *
+       * ⚠️ AND ON THE DISPENSING PATH IT IS READ OFF THE ANIMAL'S PROFILE, NEVER
+       *   FROM A CLIENT. Here it is a hypothesis, for the reason
+       *   `repeatsAuthorised` above is: this endpoint answers a question and
+       *   authorises nothing.
+       */
+      species: z.string().trim().max(64).optional(),
     })
     .optional(),
   substitution: z

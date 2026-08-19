@@ -31,11 +31,11 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `DENTAL_CONSULTATION` <sub>local</sub> | `{ schemaVersion: 1, /* Ranks the pickers toward the dental vocabulary. It never filters (…` | `packages/db/prisma/seed/data/consultation-templates.ts:196` |  |
 | `GENERAL_CONSULTATION` <sub>local</sub> | `{ schemaVersion: 1, scopes: [], sections: [ { type: 'CHIEF_COMPLAINT', key: 'chief_compla…` | `packages/db/prisma/seed/data/consultation-templates.ts:35` | The general consultation, as a `schemaVersion: 1` document. |
 | `HAIR_SCALP_CONSULTATION` <sub>local</sub> | `{ schemaVersion: 1, /* * ⚠️ DERMATOLOGY FIRST, THEN TRICHOLOGY, AND THE ORDER IS LOAD-BEA…` | `packages/db/prisma/seed/data/consultation-templates.ts:380` |  |
-| `IN_AUTHORITIES` | `[ { code: 'CDSCO', name: 'Central Drugs Standard Control Organisation', websiteUrl: 'http…` | `packages/db/prisma/seed/data/regulatory-in.ts:110` |  |
-| `IN_CLASSIFICATIONS` | `{ scheduleH: 'SCHEDULE_H', scheduleH1: 'SCHEDULE_H1', scheduleX: 'SCHEDULE_X', } as const` | `packages/db/prisma/seed/data/regulatory-in.ts:198` |  |
-| `IN_PACK_EFFECTIVE_FROM` | `'2026-08-13'` | `packages/db/prisma/seed/data/regulatory-in.ts:79` |  |
-| `IN_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:303` |  |
-| `IN_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:133` |  |
+| `IN_AUTHORITIES` | `[ { code: 'CDSCO', name: 'Central Drugs Standard Control Organisation', websiteUrl: 'http…` | `packages/db/prisma/seed/data/regulatory-in.ts:128` |  |
+| `IN_CLASSIFICATIONS` | `{ scheduleH: 'SCHEDULE_H', scheduleH1: 'SCHEDULE_H1', scheduleX: 'SCHEDULE_X', } as const` | `packages/db/prisma/seed/data/regulatory-in.ts:216` |  |
+| `IN_PACK_EFFECTIVE_FROM` | `'2026-08-13'` | `packages/db/prisma/seed/data/regulatory-in.ts:97` |  |
+| `IN_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:321` |  |
+| `IN_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:151` |  |
 | `LOWER_Y` <sub>local</sub> | `150` | `packages/db/prisma/seed/data/visual-maps.ts:76` |  |
 | `MARGIN_X` <sub>local</sub> | `8` | `packages/db/prisma/seed/data/visual-maps.ts:73` |  |
 | `MIDLINE_GAP` <sub>local</sub> | `12` | `packages/db/prisma/seed/data/visual-maps.ts:74` |  |
@@ -50,7 +50,7 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `SCALP_STEPS` <sub>local</sub> | `8` | `packages/db/prisma/seed/data/visual-maps.ts:155` | Segments per edge. Eight is smooth at this size and keeps the `d` short. |
 | `SPECIALTIES` | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed/data/specialties.ts:57` |  |
 | `STORAGE_PROFILES` | `: SeedStorageProfile[]` | `packages/db/prisma/seed/data/product-masters.ts:213` |  |
-| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-in.ts:205` | Every transaction in which a product reaches a patient, whatever the channel. |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-in.ts:223` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `TEMPLE_EDGE` <sub>local</sub> | `0.45` | `packages/db/prisma/seed/data/visual-maps.ts:200` | The lateral fraction the temples start at, and the mid-band ends at. |
 | `TOOTH_HEIGHT` <sub>local</sub> | `60` | `packages/db/prisma/seed/data/visual-maps.ts:71` |  |
 | `TOOTH_PITCH` <sub>local</sub> | `38` | `packages/db/prisma/seed/data/visual-maps.ts:72` |  |
@@ -64,10 +64,10 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `prescriptionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:226` |  |
-| `refillRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:267` |  |
-| `scheduled` <sub>local</sub> | `[ IN_CLASSIFICATIONS.scheduleH, IN_CLASSIFICATIONS.scheduleH1, IN_CLASSIFICATIONS.schedul…` | `packages/db/prisma/seed/data/regulatory-in.ts:207` |  |
-| `substitutionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:290` |  |
+| `prescriptionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:244` |  |
+| `refillRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:285` |  |
+| `scheduled` <sub>local</sub> | `[ IN_CLASSIFICATIONS.scheduleH, IN_CLASSIFICATIONS.scheduleH1, IN_CLASSIFICATIONS.schedul…` | `packages/db/prisma/seed/data/regulatory-in.ts:225` |  |
+| `substitutionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:308` |  |
 
 ## interface
 
@@ -75,11 +75,11 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | --- | --- | --- | --- |
 | `ClinicalMasterSeed` | `{ kind, code, name, description, specialties, codings }` | `packages/db/prisma/seed/data/clinical-masters.ts:27` |  |
 | `ConsultationTemplateSeed` | `{ code, name, description, careContextCode, specialtyCode, definition }` | `packages/db/prisma/seed/data/consultation-templates.ts:576` |  |
-| `RuleSeed` | `{ code, ruleType, statement, sourceKey, appliesToProductType, appliesToClassification, appliesToTransactions, parameters, citation }` | `packages/db/prisma/seed/data/regulatory-in.ts:93` |  |
+| `RuleSeed` | `{ code, ruleType, statement, sourceKey, appliesToProductType, appliesToClassification, appliesToTransactions, parameters, citation }` | `packages/db/prisma/seed/data/regulatory-in.ts:111` |  |
 | `SeedCategory` | `{ code, name, parent, description }` | `packages/db/prisma/seed/data/product-masters.ts:135` |  |
 | `SeedConversion` | `{ from, to, numerator, denominator }` | `packages/db/prisma/seed/data/product-masters.ts:101` |  |
 | `SeedStorageProfile` | `{ code, name, minTemperatureC, maxTemperatureC, minHumidityPct, maxHumidityPct, lightSensitivity, requiresControlledAccess, hazardClass, handlingNotes }` | `packages/db/prisma/seed/data/product-masters.ts:192` |  |
 | `SeedUnit` | `{ code, name, symbol, unitClass, isBase }` | `packages/db/prisma/seed/data/product-masters.ts:23` |  |
-| `SourceSeed` | `{ key, authorityCode, title, documentReference, sourceUrl, version, publishedOn, reviewStatus, notes }` | `packages/db/prisma/seed/data/regulatory-in.ts:81` |  |
+| `SourceSeed` | `{ key, authorityCode, title, documentReference, sourceUrl, version, publishedOn, reviewStatus, notes }` | `packages/db/prisma/seed/data/regulatory-in.ts:99` |  |
 | `VisualMapSeed` | `{ code, name, description, careContextCode, specialtyCode, viewBox, regions }` | `packages/db/prisma/seed/data/visual-maps.ts:58` |  |
 | `VisualRegionSeed` | `{ code, label, parentCode, metadata }` | `packages/db/prisma/seed/data/visual-maps.ts:50` |  |

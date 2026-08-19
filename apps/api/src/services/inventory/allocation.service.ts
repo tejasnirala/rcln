@@ -33,10 +33,7 @@ import {
 } from '@rcln/inventory';
 import { NotFoundError, ValidationError } from '../../utils/errors.js';
 import { movementDeps } from './movement.service.js';
-
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
-}
+import { assertBranchInScope } from '../shared/branch.js';
 
 /**
  * The plan, inside a transaction the CALLER already opened.

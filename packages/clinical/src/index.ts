@@ -26,3 +26,7 @@ export * from './definition.js';
 export * from './resolve.js';
 export * from './validate.js';
 export * from './regions.js';
+// PI-11. Weight-based dosing — here rather than in `apps/api` for the reason
+// `validate.ts` is: arithmetic that is wrong in a way no integration test
+// notices. See the file header.
+export * from './dosing.js';

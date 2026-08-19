@@ -236,6 +236,27 @@ export async function seedSettingDefinitions(): Promise<void> {
       helpText:
         'The letters in front of the record number a patient gets at each clinic — MRN becomes MRN000451. Each clinic counts separately, so two branches both start at 1. Patients already registered keep the number they have.',
     },
+    /*
+     * PI-11. A threshold, and therefore a SETTING and not a constant — PI-ADR-015
+     * exactly. A greyhound kennel weighs its dogs monthly and a tortoise practice
+     * does not, so `const WEIGHT_STALE_DAYS = 90` would be one clinic's clinical
+     * policy imposed on every other.
+     *
+     * ⚠️ READ WITH AN EXPLICIT `(scopeType, scopeId)` PAIR LIKE EVERY OTHER
+     *   SETTING IN THIS FILE. `setting_values` is RLS-EXEMPT and `db:rls:check`
+     *   cannot notice a missing predicate here, because there is no policy to be
+     *   missing — see the procurement note below.
+     */
+    {
+      key: 'patient.animal_weight_stale_days',
+      module: 'patient',
+      dataType: 'INT' as const,
+      defaultValue: 90,
+      allowedScopes: ['ORGANIZATION', 'BRANCH'],
+      description: 'When an animal’s weight needs rechecking',
+      helpText:
+        'How many days an animal’s recorded weight is treated as current for. After that the dose calculator still answers, and says the weight should be checked first — a puppy weighed three months ago is a different animal today. Set 1 to recheck at almost every visit; 0 is not a valid answer and falls back to 90.',
+    },
     {
       key: 'staff.employee_code_prefix',
       module: 'staff',

@@ -31,27 +31,29 @@ The people being treated. The first PHI in the product: identity is org-wide so 
 
 | method | path | at |
 | --- | --- | --- |
-| GET | `/` | `apps/api/src/routes/v1/patients.routes.ts:151` |
-| POST | `/duplicate-check` | `apps/api/src/routes/v1/patients.routes.ts:177` |
-| POST | `/` | `apps/api/src/routes/v1/patients.routes.ts:190` |
-| GET | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:206` |
-| PATCH | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:217` |
-| DELETE | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:241` |
-| POST | `/:patientId/registrations` | `apps/api/src/routes/v1/patients.routes.ts:253` |
-| POST | `/:patientId/addresses` | `apps/api/src/routes/v1/patients.routes.ts:272` |
-| DELETE | `/:patientId/addresses/:addressId` | `apps/api/src/routes/v1/patients.routes.ts:289` |
-| POST | `/:patientId/contacts` | `apps/api/src/routes/v1/patients.routes.ts:305` |
-| DELETE | `/:patientId/contacts/:contactId` | `apps/api/src/routes/v1/patients.routes.ts:322` |
-| GET | `/:patientId/visit-history` | `apps/api/src/routes/v1/patients.routes.ts:362` |
-| GET | `/:patientId/history` | `apps/api/src/routes/v1/patients.routes.ts:387` |
-| POST | `/:patientId/allergies` | `apps/api/src/routes/v1/patients.routes.ts:402` |
-| DELETE | `/:patientId/allergies/:allergyId` | `apps/api/src/routes/v1/patients.routes.ts:419` |
-| POST | `/:patientId/conditions` | `apps/api/src/routes/v1/patients.routes.ts:435` |
-| PUT | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:452` |
-| DELETE | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:470` |
-| POST | `/:patientId/medications` | `apps/api/src/routes/v1/patients.routes.ts:486` |
-| POST | `/:patientId/medications/:medicationId/stop` | `apps/api/src/routes/v1/patients.routes.ts:508` |
-| DELETE | `/:patientId/medications/:medicationId` | `apps/api/src/routes/v1/patients.routes.ts:527` |
+| GET | `/` | `apps/api/src/routes/v1/patients.routes.ts:156` |
+| POST | `/duplicate-check` | `apps/api/src/routes/v1/patients.routes.ts:182` |
+| POST | `/` | `apps/api/src/routes/v1/patients.routes.ts:195` |
+| GET | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:211` |
+| PATCH | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:222` |
+| DELETE | `/:patientId` | `apps/api/src/routes/v1/patients.routes.ts:246` |
+| POST | `/:patientId/registrations` | `apps/api/src/routes/v1/patients.routes.ts:258` |
+| POST | `/:patientId/addresses` | `apps/api/src/routes/v1/patients.routes.ts:277` |
+| DELETE | `/:patientId/addresses/:addressId` | `apps/api/src/routes/v1/patients.routes.ts:294` |
+| POST | `/:patientId/contacts` | `apps/api/src/routes/v1/patients.routes.ts:310` |
+| DELETE | `/:patientId/contacts/:contactId` | `apps/api/src/routes/v1/patients.routes.ts:327` |
+| PUT | `/:patientId/animal-profile` | `apps/api/src/routes/v1/patients.routes.ts:363` |
+| POST | `/:patientId/dose-calculations` | `apps/api/src/routes/v1/patients.routes.ts:397` |
+| GET | `/:patientId/visit-history` | `apps/api/src/routes/v1/patients.routes.ts:438` |
+| GET | `/:patientId/history` | `apps/api/src/routes/v1/patients.routes.ts:463` |
+| POST | `/:patientId/allergies` | `apps/api/src/routes/v1/patients.routes.ts:478` |
+| DELETE | `/:patientId/allergies/:allergyId` | `apps/api/src/routes/v1/patients.routes.ts:495` |
+| POST | `/:patientId/conditions` | `apps/api/src/routes/v1/patients.routes.ts:511` |
+| PUT | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:528` |
+| DELETE | `/:patientId/conditions/:conditionId` | `apps/api/src/routes/v1/patients.routes.ts:546` |
+| POST | `/:patientId/medications` | `apps/api/src/routes/v1/patients.routes.ts:562` |
+| POST | `/:patientId/medications/:medicationId/stop` | `apps/api/src/routes/v1/patients.routes.ts:584` |
+| DELETE | `/:patientId/medications/:medicationId` | `apps/api/src/routes/v1/patients.routes.ts:603` |
 
 ## Database impact
 
@@ -72,6 +74,7 @@ The people being treated. The first PHI in the product: identity is org-wide so 
 ## Source files
 
 - `apps/api/src/routes/v1/patients.routes.ts`
+- `apps/api/src/services/patient/animal-profile.service.ts`
 - `apps/api/src/services/patient/patient-history.service.ts`
 - `apps/api/src/services/patient/patient.service.ts`
 - `apps/web/src/components/tenant/patient-chart.tsx`
@@ -79,7 +82,7 @@ The people being treated. The first PHI in the product: identity is org-wide so 
 
 ## Workspace dependencies
 
-`@rcln/contracts` · `@rcln/db` · `@rcln/permissions`
+`@rcln/clinical` · `@rcln/contracts` · `@rcln/db` · `@rcln/permissions`
 
 ## Known limitations
 
@@ -93,30 +96,35 @@ The people being treated. The first PHI in the product: identity is org-wide so 
 
 | name | kind | at |
 | --- | --- | --- |
-| `__testing` | var | `apps/api/src/services/patient/patient.service.ts:1333` |
-| `addAddress` | fn | `apps/api/src/services/patient/patient.service.ts:1194` |
+| `__testing` | var | `apps/api/src/services/patient/patient.service.ts:1613` |
+| `addAddress` | fn | `apps/api/src/services/patient/patient.service.ts:1474` |
 | `addAllergy` | fn | `apps/api/src/services/patient/patient-history.service.ts:172` |
 | `addCondition` | fn | `apps/api/src/services/patient/patient-history.service.ts:243` |
-| `addContact` | fn | `apps/api/src/services/patient/patient.service.ts:1264` |
+| `addContact` | fn | `apps/api/src/services/patient/patient.service.ts:1544` |
 | `addMedication` | fn | `apps/api/src/services/patient/patient-history.service.ts:347` |
+| `animalProfileData` | fn | `apps/api/src/services/patient/patient.service.ts:705` |
 | `BranchChoice` | type | `apps/web/src/components/tenant/patient-search.tsx:32` |
-| `createPatient` | fn | `apps/api/src/services/patient/patient.service.ts:726` |
-| `deletePatient` | fn | `apps/api/src/services/patient/patient.service.ts:1154` |
-| `ensureRegistration` | fn | `apps/api/src/services/patient/patient.service.ts:345` |
-| `findDuplicates` | fn | `apps/api/src/services/patient/patient.service.ts:513` |
+| `calculateDose` | fn | `apps/api/src/services/patient/animal-profile.service.ts:245` |
+| `createPatient` | fn | `apps/api/src/services/patient/patient.service.ts:976` |
+| `deletePatient` | fn | `apps/api/src/services/patient/patient.service.ts:1434` |
+| `ensureRegistration` | fn | `apps/api/src/services/patient/patient.service.ts:557` |
+| `findDuplicates` | fn | `apps/api/src/services/patient/patient.service.ts:763` |
 | `getHistory` | fn | `apps/api/src/services/patient/patient-history.service.ts:72` |
-| `getPatient` | fn | `apps/api/src/services/patient/patient.service.ts:1060` |
-| `PatientActionOptions` | interface | `apps/api/src/services/patient/patient.service.ts:53` |
-| `PatientChart` | component | `apps/web/src/components/tenant/patient-chart.tsx:85` |
+| `getPatient` | fn | `apps/api/src/services/patient/patient.service.ts:1340` |
+| `PatientActionOptions` | interface | `apps/api/src/services/patient/patient.service.ts:61` |
+| `PatientChart` | component | `apps/web/src/components/tenant/patient-chart.tsx:90` |
 | `PatientSearch` | component | `apps/web/src/components/tenant/patient-search.tsx:133` |
-| `PatientSearchScope` | interface | `apps/api/src/services/patient/patient.service.ts:911` |
-| `registerAtBranch` | fn | `apps/api/src/services/patient/patient.service.ts:822` |
-| `removeAddress` | fn | `apps/api/src/services/patient/patient.service.ts:1239` |
+| `PatientSearchScope` | interface | `apps/api/src/services/patient/patient.service.ts:1191` |
+| `registerAtBranch` | fn | `apps/api/src/services/patient/patient.service.ts:1102` |
+| `removeAddress` | fn | `apps/api/src/services/patient/patient.service.ts:1519` |
 | `removeAllergy` | fn | `apps/api/src/services/patient/patient-history.service.ts:211` |
 | `removeCondition` | fn | `apps/api/src/services/patient/patient-history.service.ts:315` |
-| `removeContact` | fn | `apps/api/src/services/patient/patient.service.ts:1302` |
+| `removeContact` | fn | `apps/api/src/services/patient/patient.service.ts:1582` |
 | `removeMedication` | fn | `apps/api/src/services/patient/patient-history.service.ts:428` |
-| `searchPatients` | fn | `apps/api/src/services/patient/patient.service.ts:915` |
+| `resolveWeightStaleDays` | fn | `apps/api/src/services/patient/patient.service.ts:358` |
+| `searchPatients` | fn | `apps/api/src/services/patient/patient.service.ts:1195` |
+| `setAnimalProfile` | fn | `apps/api/src/services/patient/animal-profile.service.ts:141` |
 | `stopMedication` | fn | `apps/api/src/services/patient/patient-history.service.ts:389` |
 | `updateCondition` | fn | `apps/api/src/services/patient/patient-history.service.ts:279` |
-| `updatePatient` | fn | `apps/api/src/services/patient/patient.service.ts:1091` |
+| `updatePatient` | fn | `apps/api/src/services/patient/patient.service.ts:1371` |
+| `weightIsStale` | fn | `apps/api/src/services/patient/patient.service.ts:287` |

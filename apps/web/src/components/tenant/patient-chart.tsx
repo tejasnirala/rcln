@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import type {
+  AnimalProfileDetail,
   PatientAllergyDetail,
   PatientConditionDetail,
   PatientDetail,
@@ -19,15 +20,19 @@ import {
   addAllergy,
   addCondition,
   addMedication,
+  calculateDose,
   registerAtBranch,
   removeAllergy,
   removeCondition,
+  saveAnimalProfile,
   stopMedication,
   updatePatient,
+  type DoseState,
   type PatientFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/patients/actions';
 
 const IDLE: PatientFormState = { status: 'idle' };
+const DOSE_IDLE: DoseState = { status: 'idle' };
 
 const BLOOD_WORDS: Record<string, string> = {
   A_POSITIVE: 'A+',
@@ -107,7 +112,7 @@ export function PatientChart({
   canReadVisitHistory: boolean;
 }) {
   const [panel, setPanel] = useState<
-    'none' | 'edit' | 'branch' | 'allergy' | 'condition' | 'medicine'
+    'none' | 'edit' | 'branch' | 'allergy' | 'condition' | 'medicine' | 'animal'
   >('none');
   const toggle = (next: Exclude<typeof panel, 'none'>) =>
     setPanel((current) => (current === next ? 'none' : next));
@@ -155,6 +160,15 @@ export function PatientChart({
             Register at another clinic
           </Button>
         ) : null}
+        {patient.subjectType === 'ANIMAL' && canUpdate ? (
+          <Button
+            variant="secondary"
+            onClick={() => toggle('animal')}
+            aria-expanded={panel === 'animal'}
+          >
+            {patient.animalProfile === null ? 'Add animal details' : 'Edit animal details'}
+          </Button>
+        ) : null}
         {/*
           ⚠️ A LINK RATHER THAN A PANEL, AND THAT IS AN AUDIT DECISION (CE-5).
             The visit history is the most concentrated PHI read on the platform —
@@ -195,6 +209,12 @@ export function PatientChart({
         </Card>
       ) : null}
 
+      {panel === 'animal' ? (
+        <Card className="mt-4">
+          <AnimalForm slug={slug} patient={patient} />
+        </Card>
+      ) : null}
+
       {panel === 'branch' ? (
         <Card className="mt-4">
           <BranchForm slug={slug} patientId={patient.id} branches={elsewhere} />
@@ -204,6 +224,22 @@ export function PatientChart({
       <div className="mt-8 grid gap-4 lg:grid-cols-2">
         <RegistrationsPanel patient={patient} />
         <ContactsPanel patient={patient} />
+        {/*
+          The dose calculator sits with the record panels and not with the
+          clinical history, because it READS the record rather than adding to
+          it — nothing it does becomes part of the chart. It needs
+          `patient.medical_history.read` all the same: what comes back is a
+          therapeutic quantity, and the receptionist who may register the animal
+          has no business being handed one.
+        */}
+        {patient.subjectType === 'ANIMAL' && canReadHistory ? (
+          <DoseCalculator
+            slug={slug}
+            patientId={patient.id}
+            profile={patient.animalProfile}
+            className="lg:col-span-2"
+          />
+        ) : null}
       </div>
 
       {canReadHistory && history ? (
@@ -303,11 +339,22 @@ function IdentityStrip({ patient }: { patient: PatientDetail }) {
           ) : null}
         </div>
 
+        {/*
+          ⚠️ AN ANIMAL DOES NOT GET A BLOOD GROUP LINE, AND THAT IS NOT TIDINESS.
+            `BLOOD_WORDS` renders `UNKNOWN` as "Not known", which on a dog reads
+            as a gap in the record somebody ought to fill in — when in fact the
+            ABO/Rh groups this enum carries are human ones and there is nothing
+            to fill in. Species and breed are what identify the animal in front
+            of you, so they take the same line.
+        */}
         <p className="text-muted mt-2 text-[0.9375rem]">
           {ageLine(patient)}
-          {' · Blood group '}
-          {BLOOD_WORDS[patient.bloodGroup] ?? 'Not known'}
+          {patient.subjectType === 'ANIMAL'
+            ? animalLine(patient.animalProfile)
+            : ` · Blood group ${BLOOD_WORDS[patient.bloodGroup] ?? 'Not known'}`}
         </p>
+
+        {patient.subjectType === 'ANIMAL' ? <WeightLine profile={patient.animalProfile} /> : null}
 
         <dl className="text-muted mt-3 flex flex-wrap gap-x-6 gap-y-1 text-[0.8125rem]">
           {patient.phone !== null ? (
@@ -354,6 +401,60 @@ function IdentityStrip({ patient }: { patient: PatientDetail }) {
  * goes: an empty allergy list and an unasked question look identical on screen
  * and are not the same fact.
  */
+/**
+ * " · Dog · Indie", or " · Species not recorded".
+ *
+ * Stated rather than omitted, for the reason `AllergyBand` states "None
+ * recorded": a blank space reads as "there is nothing to say", and on this
+ * particular field there usually is.
+ */
+function animalLine(profile: AnimalProfileDetail | null): string {
+  if (profile === null || profile.species === null) return ' · Species not recorded';
+  return profile.breed === null
+    ? ` · ${profile.species}`
+    : ` · ${profile.species} · ${profile.breed}`;
+}
+
+/**
+ * The recorded weight, and how old it is.
+ *
+ * ⚠️ THIS IS THE ONE PIECE OF EMPHASIS AN ANIMAL RECORD ADDS, AND IT SITS WHERE
+ *   IT DOES FOR THE REASON THE ALLERGY BAND DOES. Everything else on this screen
+ *   is a quiet card. A weight is not dangerous; a weight somebody is about to
+ *   calculate a dose from, taken seven months ago, is — and it is dangerous
+ *   precisely because it looks exactly like a current one.
+ *
+ * ⚠️ AND IT NEVER CARRIES ITS MEANING IN COLOUR ALONE (WCAG 1.4.1, and
+ *   apps/web/AGENTS.md lists it as a rule already got wrong once). "Weigh again
+ *   before dosing" is written out beside the number; the tint is the second
+ *   signal, not the only one.
+ */
+function WeightLine({ profile }: { profile: AnimalProfileDetail | null }) {
+  if (profile === null || profile.weightKg === null) {
+    return <p className="text-muted mt-1 text-[0.8125rem]">No weight recorded.</p>;
+  }
+
+  const weight = `${profile.weightKg} kg`;
+  if (!profile.weightIsStale) {
+    return (
+      <p className="text-muted mt-1 text-[0.8125rem]">
+        <span className="text-ink font-medium">{weight}</span>
+        {profile.weightRecordedOn !== null ? ` · weighed ${profile.weightRecordedOn}` : ''}
+      </p>
+    );
+  }
+
+  return (
+    <p className="border-signal/40 bg-signal-tint text-signal mt-2 inline-block rounded-md border px-3 py-1.5 text-[0.8125rem]">
+      <span className="font-medium">{weight}</span>
+      {profile.weightRecordedOn !== null
+        ? ` · weighed ${profile.weightRecordedOn}`
+        : ' · no date recorded'}
+      <span className="block">Weigh again before dosing.</span>
+    </p>
+  );
+}
+
 function AllergyBand({ allergies }: { allergies: PatientAllergyDetail[] }) {
   if (allergies.length === 0) {
     return (
@@ -686,6 +787,280 @@ function BranchForm({
         </Button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Species, breed, weight and owner.
+ *
+ * ⚠️ EVERY FIELD IS RENDERED AND PRE-FILLED, INCLUDING THE ONES THAT ARE EMPTY,
+ *   BECAUSE THE ENDPOINT IS A `PUT`. It replaces the profile, so a field left
+ *   out of the form would be a field cleared on save. Rendering this as "add
+ *   what is missing" would quietly delete what is already there.
+ *
+ * ⚠️ THE WEIGHT AND ITS DATE ARE ONE ANSWER AND ARE PRESENTED AS ONE. The
+ *   contract refuses either without the other, and the date defaults to nothing
+ *   rather than to today: pre-filling today's date would let somebody save a
+ *   three-month-old weight stamped as taken this morning, which is exactly the
+ *   fact the stale-weight signal exists to surface.
+ */
+function AnimalForm({ slug, patient }: { slug: string; patient: PatientDetail }) {
+  const [state, action, pending] = useActionState(
+    saveAnimalProfile.bind(null, slug, patient.id),
+    IDLE
+  );
+  const profile = patient.animalProfile;
+
+  return (
+    <form action={action} className="grid gap-4">
+      {state.status === 'error' && state.message ? (
+        <Alert tone="error">{state.message}</Alert>
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input
+          name="species"
+          label="Species"
+          defaultValue={profile?.species ?? ''}
+          hint="Whatever you call it — dog, cat, tortoise."
+          {...(state.fieldErrors?.['species'] ? { errors: state.fieldErrors['species'] } : {})}
+        />
+        <Input
+          name="breed"
+          label="Breed"
+          defaultValue={profile?.breed ?? ''}
+          {...(state.fieldErrors?.['breed'] ? { errors: state.fieldErrors['breed'] } : {})}
+        />
+        <Input
+          name="weightKg"
+          label="Weight in kg"
+          inputMode="decimal"
+          defaultValue={profile?.weightKg ?? ''}
+          hint="Doses are calculated from this."
+          {...(state.fieldErrors?.['weightKg'] ? { errors: state.fieldErrors['weightKg'] } : {})}
+        />
+        <Input
+          name="weightRecordedOn"
+          label="Weighed on"
+          type="date"
+          defaultValue={profile?.weightRecordedOn ?? ''}
+          hint="The day it went on the scales, not today."
+          {...(state.fieldErrors?.['weightRecordedOn']
+            ? { errors: state.fieldErrors['weightRecordedOn'] }
+            : {})}
+        />
+      </div>
+
+      {/*
+        The owner is one form or the other. A contact already on this record is
+        the better answer — it is one owner, kept in one place — so it is offered
+        first, and the free-text pair below it is for the walk-in whose owner is
+        not on the record yet. Choosing a contact makes the typed fields ignored;
+        the hint says so rather than leaving somebody to discover it.
+      */}
+      {patient.contacts.length > 0 ? (
+        <Select
+          name="guardianContactId"
+          label="Owner"
+          placeholder="Not one of the contacts below"
+          defaultValue={profile?.guardianContactId ?? ''}
+          options={patient.contacts.map((contact) => ({
+            value: contact.id,
+            label: `${contact.name} · ${contact.relation}`,
+          }))}
+          hint="Someone already on this record. Picking one here ignores the typed name."
+          {...(state.fieldErrors?.['guardianContactId']
+            ? { errors: state.fieldErrors['guardianContactId'] }
+            : {})}
+        />
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Input
+          name="guardianName"
+          label="Owner’s name"
+          defaultValue={profile?.guardianContactId === null ? (profile.guardianName ?? '') : ''}
+          {...(state.fieldErrors?.['guardianName']
+            ? { errors: state.fieldErrors['guardianName'] }
+            : {})}
+        />
+        <Input
+          name="guardianPhone"
+          label="Owner’s phone"
+          type="tel"
+          defaultValue={profile?.guardianContactId === null ? (profile.guardianPhone ?? '') : ''}
+          {...(state.fieldErrors?.['guardianPhone']
+            ? { errors: state.fieldErrors['guardianPhone'] }
+            : {})}
+        />
+      </div>
+
+      <div>
+        <Button type="submit" disabled={pending}>
+          {pending ? 'Saving…' : 'Save animal details'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * "How much do I give?"
+ *
+ * ⚠️ THERE IS NO WEIGHT FIELD, AND ITS ABSENCE IS THE ENTIRE POINT OF THE PANEL.
+ *   The server reads the weight off the record, so the answer cannot be computed
+ *   from a number somebody retyped — and the panel states which weight it used
+ *   and when it was taken, above the answer rather than below it.
+ *
+ * ⚠️ NOTHING HERE IS A RECOMMENDATION. Every figure typed in comes from a
+ *   clinician reading a label; this multiplies them. The copy says "Calculate",
+ *   never "Suggested dose", because the second would claim an authority the
+ *   platform does not have and has no formulary behind.
+ */
+function DoseCalculator({
+  slug,
+  patientId,
+  profile,
+  className,
+}: {
+  slug: string;
+  patientId: string;
+  profile: AnimalProfileDetail | null;
+  className?: string;
+}) {
+  const [state, action, pending] = useActionState(
+    calculateDose.bind(null, slug, patientId),
+    DOSE_IDLE
+  );
+
+  return (
+    <Card className={className}>
+      <PanelHeading
+        title="Dose calculator"
+        note="Multiplies the weight on this record by a rate you enter. It records nothing."
+      />
+
+      {profile === null || profile.weightKg === null ? (
+        <p className="text-muted mt-4 text-[0.8125rem]">
+          Record a weight for this animal before calculating a dose from it.
+        </p>
+      ) : (
+        <form action={action} className="mt-4 grid gap-4">
+          {state.status === 'error' && state.message ? (
+            <Alert tone="error">{state.message}</Alert>
+          ) : null}
+
+          <p className="text-muted text-[0.8125rem]">
+            Using <span className="text-ink font-medium">{profile.weightKg} kg</span>
+            {profile.weightRecordedOn !== null
+              ? `, weighed ${profile.weightRecordedOn}`
+              : ', with no date recorded'}
+            .
+          </p>
+
+          {/*
+            ⚠️ BOTH CEILINGS ARE OFFERED, and the single-dose one is not
+              decorative: it is the more commonly printed limit on a veterinary
+              label, and without the input `cappedBy: 'SINGLE'` was a state the
+              answer below could describe and this form could never produce
+              (PI-11 review).
+          */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Input
+              name="dosePerKg"
+              label="Per kg"
+              required
+              inputMode="decimal"
+              {...(state.fieldErrors?.['dosePerKg']
+                ? { errors: state.fieldErrors['dosePerKg'] }
+                : {})}
+            />
+            <Input
+              name="unit"
+              label="Unit"
+              required
+              defaultValue="mg"
+              hint="Echoed back. Nothing is converted."
+              {...(state.fieldErrors?.['unit'] ? { errors: state.fieldErrors['unit'] } : {})}
+            />
+            <Input
+              name="dosesPerDay"
+              label="Doses a day"
+              type="number"
+              min={1}
+              max={24}
+              {...(state.fieldErrors?.['dosesPerDay']
+                ? { errors: state.fieldErrors['dosesPerDay'] }
+                : {})}
+            />
+            <Input
+              name="maxSingleDose"
+              label="Single-dose maximum"
+              inputMode="decimal"
+              hint="From the label, if it states one."
+              {...(state.fieldErrors?.['maxSingleDose']
+                ? { errors: state.fieldErrors['maxSingleDose'] }
+                : {})}
+            />
+            <Input
+              name="maxDailyDose"
+              label="Daily maximum"
+              inputMode="decimal"
+              hint="Needs the doses a day."
+              {...(state.fieldErrors?.['maxDailyDose']
+                ? { errors: state.fieldErrors['maxDailyDose'] }
+                : {})}
+            />
+          </div>
+
+          <div>
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Calculating…' : 'Calculate'}
+            </Button>
+          </div>
+
+          {state.status === 'done' && state.dose ? <DoseAnswer dose={state.dose} /> : null}
+        </form>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The answer.
+ *
+ * ⚠️ A CAP IS PART OF THE ANSWER AND IS PRINTED WITH IT, NOT UNDER IT. When a
+ *   ceiling bound, `singleDose` IS the capped figure — a screen that showed the
+ *   uncapped number with a footnote would be showing a dose the label prohibits.
+ *   The sentence names which ceiling, so somebody can go back to the right line
+ *   of the label.
+ */
+function DoseAnswer({ dose }: { dose: NonNullable<DoseState['dose']> }) {
+  return (
+    <div className="border-rule bg-drape-tint/30 rounded-md border px-4 py-3" aria-live="polite">
+      <p className="text-ink text-[1.25rem] font-medium">
+        {dose.singleDose} {dose.unit}
+        <span className="text-muted text-[0.8125rem] font-normal"> each dose</span>
+      </p>
+      {dose.dailyDose !== null ? (
+        <p className="text-muted text-[0.8125rem]">
+          {dose.dailyDose} {dose.unit} a day in total
+        </p>
+      ) : null}
+      {dose.cappedBy !== null ? (
+        <p className="text-signal mt-1 text-[0.8125rem]">
+          Held to the {dose.cappedBy === 'DAILY' ? 'daily' : 'single-dose'} maximum you entered.
+        </p>
+      ) : null}
+      {!dose.exact ? (
+        <p className="text-muted mt-1 text-[0.75rem]">Rounded down to three decimal places.</p>
+      ) : null}
+      {dose.weightIsStale ? (
+        <p className="text-signal mt-1 text-[0.8125rem]">
+          This weight is old. Weigh the animal again before giving this.
+        </p>
+      ) : null}
+    </div>
   );
 }
 

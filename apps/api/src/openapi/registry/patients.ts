@@ -13,6 +13,7 @@
  */
 import { z } from 'zod';
 import {
+  doseCalculationResponse,
   patientDetail,
   patientDuplicateMatch,
   patientHistoryResponse,
@@ -20,7 +21,16 @@ import {
   visitHistoryResponse,
 } from '@rcln/contracts';
 import type { DocRegistry } from '../types.js';
-import { BRANCH_ID, BRANCH_KOCHI_ID, PATIENT_ID, PATIENT_TWO_ID } from './fixtures.js';
+import {
+  ANIMAL_GUARDIAN_CONTACT,
+  ANIMAL_GUARDIAN_CONTACT_ID,
+  ANIMAL_PROFILE,
+  BRANCH_ID,
+  BRANCH_KOCHI_ID,
+  PATIENT_ANIMAL,
+  PATIENT_ID,
+  PATIENT_TWO_ID,
+} from './fixtures.js';
 
 const PATIENT_ID_NOTE =
   "The patient's `id` (not their UHID). A patient at another clinic is answered `404`.";
@@ -49,6 +59,7 @@ const PATIENT_EXAMPLE = {
   mrn: 'IND-1043',
   branchId: BRANCH_ID,
   crossBranch: false,
+  subjectType: 'HUMAN',
   registrations: [
     {
       branchId: BRANCH_ID,
@@ -59,6 +70,30 @@ const PATIENT_EXAMPLE = {
   ],
   addresses: [],
   contacts: [],
+  animalProfile: null,
+};
+
+/**
+ * The same shape, for an animal (PI-11).
+ *
+ * ⚠️ IT IS THE SAME SHAPE, AND THE REFERENCE HAS TO SHOW THAT RATHER THAN SAY
+ *   IT. A consumer reading only the human example would reasonably assume a
+ *   separate endpoint exists for animals; ADR-0017 is that there is not one, and
+ *   the fastest way to communicate that is two examples of one response.
+ */
+const ANIMAL_PATIENT_EXAMPLE = {
+  ...PATIENT_ANIMAL,
+  registrations: [
+    {
+      branchId: BRANCH_ID,
+      branchName: 'Alpha Clinic — Indiranagar',
+      mrn: 'IND-1178',
+      registeredOn: '2026-02-19T05:40:00.000Z',
+    },
+  ],
+  addresses: [],
+  contacts: [ANIMAL_GUARDIAN_CONTACT],
+  animalProfile: ANIMAL_PROFILE,
 };
 
 /** What `POST /patients/duplicate-check` answers with. Not a contract export. */
@@ -220,6 +255,20 @@ is the thing this pair exists to prevent.
 patient. **MRN is per branch** and is what that site's own paperwork uses. Both
 come back on the response; neither is accepted on the request.
 
+**Animals register here too.** Send \`subjectType: "ANIMAL"\` with an optional
+\`animalProfile\`. There is no separate endpoint and no parallel model
+(ADR-0017) — an animal is a \`patients\` row with an extension row hanging off
+it, so it gets a UHID, an MRN, a chart and a prescription exactly as a person
+does. The kind is fixed at registration: \`subjectType\` is deliberately absent
+from \`PATCH\`, because a chart written under one care-context taxonomy cannot be
+read under another.
+
+⚠️ **The owner cannot be linked on this call.** \`animalProfile.guardianContactId\`
+names a \`patient_contacts\` row, and at registration the only such rows are the
+ones being created by this same request — whose ids you cannot know yet. Send the
+owner as \`guardianName\`/\`guardianPhone\`, or register first and then
+\`PUT /api/v1/patients/{patientId}/animal-profile\`.
+
 Run \`POST /api/v1/patients/duplicate-check\` first.
 `.trim(),
     status: 201,
@@ -236,6 +285,28 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
           dateOfBirth: '1979-02-14',
           phone: '+919845067890',
           branchId: BRANCH_ID,
+        },
+      },
+      {
+        summary: 'A dog',
+        description:
+          'The human fields still mean something: `gender` is the animal’s sex, `dateOfBirth` is when it was born. The owner goes in `contacts` and is linked to the profile afterwards.',
+        value: {
+          firstName: 'Kaapi',
+          lastName: 'Subramanian',
+          subjectType: 'ANIMAL',
+          gender: 'MALE',
+          dateOfBirth: '2023-05-20',
+          branchId: BRANCH_ID,
+          contacts: [
+            {
+              relation: 'Owner',
+              name: 'Ravi Subramanian',
+              phone: '+919845067890',
+              isGuardian: true,
+            },
+          ],
+          animalProfile: { species: 'Dog', breed: 'Indie' },
         },
       },
       {
@@ -260,6 +331,163 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
     errors: [409],
   },
 
+  'PUT /api/v1/patients/{patientId}/animal-profile': {
+    summary: "Record an animal's species, weight and owner",
+    description: `
+Species, breed, weight and owner for a patient registered as an animal.
+
+⚠️ **There is no separate model for animals.** An animal is a \`patients\` row
+with \`subjectType: "ANIMAL"\`, and this endpoint fills in the extension row that
+hangs off it. It is answered \`400\` for a person — a record's kind is fixed at
+registration and is not editable, because a chart written under one care-context
+taxonomy cannot be read under another.
+
+**This is a \`PUT\`, and it replaces the whole profile.** Send the fields you
+want to keep. Omitting the weight *clears* it rather than leaving it alone, and
+that is deliberate: a stale weight surviving an edit that meant to remove it is
+the exact hazard this profile exists to prevent.
+
+**A weight must come with the day it was taken.** \`weightRecordedOn\` is
+required whenever \`weightKg\` is sent, and refused when it is not. A puppy
+weighed at eight weeks and dosed at eight months is what
+\`POST /api/v1/patients/{patientId}/dose-calculations\` needs to be able to see,
+and it cannot see it without a date.
+
+**The owner is recorded one way or the other, never both.** Either
+\`guardianContactId\` — a contact already on this animal's record, which is the
+better answer — or \`guardianName\` and \`guardianPhone\` as free text for the
+walk-in whose owner has not been recorded yet. Sending both is \`400\`.
+
+⚠️ **\`weightKg\` is a decimal STRING, not a number.** \`"18.4"\`, not \`18.4\`
+unquoted. The column is \`Decimal(8,3)\` and a JSON number is a double — this is
+the value a dose gets multiplied by. It comes back with its significant digits
+and **not** padded to the column's scale, which is this platform's convention on
+every quantity; the computed dose fields DO pad, because they report at a
+declared precision rather than echoing a column.
+
+The whole patient record comes back, exactly as \`GET\` returns it.
+`.trim(),
+    message: 'Animal details saved',
+    response: patientDetail,
+    phi: true,
+    params: { patientId: PATIENT_ID_NOTE },
+    requestExamples: [
+      {
+        summary: 'Weighed today, owner already on the record',
+        value: {
+          species: 'Dog',
+          breed: 'Indie',
+          weightKg: '18.4',
+          weightRecordedOn: '2026-03-02',
+          guardianContactId: ANIMAL_GUARDIAN_CONTACT_ID,
+        },
+      },
+      {
+        summary: 'A walk-in nobody knows much about yet',
+        description:
+          'Every field is optional. An animal brought in ill, whose owner is not a contact row yet, still gets a record.',
+        value: { species: 'Cat', guardianName: 'Anitha Rao', guardianPhone: '+919845112233' },
+      },
+    ],
+    responseExamples: [
+      {
+        summary: 'Saved',
+        value: { success: true, message: 'Animal details saved', data: ANIMAL_PATIENT_EXAMPLE },
+      },
+    ],
+    errors: [409],
+  },
+
+  'POST /api/v1/patients/{patientId}/dose-calculations': {
+    summary: 'Calculate a weight-based dose',
+    description: `
+Multiplies the animal's **recorded** weight by a rate you supply, and holds the
+answer to whatever ceilings you supply.
+
+⚠️ **The weight is not a parameter, and that is the entire reason this endpoint
+exists.** The arithmetic is a multiplication anybody can do at the counter; what
+they cannot do at the counter is notice that the weight they are working from was
+taken seven months ago. The response carries \`weightRecordedOn\` and
+\`weightIsStale\` for exactly that. An animal with no recorded weight is
+answered \`400\` rather than from a number you sent.
+
+⚠️ **This platform holds no formulary and recommends nothing.** \`dosePerKg\`,
+\`maxSingleDose\` and \`maxDailyDose\` come from a clinician reading a label.
+Nothing here originates a mg/kg figure or has an opinion about whether one is
+sensible.
+
+⚠️ **It writes no clinical record and authorises nothing.** A dose becomes part of
+the chart when a prescription is signed. This is a calculator; it files a
+disclosure log and nothing else.
+
+**When a ceiling binds, \`singleDose\` is the capped figure** and \`cappedBy\`
+says which one. Rendering the cap as a footnote beside an uncapped number shows a
+dose the label prohibits. A daily ceiling reduces the *single* dose rather than
+trimming the total, so the two figures always multiply.
+
+**No unit conversion happens.** \`unit\` is echoed back verbatim; mixing mg and
+ml across the fields gives an answer in a unit of your own invention.
+
+**Rounding is to three decimal places and always downward**, never half-up —
+rounding a dose up past a maximum is an overdose. \`exact: false\` says something
+was discarded.
+
+It is a \`POST\` because a \`GET\` would put clinical parameters in the access
+log, the referrer header and browser history beside a patient id.
+`.trim(),
+    response: doseCalculationResponse,
+    phi: true,
+    params: { patientId: PATIENT_ID_NOTE },
+    requestExamples: [
+      {
+        summary: '15 mg/kg, three times a day',
+        value: { dosePerKg: '15', unit: 'mg', dosesPerDay: 3 },
+      },
+      {
+        summary: 'With the label’s daily ceiling',
+        description:
+          'The daily maximum binds first here, so `singleDose` comes back reduced and `cappedBy` is `DAILY`.',
+        value: { dosePerKg: '15', unit: 'mg', dosesPerDay: 3, maxDailyDose: '500' },
+      },
+    ],
+    responseExamples: [
+      {
+        summary: '18.4 kg at 15 mg/kg',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            weightKg: ANIMAL_PROFILE.weightKg,
+            weightRecordedOn: ANIMAL_PROFILE.weightRecordedOn,
+            weightIsStale: false,
+            unit: 'mg',
+            singleDose: '276.000',
+            dailyDose: '828.000',
+            cappedBy: null,
+            exact: true,
+          },
+        },
+      },
+      {
+        summary: 'Held to the daily maximum',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            weightKg: ANIMAL_PROFILE.weightKg,
+            weightRecordedOn: ANIMAL_PROFILE.weightRecordedOn,
+            weightIsStale: false,
+            unit: 'mg',
+            singleDose: '166.666',
+            dailyDose: '500.000',
+            cappedBy: 'DAILY',
+            exact: false,
+          },
+        },
+      },
+    ],
+  },
+
   'GET /api/v1/patients/{patientId}': {
     summary: 'Get a patient record',
     description:
@@ -271,6 +499,12 @@ Run \`POST /api/v1/patients/duplicate-check\` first.
       {
         summary: 'A registered patient',
         value: { success: true, message: 'Success', data: PATIENT_EXAMPLE },
+      },
+      {
+        summary: 'An animal patient',
+        description:
+          'The same response. `subjectType` is `ANIMAL`, `animalProfile` is populated, and the owner is a contact on the record — there is no separate endpoint and no separate model (ADR-0017).',
+        value: { success: true, message: 'Success', data: ANIMAL_PATIENT_EXAMPLE },
       },
     ],
   },

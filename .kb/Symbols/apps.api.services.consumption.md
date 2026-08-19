@@ -11,12 +11,10 @@ Files: `apps/api/src/services/consumption/consumption.service.ts` · `apps/api/s
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `amendConsumption` | `(ctx: TenantContext, id: string, body: AmendConsumptionRequest, options: ConsumptionActionOptions): Promise<ConsumptionDetail>` | `apps/api/src/services/consumption/consumption.service.ts:1149` |  |
-| `assertBranchInScope` | `(ctx: TenantContext, branchId: string): void` | `apps/api/src/services/consumption/shared.ts:16` |  |
-| `assertMayOverride` | `(options: ConsumptionActionOptions, productName: string, expected: string, actual: string): void` | `apps/api/src/services/consumption/shared.ts:131` |  |
+| `assertMayOverride` | `(options: ConsumptionActionOptions, productName: string, expected: string, actual: string): void` | `apps/api/src/services/consumption/shared.ts:97` |  |
 | `assertNoOverlap` <sub>local</sub> | `(tx: TxClient, organizationId: string, itemId: string, from: Date, to: Date \| null, excludeId: string \| null): Promise<void>` | `apps/api/src/services/consumption/template.service.ts:246` |  |
 | `assertOneLinePerProduct` <sub>local</sub> | `(lines: readonly ConsumptionLineRequest[]): void` | `apps/api/src/services/consumption/consumption.service.ts:839` |  |
 | `assertProcedureItem` <sub>local</sub> | `(tx: TxClient, organizationId: string, itemId: string): Promise<void>` | `apps/api/src/services/consumption/template.service.ts:202` |  |
-| `auditMeta` | `(options: { ipAddress?: string \| undefined; userAgent?: stri…): { ipAddress?: string; userAgent?: string }` | `apps/api/src/services/consumption/shared.ts:87` |  |
 | `correctConsumption` | `(ctx: TenantContext, id: string, body: CorrectConsumptionRequest, options: ConsumptionActionOptions): Promise<ConsumptionDetail>` | `apps/api/src/services/consumption/consumption.service.ts:1589` |  |
 | `createConsumptionTemplate` | `(ctx: TenantContext, body: CreateConsumptionTemplateRequest, options: ConsumptionActionOptions): Promise<ConsumptionTemplateDetail>` | `apps/api/src/services/consumption/template.service.ts:283` |  |
 | `deleteConsumptionTemplate` | `(ctx: TenantContext, id: string, options: ConsumptionActionOptions): Promise<void>` | `apps/api/src/services/consumption/template.service.ts:471` |  |
@@ -33,12 +31,11 @@ Files: `apps/api/src/services/consumption/consumption.service.ts` · `apps/api/s
 | `planConsumption` | `(ctx: TenantContext, query: ConsumptionPlanQuery, options: ConsumptionActionOptions): Promise<ConsumptionPlanResponse>` | `apps/api/src/services/consumption/consumption.service.ts:317` |  |
 | `prepareLine` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, context: PrepareContext, line: ConsumptionLineRequest): Promise<PreparedLine>` | `apps/api/src/services/consumption/consumption.service.ts:729` |  |
 | `prepareLineForRestatement` <sub>local</sub> | `(tx: TxClient, context: PrepareContext, requested: ConsumptionLineRequest, existing: StoredLine): Promise<Omit<PreparedLine, 'allocations'>>` | `apps/api/src/services/consumption/consumption.service.ts:1427` |  |
-| `q` | `(value: Prisma.Decimal \| number \| string): string` | `apps/api/src/services/consumption/shared.ts:98` | A decimal as the wire wants it: a string, never a float. |
 | `recordAdditional` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, original: OriginalRecord, correctionId: string, occurredAt: Date, body: CorrectConsumptionRequest, options: ConsumptionActionOptions): Promise<void>` | `apps/api/src/services/consumption/consumption.service.ts:1680` | More was used than was recorded. Stock goes out; a SUPPLY charge follows. |
 | `recordConsumption` | `(ctx: TenantContext, body: RecordConsumptionRequest, options: ConsumptionActionOptions): Promise<ConsumptionDetail>` | `apps/api/src/services/consumption/consumption.service.ts:866` |  |
 | `recordReversal` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, original: OriginalRecord, correctionId: string, occurredAt: Date, body: CorrectConsumptionRequest): Promise<void>` | `apps/api/src/services/consumption/consumption.service.ts:1743` |  |
-| `resolveBranchId` | `(ctx: TenantContext, named: string \| undefined, acting: string \| null \| undefined): string` | `apps/api/src/services/consumption/shared.ts:29` |  |
-| `resolveConsumptionLocation` | `(tx: TxClient, branchId: string, locationId: string): Promise<ConsumptionLocation>` | `apps/api/src/services/consumption/shared.ts:63` |  |
+| `resolveBranchId` | `(ctx: TenantContext, named: string \| undefined, acting: string \| null \| undefined): string` | `apps/api/src/services/consumption/shared.ts:25` | The consumption domain's wording of the shared resolver. The security-relevant body is in `shared/branch.ts`; only the noun in the sentence differs. |
+| `resolveConsumptionLocation` | `(tx: TxClient, branchId: string, locationId: string): Promise<ConsumptionLocation>` | `apps/api/src/services/consumption/shared.ts:52` |  |
 | `resolveIssueAllocations` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string, productId: string, productName: string, quantityBase: string, requested: readonly ConsumptionAllocationRequest[] \| undefi…): Promise<ResolvedAlloc…` | `apps/api/src/services/consumption/consumption.service.ts:575` |  |
 | `resolveTemplateInForceWithin` | `(tx: TxClient, organizationId: string, itemId: string, on: Date): Promise<TemplateInForce \| null>` | `apps/api/src/services/consumption/template.service.ts:593` |  |
 | `restateLine` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, record: StoredRecord, existing: StoredLine, requested: ConsumptionLineRequest, context: PrepareContext): Promise<void>` | `apps/api/src/services/consumption/consumption.service.ts:1321` |  |
@@ -65,8 +62,8 @@ Files: `apps/api/src/services/consumption/consumption.service.ts` · `apps/api/s
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ConsumptionActionOptions` | `{ route, ipAddress, userAgent, actingBranchId, permissionCodes }` | `apps/api/src/services/consumption/shared.ts:103` | What every consumption route hands its service. |
-| `ConsumptionLocation` | `{ id, name }` | `apps/api/src/services/consumption/shared.ts:44` |  |
+| `ConsumptionActionOptions` | `{ route, ipAddress, userAgent, actingBranchId, permissionCodes }` | `apps/api/src/services/consumption/shared.ts:69` | What every consumption route hands its service. |
+| `ConsumptionLocation` | `{ id, name }` | `apps/api/src/services/consumption/shared.ts:33` |  |
 | `PrepareContext` <sub>local</sub> | `{ branchId, expected, options }` | `apps/api/src/services/consumption/consumption.service.ts:710` |  |
 | `PreparedLine` <sub>local</sub> | `{ productId, productName, templateLineId, quantityEntered, unitId, quantityBase, expectedQuantityBase, isOverride, overrideReason, allocations }` | `apps/api/src/services/consumption/consumption.service.ts:553` |  |
 | `ResolvedAllocation` <sub>local</sub> | `{ locationId, batchId, serialId, quantityBase, isOverride, overrideReason }` | `apps/api/src/services/consumption/consumption.service.ts:544` |  |

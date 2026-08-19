@@ -2,13 +2,19 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-18 · **By:** session PI-10 (recall & traceability).
+**Written:** 2026-08-19 · **By:** session PI-11 (veterinary enablement + the
+review gate over PI-9, PI-10 and PI-11).
 
-⚠️ **PI-9 AND PI-10 ARE BOTH BUILT AND NEITHER IS REVIEWED.** `/code-review` and
-`security-reviewer` have not been run over either. Both diffs touch the schema,
-tenancy, permissions and patient data, so CLAUDE.md makes the security review
-mandatory before merge — and it is not a formality: PI-1's review found two
-CRITICALs, PI-3's three, PI-5's four and PI-8.11's one.
+✅ **ALL THREE PHASES HAVE NOW BEEN REVIEWED**, together, by both agents over the
+combined 147-file diff. **1 CRITICAL, 1 HIGH, 1 MEDIUM, 6 WARNING, 5 INFO — all
+fixed**, each top finding with a regression test verified to fail against the
+reverted code. Full write-up in IMPLEMENTATION_TRACKER.md under **PI-11.7**.
+
+⚠️ **THE CRITICAL AND THE HIGH WERE BOTH IN PI-10's RECALL CODE, AND BOTH LET
+RECALLED STOCK REACH A SHELF.** Read those two entries before touching
+`recall.service.ts` or `batch.service.ts` — between them they are the argument for
+why "the balance, not the flag" is the guarantee, and why a second door into a
+status change is a second door into the hazard.
 
 ---
 
@@ -32,66 +38,124 @@ foundation (PR #31). **PI-3** Movements (PR #32). **PI-4** Procurement (PR #33).
 The review gate over the whole PI-7 + PI-8 diff. **PI-9** Clinical consumption —
 `feat/pi-9-clinical-consumption`, **COMPLETE**, ⚠️ **not reviewed**. **PI-10**
 Recall & traceability — `feat/pi-10-recall-traceability`, **COMPLETE**, ⚠️ **not
-reviewed**.
+reviewed**. **PI-11** Veterinary enablement — `feat/pi-11-veterinary-enablement`,
+**COMPLETE**, ⚠️ **not reviewed**.
 
 ---
 
 ## What was changed in this session
 
-| Area        | What landed                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Schema      | `recalls` (org-only) + `recall_batches` (org + branch); four new enums; three members added to existing enums                  |
-| Migrations  | `20260909090000_recall_traceability` · `..090500_recall_enum_members` · `..091000_recall_release_movement_direction`           |
-| RLS         | `db:rls:check` green at **128** (was 126). One `product_visible`; `recall_batches.batch_id` needs none — it is a composite FK  |
-| Permissions | `recall.notice.read` / `.create` / `.execute`, and `recall.trace.patients` — the PHI one, implied by none of the other three   |
-| Services    | `services/recall/{shared,recall,trace}.service.ts`                                                                             |
-| Routes      | `/v1/recalls` and `/v1/traceability/{forward,backward,affected}`                                                               |
-| Screens     | `/product-recalls` — notices, one notice, trace a lot. ⚠️ NOT `/recalls`: `/recall` is already the front desk's follow-up list |
-| Fixed       | ⚠️ **`setBatchHold` could not hold a serialised lot at all** — a PI-2 defect, live since PI-2, on every implant in the clinic  |
+**PI-11 — Veterinary Enablement.** ⚠️ **It added no table.** CD-4 landed
+`patients.subject_type` and `animal_profiles` in CE-1 and deliberately built
+nothing on them (§4 asked the architecture to stop assuming humans; §42.7 forbade
+veterinary features). The table then sat **empty and unreachable for the whole
+intervening programme** — no contract field, no service, no route, no screen, and
+no tenant-isolation case despite being named in that suite's own header.
+
+| Area        | What landed                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | 3 columns on `animal_profiles`; the composite-FK target on `patient_contacts`; `SPECIES_RESTRICTION` on `RegulatoryRuleType`                |
+| Migrations  | `..090000_species_restriction_rule_type` · `..090500_pi_11_veterinary_enablement` · `..091000_animal_weight_needs_its_date`                 |
+| RLS         | `db:rls:check` green at **128** — unchanged. No new table, and the one new FK is composite, so no `*_visible` (the PI-10 call again)        |
+| Permissions | **None added.** Profile = `patient.read`/`.update`; dose calculator = `patient.medical_history.read`                                        |
+| Packages    | `@rcln/clinical/dosing.ts` — `weightBasedDose` on exact `bigint` rationals                                                                  |
+| Services    | `services/patient/animal-profile.service.ts`                                                                                                |
+| Routes      | `PUT /v1/patients/{id}/animal-profile` · `POST /v1/patients/{id}/dose-calculations`. **427 endpoints, 427 documented**                      |
+| Screens     | Animal panel + dose calculator on the chart; subject-type toggle on registration; `Animal` marker in search; species on the pharmacy screen |
+| Setting     | `patient.animal_weight_stale_days`, default 90 (PI-ADR-015)                                                                                 |
+| Found       | ⚠️ **Its own CHECK guarded the harmless direction** — see below                                                                             |
 
 ---
 
 ## Decisions taken this session that a later phase must not undo
 
-**1. ⚠️ THE COUNTS AND THE NAMES ARE TWO ROUTES AND TWO PERMISSIONS.**
-`/v1/traceability/forward` answers "37 supplies, 4 procedures, 29 people" under
-`recall.notice.read` and names nobody. `/v1/traceability/affected` answers with
-names and phone numbers, requires `recall.trace.patients` ON TOP of the read
-code, and files one `RECALL_TRACE` disclosure row carrying the count.
-TRACEABILITY.md's "the link always exists in the data; who may see it is an
-access-control question" is exactly this, and `route-gates.test.ts` asserts both
-halves.
+**1. ⚠️ INDIA GETS NO SPECIES RULE, AND THE NON-ADDITION IS WRITTEN INTO THE PACK
+FILE.** Rules 65(20) and 97(3) require a veterinary medicine to be **labelled**
+"Not for human use" and stored apart — `IN-LABEL-VETERINARY` is that, and it is a
+`LABELLING_REQUIREMENT`. Neither rule prohibits the **sale** of one for a human,
+and the step from "the box must say so" to "the sale is unlawful" is an
+inference. The same call PI-6 made about quantity limits and e-pharmacy. The rule
+type is proved against TESTLAND, where every rule type in this framework is
+proved.
 
-**2. ⚠️ A BRANCH-SCOPED EXECUTOR PULLS ONLY THEIR OWN LOTS, AND THAT IS
-CORRECT.** `recall_batches.branch_isolation` makes the rest invisible; they
-cannot reach another site's shelf physically either. So execution is IDEMPOTENT
-over PENDING rows, `recalls.status = EXECUTED` means "somebody executed it"
-rather than "everything is held", and `closeRecall` refuses while anything is
-still PENDING.
+**2. ⚠️ A TRANSACTION THAT NAMES NO SUBJECT IS `UNDETERMINED`, NOT `PERMITTED`.**
+A counter sale names nobody, so a species rule cannot be checked there — and
+PERMITTED would make the anonymous path the way around the rule, which is the path
+somebody buying a veterinary drug for themselves would take. The cost (every
+anonymous counter sale of that product goes UNDETERMINED) is the pack author's to
+accept by listing `COUNTER_SALE`, not the engine's to take on their behalf.
 
-**3. Cancelling puts no stock back.** Releasing a held lot is a decision taken
-per lot by somebody looking at that lot, and it writes a movement and states a
-reason. `cancelRecall` refuses while anything is HELD rather than silently
-releasing everything under one sentence.
+**3. `SPECIES_RESTRICTION` is its own rule type, not a parameter on
+`AGE_RESTRICTION`.** That handler stands aside **entirely** for an animal, so a
+veterinary prohibition written as an age parameter would sit behind a handler that
+exempts every animal from itself — inert in exactly the case it was written for.
 
-**4. A recall is a document, not two columns on a batch.** `batches.recalled_at`
-answers "is this lot recalled"; it cannot answer "which of the eleven lots have
-we found, and how much did we pull". Both are written in one transaction.
+**4. The species on a DISPENSE is read off the profile, never sent by a client.**
+`POST /v1/regulatory/evaluate` accepts one as a hypothesis, for the reason it
+accepts `repeatsAuthorised` as one. A dispense must not, or the person at the
+counter picks which rule applies to them.
 
-**5. `RECALL_RELEASE` is its own movement type**, for the reason
-`PURCHASE_RETURN` is not a `TRANSFER_OUT`. Four places must agree and the enum
-migration names them.
+**5. `subject_type` is absent from the update contract.** It governs which
+care-context ROOT the consultation engine resolves; flipping it leaves a chart
+written under one taxonomy being read under another and orphans the profile row.
+Registered as the wrong kind is a merge, not an edit.
 
-**6. The law is not asked at a recall, and the call site is marked.** No rule
-type in PI-5 addresses WITHDRAWING a product; `evaluateWithin` would answer
-`UNDETERMINED`, which refuses. A rule engine that could REFUSE a recall would be
-a defect wearing a control's clothes. The same call PI-9 made about administering.
+**6. A daily ceiling reduces the SINGLE dose; it does not trim the total.** The
+obvious implementation returns "220 mg, three times a day, 500 mg daily" — two
+instructions that contradict each other.
+
+**7. ⚠️ THE DOSE ROUNDS DOWN.** The only place in the codebase that deliberately
+differs from half-up. `@rcln/inventory` rounds a stock conversion half-up because
+a count that is systematically low is its own kind of wrong; rounding a dose up
+past a maximum is an overdose, and the two errors are not comparable.
+
+**8. `weightKg` on the wire is `"18.4"`, not `"18.400"`** — every decimal goes
+through `decimalToString`, which does not pad to the column's scale. The computed
+dose fields DO pad, because they report at a declared precision rather than
+echoing a column.
+
+---
+
+## ⚠️ The defect this phase introduced, and how it was caught
+
+`..090500` wrote
+
+```sql
+CHECK (weight_recorded_on IS NULL OR weight_kg IS NOT NULL)
+```
+
+which refuses a **date with no weight** — a row that says nothing — and happily
+accepts a **weight with no date**, which is the exact state the feature exists to
+prevent: a weight a dose gets calculated from without anybody being able to see it
+was taken eight months ago. The contract had refused both directions all along, so
+the gap was reachable only by a fixture, a backfill or a second service — which is
+precisely the set of writers a CHECK exists to catch.
+
+The **tenant-isolation case found it**: `refuses a weight with no day it was
+taken` resolved instead of rejecting. `..091000` replaced it with
+`("weight_kg" IS NULL) = ("weight_recorded_on" IS NULL)`. `..090500` was not
+edited — Prisma checksums an applied migration, and the correction being its own
+migration is also the honest record.
 
 ---
 
 ## Where to start
 
-**⚠️ RUN THE REVIEWS FIRST**, over PI-9 and PI-10 together. Point a reviewer at:
+**⚠️ RUN THE REVIEWS FIRST**, over PI-9, PI-10 and PI-11 together. Point a
+reviewer at:
+
+- `setAnimalProfile` and `assertAnimalPatient` — the subject-type guard, and
+  `assertContactBelongsToPatient`, which is the half the composite FK cannot do:
+  the FK stops another CLINIC's contact and says nothing about another ANIMAL's.
+- `calculateDose` — the one PHI read in the phase, and whether logging it as
+  `PATIENT` rather than as a new `DataAccessResource` member is the right call.
+- `evaluateSpeciesRestriction` — the no-subject branch, and whether an allow-list
+  should ever be able to refuse a human (it must not, and there is a test).
+- `weightBasedDose` — the cap-before-rounding order, and the downward rounding.
+- `animal_profiles`' three CHECKs and its two-way owner, in
+  `tests/integration/tenant-isolation/clinical.test.ts`.
+
+And over PI-9 and PI-10:
 
 - `executeRecall` — the recall row is locked before its scope is read, then the
   per-lot loop writes ledger legs, the lot's own status and the notice's row.
@@ -104,8 +168,7 @@ a defect wearing a control's clothes. The same call PI-9 made about administerin
 - `setBatchHold` — the PI-2 fix, and the serial-status sync beside it.
 - `recalls.product_visible`, the one plain FK in the phase.
 
-**Then PI-12 (Online Pharmacy)** or **PI-11 (Veterinary Enablement)**; both are
-unblocked. PI-22 (Reporting) now has recall and quarantine reports to write, and
+**Then PI-12 (Online Pharmacy).** PI-22 (Reporting) now has recall and quarantine reports to write, and
 PI-23 (identifier resolution) is where a "hold every future receipt of this lot
 number" rule would belong — see the open item in the tracker.
 

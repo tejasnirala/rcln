@@ -411,6 +411,18 @@ function ResultRow({ patient }: { patient: PatientSummary }) {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-ink text-[1.0625rem] font-medium">{patient.fullName}</span>
+          {/*
+            ⚠️ A WORD, NOT AN ICON, AND IT IS ON THE ROW RATHER THAN ONLY ON THE
+              RECORD. A search for "Kaapi Subramanian" returns the dog and the
+              owner side by side, and the two rows are otherwise identical in
+              shape — this is the one thing that stops the wrong one being
+              opened at a counter.
+          */}
+          {patient.subjectType === 'ANIMAL' ? (
+            <span className="bg-drape-tint text-drape rounded-xs px-2 py-0.5 text-[0.6875rem] font-medium">
+              Animal
+            </span>
+          ) : null}
           {patient.status !== 'ACTIVE' ? (
             <span className="bg-signal-tint text-signal rounded-xs px-2 py-0.5 text-[0.6875rem] font-medium">
               {patient.status === 'DECEASED' ? 'Deceased' : patient.status.toLowerCase()}
@@ -498,6 +510,16 @@ function RegisterForm({
   const [contactPhone, setContactPhone] = useState('');
 
   const [relation, setRelation] = useState('');
+
+  /*
+   * ⚠️ CHOSEN ONCE, AT REGISTRATION, AND NEVER EDITABLE AFTERWARDS — the API
+   *   leaves `subjectType` off the update contract on purpose. So the control is
+   *   at the TOP of the form rather than tucked among the optional fields: it
+   *   changes what the rest of the form means, and it is the one answer here
+   *   that cannot be corrected later without merging the record.
+   */
+  const [subjectType, setSubjectType] = useState('HUMAN');
+  const isAnimal = subjectType === 'ANIMAL';
 
   /**
    * Fill the city and region from the postcode, on leaving the field.
@@ -613,15 +635,54 @@ function RegisterForm({
         </Alert>
       ) : null}
 
+      <Select
+        name="subjectType"
+        label="Registering"
+        value={subjectType}
+        onChange={(event) => setSubjectType(event.target.value)}
+        options={[
+          { value: 'HUMAN', label: 'A person' },
+          { value: 'ANIMAL', label: 'An animal' },
+        ]}
+        hint="This cannot be changed afterwards."
+        fieldClassName="mt-4"
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
           name="firstName"
-          label="First name"
+          label={isAnimal ? 'Name' : 'First name'}
           required
           autoComplete="off"
           {...(state.fieldErrors?.['firstName'] ? { errors: state.fieldErrors['firstName'] } : {})}
         />
-        <Input name="lastName" label="Last name" autoComplete="off" />
+        <Input
+          name="lastName"
+          label={isAnimal ? 'Household name' : 'Last name'}
+          autoComplete="off"
+        />
+
+        {/*
+          ⚠️ SPECIES AND BREED ONLY, AND DELIBERATELY NO WEIGHT. A weight has to
+            carry the day it was taken — the contract refuses one without the
+            other — and a registration desk with a queue behind it is not where
+            an animal goes on the scales. It is recorded on the chart, where the
+            person doing the weighing is standing.
+        */}
+        {isAnimal ? (
+          <>
+            <Input
+              name="species"
+              label="Species"
+              autoComplete="off"
+              hint="Whatever you call it — dog, cat, tortoise."
+              {...(state.fieldErrors?.['animalProfile.species']
+                ? { errors: state.fieldErrors['animalProfile.species'] }
+                : {})}
+            />
+            <Input name="breed" label="Breed" autoComplete="off" />
+          </>
+        ) : null}
 
         {/*
          * ⚠️ ONE CONTROL, NOT TWO FIELDS, and the calling code IS selectable
