@@ -4,7 +4,7 @@
 
 > DATA ONLY — the reference clinical vocabulary.
 
-Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/regulatory-us-ca.ts` · `packages/db/prisma/seed/data/regulatory-us.ts` · `packages/db/prisma/seed/data/specialties.ts` · `packages/db/prisma/seed/data/visual-maps.ts`
+Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-au-vic.ts` · `packages/db/prisma/seed/data/regulatory-au.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/regulatory-us-ca.ts` · `packages/db/prisma/seed/data/regulatory-us.ts` · `packages/db/prisma/seed/data/specialties.ts` · `packages/db/prisma/seed/data/visual-maps.ts`
 
 ## fn
 
@@ -25,6 +25,16 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ANTERIOR_X` <sub>local</sub> | `20` | `packages/db/prisma/seed/data/visual-maps.ts:249` |  |
+| `AU_AUTHORITIES` | `[ { code: 'TGA', name: 'Therapeutic Goods Administration', websiteUrl: 'https://www.tga.g…` | `packages/db/prisma/seed/data/regulatory-au.ts:80` |  |
+| `AU_CLASSIFICATIONS` | `{ schedule2: 'SCHEDULE_2', schedule3: 'SCHEDULE_3', schedule4: 'SCHEDULE_4', schedule8: '…` | `packages/db/prisma/seed/data/regulatory-au.ts:137` |  |
+| `AU_PACK_EFFECTIVE_FROM` | `'2026-08-20'` | `packages/db/prisma/seed/data/regulatory-au.ts:78` | The day this pack becomes evaluable. Not the day the Poisons Standard commenced. |
+| `AU_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-au.ts:147` |  |
+| `AU_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-au.ts:93` |  |
+| `AU_VIC_AUTHORITIES` | `[ { code: 'VIC_DH', name: 'Department of Health (Victoria)', websiteUrl: 'https://www.hea…` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:129` |  |
+| `AU_VIC_PACK_EFFECTIVE_FROM` | `'2026-08-20'` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:127` | The day this pack becomes evaluable. Not the day any of these regulations was made. |
+| `AU_VIC_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:328` |  |
+| `AU_VIC_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:157` |  |
+| `AUTHORISED_PDF` <sub>local</sub> | `'https://content.legislation.vic.gov.au/sites/default/files…` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:152` |  |
 | `BODY_TOP` <sub>local</sub> | `24` | `packages/db/prisma/seed/data/visual-maps.ts:248` | Where each silhouette starts, in the map's coordinates. Each is 200 wide. |
 | `BODY_VIEWS` <sub>local</sub> | `: VisualRegionSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:358` | ⚠️ No `metadata`: a view groups and is not drawn. Same rule as a quadrant. |
 | `CATEGORIES` | `: SeedCategory[]` | `packages/db/prisma/seed/data/product-masters.ts:152` |  |
@@ -50,9 +60,13 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `SCALP_RX` <sub>local</sub> | `140` | `packages/db/prisma/seed/data/visual-maps.ts:152` |  |
 | `SCALP_RY` <sub>local</sub> | `220` | `packages/db/prisma/seed/data/visual-maps.ts:153` |  |
 | `SCALP_STEPS` <sub>local</sub> | `8` | `packages/db/prisma/seed/data/visual-maps.ts:155` | Segments per edge. Eight is smooth at this size and keeps the `d` short. |
+| `SCHEDULE_4_PRESCRIBERS` <sub>local</sub> | `[ 'MEDICAL_PRACTITIONER', 'VETERINARY_PRACTITIONER', 'DENTIST', 'NURSE_PRACTITIONER', 'AU…` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:300` |  |
+| `SCHEDULE_8_PRESCRIBERS` <sub>local</sub> | `[ 'MEDICAL_PRACTITIONER', 'VETERINARY_PRACTITIONER', 'DENTIST', 'NURSE_PRACTITIONER', 'AU…` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:320` |  |
 | `SCHEDULES` <sub>local</sub> | `[ US_CLASSIFICATIONS.scheduleII, US_CLASSIFICATIONS.scheduleIII, US_CLASSIFICATIONS.sched…` | `packages/db/prisma/seed/data/regulatory-us.ts:273` | The four DEA schedules this pack configures. Schedule I is not dispensable. |
 | `SPECIALTIES` | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed/data/specialties.ts:57` |  |
 | `STORAGE_PROFILES` | `: SeedStorageProfile[]` | `packages/db/prisma/seed/data/product-masters.ts:213` |  |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:290` | Every transaction in which a product reaches a patient, whatever the channel. |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-au.ts:145` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-in.ts:223` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-us.ts:270` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `TEMPLE_EDGE` <sub>local</sub> | `0.45` | `packages/db/prisma/seed/data/visual-maps.ts:200` | The lateral fraction the temples start at, and the mid-band ends at. |
@@ -71,6 +85,7 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `US_PACK_EFFECTIVE_FROM` | `'2026-08-19'` | `packages/db/prisma/seed/data/regulatory-us.ts:94` |  |
 | `US_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:614` |  |
 | `US_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:125` |  |
+| `VERSION` <sub>local</sub> | `'Authorised Version No. 021, as at 1 July 2026'` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:155` |  |
 | `VISUAL_MAPS` | `: VisualMapSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:363` |  |
 
 ## var

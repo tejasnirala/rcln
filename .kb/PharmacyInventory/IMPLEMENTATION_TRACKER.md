@@ -34,27 +34,29 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 
 ## Phase roll-up
 
-| Phase     | Title                                               | Status                    | Blocked by                               |
-| --------- | --------------------------------------------------- | ------------------------- | ---------------------------------------- |
-| PI-0      | Discovery & Architecture                            | **COMPLETE** (2026-08-11) | —                                        |
-| PI-1      | Product Platform Core                               | **COMPLETE** (2026-08-11) | —                                        |
-| PI-2      | Inventory Foundation                                | **COMPLETE** (2026-08-12) | —                                        |
-| PI-3      | Movements                                           | **COMPLETE** (2026-08-12) | —                                        |
-| PI-4      | Procurement                                         | **COMPLETE** (2026-08-13) | —                                        |
-| PI-5      | Global Regulatory Framework                         | **COMPLETE** (2026-08-13) | —                                        |
-| PI-6      | India Rule Pack                                     | **COMPLETE** (2026-08-13) | —                                        |
-| PI-7      | Pharmacy Dispensing                                 | **COMPLETE** (2026-08-16) | —                                        |
-| PI-8      | Billing & Tax Integration                           | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
-| PI-9      | Clinical Consumption                                | **COMPLETE** (2026-08-17) | —                                        |
-| PI-10     | Recall & Traceability                               | **COMPLETE** (2026-08-18) | —                                        |
-| PI-11     | Veterinary Enablement                               | **COMPLETE** (2026-08-19) | —                                        |
-| PI-12     | Online Pharmacy                                     | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-13a    | Rule-pack framework extensions (survey-sized)       | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-13     | United States Rule Pack (federal + California)      | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-14..21 | Country Rule Packs (UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-14 blocked on GB source access        |
-| PI-22     | Reporting & Cost Accounting                         | NOT_STARTED               | PI-4                                     |
-| PI-23     | Identifier Resolution / Barcode                     | NOT_STARTED               | PI-1, PI-2                               |
-| PI-24     | Global Hardening                                    | NOT_STARTED               | everything                               |
+| Phase     | Title                                          | Status                    | Blocked by                               |
+| --------- | ---------------------------------------------- | ------------------------- | ---------------------------------------- |
+| PI-0      | Discovery & Architecture                       | **COMPLETE** (2026-08-11) | —                                        |
+| PI-1      | Product Platform Core                          | **COMPLETE** (2026-08-11) | —                                        |
+| PI-2      | Inventory Foundation                           | **COMPLETE** (2026-08-12) | —                                        |
+| PI-3      | Movements                                      | **COMPLETE** (2026-08-12) | —                                        |
+| PI-4      | Procurement                                    | **COMPLETE** (2026-08-13) | —                                        |
+| PI-5      | Global Regulatory Framework                    | **COMPLETE** (2026-08-13) | —                                        |
+| PI-6      | India Rule Pack                                | **COMPLETE** (2026-08-13) | —                                        |
+| PI-7      | Pharmacy Dispensing                            | **COMPLETE** (2026-08-16) | —                                        |
+| PI-8      | Billing & Tax Integration                      | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
+| PI-9      | Clinical Consumption                           | **COMPLETE** (2026-08-17) | —                                        |
+| PI-10     | Recall & Traceability                          | **COMPLETE** (2026-08-18) | —                                        |
+| PI-11     | Veterinary Enablement                          | **COMPLETE** (2026-08-19) | —                                        |
+| PI-12     | Online Pharmacy                                | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-13a    | Rule-pack framework extensions (survey-sized)  | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-13     | United States Rule Pack (federal + California) | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-14     | United Kingdom Rule Pack                       | **BLOCKED**               | legislation.gov.uk returns 202           |
+| PI-15     | Australia Rule Pack (national + Victoria)      | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
+| PI-16..21 | Country Rule Packs (SG, AE, IE, NP, LK, BD)    | NOT_STARTED               | —                                        |
+| PI-22     | Reporting & Cost Accounting                    | NOT_STARTED               | PI-4                                     |
+| PI-23     | Identifier Resolution / Barcode                | NOT_STARTED               | PI-1, PI-2                               |
+| PI-24     | Global Hardening                               | NOT_STARTED               | everything                               |
 
 ---
 
@@ -1932,7 +1934,8 @@ pseudoephedrine, 3.6 g of base against a product measured in tablets). Needs
 composition arithmetic; a half-modelled version is worse than an honest absence,
 which is India's NDPS call made again.
 
-**Next action:** PI-14 — once an access route to legislation.gov.uk exists
+**Next action:** PI-16 (SG). PI-14 (GB) stays blocked until an access route to
+legislation.gov.uk exists.
 
 ---
 
@@ -1970,3 +1973,62 @@ DISTINCT` index and per-rule-type supersession were all built in PI-5
 - **REGRESS** green — see PI-13a above
 - **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
   security reviewer has run over this diff
+
+---
+
+# PI-15 — Australia rule pack · COMPLETE
+
+**Dependencies:** PI-13a. **Size:** M. **Completion date:** 2026-08-20.
+
+National (the Poisons Standard) plus **Victoria**, because the survey ruled that
+an AU pack without a state pack "must not ship": the Poisons Standard recommends
+and has no legal force except through State and Territory legislation, so a
+national-only pack would describe an instrument binding nobody. Primary sources
+read and recorded: the Federal Register's own text of the Therapeutic Goods
+(Poisons Standard—June 2026) Instrument 2026, and the Chief Parliamentary
+Counsel's authorised consolidation of the Drugs, Poisons and Controlled
+Substances Regulations 2017 (Vic), Version 021.
+
+**Victoria and not New South Wales**, which is larger: legislation.nsw.gov.au
+returned `403` on every path — the same wall PI-14 is behind — and NSW's 1966 Act
+is mid-replacement by the Medicines, Poisons and Therapeutic Goods Act 2022.
+
+The supersession demonstrations are **prescription validity** (no national
+expiry; Victoria reg 50(2) twelve months for S4, reg 51(3) six for S8) and the
+**Schedule 8 controls** (the national rule names the schedule and imposes
+nothing; Victoria adds the register and the treatment permit). `VIC-PERMIT-S8`
+is the first `VERIFY_PRIOR_AUTHORISATION` any real pack has raised — PI-13a built
+that condition kind with Australia's S8 permits named in the comment.
+
+⚠️ **A LATENT DEFECT WAS FOUND AND FIXED, AND IT WOULD HAVE MADE THIS PHASE
+SHIP DEAD.** `locale.ts` gave Australia `regions: []`, scoped to "does GST
+register per state". `isValidRegion` gates `branches.region_code`, which is the
+column the regulatory engine reads to pick a pack — so no branch could say it was
+in Victoria and `AU-VIC` would have seeded, printed in the console and matched
+nothing forever. `AUSTRALIA_REGIONS` now exists and `regions` is documented as
+the subdivisions a branch may be IN rather than where tax registers. The United
+States has the same hole for its five no-sales-tax states; no pack exists for any
+of them, so it is recorded rather than fixed blind.
+
+⚠️ **NO APPENDIX L**, so no national dispensing label: the instrument's HTML
+truncates before the appendices. ⚠️ **NO IMPORT RESTRICTION** — the Customs
+(Prohibited Imports) Regulations 1956 could not be reached. ⚠️ **NO PBS RULES**,
+which apply only to subsidised supply, a fact this platform does not hold.
+⚠️ **NO S9, CHART-INSTRUCTION OR EMERGENCY-SUPPLY RULES** in Victoria — the last
+makes the pack _stricter_ than the law in those cases, which is recorded rather
+than softened.
+
+Seeded: `AU 1.0.0` — 1 authority, 1 source, **4 rules** — and `AU-VIC 1.0.0` —
+1 authority, 7 sources, **18 rules**, the programme's second sub-national pack
+and its first non-US one. Both at `AUTOMATED_TESTED`, which is earned: the rules
+exist, the call sites consult the engine, and 20 behaviour tests ship with them
+(`apps/api/tests/integration/au-rule-pack.test.ts`). **Not one rung higher** —
+sources are `UNVERIFIED` and no qualified person has read either pack.
+
+- **DB** n/a — no migration, for the third rule-pack phase running
+- **BE** `data/regulatory-au.ts`, `data/regulatory-au-vic.ts`, two `PACKS`
+  entries; `AUSTRALIA_REGIONS` in `@rcln/contracts`
+- **TEST** 20 behaviour cases, incl. the storage asymmetry and the Schedule 3
+  case that proves the state pack did not repeal the national one
+- **DOC** COUNTRY_SUPPORT_MATRIX (AU column), KNOWN_ISSUES, CHANGELOG
+- **Status** COMPLETE ⚠️ **not reviewed**

@@ -10,7 +10,7 @@ Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `day` <sub>local</sub> | `(value: string): Date` | `packages/db/prisma/seed/regulatory-packs.ts:77` | A `@db.Date` column takes a day, in the jurisdiction's own reckoning. |
+| `day` <sub>local</sub> | `(value: string): Date` | `packages/db/prisma/seed/regulatory-packs.ts:89` | A `@db.Date` column takes a day, in the jurisdiction's own reckoning. |
 | `describe` <sub>local</sub> | `(code: PermissionCode): string` | `packages/db/prisma/seed/permissions.ts:10` |  |
 | `seedClinicalMasters` | `(): Promise<void>` | `packages/db/prisma/seed/clinical-masters.ts:12` |  |
 | `seedClinicalVocabulary` | `(): Promise<void>` | `packages/db/prisma/seed/clinical-vocabulary.ts:14` |  |
@@ -19,7 +19,7 @@ Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-
 | `seedPermissions` | `(): Promise<Map<PermissionCode, string>>` | `packages/db/prisma/seed/permissions.ts:15` |  |
 | `seedPlans` | `(): Promise<void>` | `packages/db/prisma/seed/plans.ts:6` |  |
 | `seedProductMasters` | `(): Promise<void>` | `packages/db/prisma/seed/product-masters.ts:22` |  |
-| `seedRegulatoryPacks` | `(): Promise<void>` | `packages/db/prisma/seed/regulatory-packs.ts:182` |  |
+| `seedRegulatoryPacks` | `(): Promise<void>` | `packages/db/prisma/seed/regulatory-packs.ts:252` |  |
 | `seedRoleDesignations` | `(): Promise<void>` | `packages/db/prisma/seed/role-designations.ts:53` |  |
 | `seedSettingDefinitions` | `(): Promise<void>` | `packages/db/prisma/seed/setting-definitions.ts:40` |  |
 | `seedSuperAdmin` | `(): Promise<void>` | `packages/db/prisma/seed/super-admin.ts:11` |  |
@@ -36,7 +36,7 @@ Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-
 | `HEALTHCARE_DEFAULTS` <sub>local</sub> | `: { countryCode: string; scheme: 'GST' \| 'VAT'; lineName: string; split: 'NONE' \|…` | `packages/db/prisma/seed/tax-rule-defaults.ts:75` |  |
 | `HEALTHCARE_SERVICE_CATEGORIES` <sub>local</sub> | `[ { category: 'CONSULTATION', description: 'Doctor consultation' }, { category: 'PROCEDUR…` | `packages/db/prisma/seed/tax-rule-defaults.ts:61` |  |
 | `MONTHS` <sub>local</sub> | `[ 'January', 'February', 'March', 'April', 'May', 'June', '…` | `packages/db/prisma/seed/setting-definitions.ts:15` |  |
-| `PACKS` <sub>local</sub> | `: readonly PackSeed[]` | `packages/db/prisma/seed/regulatory-packs.ts:112` |  |
+| `PACKS` <sub>local</sub> | `: readonly PackSeed[]` | `packages/db/prisma/seed/regulatory-packs.ts:124` |  |
 | `ROLE_DESIGNATIONS` <sub>local</sub> | `: Record<string, string[]>` | `packages/db/prisma/seed/role-designations.ts:21` |  |
 
 ## var
@@ -50,4 +50,4 @@ Files: `packages/db/prisma/seed/client.ts` · `packages/db/prisma/seed/clinical-
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PackSeed` <sub>local</sub> | `{ countryCode, regionCode, countryName, authorities, sources, rules, packAuthorityCode, version, name, description, effectiveFrom }` | `packages/db/prisma/seed/regulatory-packs.ts:81` |  |
+| `PackSeed` <sub>local</sub> | `{ countryCode, regionCode, countryName, authorities, sources, rules, packAuthorityCode, version, name, description, effectiveFrom }` | `packages/db/prisma/seed/regulatory-packs.ts:93` |  |

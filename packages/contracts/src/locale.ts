@@ -59,9 +59,18 @@ export interface Region {
  * ⚠️ `region` IS NULLABLE AND THAT IS THE POINT. Singapore is a city-state; it
  *   has no second address level, so the field is not rendered rather than
  *   rendered empty. This is separate from `CountryInfo.regions`, which is the
- *   much narrower "does tax register per subdivision" question — Australia has
- *   states worth putting in an address and no state-level GST registration, so
- *   it has a `region` label and an empty `regions` list.
+ *   set of subdivisions a branch may actually be IN.
+ *
+ * ⚠️ THOSE TWO USED TO BE THE SAME QUESTION AND STOPPED BEING ONE IN PI-15.
+ *   `regions` was documented as the narrow "does tax register per subdivision"
+ *   question, and Australia was listed with a `region` LABEL and an EMPTY
+ *   `regions` list on the reasoning that GST is national. That was true about
+ *   tax and became false about the product the moment a sub-national RULE PACK
+ *   existed: `isValidRegion` gates `branches.region_code`, and that is the
+ *   column `@rcln/regulatory` reads to pick a pack. With Australia empty, a
+ *   Victorian clinic could not save `VIC`, so the `AU-VIC` pack was seeded,
+ *   visible in the console and matched nothing — this domain's signature
+ *   failure. See `regions` on `CountryInfo`.
  */
 export interface AddressLabels {
   addressLine1: string;
@@ -172,7 +181,31 @@ export interface CountryInfo {
   name: string;
   currency: string;
   timezones: readonly string[];
-  /** Empty where no sub-national tax registration exists. */
+  /**
+   * The subdivisions a branch may be IN. Empty means country-wide only.
+   *
+   * ⚠️ THIS IS NOT "WHERE TAX REGISTERS", THOUGH IT WAS UNTIL PI-15, AND THE
+   *   DIFFERENCE COST AUSTRALIA A WORKING RULE PACK. Two independent things key
+   *   on a subdivision now: tax registration, and the regulatory rule pack that
+   *   `@rcln/regulatory` selects from `branches.region_code`. `isValidRegion`
+   *   gates that column, so a country left empty here can hold no regional pack
+   *   — the pack seeds, prints in the console, and matches nothing forever.
+   *   Australia is exactly that case: GST is national and its drugs law is
+   *   emphatically not.
+   *
+   * ⚠️ SO LISTING A SUBDIVISION HERE DOES NOT ASSERT THAT TAX REGISTERS THERE.
+   *   The platform's tax-registration screen reads this list and will therefore
+   *   offer Australian states; creating one would be a mistake, and it is a
+   *   visible mistake made by a platform administrator rather than a silent one
+   *   made by the product. The reverse — omitting a subdivision so the tax
+   *   screen looks tidy — is the silent one, and is what happened here.
+   *
+   * ⚠️ AND THE UNITED STATES HAS THE SAME HOLE, UNCLOSED. `US_REGIONS` lists
+   *   only the states that levy a sales tax, so a branch in Oregon, Montana,
+   *   New Hampshire, Delaware or Alaska can hold no region and could never be
+   *   given a state rule pack. No pack exists for any of the five, so nothing is
+   *   inert today. Recorded in KNOWN_ISSUES rather than fixed blind.
+   */
   regions: readonly Region[];
   /**
    * The usual shape of a registration here, for prefilling only.
@@ -250,6 +283,26 @@ const INDIA_REGIONS: readonly Region[] = [
   { code: 'UP', name: 'Uttar Pradesh' },
   { code: 'UT', name: 'Uttarakhand' },
   { code: 'WB', name: 'West Bengal' },
+];
+
+/**
+ * Australia's states and territories, by ISO 3166-2 code.
+ *
+ * ⚠️ LISTED FOR THE RULE PACK, NOT FOR TAX. GST is a single national tax and no
+ *   Australian clinic registers for it per state — but the Poisons Standard has
+ *   no legal force except through state and territory legislation, so a
+ *   Victorian branch must be able to say it is in Victoria or the `AU-VIC` pack
+ *   can never be selected. See `CountryInfo.regions`.
+ */
+const AUSTRALIA_REGIONS: readonly Region[] = [
+  { code: 'ACT', name: 'Australian Capital Territory' },
+  { code: 'NSW', name: 'New South Wales' },
+  { code: 'NT', name: 'Northern Territory' },
+  { code: 'QLD', name: 'Queensland' },
+  { code: 'SA', name: 'South Australia' },
+  { code: 'TAS', name: 'Tasmania' },
+  { code: 'VIC', name: 'Victoria' },
+  { code: 'WA', name: 'Western Australia' },
 ];
 
 /** US states that levy a sales tax, plus DC. The five that do not are omitted. */
@@ -389,14 +442,12 @@ export const COUNTRIES: readonly CountryInfo[] = [
       'Australia/Darwin',
       'Australia/Hobart',
     ],
-    regions: [],
+    regions: AUSTRALIA_REGIONS,
     tax: { scheme: 'GST', standardRateBps: 1000 },
     dial: { code: '+61', minDigits: 9, maxDigits: 9, example: '412345678' },
     labels: {
       addressLine1: 'Street address',
       city: 'Suburb',
-      // States exist and belong in the address; GST does not register per
-      // state, which is why `regions` above is empty. Both are true.
       region: 'State or territory',
       postalCode: 'Postcode',
     },

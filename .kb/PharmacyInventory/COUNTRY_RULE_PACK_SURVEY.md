@@ -185,6 +185,14 @@ instrument with no legal effect — configured, visible, and inert, which is thi
 domain's signature failure. **PI-15 must ship at least one state pack or it must
 not ship.**
 
+✅ **IT SHIPPED WITH ONE, AND THE PREDICTION HELD EXACTLY.** `AU 1.0.0` is four
+rules and `AU-VIC 1.0.0` is eighteen. What the survey did **not** predict is that
+the region path had a second gate outside the regulatory code: `CountryInfo.regions`
+in `@rcln/contracts` was scoped to tax registration and left Australia empty, so
+`branches.region_code` could never hold `VIC` and the state pack would have been
+inert anyway. GAP 5 said "no schema change is needed", which was true and not
+sufficient. See KNOWN_ISSUES.
+
 ---
 
 ## Confirmed non-gaps
@@ -233,7 +241,7 @@ look complete.
 | **PI-13a** | **New.** Framework extensions sized to all nine: GAP 1, GAP 2, GAP 3, GAP 5. Tested against the synthetic `ZQ` packs in `packages/regulatory/tests/engine.test.ts`, where every rule type is tested. No country's rules. |
 | PI-13      | US federal + California state pack. Unchanged in scope, now built on PI-13a                                                                                                                                              |
 | PI-14 GB   | ⚠️ **Blocked until an access route to legislation.gov.uk is found**                                                                                                                                                      |
-| PI-15 AU   | ⚠️ **Re-sized S → M.** Must ship a federal pack _and_ at least one state pack                                                                                                                                            |
+| PI-15 AU   | ✅ **SHIPPED 2026-08-20** as national + Victoria. NSW returned `403`, so the state is Victoria. The state pack carries 18 of the 22 rules, which is the survey's thesis proved                                           |
 | PI-16 SG   | Unchanged                                                                                                                                                                                                                |
 | PI-17 AE   | ⚠️ **Re-sized S → M.** Federal + at least one emirate                                                                                                                                                                    |
 | PI-18 IE   | Unchanged                                                                                                                                                                                                                |

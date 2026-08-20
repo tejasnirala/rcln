@@ -5,22 +5,22 @@ about this programme lives in this directory. Start here.
 
 ```text
 CURRENT PHASE:        none in flight
-CURRENT STATUS:       PI-0..PI-13 COMPLETE
-LAST COMPLETED PHASE: PI-13 — United States rule pack (federal + California)
+CURRENT STATUS:       PI-0..PI-13, PI-15 COMPLETE
+LAST COMPLETED PHASE: PI-15 — Australia rule pack (national + Victoria)
 CURRENT WORK:         none
-NEXT PHASE:           PI-15 (AU) or PI-16 (SG); PI-22, PI-23 also open.
+NEXT PHASE:           PI-16 (SG); PI-22, PI-23 also open.
                       ⚠️ PI-14 (GB) is BLOCKED — legislation.gov.uk returned
                       202 on every attempt in the country survey. An access
                       route is needed before that phase opens.
 BLOCKERS:             PI-14 (see above).
-                      ⚠️ PI-13a AND PI-13 ARE NOT REVIEWED — neither
+                      ⚠️ PI-13a, PI-13 AND PI-15 ARE NOT REVIEWED — neither
                       /code-review nor the security reviewer has run over
-                      that diff.
+                      those diffs.
                       ✅ PI-12 IS FULLY REVIEWED. Security: 2 CRITICAL,
                       1 HIGH, 3 MEDIUM, 4 LOW. Code: 8 WARNING, 7 INFO, no
                       CRITICAL. All acted on; both CRITICALs carry a regression
                       test verified against the reverted code.
-LAST UPDATED:         2026-08-19
+LAST UPDATED:         2026-08-20
 ```
 
 ---

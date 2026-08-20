@@ -4,7 +4,7 @@ Defects, gaps and debts in **this programme**. Repository-wide issues live in
 [`.kb/15_Known_Issues_and_Technical_Debt.md`](../15_Known_Issues_and_Technical_Debt.md)
 and [`.kb/Architecture/PITFALLS.md`](../Architecture/PITFALLS.md).
 
-**Last updated:** 2026-08-19 (PI-12)
+**Last updated:** 2026-08-20 (PI-15)
 
 ---
 
@@ -354,3 +354,94 @@ of a check nobody performed**, which is worse than not raising the condition at
 all. No screen consumes them yet. The UI treatment is an open decision — see
 OPEN_DECISIONS.md — and must be settled before the online-pharmacy screens are
 pointed at a US branch.
+
+---
+
+## PI-15 — the Australian packs
+
+### ⚠️ `regions` in `locale.ts` gates the regulatory engine, and nobody knew
+
+**Found and fixed in PI-15, and it would have shipped the phase dead.**
+`CountryInfo.regions` was documented and populated as "does tax register per
+subdivision" — so Australia, whose GST is national, had `regions: []`.
+`assertJurisdiction` in `branch.service.ts` calls `isValidRegion` before writing
+`branches.region_code`, **and that column is what `@rcln/regulatory` reads to
+choose between a national and a sub-national pack.** No Victorian branch could
+save `VIC`; `AU-VIC` would have seeded, printed its rule count in the console and
+matched nothing, forever.
+
+`AUSTRALIA_REGIONS` now exists and the field is documented as the subdivisions a
+branch may be IN. The cost is that the platform's tax-registration screen reads
+the same list and will offer Australian states — a visible mistake available to a
+platform administrator, traded against a silent one made by the product.
+
+⚠️ **THE UNITED STATES HAS THE SAME HOLE AND IT IS NOT FIXED.** `US_REGIONS`
+lists only the states that levy a sales tax; a branch in Oregon, Montana, New
+Hampshire, Delaware or Alaska can hold no region and could never be given a state
+pack. No pack exists for any of the five, so nothing is inert today. **Any phase
+that writes one must add the state to `US_REGIONS` first**, and will get no
+warning that it needed to.
+
+### ⚠️ The Victorian pack is stricter than Victorian law on emergency supply
+
+Regulations 25, 25A, 53, 56, 57 and 57A each permit a supply that departs from
+the ordinary requirements — a verbal instruction, a digital image, a three-day
+emergency supply, continuity of treatment. They are **exceptions to rules**, and
+the framework expresses rules rather than exceptions to them: a
+`PRESCRIPTION_REQUIRED` rule has no way to say "unless the pharmacist judges an
+emergency".
+
+So a Victorian pharmacist acting lawfully under reg 56 is refused by `VIC-RX-S4`
+and must override. That is the safe direction and it is still wrong. **Do not
+close this by softening the rule** — the honest fix is an exception vocabulary in
+the framework, sized across every pack, not a weakened Australian one.
+
+### ⚠️ No national dispensing label, because Appendix L could not be retrieved
+
+Paragraph 40 of the Poisons Standard disapplies its own labelling requirements
+from a medicine labelled per clause 1 of Appendix L — so **Appendix L is the
+Australian dispensing label**, and the Federal Register's HTML truncates before
+the appendices while its PDF is thousands of pages of substance listings.
+
+Victoria's reg 72 is configured and is expressly _supplementary_: it adds the
+date of the record of supply and the directions for use. A screen driven by
+`LABEL_FIELDS` today prints a container **missing the patient's name**. The
+matrix cell stays `RESEARCH_REQUIRED` for exactly this reason.
+
+### ⚠️ SafeScript is configured for Schedule 8 only
+
+Schedule 6 to the Victorian Regulations makes all Schedule 8 poisons monitored —
+which `VIC-REPORT-S8` carries, because that limb is coextensive with a
+classification. It also names benzodiazepines that are Schedule 4 poisons,
+codeine, gabapentin, pregabalin, quetiapine, tramadol, zolpidem and zopiclone:
+individual **substances inside** a schedule, which `appliesToClassification`
+matches one string at a time and cannot express. Those supplies are not reported
+by this pack. Same shape as the pseudoephedrine gap (survey GAP 4) and it needs
+the same composition-level work.
+
+### ⚠️ Victoria's animal labelling particulars are unenforceable text
+
+Reg 72(a) requires an animal's species, age, breed and sex and its owner's name
+on the container. Those are conditional on the patient being an animal and
+`ObligationParameters.fields` is an unconditional list, so demanding them there
+would demand them on every human dispense. They sit in `detail` instead — text a
+pharmacist reads and a screen cannot check. **This is the third pack to hit a
+conditional-field problem** after California's veterinary caution; the framework
+gap is real and unsized.
+
+### ⚠️ The framework's inverted defaults were hit twice more
+
+Both are the same defect already recorded under PI-13a — the framework models
+"consent required" and several jurisdictions write "objection blocks":
+
+- **Brand substitution.** Reg 50(4)(c) forbids supplying a different brand only
+  where the prescription names one. `requiresPrescriberConsent` would refuse
+  every lawful substitution in the state, so `VIC-SUBST-*` carries
+  `permitted: true` with the proviso in the statement.
+- **Schedule 8 two-day quantity.** Reg 51(2) bars a supply of more than two days'
+  treatment **unless** the pharmacist verifies the prescriber. `maxDaysSupply: 2`
+  would refuse every ordinary verified Schedule 8 supply in Victoria. Carried in
+  the `VIC-RX-S8` statement.
+
+Two packs have now paid this cost in four places. It is the strongest candidate
+for the next framework phase.
