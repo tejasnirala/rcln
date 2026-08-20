@@ -1649,3 +1649,61 @@ safe from `pnpm kb`.
 
 ### Next
 ```
+
+## 2026-08-19 — PI-13a + PI-13: rule-pack framework extensions and the US packs
+
+**A country survey ran before any code.** Nine jurisdictions were checked for
+rule shapes `@rcln/regulatory` could not express, and the answer reshaped the
+plan: see [COUNTRY_RULE_PACK_SURVEY.md](COUNTRY_RULE_PACK_SURVEY.md).
+
+### PI-13a — the framework, extended once for all nine
+
+- **`validityMonths`** on prescription and refill rules, with calendar-month
+  arithmetic. ⚠️ 21 U.S.C. 829(b)'s "six months" is 180, 181, 182 or 184 days
+  depending where in the year it starts — `validityDays: 180` would refuse a
+  lawful dispense on day 181 while citing the statute that permits it. Short
+  months clamp rather than roll over, because clamping shortens and rolling over
+  lengthens, and only one errs safely.
+- **`VERIFY_PRIOR_IN_PERSON_EVALUATION`** and **`VERIFY_PRIOR_AUTHORISATION`** —
+  the first conditions the person dispensing cannot discharge. ⚠️ Without the
+  first, an `ONLINE_DISPENSING` rule configured from 21 U.S.C. 829(e) returned a
+  bare `PERMITTED` and asserted the **opposite** of the section, whose entire
+  content is the proviso.
+- **`maxDaysSupply`** — limits denominated in treatment days. Absent
+  `daysSupply` → `UNDETERMINED`, which refuses. Nothing populates it yet, and
+  no pack uses it.
+- **`regionCode` on `PackSeed`** — sub-national packs can now be seeded.
+
+**No migration.** Five gaps, none in the database — PI-5's schema absorbed nine
+jurisdictions of survey without moving.
+
+### PI-13 — United States
+
+`US 1.0.0`: 2 authorities, 7 sources, **39 rules**, from eCFR's own XML of
+21 CFR 1301/1304/1306/201.105 and GPO's publication of 21 U.S.C. 353, 829, 830.
+`US-CA 1.0.0`: **the programme's first sub-national pack** — 3 rules from the
+California Legislature's own publication of the Business and Professions Code.
+
+**The supersession this phase exists to prove:** federal retention is two years
+(21 CFR 1304.04(a), keyed to a classification); California's is three
+(B&P § 4081(a), keyed to nothing). The state rule is **broader** and must still
+win — `mostSpecific()` filters to the regional level _before_ comparing
+specificity. Four tests pin it, including that federal rules of every _other_
+type keep applying in California. PI-5 built this and nothing had ever exercised
+it.
+
+**Deliberate omissions, each recorded with its reason:** no pseudoephedrine
+rules (the limit is on a chemical contained in the product; the base unit is
+tablets), no DSCSA traceability (no reachable primary source — no source, no
+rule), no federal substitution rule (substitution is state law), no Schedule V
+refill rule, no validity period for Schedule II or legend drugs.
+
+⚠️ **Two findings worth carrying forward.** Australia — not the US — is the
+hardest pack in the programme: the Poisons Standard has no legal force except
+through state legislation, so PI-15 must ship a state pack or not ship. And
+PI-14 is **blocked**: legislation.gov.uk returned `202` on every attempt.
+
+⚠️ **Neither pack is reviewed.** Sources are `UNVERIFIED`, no qualified person
+has read either, and enforcement is gated on `PRODUCTION_ENABLED`. Nothing here
+blocks anything. Five entries added to KNOWN_ISSUES, including a labelling
+supersession that silently drops the federal veterinary caution in California.

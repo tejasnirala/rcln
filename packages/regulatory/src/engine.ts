@@ -126,6 +126,73 @@ function daysBetween(from: Date, to: Date): number {
   return Math.round(millis / 86_400_000);
 }
 
+/**
+ * The day a validity stated in CALENDAR MONTHS expires, counted from `from`.
+ *
+ * ⚠️ CALENDAR MONTHS, NOT 30-DAY BLOCKS, AND THE DIFFERENCE IS THE WHOLE REASON
+ *   THIS FUNCTION EXISTS (PI-13a, survey GAP 1). 21 U.S.C. 829(b) gives a
+ *   Schedule III prescription "six months after the date thereof". From
+ *   1 January that is 1 July — 181 days. From 1 August it is 1 February —
+ *   184 days. Any fixed day count is wrong for most of the year, and wrong in
+ *   the refusing direction for the longer halves, which is the direction nobody
+ *   audits because a refusal looks like the system working.
+ *
+ * ⚠️ AND THE SHORT-MONTH CASE IS CLAMPED RATHER THAN ROLLED OVER. `Date` will
+ *   happily turn 31 January + 1 month into 3 March, which would EXTEND a
+ *   validity by two days — permitting a dispense the statute does not. So the
+ *   day is clamped back to the last day of the target month: 31 January + 1
+ *   month is 28 February, and 31 March + 1 month is 30 April. Clamping shortens
+ *   and rolling over lengthens, and only one of those errs the safe way.
+ */
+export function addCalendarMonths(from: Date, months: number): Date {
+  const start = startOfCalendarDay(from);
+  const year = start.getUTCFullYear();
+  const month = start.getUTCMonth();
+  const day = start.getUTCDate();
+
+  // Day 0 of the month after the target is the target month's last day.
+  const lastDayOfTargetMonth = new Date(Date.UTC(year, month + months + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month + months, Math.min(day, lastDayOfTargetMonth)));
+}
+
+/**
+ * Has a prescription outlived the validity a rule states, in either unit?
+ *
+ * Returns the sentence to refuse with, or `undefined` where it is still live.
+ * Both keys may be present, and the EARLIER expiry governs — a jurisdiction that
+ * writes both means both, and taking the later one would let the looser key
+ * quietly repeal the tighter.
+ */
+function expiredAgainst(
+  issuedOn: Date,
+  occurredAt: Date,
+  validityDays: number | undefined,
+  validityMonths: number | undefined
+): string | undefined {
+  const day = startOfCalendarDay(occurredAt).getTime();
+
+  if (validityDays !== undefined) {
+    const age = daysBetween(issuedOn, occurredAt);
+    if (age > validityDays) {
+      return `This prescription is ${String(age)} days old and expires after ${String(validityDays)}.`;
+    }
+  }
+
+  if (validityMonths !== undefined) {
+    const expiresAfter = addCalendarMonths(issuedOn, validityMonths);
+    if (day > expiresAfter.getTime()) {
+      const plural = validityMonths === 1 ? 'month' : 'months';
+      return (
+        `This prescription was written on ${issuedOn.toISOString().slice(0, 10)} and is valid ` +
+        `for ${String(validityMonths)} ${plural}, so it expired after ` +
+        `${expiresAfter.toISOString().slice(0, 10)}.`
+      );
+    }
+  }
+
+  return undefined;
+}
+
 /** Is this transaction one where a prescription is even a coherent question? */
 function isSupplyToPatient(request: RegulatoryRequest): boolean {
   return (
@@ -169,25 +236,26 @@ function evaluatePrescriptionRequired(
     );
   }
 
-  const validityDays = parsed.value.validityDays;
-  if (validityDays !== undefined) {
-    const age = daysBetween(prescription.issuedOn, request.occurredAt);
-    if (age < 0) {
-      /*
-       * ⚠️ A PRESCRIPTION DATED IN THE FUTURE IS REFUSED, NOT TREATED AS FRESH.
-       *   `Math.abs` here would make a mistyped year the most valid prescription
-       *   in the system.
-       */
+  const { validityDays, validityMonths } = parsed.value;
+  if (validityDays !== undefined || validityMonths !== undefined) {
+    /*
+     * ⚠️ A PRESCRIPTION DATED IN THE FUTURE IS REFUSED, NOT TREATED AS FRESH.
+     *   `Math.abs` here would make a mistyped year the most valid prescription
+     *   in the system.
+     */
+    if (daysBetween(prescription.issuedOn, request.occurredAt) < 0) {
       return refused(
         `${rule.statement} The prescription is dated after the day it is being dispensed.`
       );
     }
-    if (age > validityDays) {
-      return refused(
-        `${rule.statement} This prescription is ${String(age)} days old and expires after ` +
-          `${String(validityDays)}.`
-      );
-    }
+
+    const expired = expiredAgainst(
+      prescription.issuedOn,
+      request.occurredAt,
+      validityDays,
+      validityMonths
+    );
+    if (expired !== undefined) return refused(`${rule.statement} ${expired}`);
   }
 
   return permitted(`${rule.code}: a valid prescription was presented.`);
@@ -307,6 +375,30 @@ function evaluateControlledSchedule(rule: RegulatoryRule, request: RegulatoryReq
     );
   }
 
+  /*
+   * ⚠️ A PERMIT THIS PLATFORM CANNOT SEE, RAISED AS AN OBLIGATION (PI-13a, GAP 2).
+   *   Australia's Schedule 8 authorities are the case: a state health department
+   *   grants written authority to treat a NAMED patient with a NAMED drug, and
+   *   the authority lives in a state registry rcln does not talk to. Refusing
+   *   for want of a record we could never hold would block every lawful S8
+   *   supply in the country; permitting silently would drop the requirement
+   *   that makes the supply lawful. The condition says which, and names the
+   *   authority so the screen can say where to look.
+   */
+  if (parsed.value.priorAuthorisationRequired === true) {
+    const authority = parsed.value.authorisationAuthority;
+    conditions.push(
+      condition(
+        rule,
+        'VERIFY_PRIOR_AUTHORISATION',
+        `A ${parsed.value.scheduleName ?? 'controlled drug'} authorisation must already have ` +
+          `been granted for this patient${authority !== undefined ? ` by ${authority}` : ''}. ` +
+          'Check it is in force before supplying.',
+        authority !== undefined ? { authority } : undefined
+      )
+    );
+  }
+
   const kinds = parsed.value.storageLocationKinds;
   if (kinds !== undefined && kinds.length > 0 && request.transaction === 'STOCK') {
     const kind = request.location?.kind;
@@ -378,6 +470,38 @@ function applyQuantityLimit(
       return refused(
         `${rule.statement} That would make ${total} over ${String(parsed.value.periodDays ?? 0)} ` +
           `days, and the limit is ${perPeriod}.`
+      );
+    }
+  }
+
+  /*
+   * ⚠️ A LIMIT IN TREATMENT DAYS IS NOT A LIMIT IN BASE UNITS, AND NOTHING HERE
+   *   CONVERTS BETWEEN THEM (PI-13a, survey GAP 3). New York PHL § 3332 caps a
+   *   controlled-substance prescription at "a thirty day supply"; thirty days is
+   *   30 tablets at one a day and 120 at four a day, so `quantityBase` cannot
+   *   answer it. The figure has to come off the directions for use, which this
+   *   programme does not yet parse.
+   *
+   * ⚠️ SO A RULE USING THIS KEY REFUSES UNTIL A CALLER CAN SUPPLY IT, AND THAT
+   *   IS THE INTENDED COST RATHER THAN A DEFECT. `UNDETERMINED` is the same
+   *   answer a missing `priorQuantityInPeriodBase` gets above, for the same
+   *   reason: a platform that cannot compute the supply has not established
+   *   compliance, it has only failed to look — and those two must never resolve
+   *   alike.
+   */
+  const maxDaysSupply = parsed.value.maxDaysSupply;
+  if (maxDaysSupply !== undefined) {
+    const daysSupply = request.daysSupply;
+    if (daysSupply === undefined) {
+      return undetermined(
+        `${rule.code} limits this to ${String(maxDaysSupply)} days' supply, and how many days ` +
+          'this supply covers was not worked out from the directions for use.'
+      );
+    }
+    if (daysSupply > maxDaysSupply) {
+      return refused(
+        `${rule.statement} This is ${String(daysSupply)} days' supply and the limit is ` +
+          `${String(maxDaysSupply)}.`
       );
     }
   }
@@ -457,15 +581,14 @@ function evaluateRefillRule(rule: RegulatoryRule, request: RegulatoryRequest): R
     }
   }
 
-  const validityDays = parsed.value.validityDays;
-  if (validityDays !== undefined) {
-    const age = daysBetween(prescription.issuedOn, request.occurredAt);
-    if (age > validityDays) {
-      return refused(
-        `${rule.statement} A repeat may not be dispensed more than ${String(validityDays)} days ` +
-          'after the prescription was written.'
-      );
-    }
+  const expired = expiredAgainst(
+    prescription.issuedOn,
+    request.occurredAt,
+    parsed.value.validityDays,
+    parsed.value.validityMonths
+  );
+  if (expired !== undefined) {
+    return refused(`${rule.statement} A repeat may not be dispensed now: ${expired}`);
   }
 
   return permitted(`${rule.code}: repeats remain available.`);
@@ -666,6 +789,37 @@ function evaluateOnlineDispensing(rule: RegulatoryRule, request: RegulatoryReque
         `${rule.statement} It may not be supplied to ${formatJurisdiction(destination)}.`
       );
     }
+  }
+
+  /*
+   * ⚠️ THE PROVISO IS RAISED AS AN OBLIGATION, NOT CHECKED — AND WITHOUT IT THIS
+   *   HANDLER ASSERTED THE OPPOSITE OF THE STATUTE (PI-13a, survey GAP 2).
+   *   21 U.S.C. 829(e) does not authorise internet supply of a controlled
+   *   substance; it forbids it except on a prescription from a practitioner who
+   *   has conducted at least one in-person medical evaluation of the patient, or
+   *   from a covering practitioner. Before this key the closest expressible rule
+   *   was `permitted: true`, which fell straight through to the bare permission
+   *   below — a pack faithfully configured from the section, returning the
+   *   inverse of it.
+   *
+   * ⚠️ THE ENGINE CANNOT VERIFY IT AND MUST NOT PRETEND TO. Whether a
+   *   consultation happened in a room is not a fact this platform holds, so
+   *   answering `UNDETERMINED` would refuse every lawful online supply in the
+   *   United States, and answering `PERMITTED` silently would drop the section.
+   *   A condition is the honest third answer: the supply may proceed AND
+   *   somebody must establish this. Who that somebody is, and what the screen
+   *   may ask them to attest to, is an open decision — see `RegulatoryCondition`.
+   */
+  if (parsed.value.requiresPriorInPersonEvaluation === true) {
+    return permitted(`${rule.code}: remote supply is permitted, subject to a prior evaluation.`, [
+      condition(
+        rule,
+        'VERIFY_PRIOR_IN_PERSON_EVALUATION',
+        'Remote supply is lawful here only on a prescription from a practitioner who has ' +
+          'already examined this patient in person, or from a covering practitioner. Establish ' +
+          'that before sending this.'
+      ),
+    ]);
   }
 
   return permitted(`${rule.code}: remote supply is permitted.`);

@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-19 (PI-11 complete)
+**Last updated:** 2026-08-19 (PI-12 complete; PI-13a scoped from the country survey)
 
 ## Status vocabulary
 
@@ -34,25 +34,27 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 
 ## Phase roll-up
 
-| Phase     | Title                                                   | Status                    | Blocked by                               |
-| --------- | ------------------------------------------------------- | ------------------------- | ---------------------------------------- |
-| PI-0      | Discovery & Architecture                                | **COMPLETE** (2026-08-11) | —                                        |
-| PI-1      | Product Platform Core                                   | **COMPLETE** (2026-08-11) | —                                        |
-| PI-2      | Inventory Foundation                                    | **COMPLETE** (2026-08-12) | —                                        |
-| PI-3      | Movements                                               | **COMPLETE** (2026-08-12) | —                                        |
-| PI-4      | Procurement                                             | **COMPLETE** (2026-08-13) | —                                        |
-| PI-5      | Global Regulatory Framework                             | **COMPLETE** (2026-08-13) | —                                        |
-| PI-6      | India Rule Pack                                         | **COMPLETE** (2026-08-13) | —                                        |
-| PI-7      | Pharmacy Dispensing                                     | **COMPLETE** (2026-08-16) | —                                        |
-| PI-8      | Billing & Tax Integration                               | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
-| PI-9      | Clinical Consumption                                    | **COMPLETE** (2026-08-17) | —                                        |
-| PI-10     | Recall & Traceability                                   | **COMPLETE** (2026-08-18) | —                                        |
-| PI-11     | Veterinary Enablement                                   | **COMPLETE** (2026-08-19) | —                                        |
-| PI-12     | Online Pharmacy                                         | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-13..21 | Country Rule Packs (US, UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-6                                     |
-| PI-22     | Reporting & Cost Accounting                             | NOT_STARTED               | PI-4                                     |
-| PI-23     | Identifier Resolution / Barcode                         | NOT_STARTED               | PI-1, PI-2                               |
-| PI-24     | Global Hardening                                        | NOT_STARTED               | everything                               |
+| Phase     | Title                                               | Status                    | Blocked by                               |
+| --------- | --------------------------------------------------- | ------------------------- | ---------------------------------------- |
+| PI-0      | Discovery & Architecture                            | **COMPLETE** (2026-08-11) | —                                        |
+| PI-1      | Product Platform Core                               | **COMPLETE** (2026-08-11) | —                                        |
+| PI-2      | Inventory Foundation                                | **COMPLETE** (2026-08-12) | —                                        |
+| PI-3      | Movements                                           | **COMPLETE** (2026-08-12) | —                                        |
+| PI-4      | Procurement                                         | **COMPLETE** (2026-08-13) | —                                        |
+| PI-5      | Global Regulatory Framework                         | **COMPLETE** (2026-08-13) | —                                        |
+| PI-6      | India Rule Pack                                     | **COMPLETE** (2026-08-13) | —                                        |
+| PI-7      | Pharmacy Dispensing                                 | **COMPLETE** (2026-08-16) | —                                        |
+| PI-8      | Billing & Tax Integration                           | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
+| PI-9      | Clinical Consumption                                | **COMPLETE** (2026-08-17) | —                                        |
+| PI-10     | Recall & Traceability                               | **COMPLETE** (2026-08-18) | —                                        |
+| PI-11     | Veterinary Enablement                               | **COMPLETE** (2026-08-19) | —                                        |
+| PI-12     | Online Pharmacy                                     | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-13a    | Rule-pack framework extensions (survey-sized)       | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-13     | United States Rule Pack (federal + California)      | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-14..21 | Country Rule Packs (UK, AU, SG, AE, IE, NP, LK, BD) | NOT_STARTED               | PI-14 blocked on GB source access        |
+| PI-22     | Reporting & Cost Accounting                         | NOT_STARTED               | PI-4                                     |
+| PI-23     | Identifier Resolution / Barcode                     | NOT_STARTED               | PI-1, PI-2                               |
+| PI-24     | Global Hardening                                    | NOT_STARTED               | everything                               |
 
 ---
 
@@ -1855,3 +1857,116 @@ past 24×24 (WCAG 2.5.8).
   cannot reach it. PI-22/PI-23 territory.
 - **The product picker is still capped at 100** on the order form, like every
   other picker in this programme. PI-23.
+
+---
+
+# PI-13a — Rule-pack framework extensions · IN_PROGRESS
+
+**Dependencies:** PI-5, PI-6. **Priority:** P0 — every remaining country pack
+waits on it. **Size:** S.
+
+Scoped from [COUNTRY_RULE_PACK_SURVEY.md](COUNTRY_RULE_PACK_SURVEY.md), which
+surveyed all nine remaining jurisdictions for rule shapes the engine cannot
+express. It exists so that `engine.ts` — the file every jurisdiction depends on
+— is extended **once** rather than nine times.
+
+⚠️ **NOT ONE COUNTRY'S RULES LAND IN THIS PHASE.** It is framework only, tested
+against the synthetic `ZQ` packs in `packages/regulatory/tests/engine.test.ts`,
+which is where every rule type in this programme is tested. A pack that needs
+one of these keys gets it in its own phase.
+
+⚠️ **NO MIGRATION.** Five gaps, none of them in the database. `jurisdictions.region_code`,
+the `NULLS NOT DISTINCT` index and per-rule-type supersession were all built in
+PI-5 and have never been exercised.
+
+**Completion date:** 2026-08-19 · **Validation:** ran once at the end —
+`pnpm lint`, `pnpm format`, `turbo typecheck --concurrency=1`, then the tests.
+1929 API tests across 93 suites, 120 regulatory, 665 across the other packages;
+`db:rls:check` 131 tables; `docs:validate` 437/437. All green.
+
+### PI-13a.1 — Calendar-month validity (survey GAP 1, 4+ of 9 jurisdictions)
+
+`validityDays` is a day count; US, GB, AU and IE all state validity in calendar
+months. ⚠️ `180` is an invention that fails in the refusing direction — 1 January
+to 1 July is 181 days.
+
+- **BE** `validityMonths` on `PrescriptionRequiredParameters` and
+  `RefillRuleParameters`; calendar-month arithmetic in `engine.ts`; both keys may
+  be present and the earlier expiry governs
+- **TEST** a month-stated rule against the day before, the day of, and the day
+  after expiry, across a month-length boundary (28/29/30/31)
+- **Status** COMPLETE
+
+### PI-13a.2 — Preconditions established outside the transaction (GAP 2, 3 of 9)
+
+US 829(e)'s in-person evaluation, AU's Schedule 8 permit, AE's narcotic form.
+⚠️ Today `permitted: true` returns `PERMITTED` in silence, which inverts 829(e).
+
+- **BE** condition kinds `VERIFY_PRIOR_IN_PERSON_EVALUATION` and
+  `VERIFY_PRIOR_AUTHORISATION`; `requiresPriorInPersonEvaluation` on
+  `OnlineDispensingParameters`; `priorAuthorisationRequired` /
+  `authorisationAuthority` on `ControlledScheduleParameters`
+- **API** the kind enum in `packages/contracts/src/regulatory.ts` must match
+- **TEST** the condition is raised, and is absent when the rule does not ask
+- **Notes** ⚠️ first conditions the dispenser cannot themselves discharge — the
+  UI treatment is an open decision, not a detail
+- **Status** COMPLETE
+
+### PI-13a.3 — Days'-supply quantity limits (GAP 3, 2 of 9)
+
+- **BE** `maxDaysSupply` on `QuantityLimitParameters`; optional `daysSupply` on
+  the request; absent where a rule needs it → `UNDETERMINED`, matching how
+  `evaluateOnlineDispensing` treats a missing destination
+- **Status** COMPLETE
+
+### PI-13a.4 — Sub-national pack seeding (GAP 5)
+
+- **BE** `regionCode` on `PackSeed` in `seed/regulatory-packs.ts`, which
+  hardcodes `null` today. Machinery only — still no `if (country === …)`
+- **TEST** a regional pack supersedes the national one **per rule type**, and
+  leaves the national rules of every other type standing
+- **Status** COMPLETE
+
+**Deliberately NOT in scope:** contained-substance limits (survey GAP 4 — US
+pseudoephedrine, 3.6 g of base against a product measured in tablets). Needs
+composition arithmetic; a half-modelled version is worse than an honest absence,
+which is India's NDPS call made again.
+
+**Next action:** PI-14 — once an access route to legislation.gov.uk exists
+
+---
+
+# PI-13 — United States rule pack · COMPLETE
+
+**Dependencies:** PI-13a. **Size:** M. **Completion date:** 2026-08-19.
+
+Federal (DEA + FDA) plus a California state pack, so that the sub-national path
+is exercised by the phase that introduces it. Primary sources are read and
+recorded: eCFR's XML API for 21 CFR 1301/1304/1306/201.105, govinfo for 21 U.S.C.
+353/829/830, leginfo.legislature.ca.gov for California B&P 4073/4076/4081.
+
+The supersession demonstration is **record retention**: federal 21 CFR 1304.04(a)
+is two years, California B&P § 4081(a) is three, same rule type, state wins.
+
+⚠️ **NO PSEUDOEPHEDRINE RULES** — survey GAP 4. ⚠️ **NO DSCSA TRACEABILITY
+RULES**: 21 U.S.C. 360eee-1 could not be retrieved from a primary source, and no
+source means no rule. Both cells stay `RESEARCH_REQUIRED`.
+
+Seeded: `US 1.0.0` — 2 authorities, 7 sources, **39 rules** — and `US-CA 1.0.0`
+— 1 authority, 3 sources, **3 rules**, the programme's first sub-national pack.
+Both at `AUTOMATED_TESTED`, which is earned: the rules exist, the call sites
+consult the engine, and 26 behaviour tests ship with them
+(`apps/api/tests/integration/us-rule-pack.test.ts`). **Not one rung higher** —
+sources are `UNVERIFIED` and no qualified person has read either pack, so
+nothing here blocks anything: enforcement is gated on `PRODUCTION_ENABLED`.
+
+- **DB** n/a — no migration. `jurisdictions.region_code`, the `NULLS NOT
+DISTINCT` index and per-rule-type supersession were all built in PI-5
+- **BE** seed data files + `regionCode` on `PackSeed`
+- **TEST** 26 behaviour cases, incl. the four California supersession cases that
+  are the first exercise regional packs have ever had
+- **DOC** COUNTRY_SUPPORT_MATRIX (US column, 14 dimensions to `SUP`),
+  KNOWN_ISSUES (5 entries), COUNTRY_RULE_PACK_SURVEY, CHANGELOG
+- **REGRESS** green — see PI-13a above
+- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
+  security reviewer has run over this diff

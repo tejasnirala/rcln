@@ -305,6 +305,24 @@ export interface RegulatoryRequest {
    * permitting, because "we did not check" is not "they have had none".
    */
   priorQuantityInPeriodBase?: string;
+  /**
+   * How many days of treatment this supply is, from the directions for use.
+   *
+   * ⚠️ A LIMIT DENOMINATED IN TREATMENT DAYS IS NOT ONE DENOMINATED IN BASE
+   *   UNITS, AND NO ARITHMETIC CONVERTS BETWEEN THEM (PI-13a, survey GAP 3).
+   *   New York PHL § 3332 caps a controlled-substance prescription at "a thirty
+   *   day supply", and 21 CFR 1306.12(b) lets multiple Schedule II prescriptions
+   *   total "up to a 90-day supply". Thirty days is 30 tablets at one a day and
+   *   120 at four a day; the quantity alone cannot answer either rule.
+   *
+   * ⚠️ ABSENT WHERE A RULE NEEDS IT IS `UNDETERMINED`, WHICH REFUSES — the same
+   *   treatment a missing destination gets in `evaluateOnlineDispensing`, and
+   *   for the same reason: "we could not work it out" must never resolve like
+   *   "we worked it out and it was fine". Most callers will not have this,
+   *   because it depends on parsing a dosage instruction, and a rule that uses
+   *   it will therefore refuse until one does. That is the intended cost.
+   */
+  daysSupply?: number;
   /** Set when this dispense substitutes something else for what was prescribed. */
   substitution?: {
     isSubstitution: boolean;
@@ -330,6 +348,18 @@ export type RegulatoryOutcome =
  *   proceed **and** the register entry must exist. A caller that renders these
  *   as advisory text and moves on has produced an unlawful dispense with a
  *   perfectly clean audit trail.
+ *
+ * ⚠️ TWO OF THESE CANNOT BE DISCHARGED BY THE PERSON DISPENSING, AND A SCREEN
+ *   THAT TREATS THEM LIKE THE REST IS ASKING FOR A FALSE ATTESTATION (PI-13a).
+ *   Every other kind names something the dispenser DOES — write the register,
+ *   check the age, print the label — so a tick-box is an honest control for it.
+ *   `VERIFY_PRIOR_IN_PERSON_EVALUATION` and `VERIFY_PRIOR_AUTHORISATION` name
+ *   facts about somebody else's consulting room or somebody else's filing
+ *   cabinet, established before this transaction existed. The pharmacist can
+ *   look them up, and cannot bring them into being. Rendering them as "I
+ *   confirm" makes a pharmacist attest to a record they may never have seen —
+ *   which is worse than not raising the condition, because it manufactures
+ *   evidence of a check nobody did. See OPEN_DECISIONS.md.
  */
 export interface RegulatoryCondition {
   kind:
@@ -342,7 +372,24 @@ export interface RegulatoryCondition {
     | 'REPORT_TO_AUTHORITY'
     | 'STORE_UNDER_CONDITIONS'
     | 'DISPOSE_BY_METHOD'
-    | 'REQUIRES_CONSENT';
+    | 'REQUIRES_CONSENT'
+    /**
+     * The prescriber must ALREADY have seen this patient face to face (PI-13a).
+     *
+     * 21 U.S.C. 829(e) makes remote supply of a controlled substance lawful only
+     * on a prescription from a practitioner who has conducted at least one
+     * in-person medical evaluation of the patient, or from a covering
+     * practitioner.
+     */
+    | 'VERIFY_PRIOR_IN_PERSON_EVALUATION'
+    /**
+     * An authorisation obtained from somebody else, BEFORE today (PI-13a).
+     *
+     * Australia's Schedule 8 permits — a state health department's written
+     * authority to treat a named patient with a named drug — and the UAE's
+     * approved narcotic prescription forms are both this shape.
+     */
+    | 'VERIFY_PRIOR_AUTHORISATION';
   /** The rule that imposed it, so a screen can cite the law beside the task. */
   ruleId: string;
   ruleCode: string;
