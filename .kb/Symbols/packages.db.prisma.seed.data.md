@@ -4,7 +4,7 @@
 
 > DATA ONLY — the reference clinical vocabulary.
 
-Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-au-vic.ts` · `packages/db/prisma/seed/data/regulatory-au.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/regulatory-us-ca.ts` · `packages/db/prisma/seed/data/regulatory-us.ts` · `packages/db/prisma/seed/data/specialties.ts` · `packages/db/prisma/seed/data/visual-maps.ts`
+Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-ae-az.ts` · `packages/db/prisma/seed/data/regulatory-ae-du.ts` · `packages/db/prisma/seed/data/regulatory-au-vic.ts` · `packages/db/prisma/seed/data/regulatory-au.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/regulatory-sg.ts` · `packages/db/prisma/seed/data/regulatory-us-ca.ts` · `packages/db/prisma/seed/data/regulatory-us.ts` · `packages/db/prisma/seed/data/specialties.ts` · `packages/db/prisma/seed/data/visual-maps.ts`
 
 ## fn
 
@@ -24,6 +24,15 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `AE_AZ_AUTHORITIES` | `[ { code: 'AE_DOH', name: 'Department of Health — Abu Dhabi', websiteUrl: 'https://www.do…` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:109` |  |
+| `AE_AZ_PACK_EFFECTIVE_FROM` | `'2026-08-20'` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:107` | The day this pack becomes evaluable. ⚠️ NOT the day the DOH standard took effect, which is June 2021 and lives on the source row. `effective_from` answers "fro… |
+| `AE_AZ_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:238` |  |
+| `AE_AZ_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:124` |  |
+| `AE_CLASSIFICATIONS` | `{ otc: 'OTC', pharmacistOnly: 'PHARMACIST_ONLY_MEDICINE', prescriptionOnly: 'PRESCRIPTION…` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:179` |  |
+| `AE_DU_AUTHORITIES` | `[ { code: 'AE_DHA', name: 'Dubai Health Authority', websiteUrl: 'https://www.dha.gov.ae/'…` | `packages/db/prisma/seed/data/regulatory-ae-du.ts:96` |  |
+| `AE_DU_PACK_EFFECTIVE_FROM` | `'2026-08-20'` | `packages/db/prisma/seed/data/regulatory-ae-du.ts:94` | The day this pack becomes evaluable. Not the day DHA issued the guidelines. |
+| `AE_DU_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-ae-du.ts:180` |  |
+| `AE_DU_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-ae-du.ts:111` |  |
 | `ANTERIOR_X` <sub>local</sub> | `20` | `packages/db/prisma/seed/data/visual-maps.ts:249` |  |
 | `AU_AUTHORITIES` | `[ { code: 'TGA', name: 'Therapeutic Goods Administration', websiteUrl: 'https://www.tga.g…` | `packages/db/prisma/seed/data/regulatory-au.ts:80` |  |
 | `AU_CLASSIFICATIONS` | `{ schedule2: 'SCHEDULE_2', schedule3: 'SCHEDULE_3', schedule4: 'SCHEDULE_4', schedule8: '…` | `packages/db/prisma/seed/data/regulatory-au.ts:137` |  |
@@ -35,12 +44,17 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `AU_VIC_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:328` |  |
 | `AU_VIC_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:157` |  |
 | `AUTHORISED_PDF` <sub>local</sub> | `'https://content.legislation.vic.gov.au/sites/default/files…` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:152` |  |
+| `AZ_TIERS` <sub>local</sub> | `[ { key: 'NARCOTIC', classification: AE_CLASSIFICATIONS.narcotic, word: 'narcotic', reten…` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:199` |  |
 | `BODY_TOP` <sub>local</sub> | `24` | `packages/db/prisma/seed/data/visual-maps.ts:248` | Where each silhouette starts, in the map's coordinates. Each is 200 wide. |
 | `BODY_VIEWS` <sub>local</sub> | `: VisualRegionSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:358` | ⚠️ No `metadata`: a view groups and is not drawn. Same rule as a quadrant. |
 | `CATEGORIES` | `: SeedCategory[]` | `packages/db/prisma/seed/data/product-masters.ts:152` |  |
 | `CLINICAL_MASTERS` | `: ClinicalMasterSeed[]` | `packages/db/prisma/seed/data/clinical-masters.ts:38` |  |
 | `CONSULTATION_TEMPLATES` | `: ConsultationTemplateSeed[]` | `packages/db/prisma/seed/data/consultation-templates.ts:597` |  |
+| `CONTROLLED_DRUG_PRESCRIBERS` <sub>local</sub> | `[ 'MEDICAL_PRACTITIONER', 'DENTIST', 'VETERINARY_SURGEON', 'COLLABORATIVE_PRESCRIBING_PRA…` | `packages/db/prisma/seed/data/regulatory-sg.ts:325` |  |
+| `CONTROLLED_DRUG_SUPPLIERS` <sub>local</sub> | `[ 'MEDICAL_PRACTITIONER', 'DENTIST', 'VETERINARY_SURGEON', 'QUALIFIED_PHARMACIST', 'RETAI…` | `packages/db/prisma/seed/data/regulatory-sg.ts:350` |  |
+| `CONTROLLED_SCHEDULES` <sub>local</sub> | `[ { key: 'CD2', classification: SG_CLASSIFICATIONS.controlledSecond, name: 'Second Schedu…` | `packages/db/prisma/seed/data/regulatory-sg.ts:294` |  |
 | `DENTAL_CONSULTATION` <sub>local</sub> | `{ schemaVersion: 1, /* Ranks the pickers toward the dental vocabulary. It never filters (…` | `packages/db/prisma/seed/data/consultation-templates.ts:196` |  |
+| `DU_TIERS` <sub>local</sub> | `[ { key: 'NARCOTIC', classification: AE_CLASSIFICATIONS.narcotic, word: 'narcotic', reten…` | `packages/db/prisma/seed/data/regulatory-ae-du.ts:151` |  |
 | `GENERAL_CONSULTATION` <sub>local</sub> | `{ schemaVersion: 1, scopes: [], sections: [ { type: 'CHIEF_COMPLAINT', key: 'chief_compla…` | `packages/db/prisma/seed/data/consultation-templates.ts:35` | The general consultation, as a `schemaVersion: 1` document. |
 | `HAIR_SCALP_CONSULTATION` <sub>local</sub> | `{ schemaVersion: 1, /* * ⚠️ DERMATOLOGY FIRST, THEN TRICHOLOGY, AND THE ORDER IS LOAD-BEA…` | `packages/db/prisma/seed/data/consultation-templates.ts:380` |  |
 | `IN_AUTHORITIES` | `[ { code: 'CDSCO', name: 'Central Drugs Standard Control Organisation', websiteUrl: 'http…` | `packages/db/prisma/seed/data/regulatory-in.ts:128` |  |
@@ -63,16 +77,26 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `SCHEDULE_4_PRESCRIBERS` <sub>local</sub> | `[ 'MEDICAL_PRACTITIONER', 'VETERINARY_PRACTITIONER', 'DENTIST', 'NURSE_PRACTITIONER', 'AU…` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:300` |  |
 | `SCHEDULE_8_PRESCRIBERS` <sub>local</sub> | `[ 'MEDICAL_PRACTITIONER', 'VETERINARY_PRACTITIONER', 'DENTIST', 'NURSE_PRACTITIONER', 'AU…` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:320` |  |
 | `SCHEDULES` <sub>local</sub> | `[ US_CLASSIFICATIONS.scheduleII, US_CLASSIFICATIONS.scheduleIII, US_CLASSIFICATIONS.sched…` | `packages/db/prisma/seed/data/regulatory-us.ts:273` | The four DEA schedules this pack configures. Schedule I is not dispensable. |
+| `SG_AUTHORITIES` | `[ { code: 'HSA', name: 'Health Sciences Authority', websiteUrl: 'https://www.hsa.gov.sg/'…` | `packages/db/prisma/seed/data/regulatory-sg.ts:153` |  |
+| `SG_CLASSIFICATIONS` | `{ prescriptionOnly: 'PRESCRIPTION_ONLY_MEDICINE', pharmacyOnly: 'PHARMACY_ONLY_MEDICINE',…` | `packages/db/prisma/seed/data/regulatory-sg.ts:271` |  |
+| `SG_PACK_EFFECTIVE_FROM` | `'2026-08-20'` | `packages/db/prisma/seed/data/regulatory-sg.ts:151` |  |
+| `SG_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-sg.ts:360` |  |
+| `SG_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-sg.ts:180` |  |
 | `SPECIALTIES` | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed/data/specialties.ts:57` |  |
 | `STORAGE_PROFILES` | `: SeedStorageProfile[]` | `packages/db/prisma/seed/data/product-masters.ts:213` |  |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:189` | Every transaction in which a product reaches a patient, whatever the channel. |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-ae-du.ts:138` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-au-vic.ts:290` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-au.ts:145` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-in.ts:223` | Every transaction in which a product reaches a patient, whatever the channel. |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-sg.ts:281` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-us.ts:270` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `TEMPLE_EDGE` <sub>local</sub> | `0.45` | `packages/db/prisma/seed/data/visual-maps.ts:200` | The lateral fraction the temples start at, and the mid-band ends at. |
 | `TOOTH_HEIGHT` <sub>local</sub> | `60` | `packages/db/prisma/seed/data/visual-maps.ts:71` |  |
 | `TOOTH_PITCH` <sub>local</sub> | `38` | `packages/db/prisma/seed/data/visual-maps.ts:72` |  |
 | `TOOTH_WIDTH` <sub>local</sub> | `34` | `packages/db/prisma/seed/data/visual-maps.ts:70` | Tooth box: 34 wide, 38 apart, with 12 more across the midline. |
+| `UNIFIED_PLATFORM` <sub>local</sub> | `'the DOH unified platform system'` | `packages/db/prisma/seed/data/regulatory-ae-az.ts:236` |  |
+| `UNIFIED_PLATFORM` <sub>local</sub> | `'the Unified Controlled Medication Platform'` | `packages/db/prisma/seed/data/regulatory-ae-du.ts:178` |  |
 | `UNIT_CONVERSIONS` | `: SeedConversion[]` | `packages/db/prisma/seed/data/product-masters.ts:118` |  |
 | `UNITS` | `: SeedUnit[]` | `packages/db/prisma/seed/data/product-masters.ts:40` |  |
 | `UPPER_Y` <sub>local</sub> | `40` | `packages/db/prisma/seed/data/visual-maps.ts:75` |  |

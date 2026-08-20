@@ -1498,14 +1498,34 @@ said would differ.
   backfill could have reached it, which is exactly the set of writers a CHECK is
   for. The tenant-isolation case found it; a third migration made it symmetric.
 
-**PI-13 (US, federal + California) and PI-15 (Australia, national + Victoria)
-have since shipped; PI-16 (Singapore) is next. PI-22 and PI-23 are also open**,
+**PI-13 (US, federal + California), PI-15 (Australia, national + Victoria),
+PI-16 (Singapore) and PI-17 (Abu Dhabi + Dubai) have since shipped; PI-18
+(Ireland) is next. PI-22 and PI-23 are also open**,
 and PI-12 gave both more to do: reporting now has deliveries to report on, and a
 recall cannot yet reach stock held for an order nobody has packed.
 
 ⚠️ **PI-14 (Great Britain) is BLOCKED** — legislation.gov.uk returns `202` on
 every attempt. New South Wales returns `403`, which is why PI-15's state pack is
 Victoria.
+
+⚠️ **PI-17 is the first country configured only from below.** The UAE's federal
+sources are unreachable — `uaelegislation.gov.ae` returns `403` and
+`mohap.gov.ae` resets the connection — so the Ministerial Decrees both emirates
+cite were readable only as those emirates restate them, which is a secondary
+source this programme does not write rules from. Abu Dhabi and Dubai each got a
+pack; the other five emirates answer `UNDETERMINED`, which refuses. ⚠️ **And
+`CountryInfo.regions` was empty for `AE` too** — the second country in three
+phases, after Australia, with a tell (`labels.region: 'Emirate'`) sitting in the
+same object.
+
+⚠️ **PI-16's pack is defined as much by what it does not carry.** Singapore is
+the first jurisdiction here with NO pharmacist-only rule for a prescription-only
+medicine: reg 3(3) of the Licensing of Retail Pharmacies Regulations disapplies
+the in-store-pharmacist gate to a clinic supplying its own patient, so whether it
+applies turns on what the premises are licensed as — a fact rcln does not hold.
+Writing the rule would refuse the ordinary Singapore clinic. The controlled-drug
+supply rules, whose statute names a closed list with no "acting on instructions"
+limb, DO exist and refuse the same person.
 
 ⚠️ **PI-15 found a live defect in `@rcln/contracts`, not in the regulatory
 code.** `CountryInfo.regions` was scoped to "does tax register per subdivision",

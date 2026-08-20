@@ -4,7 +4,7 @@ Defects, gaps and debts in **this programme**. Repository-wide issues live in
 [`.kb/15_Known_Issues_and_Technical_Debt.md`](../15_Known_Issues_and_Technical_Debt.md)
 and [`.kb/Architecture/PITFALLS.md`](../Architecture/PITFALLS.md).
 
-**Last updated:** 2026-08-20 (PI-15)
+**Last updated:** 2026-08-20 (PI-17)
 
 ---
 
@@ -445,3 +445,189 @@ Both are the same defect already recorded under PI-13a — the framework models
 
 Two packs have now paid this cost in four places. It is the strongest candidate
 for the next framework phase.
+
+---
+
+## PI-16 — the Singapore pack
+
+### ⚠️ One classification column, two national vocabularies
+
+`product_regulatory_profiles.classification` is a single string, and Singapore
+classifies the same medicine twice: HSA registers it as a prescription-only,
+pharmacy-only or general sale list medicine, and the Misuse of Drugs Regulations
+put it in a Schedule. **Morphine is both.** A clinic that files it as
+`MDA_SECOND_SCHEDULE` does not match `SG-RX-POM`; one that files it as
+`PRESCRIPTION_ONLY_MEDICINE` does not match the controlled-drug rules.
+
+Mitigated rather than solved: every controlled-drug rule in the pack stands
+alone — its own prescription requirement, prescriber list, retention period and
+storage rule — so neither spelling is silently thinner than the other. The cost
+is a duplicated rule per axis, which `SG-RX-CODEINE-LIQUID` makes visible: it
+exists only because a codeine linctus filed under the quantity-limit spelling
+would otherwise carry a 240 ml cap and no prescription rule at all.
+
+**The honest fix is a second classification axis on the profile**, sized across
+every pack. It is not Singapore's to make.
+
+### ⚠️ A rule type that means "nobody here may supply this" does not exist
+
+`SG-SUPPLY-CD4` is a `PHARMACIST_AUTHORITY` rule whose permitted-licence list
+nobody at a dispensing point can satisfy — an approved researcher, a laboratory
+custodian, an HSA or DSO analyst, an inspector. Reg 8A of the Misuse of Drugs
+Regulations names no pharmacist, unlike regs 7(2) and 8(2), so a Fourth Schedule
+drug is not a medicine a counter may supply at all.
+
+The **outcome is correct** — a refusal, with a statement saying why. What is
+wrong is the shape: the reason text tells a pharmacist to hand the drug to
+somebody their clinic does not employ. A `permitted: false` supply rule would say
+it plainly. Recorded rather than invented: adding a rule type is a framework
+change and belongs in a framework phase.
+
+### ⚠️ The pharmacist gate is premises-conditional and rcln does not model premises
+
+No `PHARMACIST_AUTHORITY` rule exists for a prescription-only or pharmacy-only
+medicine, because reg 3(3) of the Licensing of Retail Pharmacies Regulations
+disapplies the in-store-pharmacist requirement to a healthcare service licensee
+or a practitioner supplying their own patient. Which limb a branch is on is a
+fact about its LICENCE, and rcln holds no licence.
+
+⚠️ **THIS IS A GAP IN COVERAGE, NOT A DECISION THAT SINGAPORE HAS NO PHARMACIST
+RULE.** A branch that IS a licensed retail pharmacy is under-regulated by this
+pack: reg 3(1)(b) requires its supply to be carried out by an in-store
+pharmaceutical officer and reg 3(1)(g) confines access to controlled drugs to a
+qualified pharmacist, and neither is enforced. The alternative was to
+over-regulate every clinic, which refuses lawful supply. **The fix is a fact on
+the branch** — what it is licensed as — and it is the same missing fact several
+other jurisdictions will need.
+
+### ⚠️ A codeine linctus is capped in the product's base unit, whoever set it
+
+`SG-QTY-CODEINE-LIQUID` sets `maxPerPeriodBase: '240.000000'` against reg
+14(1)(a)'s 240 ml. `quantityBase` is denominated in the PRODUCT's base unit, so a
+clinic that files a linctus in bottles gets a limit of 240 bottles. The rule
+statement names millilitres so a refusal reads honestly, and nothing in the pack
+can enforce it. This is the programme's standing unit-and-identifier debt (#25,
+PI-23), reached from a new direction.
+
+### ⚠️ A veterinary surgeon may not prescribe a prescription-only medicine here
+
+`SG-PRESCRIBER-POM` names a medical practitioner, a dentist and a collaborative
+prescribing practitioner, because reg 2(1) of the Therapeutic Products
+Regulations defines "qualified practitioner" as exactly those and no vet appears
+anywhere in the instrument. `SG-PRESCRIBER-CD2` and its siblings DO name a
+veterinary surgeon, because reg 2(1) of the Misuse of Drugs Regulations does.
+
+**That asymmetry is a reading, not a finding.** Whether veterinary supply in
+Singapore runs through the Animals and Birds Act was not researched, and a
+veterinary clinic on this pack will be refused for a prescription-only medicine.
+Recorded so a reviewer with the Animals and Birds Act in hand knows where to
+look.
+
+### ⚠️ `RECORD_IN_CONTROLLED_REGISTER` names a register rcln cannot be
+
+Reg 2(1) of the Misuse of Drugs Regulations defines "register" as **a bound
+book**, and says it "does not include any form of loose leaf register or card
+index". The condition `SG-SCHEDULE-CD2` raises is therefore discharged on paper,
+at the premises, in ink, by hand — and a screen rendering it as a tick-box has
+recorded that somebody ticked a box. This is the same class as the two conditions
+PI-13a flagged as undischargeable by the dispenser, arrived at from a different
+direction: the obligation is real, the platform cannot hold the artefact, and the
+UI treatment is an open decision.
+
+---
+
+## PI-17 — the Emirati packs
+
+### ⚠️ `CountryInfo.regions` was empty for a second country, and this is now a class
+
+Australia in PI-15, the United Arab Emirates in PI-17. Both had `regions: []`
+because the field was populated from "does tax register per subdivision" and both
+countries tax federally at one rate; both regulate medicines sub-nationally, and
+`isValidRegion` gates `branches.region_code`, which is what selects a pack.
+
+⚠️ **THE UAE HAD A TELL NOBODY READ: `labels.region` for `AE` already said
+`'Emirate'`.** The address form asked which emirate a branch was in and the list
+permitted none — a contradiction a country either has or does not have, visible
+in the same object, and worth grepping for elsewhere.
+
+`UAE_REGIONS` lists all seven emirates rather than only the two with a pack.
+⚠️ **`US_REGIONS` IS STILL SHORT FIVE STATES** — Oregon, Montana, New Hampshire,
+Delaware and Alaska — and nothing is inert today only because no pack exists for
+any of them.
+
+### ⚠️ There is still no rule type that means "this transaction is prohibited"
+
+Second and third occurrences, after Singapore's `SG-SUPPLY-CD4`. Both emirate
+packs prohibit moving controlled stock between facilities — Abu Dhabi § 11.1,
+Dubai clause 18.12.1 — and the only handler in `engine.ts` that refuses a
+transaction outright is `evaluateImportRestriction`. So `AZ-TRANSFER-*` and
+`DU-TRANSFER-*` are `IMPORT_RESTRICTION` rows narrowed to
+`appliesToTransactions: ['TRANSFER']`, which produces exactly the right OUTCOME
+under a rule type whose NAME is about imports.
+
+⚠️ **THE NARROWING IS LOAD-BEARING AND HAS NO GUARD.** `evaluateImportRestriction`
+fires on `STOCK` as well as `TRANSFER`; widening `appliesToTransactions` on one of
+those six rows would stop every Emirati clinic from receiving controlled stock at
+all. A behaviour case pins it. The fix is a `permitted: false` transaction rule
+type, sized across every pack, in a framework phase.
+
+### ⚠️ Both emirates' days'-supply ladders are inexpressible, twice over
+
+`AE-AZ` §§ 5.3.1, 5.4.1–5.4.3 and `AE-DU` clauses 18.7.4, 18.7.5 set the same
+ladder: a General Practitioner may prescribe 3 days' supply, a specialist 15, a
+consultant 30. Neither pack carries it, for two independent reasons:
+
+1. **It is conditioned on the prescriber's GRADE**, and `maxDaysSupply` is a
+   property of the rule. Three rules of one type against one classification tie;
+   `mostSpecific` keeps ties; a refusal beats a permission — so the three-day GP
+   limit would govern every consultant's prescription in the country.
+2. **Nothing populates `daysSupply`** (the standing gap PI-13a recorded), so any
+   rule using the key answers `UNDETERMINED` — which refuses — for every caller.
+
+Either alone is disqualifying. The ladder is in the rule statements, where a
+pharmacist reads it and the engine does not act on it. ⚠️ **A future phase that
+"completes" these packs by adding the key would refuse every controlled supply in
+the UAE**; a behaviour case asserts the current outcome is not `UNDETERMINED`.
+
+### ⚠️ Two refill rules are wider than their regulators wrote
+
+`AZ-REFILL-CD` and `DU-REFILL-CD` permit an endorsed refill of any product in the
+tier. Both regulators permit refills only for products on a named list —
+Ministerial Decree 253 of 2020 in Abu Dhabi, 680 of 2017 in Dubai — and neither
+decree could be retrieved. The rules are therefore permissive where the
+standards are selective. The alternative was to carry no refill rule at all,
+which would have refused the lawful specialist and consultant refills the same
+sections create.
+
+### ⚠️ Dubai's three-month POM validity is drawn from an illustrative clause
+
+`DU-RX-POM` sets `validityMonths: 3` from clause 12.1.3(b), which sits inside a
+list of what pharmacy staff "should consider" and reads "Prescription validity
+e.g. POM Prescriptions are valid for Three (3) month." The number is the
+regulator's own and is the only statement of POM validity in the document, but it
+arrives as an example inside a recommendation.
+
+It is written because the alternative fails OPEN: with no validity, a prescription
+of any age is acceptable. Recorded so a reviewer with the DHA prescription rules
+can confirm or replace it.
+
+### ⚠️ Both packs are silent about premises, and both regulators are not
+
+Dubai confines narcotic prescribing to hospital inpatient and emergency units
+(18.7.3.b) with an outpatient exception for cancer, severe pain and post-major
+surgery; Abu Dhabi requires facilities to be licensed as a hospital, day surgery
+centre, pharmacy or drug store (§ 4.1). What kind of facility a branch is, and why
+a patient is being treated, are facts rcln does not hold — the same wall
+Singapore's premises-conditional pharmacist gate ran into in PI-16. **This is now
+three jurisdictions asking for a fact about the branch's licence.** The fix is a
+field on the branch, not a bolder reading of a regulation.
+
+### ⚠️ A UAE tenant needs a national `AE` jurisdiction row that no pack creates
+
+`profileFor` accepts a profile whose jurisdiction is the branch's region OR the
+country, preferring the region. A medicine's dispensing mode is federal, so the
+natural filing is one national profile per product serving both emirates — but
+the seed only ever creates a jurisdiction row for a pack, and there is no
+national AE pack. **A clinic that files its profiles against Abu Dhabi will find
+its Dubai branch has no classification at all**, which resolves `UNDETERMINED` and
+refuses. The behaviour suite creates the national row explicitly and says why.

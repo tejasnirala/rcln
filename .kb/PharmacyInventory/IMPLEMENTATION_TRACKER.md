@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-19 (PI-12 complete; PI-13a scoped from the country survey)
+**Last updated:** 2026-08-20 (PI-17 complete — the two Emirati rule packs)
 
 ## Status vocabulary
 
@@ -53,7 +53,9 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-13     | United States Rule Pack (federal + California) | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
 | PI-14     | United Kingdom Rule Pack                       | **BLOCKED**               | legislation.gov.uk returns 202           |
 | PI-15     | Australia Rule Pack (national + Victoria)      | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
-| PI-16..21 | Country Rule Packs (SG, AE, IE, NP, LK, BD)    | NOT_STARTED               | —                                        |
+| PI-16     | Singapore Rule Pack                            | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
+| PI-17     | UAE Rule Packs (Abu Dhabi + Dubai)             | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed; no federal pack       |
+| PI-18..21 | Country Rule Packs (IE, NP, LK, BD)            | NOT_STARTED               | —                                        |
 | PI-22     | Reporting & Cost Accounting                    | NOT_STARTED               | PI-4                                     |
 | PI-23     | Identifier Resolution / Barcode                | NOT_STARTED               | PI-1, PI-2                               |
 | PI-24     | Global Hardening                               | NOT_STARTED               | everything                               |
@@ -1934,7 +1936,7 @@ pseudoephedrine, 3.6 g of base against a product measured in tablets). Needs
 composition arithmetic; a half-modelled version is worse than an honest absence,
 which is India's NDPS call made again.
 
-**Next action:** PI-16 (SG). PI-14 (GB) stays blocked until an access route to
+**Next action:** PI-18 (IE). PI-14 (GB) stays blocked until an access route to
 legislation.gov.uk exists.
 
 ---
@@ -2032,3 +2034,145 @@ sources are `UNVERIFIED` and no qualified person has read either pack.
   case that proves the state pack did not repeal the national one
 - **DOC** COUNTRY_SUPPORT_MATRIX (AU column), KNOWN_ISSUES, CHANGELOG
 - **Status** COMPLETE ⚠️ **not reviewed**
+
+# PI-16 — Singapore rule pack · COMPLETE
+
+**Dependencies:** PI-13a. **Size:** M. **Completion date:** 2026-08-20.
+
+National only, and that is a fact about the country rather than a shortcut:
+Singapore is a city-state, `CountryInfo.regions` for `SG` is `[]` and
+`labels.region` is `null`. ⚠️ **THE `regions` LIST WAS CHECKED FIRST**, because
+PI-15 shipped a state pack that an empty list would have made inert forever —
+here the emptiness is correct, and the check is recorded so nobody repeats it.
+
+Primary sources read and recorded, all from Singapore Statutes Online, the
+Attorney-General's Chambers' authorised publication: the Health Products
+(Therapeutic Products) Regulations 2016 (S 329/2016), the Health Products
+(Licensing of Retail Pharmacies) Regulations 2016 (S 330/2016), and the Misuse of
+Drugs Regulations.
+
+⚠️ **THE STRUCTURAL FACT THIS PACK IS SHAPED BY: SINGAPORE REGULATES A MEDICINE
+UNDER TWO INSTRUMENTS THAT DO NOT SHARE A VOCABULARY.** HSA classifies a product
+as prescription-only, pharmacy-only or general sale list; the Misuse of Drugs
+Regulations classify a controlled drug by Schedule. Morphine is both, and
+`product_regulatory_profiles.classification` is ONE string — so every
+controlled-drug rule is written to stand alone rather than lean on the
+therapeutic-products rules for a prescription requirement it would not inherit.
+Recorded in KNOWN_ISSUES as the framework limitation it is.
+
+⚠️ **NO PHARMACIST-ONLY RULE FOR A PRESCRIPTION-ONLY OR PHARMACY-ONLY MEDICINE,
+AND IT IS THE MOST CONSIDERED OMISSION IN THE PROGRAMME SO FAR.** Every other
+pack has one. Regulation 11(c) permits supply by "a person acting in accordance
+with the oral or written instructions of a qualified practitioner", and
+regulation 3(3) of the Licensing of Retail Pharmacies Regulations disapplies the
+in-store-pharmacist gate to exactly the clinic case. The gate turns on what the
+PREMISES are licensed as, which rcln does not hold — so a rule would refuse the
+ordinary Singapore clinic, a wrong answer in the refusing direction. The
+controlled-drug supply rules are unaffected: regs 7(2) and 8(2) name a closed
+list with no instructions limb, and `SG-SUPPLY-CD2` is it.
+
+⚠️ **NO PRESCRIPTION EXPIRY FOR A PRESCRIPTION-ONLY MEDICINE** — these
+Regulations impose none, and 6 months would have been an invention. Controlled
+drugs do have one, 30 days, reg 12(1), and carry it. ⚠️ **NO 355 mg CONTAINED-
+CODEINE LIMIT** (survey GAP 4, the US pseudoephedrine call made again); the
+240 ml liquid limb of the same regulation IS written. ⚠️ **NO GENERAL SALE LIST,
+E-PHARMACY, CONTAINER-MARKING OR ADDICT-NOTIFICATION RULES** — each argued in
+the header of `seed/data/regulatory-sg.ts`.
+
+Seeded: `SG 1.0.0` — 2 authorities, 3 sources, **28 rules**, at
+`AUTOMATED_TESTED`, which is earned: the rules exist, the call sites consult the
+engine, and 23 behaviour tests ship with them
+(`apps/api/tests/integration/sg-rule-pack.test.ts`). **Not one rung higher** —
+sources are `UNVERIFIED` and no qualified person has read the pack.
+
+- **DB** n/a — no migration, for the fourth rule-pack phase running
+- **BE** `data/regulatory-sg.ts`, one `PACKS` entry
+- **TEST** 23 behaviour cases, half of them pinning rules that are deliberately
+  ABSENT — the missing pharmacist gate, the missing expiry, the Third Schedule's
+  missing register and missing witness
+- **DOC** COUNTRY_SUPPORT_MATRIX (SG column), KNOWN_ISSUES, CHANGELOG,
+  COUNTRY_RULE_PACK_SURVEY, REGULATORY_RULE_PACKS
+- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
+  security reviewer has run over this diff
+
+**Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
+`turbo typecheck --concurrency=1`, then the tests. ⚠️ `pnpm test` still OOMs the
+api container (KNOWN_ISSUES #2), so the api suite ran in five path slices:
+**299 unit + 1,681 integration + 470 tenant-isolation, all green**, plus every
+other workspace package through `turbo run test`. `db:rls:check` 131 tables;
+`docs:validate` 437/437. No migration, so nothing moved in the schema.
+
+---
+
+# PI-17 — United Arab Emirates rule packs · COMPLETE
+
+**Dependencies:** PI-13a. **Size:** M. **Completion date:** 2026-08-20.
+
+⚠️ **TWO SUB-NATIONAL PACKS AND NO NATIONAL ONE — THE FIRST TIME THAT SHAPE HAS
+APPEARED IN THIS PROGRAMME, AND THE PHASE'S CENTRAL FINDING.** The survey scoped
+PI-17 as "federal plus at least one emirate". The federal half is unreachable:
+`uaelegislation.gov.ae` returns `403` on every path and `mohap.gov.ae` resets the
+connection — the same wall PI-14 (GB) and New South Wales are behind. The federal
+Ministerial Decrees both emirates cite (888/2016, 379/2019, 253/2020, 680/2017)
+and Federal Laws 8/2019 and 14/1995 were read only AS RESTATED by the emirate
+regulators, which is a secondary source, and this programme does not write rules
+from one. **No rule in either pack cites a decree.**
+
+⚠️ **THE CONSEQUENCE IS WORSE THAN AUSTRALIA'S AND IS RECORDED RATHER THAN
+SOFTENED.** A branch in Sydney with no state pack still gets the Poisons Standard
+as a floor; a branch in Sharjah, Ajman, Fujairah, Ras al-Khaimah or Umm al-Quwain
+gets nothing, so every evaluation there answers `UNDETERMINED`, which refuses. A
+behaviour case pins it.
+
+⚠️ **AND BOTH PACKS WOULD HAVE SHIPPED INERT.** `CountryInfo.regions` for `AE`
+was `[]` — correct about VAT, which is federal at one rate — while `labels.region`
+already said `'Emirate'`. `isValidRegion` gates `branches.region_code`, so no
+branch could have said `AZ` or `DU`. **This is the second country with the defect
+in three phases** (Australia was PI-15), which makes it a class rather than an
+accident. `UAE_REGIONS` lists all seven emirates, not just the two with a pack,
+because omitting a subdivision until it needs one is exactly the shape of the
+still-open `US_REGIONS` hole.
+
+Seeded: `AE-AZ 1.0.0` — 1 authority, 1 source, **25 rules**, from the Department
+of Health Abu Dhabi's own standard DOH/HLME/DMP/1.0/2021 — and `AE-DU 1.0.0` — 1
+authority, 1 source, **26 rules**, from the DHA Pharmacy Guidelines
+HRS/HPSD/PG/01/2021. Both at `AUTOMATED_TESTED`; sources `UNVERIFIED`; no
+qualified person has read either.
+
+⚠️ **THE DUBAI DOCUMENT MOSTLY RECOMMENDS.** 100 pages of "should", "may" and "it
+is recommended", with Guideline Fourteen (narcotics, CDs, SCDs) written in
+"shall"/"must"/"is prohibited". The pack is built from the mandatory register
+only — which is why Dubai has no dispensing label rule despite the guidelines
+carrying an eleven-field label at 13.3.2: a `LABEL_FIELDS` condition is an
+obligation, and that clause is advice.
+
+⚠️ **NO DAYS'-SUPPLY LADDER IN EITHER PACK**, and this is the largest omission.
+Both regulators set GP 3 days / specialist 15 / consultant 30, conditioned on the
+**prescriber's grade** — which is not a property of a rule. Three rules of one
+type against one classification tie, `mostSpecific` keeps ties, and a refusal
+beats a permission, so the GP limit would govern every consultant's prescription.
+Independently, nothing populates `daysSupply`, so any `maxDaysSupply` rule
+answers `UNDETERMINED` for every caller and would refuse every controlled supply
+in the country. The ladder is in the rule statements instead.
+
+- **DB** n/a — no migration, for the fifth rule-pack phase running
+- **BE** `data/regulatory-ae-az.ts`, `data/regulatory-ae-du.ts`, two `PACKS`
+  entries; `UAE_REGIONS` in `@rcln/contracts` and the second entry in the
+  `CountryInfo.regions` warning
+- **TEST** 22 behaviour cases, incl. the branch-to-branch transfer prohibition,
+  the emirates disagreeing about the unified platform, and Sharjah
+- **DOC** COUNTRY_SUPPORT_MATRIX (AE row + column), KNOWN_ISSUES, CHANGELOG,
+  COUNTRY_RULE_PACK_SURVEY, REGULATORY_RULE_PACKS
+- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
+  security reviewer has run over this diff
+
+**Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
+`turbo typecheck --concurrency=1`, then the tests. ⚠️ `pnpm test` still OOMs the
+api container (KNOWN_ISSUES #2), so the api suite ran in six path slices:
+**299 unit + 1,225 integration + 470 tenant-isolation, all green**, plus 25
+workspace packages through `turbo run test`. `db:rls:check` 131 tables;
+`docs:validate` 437/437. No migration, so nothing moved in the schema.
+
+⚠️ **THE `[e-l]` SLICE WAS KILLED ON ITS FIRST RUN AND RE-RUN TO GREEN.** A
+backgrounded slice that is killed prints nothing and looks exactly like one still
+running — worth knowing for the next session that runs the suite in pieces.
