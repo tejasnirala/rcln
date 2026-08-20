@@ -205,6 +205,13 @@ export interface CountryInfo {
    *   New Hampshire, Delaware or Alaska can hold no region and could never be
    *   given a state rule pack. No pack exists for any of the five, so nothing is
    *   inert today. Recorded in KNOWN_ISSUES rather than fixed blind.
+   *
+   * ⚠️ THE UNITED ARAB EMIRATES WAS THE SECOND COUNTRY TO HAVE IT, AND PI-17
+   *   FOUND IT BY CHECKING RATHER THAN BY TRIPPING OVER IT. `AE` was empty for
+   *   the same reason Australia was — VAT is federal at one rate — while its
+   *   drugs regulation is done emirate by emirate. `UAE_REGIONS` closes it. Two
+   *   countries in three phases means this is a class of defect, not an
+   *   accident: **check this list before writing any sub-national pack.**
    */
   regions: readonly Region[];
   /**
@@ -305,6 +312,38 @@ const AUSTRALIA_REGIONS: readonly Region[] = [
   { code: 'WA', name: 'Western Australia' },
 ];
 
+/**
+ * The seven emirates, by ISO 3166-2 code.
+ *
+ * ⚠️ LISTED FOR THE RULE PACKS, NOT FOR TAX, AND THIS COUNTRY IS THE SECOND TIME
+ *   THAT DISTINCTION HAS BEEN LOAD-BEARING. UAE VAT is a single federal tax at
+ *   one rate and no clinic registers for it per emirate, so this list was empty
+ *   and was CORRECT ABOUT TAX — exactly as Australia's was before PI-15. Drugs
+ *   regulation is emphatically not federal in practice: DoH licenses and
+ *   regulates Abu Dhabi and DHA licenses and regulates Dubai, each publishing its
+ *   own standard, so an Abu Dhabi branch must be able to say `AZ` or the
+ *   `AE-AZ` pack can never be selected.
+ *
+ * ⚠️ THE TELL WAS ALREADY IN THIS FILE AND NOBODY READ IT: `labels.region` for
+ *   `AE` says `'Emirate'`. The address form asks which emirate a branch is in
+ *   and the list permitted none, which is a contradiction a country either has
+ *   or does not have. Worth checking for elsewhere.
+ *
+ * All seven are listed rather than only the two with a pack, because omitting a
+ * subdivision until it needs one is precisely the shape of the `US_REGIONS` hole
+ * recorded in `CountryInfo.regions` — silent, and discovered by the phase that
+ * trips over it.
+ */
+const UAE_REGIONS: readonly Region[] = [
+  { code: 'AZ', name: 'Abu Dhabi' },
+  { code: 'AJ', name: 'Ajman' },
+  { code: 'DU', name: 'Dubai' },
+  { code: 'FU', name: 'Fujairah' },
+  { code: 'RK', name: 'Ras al-Khaimah' },
+  { code: 'SH', name: 'Sharjah' },
+  { code: 'UQ', name: 'Umm al-Quwain' },
+];
+
 /** US states that levy a sales tax, plus DC. The five that do not are omitted. */
 const US_REGIONS: readonly Region[] = [
   { code: 'AL', name: 'Alabama' },
@@ -386,7 +425,7 @@ export const COUNTRIES: readonly CountryInfo[] = [
     temperatureUnit: 'C',
     currency: 'AED',
     timezones: ['Asia/Dubai'],
-    regions: [],
+    regions: UAE_REGIONS,
     tax: { scheme: 'VAT', standardRateBps: 500 },
     dial: { code: '+971', minDigits: 8, maxDigits: 9, example: '501234567' },
     labels: {

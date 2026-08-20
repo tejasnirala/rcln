@@ -84,6 +84,24 @@ import {
   AU_VIC_RULES,
   AU_VIC_SOURCES,
 } from './data/regulatory-au-vic.js';
+import {
+  SG_AUTHORITIES,
+  SG_PACK_EFFECTIVE_FROM,
+  SG_RULES,
+  SG_SOURCES,
+} from './data/regulatory-sg.js';
+import {
+  AE_AZ_AUTHORITIES,
+  AE_AZ_PACK_EFFECTIVE_FROM,
+  AE_AZ_RULES,
+  AE_AZ_SOURCES,
+} from './data/regulatory-ae-az.js';
+import {
+  AE_DU_AUTHORITIES,
+  AE_DU_PACK_EFFECTIVE_FROM,
+  AE_DU_RULES,
+  AE_DU_SOURCES,
+} from './data/regulatory-ae-du.js';
 
 /** A `@db.Date` column takes a day, in the jurisdiction's own reckoning. */
 function day(value: string): Date {
@@ -246,6 +264,112 @@ const PACKS: readonly PackSeed[] = [
       'the law in those cases), and no monitored-poisons rule for the Schedule 4 substances ' +
       'Schedule 6 names individually. Not reviewed by a qualified person.',
     effectiveFrom: AU_VIC_PACK_EFFECTIVE_FROM,
+  },
+
+  /*
+   * ⚠️ SINGAPORE HAS NO SUB-NATIONAL PACK AND NEVER WILL, AND THE CHECK THAT
+   *   ESTABLISHED THAT IS THE ONE PI-15 LEARNED TO RUN FIRST. `CountryInfo.regions`
+   *   for `SG` in `@rcln/contracts` is `[]` — correct here, because a city-state
+   *   has no subdivisions, and the same emptiness that would have made `AU-VIC`
+   *   inert forever. An empty `regions` list is a fact to verify against the
+   *   country rather than a shape to trust.
+   */
+  {
+    countryCode: 'SG',
+    countryName: 'Singapore',
+    authorities: SG_AUTHORITIES,
+    sources: SG_SOURCES,
+    rules: SG_RULES,
+    packAuthorityCode: 'HSA',
+    version: '1.0.0',
+    name: 'Singapore — therapeutic products and controlled drugs',
+    description:
+      'Two instruments that do not share a vocabulary, carried together: the Health Products ' +
+      '(Therapeutic Products) Regulations 2016 for prescription-only and pharmacy-only medicines ' +
+      '— the prescription, who may write it, repeats, the six-field dispensing label, the ' +
+      'two-year records and the 240 ml codeine cough limit — and the Misuse of Drugs ' +
+      'Regulations for controlled drugs, whose Second, Third and Fourth Schedules each carry ' +
+      'their own 30-day prescription, prescriber list, supply list, register, locked store, ' +
+      'three-year retention and witnessed destruction. Configured from Singapore Statutes Online, ' +
+      'the Attorney-General’s Chambers’ authorised publication. ⚠️ NO ' +
+      'PHARMACIST-ONLY RULE for a prescription-only or pharmacy-only medicine — Singapore ' +
+      'makes that gate conditional on whether the premises are a licensed retail pharmacy or a ' +
+      'healthcare service licensee, which rcln does not know, and a rule would refuse the lawful ' +
+      'clinic case. No 355 mg contained-codeine limit, no general sale list rules, no ' +
+      'e-pharmacy position and no addict-notification rule. No sub-national pack: Singapore is a ' +
+      'city-state. Not reviewed by a qualified person.',
+    effectiveFrom: SG_PACK_EFFECTIVE_FROM,
+  },
+
+  /*
+   * ⚠️ THE UNITED ARAB EMIRATES HAS TWO EMIRATE PACKS AND NO NATIONAL ONE, WHICH
+   *   IS THE FIRST TIME THAT SHAPE HAS APPEARED AND IS PI-17'S CENTRAL FINDING.
+   *   Every other country here is national-first: India and Singapore are
+   *   national only, the United States and Australia are national plus a
+   *   sub-national pack. The UAE is sub-national ALONE, because
+   *   `uaelegislation.gov.ae` returns `403` and `mohap.gov.ae` resets the
+   *   connection, so the federal Ministerial Decrees both emirates cite could be
+   *   read only as those emirates restate them — a secondary source, which this
+   *   programme does not write rules from.
+   *
+   * ⚠️ THE CONSEQUENCE IS NOT SYMMETRIC WITH AUSTRALIA'S AND IS WORSE. A branch
+   *   in Sydney with no state pack still gets the Poisons Standard; a branch in
+   *   Sharjah gets nothing at all, so every evaluation there answers
+   *   `UNDETERMINED`, which refuses. That is the honest state of the sources.
+   *
+   * ⚠️ AND BOTH PACKS WERE INERT UNTIL `UAE_REGIONS` EXISTED. `CountryInfo.regions`
+   *   for `AE` was `[]` — correct about VAT, which is federal at one rate, and
+   *   fatal to a pack keyed on `branches.region_code`. Australia's was the same
+   *   defect in PI-15. Two countries in three phases: check that list first.
+   */
+  {
+    countryCode: 'AE',
+    regionCode: 'AZ',
+    countryName: 'Abu Dhabi',
+    authorities: AE_AZ_AUTHORITIES,
+    sources: AE_AZ_SOURCES,
+    rules: AE_AZ_RULES,
+    packAuthorityCode: 'AE_DOH',
+    version: '1.0.0',
+    name: 'Abu Dhabi — narcotics, psychotropics and semi-controlled products',
+    description:
+      'What a DOH-licensed facility in Abu Dhabi answers to for controlled medicines: a ' +
+      'prescription valid three days for all three tiers, specialists and consultants only for ' +
+      'narcotics, no narcotic refill and an endorsed ceiling of two for the rest, the PH 17/18/20 ' +
+      'registers, the unified platform raised as a precondition the pharmacist can only verify, ' +
+      'locked steel storage, five-year and two-year retention, monthly and quarterly returns, ' +
+      'destruction witnessed by a DOH auditor, and a flat prohibition on moving narcotics between ' +
+      'facilities. Configured from the Department of Health’s own standard DOH/HLME/DMP/1.0/2021. ' +
+      '⚠️ NOT A STATEMENT OF UAE FEDERAL LAW: the Ministerial Decrees this standard quotes could ' +
+      'not be retrieved and no rule cites one. ⚠️ NO DAYS’-SUPPLY LADDER — it turns on the ' +
+      'prescriber’s grade, which no rule shape carries. No dispensing label, no self-prescribing ' +
+      'rule, no forecast or procurement rules. Not reviewed by a qualified person.',
+    effectiveFrom: AE_AZ_PACK_EFFECTIVE_FROM,
+  },
+  {
+    countryCode: 'AE',
+    regionCode: 'DU',
+    countryName: 'Dubai',
+    authorities: AE_DU_AUTHORITIES,
+    sources: AE_DU_SOURCES,
+    rules: AE_DU_RULES,
+    packAuthorityCode: 'AE_DHA',
+    version: '1.0.0',
+    name: 'Dubai — Pharmacy Guidelines, the mandatory clauses',
+    description:
+      'The DHA Pharmacy Guidelines are 100 pages and most of them recommend; this pack is built ' +
+      'from the clauses that do not. Guideline Fourteen in full — three-day validity for ' +
+      'narcotics, controlled and semi controlled drugs, consultants and specialists only for ' +
+      'narcotics, no narcotic refill, the MOHAP and DHA register books, the Unified Controlled ' +
+      'Medication Platform for narcotics and CDs but not SCDs, steel cabinets, five-year and ' +
+      'two-year retention, monthly and quarterly returns, disposal through MOHAP Central Medical ' +
+      'Stores or an HRS-audited waste contractor, and the prohibition on transferring any of them ' +
+      'between facilities — plus the one prohibition outside it, that a prescription only medicine ' +
+      'may not be sold without a formal prescription. ⚠️ NO DISPENSING LABEL: the eleven-field ' +
+      'label at 13.3.2 is written as a recommendation and a LABEL_FIELDS condition is an ' +
+      'obligation. ⚠️ NO DAYS’-SUPPLY LADDER, no price rules. ⚠️ NOT A STATEMENT OF UAE FEDERAL ' +
+      'LAW. Not reviewed by a qualified person.',
+    effectiveFrom: AE_DU_PACK_EFFECTIVE_FROM,
   },
 ];
 

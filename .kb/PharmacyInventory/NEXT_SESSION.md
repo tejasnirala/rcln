@@ -2,34 +2,67 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-20 · **By:** session PI-15 (Australia rule pack).
+**Written:** 2026-08-20 · **By:** session PI-17 (the two Emirati rule packs).
 
-## PI-15 first, because it is the freshest and it is unreviewed
+## PI-17 first, because it is the freshest and it is unreviewed
 
-✅ **PI-15 SHIPPED:** `AU 1.0.0` (4 rules) + `AU-VIC 1.0.0` (18 rules), the
-programme's second sub-national pack, 20 behaviour cases, no migration.
-⚠️ **NOT REVIEWED** — neither `/code-review` nor `security-reviewer` has run over
-it, and the same is still true of PI-13a and PI-13.
+✅ **PI-17 SHIPPED:** `AE-AZ 1.0.0` (25 rules, DoH Abu Dhabi) and `AE-DU 1.0.0`
+(26 rules, DHA Dubai). 22 behaviour cases, no migration.
+⚠️ **NOT REVIEWED** — and neither are PI-16, PI-15, PI-13a and PI-13.
 
-⚠️ **THE LESSON WORTH CARRYING FROM PI-15: THE BUG WAS NOT IN THE DOMAIN CODE.**
-The seed, the engine and the schema were all correct. `CountryInfo.regions` in
-`@rcln/contracts` was documented and populated as "does tax register per
-subdivision" — right about tax, and also the list that gates
-`branches.region_code`, which is what the regulatory engine reads to pick a
-sub-national pack. Australia was empty, so no Victorian branch could exist and
-the state pack would have seeded, printed its rule count and matched nothing
-forever. **A field can be correct about the question it was written for and
-load-bearing for a question nobody connected it to.** The Victorian behaviour
-cases are the only thing that would have caught it.
+⚠️ **THE FIRST COUNTRY IN THIS PROGRAMME CONFIGURED ONLY FROM BELOW.** There is
+no `AE` pack. `uaelegislation.gov.ae` returns `403` on every path and
+`mohap.gov.ae` resets the connection, so the federal Ministerial Decrees both
+emirates rest on — 888/2016, 379/2019, 253/2020, 680/2017 — were readable only as
+those emirates restate them. **That is a secondary source and no rule cites one.**
+Every rule is cited to the emirate standard that each regulator says applies to
+the facilities it licenses.
 
-⚠️ **BEFORE ANY FUTURE STATE PACK: CHECK THAT COUNTRY'S `regions` LIST FIRST.**
-The United States still lists only the states that levy a sales tax, so Oregon,
-Montana, New Hampshire, Delaware and Alaska cannot hold a region today. Nothing
-is inert because no pack exists for them — and a phase that writes one will get
-no warning.
+⚠️ **SO SHARJAH, AJMAN, FUJAIRAH, RAS AL-KHAIMAH AND UMM AL-QUWAIN HAVE NOTHING.**
+Not a thin pack — no pack, and no national floor beneath them, so every
+evaluation answers `UNDETERMINED`, which refuses. Australia's seven state-less
+jurisdictions at least get the Poisons Standard. A behaviour case pins this so
+nobody closes it by writing a federal pack from a restatement.
 
-⚠️ **PI-16 (Singapore) is next.** PI-14 (GB) stays blocked on legislation.gov.uk;
-New South Wales is blocked the same way, which is why PI-15's state is Victoria.
+⚠️ **`CountryInfo.regions` WAS EMPTY FOR `AE` TOO. THIS IS NOW A CLASS OF DEFECT,
+NOT AN ACCIDENT.** Australia in PI-15, the UAE in PI-17 — both populated from
+"does tax register per subdivision", both taxing federally at one rate, both
+regulating medicines sub-nationally. PI-16 recorded "check this list first"; the
+check found a live defect on its first outing. ⚠️ **THIS ONE HAD A TELL IN THE
+SAME OBJECT: `labels.region` for `AE` already said `'Emirate'`** — the address
+form asked which emirate a branch was in while the list permitted none.
+`UAE_REGIONS` lists all seven. ⚠️ **`US_REGIONS` IS STILL SHORT FIVE STATES.**
+
+⚠️ **THE PATTERN TO CARRY INTO PI-18: A GATE CONDITIONAL ON A FACT THE PLATFORM
+DOES NOT MODEL CANNOT BE A RULE — AND THREE JURISDICTIONS HAVE NOW ASKED FOR THE
+SAME MISSING FACT.** Singapore's pharmacist gate turns on whether the premises are
+a retail pharmacy or a clinic; Dubai confines narcotic prescribing to hospital
+inpatient and emergency units; Abu Dhabi requires a facility to be licensed as a
+hospital, day surgery centre, pharmacy or drug store. rcln has no
+`branch.licence_type`. **That field, not a bolder reading, is the fix.**
+
+### Where to start on PI-17, if you are reviewing it
+
+- `packages/db/prisma/seed/data/regulatory-ae-az.ts` — the header argues the
+  missing federal pack and the missing days'-supply ladder. Read it before adding
+  either.
+- The six `*-TRANSFER-*` rules — `IMPORT_RESTRICTION` rows narrowed to
+  `TRANSFER`, because that handler is the only one that refuses a transaction
+  outright. ⚠️ **The narrowing is load-bearing and has no guard**: widen
+  `appliesToTransactions` on one of them and every Emirati clinic stops being
+  able to receive controlled stock. Third occurrence of "the framework has no
+  `permitted: false` transaction rule" after Singapore's `SG-SUPPLY-CD4`.
+- `DU-RX-POM` — three months, drawn from a clause that reads "e.g." inside a
+  recommendation. The weakest reading in either pack, and written because
+  omitting a validity fails OPEN.
+- `AZ-REFILL-CD` / `DU-REFILL-CD` — wider than their regulators wrote, because
+  the lists of refillable products are in decrees nobody could retrieve.
+- `apps/api/tests/integration/ae-rule-pack.test.ts` — the Sharjah case, the two
+  emirates disagreeing about the unified platform, and the assertion that the
+  outcome is not `UNDETERMINED` for want of a days' supply.
+
+⚠️ **PI-18 (Ireland) is next.** The survey rated irishstatutebook.ie "Good".
+PI-14 (GB) stays blocked on legislation.gov.uk.
 
 ---
 
@@ -85,32 +118,33 @@ foundation (PR #31). **PI-3** Movements (PR #32). **PI-4** Procurement (PR #33).
 **PI-7** Pharmacy dispensing. **PI-8** Billing & tax integration. **PI-8.11** the
 review gate over PI-7 + PI-8. **PI-9** Clinical consumption. **PI-10** Recall &
 traceability. **PI-11** Veterinary enablement, plus the review gate over PI-9,
-PI-10 and PI-11 together. **PI-12** Online pharmacy —
-`feat/pi-12-online-pharmacy`, **COMPLETE**, ⚠️ **not reviewed**.
+PI-10 and PI-11 together. **PI-12** Online pharmacy. **PI-13a** rule-pack
+framework extensions. **PI-13** United States (federal + California). **PI-15**
+Australia (national + Victoria). **PI-16** Singapore. **PI-17** Abu Dhabi and
+Dubai — ⚠️ the last five are **not reviewed**.
+
+⚠️ **PI-14 (Great Britain) is BLOCKED** on access to legislation.gov.uk, and the
+UAE's FEDERAL sources are in the same state.
 
 ---
 
 ## What was changed in this session
 
-**PI-12 — Online Pharmacy.** Order → hold → pack → ship → deliver.
+**PI-17 — the Emirati rule packs.** Two data files, two `PACKS` entries, one
+contracts fix, one test suite, no migration.
 
-| Area        | What landed                                                                                                                                                    |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Engine      | `onlineSaleGap` + `onlineSaleGapMessage` in `@rcln/regulatory`                                                                                                 |
-| Schema      | `online_orders` · `online_order_lines` · `online_order_shipments`; `DispenseKind.ONLINE`, `NumberSequenceType.ONLINE_ORDER`, `DataAccessResource.ONLINE_ORDER` |
-| Migrations  | `..090000_online_pharmacy_enum_members` · `..090500_pi_12_online_pharmacy`                                                                                     |
-| RLS         | `db:rls:check` green at **131**. Three tables, ONE tenancy class — all branch-scoped, the first uniform phase since PI-7                                       |
-| Permissions | `pharmacy.online_order.read` / `.manage` / `.dispatch`. ⚠️ **Packing is `pharmacy.dispense.create`**                                                           |
-| Services    | `online-order.service.ts`, `fulfilment.service.ts`; `createDispenseWithin` and `reserveStockIn` extracted from existing files                                  |
-| Routes      | `/v1/online-orders`, 10 endpoints. **437 endpoints, 437 documented**                                                                                           |
-| Screens     | `/pharmacy/orders`, `/pharmacy/orders/new`, `/pharmacy/orders/[orderId]`                                                                                       |
-| Found       | ⚠️ **Two defects in code this phase did not write** — see below                                                                                                |
-
-`1897 API tests pass across 92 suites`, plus the package suites.
+| Area      | What landed                                                                                                                                                                                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contracts | `UAE_REGIONS` — all seven emirates — and the second entry in the `CountryInfo.regions` warning, which now says this is a class of defect                                                                                                                                                |
+| Seed      | `data/regulatory-ae-az.ts` (25 rules) and `data/regulatory-ae-du.ts` (26 rules); two `PACKS` entries, both sub-national                                                                                                                                                                 |
+| Rules     | Three-day prescriptions across three tiers, prescriber grades for narcotics, refill ceilings, the registers, the unified platform as a prior authorisation, locked steel storage, 5/5/2-year retention, monthly and quarterly returns, witnessed disposal, and the transfer prohibition |
+| Tests     | `apps/api/tests/integration/ae-rule-pack.test.ts` — 22 cases, three branches in one organization, one of them in Sharjah                                                                                                                                                                |
+| DB        | none. The fifth rule-pack phase running with no migration                                                                                                                                                                                                                               |
+| Docs      | COUNTRY_SUPPORT_MATRIX (AE row, column, and why the rest did not move), KNOWN_ISSUES, IMPLEMENTATION_TRACKER, CHANGELOG, survey, STATUS                                                                                                                                                 |
 
 ---
 
-## Decisions taken this session that a later phase must not undo
+## Decisions taken in PI-12 that a later phase must not undo
 
 **1. ⚠️ THE GATE IS IN TWO PLACES AND BOTH ARE LOAD-BEARING.**
 `@rcln/regulatory` raises the remote-supply gap as a decision reason, snapshotted
@@ -169,7 +203,7 @@ phase's one irreversible write.
 
 ---
 
-## ⚠️ The two defects this phase found in code it did not write
+## ⚠️ The two defects PI-12 found in code it did not write
 
 **1. `dispenses_prescription_has_patient` would have refused every parcel.** PI-7
 wrote it as a two-way choice between the counter's two kinds, so an `ONLINE`
@@ -185,9 +219,10 @@ since PI-11 landed and nothing surfaced it. Corrected.
 
 ---
 
-## Where to start
+## Where to start on the unreviewed phases
 
-**⚠️ RUN THE REVIEWS FIRST**, over PI-12. Point a reviewer at:
+**⚠️ RUN THE REVIEWS FIRST** — PI-12 is done, PI-13a, PI-13, PI-15 and PI-16 are
+not. For PI-12, point a reviewer at: Point a reviewer at:
 
 - `confirmOnlineOrder` — the gate, the FEFO plan, the holds, and the fact that
   the number is issued last so a refusal burns none.
@@ -205,12 +240,12 @@ since PI-11 landed and nothing surfaced it. Corrected.
   single-row disclosure in the product, and this is the first resource that
   carries a home address.
 
-**Then PI-13 (US rule pack)**, or PI-22 / PI-23, both of which now have more to
+**Then PI-17 (UAE rule pack)**, or PI-22 / PI-23, both of which now have more to
 do than they did — see the open items in the tracker.
 
 ---
 
-## Open items PI-12 leaves behind
+## Open items the online-pharmacy phase leaves behind
 
 - **No sweep moves an ABANDONED order's status.** The reservation sweep releases
   the hold by `expires_at`, but the order stays `CONFIRMED` with nothing held,

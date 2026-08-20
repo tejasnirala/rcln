@@ -10,46 +10,46 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `acceptsAt` <sub>local</sub> | `(maskChar: string, char: string): boolean` | `packages/contracts/src/locale.ts:949` |  |
-| `addressLabels` | `(code: string \| null \| undefined): AddressLabels` | `packages/contracts/src/locale.ts:1029` | What this country calls the parts of an address. Falls back to India's. |
-| `applyNationalIdMask` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:972` |  |
+| `acceptsAt` <sub>local</sub> | `(maskChar: string, char: string): boolean` | `packages/contracts/src/locale.ts:988` |  |
+| `addressLabels` | `(code: string \| null \| undefined): AddressLabels` | `packages/contracts/src/locale.ts:1068` | What this country calls the parts of an address. Falls back to India's. |
+| `applyNationalIdMask` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:1011` |  |
 | `bounded` <sub>local</sub> | `(key: VitalKey): z.ZodNumber` | `packages/contracts/src/appointments.ts:394` | A bounded number, with a message somebody can act on, from one entry. |
 | `codedOrTypedRule` <sub>local</sub> | `(body: { itemId?: string \| undefined; customText?: string \| …): boolean` | `packages/contracts/src/encounter-content.ts:155` |  |
-| `countryInfo` | `(code: string \| null \| undefined): CountryInfo \| undefined` | `packages/contracts/src/locale.ts:623` |  |
+| `countryInfo` | `(code: string \| null \| undefined): CountryInfo \| undefined` | `packages/contracts/src/locale.ts:662` |  |
 | `daysSpanned` <sub>local</sub> | `(from: string, to: string): number` | `packages/contracts/src/appointments.ts:463` | Whole days between two `YYYY-MM-DD` dates, inclusive of both ends. |
-| `defaultTimezoneFor` | `(code: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:630` | The zone to assume before anyone has chosen. |
-| `dialFormatFor` | `(code: string \| null \| undefined): DialFormat` | `packages/contracts/src/locale.ts:1044` | The calling code and national digit count. Falls back to India's. |
+| `defaultTimezoneFor` | `(code: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:669` | The zone to assume before anyone has chosen. |
+| `dialFormatFor` | `(code: string \| null \| undefined): DialFormat` | `packages/contracts/src/locale.ts:1083` | The calling code and national digit count. Falls back to India's. |
 | `expiryNeedsBatchTracking` <sub>local</sub> | `(schema: T): T` | `packages/contracts/src/products.ts:494` |  |
-| `formatNationalId` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:1020` | Regroup a stored value for display: `234567890123` -> `2345 6789 0123`. The same masking, which is why there is only one description of a document's shape in t… |
-| `fromCelsius` | `(celsius: number, unit: TemperatureUnit): number` | `packages/contracts/src/locale.ts:1186` | Celsius as stored → what this country reads it in. |
-| `hasTimezoneChoice` | `(code: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:635` | Whether the customer has a decision to make about the zone. |
-| `isValidNationalId` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:929` |  |
-| `isValidPostalCode` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:1058` |  |
-| `isValidRegion` | `(countryCode: string, regionCode: string \| null): boolean` | `packages/contracts/src/locale.ts:645` | Whether a region code is one this country actually has. |
-| `isValidTaxId` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:1084` |  |
+| `formatNationalId` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:1059` | Regroup a stored value for display: `234567890123` -> `2345 6789 0123`. The same masking, which is why there is only one description of a document's shape in t… |
+| `fromCelsius` | `(celsius: number, unit: TemperatureUnit): number` | `packages/contracts/src/locale.ts:1225` | Celsius as stored → what this country reads it in. |
+| `hasTimezoneChoice` | `(code: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:674` | Whether the customer has a decision to make about the zone. |
+| `isValidNationalId` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:968` |  |
+| `isValidPostalCode` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:1097` |  |
+| `isValidRegion` | `(countryCode: string, regionCode: string \| null): boolean` | `packages/contracts/src/locale.ts:684` | Whether a region code is one this country actually has. |
+| `isValidTaxId` | `(countryCode: string \| null \| undefined, value: string \| null \| undefined): boolean` | `packages/contracts/src/locale.ts:1123` |  |
 | `knownCurrency` <sub>local</sub> | `(value: string): boolean` | `packages/contracts/src/common.ts:119` |  |
 | `namesOneSubject` <sub>local</sub> | `(value: { batchId?: string \| undefined; serialId?: string \| …): boolean` | `packages/contracts/src/recall.ts:248` |  |
-| `nationalIdFormatFor` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined): NationalIdFormat \| null` | `packages/contracts/src/locale.ts:902` | One ID format by country and type code, or null if that pairing is unknown. |
-| `nationalIdTypesFor` | `(code: string \| null \| undefined): readonly NationalIdFormat[]` | `packages/contracts/src/locale.ts:896` |  |
-| `normalizeNationalId` | `(value: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:918` |  |
-| `normalizePostalCode` | `(countryCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:1070` | Upper-cased, single-spaced. What we store and what we validate. |
+| `nationalIdFormatFor` | `(countryCode: string \| null \| undefined, typeCode: string \| null \| undefined): NationalIdFormat \| null` | `packages/contracts/src/locale.ts:941` | One ID format by country and type code, or null if that pairing is unknown. |
+| `nationalIdTypesFor` | `(code: string \| null \| undefined): readonly NationalIdFormat[]` | `packages/contracts/src/locale.ts:935` |  |
+| `normalizeNationalId` | `(value: string \| null \| undefined): string` | `packages/contracts/src/locale.ts:957` |  |
+| `normalizePostalCode` | `(countryCode: string \| null \| undefined, value: string): string` | `packages/contracts/src/locale.ts:1109` | Upper-cased, single-spaced. What we store and what we validate. |
 | `oneClassificationForm` <sub>local</sub> | `(v: { specialtyIds?: string[] \| undefined; classifications?:…, ctx: z.RefinementCtx): void` | `packages/contracts/src/doctors.ts:96` | Reject the two request forms being used at once. `specialtyIds` defaults to `[]`, so "both supplied" is `classifications` present AND `specialtyIds` non-empty. |
 | `oneQuantityBasis` <sub>local</sub> | `(v: { unitId?: string \| null \| undefined; packagingLevel?: n…): boolean` | `packages/contracts/src/procurement.ts:115` |  |
-| `postalFormatFor` | `(code: string \| null \| undefined): PostalFormat \| null` | `packages/contracts/src/locale.ts:1034` | The postcode format, or null where the country issues none. |
+| `postalFormatFor` | `(code: string \| null \| undefined): PostalFormat \| null` | `packages/contracts/src/locale.ts:1073` | The postcode format, or null where the country issues none. |
 | `readableQuantity` | `(quantity: string): string` | `packages/contracts/src/inventory.ts:222` |  |
 | `refineAge` <sub>local</sub> | `(v: { dateOfBirth?: string \| undefined; approxAgeYears?: num…, ctx: z.RefinementCtx): void` | `packages/contracts/src/patients.ts:165` |  |
 | `refineNationalId` <sub>local</sub> | `(v: { nationalId?: string \| undefined; nationalIdType?: stri…, ctx: z.RefinementCtx): void` | `packages/contracts/src/patients.ts:192` |  |
 | `refineSubject` <sub>local</sub> | `(v: { subjectType?: string \| undefined; animalProfile?: unkn…, ctx: z.RefinementCtx): void` | `packages/contracts/src/patients.ts:373` |  |
-| `regionsFor` | `(code: string \| null \| undefined): readonly Region[]` | `packages/contracts/src/locale.ts:640` | The subdivisions worth asking about. Empty means country-wide only. |
-| `splitE164` | `(value: string \| null \| undefined): { countryCode: string \| null; national: string; }` | `packages/contracts/src/locale.ts:1116` |  |
-| `taxIdFormatFor` | `(code: string \| null \| undefined): TaxIdFormat \| null` | `packages/contracts/src/locale.ts:1039` | The tax registration to ask for, or null where there is no single one. |
+| `regionsFor` | `(code: string \| null \| undefined): readonly Region[]` | `packages/contracts/src/locale.ts:679` | The subdivisions worth asking about. Empty means country-wide only. |
+| `splitE164` | `(value: string \| null \| undefined): { countryCode: string \| null; national: string; }` | `packages/contracts/src/locale.ts:1155` |  |
+| `taxIdFormatFor` | `(code: string \| null \| undefined): TaxIdFormat \| null` | `packages/contracts/src/locale.ts:1078` | The tax registration to ask for, or null where there is no single one. |
 | `temperatureRangeFor` | `(unit: TemperatureUnit): VitalRange` | `packages/contracts/src/appointments.ts:378` |  |
-| `temperatureSymbol` | `(unit: TemperatureUnit): string` | `packages/contracts/src/locale.ts:1166` | `°C` or `°F`, for a label. |
-| `temperatureUnitFor` | `(code: string \| null \| undefined): TemperatureUnit` | `packages/contracts/src/locale.ts:1155` |  |
-| `timezoneLabel` | `(zone: string): string` | `packages/contracts/src/locale.ts:1243` | `Asia/Kolkata` -> `Asia/Kolkata (GMT+5:30)`. Display only. |
-| `toCelsius` | `(value: number, unit: TemperatureUnit): number` | `packages/contracts/src/locale.ts:1180` |  |
-| `toE164` | `(countryCode: string \| null \| undefined, national: string): string` | `packages/contracts/src/locale.ts:1102` |  |
-| `toTimeFormat` | `(value: unknown): TimeFormat` | `packages/contracts/src/locale.ts:1238` |  |
+| `temperatureSymbol` | `(unit: TemperatureUnit): string` | `packages/contracts/src/locale.ts:1205` | `°C` or `°F`, for a label. |
+| `temperatureUnitFor` | `(code: string \| null \| undefined): TemperatureUnit` | `packages/contracts/src/locale.ts:1194` |  |
+| `timezoneLabel` | `(zone: string): string` | `packages/contracts/src/locale.ts:1282` | `Asia/Kolkata` -> `Asia/Kolkata (GMT+5:30)`. Display only. |
+| `toCelsius` | `(value: number, unit: TemperatureUnit): number` | `packages/contracts/src/locale.ts:1219` |  |
+| `toE164` | `(countryCode: string \| null \| undefined, national: string): string` | `packages/contracts/src/locale.ts:1141` |  |
+| `toTimeFormat` | `(value: unknown): TimeFormat` | `packages/contracts/src/locale.ts:1277` |  |
 | `vitalRangeMessage` | `(range: VitalRange): string` | `packages/contracts/src/appointments.ts:365` |  |
 
 ## zod
@@ -645,21 +645,22 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `APPOINTMENT_RANGE_MAX_DAYS` | `45` | `packages/contracts/src/appointments.ts:477` |  |
-| `AUSTRALIA_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:297` |  |
-| `CELSIUS_PLACES` <sub>local</sub> | `100` | `packages/contracts/src/locale.ts:1153` | Decimal places `temperature_c` is stored at — `Decimal(4, 2)`, so 0.01 °C. |
+| `AUSTRALIA_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:304` |  |
+| `CELSIUS_PLACES` <sub>local</sub> | `100` | `packages/contracts/src/locale.ts:1192` | Decimal places `temperature_c` is stored at — `Decimal(4, 2)`, so 0.01 °C. |
 | `CODED_OR_TYPED_MESSAGE` <sub>local</sub> | `{ message: 'Give either a clinical term or your own words — not both and not neither', }` | `packages/contracts/src/encounter-content.ts:160` |  |
-| `COUNTRIES` | `: readonly CountryInfo[]` | `packages/contracts/src/locale.ts:358` |  |
+| `COUNTRIES` | `: readonly CountryInfo[]` | `packages/contracts/src/locale.ts:397` |  |
 | `COVERAGE_MODES` | `['EXPLICIT', 'JURISDICTION'] as const` | `packages/contracts/src/tax.ts:149` |  |
-| `DEFAULT_TIME_FORMAT` | `: TimeFormat` | `packages/contracts/src/locale.ts:1227` | What a clinic gets before anybody chooses. Must match the seeded default. |
-| `INDIA_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:249` | India's states and union territories, by ISO 3166-2 code. |
+| `DEFAULT_TIME_FORMAT` | `: TimeFormat` | `packages/contracts/src/locale.ts:1266` | What a clinic gets before anybody chooses. Must match the seeded default. |
+| `INDIA_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:256` | India's states and union territories, by ISO 3166-2 code. |
 | `KNOWN_FEE_TYPES` | `[ 'NEW', 'FOLLOW_UP', 'WALK_IN', 'TELECONSULT', 'PROCEDURE', 'RESCHEDULE', ] as const` | `packages/contracts/src/fees.ts:40` |  |
-| `NATIONAL_IDS` <sub>local</sub> | `: Readonly<Record<string, readonly NationalIdFormat[]>>` | `packages/contracts/src/locale.ts:695` |  |
+| `NATIONAL_IDS` <sub>local</sub> | `: Readonly<Record<string, readonly NationalIdFormat[]>>` | `packages/contracts/src/locale.ts:734` |  |
 | `ONE_SUBJECT` <sub>local</sub> | `{ message: 'Name exactly one of batchId or serialId.' }` | `packages/contracts/src/recall.ts:253` |  |
 | `RESERVED_SLUGS` | `new Set(…)` | `packages/contracts/src/common.ts:17` | Subdomains the platform keeps for itself. A tenant claiming `api` or `admin` would break routing for everyone, so this is checked at registration. |
 | `TAX_REGISTRATION_STATUSES` | `['SCHEDULED', 'ACTIVE', 'LAPSED'] as const` | `packages/contracts/src/tax.ts:137` |  |
-| `TIME_FORMATS` | `['12H', '24H'] as const` | `packages/contracts/src/locale.ts:1222` |  |
-| `UNIVERSAL_IDS` <sub>local</sub> | `: readonly NationalIdFormat[]` | `packages/contracts/src/locale.ts:672` |  |
-| `US_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:309` | US states that levy a sales tax, plus DC. The five that do not are omitted. |
+| `TIME_FORMATS` | `['12H', '24H'] as const` | `packages/contracts/src/locale.ts:1261` |  |
+| `UAE_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:337` |  |
+| `UNIVERSAL_IDS` <sub>local</sub> | `: readonly NationalIdFormat[]` | `packages/contracts/src/locale.ts:711` |  |
+| `US_REGIONS` <sub>local</sub> | `: readonly Region[]` | `packages/contracts/src/locale.ts:348` | US states that levy a sales tax, plus DC. The five that do not are omitted. |
 | `VITAL_RANGES` | `{ heightCm: { min: 20, max: 280, step: 0.1, unit: 'cm', nou…` | `packages/contracts/src/appointments.ts:342` |  |
 | `WORKING_DAYS_MAX_SPAN` | `62` | `packages/contracts/src/appointments.ts:70` | The longest span the working-day probe will answer for. A calendar month plus the leading and trailing days a month grid draws, with room to spare. The picker … |
 
@@ -1459,8 +1460,8 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `TaxRegistrationStatus` | `(typeof TAX_REGISTRATION_STATUSES)[number]` | `packages/contracts/src/tax.ts:138` |  |
 | `TaxSchemeValue` | `z.infer<typeof taxScheme>` | `packages/contracts/src/tax.ts:40` |  |
 | `TaxSplitValue` | `z.infer<typeof taxSplit>` | `packages/contracts/src/tax.ts:56` |  |
-| `TemperatureUnit` | `'C' \| 'F'` | `packages/contracts/src/locale.ts:246` | How a body temperature is written down. Never how it is stored. |
-| `TimeFormat` | `(typeof TIME_FORMATS)[number]` | `packages/contracts/src/locale.ts:1224` |  |
+| `TemperatureUnit` | `'C' \| 'F'` | `packages/contracts/src/locale.ts:253` | How a body temperature is written down. Never how it is stored. |
+| `TimeFormat` | `(typeof TIME_FORMATS)[number]` | `packages/contracts/src/locale.ts:1263` |  |
 | `TrackingMode` | `z.infer<typeof trackingMode>` | `packages/contracts/src/products.ts:848` |  |
 | `UnitClass` | `z.infer<typeof unitClass>` | `packages/contracts/src/products.ts:845` |  |
 | `UnitConversionSummary` | `z.infer<typeof unitConversionSummary>` | `packages/contracts/src/products.ts:860` |  |

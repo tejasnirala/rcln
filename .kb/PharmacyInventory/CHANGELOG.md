@@ -5,6 +5,200 @@ discussed.
 
 ---
 
+## 2026-08-20 — PI-17: a country regulated only from below
+
+**Phase:** PI-17 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,
+**not reviewed** · **Tests:** +22 integration behaviour cases. No migration.
+
+The survey scoped this phase as "federal plus at least one emirate". It shipped
+two emirates and no federal pack, and the reason is the phase's finding.
+
+### The federal half is behind the same wall as Great Britain
+
+`uaelegislation.gov.ae` returns `403` on every path attempted and
+`mohap.gov.ae` resets the connection outright. Both emirate regulators rest their
+controlled-medicines regime on federal Ministerial Decrees — 888 of 2016 for the
+three-day prescription validity and the prescriber ladder, 379 of 2019 for the
+unified platform, 253 of 2020 and 680 of 2017 for the refillable lists — and
+every one of those was readable only as those emirates restate them.
+
+That is a secondary source, and `regulatory-in.ts` already records what one
+costs: G.S.R. 588(E) is published by CDSCO only as a scanned image, so India's
+Schedule H1 rules cite the consolidated rules whose text was actually read, and
+that notification's commencement date is asserted nowhere in this programme.
+**No rule in either Emirati pack cites a decree.** Each cites its own regulator's
+standard, which each document says on its own cover applies to facilities that
+regulator licenses.
+
+⚠️ **The consequence is not Australia's and is worse.** A branch in Sydney with
+no state pack still gets the Poisons Standard as a floor. A branch in Sharjah,
+Ajman, Fujairah, Ras al-Khaimah or Umm al-Quwain gets nothing at all, so every
+evaluation there is `UNDETERMINED`, which refuses. A behaviour case pins it, so
+that nobody closes the gap by writing a federal pack from a restatement.
+
+### ⚠️ `CountryInfo.regions` was empty again — the second country in three phases
+
+`AE` had `regions: []`. UAE VAT is federal at a single rate, so — exactly as with
+Australia — the list was _correct about tax_ and fatal to a pack keyed on
+`branches.region_code`. No branch could have said `AZ` or `DU`, and both packs
+would have seeded, printed their rule counts and matched nothing forever.
+
+⚠️ **This one had a tell sitting in the same object: `labels.region` for `AE`
+already said `'Emirate'`.** The address form asked which emirate a branch was in
+while the list permitted none. PI-16 recorded "check this list first" and the
+check found a live defect on its first outing.
+
+`UAE_REGIONS` lists all seven emirates, not the two with a pack, because omitting
+a subdivision until it needs one is precisely the shape of the still-open
+`US_REGIONS` hole. Two countries in three phases makes this a class of defect
+rather than an accident, and the field's doc comment now says so.
+
+### One document commands, the other mostly recommends
+
+The DoH Abu Dhabi standard (DOH/HLME/DMP/1.0/2021, ten pages) is written in
+"must" throughout. The DHA Pharmacy Guidelines (HRS/HPSD/PG/01/2021, 100 pages)
+are mostly "should", "may" and "it is recommended" — except Guideline Fourteen,
+narcotics and controlled and semi controlled drugs, which is "shall", "must" and
+"is prohibited". **The Dubai pack is built from the mandatory register only.**
+
+That is why Dubai has no dispensing-label rule despite the guidelines carrying an
+eleven-field label at 13.3.2: a `LABEL_FIELDS` condition is an obligation, not
+advice, and turning one into the other would misrepresent the guideline to every
+pharmacist in the emirate.
+
+### The rule most likely to bite a real tenant
+
+Both emirates prohibit moving controlled stock between facilities — Abu Dhabi
+§ 11.1 "strictly prohibited", Dubai 18.12.1 "cannot be transferred" — and Dubai
+names the exception in rcln's own words: "within a group of health facilities
+**with the same owner**", on an approved Transfer Request Form, with HRS
+inspectors adjusting the register books. **A stock transfer between two branches
+of one organization is the most ordinary movement this platform has**, and
+nothing else in rcln would have stopped it.
+
+⚠️ Six rules carry it as `IMPORT_RESTRICTION` rows narrowed to `TRANSFER`, because
+that handler is the only one that refuses a transaction outright. Right outcome,
+wrong type name — the third occurrence after Singapore's `SG-SUPPLY-CD4`, and the
+framework's missing piece is a `permitted: false` transaction rule.
+
+### What was researched and not written
+
+- **No days'-supply ladder**, though both regulators set GP 3 / specialist 15 /
+  consultant 30. It is conditioned on the prescriber's grade, which is not a
+  property of a rule — three tied rules would let the GP limit govern every
+  consultant's prescription — and nothing populates `daysSupply`, so any
+  `maxDaysSupply` rule would refuse every controlled supply in the country. The
+  ladder is in the statements; a behaviour case asserts the outcome is not
+  `UNDETERMINED`.
+- **No pharmacist-authority rule** in either pack: both documents regulate who
+  may PRESCRIBE and leave dispensing to facility licensing.
+- **No self-prescribing rule.** "Physicians are not allowed to prescribe for
+  themselves or their relatives" is about a relationship rcln does not model.
+- **No price rules** from Dubai 12.1.5–12.1.6. Real, mandatory, and pricing's
+  business rather than a regulatory decision about a supply.
+
+### Seeded
+
+`AE-AZ 1.0.0` — 1 authority, 1 source, **25 rules**. `AE-DU 1.0.0` — 1 authority,
+1 source, **26 rules**. Both at `AUTOMATED_TESTED`; sources `UNVERIFIED`; no
+qualified person has read either; nothing enforces below `PRODUCTION_ENABLED`.
+
+---
+
+## 2026-08-20 — PI-16: one country, two vocabularies, and a gate that is not there
+
+**Phase:** PI-16 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,
+**not reviewed** · **Tests:** +23 integration behaviour cases. No migration.
+
+Singapore reads as the easy pack after Australia — one jurisdiction, no states,
+sources served in English by the Attorney-General's Chambers. It is not, and the
+two reasons are worth recording because both are shapes other packs will meet.
+
+### Two instruments, one classification column
+
+Singapore regulates a medicine twice. The Health Products (Therapeutic Products)
+Regulations 2016 classify it as prescription-only, pharmacy-only or general sale
+list; the Misuse of Drugs Regulations classify a controlled drug by which
+Schedule of those Regulations it sits in. **Morphine is both** — a
+prescription-only medicine to HSA and a Second Schedule drug to the Misuse of
+Drugs Regulations — and `product_regulatory_profiles.classification` is one
+string, so a clinic has to pick.
+
+The pack is therefore written so that neither half is thinner than the other:
+each Schedule carries its own prescription requirement, its own prescriber list
+and its own retention period rather than leaning on the therapeutic-products
+rules to supply them. `SG-RX-CODEINE-LIQUID` is the same problem in miniature —
+a codeine linctus filed under the quantity-limit spelling would otherwise be
+supplied with a 240 ml cap and no prescription rule at all.
+
+### ⚠️ The rule this pack does not have, and why writing it would be the bug
+
+Every other pack in this programme carries a pharmacist-only rule. Singapore's
+does not, and the omission took longer to establish than any rule in it.
+
+Regulation 11 permits retail supply of a prescription-only medicine by three
+routes, and the third is "a person acting in accordance with the oral or written
+instructions of a qualified practitioner". Regulation 3 of the Licensing of
+Retail Pharmacies Regulations does impose an in-store pharmaceutical officer —
+and its own paragraph (3) disapplies the whole of 3(1) and 3(2) to a healthcare
+service licensee or a practitioner supplying a patient under their care.
+
+**So the pharmacist gate turns on what the PREMISES are licensed as**, and rcln
+holds no fact that says whether a branch is a licensed retail pharmacy or a
+clinic. A `PHARMACIST_AUTHORITY` rule would have refused a clinic assistant
+handing a medicine over on the doctor's written instruction — lawful, and the
+ordinary shape of a Singapore GP practice. That is a wrong answer in the
+_refusing_ direction, which is the direction nobody audits, and it is the same
+class of mistake `validityDays: 180` would have been for the United States.
+
+The contrast is in the pack: regs 7(2) and 8(2) of the Misuse of Drugs
+Regulations name a closed list of who may supply a controlled drug with no
+"instructions" limb, so `SG-SUPPLY-CD2` and `SG-SUPPLY-CD3` exist and refuse the
+same assistant. Two behaviour cases pin the pair, side by side.
+
+### What else was researched and not written
+
+- **No prescription expiry for a prescription-only medicine.** Reg 2(2) says
+  what makes a prescription valid and sets no period. Controlled drugs get 30
+  days from reg 12(1) — a day count in the statute, so `validityDays` and not
+  survey GAP 1's `validityMonths`.
+- **No 355 mg contained-codeine limit.** Reg 14(1) caps codeine cough
+  preparations two ways: 240 ml of preparation per 7 days, and 355 mg of codeine
+  calculated as base. The first is written; the second is a quantity of a
+  contained substance measured against a product counted in tablets — survey
+  GAP 4, the US pseudoephedrine call made again.
+- **No container-marking rule.** Reg 13 of the Misuse of Drugs Regulations
+  requires a marked container and then, in paragraph (2), disapplies itself to
+  supply "by or on the prescription of a practitioner" — which is every dispense
+  this platform models.
+- **No addict-notification rule.** Reg 19 is real and attaches to attending a
+  patient, not to supplying a product.
+- **No general sale list rules.** The only provision found is reg 15, about
+  vending machines.
+
+### The `regions` check, run first this time
+
+PI-15's lesson was that `CountryInfo.regions` gates `branches.region_code` and
+therefore gates which pack the engine picks. `SG` has `regions: []` and
+`labels.region: null` — **correct here**, because a city-state has no
+subdivisions, and there is no sub-national pack for it to make inert. The check
+is recorded in `regulatory-packs.ts` so the next phase does not have to rediscover
+that an empty list is a fact to verify rather than a shape to trust.
+
+### Seeded
+
+`SG 1.0.0` — 2 authorities (HSA, Central Narcotics Bureau), 3 sources, **28
+rules**, at `AUTOMATED_TESTED`. Sources are `UNVERIFIED`; no qualified person has
+read the pack; nothing enforces below `PRODUCTION_ENABLED`.
+
+Half of the 23 behaviour cases pin rules that are deliberately ABSENT — the
+missing pharmacist gate, the missing expiry, the Third Schedule's missing
+register and missing witness. Those are the assertions that turn a future "fix"
+into a failing test rather than a silent tightening of the law at every
+Singaporean clinic.
+
+---
+
 ## 2026-08-20 — PI-15: a national instrument that binds nobody
 
 **Phase:** PI-15 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,
