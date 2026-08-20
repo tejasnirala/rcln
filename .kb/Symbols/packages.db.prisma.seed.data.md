@@ -4,7 +4,7 @@
 
 > DATA ONLY — the reference clinical vocabulary.
 
-Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/specialties.ts` · `packages/db/prisma/seed/data/visual-maps.ts`
+Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma/seed/data/consultation-templates.ts` · `packages/db/prisma/seed/data/product-masters.ts` · `packages/db/prisma/seed/data/qualifications.ts` · `packages/db/prisma/seed/data/regulatory-in.ts` · `packages/db/prisma/seed/data/regulatory-us-ca.ts` · `packages/db/prisma/seed/data/regulatory-us.ts` · `packages/db/prisma/seed/data/specialties.ts` · `packages/db/prisma/seed/data/visual-maps.ts`
 
 ## fn
 
@@ -16,6 +16,8 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `scalpX` <sub>local</sub> | `(y: number, t: number): number` | `packages/db/prisma/seed/data/visual-maps.ts:169` | A point on the scalp. `t` runs -1 (the patient's right edge) to 1 (their left), as a fraction of the head's width AT THAT HEIGHT — so a zone's sides follow the… |
 | `scalpZone` <sub>local</sub> | `(y0: number, y1: number, tFrom: number, tTo: number): Record<string, unknown>` | `packages/db/prisma/seed/data/visual-maps.ts:181` |  |
 | `silhouette` <sub>local</sub> | `(prefix: string, originX: number, labels: { trunkUpper: string; trunkLower: string }, pageLeft: 'R' \| 'L'): VisualRegionSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:272` |  |
+| `spoken` <sub>local</sub> | `(classification: string): string` | `packages/db/prisma/seed/data/regulatory-us.ts:286` | `SCHEDULE_III` → `Schedule III`, for a sentence. |
+| `suffix` <sub>local</sub> | `(classification: string): string` | `packages/db/prisma/seed/data/regulatory-us.ts:281` | `SCHEDULE_III` → `SCH-III`, for a rule code. |
 | `toothAt` <sub>local</sub> | `(column: number, y: number): Record<string, unknown>` | `packages/db/prisma/seed/data/visual-maps.ts:79` | `column` runs 0…15 left to right across the page. |
 
 ## const
@@ -48,9 +50,11 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `SCALP_RX` <sub>local</sub> | `140` | `packages/db/prisma/seed/data/visual-maps.ts:152` |  |
 | `SCALP_RY` <sub>local</sub> | `220` | `packages/db/prisma/seed/data/visual-maps.ts:153` |  |
 | `SCALP_STEPS` <sub>local</sub> | `8` | `packages/db/prisma/seed/data/visual-maps.ts:155` | Segments per edge. Eight is smooth at this size and keeps the `d` short. |
+| `SCHEDULES` <sub>local</sub> | `[ US_CLASSIFICATIONS.scheduleII, US_CLASSIFICATIONS.scheduleIII, US_CLASSIFICATIONS.sched…` | `packages/db/prisma/seed/data/regulatory-us.ts:273` | The four DEA schedules this pack configures. Schedule I is not dispensable. |
 | `SPECIALTIES` | `: { code: string; name: string; parent?: string; type?: TaxonomyNodeType; descrip…` | `packages/db/prisma/seed/data/specialties.ts:57` |  |
 | `STORAGE_PROFILES` | `: SeedStorageProfile[]` | `packages/db/prisma/seed/data/product-masters.ts:213` |  |
 | `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-in.ts:223` | Every transaction in which a product reaches a patient, whatever the channel. |
+| `SUPPLY_TO_PATIENT` <sub>local</sub> | `['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']` | `packages/db/prisma/seed/data/regulatory-us.ts:270` | Every transaction in which a product reaches a patient, whatever the channel. |
 | `TEMPLE_EDGE` <sub>local</sub> | `0.45` | `packages/db/prisma/seed/data/visual-maps.ts:200` | The lateral fraction the temples start at, and the mid-band ends at. |
 | `TOOTH_HEIGHT` <sub>local</sub> | `60` | `packages/db/prisma/seed/data/visual-maps.ts:71` |  |
 | `TOOTH_PITCH` <sub>local</sub> | `38` | `packages/db/prisma/seed/data/visual-maps.ts:72` |  |
@@ -58,14 +62,31 @@ Files: `packages/db/prisma/seed/data/clinical-masters.ts` · `packages/db/prisma
 | `UNIT_CONVERSIONS` | `: SeedConversion[]` | `packages/db/prisma/seed/data/product-masters.ts:118` |  |
 | `UNITS` | `: SeedUnit[]` | `packages/db/prisma/seed/data/product-masters.ts:40` |  |
 | `UPPER_Y` <sub>local</sub> | `40` | `packages/db/prisma/seed/data/visual-maps.ts:75` |  |
+| `US_AUTHORITIES` | `[ { code: 'DEA', name: 'Drug Enforcement Administration', websiteUrl: 'https://www.deadiv…` | `packages/db/prisma/seed/data/regulatory-us.ts:100` |  |
+| `US_CA_AUTHORITIES` | `[ { code: 'CA_BOP', name: 'California State Board of Pharmacy', websiteUrl: 'https://www.…` | `packages/db/prisma/seed/data/regulatory-us-ca.ts:63` |  |
+| `US_CA_PACK_EFFECTIVE_FROM` | `'2026-08-19'` | `packages/db/prisma/seed/data/regulatory-us-ca.ts:61` | The day this pack becomes evaluable. Not the day any of these statutes passed. |
+| `US_CA_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us-ca.ts:119` |  |
+| `US_CA_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-us-ca.ts:75` |  |
+| `US_CLASSIFICATIONS` | `{ scheduleII: 'SCHEDULE_II', scheduleIII: 'SCHEDULE_III', scheduleIV: 'SCHEDULE_IV', sche…` | `packages/db/prisma/seed/data/regulatory-us.ts:258` |  |
+| `US_PACK_EFFECTIVE_FROM` | `'2026-08-19'` | `packages/db/prisma/seed/data/regulatory-us.ts:94` |  |
+| `US_RULES` | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:614` |  |
+| `US_SOURCES` | `: SourceSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:125` |  |
 | `VISUAL_MAPS` | `: VisualMapSeed[]` | `packages/db/prisma/seed/data/visual-maps.ts:363` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `controlledScheduleRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:581` |  |
+| `labelFieldsScheduleII` <sub>local</sub> | `[ 'DATE_OF_FILLING', 'PHARMACY_NAME', 'PHARMACY_ADDRESS', 'PRESCRIPTION_SERIAL_NUMBER', '…` | `packages/db/prisma/seed/data/regulatory-us.ts:411` |  |
+| `labellingRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:422` |  |
+| `onlineRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:559` |  |
+| `prescriberRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:341` |  |
 | `prescriptionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:244` |  |
+| `prescriptionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:301` |  |
 | `refillRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:285` |  |
+| `refillRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:376` |  |
+| `retentionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-us.ts:596` | 21 CFR 1304.04(a) — two years, for every controlled-substance record. |
 | `scheduled` <sub>local</sub> | `[ IN_CLASSIFICATIONS.scheduleH, IN_CLASSIFICATIONS.scheduleH1, IN_CLASSIFICATIONS.schedul…` | `packages/db/prisma/seed/data/regulatory-in.ts:225` |  |
 | `substitutionRules` <sub>local</sub> | `: RuleSeed[]` | `packages/db/prisma/seed/data/regulatory-in.ts:308` |  |
 

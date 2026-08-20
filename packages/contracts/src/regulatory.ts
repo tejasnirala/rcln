@@ -572,6 +572,17 @@ export const evaluateRegulatoryRequest = z.object({
    */
   quantityBase: decimalString,
   priorQuantityInPeriodBase: decimalString.optional(),
+  /**
+   * How many days of treatment this supply covers, from the directions for use.
+   *
+   * ⚠️ OMITTING IT IS NOT NEUTRAL WHERE A RULE ASKS FOR IT (PI-13a). A
+   *   `QUANTITY_LIMIT` carrying `maxDaysSupply` — New York's "thirty day supply"
+   *   is the case — resolves `UNDETERMINED` without it, which REFUSES. That is
+   *   deliberate: thirty days is 30 tablets at one a day and 120 at four a day,
+   *   so the quantity alone cannot answer the rule, and guessing would enforce
+   *   something nobody wrote.
+   */
+  daysSupply: z.number().int().min(0).max(3650).optional(),
   prescription: z
     .object({
       presented: z.boolean(),
@@ -658,6 +669,10 @@ export const regulatoryCondition = z.object({
     'STORE_UNDER_CONDITIONS',
     'DISPOSE_BY_METHOD',
     'REQUIRES_CONSENT',
+    // ⚠️ The two the person dispensing cannot discharge — see `RegulatoryCondition`
+    // in @rcln/regulatory. Both name a fact established before this transaction.
+    'VERIFY_PRIOR_IN_PERSON_EVALUATION',
+    'VERIFY_PRIOR_AUTHORISATION',
   ]),
   ruleId: uuid,
   ruleCode: z.string(),

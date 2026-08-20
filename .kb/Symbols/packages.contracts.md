@@ -480,10 +480,10 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `regulatoryAuthorityListResponse` | `z.object(…)` | `packages/contracts/src/regulatory.ts:251` |  |
 | `regulatoryAuthorityQuery` | `z.object(…)` | `packages/contracts/src/regulatory.ts:234` |  |
 | `regulatoryAuthoritySummary` | `z.object(…)` | `packages/contracts/src/regulatory.ts:240` |  |
-| `regulatoryCondition` | `z.object(…)` | `packages/contracts/src/regulatory.ts:649` |  |
-| `regulatoryDecisionResponse` | `z.object(…)` | `packages/contracts/src/regulatory.ts:678` |  |
+| `regulatoryCondition` | `z.object(…)` | `packages/contracts/src/regulatory.ts:660` |  |
+| `regulatoryDecisionResponse` | `z.object(…)` | `packages/contracts/src/regulatory.ts:693` |  |
 | `regulatoryOutcome` | `z.enum(…)` | `packages/contracts/src/regulatory.ts:135` |  |
-| `regulatoryReason` | `z.object(…)` | `packages/contracts/src/regulatory.ts:668` |  |
+| `regulatoryReason` | `z.object(…)` | `packages/contracts/src/regulatory.ts:683` |  |
 | `regulatoryRuleDetail` | `z.object(…)` | `packages/contracts/src/regulatory.ts:458` |  |
 | `regulatoryRuleListResponse` | `z.object(…)` | `packages/contracts/src/regulatory.ts:483` |  |
 | `regulatoryRuleQuery` | `z.object(…)` | `packages/contracts/src/regulatory.ts:451` |  |
@@ -904,8 +904,8 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `AppointmentSummary` | `z.infer<typeof appointmentSummary>` | `packages/contracts/src/appointments.ts:808` |  |
 | `AppointmentTransitionRequest` | `z.infer<typeof appointmentTransitionRequest>` | `packages/contracts/src/appointments.ts:815` |  |
 | `AppointmentVisitTypeValue` | `z.infer<typeof appointmentVisitType>` | `packages/contracts/src/appointments.ts:797` |  |
-| `ApprovedMaturity` | `z.infer<typeof approvedMaturity>` | `packages/contracts/src/regulatory.ts:701` |  |
-| `ApproveRulePackRequest` | `z.infer<typeof approveRulePackRequest>` | `packages/contracts/src/regulatory.ts:731` |  |
+| `ApprovedMaturity` | `z.infer<typeof approvedMaturity>` | `packages/contracts/src/regulatory.ts:716` |  |
+| `ApproveRulePackRequest` | `z.infer<typeof approveRulePackRequest>` | `packages/contracts/src/regulatory.ts:746` |  |
 | `AssignRoleRequest` | `z.infer<typeof assignRoleRequest>` | `packages/contracts/src/tenancy.ts:977` |  |
 | `AssignSerialRequest` | `z.infer<typeof assignSerialRequest>` | `packages/contracts/src/inventory.ts:881` |  |
 | `AuditAction` | `z.infer<typeof auditAction>` | `packages/contracts/src/audit.ts:96` |  |
@@ -970,7 +970,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `ClinicalTermRef` | `z.infer<typeof clinicalTermRef>` | `packages/contracts/src/encounter-content.ts:139` |  |
 | `ClosePurchaseOrderRequest` | `z.infer<typeof closePurchaseOrderRequest>` | `packages/contracts/src/procurement.ts:1063` |  |
 | `CloseRecallRequest` | `z.infer<typeof closeRecallRequest>` | `packages/contracts/src/recall.ts:384` |  |
-| `CodeSettableMaturity` | `z.infer<typeof codeSettableMaturity>` | `packages/contracts/src/regulatory.ts:700` |  |
+| `CodeSettableMaturity` | `z.infer<typeof codeSettableMaturity>` | `packages/contracts/src/regulatory.ts:715` |  |
 | `CompositionIngredientDetail` | `z.infer<typeof compositionIngredientDetail>` | `packages/contracts/src/products.ts:879` |  |
 | `CompositionIngredientRequest` | `z.infer<typeof compositionIngredientRequest>` | `packages/contracts/src/products.ts:876` |  |
 | `CompositionSummary` | `z.infer<typeof compositionSummary>` | `packages/contracts/src/products.ts:880` |  |
@@ -1043,7 +1043,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CreateInventoryLocationRequest` | `z.infer<typeof createInventoryLocationRequest>` | `packages/contracts/src/inventory.ts:861` |  |
 | `CreateInvoiceFromChargesRequest` | `z.infer<typeof createInvoiceFromChargesRequest>` | `packages/contracts/src/charging.ts:371` |  |
 | `CreateInvoiceRequest` | `z.infer<typeof createInvoiceRequest>` | `packages/contracts/src/invoices.ts:199` |  |
-| `CreateJurisdictionRequest` | `z.infer<typeof createJurisdictionRequest>` | `packages/contracts/src/regulatory.ts:711` |  |
+| `CreateJurisdictionRequest` | `z.infer<typeof createJurisdictionRequest>` | `packages/contracts/src/regulatory.ts:726` |  |
 | `CreateManufacturerRequest` | `z.infer<typeof createManufacturerRequest>` | `packages/contracts/src/products.ts:868` |  |
 | `CreateOnlineOrderRequest` | `z.infer<typeof createOnlineOrderRequest>` | `packages/contracts/src/online-pharmacy.ts:382` |  |
 | `CreatePatientRequest` | `z.infer<typeof createPatientRequest>` | `packages/contracts/src/patients.ts:839` |  |
@@ -1054,11 +1054,11 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `CreatePurchaseRequisitionRequest` | `z.infer<typeof createPurchaseRequisitionRequest>` | `packages/contracts/src/procurement.ts:1051` |  |
 | `CreatePurchaseReturnRequest` | `z.infer<typeof createPurchaseReturnRequest>` | `packages/contracts/src/procurement.ts:1083` |  |
 | `CreateRecallRequest` | `z.infer<typeof createRecallRequest>` | `packages/contracts/src/recall.ts:379` |  |
-| `CreateRegulatoryAuthorityRequest` | `z.infer<typeof createRegulatoryAuthorityRequest>` | `packages/contracts/src/regulatory.ts:717` |  |
-| `CreateRegulatoryRuleRequest` | `z.infer<typeof createRegulatoryRuleRequest>` | `packages/contracts/src/regulatory.ts:736` |  |
-| `CreateRegulatorySourceRequest` | `z.infer<typeof createRegulatorySourceRequest>` | `packages/contracts/src/regulatory.ts:723` |  |
+| `CreateRegulatoryAuthorityRequest` | `z.infer<typeof createRegulatoryAuthorityRequest>` | `packages/contracts/src/regulatory.ts:732` |  |
+| `CreateRegulatoryRuleRequest` | `z.infer<typeof createRegulatoryRuleRequest>` | `packages/contracts/src/regulatory.ts:751` |  |
+| `CreateRegulatorySourceRequest` | `z.infer<typeof createRegulatorySourceRequest>` | `packages/contracts/src/regulatory.ts:738` |  |
 | `CreateRoleRequest` | `z.infer<typeof createRoleRequest>` | `packages/contracts/src/tenancy.ts:978` |  |
-| `CreateRulePackRequest` | `z.infer<typeof createRulePackRequest>` | `packages/contracts/src/regulatory.ts:729` |  |
+| `CreateRulePackRequest` | `z.infer<typeof createRulePackRequest>` | `packages/contracts/src/regulatory.ts:744` |  |
 | `CreateSerialRequest` | `z.infer<typeof createSerialRequest>` | `packages/contracts/src/inventory.ts:879` |  |
 | `CreateStockReasonCodeRequest` | `z.infer<typeof createStockReasonCodeRequest>` | `packages/contracts/src/inventory.ts:1324` |  |
 | `CreateStockReservationRequest` | `z.infer<typeof createStockReservationRequest>` | `packages/contracts/src/inventory.ts:1341` |  |
@@ -1135,7 +1135,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `EncounterSymptom` | `z.infer<typeof encounterSymptom>` | `packages/contracts/src/encounter-content.ts:224` |  |
 | `EncounterVisitSummary` | `z.infer<typeof encounterVisitSummary>` | `packages/contracts/src/visit-history.ts:78` |  |
 | `EquivalentProductsResponse` | `z.infer<typeof equivalentProductsResponse>` | `packages/contracts/src/products.ts:910` |  |
-| `EvaluateRegulatoryRequest` | `z.infer<typeof evaluateRegulatoryRequest>` | `packages/contracts/src/regulatory.ts:748` |  |
+| `EvaluateRegulatoryRequest` | `z.infer<typeof evaluateRegulatoryRequest>` | `packages/contracts/src/regulatory.ts:763` |  |
 | `ExecuteRecallRequest` | `z.infer<typeof executeRecallRequest>` | `packages/contracts/src/recall.ts:382` |  |
 | `ExpiryReportQuery` | `z.infer<typeof expiryReportQuery>` | `packages/contracts/src/inventory.ts:899` |  |
 | `ExpiryReportResponse` | `z.infer<typeof expiryReportResponse>` | `packages/contracts/src/inventory.ts:900` |  |
@@ -1194,9 +1194,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `InvoiceTaxTreatmentValue` | `\| 'STANDARD' \| 'EXEMPT' \| 'ZERO_RATED' \| 'REVERSE_CHARGE' \| 'NOT_REGISTERED' \| 'UNRATED' \| 'PROVIDER_REQUIRED'` | `packages/contracts/src/invoices.ts:79` |  |
 | `IssueInvoiceRequest` | `z.infer<typeof issueInvoiceRequest>` | `packages/contracts/src/invoices.ts:232` |  |
 | `ItemTaxTreatmentValue` | `z.infer<typeof itemTaxTreatment>` | `packages/contracts/src/tax.ts:52` |  |
-| `JurisdictionListResponse` | `z.infer<typeof jurisdictionListResponse>` | `packages/contracts/src/regulatory.ts:715` |  |
-| `JurisdictionQuery` | `z.infer<typeof jurisdictionQuery>` | `packages/contracts/src/regulatory.ts:713` |  |
-| `JurisdictionSummary` | `z.infer<typeof jurisdictionSummary>` | `packages/contracts/src/regulatory.ts:714` |  |
+| `JurisdictionListResponse` | `z.infer<typeof jurisdictionListResponse>` | `packages/contracts/src/regulatory.ts:730` |  |
+| `JurisdictionQuery` | `z.infer<typeof jurisdictionQuery>` | `packages/contracts/src/regulatory.ts:728` |  |
+| `JurisdictionSummary` | `z.infer<typeof jurisdictionSummary>` | `packages/contracts/src/regulatory.ts:729` |  |
 | `KnownFeeType` | `(typeof KNOWN_FEE_TYPES)[number]` | `packages/contracts/src/fees.ts:48` |  |
 | `LightSensitivity` | `z.infer<typeof lightSensitivity>` | `packages/contracts/src/products.ts:853` |  |
 | `ListChargePolicyRulesQuery` | `z.infer<typeof listChargePolicyRulesQuery>` | `packages/contracts/src/charging.ts:122` |  |
@@ -1231,7 +1231,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `OnlineOrderShipmentDetail` | `z.infer<typeof onlineOrderShipmentDetail>` | `packages/contracts/src/online-pharmacy.ts:393` |  |
 | `OnlineOrderStatus` | `z.infer<typeof onlineOrderStatus>` | `packages/contracts/src/online-pharmacy.ts:378` |  |
 | `OnlineOrderSummary` | `z.infer<typeof onlineOrderSummary>` | `packages/contracts/src/online-pharmacy.ts:394` |  |
-| `OnlineSalePosition` | `z.infer<typeof onlineSalePosition>` | `packages/contracts/src/regulatory.ts:708` |  |
+| `OnlineSalePosition` | `z.infer<typeof onlineSalePosition>` | `packages/contracts/src/regulatory.ts:723` |  |
 | `OpenEncounterRequest` | `z.infer<typeof openEncounterRequest>` | `packages/contracts/src/encounters.ts:97` |  |
 | `OperatingHour` | `z.infer<typeof operatingHour>` | `packages/contracts/src/tenancy.ts:958` |  |
 | `OrganizationProfile` | `z.infer<typeof organizationProfile>` | `packages/contracts/src/tenancy.ts:941` |  |
@@ -1269,7 +1269,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `PrescriptionQueueItem` | `z.infer<typeof prescriptionQueueItem>` | `packages/contracts/src/pharmacy.ts:652` |  |
 | `PrescriptionQueueQuery` | `z.infer<typeof prescriptionQueueQuery>` | `packages/contracts/src/pharmacy.ts:651` |  |
 | `PrescriptionQueueResponse` | `z.infer<typeof prescriptionQueueResponse>` | `packages/contracts/src/pharmacy.ts:653` |  |
-| `PrescriptionRequirement` | `z.infer<typeof prescriptionRequirement>` | `packages/contracts/src/regulatory.ts:707` |  |
+| `PrescriptionRequirement` | `z.infer<typeof prescriptionRequirement>` | `packages/contracts/src/regulatory.ts:722` |  |
 | `PreviousVisit` | `z.infer<typeof previousVisit>` | `packages/contracts/src/visit-history.ts:178` |  |
 | `PreviousVisitResponse` | `z.infer<typeof previousVisitResponse>` | `packages/contracts/src/visit-history.ts:189` |  |
 | `PreviousVisitSourceValue` | `z.infer<typeof previousVisitSource>` | `packages/contracts/src/visit-history.ts:145` |  |
@@ -1286,9 +1286,9 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `ProductListResponse` | `z.infer<typeof productListResponse>` | `packages/contracts/src/products.ts:889` |  |
 | `ProductPackagingDetail` | `z.infer<typeof productPackagingDetail>` | `packages/contracts/src/products.ts:894` |  |
 | `ProductPackagingRequest` | `z.infer<typeof productPackagingRequest>` | `packages/contracts/src/products.ts:892` |  |
-| `ProductRegistrationStatus` | `z.infer<typeof productRegistrationStatus>` | `packages/contracts/src/regulatory.ts:706` |  |
-| `ProductRegulatoryProfileDetail` | `z.infer<typeof productRegulatoryProfileDetail>` | `packages/contracts/src/regulatory.ts:742` |  |
-| `ProductRegulatoryProfileInput` | `z.infer<typeof productRegulatoryProfileInput>` | `packages/contracts/src/regulatory.ts:743` |  |
+| `ProductRegistrationStatus` | `z.infer<typeof productRegistrationStatus>` | `packages/contracts/src/regulatory.ts:721` |  |
+| `ProductRegulatoryProfileDetail` | `z.infer<typeof productRegulatoryProfileDetail>` | `packages/contracts/src/regulatory.ts:757` |  |
+| `ProductRegulatoryProfileInput` | `z.infer<typeof productRegulatoryProfileInput>` | `packages/contracts/src/regulatory.ts:758` |  |
 | `ProductStatus` | `z.infer<typeof productStatus>` | `packages/contracts/src/products.ts:847` |  |
 | `ProductSummary` | `z.infer<typeof productSummary>` | `packages/contracts/src/products.ts:888` |  |
 | `ProductTaxClassificationDetail` | `z.infer<typeof productTaxClassificationDetail>` | `packages/contracts/src/products.ts:905` |  |
@@ -1341,28 +1341,28 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `RegisterOrganizationRequest` | `z.infer<typeof registerOrganizationRequest>` | `packages/contracts/src/tenancy.ts:966` |  |
 | `RegisterOrganizationResponse` | `z.infer<typeof registerOrganizationResponse>` | `packages/contracts/src/tenancy.ts:963` |  |
 | `RegisterPatientAtBranchRequest` | `z.infer<typeof registerPatientAtBranchRequest>` | `packages/contracts/src/patients.ts:841` |  |
-| `RegulatoryAuthorityListResponse` | `z.infer<typeof regulatoryAuthorityListResponse>` | `packages/contracts/src/regulatory.ts:721` |  |
-| `RegulatoryAuthorityQuery` | `z.infer<typeof regulatoryAuthorityQuery>` | `packages/contracts/src/regulatory.ts:719` |  |
-| `RegulatoryAuthoritySummary` | `z.infer<typeof regulatoryAuthoritySummary>` | `packages/contracts/src/regulatory.ts:720` |  |
-| `RegulatoryCondition` | `z.infer<typeof regulatoryCondition>` | `packages/contracts/src/regulatory.ts:749` |  |
-| `RegulatoryDecisionResponse` | `z.infer<typeof regulatoryDecisionResponse>` | `packages/contracts/src/regulatory.ts:751` |  |
-| `RegulatoryOutcome` | `z.infer<typeof regulatoryOutcome>` | `packages/contracts/src/regulatory.ts:709` |  |
-| `RegulatoryReason` | `z.infer<typeof regulatoryReason>` | `packages/contracts/src/regulatory.ts:750` |  |
-| `RegulatoryRuleDetail` | `z.infer<typeof regulatoryRuleDetail>` | `packages/contracts/src/regulatory.ts:739` |  |
-| `RegulatoryRuleListResponse` | `z.infer<typeof regulatoryRuleListResponse>` | `packages/contracts/src/regulatory.ts:740` |  |
-| `RegulatoryRuleQuery` | `z.infer<typeof regulatoryRuleQuery>` | `packages/contracts/src/regulatory.ts:738` |  |
-| `RegulatoryRuleStatus` | `z.infer<typeof regulatoryRuleStatus>` | `packages/contracts/src/regulatory.ts:704` |  |
-| `RegulatoryRuleType` | `z.infer<typeof regulatoryRuleType>` | `packages/contracts/src/regulatory.ts:702` |  |
-| `RegulatorySourceListResponse` | `z.infer<typeof regulatorySourceListResponse>` | `packages/contracts/src/regulatory.ts:727` |  |
-| `RegulatorySourceQuery` | `z.infer<typeof regulatorySourceQuery>` | `packages/contracts/src/regulatory.ts:725` |  |
-| `RegulatorySourceStatus` | `z.infer<typeof regulatorySourceStatus>` | `packages/contracts/src/regulatory.ts:705` |  |
-| `RegulatorySourceSummary` | `z.infer<typeof regulatorySourceSummary>` | `packages/contracts/src/regulatory.ts:726` |  |
-| `RegulatoryTransactionType` | `z.infer<typeof regulatoryTransactionType>` | `packages/contracts/src/regulatory.ts:703` |  |
+| `RegulatoryAuthorityListResponse` | `z.infer<typeof regulatoryAuthorityListResponse>` | `packages/contracts/src/regulatory.ts:736` |  |
+| `RegulatoryAuthorityQuery` | `z.infer<typeof regulatoryAuthorityQuery>` | `packages/contracts/src/regulatory.ts:734` |  |
+| `RegulatoryAuthoritySummary` | `z.infer<typeof regulatoryAuthoritySummary>` | `packages/contracts/src/regulatory.ts:735` |  |
+| `RegulatoryCondition` | `z.infer<typeof regulatoryCondition>` | `packages/contracts/src/regulatory.ts:764` |  |
+| `RegulatoryDecisionResponse` | `z.infer<typeof regulatoryDecisionResponse>` | `packages/contracts/src/regulatory.ts:766` |  |
+| `RegulatoryOutcome` | `z.infer<typeof regulatoryOutcome>` | `packages/contracts/src/regulatory.ts:724` |  |
+| `RegulatoryReason` | `z.infer<typeof regulatoryReason>` | `packages/contracts/src/regulatory.ts:765` |  |
+| `RegulatoryRuleDetail` | `z.infer<typeof regulatoryRuleDetail>` | `packages/contracts/src/regulatory.ts:754` |  |
+| `RegulatoryRuleListResponse` | `z.infer<typeof regulatoryRuleListResponse>` | `packages/contracts/src/regulatory.ts:755` |  |
+| `RegulatoryRuleQuery` | `z.infer<typeof regulatoryRuleQuery>` | `packages/contracts/src/regulatory.ts:753` |  |
+| `RegulatoryRuleStatus` | `z.infer<typeof regulatoryRuleStatus>` | `packages/contracts/src/regulatory.ts:719` |  |
+| `RegulatoryRuleType` | `z.infer<typeof regulatoryRuleType>` | `packages/contracts/src/regulatory.ts:717` |  |
+| `RegulatorySourceListResponse` | `z.infer<typeof regulatorySourceListResponse>` | `packages/contracts/src/regulatory.ts:742` |  |
+| `RegulatorySourceQuery` | `z.infer<typeof regulatorySourceQuery>` | `packages/contracts/src/regulatory.ts:740` |  |
+| `RegulatorySourceStatus` | `z.infer<typeof regulatorySourceStatus>` | `packages/contracts/src/regulatory.ts:720` |  |
+| `RegulatorySourceSummary` | `z.infer<typeof regulatorySourceSummary>` | `packages/contracts/src/regulatory.ts:741` |  |
+| `RegulatoryTransactionType` | `z.infer<typeof regulatoryTransactionType>` | `packages/contracts/src/regulatory.ts:718` |  |
 | `RejectPurchaseRequisitionRequest` | `z.infer<typeof rejectPurchaseRequisitionRequest>` | `packages/contracts/src/procurement.ts:1053` |  |
 | `ReleaseStockReservationRequest` | `z.infer<typeof releaseStockReservationRequest>` | `packages/contracts/src/inventory.ts:1342` |  |
 | `ReleaseType` | `z.infer<typeof releaseType>` | `packages/contracts/src/products.ts:852` |  |
 | `ReplaceProductPackagingRequest` | `z.infer<typeof replaceProductPackagingRequest>` | `packages/contracts/src/products.ts:893` |  |
-| `ReplaceProductRegulatoryProfilesRequest` | `z.infer< typeof replaceProductRegulatoryProfilesRequest >` | `packages/contracts/src/regulatory.ts:744` |  |
+| `ReplaceProductRegulatoryProfilesRequest` | `z.infer< typeof replaceProductRegulatoryProfilesRequest >` | `packages/contracts/src/regulatory.ts:759` |  |
 | `ReplaceProductTaxClassificationsRequest` | `z.infer< typeof replaceProductTaxClassificationsRequest >` | `packages/contracts/src/products.ts:902` |  |
 | `ReplaceStorageAreasRequest` | `z.infer<typeof replaceStorageAreasRequest>` | `packages/contracts/src/inventory.ts:869` |  |
 | `RescheduleAppointmentRequest` | `z.infer<typeof rescheduleAppointmentRequest>` | `packages/contracts/src/appointments.ts:813` |  |
@@ -1378,10 +1378,10 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `RolePairingListResponse` | `z.infer<typeof rolePairingListResponse>` | `packages/contracts/src/tenancy.ts:975` |  |
 | `RolePairingOption` | `z.infer<typeof rolePairingOption>` | `packages/contracts/src/tenancy.ts:973` |  |
 | `RolePairings` | `z.infer<typeof rolePairings>` | `packages/contracts/src/tenancy.ts:974` |  |
-| `RulePackListResponse` | `z.infer<typeof rulePackListResponse>` | `packages/contracts/src/regulatory.ts:734` |  |
-| `RulePackMaturity` | `z.infer<typeof rulePackMaturity>` | `packages/contracts/src/regulatory.ts:699` |  |
-| `RulePackQuery` | `z.infer<typeof rulePackQuery>` | `packages/contracts/src/regulatory.ts:732` |  |
-| `RulePackSummary` | `z.infer<typeof rulePackSummary>` | `packages/contracts/src/regulatory.ts:733` |  |
+| `RulePackListResponse` | `z.infer<typeof rulePackListResponse>` | `packages/contracts/src/regulatory.ts:749` |  |
+| `RulePackMaturity` | `z.infer<typeof rulePackMaturity>` | `packages/contracts/src/regulatory.ts:714` |  |
+| `RulePackQuery` | `z.infer<typeof rulePackQuery>` | `packages/contracts/src/regulatory.ts:747` |  |
+| `RulePackSummary` | `z.infer<typeof rulePackSummary>` | `packages/contracts/src/regulatory.ts:748` |  |
 | `SaveEncounterDraftRequest` | `z.infer<typeof saveEncounterDraftRequest>` | `packages/contracts/src/encounters.ts:137` |  |
 | `SaveTemplateVersionRequest` | `z.infer<typeof saveTemplateVersionRequest>` | `packages/contracts/src/consultation.ts:183` |  |
 | `SearchPatientQuery` | `z.infer<typeof searchPatientQuery>` | `packages/contracts/src/patients.ts:842` |  |
@@ -1492,7 +1492,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `UpdateGoodsReceiptRequest` | `z.infer<typeof updateGoodsReceiptRequest>` | `packages/contracts/src/procurement.ts:1073` |  |
 | `UpdateInventoryLocationRequest` | `z.infer<typeof updateInventoryLocationRequest>` | `packages/contracts/src/inventory.ts:862` |  |
 | `UpdateInvoiceRequest` | `z.infer<typeof updateInvoiceRequest>` | `packages/contracts/src/invoices.ts:219` |  |
-| `UpdateJurisdictionRequest` | `z.infer<typeof updateJurisdictionRequest>` | `packages/contracts/src/regulatory.ts:712` |  |
+| `UpdateJurisdictionRequest` | `z.infer<typeof updateJurisdictionRequest>` | `packages/contracts/src/regulatory.ts:727` |  |
 | `UpdateManufacturerRequest` | `z.infer<typeof updateManufacturerRequest>` | `packages/contracts/src/products.ts:869` |  |
 | `UpdateMemberRequest` | `z.infer<typeof updateMemberRequest>` | `packages/contracts/src/tenancy.ts:953` |  |
 | `UpdateOnlineOrderRequest` | `z.infer<typeof updateOnlineOrderRequest>` | `packages/contracts/src/online-pharmacy.ts:383` |  |
@@ -1504,11 +1504,11 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `UpdatePurchaseRequisitionRequest` | `z.infer<typeof updatePurchaseRequisitionRequest>` | `packages/contracts/src/procurement.ts:1052` |  |
 | `UpdatePurchaseReturnRequest` | `z.infer<typeof updatePurchaseReturnRequest>` | `packages/contracts/src/procurement.ts:1084` |  |
 | `UpdateRecallRequest` | `z.infer<typeof updateRecallRequest>` | `packages/contracts/src/recall.ts:380` |  |
-| `UpdateRegulatoryAuthorityRequest` | `z.infer<typeof updateRegulatoryAuthorityRequest>` | `packages/contracts/src/regulatory.ts:718` |  |
-| `UpdateRegulatoryRuleRequest` | `z.infer<typeof updateRegulatoryRuleRequest>` | `packages/contracts/src/regulatory.ts:737` |  |
-| `UpdateRegulatorySourceRequest` | `z.infer<typeof updateRegulatorySourceRequest>` | `packages/contracts/src/regulatory.ts:724` |  |
+| `UpdateRegulatoryAuthorityRequest` | `z.infer<typeof updateRegulatoryAuthorityRequest>` | `packages/contracts/src/regulatory.ts:733` |  |
+| `UpdateRegulatoryRuleRequest` | `z.infer<typeof updateRegulatoryRuleRequest>` | `packages/contracts/src/regulatory.ts:752` |  |
+| `UpdateRegulatorySourceRequest` | `z.infer<typeof updateRegulatorySourceRequest>` | `packages/contracts/src/regulatory.ts:739` |  |
 | `UpdateRoleRequest` | `z.infer<typeof updateRoleRequest>` | `packages/contracts/src/tenancy.ts:948` |  |
-| `UpdateRulePackRequest` | `z.infer<typeof updateRulePackRequest>` | `packages/contracts/src/regulatory.ts:730` |  |
+| `UpdateRulePackRequest` | `z.infer<typeof updateRulePackRequest>` | `packages/contracts/src/regulatory.ts:745` |  |
 | `UpdateSerialRequest` | `z.infer<typeof updateSerialRequest>` | `packages/contracts/src/inventory.ts:880` |  |
 | `UpdateStockReasonCodeRequest` | `z.infer<typeof updateStockReasonCodeRequest>` | `packages/contracts/src/inventory.ts:1325` |  |
 | `UpdateStockTransferRequest` | `z.infer<typeof updateStockTransferRequest>` | `packages/contracts/src/inventory.ts:1332` |  |

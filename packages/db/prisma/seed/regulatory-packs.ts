@@ -60,6 +60,18 @@ import {
   type RuleSeed,
   type SourceSeed,
 } from './data/regulatory-in.js';
+import {
+  US_AUTHORITIES,
+  US_PACK_EFFECTIVE_FROM,
+  US_RULES,
+  US_SOURCES,
+} from './data/regulatory-us.js';
+import {
+  US_CA_AUTHORITIES,
+  US_CA_PACK_EFFECTIVE_FROM,
+  US_CA_RULES,
+  US_CA_SOURCES,
+} from './data/regulatory-us-ca.js';
 
 /** A `@db.Date` column takes a day, in the jurisdiction's own reckoning. */
 function day(value: string): Date {
@@ -68,6 +80,24 @@ function day(value: string): Date {
 
 interface PackSeed {
   countryCode: string;
+  /**
+   * ISO 3166-2 WITHOUT the country prefix — `CA`, not `US-CA`. Omitted for a
+   * country-wide pack, which is what most are.
+   *
+   * ⚠️ A SUB-NATIONAL PACK DOES NOT REPLACE THE NATIONAL ONE, IT SUPERSEDES IT
+   *   PER RULE TYPE (PI-13a). `mostSpecific()` in `@rcln/regulatory` prefers a
+   *   regional rule over a national one OF THE SAME TYPE and leaves every other
+   *   type standing — so California's three-year retention displaces the federal
+   *   two-year retention, and says nothing whatever about the federal labelling
+   *   or prescription rules, which continue to apply. Seeding a state pack as a
+   *   COMPLETE restatement of the country's law would silently switch off every
+   *   national rule it happened not to mention.
+   *
+   * ⚠️ AND THE PREFIXED FORM IS THE SILENT FAILURE HERE, AS IT IS EVERYWHERE
+   *   ELSE IN THIS DOMAIN: `US-CA` never equals the `CA` on a branch, so the
+   *   pack matches nothing, forever, while looking perfectly seeded.
+   */
+  regionCode?: string;
   countryName: string;
   authorities: readonly { code: string; name: string; websiteUrl: string; remit: string }[];
   sources: readonly SourceSeed[];
@@ -98,14 +128,65 @@ const PACKS: readonly PackSeed[] = [
       'the country matrix says which. Not reviewed by a qualified person.',
     effectiveFrom: IN_PACK_EFFECTIVE_FROM,
   },
+  {
+    countryCode: 'US',
+    countryName: 'United States of America',
+    authorities: US_AUTHORITIES,
+    sources: US_SOURCES,
+    rules: US_RULES,
+    packAuthorityCode: 'DEA',
+    version: '1.0.0',
+    name: 'United States — federal: Controlled Substances Act and FDCA § 503',
+    description:
+      'Prescription requirements for DEA Schedules II–V and for non-controlled legend drugs, the ' +
+      'five-refill six-month limit, who may prescribe and who may fill, dispensing labels, ' +
+      'controlled-substance recordkeeping and its two-year retention, storage, the Ryan Haight ' +
+      'in-person evaluation requirement on remote supply, and the exempt over-the-counter ' +
+      'narcotic limits. Configured from eCFR’s own XML of 21 CFR 1301/1304/1306 and from GPO’s ' +
+      'publication of 21 U.S.C. 353, 829 and 830. ⚠️ No pseudoephedrine rules (the limit is on a ' +
+      'contained chemical this platform cannot compute), no DSCSA traceability (no reachable ' +
+      'primary source), and no substitution rule (substitution is state law, not federal). Not ' +
+      'reviewed by a qualified person.',
+    effectiveFrom: US_PACK_EFFECTIVE_FROM,
+  },
+  /*
+   * ⚠️ CALIFORNIA MUST BE SEEDED AFTER THE UNITED STATES, AND NOT FOR A REASON
+   *   THE DATABASE ENFORCES. Nothing here has a foreign key to the federal pack
+   *   — a regional pack is a sibling, not a child — so a reversed order would
+   *   seed cleanly and behave identically. It is ordered this way so the console
+   *   output reads `US` then `US-CA`, which is how somebody debugging a
+   *   supersession expects to see them.
+   */
+  {
+    countryCode: 'US',
+    regionCode: 'CA',
+    countryName: 'California',
+    authorities: US_CA_AUTHORITIES,
+    sources: US_CA_SOURCES,
+    rules: US_CA_RULES,
+    packAuthorityCode: 'CA_BOP',
+    version: '1.0.0',
+    name: 'California — Business and Professions Code, pharmacy',
+    description:
+      'The places California departs from or adds to federal law in ways this framework can ' +
+      'express: a three-year record retention for every dangerous drug where federal law keeps ' +
+      'controlled-substance records for two, the eleven-element prescription container label, and ' +
+      'generic substitution, which federal law does not regulate at all. ⚠️ NOT a statement of ' +
+      'California pharmacy law as a whole — it supersedes federal rules PER RULE TYPE, so every ' +
+      'federal rule of a type absent here still applies in California. No CURES reporting rule ' +
+      'and no state controlled-substance prescription rules. Not reviewed by a qualified person.',
+    effectiveFrom: US_CA_PACK_EFFECTIVE_FROM,
+  },
 ];
 
 export async function seedRegulatoryPacks(): Promise<void> {
   for (const pack of PACKS) {
     /*
      * ⚠️ `findFirst` + create RATHER THAN `upsert`, AND NOT BY PREFERENCE.
-     *   `region_code` is nullable and the country-wide row is the one being
-     *   written, but Prisma refuses `null` inside a compound-unique `where` —
+     *   `region_code` is nullable, and PI-13a made it actually vary — a state or
+     *   emirate pack sets it — but Prisma refuses `null` inside a compound-unique
+     *   `where` for the country-wide case, and one code path has to serve both.
+     *   The error is "Argument `regionCode` must not be null" —
      *   "Argument `regionCode` must not be null" — so the natural key cannot be
      *   expressed as an upsert at all. The database DOES constrain it: the
      *   unique index is rewritten `NULLS NOT DISTINCT` in the migration, without
@@ -113,8 +194,9 @@ export async function seedRegulatoryPacks(): Promise<void> {
      *   the pack. A concurrent second seed therefore loses on the constraint
      *   rather than duplicating, which is the correct failure.
      */
+    const regionCode = pack.regionCode ?? null;
     const existingJurisdiction = await prisma.jurisdiction.findFirst({
-      where: { countryCode: pack.countryCode, regionCode: null },
+      where: { countryCode: pack.countryCode, regionCode },
       select: { id: true },
     });
     const jurisdiction = existingJurisdiction
@@ -123,7 +205,7 @@ export async function seedRegulatoryPacks(): Promise<void> {
           data: { name: pack.countryName },
         })
       : await prisma.jurisdiction.create({
-          data: { countryCode: pack.countryCode, regionCode: null, name: pack.countryName },
+          data: { countryCode: pack.countryCode, regionCode, name: pack.countryName },
         });
 
     const authorityIds = new Map<string, string>();
@@ -257,8 +339,9 @@ export async function seedRegulatoryPacks(): Promise<void> {
       });
     }
 
+    const label = regionCode === null ? pack.countryCode : `${pack.countryCode}-${regionCode}`;
     console.warn(
-      `  ${pack.countryCode} ${pack.version}: ${String(pack.sources.length)} sources, ` +
+      `  ${label} ${pack.version}: ${String(pack.sources.length)} sources, ` +
         `${String(pack.rules.length)} rules`
     );
   }

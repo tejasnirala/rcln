@@ -388,6 +388,13 @@ export async function evaluateWithin(
     ...(input.priorQuantityInPeriodBase !== undefined
       ? { priorQuantityInPeriodBase: input.priorQuantityInPeriodBase }
       : {}),
+    /*
+     * ⚠️ PASSED THROUGH, NEVER DERIVED (PI-13a). Nothing in this programme parses
+     *   a dosage instruction, so the days' supply can only come from a caller
+     *   that worked it out. Where a rule needs it and it is absent the engine
+     *   answers `UNDETERMINED`, which refuses — see `maxDaysSupply`.
+     */
+    ...(input.daysSupply !== undefined ? { daysSupply: input.daysSupply } : {}),
     ...(input.prescription
       ? {
           prescription: {

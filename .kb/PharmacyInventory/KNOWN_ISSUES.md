@@ -273,3 +273,84 @@ its diff.
 in one full run, passed in the next and passed alone twice. Nothing in PI-12
 touches tax registrations. Recorded again because the entry predicts this and the
 prediction held.
+
+---
+
+## PI-13a / PI-13 — the rule-pack framework and the US packs
+
+### ⚠️ The framework models "consent required" but not "objection blocks"
+
+`SubstitutionParameters.requiresPrescriberConsent` REFUSES unless the prescriber
+has affirmatively agreed. California B&P § 4073(b) has the opposite default:
+substitution is permitted, and the prescriber's personally-initialled "Do not
+substitute" is what blocks it. `requiresPatientConsent` has the same shape
+problem against § 4073(e), which requires the substitution to be **communicated
+to** the patient, not agreed by them.
+
+**Consequence:** `CA-SUBST-GENERIC` carries `{ permitted: true }` and puts all
+three provisos — the prescriber's objection, the cost test, the communication
+duty — in the rule STATEMENT, which is printed to the pharmacist verbatim.
+Nothing is machine-checked. Setting either consent key would refuse every lawful
+generic substitution in California.
+
+**Fix when somebody needs it:** a `prohibitedByPrescriberEndorsement` key, read
+off the prescription the way `repeatsAuthorised` already is. Not built, because
+no pack yet needs it checked rather than stated.
+
+### ⚠️ California's labelling rule displaces the federal veterinary caution, silently
+
+`CA-LABEL-DISPENSED` is a `LABELLING_REQUIREMENT` with no product-type narrowing,
+so in California it supersedes **every** federal rule of that type — including
+`US-LABEL-VETERINARY`, which carries "Caution: Federal law restricts this drug to
+use by or on the order of a licensed veterinarian." Federal law plainly still
+requires that statement; the engine simply stops mentioning it, because
+supersession is per rule type and California carries the type.
+
+⚠️ **The failure is silent and looks like a complete answer.** The decision comes
+back `PERMITTED_WITH_CONDITIONS` with a full label field list that is missing one
+legally required element, and nothing says so. § 4076(a)(11)(A)(i) exempts
+veterinary prescriptions from the physical-description element, which shows
+California contemplated veterinary dispensing here and did not purport to
+displace the federal caution.
+
+**Fix:** a California veterinary labelling rule carrying both sets of fields.
+Needs the state's veterinary labelling provisions read; not done in this pass.
+
+### ⚠️ `PRESCRIBER_AUTHORITY` refuses until callers supply the prescriber's class
+
+The US pack is the first to carry rules of this type. `evaluatePrescriberAuthority`
+answers `UNDETERMINED` — which refuses — when `prescription.prescriberClasses` is
+absent, so **every US controlled-substance dispense refuses** unless the caller
+passes the prescriber's registration class.
+
+This is correct and is pinned by a test rather than treated as a bug: dispensing
+a Schedule II drug without establishing DEA registration is the failure US
+enforcement cares most about, and permitting because nobody passed a field is
+not a check. **The remedy is for the dispensing service to derive and supply the
+class from the prescription record, not for the rule to be softened.** Until it
+does, the US pack refuses more than US law does.
+
+### ⚠️ `maxDaysSupply` has no caller that can populate it
+
+PI-13a added days'-supply quantity limits because New York PHL § 3332 and
+21 CFR 1306.12(b) both state limits that way. Nothing in this programme parses a
+dosage instruction, so `request.daysSupply` is never populated and any rule using
+`maxDaysSupply` resolves `UNDETERMINED` for every caller.
+
+No rule in the US or India packs uses it today, so nothing refuses because of it
+— the key exists so that PI-14..21 can express such a rule honestly rather than
+approximating it in base units. **A pack that adds one before a caller can supply
+the figure will refuse every transaction it touches.**
+
+### ⚠️ Two condition kinds cannot be discharged by the person dispensing
+
+`VERIFY_PRIOR_IN_PERSON_EVALUATION` and `VERIFY_PRIOR_AUTHORISATION` name facts
+established before the transaction — a consultation that happened in somebody
+else's room, a permit in a state registry. Every other condition kind names
+something the dispenser does.
+
+⚠️ **A screen that renders these as "I confirm" tick-boxes manufactures evidence
+of a check nobody performed**, which is worse than not raising the condition at
+all. No screen consumes them yet. The UI treatment is an open decision — see
+OPEN_DECISIONS.md — and must be settled before the online-pharmacy screens are
+pointed at a US branch.

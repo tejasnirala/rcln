@@ -111,6 +111,25 @@ function all<T extends Record<string, Parsed<unknown>>>(
 export interface PrescriptionRequiredParameters {
   required: boolean | undefined;
   validityDays: number | undefined;
+  /**
+   * Validity stated in CALENDAR MONTHS, where the statute states months.
+   *
+   * ⚠️ NOT A CONVENIENCE ALIAS FOR `validityDays`, AND CONVERTING BETWEEN THEM
+   *   IS THE BUG THIS KEY EXISTS TO PREVENT (PI-13a, survey GAP 1). 21 U.S.C.
+   *   829(b) says a Schedule III or IV prescription may not be filled "more than
+   *   six months after the date thereof"; a script written 1 January is lawful
+   *   on 1 July, which is 181 days. `validityDays: 180` would refuse it while
+   *   citing the section that permits it — a wrong answer in the REFUSING
+   *   direction, which is the direction nobody goes back to audit. Six months is
+   *   180, 181, 182 or 184 days depending on where in the year it starts.
+   *
+   *   Great Britain, Australia and Ireland all state medicine validity in months
+   *   too, so this is not a US quirk. Their CONTROLLED drug validities are in
+   *   days (28, and Ireland's 14) and use `validityDays` unchanged.
+   *
+   * Both keys may be present. The EARLIER expiry governs — see the engine.
+   */
+  validityMonths: number | undefined;
   prescriberClasses: readonly string[] | undefined;
 }
 
@@ -118,6 +137,18 @@ export interface QuantityLimitParameters {
   maxPerTransactionBase: string | undefined;
   maxPerPeriodBase: string | undefined;
   periodDays: number | undefined;
+  /**
+   * A ceiling in TREATMENT DAYS rather than in base units (PI-13a, GAP 3).
+   *
+   * ⚠️ THE CALLER USUALLY CANNOT ANSWER THIS, AND THE RULE THEREFORE REFUSES
+   *   UNTIL ONE CAN. `daysSupply` comes off the directions for use, which
+   *   nothing in this programme parses yet. A rule carrying this key resolves
+   *   `UNDETERMINED` — which refuses — for every caller that omits it. That is
+   *   deliberate and is the honest reading: New York caps a prescription at "a
+   *   thirty day supply", and a platform that cannot compute the supply has not
+   *   established compliance, it has merely not looked.
+   */
+  maxDaysSupply: number | undefined;
 }
 
 export interface RefillRuleParameters {
@@ -134,6 +165,13 @@ export interface RefillRuleParameters {
   endorsedRepeatsPermitted: boolean | undefined;
   /** The jurisdiction's own ceiling on an endorsed repeat, where it states one. */
   maxEndorsedRepeats: number | undefined;
+  /**
+   * The repeat window in CALENDAR MONTHS. See `PrescriptionRequiredParameters`
+   * for why this is not `validityDays` with arithmetic — 21 U.S.C. 829(b) puts
+   * the five-refill cap and the six-month window in the same sentence, so a US
+   * refill rule needs both keys at once.
+   */
+  validityMonths: number | undefined;
 }
 
 export interface AgeRestrictionParameters {
@@ -179,6 +217,18 @@ export interface ControlledScheduleParameters {
   registerRequired: boolean | undefined;
   witnessRequired: boolean | undefined;
   storageLocationKinds: readonly string[] | undefined;
+  /**
+   * Must an authorisation from somebody else already exist? (PI-13a, GAP 2.)
+   *
+   * Australia's Schedule 8 permits are the case this was written for: a state
+   * health department's written authority to treat a NAMED patient with a NAMED
+   * drug, obtained before the prescription is written. The engine raises a
+   * `VERIFY_PRIOR_AUTHORISATION` condition; it cannot check the permit, because
+   * the permit lives in a state registry this platform does not talk to.
+   */
+  priorAuthorisationRequired: boolean | undefined;
+  /** Who issues it — named in the condition so the screen can say where to look. */
+  authorisationAuthority: string | undefined;
 }
 
 export interface SubstitutionParameters {
@@ -192,6 +242,19 @@ export interface OnlineDispensingParameters {
   permitted: boolean | undefined;
   excludedClassifications: readonly string[] | undefined;
   destinationCountryCodes: readonly string[] | undefined;
+  /**
+   * Is remote supply lawful only where the prescriber already saw the patient in
+   * person? (PI-13a, GAP 2.)
+   *
+   * ⚠️ WITHOUT THIS KEY, THE US POSITION INVERTS ITSELF. 21 U.S.C. 829(e) does
+   *   not AUTHORISE internet supply of a controlled substance; it forbids it
+   *   except on a prescription from a practitioner who has conducted at least
+   *   one in-person medical evaluation. Expressed with the keys that existed
+   *   before this one, the closest available rule was `permitted: true` — which
+   *   returned a bare `PERMITTED` and asserted the opposite of the section. The
+   *   proviso IS the section.
+   */
+  requiresPriorInPersonEvaluation: boolean | undefined;
 }
 
 export interface AuthorityParameters {
@@ -267,6 +330,7 @@ export function parsePrescriptionRequired(
   const parsed = all({
     required: readBoolean(source.value, 'required'),
     validityDays: readInteger(source.value, 'validityDays'),
+    validityMonths: readInteger(source.value, 'validityMonths'),
     prescriberClasses: readStringArray(source.value, 'prescriberClasses'),
   });
   if (!parsed.ok) return parsed;
@@ -283,6 +347,7 @@ export function parseQuantityLimit(parameters: unknown): Parsed<QuantityLimitPar
     maxPerTransactionBase: readDecimal(source.value, 'maxPerTransactionBase'),
     maxPerPeriodBase: readDecimal(source.value, 'maxPerPeriodBase'),
     periodDays: readInteger(source.value, 'periodDays'),
+    maxDaysSupply: readInteger(source.value, 'maxDaysSupply'),
   });
   if (!parsed.ok) return parsed;
 
@@ -297,7 +362,8 @@ export function parseQuantityLimit(parameters: unknown): Parsed<QuantityLimitPar
   }
   if (
     parsed.value.maxPerTransactionBase === undefined &&
-    parsed.value.maxPerPeriodBase === undefined
+    parsed.value.maxPerPeriodBase === undefined &&
+    parsed.value.maxDaysSupply === undefined
   ) {
     return fail('it is a quantity limit that sets no quantity');
   }
@@ -312,9 +378,14 @@ export function parseRefillRule(parameters: unknown): Parsed<RefillRuleParameter
     validityDays: readInteger(source.value, 'validityDays'),
     endorsedRepeatsPermitted: readBoolean(source.value, 'endorsedRepeatsPermitted'),
     maxEndorsedRepeats: readInteger(source.value, 'maxEndorsedRepeats'),
+    validityMonths: readInteger(source.value, 'validityMonths'),
   });
   if (!parsed.ok) return parsed;
-  if (parsed.value.refillsAllowed === undefined && parsed.value.validityDays === undefined) {
+  if (
+    parsed.value.refillsAllowed === undefined &&
+    parsed.value.validityDays === undefined &&
+    parsed.value.validityMonths === undefined
+  ) {
     return fail('it is a refill rule that states neither a number of repeats nor a validity');
   }
   return parsed;
@@ -389,6 +460,8 @@ export function parseControlledSchedule(parameters: unknown): Parsed<ControlledS
     registerRequired: readBoolean(source.value, 'registerRequired'),
     witnessRequired: readBoolean(source.value, 'witnessRequired'),
     storageLocationKinds: readStringArray(source.value, 'storageLocationKinds'),
+    priorAuthorisationRequired: readBoolean(source.value, 'priorAuthorisationRequired'),
+    authorisationAuthority: readString(source.value, 'authorisationAuthority'),
   });
   if (!parsed.ok) return parsed;
 
@@ -400,7 +473,8 @@ export function parseControlledSchedule(parameters: unknown): Parsed<ControlledS
   if (
     parsed.value.registerRequired === undefined &&
     parsed.value.witnessRequired === undefined &&
-    parsed.value.storageLocationKinds === undefined
+    parsed.value.storageLocationKinds === undefined &&
+    parsed.value.priorAuthorisationRequired === undefined
   ) {
     return fail('it is a controlled-schedule rule that imposes no obligation');
   }
@@ -430,6 +504,7 @@ export function parseOnlineDispensing(parameters: unknown): Parsed<OnlineDispens
     permitted: readBoolean(source.value, 'permitted'),
     excludedClassifications: readStringArray(source.value, 'excludedClassifications'),
     destinationCountryCodes: readStringArray(source.value, 'destinationCountryCodes'),
+    requiresPriorInPersonEvaluation: readBoolean(source.value, 'requiresPriorInPersonEvaluation'),
   });
   if (!parsed.ok) return parsed;
   if (parsed.value.permitted === undefined) {

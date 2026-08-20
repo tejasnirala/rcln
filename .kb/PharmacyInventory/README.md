@@ -5,11 +5,17 @@ about this programme lives in this directory. Start here.
 
 ```text
 CURRENT PHASE:        none in flight
-CURRENT STATUS:       PI-0..PI-12 COMPLETE
-LAST COMPLETED PHASE: PI-12 — Online Pharmacy
+CURRENT STATUS:       PI-0..PI-13 COMPLETE
+LAST COMPLETED PHASE: PI-13 — United States rule pack (federal + California)
 CURRENT WORK:         none
-NEXT PHASE:           PI-13 (US rule pack); PI-22, PI-23 also open
-BLOCKERS:             none.
+NEXT PHASE:           PI-15 (AU) or PI-16 (SG); PI-22, PI-23 also open.
+                      ⚠️ PI-14 (GB) is BLOCKED — legislation.gov.uk returned
+                      202 on every attempt in the country survey. An access
+                      route is needed before that phase opens.
+BLOCKERS:             PI-14 (see above).
+                      ⚠️ PI-13a AND PI-13 ARE NOT REVIEWED — neither
+                      /code-review nor the security reviewer has run over
+                      that diff.
                       ✅ PI-12 IS FULLY REVIEWED. Security: 2 CRITICAL,
                       1 HIGH, 3 MEDIUM, 4 LOW. Code: 8 WARNING, 7 INFO, no
                       CRITICAL. All acted on; both CRITICALs carry a regression
@@ -152,19 +158,20 @@ Per-domain deep dives:
 
 Integration and cross-cutting:
 
-| File                                                   | Contents                                                   |
-| ------------------------------------------------------ | ---------------------------------------------------------- |
-| [BILLING_INTEGRATION.md](BILLING_INTEGRATION.md)       | Charge requests → the existing invoice engine.             |
-| [TAX_INTEGRATION.md](TAX_INTEGRATION.md)               | Product → `tax_category` → `@rcln/tax`. No new tax code.   |
-| [SECURITY_AND_AUDIT.md](SECURITY_AND_AUDIT.md)         | RLS classes, RBAC codes, audit and PHI-read logging.       |
-| [COUNTRY_SUPPORT_MATRIX.md](COUNTRY_SUPPORT_MATRIX.md) | The living per-country matrix. Mostly `RESEARCH_REQUIRED`. |
-| [REGULATORY_RULE_PACKS.md](REGULATORY_RULE_PACKS.md)   | Rule-pack format, source registry, maturity states.        |
-| [UI_UX_PLAN.md](UI_UX_PLAN.md)                         | Screens per role, and what must stay hidden.               |
-| [TESTING_STRATEGY.md](TESTING_STRATEGY.md)             | What each phase must prove before it is COMPLETE.          |
-| [MIGRATION_PLAN.md](MIGRATION_PLAN.md)                 | Migration sequencing and backward compatibility.           |
-| [OPEN_DECISIONS.md](OPEN_DECISIONS.md)                 | Undecided things, with recommendations.                    |
-| [KNOWN_ISSUES.md](KNOWN_ISSUES.md)                     | Defects, gaps and debts as they accrue.                    |
-| [CHANGELOG.md](CHANGELOG.md)                           | What each session changed.                                 |
+| File                                                       | Contents                                                                     |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [BILLING_INTEGRATION.md](BILLING_INTEGRATION.md)           | Charge requests → the existing invoice engine.                               |
+| [TAX_INTEGRATION.md](TAX_INTEGRATION.md)                   | Product → `tax_category` → `@rcln/tax`. No new tax code.                     |
+| [SECURITY_AND_AUDIT.md](SECURITY_AND_AUDIT.md)             | RLS classes, RBAC codes, audit and PHI-read logging.                         |
+| [COUNTRY_SUPPORT_MATRIX.md](COUNTRY_SUPPORT_MATRIX.md)     | The living per-country matrix. Mostly `RESEARCH_REQUIRED`.                   |
+| [REGULATORY_RULE_PACKS.md](REGULATORY_RULE_PACKS.md)       | Rule-pack format, source registry, maturity states.                          |
+| [COUNTRY_RULE_PACK_SURVEY.md](COUNTRY_RULE_PACK_SURVEY.md) | Framework-gap survey across the nine remaining jurisdictions. Drives PI-13a. |
+| [UI_UX_PLAN.md](UI_UX_PLAN.md)                             | Screens per role, and what must stay hidden.                                 |
+| [TESTING_STRATEGY.md](TESTING_STRATEGY.md)                 | What each phase must prove before it is COMPLETE.                            |
+| [MIGRATION_PLAN.md](MIGRATION_PLAN.md)                     | Migration sequencing and backward compatibility.                             |
+| [OPEN_DECISIONS.md](OPEN_DECISIONS.md)                     | Undecided things, with recommendations.                                      |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md)                         | Defects, gaps and debts as they accrue.                                      |
+| [CHANGELOG.md](CHANGELOG.md)                               | What each session changed.                                                   |
 
 ---
 
