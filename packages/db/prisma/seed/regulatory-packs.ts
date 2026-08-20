@@ -72,6 +72,18 @@ import {
   US_CA_RULES,
   US_CA_SOURCES,
 } from './data/regulatory-us-ca.js';
+import {
+  AU_AUTHORITIES,
+  AU_PACK_EFFECTIVE_FROM,
+  AU_RULES,
+  AU_SOURCES,
+} from './data/regulatory-au.js';
+import {
+  AU_VIC_AUTHORITIES,
+  AU_VIC_PACK_EFFECTIVE_FROM,
+  AU_VIC_RULES,
+  AU_VIC_SOURCES,
+} from './data/regulatory-au-vic.js';
 
 /** A `@db.Date` column takes a day, in the jurisdiction's own reckoning. */
 function day(value: string): Date {
@@ -176,6 +188,64 @@ const PACKS: readonly PackSeed[] = [
       'federal rule of a type absent here still applies in California. No CURES reporting rule ' +
       'and no state controlled-substance prescription rules. Not reviewed by a qualified person.',
     effectiveFrom: US_CA_PACK_EFFECTIVE_FROM,
+  },
+
+  /*
+   * ⚠️ AUSTRALIA IS THE ONE PACK IN THIS LIST WHOSE NATIONAL INSTRUMENT BINDS
+   *   NOBODY, AND THE PAIR BELOW IS THE WHOLE POINT OF PI-15. The Poisons
+   *   Standard is made under the Therapeutic Goods Act 1989 and RECOMMENDS a
+   *   degree of control; it takes legal effect only as adopted by State and
+   *   Territory legislation. A national-only `AU` pack would therefore have been
+   *   configured, visible and describing an instrument with no legal force —
+   *   this domain's signature failure, which is why COUNTRY_RULE_PACK_SURVEY.md
+   *   required PI-15 to ship a state pack or not ship. `AU-VIC` is that state
+   *   pack, and it carries almost every operative obligation.
+   */
+  {
+    countryCode: 'AU',
+    countryName: 'Australia',
+    authorities: AU_AUTHORITIES,
+    sources: AU_SOURCES,
+    rules: AU_RULES,
+    packAuthorityCode: 'TGA',
+    version: '1.0.0',
+    name: 'Australia — the Poisons Standard (SUSMP)',
+    description:
+      'The national scheduling floor: a prescription for Schedule 4 and Schedule 8, a pharmacist ' +
+      'for Schedule 3, and the Schedule 8 classification itself. Configured from the Federal ' +
+      'Register of Legislation’s own text of the Therapeutic Goods (Poisons Standard—June 2026) ' +
+      'Instrument 2026. ⚠️ THE POISONS STANDARD RECOMMENDS AND DOES NOT BIND — it has legal ' +
+      'force only through State and Territory legislation, so these four rules are the floor ' +
+      'every jurisdiction builds on rather than the provision anyone is prosecuted under. A ' +
+      'Victorian branch gets the `AU-VIC` pack instead, per rule type. No dispensing label ' +
+      '(Appendix L could not be retrieved), no import restriction, no PBS rules, no record ' +
+      'retention and no storage standard — Australia has no national ones. Not reviewed by a ' +
+      'qualified person.',
+    effectiveFrom: AU_PACK_EFFECTIVE_FROM,
+  },
+  {
+    countryCode: 'AU',
+    regionCode: 'VIC',
+    countryName: 'Victoria',
+    authorities: AU_VIC_AUTHORITIES,
+    sources: AU_VIC_SOURCES,
+    rules: AU_VIC_RULES,
+    packAuthorityCode: 'VIC_DH',
+    version: '1.0.0',
+    name: 'Victoria — Drugs, Poisons and Controlled Substances Regulations 2017',
+    description:
+      'What a Victorian pharmacist actually answers to: Schedule 4 and Schedule 8 on prescription ' +
+      'with twelve- and six-month validity, the two prescriber lists that differ by an ' +
+      'optometrist and a podiatrist, the drugs register and the Schedule 8 treatment permit, the ' +
+      'lockable facility and the welded steel safe, supplementary labelling, three-year record ' +
+      'retention, SafeScript reporting at the time of supply, witnessed destruction, and brand ' +
+      'substitution. Configured from the Chief Parliamentary Counsel’s authorised consolidation. ' +
+      '⚠️ NOT a statement of Victorian drugs law as a whole — it supersedes the national rules ' +
+      'PER RULE TYPE, so every national rule of a type absent here still applies. No Schedule 9 ' +
+      'rules, no chart-instruction or emergency-supply exceptions (so this pack is STRICTER than ' +
+      'the law in those cases), and no monitored-poisons rule for the Schedule 4 substances ' +
+      'Schedule 6 names individually. Not reviewed by a qualified person.',
+    effectiveFrom: AU_VIC_PACK_EFFECTIVE_FROM,
   },
 ];
 

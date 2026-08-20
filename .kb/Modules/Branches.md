@@ -73,9 +73,9 @@ The places a clinic operates from. One organization, one or many branches — a 
 | --- | --- | --- |
 | `BranchActionOptions` | interface | `apps/api/src/services/branch/branch.service.ts:43` |
 | `BranchList` | component | `apps/web/src/components/tenant/branch-list.tsx:209` |
-| `createBranch` | fn | `apps/api/src/services/branch/branch.service.ts:222` |
-| `deleteBranch` | fn | `apps/api/src/services/branch/branch.service.ts:434` |
-| `getBranch` | fn | `apps/api/src/services/branch/branch.service.ts:208` |
-| `listBranches` | fn | `apps/api/src/services/branch/branch.service.ts:196` |
-| `setOperatingHours` | fn | `apps/api/src/services/branch/branch.service.ts:363` |
-| `updateBranch` | fn | `apps/api/src/services/branch/branch.service.ts:299` |
+| `createBranch` | fn | `apps/api/src/services/branch/branch.service.ts:231` |
+| `deleteBranch` | fn | `apps/api/src/services/branch/branch.service.ts:443` |
+| `getBranch` | fn | `apps/api/src/services/branch/branch.service.ts:217` |
+| `listBranches` | fn | `apps/api/src/services/branch/branch.service.ts:205` |
+| `setOperatingHours` | fn | `apps/api/src/services/branch/branch.service.ts:372` |
+| `updateBranch` | fn | `apps/api/src/services/branch/branch.service.ts:308` |

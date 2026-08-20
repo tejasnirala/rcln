@@ -2,7 +2,38 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-19 · **By:** session PI-12 (online pharmacy).
+**Written:** 2026-08-20 · **By:** session PI-15 (Australia rule pack).
+
+## PI-15 first, because it is the freshest and it is unreviewed
+
+✅ **PI-15 SHIPPED:** `AU 1.0.0` (4 rules) + `AU-VIC 1.0.0` (18 rules), the
+programme's second sub-national pack, 20 behaviour cases, no migration.
+⚠️ **NOT REVIEWED** — neither `/code-review` nor `security-reviewer` has run over
+it, and the same is still true of PI-13a and PI-13.
+
+⚠️ **THE LESSON WORTH CARRYING FROM PI-15: THE BUG WAS NOT IN THE DOMAIN CODE.**
+The seed, the engine and the schema were all correct. `CountryInfo.regions` in
+`@rcln/contracts` was documented and populated as "does tax register per
+subdivision" — right about tax, and also the list that gates
+`branches.region_code`, which is what the regulatory engine reads to pick a
+sub-national pack. Australia was empty, so no Victorian branch could exist and
+the state pack would have seeded, printed its rule count and matched nothing
+forever. **A field can be correct about the question it was written for and
+load-bearing for a question nobody connected it to.** The Victorian behaviour
+cases are the only thing that would have caught it.
+
+⚠️ **BEFORE ANY FUTURE STATE PACK: CHECK THAT COUNTRY'S `regions` LIST FIRST.**
+The United States still lists only the states that levy a sales tax, so Oregon,
+Montana, New Hampshire, Delaware and Alaska cannot hold a region today. Nothing
+is inert because no pack exists for them — and a phase that writes one will get
+no warning.
+
+⚠️ **PI-16 (Singapore) is next.** PI-14 (GB) stays blocked on legislation.gov.uk;
+New South Wales is blocked the same way, which is why PI-15's state is Victoria.
+
+---
+
+## PI-12, still worth reading before touching pharmacy or online supply
 
 ✅ **`security-reviewer` HAS RUN OVER PI-12. 2 CRITICAL, 1 HIGH, 3 MEDIUM, 4 LOW
 — all acted on**, both CRITICALs with a regression test verified to FAIL against

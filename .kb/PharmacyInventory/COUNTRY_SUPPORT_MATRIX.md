@@ -54,18 +54,18 @@ PLANNED             scheduled in a named phase
 
 ## Programme-level status
 
-| Country              | ISO | Rule pack phase | Maturity                 | Tax scheme (existing engine) | Sub-national tax                                          | Notes                                                                                                                                                                                                         |
-| -------------------- | --- | --------------- | ------------------------ | ---------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| India                | IN  | PI-6            | `AUTOMATED_TESTED`       | GST                          | ✅ state — `INTRA_STATE_HALVES` split already implemented | **Configured.** Pack `IN 1.0.0`, 22 rules, 3 sources. No sub-national pack; no NDPS. See the dimension table below for what is still open.                                                                    |
-| United States        | US  | PI-13           | `AUTOMATED_TESTED`       | SALES_TAX                    | ✅ state/county/city/district                             | **Configured.** `US 1.0.0` federal + `US-CA 1.0.0`, the first sub-national pack. Tax still requires the `TaxProviderQuote` seam; the engine already answers `PROVIDER_REQUIRED` rather than guessing a rate.  |
-| United Kingdom       | GB  | PI-14           | `ARCHITECTURE_SUPPORTED` | VAT                          | Possible — some instruments are England/Wales/Scotland    | ⚠️ **BLOCKED.** legislation.gov.uk returned `202` on every attempt, HTML and XML alike. An access route is needed before PI-14 opens.                                                                         |
-| Australia            | AU  | PI-15           | `ARCHITECTURE_SUPPORTED` | GST                          | ⚠️ **State/territory — structurally mandatory**           | ⚠️ The Poisons Standard is federal but has **no legal force except through state and territory legislation**. A national-only pack would describe an instrument binding nobody. PI-15 must ship a state pack. |
-| Singapore            | SG  | PI-16           | `ARCHITECTURE_SUPPORTED` | GST                          | ✖                                                         |                                                                                                                                                                                                               |
-| United Arab Emirates | AE  | PI-17           | `ARCHITECTURE_SUPPORTED` | VAT                          | ⚠️ **Emirate — confirmed, not merely likely**             | DHA (Dubai) and DoH (Abu Dhabi) publish their own standards and their own narcotic prescription forms above federal MOHAP Decree 888/2016.                                                                    |
-| Ireland              | IE  | PI-18           | `ARCHITECTURE_SUPPORTED` | VAT                          | ✖                                                         |                                                                                                                                                                                                               |
-| Nepal                | NP  | PI-19           | `ARCHITECTURE_SUPPORTED` | VAT                          | RESEARCH_REQUIRED                                         |                                                                                                                                                                                                               |
-| Sri Lanka            | LK  | PI-20           | `ARCHITECTURE_SUPPORTED` | VAT                          | RESEARCH_REQUIRED                                         | ⚠️ Source risk: the NMRA publishes mostly registration material, not dispensing rules. Expect a thin pack.                                                                                                    |
-| Bangladesh           | BD  | PI-21           | `ARCHITECTURE_SUPPORTED` | VAT                          | RESEARCH_REQUIRED                                         | ⚠️ Source risk: the DGDA returned nothing in the PI-13 survey. Expect a thin pack.                                                                                                                            |
+| Country              | ISO | Rule pack phase | Maturity                 | Tax scheme (existing engine) | Sub-national tax                                          | Notes                                                                                                                                                                                                                 |
+| -------------------- | --- | --------------- | ------------------------ | ---------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| India                | IN  | PI-6            | `AUTOMATED_TESTED`       | GST                          | ✅ state — `INTRA_STATE_HALVES` split already implemented | **Configured.** Pack `IN 1.0.0`, 22 rules, 3 sources. No sub-national pack; no NDPS. See the dimension table below for what is still open.                                                                            |
+| United States        | US  | PI-13           | `AUTOMATED_TESTED`       | SALES_TAX                    | ✅ state/county/city/district                             | **Configured.** `US 1.0.0` federal + `US-CA 1.0.0`, the first sub-national pack. Tax still requires the `TaxProviderQuote` seam; the engine already answers `PROVIDER_REQUIRED` rather than guessing a rate.          |
+| United Kingdom       | GB  | PI-14           | `ARCHITECTURE_SUPPORTED` | VAT                          | Possible — some instruments are England/Wales/Scotland    | ⚠️ **BLOCKED.** legislation.gov.uk returned `202` on every attempt, HTML and XML alike. An access route is needed before PI-14 opens.                                                                                 |
+| Australia            | AU  | PI-15           | `AUTOMATED_TESTED`       | GST                          | ⚠️ **State/territory — structurally mandatory**           | **Configured.** `AU 1.0.0` (4 rules — the Poisons Standard recommends and binds nobody) + `AU-VIC 1.0.0` (18 rules), the second sub-national pack. NSW was the first choice and legislation.nsw.gov.au returns `403`. |
+| Singapore            | SG  | PI-16           | `ARCHITECTURE_SUPPORTED` | GST                          | ✖                                                         |                                                                                                                                                                                                                       |
+| United Arab Emirates | AE  | PI-17           | `ARCHITECTURE_SUPPORTED` | VAT                          | ⚠️ **Emirate — confirmed, not merely likely**             | DHA (Dubai) and DoH (Abu Dhabi) publish their own standards and their own narcotic prescription forms above federal MOHAP Decree 888/2016.                                                                            |
+| Ireland              | IE  | PI-18           | `ARCHITECTURE_SUPPORTED` | VAT                          | ✖                                                         |                                                                                                                                                                                                                       |
+| Nepal                | NP  | PI-19           | `ARCHITECTURE_SUPPORTED` | VAT                          | RESEARCH_REQUIRED                                         |                                                                                                                                                                                                                       |
+| Sri Lanka            | LK  | PI-20           | `ARCHITECTURE_SUPPORTED` | VAT                          | RESEARCH_REQUIRED                                         | ⚠️ Source risk: the NMRA publishes mostly registration material, not dispensing rules. Expect a thin pack.                                                                                                            |
+| Bangladesh           | BD  | PI-21           | `ARCHITECTURE_SUPPORTED` | VAT                          | RESEARCH_REQUIRED                                         | ⚠️ Source risk: the DGDA returned nothing in the PI-13 survey. Expect a thin pack.                                                                                                                                    |
 
 The "tax scheme" column reflects which `TaxScheme` member the **existing**
 `@rcln/tax` would use. It is a statement about the engine's vocabulary, **not** a
@@ -80,33 +80,33 @@ for every country except what a clinic configures for itself.
 The table exists so that research has a shape, and so that a partially-researched
 country is visibly partial. India is exactly that: some cells sourced, most not.
 
-| Dimension                             | IN         | US         | GB  | AU  | SG  | AE  | IE  | NP  | LK  | BD  |
-| ------------------------------------- | ---------- | ---------- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Regulatory authority                  | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Product registration requirement      | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| National product identifier scheme    | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Prescription classification scheme    | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Controlled-substance scheduling       | RR         | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Dispensing restrictions               | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Pharmacy licensing                    | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Pharmacist qualification requirements | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Generic substitution rules            | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Quantity / refill limits              | RR         | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Age restrictions                      | RR         | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Online pharmacy permitted             | UNK        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Traceability / serialisation mandate  | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Batch/lot recording requirements      | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Expiry handling requirements          | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Storage / cold chain requirements     | RR         | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Labelling requirements                | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Recall procedure and obligations      | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Record retention period               | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Reporting obligations                 | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Veterinary-specific rules             | SUP        | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Sub-national variation exists         | RR         | SUP        | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| External system integration required  | RR         | RR         | RR  | RR  | RR  | RR  | RR  | RR  | RR  | RR  |
-| Source references recorded            | ✅         | ✅         | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   |
-| Last reviewed                         | 2026-08-13 | 2026-08-19 | —   | —   | —   | —   | —   | —   | —   | —   |
+| Dimension                             | IN         | US         | GB  | AU         | SG  | AE  | IE  | NP  | LK  | BD  |
+| ------------------------------------- | ---------- | ---------- | --- | ---------- | --- | --- | --- | --- | --- | --- |
+| Regulatory authority                  | SUP        | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Product registration requirement      | RR         | RR         | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| National product identifier scheme    | RR         | RR         | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Prescription classification scheme    | SUP        | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Controlled-substance scheduling       | RR         | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Dispensing restrictions               | SUP        | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Pharmacy licensing                    | RR         | RR         | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Pharmacist qualification requirements | SUP        | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Generic substitution rules            | SUP        | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Quantity / refill limits              | RR         | SUP        | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Age restrictions                      | RR         | SUP        | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Online pharmacy permitted             | UNK        | SUP        | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Traceability / serialisation mandate  | RR         | RR         | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Batch/lot recording requirements      | RR         | RR         | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Expiry handling requirements          | RR         | RR         | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Storage / cold chain requirements     | RR         | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Labelling requirements                | SUP        | SUP        | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Recall procedure and obligations      | RR         | RR         | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Record retention period               | SUP        | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Reporting obligations                 | RR         | RR         | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Veterinary-specific rules             | SUP        | SUP        | RR  | RR         | RR  | RR  | RR  | RR  | RR  | RR  |
+| Sub-national variation exists         | RR         | SUP        | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| External system integration required  | RR         | RR         | RR  | SUP        | RR  | RR  | RR  | RR  | RR  | RR  |
+| Source references recorded            | ✅         | ✅         | ✖   | ✅         | ✖   | ✖   | ✖   | ✖   | ✖   | ✖   |
+| Last reviewed                         | 2026-08-13 | 2026-08-19 | —   | 2026-08-20 | —   | —   | —   | —   | —   | —   |
 
 `RR` = `RESEARCH_REQUIRED` · `SUP` = `SUPPORTED` · `UNK` = `UNKNOWN`.
 
@@ -140,6 +140,46 @@ it is denominated in a chemical contained in the product while the product's
 base unit is tablets, and this platform does no composition arithmetic. The
 volumetric limbs of 21 CFR 1306.26(b) are not written either, for the same
 reason. See COUNTRY_RULE_PACK_SURVEY.md, GAP 4.
+
+### Why Australia's remaining cells did not move
+
+⚠️ **Each was researched in PI-15 and left alone on purpose. Read the AU column
+against the fact that the national instrument binds nobody** — eleven cells are
+`SUP` and nine of them are `SUP` because **Victoria** says so, not because
+Australia does.
+
+- **Labelling requirements — `RR`, and this is the one that looks wrong.**
+  Victoria's reg 72 _is_ configured and tested, so a cell could be argued. It is
+  not, because reg 72 is a **supplementary** requirement that adds two fields to
+  whatever the national dispensing label already demands — and the national one
+  is Appendix L to the Poisons Standard, whose text could not be retrieved (the
+  instrument's HTML truncates before the appendices; its PDF is thousands of
+  pages of substance listings). A screen driven by `LABEL_FIELDS` today would
+  print a container missing the patient's name. `SUP` would say the opposite.
+- **Quantity / refill limits — `RR`.** Neither instrument sets a refill
+  allowance this framework can express. Reg 51(2) caps a Schedule 8 supply at
+  two days' treatment **unless** the pharmacist verifies the prescriber, and the
+  framework models a bar, not a bar-with-a-discharge — the same inverted default
+  California's `requiresPrescriberConsent` hit. Written into the rule statement
+  instead of into a parameter.
+- **Veterinary-specific rules — `RR`.** Reg 72(a) requires an animal's species,
+  age, breed and sex and its owner's name on the container. Those are
+  conditional on the patient and `fields` is unconditional, so they sit in
+  `detail` text a pharmacist reads and a screen cannot enforce.
+- **Traceability, batch/lot, expiry, recall, pharmacy licensing, product
+  registration, national identifier — `RR`.** Not researched; PI-15 scoped to
+  the supply of a product.
+- **Age restrictions, online pharmacy — `RR`.** Nothing found in either
+  instrument. Absence of a rule here is "not researched", never "no restriction
+  exists".
+
+⚠️ **AND ONE CELL IS `SUP` ON A NARROWER BASIS THAN IT LOOKS.** _Reporting
+obligations_ is `SUP` because SafeScript is configured for **Schedule 8**, which
+Schedule 6 to the Victorian Regulations makes monitored in its entirety. Schedule
+6 also names benzodiazepines, codeine, gabapentin, pregabalin, quetiapine,
+tramadol, zolpidem and zopiclone — individual **substances inside** Schedule 4,
+which `appliesToClassification` cannot express. Those are not reported by this
+pack.
 
 ---
 

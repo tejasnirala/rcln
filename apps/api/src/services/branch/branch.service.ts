@@ -46,7 +46,7 @@ export interface BranchActionOptions {
 }
 
 /**
- * The branch's tax jurisdiction and postcode, checked against each other.
+ * The branch's jurisdiction and postcode, checked against each other.
  *
  * ⚠️ CHECKED HERE AND NOT IN THE ZOD CONTRACT BECAUSE THE COUNTRY MAY BE
  *   INHERITED. A PATCH that sets only a region, or a create that omits the
@@ -55,9 +55,18 @@ export interface BranchActionOptions {
  *   contract-level `^\d{6}$` on the postcode was India's PIN format applied to
  *   every country, and it made an Irish or Emirati branch unsaveable.
  *
- * A region on a country that does not register tax by subdivision is refused
- * rather than ignored: `IE-D` looks like a jurisdiction and matches no
- * registration, so an invoice raised there would silently carry no tax.
+ * A region a country does not have is refused rather than ignored: `IE-D` looks
+ * like a jurisdiction and matches no tax registration, so an invoice raised
+ * there would silently carry no tax.
+ *
+ * ⚠️ AND THIS GATE IS LOAD-BEARING FOR THE REGULATORY ENGINE TOO, WHICH IS
+ *   NOT OBVIOUS FROM ANYTHING NEARBY (PI-15). `branches.region_code` is the
+ *   column `@rcln/regulatory` reads to choose between a national and a
+ *   sub-national rule pack. Refusing a region here does not merely lose a line
+ *   of an address — it makes every state pack for that country unreachable, and
+ *   the pack goes on seeding and printing in the console while matching nothing.
+ *   Australia was in exactly that state until `AUSTRALIA_REGIONS` was added to
+ *   `locale.ts`, because its list had been scoped to "where GST registers".
  */
 function assertJurisdiction(
   countryCode: string,
@@ -75,7 +84,7 @@ function assertJurisdiction(
     throw new ValidationError('Unknown region', {
       regionCode: [
         known.length === 0
-          ? `${countryCode} does not register tax by state or province — leave this empty`
+          ? `${countryCode} has no states or provinces this product knows — leave this empty`
           : `not a ${countryCode} subdivision, e.g. ${known[0]?.code ?? ''}`,
       ],
     });

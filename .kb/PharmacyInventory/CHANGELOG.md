@@ -5,6 +5,113 @@ discussed.
 
 ---
 
+## 2026-08-20 — PI-15: a national instrument that binds nobody
+
+**Phase:** PI-15 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,
+**not reviewed** · **Tests:** +20 integration behaviour cases. No migration.
+
+Australia is the jurisdiction the country survey called the hardest in the
+programme, and not for the reason the master plan assumed. The United States is
+hard because it is federal _plus_ state; Australia is hard because it is state
+**instead of** federal. The Poisons Standard is made under s. 52D of the
+Therapeutic Goods Act 1989 and it _recommends_ — Schedule 4 is defined as
+substances "the use or supply of which **should** be by or on the order of
+persons permitted by **State or Territory legislation** to prescribe". A pack
+seeded at national level and left there would have described an instrument with
+no legal effect. The survey's ruling was that PI-15 must ship a state pack or
+must not ship.
+
+### Victoria, and why not New South Wales
+
+NSW is larger and was the first choice. `legislation.nsw.gov.au` returned `403`
+on every path attempted — the same wall PI-14 is behind — and NSW carries a
+second complication: its Poisons and Therapeutic Goods Act 1966 is mid-
+replacement by the Medicines, Poisons and Therapeutic Goods Act 2022, so a NSW
+pack would need the commencement position established before a rule was written.
+Victoria's own site serves the Chief Parliamentary Counsel's authorised
+consolidation, 321 pages, Version 021 as at 1 July 2026. Read, not guessed at.
+
+### ⚠️ The defect that would have shipped this phase dead
+
+`locale.ts` gave Australia `regions: []`. The field was documented as "does tax
+register per subdivision", and Australian GST is national, so the empty list was
+_correct about tax_ and had been correct since the file was written.
+
+It is also the list `isValidRegion` checks before `branch.service.ts` writes
+`branches.region_code` — **and that column is what `@rcln/regulatory` reads to
+choose between a national and a sub-national pack.** No Victorian clinic could
+save `VIC`. `AU-VIC` would have seeded cleanly, printed `AU-VIC 1.0.0: 7
+sources, 18 rules` in the console, and matched nothing for the rest of time.
+Configured, visible, inert — this domain's signature failure, arrived at through
+a field that was right about the question it was written for.
+
+`AUSTRALIA_REGIONS` now exists; `CountryInfo.regions` is documented as the
+subdivisions a branch may be **in**. The United States has the identical hole for
+its five no-sales-tax states and it is recorded rather than fixed blind, because
+no pack exists for any of them and a phase that writes one will need the state
+added first.
+
+Nothing in the seed, the engine or the schema was wrong. The bug lived in a
+contracts file nobody touching a rule pack would think to open, which is the
+whole reason the Victorian behaviour cases exist.
+
+### What the two packs carry
+
+`AU 1.0.0` is four rules and says so loudly: a prescription for Schedule 4 and
+Schedule 8, a pharmacist for Schedule 3, and the Schedule 8 classification with
+**no** register, **no** safe and **no** retention period — because Australia has
+none, and every one of those is state law. Its thinness is a finding, not an
+unfinished job. It exists so that a branch in Sydney gets a floor instead of
+`UNDETERMINED` on every dispense.
+
+`AU-VIC 1.0.0` is eighteen rules quoted from offence provisions with penalties
+attached: twelve-month and six-month prescription validity, the two prescriber
+lists that differ by an authorised optometrist and an authorised podiatrist, the
+drugs register, the Schedule 8 treatment permit, a lockable cupboard for
+Schedule 4 and a welded 10 mm steel safe for Schedule 8, supplementary
+labelling, three-year retention, SafeScript at the time of supply, witnessed
+destruction, and brand substitution.
+
+**`VIC-PERMIT-S8` is the first `VERIFY_PRIOR_AUTHORISATION` any real pack has
+raised.** PI-13a built that condition kind with Australia's Schedule 8 permits
+named in the comment and nothing had ever exercised it.
+
+### Three decisions worth recording
+
+**The Schedule 8 permit is a second `CONTROLLED_SCHEDULE` rule, not a parameter
+on the first.** Folded together, the register obligation — which does reach a
+destruction and a stock receipt — would have dragged "check the Schedule 8
+permit" onto transactions no permit has anything to say about. Two rules of one
+type at equal specificity both apply; `mostSpecific()` keeps ties, and this is
+the first pack to lean on that deliberately.
+
+**Only the Schedule 8 storage rule sets `controlledAccessRequired`.** Reg 74(2)
+demands a safe and refusing a receipt into anything else is right. Reg 73(2)
+demands of a Schedule 4 poison only "a lockable storage facility", which every
+dispensary is — copying the key across "for consistency" would refuse routine,
+lawful goods receipt of ordinary prescription medicines.
+
+**Every Victorian rule names a classification.** A `PHARMACIST_AUTHORITY` rule
+here with no classification would cover a Schedule 3 product, and being regional
+would displace the national `AU-SUPPLY-S3` — silently repealing the
+pharmacist-only control in the one state with a pack. Pinned by a test.
+
+### What is deliberately absent
+
+No Appendix L, so **no national dispensing label**: the Federal Register's HTML
+truncates before the appendices. Victoria's reg 72 is expressly _supplementary_,
+so a screen driven by `LABEL_FIELDS` today prints a container missing the
+patient's name — which is why that matrix cell stays `RESEARCH_REQUIRED` even
+though a labelling rule exists and is tested. No import restriction (the Customs
+regulations could not be reached). No PBS rules — they govern subsidised supply
+only, and this platform holds no fact saying whether a given dispense is one.
+
+In Victoria: no Schedule 9, no chart instructions, and **no emergency-supply
+exceptions**, which makes the pack stricter than the law under reg 56. The
+framework expresses rules, not exceptions to them. Recorded rather than softened.
+
+---
+
 ## 2026-08-19 — PI-12: the same medicine, leaving in a parcel
 
 **Phase:** PI-12 · **Branch:** `feat/pi-12-online-pharmacy` · **Result:**

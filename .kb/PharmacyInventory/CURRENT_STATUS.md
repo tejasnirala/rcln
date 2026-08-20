@@ -3,7 +3,7 @@
 The honest ledger for the Product Platform programme. Nothing is marked built
 until it is built, migrated, tested and wired to a screen.
 
-**Last updated:** 2026-08-19 · **Phase:** PI-0 through PI-12 complete
+**Last updated:** 2026-08-20 · **Phase:** PI-0 through PI-13 and PI-15 complete
 
 ⚠️ **THE REST OF THIS FILE DESCRIBES THE PRE-CODE STATE AND IS KEPT FOR THE AUDIT
 IT RECORDS, NOT AS A STATUS.** Its table of reusable infrastructure is still
