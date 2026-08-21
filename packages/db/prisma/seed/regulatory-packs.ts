@@ -102,6 +102,12 @@ import {
   AE_DU_RULES,
   AE_DU_SOURCES,
 } from './data/regulatory-ae-du.js';
+import {
+  IE_AUTHORITIES,
+  IE_PACK_EFFECTIVE_FROM,
+  IE_RULES,
+  IE_SOURCES,
+} from './data/regulatory-ie.js';
 
 /** A `@db.Date` column takes a day, in the jurisdiction's own reckoning. */
 function day(value: string): Date {
@@ -370,6 +376,51 @@ const PACKS: readonly PackSeed[] = [
       'obligation. ⚠️ NO DAYS’-SUPPLY LADDER, no price rules. ⚠️ NOT A STATEMENT OF UAE FEDERAL ' +
       'LAW. Not reviewed by a qualified person.',
     effectiveFrom: AE_DU_PACK_EFFECTIVE_FROM,
+  },
+
+  /*
+   * ⚠️ IRELAND IS THE FIRST COUNTRY IN THIS PROGRAMME WHOSE `CountryInfo.regions`
+   *   BEING EMPTY IS CORRECT RATHER THAN A DEFECT, AND THE CHECK WAS STILL WORTH
+   *   RUNNING. Australia's was empty and cost PI-15 a working pack; the UAE's was
+   *   empty and cost PI-17 two. Irish medicines and misuse-of-drugs law is made by
+   *   the Minister for Health and applies in the whole State — a county regulates
+   *   nothing — so no sub-national pack can exist to be made inert. The list stays
+   *   empty on purpose, and KNOWN_ISSUES records the one loose end: `labels.region`
+   *   for `IE` says 'County', and no county can be selected.
+   */
+  {
+    countryCode: 'IE',
+    countryName: 'Ireland',
+    authorities: IE_AUTHORITIES,
+    sources: IE_SOURCES,
+    rules: IE_RULES,
+    packAuthorityCode: 'HPRA',
+    version: '1.0.0',
+    name: 'Ireland — prescription control, controlled drugs and the mail-order prohibition',
+    description:
+      'The first pack in this programme that FORBIDS remote supply rather than conditioning it: ' +
+      'regulation 19 of the Medicinal Products (Prescription and Control of Supply) Regulations ' +
+      '2003 prohibits mail order of any medicinal product, regulation 19(5) extends it to ' +
+      'information society services, and regulation 19A(8)(b) shuts the door on a prescription ' +
+      'medicine sent to a person in the State — so every prescription-controlled classification ' +
+      'here carries `permitted: false`, while a non-prescription medicine may be sent within the ' +
+      'EEA by a supplier on the PSI’s ISS supply list, to a purchaser over 18. Alongside that: ' +
+      'the six-month prescription validity, the First Schedule Part A one-occasion rule against ' +
+      'Part B’s pharmacist discretion, prescribers including registered nurses and an EEA ' +
+      'equivalent practitioner, the nine-field dispensing label, two-year pharmacy records, ' +
+      'personal supervision by a registered pharmacist with the practitioner’s own-patient ' +
+      'exemption, and the Misuse of Drugs Regulations 2017 for Schedules 2, 3 and Part 1 of ' +
+      'Schedule 4 — fourteen days, the handwriting requirement, instalments, the Schedule 2 ' +
+      'register, the safe, two-year retention and witnessed destruction. Configured from the ' +
+      'electronic Irish Statute Book. ⚠️ THE TWELVE-MONTH EXTENSION OF REGULATION 7(5)(a)(ii) IS ' +
+      'NOT CONFIGURED — it turns on a period written on the prescription or a pharmacist’s ' +
+      'recorded review, neither of which rcln holds, so this pack refuses on day 183 a dispense ' +
+      'that may be lawful. ⚠️ NO PART C CLASSIFICATION (hospital-only dispensing needs a ' +
+      '`branch.licence_type` this platform has not got), no Falsified Medicines traceability ' +
+      'rule (eur-lex could not be reached), no controlled-drug container marking (regulation ' +
+      '17(2)(d) lifts it from a dispense) and no emergency-supply rule. No sub-national pack, ' +
+      'and none is possible. Not reviewed by a qualified person.',
+    effectiveFrom: IE_PACK_EFFECTIVE_FROM,
   },
 ];
 

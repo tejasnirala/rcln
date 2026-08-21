@@ -455,7 +455,7 @@ AUTHORISED_PDF	const	local	packages/db/prisma/seed/data/regulatory-au-vic.ts:152
 AuthoritiesPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/regulatory/authorities/page.tsx:12	apps/web/app/(tenant)/t/[slug]/(app)/regulatory/authorities	({ params, searchParams, }: { params: Promise<{ slug: string…)	<slug>.rcln.com/regulatory/authorities — NO PHI.
 AUTHORITY_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:483	apps/api/openapi/registry	'a70b4d16-8e39-4c85-9a02-5f1d7b3c6e94'	
 AuthorityList	component	export	apps/web/src/components/tenant/regulatory-lists.tsx:156	apps/web/components/tenant	({ authorities, meta, }: { authorities: RegulatoryAuthorityL…)	
-AuthorityParameters	interface	export	packages/regulatory/src/parameters.ts:260	packages/regulatory	{ permittedRoleCodes, permittedLicenceTypes, permittedPrescriberClasses, exemptWhenActorIsPrescriber }	
+AuthorityParameters	interface	export	packages/regulatory/src/parameters.ts:287	packages/regulatory	{ permittedRoleCodes, permittedLicenceTypes, permittedPrescriberClasses, exemptWhenActorIsPrescriber }	
 AuthorityRow	interface	export	apps/api/src/services/regulatory/shared.ts:65	apps/api/services/regulatory	{ id, jurisdictionId, code, name, websiteUrl, remit, isActive, jurisdiction }	
 AuthorizationError	class	export	apps/api/src/utils/errors.ts:55	apps/api/utils	{ }	403 - Authorization Error
 authorize	fn	export	apps/api/src/middleware/auth.middleware.ts:160	apps/api/middleware	(permissions: PermissionCode[]): RequestHandler	
@@ -978,6 +978,7 @@ codeFor	fn	local	apps/api/src/services/iam/designation.service.ts:38	apps/api/se
 CodeForm	component	local	apps/web/src/components/tenant/login-form.tsx:191	apps/web/components/tenant	({ slug }: { slug: string })	
 codes	fn	local	apps/api/tests/integration/ae-rule-pack.test.ts:282	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/au-rule-pack.test.ts:325	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
+codes	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:283	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/india-rule-pack.test.ts:208	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/sg-rule-pack.test.ts:244	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/us-rule-pack.test.ts:310	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
@@ -1019,6 +1020,7 @@ CONDITION_STATUSES	const	local	apps/web/src/components/tenant/patient-chart.tsx:
 ConditionForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:1098	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
 conditionKinds	fn	local	apps/api/tests/integration/ae-rule-pack.test.ts:285	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionKinds	fn	local	apps/api/tests/integration/au-rule-pack.test.ts:328	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
+conditionKinds	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:286	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionKinds	fn	local	apps/api/tests/integration/sg-rule-pack.test.ts:247	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionKinds	fn	local	apps/api/tests/integration/us-rule-pack.test.ts:313	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionParams	var	local	apps/api/src/routes/v1/patients.routes.ts:99	apps/api/routes/v1	patientParams.extend(…)	
@@ -1183,9 +1185,12 @@ ContinueLink	component	local	apps/web/src/components/tenant/login-form.tsx:93	ap
 CONTRACT_NAMES	const	local	apps/api/src/openapi/schema.ts:39	apps/api/openapi	new Map(…)	
 contractNameOf	fn	export	apps/api/src/openapi/schema.ts:47	apps/api/openapi	(schema: ZodType): string | null	The name `@rcln/contracts` exports this schema under, if it exports it.
 ControlIdentity	type	local	apps/web/src/components/ui/field.tsx:175	apps/web/components/ui	{ id: string; name?: string } | { id?: string; name: string }	
+CONTROLLED_DRUG_PRESCRIBERS	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:533	packages/db/prisma/seed/data	[ 'REGISTERED_MEDICAL_PRACTITIONER', 'REGISTERED_DENTIST', 'REGISTERED_VETERINARY_PRACTIT…	
 CONTROLLED_DRUG_PRESCRIBERS	const	local	packages/db/prisma/seed/data/regulatory-sg.ts:325	packages/db/prisma/seed/data	[ 'MEDICAL_PRACTITIONER', 'DENTIST', 'VETERINARY_SURGEON', 'COLLABORATIVE_PRESCRIBING_PRA…	
 CONTROLLED_DRUG_SUPPLIERS	const	local	packages/db/prisma/seed/data/regulatory-sg.ts:350	packages/db/prisma/seed/data	[ 'MEDICAL_PRACTITIONER', 'DENTIST', 'VETERINARY_SURGEON', 'QUALIFIED_PHARMACIST', 'RETAI…	
+CONTROLLED_SCHEDULES	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:466	packages/db/prisma/seed/data	: readonly ControlledSchedule[]	
 CONTROLLED_SCHEDULES	const	local	packages/db/prisma/seed/data/regulatory-sg.ts:294	packages/db/prisma/seed/data	[ { key: 'CD2', classification: SG_CLASSIFICATIONS.controlledSecond, name: 'Second Schedu…	
+ControlledSchedule	interface	local	packages/db/prisma/seed/data/regulatory-ie.ts:455	packages/db/prisma/seed/data	{ key, classification, name, validityDays, validityMonths, registerRequired, safeRequired, handwritingRequired }	
 ControlledScheduleParameters	interface	export	packages/regulatory/src/parameters.ts:215	packages/regulatory	{ scheduleName, registerRequired, witnessRequired, storageLocationKinds, priorAuthorisationRequired, authorisationAuthority }	
 controlledScheduleRules	var	local	packages/db/prisma/seed/data/regulatory-us.ts:581	packages/db/prisma/seed/data	: RuleSeed[]	
 controlProps	fn	local	apps/web/src/components/ui/field.tsx:216	apps/web/components/ui	(fieldId: string, hint: string | undefined, invalid: boolean): { id: string; 'aria-invalid': boolean; 'aria-describedby': …	
@@ -1500,7 +1505,7 @@ dateIn	fn	local	apps/api/tests/integration/procurement.test.ts:160	apps/api/test
 dateRange	fn/async	local	apps/api/src/services/invoicing/invoice.service.ts:750	apps/api/services/invoicing	(tx: TxClient, query: ListInvoicesQuery): Promise<[Date, Date] | null>	
 DateRange	interface	export	apps/web/src/lib/calendar-range.ts:28	apps/web/lib	{ from, to }	An inclusive span of calendar days, both ends `YYYY-MM-DD`.
 dateToInstant	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:611	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(value: FormDataEntryValue | null): string | null	
-day	fn	local	packages/db/prisma/seed/regulatory-packs.ts:107	packages/db/prisma/seed	(value: string): Date	A `@db.Date` column takes a day, in the jurisdiction's own reckoning.
+day	fn	local	packages/db/prisma/seed/regulatory-packs.ts:113	packages/db/prisma/seed	(value: string): Date	A `@db.Date` column takes a day, in the jurisdiction's own reckoning.
 DAY_KEY_FORMATTERS	const	local	apps/web/src/components/tenant/appointment-board.tsx:143	apps/web/components/tenant	new Map(…)	
 DAY_MONTH	const	local	apps/web/src/lib/calendar-range.ts:233	apps/web/lib	new Intl.DateTimeFormat(…)	
 DAY_OPTIONS	const	local	apps/web/src/components/tenant/doctor-create-form.tsx:61	apps/web/components/tenant	: SelectOption[]	
@@ -1516,6 +1521,7 @@ DAYS	component	local	apps/web/src/components/tenant/doctor-list.tsx:46	apps/web/
 DAYS	component	local	apps/web/src/components/tenant/doctor-profile.tsx:50	apps/web/components/tenant	['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']	
 DAYS	component	local	apps/web/src/components/tenant/doctor-sections.tsx:62	apps/web/components/tenant	[ 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', ] as const	Sunday first, matching `dayOfWeek` 0–6 in the contract, which in turn matches Postgres `extract(dow)`. Not a display pr…
 daysAgo	fn	local	apps/api/tests/integration/ae-rule-pack.test.ts:80	apps/api/tests/integration	(days: number): string	
+daysAgo	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:93	apps/api/tests/integration	(days: number): string	
 daysAgo	fn	local	apps/api/tests/integration/sg-rule-pack.test.ts:81	apps/api/tests/integration	(days: number): string	
 daysBetween	fn	local	apps/api/src/services/invoicing/appointment-billing.service.ts:265	apps/api/services/invoicing	(from: string, to: string): number	Whole days between two calendar dates. Both are plain days, so no zone applies.
 daysBetween	fn	local	apps/api/src/services/patient/patient.service.ts:263	apps/api/services/patient	(from: Date, to: Date): number	Whole days from a bare date to an instant, in UTC. Both ends are UTC-stored.
@@ -1907,6 +1913,7 @@ EditForm	component	local	apps/web/src/components/tenant/role-list.tsx:495	apps/w
 EditorLine	interface	local	apps/web/src/components/tenant/consumption-template-editor.tsx:34	apps/web/components/tenant	{ key, productId, quantity, unitId, isOptional, note }	
 EditSupplierPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/suppliers/[supplierId]/edit/page.tsx:11	apps/web/app/(tenant)/t/[slug]/(app)/procurement/suppliers/[supplierId]/edit	({ params, }: { params: Promise<{ slug: string; supplierId: …)	
 EditToggle	component	local	apps/web/src/components/tenant/doctor-sections.tsx:101	apps/web/components/tenant	({ editing, onToggle, label, }: { editing: boolean; onToggle…)	
+EEA_STATES	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:557	packages/db/prisma/seed/data	[ 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IS', 'IE…	
 effectiveDate	zod	export	packages/contracts/src/products.ts:161	packages/contracts	z.string().regex(…)	`YYYY-MM-DD`. A calendar date — an identifier is assigned on a day, in nobody's particular timezone.
 effectivePermissions	fn	export	packages/permissions/src/resolver.ts:101	packages/permissions	(ctx: AccessContext, now): PermissionCode[]	
 effectiveSlotMinutes	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:1128	apps/api/services/doctor	(tx: TxClient, ctx: TenantContext, scope: { branchId?: string | undefined; doctorProfileId?: s…, override: number | null): Promise<number>	
@@ -2031,17 +2038,18 @@ errorStatusesFor	fn	local	apps/api/src/openapi/document.ts:108	apps/api/openapi	
 escapeHtml	fn	local	apps/api/src/services/notification/templates.ts:23	apps/api/services/notification	(value: string): string	Every value that reaches the HTML body goes through this.
 escapeHtml	fn	local	packages/documents/src/invoice/render.tsx:114	packages/documents/invoice	(value: string): string	
 ESSENTIAL_KEY	const	local	packages/clinical/src/descriptors.ts:103	packages/clinical	: Readonly<Record<ConsultationFieldType, string | null>>	The key a type is MEANINGLESS without. `null` = the type is complete on its own, which is a statement rather than an om…
+evaluate	fn/async	local	apps/api/tests/integration/ie-rule-pack.test.ts:267	apps/api/tests/integration	(key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
 evaluate	fn/async	local	apps/api/tests/integration/sg-rule-pack.test.ts:228	apps/api/tests/integration	(key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
-evaluate	fn	export	packages/regulatory/src/engine.ts:1039	packages/regulatory	(request: RegulatoryRequest): RegulatoryDecision	
+evaluate	fn	export	packages/regulatory/src/engine.ts:1063	packages/regulatory	(request: RegulatoryRequest): RegulatoryDecision	
 evaluateAgeRestriction	fn	local	packages/regulatory/src/engine.ts:597	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluateCalifornia	fn/async	local	apps/api/tests/integration/us-rule-pack.test.ts:298	apps/api/tests/integration	(key: string, over: Record<string, unknown>)	
 evaluateControlledSchedule	fn	local	packages/regulatory/src/engine.ts:355	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluateFederal	fn/async	local	apps/api/tests/integration/us-rule-pack.test.ts:286	apps/api/tests/integration	(key: string, over: Record<string, unknown>)	
 evaluateFor	fn/async	export	apps/api/src/services/regulatory/evaluation.service.ts:525	apps/api/services/regulatory	(ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput, supplements: EvaluationSupplements): Promise<RegulatoryDecisionResponse>	The same question, for a caller that is not already in a transaction.
-evaluateImportRestriction	fn	local	packages/regulatory/src/engine.ts:936	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
+evaluateImportRestriction	fn	local	packages/regulatory/src/engine.ts:960	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluateIn	fn/async	local	apps/api/tests/integration/ae-rule-pack.test.ts:264	apps/api/tests/integration	(region: string, key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
 evaluateNational	fn/async	local	apps/api/tests/integration/au-rule-pack.test.ts:293	apps/api/tests/integration	(key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
-evaluateObligation	fn	local	packages/regulatory/src/engine.ts:899	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest, kind: RegulatoryCondition['kind']): RuleVerdict	
+evaluateObligation	fn	local	packages/regulatory/src/engine.ts:923	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest, kind: RegulatoryCondition['kind']): RuleVerdict	
 evaluateOnlineDispensing	fn	local	packages/regulatory/src/engine.ts:759	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluatePharmacistAuthority	fn	local	packages/regulatory/src/engine.ts:303	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluatePrescriberAuthority	fn	local	packages/regulatory/src/engine.ts:264	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
@@ -2051,11 +2059,11 @@ evaluateQuantityLimit	fn	local	packages/regulatory/src/engine.ts:418	packages/re
 evaluateRefillRule	fn	local	packages/regulatory/src/engine.ts:512	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluateRegulatoryRequest	zod	export	packages/contracts/src/regulatory.ts:544	packages/contracts	z.object(…)	
 EvaluateRegulatoryRequest	type	export	packages/contracts/src/regulatory.ts:763	packages/contracts	z.infer<typeof evaluateRegulatoryRequest>	
-evaluateRule	fn	local	packages/regulatory/src/engine.ts:971	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
+evaluateRule	fn	local	packages/regulatory/src/engine.ts:995	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluateSpeciesRestriction	fn	local	packages/regulatory/src/engine.ts:658	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
-evaluateStorageRequirement	fn	local	packages/regulatory/src/engine.ts:828	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
+evaluateStorageRequirement	fn	local	packages/regulatory/src/engine.ts:852	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluateSubstitution	fn	local	packages/regulatory/src/engine.ts:718	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
-evaluateTraceability	fn	local	packages/regulatory/src/engine.ts:870	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
+evaluateTraceability	fn	local	packages/regulatory/src/engine.ts:894	packages/regulatory	(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict	
 evaluateVictoria	fn/async	local	apps/api/tests/integration/au-rule-pack.test.ts:309	apps/api/tests/integration	(key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
 evaluateWithin	fn/async	export	apps/api/src/services/regulatory/evaluation.service.ts:278	apps/api/services/regulatory	(tx: TxClient, ctx: TenantContext, input: EvaluateRegulatoryRequest, actor: RegulatoryActorInput, supplements: EvaluationSupplements): Promise<RegulatoryDecisionResponse>	
 EvaluationSupplements	interface	export	apps/api/src/services/regulatory/evaluation.service.ts:538	apps/api/services/regulatory	{ priorQuantityInPeriod }	
@@ -2540,6 +2548,11 @@ idParams	zod	local	apps/api/src/routes/v1/charging.routes.ts:103	apps/api/routes
 idParams	zod	local	apps/api/src/routes/v1/consumption.routes.ts:98	apps/api/routes/v1	z.object(…)	
 idParams	zod	local	apps/api/src/routes/v1/recalls.routes.ts:132	apps/api/routes/v1	z.object(…)	
 ids	fn	local	apps/api/tests/unit/inventory-allocation.test.ts:28	apps/api/tests/unit	(candidates: AllocationCandidate[]): (string | null)[]	
+IE_AUTHORITIES	const	export	packages/db/prisma/seed/data/regulatory-ie.ts:198	packages/db/prisma/seed/data	[ { code: 'HPRA', name: 'Health Products Regulatory Authority', websiteUrl: 'https://www.…	
+IE_CLASSIFICATIONS	const	export	packages/db/prisma/seed/data/regulatory-ie.ts:388	packages/db/prisma/seed/data	{ /** First Schedule Part A — prescription only, one occasion unless endorsed. */ prescri…	
+IE_PACK_EFFECTIVE_FROM	const	export	packages/db/prisma/seed/data/regulatory-ie.ts:196	packages/db/prisma/seed/data	'2026-08-20'	
+IE_RULES	const	export	packages/db/prisma/seed/data/regulatory-ie.ts:597	packages/db/prisma/seed/data	: RuleSeed[]	
+IE_SOURCES	const	export	packages/db/prisma/seed/data/regulatory-ie.ts:232	packages/db/prisma/seed/data	: SourceSeed[]	
 impersonateRequest	zod	export	packages/contracts/src/auth.ts:131	packages/contracts	z.object(…)	
 ImpersonateRequest	type	export	packages/contracts/src/auth.ts:331	packages/contracts	z.infer<typeof impersonateRequest>	
 ImpersonateState	type	export	apps/web/src/app/(platform)/platform/organizations/actions.ts:23	apps/web/app/(platform)/platform/organizations	{ /** `ready` carries a ticket the client must post to the clinic's host. */ status: 'idle' | 'error' | 'ready'; message?: string; fieldErrors?: Record<string,…	
@@ -2553,7 +2566,7 @@ impersonationGrant	zod	export	packages/contracts/src/auth.ts:147	packages/contra
 ImpersonationGrant	type	export	packages/contracts/src/auth.ts:332	packages/contracts	z.infer<typeof impersonationGrant>	
 impersonationStopResult	zod	export	packages/contracts/src/auth.ts:160	packages/contracts	z.object(…)	
 ImpersonationStopResult	type	export	packages/contracts/src/auth.ts:334	packages/contracts	z.infer<typeof impersonationStopResult>	
-ImportRestrictionParameters	interface	export	packages/regulatory/src/parameters.ts:298	packages/regulatory	{ permitted, licenceRequired, licenceType }	
+ImportRestrictionParameters	interface	export	packages/regulatory/src/parameters.ts:325	packages/regulatory	{ permitted, licenceRequired, licenceType }	
 IMPOSSIBLE_ID	const	local	apps/api/src/services/invoicing/invoice.service.ts:203	apps/api/services/invoicing	randomUUID(…)	
 IN_AUTHORITIES	const	export	packages/db/prisma/seed/data/regulatory-in.ts:128	packages/db/prisma/seed/data	[ { code: 'CDSCO', name: 'Central Drugs Standard Control Organisation', websiteUrl: 'http…	
 IN_CLASSIFICATIONS	const	export	packages/db/prisma/seed/data/regulatory-in.ts:216	packages/db/prisma/seed/data	{ scheduleH: 'SCHEDULE_H', scheduleH1: 'SCHEDULE_H1', scheduleX: 'SCHEDULE_X', } as const	
@@ -3165,6 +3178,7 @@ makeLot	fn/async	local	apps/api/tests/integration/recall.test.ts:139	apps/api/te
 makeProduct	fn/async	local	apps/api/tests/integration/au-rule-pack.test.ts:128	apps/api/tests/integration	(into: Record<string, string>, organizationId: string, key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
 makeProduct	fn/async	local	apps/api/tests/integration/charging.test.ts:116	apps/api/tests/integration	(code: string, type: string): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/consumption.test.ts:126	apps/api/tests/integration	(code: string, type: string, tracking): Promise<string>	
+makeProduct	fn/async	local	apps/api/tests/integration/ie-rule-pack.test.ts:143	apps/api/tests/integration	(key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
 makeProduct	fn/async	local	apps/api/tests/integration/india-rule-pack.test.ts:90	apps/api/tests/integration	(key: string, type: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	A product of `type`, with a profile asserting `classification` where given.
 makeProduct	fn/async	local	apps/api/tests/integration/recall.test.ts:126	apps/api/tests/integration	(code: string, type: string, tracking): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/sg-rule-pack.test.ts:110	apps/api/tests/integration	(key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
@@ -3433,6 +3447,7 @@ monthLabel	fn	export	apps/web/src/lib/calendar-range.ts:242	apps/web/lib	(date: 
 MONTHS	const	local	packages/db/prisma/seed/setting-definitions.ts:15	packages/db/prisma/seed	[ 'January', 'February', 'March', 'April', 'May', 'June', '…	
 monthsAgo	fn	local	apps/api/tests/integration/ae-rule-pack.test.ts:86	apps/api/tests/integration	(months: number): string	
 monthsAgo	fn	local	apps/api/tests/integration/au-rule-pack.test.ts:99	apps/api/tests/integration	(months: number): string	
+monthsAgo	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:100	apps/api/tests/integration	(months: number): string	A prescription written exactly `months` calendar months ago, to the day.
 mostSpecific	fn	export	packages/regulatory/src/selection.ts:161	packages/regulatory	(rules: readonly RegulatoryRule[]): RegulatoryRule[]	
 Mount	interface	export	apps/api/src/openapi/mounts.ts:106	apps/api/openapi	{ prefix, router, tag }	
 MOUNTS	const	export	apps/api/src/openapi/mounts.ts:115	apps/api/openapi	: readonly Mount[]	
@@ -3516,7 +3531,7 @@ numberOrNull	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actio
 numberOrUndefined	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:387	apps/web/app/(tenant)/t/[slug]/(app)/products	(value: FormDataEntryValue | null): number | undefined	
 obj	fn	export	packages/payments/src/providers/shared.ts:35	packages/payments/providers	(source: Json | undefined, key: string): Json | undefined	
 ObjectMetadata	interface	export	packages/storage/src/types.ts:45	packages/storage	{ key, sizeBytes, contentType, checksum, storedAt }	
-ObligationParameters	interface	export	packages/regulatory/src/parameters.ts:287	packages/regulatory	{ detail, fields, years, cadence, recipient, method, witnessRequired }	
+ObligationParameters	interface	export	packages/regulatory/src/parameters.ts:314	packages/regulatory	{ detail, fields, years, cadence, recipient, method, witnessRequired }	
 offsetMsAt	fn	local	apps/web/src/lib/format.ts:158	apps/web/lib	(instant: Date, timeZone: string): number	How far the zone is from UTC AT THAT INSTANT — DST included, by construction.
 ok	fn	local	packages/clinical/tests/dosing.test.ts:15	packages/clinical/tests	(request: DoseRequest)	
 onConsultationOpened	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:463	apps/api/services/appointment	(tx: TxClient, ctx: TenantContext, appointmentId: string, currentStatus: AppointmentStatusValue): Promise<void>	
@@ -3530,7 +3545,7 @@ ONLINE_ORDER_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:567	
 ONLINE_ORDER_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:568	apps/api/openapi/registry	'ORD-2026-000318'	
 ONLINE_SALE_OPENED	const	local	packages/regulatory/src/selection.ts:293	packages/regulatory	: readonly string[]	
 ONLINE_SHIPMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:569	apps/api/openapi/registry	'6a3d0b57-1e94-4c28-8f65-9b2c7a0e4d13'	
-OnlineDispensingParameters	interface	export	packages/regulatory/src/parameters.ts:241	packages/regulatory	{ permitted, excludedClassifications, destinationCountryCodes, requiresPriorInPersonEvaluation }	
+OnlineDispensingParameters	interface	export	packages/regulatory/src/parameters.ts:241	packages/regulatory	{ permitted, excludedClassifications, destinationCountryCodes, requiresPriorInPersonEvaluation, requiresDistanceSellingAuthorisation, distanceSellingAuthority }	
 OnlineOrderActionCard	component	export	apps/web/src/components/tenant/online-order-action-card.tsx:29	apps/web/components/tenant	({ title, blurb, submitLabel, variant, action, children, }: …)	
 onlineOrderAddress	zod	export	packages/contracts/src/online-pharmacy.ts:104	packages/contracts	z.object(…)	
 OnlineOrderAddress	type	export	packages/contracts/src/online-pharmacy.ts:379	packages/contracts	z.infer<typeof onlineOrderAddress>	
@@ -3661,8 +3676,8 @@ packOnlineOrderAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(ap
 packOnlineOrderRequest	zod	export	packages/contracts/src/online-pharmacy.ts:218	packages/contracts	z.object(…)	
 PackOnlineOrderRequest	type	export	packages/contracts/src/online-pharmacy.ts:387	packages/contracts	z.infer<typeof packOnlineOrderRequest>	
 packParams	zod	local	apps/api/src/routes/v1/regulatory.routes.ts:120	apps/api/routes/v1	z.object(…)	
-PACKS	const	local	packages/db/prisma/seed/regulatory-packs.ts:142	packages/db/prisma/seed	: readonly PackSeed[]	
-PackSeed	interface	local	packages/db/prisma/seed/regulatory-packs.ts:111	packages/db/prisma/seed	{ countryCode, regionCode, countryName, authorities, sources, rules, packAuthorityCode, version, name, description, effectiveFrom }	
+PACKS	const	local	packages/db/prisma/seed/regulatory-packs.ts:148	packages/db/prisma/seed	: readonly PackSeed[]	
+PackSeed	interface	local	packages/db/prisma/seed/regulatory-packs.ts:117	packages/db/prisma/seed	{ countryCode, regionCode, countryName, authorities, sources, rules, packAuthorityCode, version, name, description, effectiveFrom }	
 PAGE	const	export	packages/documents/src/chrome/styles.ts:58	packages/documents/chrome	{ width: `${String(WIDTH_MM)}mm`, height: '297mm', /** * The left and right margin. * * ⚠…	
 PageFooter	component	export	packages/documents/src/chrome/page-chrome.tsx:123	packages/documents/chrome	({ chrome, children, }: { chrome: DocumentChrome; children?:…): JSX.Element	
 PageHeader	component	export	packages/documents/src/chrome/page-chrome.tsx:34	packages/documents/chrome	({ chrome }: { chrome: DocumentChrome }): JSX.Element	
@@ -3687,33 +3702,33 @@ PanelLot	interface	local	apps/web/src/components/tenant/consumption-panel.tsx:50
 parametersFrom	fn	local	apps/api/src/openapi/document.ts:70	apps/api/openapi	(schema: ZodType, location: 'path' | 'query', notes: Readonly<Record<string, string>> | undefined): JsonSchema[]	Split a `params`/`query` object schema into individual OpenAPI parameters.
 PARENT_SCOPED	const	local	packages/db/scripts/check-rls.ts:91	packages/db/scripts	: Record<string, string>	
 parse	fn	local	apps/web/src/lib/calendar-range.ts:44	apps/web/lib	(date: string): Date	
-parseAgeRestriction	fn	export	packages/regulatory/src/parameters.ts:394	packages/regulatory	(parameters: unknown): Parsed<AgeRestrictionParameters>	
-parseAuthority	fn	export	packages/regulatory/src/parameters.ts:516	packages/regulatory	(parameters: unknown): Parsed<AuthorityParameters>	
-parseControlledSchedule	fn	export	packages/regulatory/src/parameters.ts:455	packages/regulatory	(parameters: unknown): Parsed<ControlledScheduleParameters>	
+parseAgeRestriction	fn	export	packages/regulatory/src/parameters.ts:421	packages/regulatory	(parameters: unknown): Parsed<AgeRestrictionParameters>	
+parseAuthority	fn	export	packages/regulatory/src/parameters.ts:548	packages/regulatory	(parameters: unknown): Parsed<AuthorityParameters>	
+parseControlledSchedule	fn	export	packages/regulatory/src/parameters.ts:482	packages/regulatory	(parameters: unknown): Parsed<ControlledScheduleParameters>	
 Parsed	type	export	packages/clinical/src/types.ts:203	packages/clinical	{ readonly ok: true; readonly value: T } | { readonly ok: false; readonly problem: string }	
 Parsed	type	export	packages/regulatory/src/parameters.ts:26	packages/regulatory	{ ok: true; value: T } | { ok: false; problem: string }	
 parseDecimal	fn	local	packages/clinical/src/dosing.ts:177	packages/clinical	(value: string, what: string): Parsed<Rational>	
 parseFieldDescriptor	fn	export	packages/clinical/src/descriptors.ts:247	packages/clinical	(input: unknown, where: string): Parsed<FieldDescriptor>	
 parseFieldDescriptors	fn	export	packages/clinical/src/descriptors.ts:374	packages/clinical	(input: unknown, where: string): Parsed<readonly FieldDescriptor[]>	
-parseImportRestriction	fn	export	packages/regulatory/src/parameters.ts:613	packages/regulatory	(parameters: unknown): Parsed<ImportRestrictionParameters>	
+parseImportRestriction	fn	export	packages/regulatory/src/parameters.ts:645	packages/regulatory	(parameters: unknown): Parsed<ImportRestrictionParameters>	
 parseLines	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:98	apps/web/app/(tenant)/t/[slug]/(app)/usage	(form: FormData): SerialisedLine[]	
-parseObligation	fn	export	packages/regulatory/src/parameters.ts:586	packages/regulatory	(parameters: unknown): Parsed<ObligationParameters>	
-parseOnlineDispensing	fn	export	packages/regulatory/src/parameters.ts:500	packages/regulatory	(parameters: unknown): Parsed<OnlineDispensingParameters>	
-parsePrescriptionRequired	fn	export	packages/regulatory/src/parameters.ts:325	packages/regulatory	(parameters: unknown): Parsed<PrescriptionRequiredParameters>	
+parseObligation	fn	export	packages/regulatory/src/parameters.ts:618	packages/regulatory	(parameters: unknown): Parsed<ObligationParameters>	
+parseOnlineDispensing	fn	export	packages/regulatory/src/parameters.ts:527	packages/regulatory	(parameters: unknown): Parsed<OnlineDispensingParameters>	
+parsePrescriptionRequired	fn	export	packages/regulatory/src/parameters.ts:352	packages/regulatory	(parameters: unknown): Parsed<PrescriptionRequiredParameters>	
 parseQuantity	fn	export	packages/inventory/src/units.ts:148	packages/inventory	(value: string): Rational	
 parseQuantity	fn	export	packages/invoicing/src/quantity.ts:27	packages/invoicing	(value: string | number): number	`"1.5"` -> `1500`. Accepts the string Prisma's `Decimal` stringifies to, and a number for the hand-written case.
-parseQuantityLimit	fn	export	packages/regulatory/src/parameters.ts:343	packages/regulatory	(parameters: unknown): Parsed<QuantityLimitParameters>	
-parseRefillRule	fn	export	packages/regulatory/src/parameters.ts:373	packages/regulatory	(parameters: unknown): Parsed<RefillRuleParameters>	
+parseQuantityLimit	fn	export	packages/regulatory/src/parameters.ts:370	packages/regulatory	(parameters: unknown): Parsed<QuantityLimitParameters>	
+parseRefillRule	fn	export	packages/regulatory/src/parameters.ts:400	packages/regulatory	(parameters: unknown): Parsed<RefillRuleParameters>	
 parseRegionGeometry	fn	export	packages/clinical/src/regions.ts:252	packages/clinical	(metadata: unknown, where: string): Parsed<RegionGeometry | null>	A region's `metadata`, as geometry. ⚠️ ABSENT IS LEGAL AND MALFORMED IS NOT. See the header — a quadrant has no shape a…
 parseSection	fn	local	packages/clinical/src/definition.ts:85	packages/clinical	(input: unknown, index: number): Parsed<TemplateSection>	
 parseShape	fn	local	packages/clinical/src/regions.ts:189	packages/clinical	(source: Record<string, unknown>, where: string): Parsed<RegionShape>	
-parseSpeciesRestriction	fn	export	packages/regulatory/src/parameters.ts:420	packages/regulatory	(parameters: unknown): Parsed<SpeciesRestrictionParameters>	
-parseStorageRequirement	fn	export	packages/regulatory/src/parameters.ts:536	packages/regulatory	(parameters: unknown): Parsed<StorageRequirementParameters>	
+parseSpeciesRestriction	fn	export	packages/regulatory/src/parameters.ts:447	packages/regulatory	(parameters: unknown): Parsed<SpeciesRestrictionParameters>	
+parseStorageRequirement	fn	export	packages/regulatory/src/parameters.ts:568	packages/regulatory	(parameters: unknown): Parsed<StorageRequirementParameters>	
 parseStoredDefinition	fn	export	apps/api/src/services/clinical/definition.ts:20	apps/api/services/clinical	(definition: unknown, where: string): TemplateDefinition	
-parseSubstitution	fn	export	packages/regulatory/src/parameters.ts:484	packages/regulatory	(parameters: unknown): Parsed<SubstitutionParameters>	
+parseSubstitution	fn	export	packages/regulatory/src/parameters.ts:511	packages/regulatory	(parameters: unknown): Parsed<SubstitutionParameters>	
 parseTemplateDefinition	fn	export	packages/clinical/src/definition.ts:215	packages/clinical	(input: unknown): Parsed<TemplateDefinition>	
 parseTemplateLines	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:217	apps/web/app/(tenant)/t/[slug]/(app)/usage	(form: FormData): SerialisedTemplateLine[]	
-parseTraceability	fn	export	packages/regulatory/src/parameters.ts:555	packages/regulatory	(parameters: unknown): Parsed<TraceabilityParameters>	
+parseTraceability	fn	export	packages/regulatory/src/parameters.ts:587	packages/regulatory	(parameters: unknown): Parsed<TraceabilityParameters>	
 parseViewBox	fn	export	packages/clinical/src/regions.ts:172	packages/clinical	(value: unknown): Parsed<ViewBox>	
 parseVisualMap	fn	export	packages/clinical/src/regions.ts:330	packages/clinical	(input: { code: string; viewBox: unknown; regions: readonly …): Parsed<VisualMapDocument>	
 Parties	component	local	packages/documents/src/invoice/document.tsx:203	packages/documents/invoice	({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element	
@@ -3812,6 +3827,7 @@ payload	fn	local	apps/api/tests/integration/encounter-content.test.ts:74	apps/ap
 payload	fn	local	apps/api/tests/integration/encounters.test.ts:61	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/fee-schedule.test.ts:68	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/iam.test.ts:63	apps/api/tests/integration	(slug: string, label: string)	
+payload	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:106	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/impersonation.test.ts:55	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/india-rule-pack.test.ts:66	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/invitations.test.ts:58	apps/api/tests/integration	(slug: string, label: string)	
@@ -3980,12 +3996,14 @@ prepareLine	fn/async	local	apps/api/src/services/consumption/consumption.service
 prepareLineForRestatement	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1427	apps/api/services/consumption	(tx: TxClient, context: PrepareContext, requested: ConsumptionLineRequest, existing: StoredLine): Promise<Omit<PreparedLine, 'allocations'>>	
 prescribedProductRef	zod	export	packages/contracts/src/encounter-content.ts:391	packages/contracts	z.object(…)	The medicine, resolved for display. Same argument as `clinicalTermRef`.
 PrescribedProductRef	type	export	packages/contracts/src/encounter-content.ts:396	packages/contracts	z.infer<typeof prescribedProductRef>	
+PRESCRIBER_CLASSES	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:513	packages/db/prisma/seed/data	[ 'REGISTERED_MEDICAL_PRACTITIONER', 'REGISTERED_DENTIST', 'REGISTERED_NURSE', 'EEA_EQUIV…	
 prescriberRules	var	local	packages/db/prisma/seed/data/regulatory-us.ts:341	packages/db/prisma/seed/data	: RuleSeed[]	
 PRESCRIPTION_FIELDS	const	local	apps/api/src/services/clinical/encounter-content.service.ts:1065	apps/api/services/clinical	[ 'strength', 'doseUnit', 'route', 'frequency', 'frequencyUnit', 'durationValue', 'durati…	
 PRESCRIPTION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:65	apps/api/openapi/registry	'1f8a4c60-3e97-4b25-9d78-6c0b5a2e8d31'	
 PRESCRIPTION_ROW_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:447	apps/api/openapi/registry	'3b7f0a52-9d46-4c81-8e35-1a2c6b9d4e07'	The row joining this consultation to its amoxicillin line.
 PRESCRIPTION_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:144	apps/api/services/clinical	{ id: true, strength: true, dose: true, doseUnit: true, route: true, frequency: true, fre…	
 PRESCRIPTION_SIGNED_AT	const	export	apps/api/src/openapi/registry/fixtures.ts:98	apps/api/openapi/registry	'2026-03-17T04:22:00.000Z'	
+PRESCRIPTION_TIERS	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:419	packages/db/prisma/seed/data	[ { key: 'PART-A', classification: IE_CLASSIFICATIONS.prescriptionOnlyPartA, name: 'First…	The three prescription-controlled classifications the 2003 Regulations decide, with the short name used in a rule code …
 prescriptionFields	var	local	packages/contracts/src/encounter-content.ts:332	packages/contracts	{ /** A snapshot of what was written — a catalogue strength can be corrected. */ strength…	
 prescriptionFulfilmentStatus	zod	export	packages/contracts/src/pharmacy.ts:47	packages/contracts	z.enum(…)	
 PrescriptionFulfilmentStatus	type	export	packages/contracts/src/pharmacy.ts:645	packages/contracts	z.infer<typeof prescriptionFulfilmentStatus>	
@@ -5064,7 +5082,7 @@ saveTaxRegistration	action/async	export	apps/web/src/app/(platform)/platform/tax
 saveTemplateVersionRequest	zod	export	packages/contracts/src/consultation.ts:180	packages/contracts	z.object(…)	
 SaveTemplateVersionRequest	type	export	packages/contracts/src/consultation.ts:183	packages/contracts	z.infer<typeof saveTemplateVersionRequest>	
 saveVitals	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:649	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, _previous: VitalsState, formData: FormData): Promise<VitalsState>	Record a set of observations. Side effect at the API: this may check the patient in. The board is revalidated for that …
-sayNothing	fn	local	packages/regulatory/src/parameters.ts:321	packages/regulatory	(key: string, what: string): Parsed<T>	The essential key is missing. The rule says nothing, so it permits nothing.
+sayNothing	fn	local	packages/regulatory/src/parameters.ts:348	packages/regulatory	(key: string, what: string): Parsed<T>	The essential key is missing. The rule says nothing, so it permits nothing.
 scalarAssetsDir	fn	local	apps/api/src/routes/docs.routes.ts:74	apps/api/routes	(): string	Where the prebuilt Scalar browser bundle lives inside node_modules.
 scaleMoney	fn	export	packages/payments/src/money.ts:96	packages/payments	(amount: Money, numerator: number, denominator: number, rounding: Rounding): Money	
 scaleOf	fn	local	packages/regulatory/src/decimal.ts:77	packages/regulatory	(value: string): number	
@@ -5143,7 +5161,7 @@ seedDoctor	fn/async	local	apps/api/tests/integration/fee-schedule.test.ts:137	ap
 seedPermissions	fn/async	export	packages/db/prisma/seed/permissions.ts:15	packages/db/prisma/seed	(): Promise<Map<PermissionCode, string>>	
 seedPlans	fn/async	export	packages/db/prisma/seed/plans.ts:6	packages/db/prisma/seed	(): Promise<void>	
 seedProductMasters	fn/async	export	packages/db/prisma/seed/product-masters.ts:22	packages/db/prisma/seed	(): Promise<void>	
-seedRegulatoryPacks	fn/async	export	packages/db/prisma/seed/regulatory-packs.ts:376	packages/db/prisma/seed	(): Promise<void>	
+seedRegulatoryPacks	fn/async	export	packages/db/prisma/seed/regulatory-packs.ts:427	packages/db/prisma/seed	(): Promise<void>	
 seedRoleDesignations	fn/async	export	packages/db/prisma/seed/role-designations.ts:53	packages/db/prisma/seed	(): Promise<void>	
 seedSettingDefinitions	fn/async	export	packages/db/prisma/seed/setting-definitions.ts:40	packages/db/prisma/seed	(): Promise<void>	
 SeedStorageProfile	interface	export	packages/db/prisma/seed/data/product-masters.ts:192	packages/db/prisma/seed/data	{ code, name, minTemperatureC, maxTemperatureC, minHumidityPct, maxHumidityPct, lightSensitivity, requiresControlledAccess, hazardClass, handlingNotes }	
@@ -5543,7 +5561,7 @@ storageProfileSummary	zod	export	packages/contracts/src/products.ts:452	packages
 StorageProfileSummary	type	export	packages/contracts/src/products.ts:883	packages/contracts	z.infer<typeof storageProfileSummary>	
 StorageProvider	interface	export	packages/storage/src/types.ts:61	packages/storage	{ name, put, get, head, exists, remove, getSignedUrl }	
 StorageProviderName	type	export	packages/storage/src/types.ts:27	packages/storage	'local' | 's3'	Which implementation stored an object. Persisted on `files.storage_provider`.
-StorageRequirementParameters	interface	export	packages/regulatory/src/parameters.ts:276	packages/regulatory	{ locationKinds, controlledAccessRequired, detail }	
+StorageRequirementParameters	interface	export	packages/regulatory/src/parameters.ts:303	packages/regulatory	{ locationKinds, controlledAccessRequired, detail }	
 store	fn	local	apps/api/src/middleware/rateLimiter.middleware.ts:14	apps/api/middleware	(prefix: string): RedisStore	
 store	fn	local	apps/worker/src/billing/runtime.ts:55	apps/worker/billing	(config: WorkerPaymentsConfig): MockStore	
 StoredDocument	interface	export	packages/documents/src/store/document.service.ts:97	packages/documents/store	{ id, documentType, status, storageProvider, storageKey, fileName, mimeType, sizeBytes, checksum, version }	
@@ -5651,6 +5669,7 @@ SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-ae-az.ts:1
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-ae-du.ts:138	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-au-vic.ts:290	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-au.ts:145	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
+SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:413	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-in.ts:223	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-sg.ts:281	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-us.ts:270	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
@@ -5967,7 +5986,7 @@ toothAt	fn	local	packages/db/prisma/seed/data/visual-maps.ts:79	packages/db/pris
 toProfile	fn	local	apps/api/src/services/organization/organization.service.ts:75	apps/api/services/organization	(row: OrganizationRow, taxRegistrations: OrganizationProfile['taxRegistrations']): OrganizationProfile	
 toQuantityString	fn	export	apps/api/src/services/procurement/shared.ts:274	apps/api/services/procurement	(value: Prisma.Decimal): string	A `Decimal(18,6)` column as the decimal STRING the wire uses.
 toReading	fn	local	apps/api/src/services/appointment/vitals.service.ts:89	apps/api/services/appointment	(row: VitalsRow): VitalsReading	
-toReason	fn	local	packages/regulatory/src/engine.ts:1010	packages/regulatory	(rule: RegulatoryRule, verdict: RuleVerdict): RegulatoryReason	
+toReason	fn	local	packages/regulatory/src/engine.ts:1034	packages/regulatory	(rule: RegulatoryRule, verdict: RuleVerdict): RegulatoryReason	
 toRecommendation	fn	local	apps/api/src/services/clinical/encounter-content.service.ts:290	apps/api/services/clinical	(row: RecommendationRow): EncounterContent['followUp']	
 toRegistrationSummary	fn	local	apps/api/src/services/tax/clinic-tax.service.ts:160	apps/api/services/tax	(row: RegistrationRow, at: Date, branches: BranchRow[], assignedBranchIds: ReadonlySet<string>, branchesWithCoverage: ReadonlySet<string>): ClinicTaxRegistrationSummary	
 toRequiredDateString	fn	export	apps/api/src/services/procurement/shared.ts:291	apps/api/services/procurement	(value: Date): string	
@@ -6017,7 +6036,7 @@ toUnit	fn	local	apps/api/src/services/product/unit.service.ts:84	apps/api/servic
 toWritable	fn	local	apps/api/src/services/organization/setting.service.ts:68	apps/api/services/organization	(value: Json): Prisma.InputJsonValue | typeof Prisma.JsonNull	
 TRACE_PATIENTS	const	local	apps/api/src/routes/v1/recalls.routes.ts:105	apps/api/routes/v1	PERMISSIONS.RECALL_TRACE_PATIENTS	
 TraceabilityEvidence	interface	export	packages/regulatory/src/types.ts:267	packages/regulatory	{ gtin, lotNumber, expiresOn, serial }	What the caller can prove about the physical stock in front of it.
-TraceabilityParameters	interface	export	packages/regulatory/src/parameters.ts:282	packages/regulatory	{ requiredIdentifiers }	
+TraceabilityParameters	interface	export	packages/regulatory/src/parameters.ts:309	packages/regulatory	{ requiredIdentifiers }	
 traceabilityRoutes	var	export	apps/api/src/routes/v1/recalls.routes.ts:342	apps/api/routes/v1	: IRouter	
 TraceabilityView	component	export	apps/web/src/components/tenant/traceability-view.tsx:32	apps/web/components/tenant	({ forward, backward, batchId, message, timeZone, timeFormat…)	
 TracePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/trace/page.tsx:18	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls/trace	({ params, searchParams, }: { params: Promise<{ slug: string…)	
@@ -6334,6 +6353,7 @@ validateSection	fn	local	packages/clinical/src/validate.ts:157	packages/clinical
 ValidationError	class	export	apps/api/src/utils/errors.ts:32	apps/api/utils	{ errors }	400 - Validation Error
 ValidationProblem	interface	export	packages/clinical/src/validate.ts:43	packages/clinical	{ sectionKey, fieldKey, problem }	Everything wrong with a consultation, not merely the first thing.
 ValidationSource	type	export	apps/api/src/middleware/validate.middleware.ts:8	apps/api/middleware	'body' | 'query' | 'params'	Location of data to validate
+VALIDITY_NOTE	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:591	packages/db/prisma/seed/data	'A prescription may not be dispensed more than six months a…	The sentence every prescription rule ends with, so the six months is never read as final.
 valueOf	fn	local	packages/billing/src/entitlements.ts:59	packages/billing	(row: FeatureRow | OverrideRow, type?: FeatureValueType): number | boolean | null	
 valueOf	fn	export	packages/inventory/src/costing.ts:241	packages/inventory	(unitCostBase: number | bigint, quantityBase: string): bigint	`unitCostBase * quantityBase`, rounded HALF-UP — what a quantity of stock is worth at a given unit cost.
 valueProblem	fn	local	packages/clinical/src/validate.ts:335	packages/clinical	(value: unknown): string | null	
