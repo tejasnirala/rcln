@@ -2,9 +2,107 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-20 · **By:** session PI-17 (the two Emirati rule packs).
+**Written:** 2026-08-20 · **By:** session PI-18 (the Ireland rule pack).
 
-## PI-17 first, because it is the freshest and it is unreviewed
+## PI-18 first, because it is the freshest and it is unreviewed
+
+✅ **PI-18 SHIPPED:** `IE 1.0.0` — 50 rules, 7 sources, 3 authorities, on branch
+`feat/pi-18-ie-rule-pack`. 52 behaviour cases, no migration.
+⚠️ **NOT REVIEWED** — and neither are PI-17, PI-16, PI-15, PI-13a and PI-13.
+
+⚠️ **THE FIRST JURISDICTION IN THIS PROGRAMME THAT FORBIDS REMOTE SUPPLY.**
+Regulation 19(1) of S.I. No. 540 of 2003 prohibits mail order of any medicinal
+product; regulation 19(5) extends it to information society services; regulation
+19A(8)(b) shuts the door on a prescription medicine sent to a person in the
+State. Six classifications carry `ONLINE_DISPENSING` with `permitted: false`,
+which REFUSES before the destination is even looked at. **Read PI-12 decision 1
+next to it** — Ireland is where the engine's gate and `confirmOnlineOrder`'s gate
+finally agree about the same product, and only one of them cites the law.
+
+⚠️ **IT NEEDED ONE FRAMEWORK KEY, AND THE REASON IS A LESSON ABOUT PI-13a.**
+Regulation 19A(1) permits NON-prescription distance selling only from a supplier
+on the PSI's ISS supply list — GAP 2's shape, arriving on the `ONLINE_DISPENSING`
+rule type rather than on `CONTROLLED_SCHEDULE` where PI-13a put it. PI-13a
+generalised the CONDITION (`VERIFY_PRIOR_AUTHORISATION`) and left the PARAMETER
+tied to one rule type. `requiresDistanceSellingAuthorisation` closes it; recorded
+as GAP 6 in the survey. **Great Britain's GPhC internet pharmacy list will land
+here again.**
+
+⚠️ **THE PATTERN PI-17 ASKED THE NEXT PHASE TO CARRY SHOWED UP TWICE IN ONE
+PACK.** `branch.licence_type` is now the fourth jurisdiction's ask — regulation
+7(6) confines a First Schedule Part C prescription to a hospital, so **no Part C
+classification is defined at all** and such a product refuses as `UNDETERMINED`.
+And regulation 7(5)(a)(ii), from 1 March 2024, permits a twelve-month validity on
+a period written on the prescription or a pharmacist's recorded review — neither
+of which `PresentedPrescription` holds — **so the pack refuses on day 183 a
+dispense that may be lawful.** That is the refusing direction, written knowingly,
+and a behaviour case pins it so the cheap fix (`validityMonths: 12`) fails.
+
+⚠️ **`CountryInfo.regions` FOR `IE` IS EMPTY AND CORRECT — THE FIRST CLEAN RUN OF
+THAT CHECK.** Irish medicines law is national, so no sub-national pack can exist
+to be made inert. One loose end recorded rather than fixed blind: `labels.region`
+says 'County' and no county can be selected. ⚠️ **`US_REGIONS` IS STILL SHORT
+FIVE STATES.**
+
+⚠️ **THE RESEARCH HAZARD TO CARRY INTO PI-19: IRELAND PUBLISHES NO CONSOLIDATION
+OF A STATUTORY INSTRUMENT.** The 2003 Regulations have been amended more than
+forty times and the eISB serves the 2003 text and each amendment separately, so
+the principal instrument reads as though nothing has changed. Three amendments
+were read in full and are their own source rows; the rest were checked for
+whether they touch the regulations in play. **A substitution nobody noticed reads
+exactly like a rule nobody amended** — that is this pack's largest exposure and
+the thing a `SOURCE_VERIFIED` reviewer must actually walk.
+
+⚠️ **PI-18 FOUND A LIVE DEFECT IN PI-15, AND IT IS THE MOST IMPORTANT THING IN
+THIS FILE.** `AU-SCHEDULE-S8` carries `{ scheduleName: 'Schedule 8' }` and
+nothing else. `parseControlledSchedule` REJECTS a document that imposes no
+obligation, so the rule resolves `UNDETERMINED` — **which refuses every Schedule
+8 supply, stock movement, transfer and disposal in the seven Australian
+jurisdictions with no state pack.** Its own comment asserts the opposite, and its
+behaviour case asserts the rule code appears and no conditions were raised, which
+is exactly what an unreadable rule produces. **It never asserts the outcome.**
+PI-12's lesson verbatim. Not fixed in PI-18 — the fix changes Australia's
+behaviour in seven jurisdictions and belongs to whoever owns that pack. Two
+options are written out in KNOWN_ISSUES. ⚠️ **Check `US-CD-*`, `SG-CD*` and both
+Emirati packs for the same shape.**
+
+⚠️ **AND A CLASS OF FAIL-OPEN NOBODY HAS LOOKED FOR: AN UNCLASSIFIED RULE.**
+`coversProduct` matches a rule with no classification against ANY product, and
+`needsClassificationButHasNone` does not fire when a product HAS a classification
+the pack simply does not define. So in a pack whose refusing rules are all
+classified, a product filed under an unrecognised string matches only obligations
+— and an obligation never refuses. PI-18's own first draft shipped that bug for
+an hour; `IN`, `US`, `SG` and `US-CA` have the same shape today, read off the
+rule rows rather than run. KNOWN_ISSUES has the table.
+
+### Where to start on PI-18, if you are reviewing it
+
+- `packages/db/prisma/seed/data/regulatory-ie.ts` — the header argues the missing
+  Part C classification, the missing traceability rule and the six-versus-twelve
+  months. Read it before adding any of the three.
+- `IE-ONLINE-*` — the six `permitted: false` rules and the one `permitted: true`.
+  ⚠️ **The `PHARMACY_ONLY` permission has a known hole**: regulation 19(4) keeps
+  the mail-order prohibition over Eighth Schedule products, so a
+  pharmacy-administered influenza vaccine filed as `PHARMACY_ONLY` gets a
+  permission it should not. KNOWN_ISSUES has it.
+- `IE-DISPENSER-*` — `exemptWhenActorIsPrescriber` is set on regulation 20(3)(c),
+  which names a practitioner and a dentist and **not a nurse**. `isPrescriber`
+  carries no class, so the pack's exemption is wider than the regulation's.
+- The two schedule lists that are not the same list — regulation 19 (register)
+  reaches Schedules 1 and 2; Safe Custody article 5 reaches Schedules 1, 2 and 3.
+  Widening either would be wrong in a different direction.
+- `IE-DISPOSE-*` — the weakest reading in the pack. Regulation 25(5) disapplies
+  the witness from a pharmacy keeping records only by virtue of regulation
+  23(4)(a), and the rule raises it for all three schedules anyway.
+- `apps/api/tests/integration/ie-rule-pack.test.ts` — the day-183 refusal, the
+  Part C `UNDETERMINED`, the instalment with no number, and the Part 1 Schedule 4
+  product that may sit on an open shelf.
+
+⚠️ **PI-19 (Nepal) is next.** PI-14 (GB) stays blocked on legislation.gov.uk.
+
+---
+
+## PI-17, still unreviewed
 
 ✅ **PI-17 SHIPPED:** `AE-AZ 1.0.0` (25 rules, DoH Abu Dhabi) and `AE-DU 1.0.0`
 (26 rules, DHA Dubai). 22 behaviour cases, no migration.
@@ -61,8 +159,9 @@ hospital, day surgery centre, pharmacy or drug store. rcln has no
   emirates disagreeing about the unified platform, and the assertion that the
   outcome is not `UNDETERMINED` for want of a days' supply.
 
-⚠️ **PI-18 (Ireland) is next.** The survey rated irishstatutebook.ie "Good".
-PI-14 (GB) stays blocked on legislation.gov.uk.
+✅ **PI-18 (Ireland) shipped.** irishstatutebook.ie was rated "Good" and was —
+it serves full text over `curl` with a browser user agent, and `403`s the default
+one. PI-14 (GB) stays blocked on legislation.gov.uk.
 
 ---
 
@@ -121,7 +220,7 @@ traceability. **PI-11** Veterinary enablement, plus the review gate over PI-9,
 PI-10 and PI-11 together. **PI-12** Online pharmacy. **PI-13a** rule-pack
 framework extensions. **PI-13** United States (federal + California). **PI-15**
 Australia (national + Victoria). **PI-16** Singapore. **PI-17** Abu Dhabi and
-Dubai — ⚠️ the last five are **not reviewed**.
+Dubai. **PI-18** Ireland — ⚠️ the last six are **not reviewed**.
 
 ⚠️ **PI-14 (Great Britain) is BLOCKED** on access to legislation.gov.uk, and the
 UAE's FEDERAL sources are in the same state.

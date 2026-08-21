@@ -236,18 +236,41 @@ look complete.
 
 **PI-13 gains a framework sub-phase, and it runs once for all nine.**
 
-| Phase      | Change                                                                                                                                                                                                                                                                                                                        |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **PI-13a** | **New.** Framework extensions sized to all nine: GAP 1, GAP 2, GAP 3, GAP 5. Tested against the synthetic `ZQ` packs in `packages/regulatory/tests/engine.test.ts`, where every rule type is tested. No country's rules.                                                                                                      |
-| PI-13      | US federal + California state pack. Unchanged in scope, now built on PI-13a                                                                                                                                                                                                                                                   |
-| PI-14 GB   | ⚠️ **Blocked until an access route to legislation.gov.uk is found**                                                                                                                                                                                                                                                           |
-| PI-15 AU   | ✅ **SHIPPED 2026-08-20** as national + Victoria. NSW returned `403`, so the state is Victoria. The state pack carries 18 of the 22 rules, which is the survey's thesis proved                                                                                                                                                |
-| PI-16 SG   | ✅ **SHIPPED 2026-08-20** as a national-only pack — Singapore is a city-state. 28 rules across two instruments that do not share a classification vocabulary, and no pharmacist-only rule, which is a finding rather than a gap                                                                                               |
-| PI-17 AE   | ✅ **SHIPPED 2026-08-20 as two emirates and NO federal pack.** uaelegislation.gov.ae returns `403` and mohap.gov.ae resets the connection, so the Ministerial Decrees both emirates cite were readable only as restatements — a secondary source. `AE-AZ` 25 rules, `AE-DU` 26. The other five emirates answer `UNDETERMINED` |
-| PI-18 IE   | Unchanged                                                                                                                                                                                                                                                                                                                     |
-| PI-19..21  | NP, LK, BD — batchable, and expected to land thin. Not a defect                                                                                                                                                                                                                                                               |
+| Phase      | Change                                                                                                                                                                                                                                                                                                                             |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PI-13a** | **New.** Framework extensions sized to all nine: GAP 1, GAP 2, GAP 3, GAP 5. Tested against the synthetic `ZQ` packs in `packages/regulatory/tests/engine.test.ts`, where every rule type is tested. No country's rules.                                                                                                           |
+| PI-13      | US federal + California state pack. Unchanged in scope, now built on PI-13a                                                                                                                                                                                                                                                        |
+| PI-14 GB   | ⚠️ **Blocked until an access route to legislation.gov.uk is found**                                                                                                                                                                                                                                                                |
+| PI-15 AU   | ✅ **SHIPPED 2026-08-20** as national + Victoria. NSW returned `403`, so the state is Victoria. The state pack carries 18 of the 22 rules, which is the survey's thesis proved                                                                                                                                                     |
+| PI-16 SG   | ✅ **SHIPPED 2026-08-20** as a national-only pack — Singapore is a city-state. 28 rules across two instruments that do not share a classification vocabulary, and no pharmacist-only rule, which is a finding rather than a gap                                                                                                    |
+| PI-17 AE   | ✅ **SHIPPED 2026-08-20 as two emirates and NO federal pack.** uaelegislation.gov.ae returns `403` and mohap.gov.ae resets the connection, so the Ministerial Decrees both emirates cite were readable only as restatements — a secondary source. `AE-AZ` 25 rules, `AE-DU` 26. The other five emirates answer `UNDETERMINED`      |
+| PI-18 IE   | ✅ **SHIPPED 2026-08-20** as a national-only pack — 50 rules, 7 sources. The survey's GAP 1 was right about Ireland stating validity in months, and wrong about it being simple: S.I. No. 73 of 2024 made it six months OR up to twelve on a fact the platform does not hold. ⚠️ **AND IT PRODUCED A SIXTH GAP** — see GAP 6 below |
+| PI-19..21  | NP, LK, BD — batchable, and expected to land thin. Not a defect                                                                                                                                                                                                                                                                    |
 
-**Nothing here needs a migration.** Five gaps, four of them fixed in
+### GAP 6 — a distance-selling registration · **1 of 9 so far** · fixed in PI-18
+
+Found by writing the pack rather than by the survey, which is worth recording:
+the survey asked which SHAPES were missing and got five right out of six.
+
+Ireland's regulation 19A(1) permits distance selling of a non-prescription
+medicine only by a supplier "entered on the ISS supply list". That is GAP 2's
+shape — a precondition established outside the transaction, which the dispenser
+can only verify — arriving on the `ONLINE_DISPENSING` rule type rather than on
+`CONTROLLED_SCHEDULE`, where PI-13a put it. With only the keys PI-13a added, the
+closest expressible rule was a bare `permitted: true`, which asserts the opposite
+of the regulation.
+
+**Fix.** `OnlineDispensingParameters.requiresDistanceSellingAuthorisation` and
+`distanceSellingAuthority`, raising the existing `VERIFY_PRIOR_AUTHORISATION`
+condition. No new condition kind, because GAP 2 already created the right one.
+
+⚠️ **THE LESSON: A CONDITION KIND AND A PARAMETER KEY ARE DIFFERENT UNITS OF
+REUSE.** PI-13a generalised the condition and left the parameter tied to one rule
+type. Every jurisdiction that gates a channel on somebody else's register will
+land here again — Great Britain's GPhC internet pharmacy list is the obvious next
+one.
+
+**Nothing here needs a migration.** Six gaps, five of them fixed in
 `@rcln/regulatory` and the seed, none of them in the database. That is the
 strongest evidence available that the PI-5 design was right: the schema absorbed
 nine jurisdictions of survey without moving.

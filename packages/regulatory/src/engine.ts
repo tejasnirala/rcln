@@ -822,6 +822,30 @@ function evaluateOnlineDispensing(rule: RegulatoryRule, request: RegulatoryReque
     ]);
   }
 
+  /*
+   * ⚠️ THE REGISTRATION IS RAISED AS AN OBLIGATION, NOT CHECKED, FOR THE SAME
+   *   REASON AS THE EVALUATION ABOVE (PI-18). Regulation 19A(1) of Ireland's
+   *   Medicinal Products (Prescription and Control of Supply) Regulations 2003
+   *   forbids distance selling of a non-prescription medicine unless the seller
+   *   is entered on the ISS supply list. Whether this pharmacy is on a list the
+   *   Pharmaceutical Society of Ireland keeps is not a fact this platform holds,
+   *   so `UNDETERMINED` would refuse every lawful Irish distance sale and a bare
+   *   `PERMITTED` would drop the condition the sale rests on.
+   */
+  if (parsed.value.requiresDistanceSellingAuthorisation === true) {
+    const authority = parsed.value.distanceSellingAuthority;
+    return permitted(`${rule.code}: remote supply is permitted, subject to a registration.`, [
+      condition(
+        rule,
+        'VERIFY_PRIOR_AUTHORISATION',
+        'Remote supply is lawful here only from a supplier already entered on the register of ' +
+          `distance sellers${authority !== undefined ? ` kept by ${authority}` : ''}. Confirm ` +
+          'this pharmacy is on it, and that the entry is current, before sending this.',
+        authority !== undefined ? { authority } : undefined
+      ),
+    ]);
+  }
+
   return permitted(`${rule.code}: remote supply is permitted.`);
 }
 

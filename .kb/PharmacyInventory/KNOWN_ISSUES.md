@@ -631,3 +631,234 @@ the seed only ever creates a jurisdiction row for a pack, and there is no
 national AE pack. **A clinic that files its profiles against Abu Dhabi will find
 its Dubai branch has no classification at all**, which resolves `UNDETERMINED` and
 refuses. The behaviour suite creates the national row explicitly and says why.
+
+---
+
+## PI-18 — Ireland
+
+### ⚠️ Ireland's twelve-month prescription extension is not configured, and the pack refuses on day 183
+
+Regulation 7(5)(a) of the Medicinal Products (Prescription and Control of Supply)
+Regulations 2003, as substituted by S.I. No. 73 of 2024 from 1 March 2024, is two
+limbs: six months from the date on the prescription, **or** — save for a
+controlled drug in Schedule 2, 3 or 4 — up to twelve months where that period is
+written on the prescription, or where a registered pharmacist decides it is
+appropriate under regulation 9A(1) of the Regulation of Retail Pharmacy
+Businesses Regulations 2008 and records the decision.
+
+`PresentedPrescription` carries neither fact: there is no prescriber-stated
+validity period and no record of a pharmacist's regulation 9A review. So every
+prescription rule in `IE 1.0.0` states limb (i), and an Irish clinic dispensing
+on day 183 against a prescription lawfully endorsed for twelve months is
+**refused**.
+
+⚠️ **THAT IS A WRONG ANSWER IN THE REFUSING DIRECTION, WHICH IS THE DIRECTION
+NOBODY AUDITS** — the same failure mode `validityMonths` itself was added to
+prevent. It is written this way anyway because `validityMonths: 12` would permit,
+silently, the far larger set of prescriptions on which nobody specified anything
+and no pharmacist reviewed anything. **The fix is two fields on
+`PresentedPrescription`, not a bolder reading**, and a behaviour case pins the
+current outcome so nobody closes it the cheap way.
+
+### ⚠️ `branch.licence_type` — the FOURTH jurisdiction to ask for it
+
+Regulation 7(6) says a prescription for a First Schedule Part C substance "shall
+not be dispensed except in a hospital". That is a restriction on the **premises**,
+after Singapore's retail-pharmacy-versus-clinic pharmacist gate (PI-16) and
+Dubai's and Abu Dhabi's facility categories (PI-17).
+
+`IE 1.0.0` therefore defines **no** `PRESCRIPTION_ONLY_PART_C` classification. A
+Part C product matches no rule, resolves `UNDETERMINED`, and refuses — which is
+the honest direction. ⚠️ **DEFINING THE CLASSIFICATION AND GIVING IT THE ORDINARY
+PRESCRIPTION RULES WOULD BE WORSE THAN DEFINING NOTHING**: a community pharmacy
+would get a clean `PERMITTED` for a supply the regulation forbids. A behaviour
+case pins the `UNDETERMINED`.
+
+### ⚠️ No Falsified Medicines traceability rule, and no pack uses `TRACEABILITY_REQUIREMENT` yet
+
+Commission Delegated Regulation (EU) 2016/161 is directly applicable in Ireland
+and obliges a pharmacy to verify and decommission the unique identifier on a
+prescription medicine. Its text could not be retrieved: `eur-lex.europa.eu`
+answers `202` with a client-side challenge on every path attempted, by `curl`
+with a browser user agent and by the fetch tool alike. No source, no rule.
+
+⚠️ **AND THERE IS A SECOND REASON THIS SHOULD NOT BE CLOSED FROM MEMORY.**
+`evaluateTraceability` **REFUSES** on a missing identifier, and
+`createDispenseWithin` passes `lotNumber`, `expiresOn` and `serial` but **no
+GTIN**. A rule written as `requiredIdentifiers: ['GTIN', 'SERIAL', 'LOT',
+'EXPIRY']` would refuse every Irish dispense on the platform, for a field the
+caller simply never sends. Whoever closes this closes the caller first.
+
+### ⚠️ The practitioner's own-patient exemption is wider in the pack than in the regulation
+
+`IE-DISPENSER-*` sets `exemptWhenActorIsPrescriber: true` on the strength of
+regulation 20(3)(c) of the 2003 Regulations, which disapplies regulations 5 and 6
+from "the supply of a medicinal product to a patient of his by a **registered
+medical practitioner or registered dentist** in the course of his professional
+practice".
+
+`RegulatoryActor.isPrescriber` is a boolean and carries no class. A **registered
+nurse** prescriber dispensing their own prescription is therefore exempted by
+this pack and is **not** exempted by the regulation. The fix is a class on the
+exemption — `exemptPrescriberClasses` rather than a boolean — not a narrower
+rule, because narrowing it would refuse the doctor-run clinic that regulation
+20(3)(c) exists for.
+
+### ⚠️ The Eighth Schedule hole in the distance-selling permission
+
+Regulation 19(4), as substituted by S.I. No. 525 of 2011, lifts the mail-order
+prohibition from a non-prescription medicine **except one specified in the Eighth
+Schedule** — the products a trained pharmacist may administer under regulation
+4B, an influenza vaccine among them. `IE-ONLINE-PHARMACY-ONLY` permits distance
+supply of anything classified `PHARMACY_ONLY`, so a pharmacy-administered vaccine
+filed under it gets a permission regulation 19 does not give.
+
+Closing it needs a classification of its own and somebody to read the Eighth
+Schedule **as it now stands** — it has been substituted repeatedly, most recently
+by S.I. No. 284 of 2023.
+
+### ⚠️ `CountryInfo.regions` for `IE` is empty and correct — but `labels.region` says 'County'
+
+The third outing of PI-16's "check this list first", and the first that came back
+clean. Irish medicines law is national, so no sub-national pack can exist to be
+made inert. **Nothing in this pack is affected.**
+
+What remains is the tell PI-17 found for the UAE, without the consequence:
+`labels.region` for `IE` is `'County'`, so the address form asks which county a
+branch is in while `regions` permits none. Twenty-six counties were **not** added
+blind, because listing a subdivision also offers it on the platform's
+tax-registration screen and Ireland's VAT is national. Whoever needs a county on
+an address decides this, not a rule-pack phase.
+
+### ⚠️ Ireland's emergency supply is not modelled
+
+Regulation 8 permits supply without a prescription at a practitioner's request
+who undertakes to furnish one within 72 hours, or on the pharmacist's own
+judgement with a five-day ceiling and an "Emergency Supply" label. Both are
+exceptions to a prohibition rather than rules of their own, and this framework
+has no way to say "the prescription requirement stands down because an emergency
+was recorded". A `QUANTITY_LIMIT` of five days' supply would need `maxDaysSupply`,
+which no caller can answer — the standing gap PI-13a recorded — and would then
+apply to every supply rather than to the emergency ones.
+
+### ⚠️ The Safe Custody Regulations point at schedules revoked twice over
+
+S.I. No. 321 of 1982 binds a pharmacy in respect of "any controlled drug
+specified in Schedule 1, 2 or 3 of the Principal Regulations", where the
+Principal Regulations are the **Misuse of Drugs Regulations 1979**. Those were
+revoked by the 1988 Regulations and those by the 2017 Regulations; regulation
+29(1) of the 2017 Regulations carries the 1988 references forward, and the step
+from 1979 to 1988 was **not read in this pass**.
+
+`IE-STORE-CD2` and `IE-STORE-CD3` are written against the 2017 numbering, because
+that is what a clinic classifies a product under. A reviewer closing
+`SOURCE_VERIFIED` on that source has to walk the chain.
+
+### ⚠️ Ireland publishes no consolidation of a statutory instrument
+
+The 2003 Regulations have been amended more than forty times and the eISB serves
+each amendment separately; the text under `/made/` is the text of 2003 and says
+nothing about what has since been substituted out of it. Three amendments bearing
+on rules in this pack were read in full and are their own source rows; the rest
+were checked for whether they touch regulations 5, 6, 7, 9, 10, 17, 18, 19 or 20.
+
+⚠️ **THAT IS A CHECK, NOT A GUARANTEE, AND IT IS THIS PACK'S LARGEST EXPOSURE.**
+A substitution nobody noticed reads exactly like a rule nobody amended.
+
+### ⚠️ `AU-SCHEDULE-S8` REFUSES EVERY SCHEDULE 8 TRANSACTION OUTSIDE VICTORIA — a PI-15 defect, found in PI-18
+
+**Not an Ireland issue. Found while writing `IE-SCHEDULE-*` on the Australian
+pack's precedent, and the precedent is broken.**
+
+`AU-SCHEDULE-S8` carries `parameters: { scheduleName: 'Schedule 8' }` and nothing
+else. `parseControlledSchedule` **rejects** a document that sets none of
+`registerRequired`, `witnessRequired`, `storageLocationKinds` or
+`priorAuthorisationRequired` — "it is a controlled-schedule rule that imposes no
+obligation" — so the rule resolves `UNDETERMINED`, **which refuses**. Every
+Schedule 8 supply, stock movement, transfer and disposal in the seven Australian
+jurisdictions with no state pack is refused by it.
+
+⚠️ **THE FILE COMMENT ASSERTS THE OPPOSITE, IN SO MANY WORDS:**
+
+> `evaluateControlledSchedule` permits with an empty condition list and one
+> reason line naming the schedule. The reason is the value: without it a
+> Schedule 8 supply in Sydney would come back indistinguishable from an ordinary
+> one.
+
+⚠️ **AND ITS BEHAVIOUR CASE PASSES.** `au-rule-pack.test.ts`, "names the schedule
+on a Schedule 8 supply, and imposes nothing else", asserts that the rule CODE
+appears in `reasons` and that no conditions were raised — which is **exactly**
+what an unreadable rule produces. It never asserts the outcome. This is PI-12's
+lesson verbatim: _every defect that phase shipped was first written down as a
+justification._
+
+**Not fixed here**, because the fix is a decision about Australia rather than
+about Ireland, and it changes behaviour in seven jurisdictions:
+
+- **Delete the rule.** The pack's own header argues at length that the Poisons
+  Standard imposes no national register, safe or retention, so there is nothing
+  for a `CONTROLLED_SCHEDULE` rule to carry. A Schedule 8 supply in Sydney would
+  then rest on `AU-RX-S8`, and the decision would not name the schedule.
+- **Or let the parser accept a `scheduleName`-only rule as informational** — a
+  framework change, which would also give Ireland back `IE-SCHEDULE-CD3` and
+  `IE-SCHEDULE-CD4A`. That is the option that makes the comment true.
+
+⚠️ **Check `US-CD-*`, `SG-CD*` and the two Emirati packs for the same shape
+before closing this.**
+
+### ⚠️ A Schedule 3 decision in Ireland does not name the schedule
+
+The consequence of the above, taken honestly. Regulation 19(1) of the Misuse of
+Drugs Regulations 2017 requires a register for Schedules 1 and 2 and stops, and
+Ireland's safe requirement is its own `STORAGE_REQUIREMENT` rule — so there is no
+obligation a `CONTROLLED_SCHEDULE` rule could carry for Schedule 3 or Part 1 of
+Schedule 4, and the parser refuses a rule that carries none.
+
+`IE 1.0.0` therefore has **one** `CONTROLLED_SCHEDULE` rule, for Schedule 2. A
+Schedule 3 supply is correctly permitted and correctly labelled and correctly
+retained — and the decision does not say "this is a controlled drug". A behaviour
+case pins the absence.
+
+### ⚠️ An unclassified rule in a pack is a fail-open for every classification the pack does not recognise
+
+**Found in this pack's own first draft, and fixed before it shipped — recorded
+because the mistake is easy to repeat and impossible to see in review.**
+
+`IE-LABEL-DISPENSE` was written unclassified, faithfully: regulation 9(1) defines
+a "dispensed medicinal product" by how it was supplied, not by what it is, so an
+over-the-counter recommendation is inside the definition and a classification
+would have narrowed the regulation.
+
+But `coversProduct` matches a rule with no classification against **any** product.
+A product filed under a string the pack never heard of — a First Schedule Part C
+substance, a typo, a classification borrowed from another country's vocabulary —
+matched that one rule, raised a label obligation, and came back
+`PERMITTED_WITH_CONDITIONS`. Nothing refused, because nothing that refuses had
+anything to say. `needsClassificationButHasNone` does not fire: the product HAS a
+classification, just not one this pack recognises.
+
+The labelling rule is now written once per classification the pack defines, so an
+unrecognised string matches nothing and resolves `UNDETERMINED`.
+
+⚠️ **AND FOUR EARLIER PACKS HAVE THE SAME SHAPE. THIS IS A CLASS OF DEFECT, NOT
+AN IRELAND ONE.** Every rule in `AU`, `AU-VIC`, `AE-AZ` and `AE-DU` names a
+classification; these do not:
+
+| Pack    | Unclassified rules                                                         | Does an unrecognised classification fail open?  |
+| ------- | -------------------------------------------------------------------------- | ----------------------------------------------- |
+| `IN`    | `IN-RETAIN-RECORDS`, `IN-DISPENSER-REGISTERED-PHARMACIST`, `IN-LABEL-*` ×2 | **Yes** — a registered pharmacist gets a permit |
+| `US`    | `US-DISPENSER-PHARMACIST`, `US-STORE-CONTROLLED`, `US-LABEL-VETERINARY`    | **Yes** — same shape                            |
+| `SG`    | `SG-LABEL-DISPENSE`                                                        | **Yes** — nothing in the set can refuse         |
+| `US-CA` | `CA-RETAIN-RECORDS`, `CA-LABEL-DISPENSED`, `CA-SUBST-GENERIC`              | Regional; supersedes `US` per type, so both     |
+
+In each, a product whose `classification` is a string the pack does not define —
+a typo, a vocabulary borrowed from another country, a classification a later
+amendment introduced — matches only rules that permit, and the decision comes
+back `PERMITTED` or `PERMITTED_WITH_CONDITIONS`. **Not verified by running
+them**; read off the rule rows, and worth a behaviour case in each pack before it
+is treated as settled.
+
+⚠️ **THE GENERAL RULE THIS ESTABLISHES: an unclassified rule is safe only where
+some rule that can REFUSE also applies to the same product.** In a pack whose
+refusing rules are all classified, an unclassified obligation is the whole
+applicable set for anything unrecognised — and an obligation never refuses.
