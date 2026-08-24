@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-20 (PI-17 complete — the two Emirati rule packs)
+**Last updated:** 2026-08-24 (PI-21 complete — the Bangladesh rule pack; PI-19 and PI-20 skipped)
 
 ## Status vocabulary
 
@@ -34,32 +34,34 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 
 ## Phase roll-up
 
-| Phase     | Title                                          | Status                    | Blocked by                               |
-| --------- | ---------------------------------------------- | ------------------------- | ---------------------------------------- |
-| PI-0      | Discovery & Architecture                       | **COMPLETE** (2026-08-11) | —                                        |
-| PI-1      | Product Platform Core                          | **COMPLETE** (2026-08-11) | —                                        |
-| PI-2      | Inventory Foundation                           | **COMPLETE** (2026-08-12) | —                                        |
-| PI-3      | Movements                                      | **COMPLETE** (2026-08-12) | —                                        |
-| PI-4      | Procurement                                    | **COMPLETE** (2026-08-13) | —                                        |
-| PI-5      | Global Regulatory Framework                    | **COMPLETE** (2026-08-13) | —                                        |
-| PI-6      | India Rule Pack                                | **COMPLETE** (2026-08-13) | —                                        |
-| PI-7      | Pharmacy Dispensing                            | **COMPLETE** (2026-08-16) | —                                        |
-| PI-8      | Billing & Tax Integration                      | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
-| PI-9      | Clinical Consumption                           | **COMPLETE** (2026-08-17) | —                                        |
-| PI-10     | Recall & Traceability                          | **COMPLETE** (2026-08-18) | —                                        |
-| PI-11     | Veterinary Enablement                          | **COMPLETE** (2026-08-19) | —                                        |
-| PI-12     | Online Pharmacy                                | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-13a    | Rule-pack framework extensions (survey-sized)  | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-13     | United States Rule Pack (federal + California) | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-14     | United Kingdom Rule Pack                       | **BLOCKED**               | legislation.gov.uk returns 202           |
-| PI-15     | Australia Rule Pack (national + Victoria)      | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
-| PI-16     | Singapore Rule Pack                            | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
-| PI-17     | UAE Rule Packs (Abu Dhabi + Dubai)             | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed; no federal pack       |
-| PI-18     | Ireland Rule Pack                              | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
-| PI-19..21 | Country Rule Packs (NP, LK, BD)                | NOT_STARTED               | —                                        |
-| PI-22     | Reporting & Cost Accounting                    | NOT_STARTED               | PI-4                                     |
-| PI-23     | Identifier Resolution / Barcode                | NOT_STARTED               | PI-1, PI-2                               |
-| PI-24     | Global Hardening                               | NOT_STARTED               | everything                               |
+| Phase  | Title                                          | Status                    | Blocked by                               |
+| ------ | ---------------------------------------------- | ------------------------- | ---------------------------------------- |
+| PI-0   | Discovery & Architecture                       | **COMPLETE** (2026-08-11) | —                                        |
+| PI-1   | Product Platform Core                          | **COMPLETE** (2026-08-11) | —                                        |
+| PI-2   | Inventory Foundation                           | **COMPLETE** (2026-08-12) | —                                        |
+| PI-3   | Movements                                      | **COMPLETE** (2026-08-12) | —                                        |
+| PI-4   | Procurement                                    | **COMPLETE** (2026-08-13) | —                                        |
+| PI-5   | Global Regulatory Framework                    | **COMPLETE** (2026-08-13) | —                                        |
+| PI-6   | India Rule Pack                                | **COMPLETE** (2026-08-13) | —                                        |
+| PI-7   | Pharmacy Dispensing                            | **COMPLETE** (2026-08-16) | —                                        |
+| PI-8   | Billing & Tax Integration                      | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
+| PI-9   | Clinical Consumption                           | **COMPLETE** (2026-08-17) | —                                        |
+| PI-10  | Recall & Traceability                          | **COMPLETE** (2026-08-18) | —                                        |
+| PI-11  | Veterinary Enablement                          | **COMPLETE** (2026-08-19) | —                                        |
+| PI-12  | Online Pharmacy                                | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-13a | Rule-pack framework extensions (survey-sized)  | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-13  | United States Rule Pack (federal + California) | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
+| PI-14  | United Kingdom Rule Pack                       | **BLOCKED**               | legislation.gov.uk returns 202           |
+| PI-15  | Australia Rule Pack (national + Victoria)      | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
+| PI-16  | Singapore Rule Pack                            | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
+| PI-17  | UAE Rule Packs (Abu Dhabi + Dubai)             | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed; no federal pack       |
+| PI-18  | Ireland Rule Pack                              | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
+| PI-19  | Nepal Rule Pack                                | DEFERRED                  | skipped by request — see PI-21           |
+| PI-20  | Sri Lanka Rule Pack                            | DEFERRED                  | skipped by request — see PI-21           |
+| PI-21  | Bangladesh Rule Pack                           | **COMPLETE** (2026-08-24) | — ⚠️ not reviewed                        |
+| PI-22  | Reporting & Cost Accounting                    | NOT_STARTED               | PI-4                                     |
+| PI-23  | Identifier Resolution / Barcode                | NOT_STARTED               | PI-1, PI-2                               |
+| PI-24  | Global Hardening                               | NOT_STARTED               | everything                               |
 
 ---
 
@@ -2316,3 +2318,193 @@ the phase (`IE-LABEL-DISPENSE`, `IE-SCHEDULE-CD3`, `IE-SCHEDULE-CD4A`) and their
 rows survived a re-seed as orphans. They were deleted from the dev database by
 hand. A pack whose codes change between seeds leaves rules nobody wrote still
 matching — worth knowing before the next rule-pack phase renames anything.
+
+---
+
+## PI-19 / PI-20 — Nepal and Sri Lanka · DEFERRED
+
+Skipped at the user's request on 2026-08-24 in favour of PI-21. Neither was
+started and neither is blocked: the survey rates Nepal's sources **good** (the
+DDA publishes the Drugs Act 2035 in English) and Sri Lanka's **at risk** (the
+NMRA publishes mostly registration material). Nothing in PI-21 depends on either,
+and nothing in either depends on PI-21 — the packs are siblings, not a chain.
+
+---
+
+## PI-21 — Bangladesh Rule Pack
+
+**Branch:** `feat/pi-21-bd-rule-pack` · **Result:** complete, ⚠️ **not reviewed**
+
+`BD 1.0.0` — 56 rules, 4 sources, 3 authorities, no migration. The seventh
+rule-pack phase running with no schema change, and the first that needed no
+framework change at all.
+
+### The finding: the survey predicted a thin pack, and was wrong about why
+
+COUNTRY_RULE_PACK_SURVEY rated Bangladesh **at risk** — "the DGDA returned
+nothing at all" in the PI-13 survey — and told this phase to expect a pack that
+is mostly `RESEARCH_REQUIRED`. Neither half held.
+
+⚠️ **dgda.gov.bd RESPONDS TODAY.** `www.dgda.gov.bd` still does not resolve; the
+apex does, and serves a laws page carrying eight instruments, an Online Pharmacy
+licence guideline and the full text of the Bengal Drugs Rules 1946 as a PDF with
+a text layer. The survey's finding was true when it was written and is a lesson
+about re-checking a source, not about Bangladesh.
+
+⚠️ **AND BANGLADESH REPLACED ITS MEDICINES ACT IN 2023, WHICH NO DOCUMENT IN
+THIS DIRECTORY KNEW.** The ঔষধ ও কসমেটিকস্ আইন, ২০২৩ (Act 29 of 2023) repealed
+BOTH the Drugs Act, 1940 and the Drugs (Control) Ordinance, 1982 outright. Every
+secondary description of Bangladeshi drug law older than September 2023 — the
+survey's included — describes repealed statutes.
+
+### The first pack whose authentic text is not English
+
+⚠️ **AND BOTH STATUTES SAY SO IN TERMS, WHICH TURNS OD-3 FROM A WORRY INTO A
+FACT.** Section 83(2) of the 2023 Act and section 70(2) of the মাদকদ্রব্য
+নিয়ন্ত্রণ আইন, ২০১৮ each provide that where the Bangla and English texts
+conflict, the **Bangla prevails**. Every rule was read off the Bangla on
+bdlaws.minlaw.gov.bd. The English in a `statement` is this pack's rendering, not
+an authority's, and the commercial translations that circulate were refused for
+the reason PI-17 refused the UAE's federal decrees as restated.
+
+⚠️ **THAT IS THIS PACK'S LARGEST EXPOSURE AND IT CANNOT BE CLOSED BY ANYBODY WHO
+DOES NOT READ BANGLA.** `SOURCE_VERIFIED` here means something different from
+what it means for `IE` or `US`.
+
+### The rulebook is older than the country, and the regulator's copy stops in 1952
+
+The Bengal Drugs Rules, 1946 supply everything the Act does not: the prescription
+register and its two years, Schedule G's no-repeat-unless-endorsed, the Schedule
+D poison cupboard and red "Poison" label, Schedule C's storage accommodation and
+three-year wholesale trail. They survive by **section 82(2)(ক)**, which saves
+rules made under the repealed 1940 Act "so far as consistent with this Act".
+
+Three things agree they are live: the savings clause; DGDA publishing them under
+"আইন" today; and DGDA's own Online Pharmacy checklist requiring "Form No.-7
+(Rule-18) according to the Bengal Drug Rule, 1946" alongside a commitment to the
+2023 Act.
+
+⚠️ **AND THE ONLY TEXT THE REGULATOR PUBLISHES IS "AS AMENDED BY THE GOVERNMENT
+OF EAST BENGAL UP TO DECEMBER 1952".** Seventy-four years of Gazette are
+unaccounted for. It still exempts drugs "sold for export to a place outside
+India". Bangladesh's own _statutes_ are consolidated on bdlaws with every
+amendment footnoted in place — the 2018 Act's footnotes run to 2026 — so the
+substitution-nobody-noticed risk that dominated PI-18 is **under control for the
+Acts and entirely uncontrolled for the Rules**.
+
+### Where section 3 decides a conflict, and where a guideline narrows a statute
+
+⚠️ **RULE 24(2) AND SECTION 45(1) NAME DIFFERENT PEOPLE, AND SECTION 3 SETTLES
+IT.** The 1946 Rules put a prescription supply under a "qualified person" — a
+pharmacy degree, membership of the Pharmaceutical Society of **Great Britain**,
+or four years' experience. Section 45(1) puts it under a Pharmacist, Diploma
+Pharmacist or Pharmacy Technician on the Bangladesh Pharmacy Council register in
+category ‘এ’, ‘বি’ or ‘সি’. Section 3 gives the Act overriding effect and
+82(2)(ক) saves the Rules only so far as consistent with it, so the dispenser
+rules are written from section 45 and cite it.
+
+⚠️ **AND THE ONLINE PHARMACY CRITERIA NARROW SECTION 45 TO GRADE A ALONE.** A
+licence condition may lawfully be stricter than the section it is granted under.
+It is a separate row (`BD-DISPENSER-ONLINE-*`) rather than an edit to the counter
+rule, so nobody mistakes it for the Act.
+
+### The inversion: a vet may prescribe a narcotic and not an antibiotic
+
+⚠️ **THE 2018 ACT DEFINES চিকিৎসক AND THE 2023 ACT DOES NOT.** Section 2(12)
+names a recognised medical practitioner, a recognised dental practitioner, a
+recognised homeopath **and** a Registered Veterinary Practitioner. Section 40(ঘ)
+of the 2023 Act says only "রেজিস্টার্ড চিকিৎসক" and the Act defines it nowhere;
+the Bengal Rules say "registered medical practitioner".
+
+Importing one statute's definition into the other is a step no source
+authorises, so `BD-PRESCRIBER-RX` and its siblings name a medical and a dental
+practitioner and stop — **which refuses a veterinary prescription for an ordinary
+medicine**, routinely, in exactly the clinics PI-11 built for. Written in the
+refusing direction knowingly, pinned by two behaviour cases in both directions,
+recorded in KNOWN_ISSUES. The fix is a source, not a bolder reading.
+
+### Three PERMISSIVE gaps, which is the direction this programme is shaped against
+
+All three are the law rather than the pack, all three are pinned by a behaviour
+case, and together they are the most important thing a reviewer should attack.
+
+1. **No prescription validity anywhere.** Neither Act nor rule 24(10) puts an age
+   limit on a prescription. A twenty-year-old prescription satisfies every rule
+   in the pack. `validityDays: 180` was the comfortable choice and would have
+   been this pack inventing a rule for a sovereign state.
+2. **No repeat rule for an ordinary prescription medicine.** Rule 24(11) opens
+   "the person dispensing a prescription containing a drug specified in Schedule
+   G", and that limitation is the rule. So one prescription is, on this reading,
+   good forever and for any number of supplies.
+3. **No general dispensing label.** Rule 53(2) **disapplies** rules 55–60 from a
+   medicine made up ready for treatment on a prescription, then re-imposes four
+   conditions only for a Schedule D substance. There is no general dispensing
+   label in Bangladeshi law to narrow.
+
+### Schedule G stopped being the prescription rule, and the pack is built on the Act
+
+⚠️ **SCHEDULE G IS A 1952 LIST OF FIVE SUBSTANCES** — amidopyrine, barbituric
+acid, dinitrocresols, sulphanilamide, phenylcinchoninic acid. Read alone it would
+leave every antibiotic sellable across a counter. **Section 40(ঘ)** is what
+decides it: no antibiotic or any other drug that is not an Over the Counter
+medicine, without the prescription of a registered physician. Schedule G survives
+as its own classification because it carries rule 24(11), and every rule section
+40 gives `PRESCRIPTION_ONLY` is repeated onto it — `mostSpecific` selects per
+classification and a schedule that inherited nothing would be a hole.
+
+### Four things researched and NOT written
+
+- **A narcotics register and safe.** Section 48(1)(অ) lets an officer inspect
+  "হিসাববহি অথবা নিবন্ধনবহি", which presupposes an obligation living in the
+  বিধিমালা made under section 68. `dnc.gov.bd` did not respond on any path. An
+  obligation inferred from an inspection power is one this pack would have
+  written itself.
+- **Disposal.** Sections 27 and 28 of the 2018 Act govern destruction of
+  **seized** narcotics by the Directorate and a court — not a pharmacy destroying
+  expired stock.
+- **Section 40(ক), (খ), (গ)** — government drugs, expired drugs, banned drugs,
+  physician samples. Every one is a fact about the BATCH that the platform
+  already enforces, and none is a fact about a classification. An unclassified
+  rule is the fail-open PI-18 found in four packs.
+- **Section 72** (a physician may not prescribe an unregistered drug) and
+  **section 70** (no hawking medicines on a footpath). The first binds the
+  prescriber; the second is about a place rcln does not model.
+
+### `CountryInfo.regions` — the check's second clean run
+
+`BD` is `[]` and correctly so: DGDA and the Department of Narcotics Control are
+national, both statutes are national, and a district regulates no part of this,
+so no sub-national pack can exist to be made inert. The same loose end Ireland
+left is here — `labels.region` for `BD` says 'District', and no district can be
+selected. ⚠️ **`US_REGIONS` IS STILL SHORT FIVE STATES.**
+
+- **DB** n/a — no migration, for the seventh rule-pack phase running
+- **BE** `data/regulatory-bd.ts` (56 rules, 4 sources, 3 authorities), one
+  `PACKS` entry. **No change to `@rcln/regulatory`** — every shape Bangladesh
+  needed already existed, including `requiresDistanceSellingAuthorisation`, whose
+  second outing this is
+- **API** n/a — no HTTP surface change, so no OpenAPI registry entry
+- **FE** n/a — no screen; a pack is data
+- **TEST** 44 behaviour cases in
+  `apps/api/tests/integration/bd-rule-pack.test.ts`, including all three
+  permissive gaps, both directions of the veterinary inversion, the Grade
+  A-only online dispenser, and a product filed as `SCHEDULE_H`
+- **AUTHZ / AUDIT / VAL** n/a — no new endpoint, service or contract
+- **DOC** COUNTRY_SUPPORT_MATRIX (BD row), KNOWN_ISSUES, CHANGELOG,
+  COUNTRY_RULE_PACK_SURVEY, REGULATORY_RULE_PACKS, NEXT_SESSION, STATUS
+- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
+  security reviewer has run over this diff
+
+**Validation:** ran once at the end, per CLAUDE.md — `turbo run lint typecheck`
+at `--concurrency=1`, `pnpm format`, then the tests. ⚠️ `pnpm test` still OOMs the
+api container (exit 137, KNOWN_ISSUES #2) and the `[a-f]` slice OOMs on its own,
+so the api suite ran in six narrower path slices: **299 unit + 1,791 integration,
+all green** — `[a-b]` 216, `[c-e]` 281, `[f-i]` 316, `[j-q]` 173, `[r-s]` 225,
+`[t-v]` 580 with tenant-isolation inside it and 470 again on its own — plus 24
+workspace packages through `turbo run test` and 120 in `@rcln/regulatory`.
+`db:rls:check` 131 tables; `docs:validate` 437/437. No migration, so nothing
+moved in the schema. The seed prints `BD 1.0.0: 4 sources, 56 rules`.
+
+⚠️ **THE SEED HAD TO BE FORCED TO NOTICE A CHANGED RULE.** `appliesToTransactions`
+is written on create only, so the `BD-RETAIN-*` fix reached the dev database only
+after the pack's rules were deleted by hand. See KNOWN_ISSUES.

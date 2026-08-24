@@ -2,6 +2,120 @@
 
 **Read this first.** Updated at the end of every session.
 
+**Written:** 2026-08-24 · **By:** session PI-21 (the Bangladesh rule pack).
+
+## PI-21 first, because it is the freshest and it is unreviewed
+
+✅ **PI-21 SHIPPED:** `BD 1.0.0` — 56 rules, 4 sources, 3 authorities, on branch
+`feat/pi-21-bd-rule-pack`. 44 behaviour cases, no migration, and **no change to
+`@rcln/regulatory`** — the first pack since PI-6 that needed none.
+⚠️ **NOT REVIEWED** — and neither are PI-18, PI-17, PI-16, PI-15, PI-13a and PI-13.
+
+⚠️ **PI-19 (NEPAL) AND PI-20 (SRI LANKA) WERE SKIPPED AT THE USER'S REQUEST**, not
+blocked. Both are DEFERRED in the tracker. Nepal's sources are rated good.
+
+⚠️ **THE FIRST PACK IN THIS PROGRAMME WHOSE AUTHENTIC TEXT IS NOT ENGLISH, AND
+BOTH STATUTES SAY SO IN TERMS.** Section 83(2) of the ঔষধ ও কসমেটিকস্ আইন, ২০২৩
+and section 70(2) of the মাদকদ্রব্য নিয়ন্ত্রণ আইন, ২০১৮ each provide that where
+the Bangla and English texts conflict, the **Bangla prevails**. Every rule was
+read off the Bangla; the commercial English translations were refused for the
+reason PI-17 refused the UAE's federal decrees as restated. ⚠️ **NOTHING IN THE
+FRAMEWORK NEEDED TO CHANGE FOR IT** — a `statement` is prose and a
+`classification` is matched exactly. What changes is what `SOURCE_VERIFIED`
+means: for `BD` it cannot be closed by anybody who does not read Bangla, and
+`regulatory_sources` has nowhere to record which language a reviewer read in.
+Survey GAP 7. **Nepal is very likely the same shape.**
+
+⚠️ **THE SURVEY WAS WRONG ABOUT BANGLADESH TWICE, AND THAT IS THE TRANSFERABLE
+LESSON.** It rated the country "at risk — the DGDA returned nothing at all" and
+predicted a thin pack. `dgda.gov.bd` responds today (only the `www.` host fails
+to resolve) and serves eight instruments plus the Bengal Drugs Rules 1946 as a
+98-page text-layer PDF. And **Bangladesh replaced its medicines Act in 2023** —
+Act 29 of 2023 repealed both the Drugs Act, 1940 and the Drugs (Control)
+Ordinance, 1982 outright, so every secondary description of Bangladeshi drug law
+older than September 2023 describes repealed statutes. **Re-check a source before
+believing a survey about it.**
+
+⚠️ **THREE PERMISSIVE GAPS IN ONE PACK — MORE THAN ANY OTHER PACK HAS — AND ALL
+THREE ARE THE LAW.** No prescription validity anywhere (a twenty-year-old
+prescription is `PERMITTED`); no repeat rule for an ordinary prescription
+medicine (rule 24(11) is confined to Schedule G, so a fortieth supply passes);
+and no general dispensing label (rule 53(2) **disapplies** rules 55–60 and
+re-imposes four conditions for Schedule D alone). **Together the first two mean
+one Bangladeshi prescription is good forever and for any number of supplies.**
+Each is pinned by a behaviour case so the cheap fix fails the suite. This is the
+single most important thing for a qualified reviewer to attack.
+
+⚠️ **AND ONE REFUSING GAP THAT WILL COST A REAL CLINIC TIME: a vet may prescribe a
+narcotic here and not an antibiotic.** The 2018 Act defines চিকিৎসক to include a
+Registered Veterinary Practitioner; the 2023 Act defines it nowhere. Importing
+one statute's definition into the other is a step no source authorises. Both
+directions are asserted, because the inversion looks so much like a bug that
+somebody will "fix" it.
+
+⚠️ **THE OPERATIVE RULEBOOK IS OLDER THAN THE COUNTRY AND THE REGULATOR'S COPY
+STOPS IN 1952.** The Bengal Drugs Rules, 1946 supply twelve of the pack's 56
+rules and survive by section 82(2)(ক). DGDA publishes them and its own Online
+Pharmacy checklist cites Form 7 of them — but the PDF says "as amended … up to
+December 1952" and still exempts drugs "sold for export to a place outside
+India". ⚠️ **THIS IS A WORSE VERSION OF PI-18's IRISH EXPOSURE**: Ireland
+publishes each amendment separately so a reader can walk the chain; here there is
+nothing to walk. Bangladesh's **statutes**, by contrast, are consolidated on
+bdlaws with every amendment footnoted in place — better than Ireland manages.
+
+### Where to start on PI-21, if you are reviewing it
+
+- `packages/db/prisma/seed/data/regulatory-bd.ts` — the header argues all three
+  permissive gaps, the veterinary inversion, and the four things researched and
+  not written. Read it before adding any of them.
+- `BD-ONLINE-CD-KA/-KHA/-GA` — **the weakest rows in the pack.** An undated,
+  unnumbered DGDA PDF forbids remote supply of a controlled drug, which neither
+  statute forbids, for every online pharmacy in Bangladesh. Attack this first.
+- `BD-DISPENSER-*` versus `BD-DISPENSER-ONLINE-*` — section 45(1) admits three
+  Council grades at the counter; the Online Pharmacy Criteria admit Grade A
+  alone. A licence condition may be stricter than its section; this one is.
+- `BD-CD-*` — carries `priorAuthorisationRequired` and nothing else. No register,
+  no safe, because dnc.gov.bd did not respond and the বিধিমালা could not be read.
+  ⚠️ **Its behaviour case asserts the OUTCOME, which is what `AU-SCHEDULE-S8`'s
+  fails to do.**
+- `apps/api/tests/integration/bd-rule-pack.test.ts` — the twenty-year-old
+  prescription, the fortieth repeat, the `SCHEDULE_H` product, and both halves of
+  the veterinary inversion.
+
+⚠️ **`AU-SCHEDULE-S8` IS STILL BROKEN.** PI-18 found it, PI-21 did not fix it:
+it carries only `scheduleName`, `parseControlledSchedule` rejects a rule that
+imposes no obligation, and it therefore refuses every Schedule 8 transaction in
+the seven Australian jurisdictions with no state pack. Two options are written
+out in KNOWN_ISSUES. ⚠️ **`US-CD-*`, `SG-CD*` and both Emirati packs still have
+not been checked for the same shape.**
+
+⚠️ **AND THE UNCLASSIFIED-RULE FAIL-OPEN IS STILL OPEN IN `IN`, `US`, `SG` AND
+`US-CA`.** `BD` has no unclassified rule and a behaviour case proves it, but the
+four packs PI-18 listed were read off the rule rows and never run.
+
+⚠️ **TWO DEFECTS PI-21 FOUND IN CODE IT DID NOT WRITE, BOTH RECORDED AND NEITHER
+FIXED HERE.**
+
+1. **Re-seeding a rule never updates its transactions, classification or type.**
+   `seedRegulatoryPacks`'s rule `update` branch writes `statement`, `parameters`
+   and `sourceId` and nothing else, so changing `appliesToTransactions` in a data
+   file leaves the stored row untouched while the console prints the new rule
+   count. It cost this session half an hour. ⚠️ **It is the sibling of PI-18's
+   "the seed upserts and never deletes"** — together, a data file and a seeded
+   database can disagree in two directions and neither shows in the output.
+2. **A Bangladeshi clinic cannot register: no plan is priced in BDT.**
+   `registerOrganization` answers `PLAN_UNAVAILABLE` (503). The behaviour suite
+   omits the currency and falls through to USD. ⚠️ **NPR and LKR are the same**,
+   so PI-19 and PI-20 will both hit it.
+
+⚠️ **PI-14 (GB) STAYS BLOCKED** on legislation.gov.uk. The next unstarted phases
+are PI-19 (NP), PI-20 (LK), PI-22 (Reporting & Cost Accounting), PI-23
+(Identifier Resolution / Barcode) and PI-24 (Global Hardening).
+
+---
+
+## PI-18, still unreviewed
+
 **Written:** 2026-08-20 · **By:** session PI-18 (the Ireland rule pack).
 
 ## PI-18 first, because it is the freshest and it is unreviewed

@@ -108,6 +108,12 @@ import {
   IE_RULES,
   IE_SOURCES,
 } from './data/regulatory-ie.js';
+import {
+  BD_AUTHORITIES,
+  BD_PACK_EFFECTIVE_FROM,
+  BD_RULES,
+  BD_SOURCES,
+} from './data/regulatory-bd.js';
 
 /** A `@db.Date` column takes a day, in the jurisdiction's own reckoning. */
 function day(value: string): Date {
@@ -421,6 +427,66 @@ const PACKS: readonly PackSeed[] = [
       '17(2)(d) lifts it from a dispense) and no emergency-supply rule. No sub-national pack, ' +
       'and none is possible. Not reviewed by a qualified person.',
     effectiveFrom: IE_PACK_EFFECTIVE_FROM,
+  },
+
+  /*
+   * ⚠️ BANGLADESH IS THE FIRST PACK IN THIS PROGRAMME WHOSE AUTHENTIC TEXT IS
+   *   NOT ENGLISH, AND BOTH ITS STATUTES SAY SO IN TERMS. Section 83(2) of the
+   *   ঔষধ ও কসমেটিকস্ আইন, ২০২৩ and section 70(2) of the মাদকদ্রব্য নিয়ন্ত্রণ
+   *   আইন, ২০১৮ each provide that where the Bangla and English texts conflict,
+   *   the BANGLA text prevails. Every rule was read off the Bangla on bdlaws;
+   *   the English in a `statement` is this pack's rendering and not an
+   *   authority's. The commercial translations that circulate were refused for
+   *   the same reason PI-17 refused the UAE's federal decrees as restated.
+   *
+   * ⚠️ AND IT IS THE FIRST WHOSE OPERATIVE RULEBOOK IS OLDER THAN THE COUNTRY.
+   *   The Bengal Drugs Rules, 1946 survive by section 82(2)(ক) of the 2023 Act,
+   *   which saves the rules made under the repealed Drugs Act, 1940. DGDA
+   *   publishes them today and its own Online Pharmacy checklist cites Form 7 of
+   *   them — but the only text it publishes is "as amended … up to December
+   *   1952". Seventy-four years of Gazette are unaccounted for, and every rule
+   *   drawn from the Rules carries that gap on its source row.
+   *
+   * ⚠️ `CountryInfo.regions` FOR `BD` IS EMPTY AND CORRECT — the second clean
+   *   run of the check that cost PI-15 a working pack and PI-17 two. DGDA and
+   *   the Department of Narcotics Control are national, both statutes are
+   *   national, and a district regulates no part of this, so no sub-national
+   *   pack can exist to be made inert. The same loose end Ireland left is here:
+   *   `labels.region` for `BD` says 'District', and no district can be selected.
+   */
+  {
+    countryCode: 'BD',
+    countryName: 'Bangladesh',
+    authorities: BD_AUTHORITIES,
+    sources: BD_SOURCES,
+    rules: BD_RULES,
+    packAuthorityCode: 'DGDA',
+    version: '1.0.0',
+    name: 'Bangladesh — the Drugs and Cosmetics Act 2023, narcotics, and the 1946 Rules',
+    description:
+      'Section 40(ঘ) of the ঔষধ ও কসমেটিকস্ আইন, ২০২৩ is the spine: nobody may sell an ' +
+      'antibiotic or any other drug that is not an Over the Counter medicine without the ' +
+      'prescription of a registered physician. Around it: section 45(1)’s personal supervision ' +
+      'by a Pharmacist, Diploma Pharmacist or Pharmacy Technician on the Bangladesh Pharmacy ' +
+      'Council register in category ‘এ’, ‘বি’ or ‘সি’ — wholesale expressly exempt — the Bengal ' +
+      'Drugs Rules 1946 for the prescription register and its two years, Schedule G’s ' +
+      'no-repeat-unless-endorsed, the Schedule D poison cupboard, container and red “Poison” ' +
+      'label, Schedule C’s storage accommodation and three-year wholesale trail, and the ' +
+      'মাদকদ্রব্য নিয়ন্ত্রণ আইন, ২০১৮ for the three narcotic classes — a চিকিৎসক to prescribe, ' +
+      'one purchase per prescription with no endorsement able to widen it, and a Department of ' +
+      'Narcotics Control licence raised as a precondition the pharmacist can only verify. ' +
+      'Remote supply is permitted under a separate DGDA Online Pharmacy licence, by a Grade ‘A’ ' +
+      'Pharmacist alone, and is forbidden outright for a controlled drug. ⚠️ NO PRESCRIPTION ' +
+      'VALIDITY ANYWHERE — Bangladeshi law states none, so this pack honours a prescription of ' +
+      'any age. ⚠️ NO REPEAT RULE for an ordinary prescription medicine: rule 24(11) is ' +
+      'confined to Schedule G. ⚠️ NO GENERAL DISPENSING LABEL — rule 53(2) disapplies the ' +
+      'labelling part and re-imposes it for Schedule D alone. ⚠️ A VETERINARY PRESCRIPTION IS ' +
+      'REFUSED for an ordinary medicine and accepted for a narcotic, because the 2018 Act ' +
+      'defines চিকিৎসক and the 2023 Act does not. No narcotics register or safe (the বিধিমালা ' +
+      'could not be retrieved), no disposal rule, no sub-national pack and none possible. ' +
+      'Configured from bdlaws.minlaw.gov.bd and DGDA’s own publications, in Bangla. Not ' +
+      'reviewed by a qualified person.',
+    effectiveFrom: BD_PACK_EFFECTIVE_FROM,
   },
 ];
 
