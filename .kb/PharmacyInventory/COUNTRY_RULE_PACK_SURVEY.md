@@ -236,16 +236,18 @@ look complete.
 
 **PI-13 gains a framework sub-phase, and it runs once for all nine.**
 
-| Phase      | Change                                                                                                                                                                                                                                                                                                                             |
-| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **PI-13a** | **New.** Framework extensions sized to all nine: GAP 1, GAP 2, GAP 3, GAP 5. Tested against the synthetic `ZQ` packs in `packages/regulatory/tests/engine.test.ts`, where every rule type is tested. No country's rules.                                                                                                           |
-| PI-13      | US federal + California state pack. Unchanged in scope, now built on PI-13a                                                                                                                                                                                                                                                        |
-| PI-14 GB   | ⚠️ **Blocked until an access route to legislation.gov.uk is found**                                                                                                                                                                                                                                                                |
-| PI-15 AU   | ✅ **SHIPPED 2026-08-20** as national + Victoria. NSW returned `403`, so the state is Victoria. The state pack carries 18 of the 22 rules, which is the survey's thesis proved                                                                                                                                                     |
-| PI-16 SG   | ✅ **SHIPPED 2026-08-20** as a national-only pack — Singapore is a city-state. 28 rules across two instruments that do not share a classification vocabulary, and no pharmacist-only rule, which is a finding rather than a gap                                                                                                    |
-| PI-17 AE   | ✅ **SHIPPED 2026-08-20 as two emirates and NO federal pack.** uaelegislation.gov.ae returns `403` and mohap.gov.ae resets the connection, so the Ministerial Decrees both emirates cite were readable only as restatements — a secondary source. `AE-AZ` 25 rules, `AE-DU` 26. The other five emirates answer `UNDETERMINED`      |
-| PI-18 IE   | ✅ **SHIPPED 2026-08-20** as a national-only pack — 50 rules, 7 sources. The survey's GAP 1 was right about Ireland stating validity in months, and wrong about it being simple: S.I. No. 73 of 2024 made it six months OR up to twelve on a fact the platform does not hold. ⚠️ **AND IT PRODUCED A SIXTH GAP** — see GAP 6 below |
-| PI-19..21  | NP, LK, BD — batchable, and expected to land thin. Not a defect                                                                                                                                                                                                                                                                    |
+| Phase      | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PI-13a** | **New.** Framework extensions sized to all nine: GAP 1, GAP 2, GAP 3, GAP 5. Tested against the synthetic `ZQ` packs in `packages/regulatory/tests/engine.test.ts`, where every rule type is tested. No country's rules.                                                                                                                                                                                                                                                              |
+| PI-13      | US federal + California state pack. Unchanged in scope, now built on PI-13a                                                                                                                                                                                                                                                                                                                                                                                                           |
+| PI-14 GB   | ⚠️ **Blocked until an access route to legislation.gov.uk is found**                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| PI-15 AU   | ✅ **SHIPPED 2026-08-20** as national + Victoria. NSW returned `403`, so the state is Victoria. The state pack carries 18 of the 22 rules, which is the survey's thesis proved                                                                                                                                                                                                                                                                                                        |
+| PI-16 SG   | ✅ **SHIPPED 2026-08-20** as a national-only pack — Singapore is a city-state. 28 rules across two instruments that do not share a classification vocabulary, and no pharmacist-only rule, which is a finding rather than a gap                                                                                                                                                                                                                                                       |
+| PI-17 AE   | ✅ **SHIPPED 2026-08-20 as two emirates and NO federal pack.** uaelegislation.gov.ae returns `403` and mohap.gov.ae resets the connection, so the Ministerial Decrees both emirates cite were readable only as restatements — a secondary source. `AE-AZ` 25 rules, `AE-DU` 26. The other five emirates answer `UNDETERMINED`                                                                                                                                                         |
+| PI-18 IE   | ✅ **SHIPPED 2026-08-20** as a national-only pack — 50 rules, 7 sources. The survey's GAP 1 was right about Ireland stating validity in months, and wrong about it being simple: S.I. No. 73 of 2024 made it six months OR up to twelve on a fact the platform does not hold. ⚠️ **AND IT PRODUCED A SIXTH GAP** — see GAP 6 below                                                                                                                                                    |
+| PI-19 NP   | ⚠️ **DEFERRED** — skipped on 2026-08-24 in favour of PI-21. Not blocked; sources rated good                                                                                                                                                                                                                                                                                                                                                                                           |
+| PI-20 LK   | ⚠️ **DEFERRED** — skipped on 2026-08-24 in favour of PI-21. The thin-pack prediction is untested                                                                                                                                                                                                                                                                                                                                                                                      |
+| PI-21 BD   | ✅ **SHIPPED 2026-08-24 — 56 RULES, AND THE THIN-PACK PREDICTION WAS WRONG.** Two things this survey got wrong about Bangladesh: `dgda.gov.bd` responds today and serves the Bengal Drugs Rules 1946 in full (only `www.dgda.gov.bd` fails to resolve), and Bangladesh **replaced its medicines Act in 2023** — Act 29 of 2023 repealed the Drugs Act, 1940 and the Drugs (Control) Ordinance, 1982 outright. ⚠️ **AND IT PRODUCED THE FIRST NON-ENGLISH AUTHENTIC TEXT** — see below |
 
 ### GAP 6 — a distance-selling registration · **1 of 9 so far** · fixed in PI-18
 
@@ -289,3 +291,29 @@ nine jurisdictions of survey without moving.
   unusable in practice rather than merely strict.
 - **Contained-substance limits (GAP 4)** need a phase of their own if any
   jurisdiction's pack is ever to be complete. None is proposed yet.
+
+---
+
+## GAP 7 — a jurisdiction whose authentic text is not English · **1 of 9 so far** · not a framework gap
+
+Found by writing PI-21, and recorded here because it is the shape this survey
+never asked about. Both Bangladeshi statutes contain an explicit precedence
+clause — section 83(2) of the ঔষধ ও কসমেটিকস্ আইন, ২০২৩ and section 70(2) of the
+মাদকদ্রব্য নিয়ন্ত্রণ আইন, ২০১৮ — providing that where the Bangla and English
+texts conflict, **the Bangla text prevails**. Nepal's Drugs Act 2035 is likely to
+be the same shape, and this survey's "Nepal's DDA publishes the Drugs Act 2035 in
+English" row should be read with that in mind: an English publication is not
+necessarily the authentic text.
+
+⚠️ **NOTHING IN THE FRAMEWORK NEEDS TO CHANGE FOR IT, AND THAT IS THE POINT.** A
+rule's `statement` is prose printed in a refusal, a `citation` is a string, and
+`appliesToClassification` is matched exactly and never parsed — so a pack read
+from a Bangla statute configures exactly like one read from an English one.
+`BD 1.0.0` needed no key, no parser change and no engine change, the first pack
+since PI-6 that needed none.
+
+⚠️ **WHAT CHANGES IS WHAT `SOURCE_VERIFIED` MEANS.** For `IE` or `US` a reviewer
+re-reads the citations. For `BD` a reviewer re-reads the citations **in Bangla**,
+and this programme has no way to record which language a reviewer read a source
+in. That is a gap in the maturity ladder rather than in the engine, and it is
+recorded in OPEN_DECISIONS beside OD-3.

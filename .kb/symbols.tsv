@@ -123,6 +123,7 @@ Alert	component	local	apps/web/src/components/tenant/login-form.tsx:112	apps/web
 Alert	component	export	apps/web/src/components/ui/alert.tsx:53	apps/web/components/ui	({ tone, children, className, }: { tone: keyof typeof TONES;…)	
 ALERT_DAYS_KEY	const	local	apps/api/src/services/inventory/expiry.service.ts:55	apps/api/services/inventory	'inventory.expiry_alert_days'	
 all	fn	local	packages/regulatory/src/parameters.ts:97	packages/regulatory	(readers: T): Parsed<{ [K in keyof T]: T[K] extends Parsed<infer V> ? V :…	Collects the first problem across several readers, or hands back the values.
+ALL_CLASSES	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:451	packages/db/prisma/seed/data	: readonly BdClass[]	Everything this pack knows about, for the rules that reach all of it.
 ALL_PERMISSIONS	const	export	packages/permissions/src/codes.ts:827	packages/permissions	Object.values(PERMISSIONS) as PermissionCode[]	
 ALLERGEN_TYPES	const	local	apps/web/src/components/tenant/patient-chart.tsx:55	apps/web/components/tenant	: SelectOption[]	
 AllergyBand	component	local	apps/web/src/components/tenant/patient-chart.tsx:458	apps/web/components/tenant	({ allergies }: { allergies: PatientAllergyDetail[] })	
@@ -515,6 +516,12 @@ BatchStatus	type	export	packages/contracts/src/inventory.ts:854	packages/contrac
 batchStatusOf	fn/async	local	apps/api/tests/integration/recall.test.ts:177	apps/api/tests/integration	(batchId: string): Promise<string>	
 batchSummary	zod	export	packages/contracts/src/inventory.ts:420	packages/contracts	z.object(…)	
 BatchSummary	type	export	packages/contracts/src/inventory.ts:874	packages/contracts	z.infer<typeof batchSummary>	
+BD_AUTHORITIES	const	export	packages/db/prisma/seed/data/regulatory-bd.ts:199	packages/db/prisma/seed/data	[ { code: 'DGDA', name: 'Directorate General of Drug Administration', websiteUrl: 'https:…	
+BD_CLASSIFICATIONS	const	export	packages/db/prisma/seed/data/regulatory-bd.ts:352	packages/db/prisma/seed/data	{ /** Section 40(ঘ)’s single carve-out — the only thing sellable without a prescription. …	
+BD_PACK_EFFECTIVE_FROM	const	export	packages/db/prisma/seed/data/regulatory-bd.ts:197	packages/db/prisma/seed/data	'2026-08-24'	
+BD_RULES	const	export	packages/db/prisma/seed/data/regulatory-bd.ts:545	packages/db/prisma/seed/data	: RuleSeed[]	
+BD_SOURCES	const	export	packages/db/prisma/seed/data/regulatory-bd.ts:235	packages/db/prisma/seed/data	: SourceSeed[]	
+BdClass	interface	local	packages/db/prisma/seed/data/regulatory-bd.ts:374	packages/db/prisma/seed/data	{ key, classification, spoken }	
 bearerToken	fn	local	apps/api/src/middleware/auth.middleware.ts:28	apps/api/middleware	(req: Request): string | null	`Authorization: Bearer <token>` -> the token, or null.
 BILLABLE_BY_DEFAULT	const	local	apps/api/src/services/charging/policy.service.ts:58	apps/api/services/charging	: ReadonlySet<string>	
 BillableAppointment	type	local	apps/api/src/services/invoicing/appointment-billing.service.ts:229	apps/api/services/invoicing	Prisma.AppointmentGetPayload<{ select: typeof APPOINTMENT_SELECT }>	
@@ -978,6 +985,7 @@ codeFor	fn	local	apps/api/src/services/iam/designation.service.ts:38	apps/api/se
 CodeForm	component	local	apps/web/src/components/tenant/login-form.tsx:191	apps/web/components/tenant	({ slug }: { slug: string })	
 codes	fn	local	apps/api/tests/integration/ae-rule-pack.test.ts:282	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/au-rule-pack.test.ts:325	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
+codes	fn	local	apps/api/tests/integration/bd-rule-pack.test.ts:318	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:283	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/india-rule-pack.test.ts:208	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
 codes	fn	local	apps/api/tests/integration/sg-rule-pack.test.ts:244	apps/api/tests/integration	(decision: { reasons: { ruleCode: string | null }[] }): string[]	
@@ -1020,6 +1028,7 @@ CONDITION_STATUSES	const	local	apps/web/src/components/tenant/patient-chart.tsx:
 ConditionForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:1098	apps/web/components/tenant	({ slug, patientId }: { slug: string; patientId: string })	
 conditionKinds	fn	local	apps/api/tests/integration/ae-rule-pack.test.ts:285	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionKinds	fn	local	apps/api/tests/integration/au-rule-pack.test.ts:328	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
+conditionKinds	fn	local	apps/api/tests/integration/bd-rule-pack.test.ts:321	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionKinds	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:286	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionKinds	fn	local	apps/api/tests/integration/sg-rule-pack.test.ts:247	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
 conditionKinds	fn	local	apps/api/tests/integration/us-rule-pack.test.ts:313	apps/api/tests/integration	(decision: { conditions: { kind: string }[] }): string[]	
@@ -1214,6 +1223,7 @@ CostAverageList	component	export	apps/web/src/components/tenant/cost-average-lis
 costAverageRoutes	var	export	apps/api/src/routes/v1/procurement.routes.ts:850	apps/api/routes/v1	: IRouter	
 CostsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/costs/page.tsx:17	apps/web/app/(tenant)/t/[slug]/(app)/procurement/costs	({ params, searchParams, }: { params: Promise<{ slug: string…)	
 countdown	fn	local	apps/web/src/components/tenant/invitation-list.tsx:38	apps/web/components/tenant	(daysLeft: number): string	
+COUNTER_DISPENSERS	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:478	packages/db/prisma/seed/data	[ 'GRADE_A_PHARMACIST', 'GRADE_B_DIPLOMA_PHARMACIST', 'GRADE_C_PHARMACY_TECHNICIAN', ]	
 CounterSaleForm	component	export	apps/web/src/components/tenant/counter-sale-form.tsx:54	apps/web/components/tenant	({ slug, branches, locations, products }: Props)	
 CounterSalePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/sales/new/page.tsx:17	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy/sales/new	({ params }: { params: Promise<{ slug: string }> })	A sale with no prescription behind it. ⚠️ NO PHI ON THE WAY IN. A walk-in is frequently not a patient of this clinic, a…
 countFor	fn/async	local	apps/api/src/services/clinical/encounter.service.ts:820	apps/api/services/clinical	(tx: TxClient, type: ConsultationSectionType, encounterId: string): Promise<number>	
@@ -1505,7 +1515,7 @@ dateIn	fn	local	apps/api/tests/integration/procurement.test.ts:160	apps/api/test
 dateRange	fn/async	local	apps/api/src/services/invoicing/invoice.service.ts:750	apps/api/services/invoicing	(tx: TxClient, query: ListInvoicesQuery): Promise<[Date, Date] | null>	
 DateRange	interface	export	apps/web/src/lib/calendar-range.ts:28	apps/web/lib	{ from, to }	An inclusive span of calendar days, both ends `YYYY-MM-DD`.
 dateToInstant	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:611	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(value: FormDataEntryValue | null): string | null	
-day	fn	local	packages/db/prisma/seed/regulatory-packs.ts:113	packages/db/prisma/seed	(value: string): Date	A `@db.Date` column takes a day, in the jurisdiction's own reckoning.
+day	fn	local	packages/db/prisma/seed/regulatory-packs.ts:119	packages/db/prisma/seed	(value: string): Date	A `@db.Date` column takes a day, in the jurisdiction's own reckoning.
 DAY_KEY_FORMATTERS	const	local	apps/web/src/components/tenant/appointment-board.tsx:143	apps/web/components/tenant	new Map(…)	
 DAY_MONTH	const	local	apps/web/src/lib/calendar-range.ts:233	apps/web/lib	new Intl.DateTimeFormat(…)	
 DAY_OPTIONS	const	local	apps/web/src/components/tenant/doctor-create-form.tsx:61	apps/web/components/tenant	: SelectOption[]	
@@ -2038,6 +2048,7 @@ errorStatusesFor	fn	local	apps/api/src/openapi/document.ts:108	apps/api/openapi	
 escapeHtml	fn	local	apps/api/src/services/notification/templates.ts:23	apps/api/services/notification	(value: string): string	Every value that reaches the HTML body goes through this.
 escapeHtml	fn	local	packages/documents/src/invoice/render.tsx:114	packages/documents/invoice	(value: string): string	
 ESSENTIAL_KEY	const	local	packages/clinical/src/descriptors.ts:103	packages/clinical	: Readonly<Record<ConsultationFieldType, string | null>>	The key a type is MEANINGLESS without. `null` = the type is complete on its own, which is a statement rather than an om…
+evaluate	fn/async	local	apps/api/tests/integration/bd-rule-pack.test.ts:302	apps/api/tests/integration	(key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
 evaluate	fn/async	local	apps/api/tests/integration/ie-rule-pack.test.ts:267	apps/api/tests/integration	(key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
 evaluate	fn/async	local	apps/api/tests/integration/sg-rule-pack.test.ts:228	apps/api/tests/integration	(key: string, over: Record<string, unknown>, actor: Record<string, unknown>)	
 evaluate	fn	export	packages/regulatory/src/engine.ts:1063	packages/regulatory	(request: RegulatoryRequest): RegulatoryDecision	
@@ -3176,6 +3187,7 @@ majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:
 makeAppointment	fn/async	local	apps/api/tests/integration/visit-history.test.ts:199	apps/api/tests/integration	(episodeId: string, number: string, offsetDays: number, parentId: string | null): Promise<string>	A booking on a journey, checked in and ready for a consultation.
 makeLot	fn/async	local	apps/api/tests/integration/recall.test.ts:139	apps/api/tests/integration	(productId: string, lotNumber: string, expiresOn: string): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/au-rule-pack.test.ts:128	apps/api/tests/integration	(into: Record<string, string>, organizationId: string, key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
+makeProduct	fn/async	local	apps/api/tests/integration/bd-rule-pack.test.ts:176	apps/api/tests/integration	(key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
 makeProduct	fn/async	local	apps/api/tests/integration/charging.test.ts:116	apps/api/tests/integration	(code: string, type: string): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/consumption.test.ts:126	apps/api/tests/integration	(code: string, type: string, tracking): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/ie-rule-pack.test.ts:143	apps/api/tests/integration	(key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
@@ -3263,6 +3275,7 @@ medicationRoute	zod	export	packages/contracts/src/encounter-content.ts:88	packag
 MedicationRouteValue	type	export	packages/contracts/src/encounter-content.ts:104	packages/contracts	z.infer<typeof medicationRoute>	
 MedicationsPanel	component	local	apps/web/src/components/tenant/patient-chart.tsx:606	apps/web/components/tenant	({ slug, patientId, medications, canWrite, open, onToggle, }…)	
 MEDICINE	const	local	apps/api/src/openapi/registry/clinical-taxonomy.ts:37	apps/api/openapi/registry	{ id: SPECIALTY_MEDICINE_ID, code: 'MEDICINE', name: 'Medicine', parentId: null, type: 'D…	
+MEDICINE_CLASSES	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:383	packages/db/prisma/seed/data	: readonly BdClass[]	The five the medicines Act and the Bengal Rules decide between them.
 medicineDetail	var	export	packages/contracts/src/products.ts:798	packages/contracts	medicineDetailRequest.extend(…)	
 MedicineDetail	type	export	packages/contracts/src/products.ts:909	packages/contracts	z.infer<typeof medicineDetail>	
 medicineDetailRequest	zod	export	packages/contracts/src/products.ts:782	packages/contracts	z.object(…)	
@@ -3465,6 +3478,9 @@ MS_PER_DAY	const	local	packages/billing/src/periods.ts:32	packages/billing	86_40
 multiply	fn	local	packages/clinical/src/dosing.ts:153	packages/clinical	(a: Rational, b: Rational): Rational	
 multiply	fn	export	packages/inventory/src/units.ts:115	packages/inventory	(a: Rational, b: Rational): Rational	
 namesOneSubject	fn	local	packages/contracts/src/recall.ts:248	packages/contracts	(value: { batchId?: string | undefined; serialId?: string | …): boolean	
+NARCOTIC_CLASSES	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:429	packages/db/prisma/seed/data	: readonly NarcoticClass[]	
+NARCOTIC_PRESCRIBERS	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:520	packages/db/prisma/seed/data	[ 'REGISTERED_MEDICAL_PRACTITIONER', 'REGISTERED_DENTAL_PRACTITIONER', 'REGISTERED_HOMEOP…	
+NarcoticClass	interface	local	packages/db/prisma/seed/data/regulatory-bd.ts:425	packages/db/prisma/seed/data	{ className }	
 NATIONAL_IDS	const	local	packages/contracts/src/locale.ts:734	packages/contracts	: Readonly<Record<string, readonly NationalIdFormat[]>>	
 NationalIdFormat	interface	export	packages/contracts/src/locale.ts:127	packages/contracts	{ code, label, pattern, example, mask, maxLength, numeric }	
 nationalIdFormatFor	fn	export	packages/contracts/src/locale.ts:941	packages/contracts	(countryCode: string | null | undefined, typeCode: string | null | undefined): NationalIdFormat | null	One ID format by country and type code, or null if that pairing is unknown.
@@ -3508,6 +3524,7 @@ NO_PUBLISH_STEP	const	local	apps/api/src/openapi/registry/platform.ts:37	apps/ap
 NODE_NOTE	const	local	apps/api/src/openapi/registry/clinical-taxonomy.ts:34	apps/api/openapi/registry	'The node, as any of the browse endpoints returns it. A nod…	
 nodeParams	zod	local	apps/api/src/routes/v1/clinical-taxonomy.routes.ts:68	apps/api/routes/v1	z.object(…)	
 NodeRow	interface	local	apps/api/src/services/doctor/clinical-taxonomy.service.ts:67	apps/api/services/doctor	{ id, code, name, parent_id, type, description, display_order, is_active, organization_id, depth, has_children }	
+NON_NARCOTIC_PRESCRIPTION	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:459	packages/db/prisma/seed/data	: readonly BdClass[]	The prescription classes the 2023 Act decides on its own, without the 2018 Act.
 noopLogger	var	local	packages/documents/src/store/runtime.ts:51	packages/documents/store	: DocumentStoreLogger	
 normalise	fn	local	packages/inventory/src/allocate.ts:155	packages/inventory	(quantity: string): string	
 normaliseClassifications	fn	local	apps/api/src/services/doctor/doctor.service.ts:389	apps/api/services/doctor	(input: { specialtyIds?: string[] | undefined; classificatio…): DoctorClassificationInput[]	The two request forms collapse to one internal shape here, so nothing below this line has to care which the client used.
@@ -3540,6 +3557,7 @@ ONE_SUBJECT	const	local	packages/contracts/src/recall.ts:253	packages/contracts	
 oneClassificationForm	fn	local	packages/contracts/src/doctors.ts:96	packages/contracts	(v: { specialtyIds?: string[] | undefined; classifications?:…, ctx: z.RefinementCtx): void	Reject the two request forms being used at once. `specialtyIds` defaults to `[]`, so "both supplied" is `classification…
 oneQuantityBasis	fn	local	packages/contracts/src/procurement.ts:115	packages/contracts	(v: { unitId?: string | null | undefined; packagingLevel?: n…): boolean	
 oneQuantityBasisMessage	var	local	packages/contracts/src/procurement.ts:120	packages/contracts	'give either a unit or a packaging level, not both — a quan…	
+ONLINE_DISPENSERS	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:494	packages/db/prisma/seed/data	['GRADE_A_PHARMACIST']	
 ONLINE_ORDER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:566	apps/api/openapi/registry	'c47a0e93-6b25-4f81-9d30-8a1c5e7b2f04'	
 ONLINE_ORDER_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:567	apps/api/openapi/registry	'2f95c108-7d43-4b60-8e19-5a0c3b6e9d72'	
 ONLINE_ORDER_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:568	apps/api/openapi/registry	'ORD-2026-000318'	
@@ -3651,6 +3669,7 @@ Outcome	component	local	apps/web/src/components/tenant/billing-screen.tsx:868	ap
 Outcome	type	local	apps/web/src/components/tenant/checkout/mock-checkout.tsx:24	apps/web/components/tenant/checkout	'SUCCEED' | 'DECLINE' | 'STALL'	
 Outcome	type	local	apps/web/src/components/tenant/sandbox-checkout.tsx:21	apps/web/components/tenant	'SUCCEED' | 'DECLINE' | 'ABANDON' | 'STALL'	
 OUTCOME_LABEL	const	local	apps/web/src/components/tenant/substitution-panel.tsx:31	apps/web/components/tenant	: Record<string, string>	
+OVER_A_COUNTER	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:372	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE']	The two the person is standing in front of you for. Section 45 speaks to these.
 OVER_RECEIPT_TOLERANCE_KEY	const	export	apps/api/src/services/procurement/shared.ts:209	apps/api/services/procurement	'procurement.over_receipt_tolerance_percent'	
 OVERDUE_AFTER_DAYS	const	local	apps/api/src/services/clinical/recall.service.ts:46	apps/api/services/clinical	7	
 overlaps	fn	local	apps/api/src/services/appointment/availability.service.ts:206	apps/api/services/appointment	(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean	
@@ -3676,8 +3695,8 @@ packOnlineOrderAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(ap
 packOnlineOrderRequest	zod	export	packages/contracts/src/online-pharmacy.ts:218	packages/contracts	z.object(…)	
 PackOnlineOrderRequest	type	export	packages/contracts/src/online-pharmacy.ts:387	packages/contracts	z.infer<typeof packOnlineOrderRequest>	
 packParams	zod	local	apps/api/src/routes/v1/regulatory.routes.ts:120	apps/api/routes/v1	z.object(…)	
-PACKS	const	local	packages/db/prisma/seed/regulatory-packs.ts:148	packages/db/prisma/seed	: readonly PackSeed[]	
-PackSeed	interface	local	packages/db/prisma/seed/regulatory-packs.ts:117	packages/db/prisma/seed	{ countryCode, regionCode, countryName, authorities, sources, rules, packAuthorityCode, version, name, description, effectiveFrom }	
+PACKS	const	local	packages/db/prisma/seed/regulatory-packs.ts:154	packages/db/prisma/seed	: readonly PackSeed[]	
+PackSeed	interface	local	packages/db/prisma/seed/regulatory-packs.ts:123	packages/db/prisma/seed	{ countryCode, regionCode, countryName, authorities, sources, rules, packAuthorityCode, version, name, description, effectiveFrom }	
 PAGE	const	export	packages/documents/src/chrome/styles.ts:58	packages/documents/chrome	{ width: `${String(WIDTH_MM)}mm`, height: '297mm', /** * The left and right margin. * * ⚠…	
 PageFooter	component	export	packages/documents/src/chrome/page-chrome.tsx:123	packages/documents/chrome	({ chrome, children, }: { chrome: DocumentChrome; children?:…): JSX.Element	
 PageHeader	component	export	packages/documents/src/chrome/page-chrome.tsx:34	packages/documents/chrome	({ chrome }: { chrome: DocumentChrome }): JSX.Element	
@@ -3813,6 +3832,7 @@ payload	fn	local	apps/api/tests/integration/appointments.test.ts:71	apps/api/tes
 payload	fn	local	apps/api/tests/integration/au-rule-pack.test.ts:105	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/audit-history.test.ts:50	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/auth.test.ts:40	apps/api/tests/integration	(slug: string, label: string)	
+payload	fn	local	apps/api/tests/integration/bd-rule-pack.test.ts:126	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/branches.test.ts:43	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/charging.test.ts:93	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/clinic-tax.test.ts:73	apps/api/tests/integration	(slug: string, label: string)	
@@ -3996,10 +4016,14 @@ prepareLine	fn/async	local	apps/api/src/services/consumption/consumption.service
 prepareLineForRestatement	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1427	apps/api/services/consumption	(tx: TxClient, context: PrepareContext, requested: ConsumptionLineRequest, existing: StoredLine): Promise<Omit<PreparedLine, 'allocations'>>	
 prescribedProductRef	zod	export	packages/contracts/src/encounter-content.ts:391	packages/contracts	z.object(…)	The medicine, resolved for display. Same argument as `clinicalTermRef`.
 PrescribedProductRef	type	export	packages/contracts/src/encounter-content.ts:396	packages/contracts	z.infer<typeof prescribedProductRef>	
+PRESCRIBER_CLASSES	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:506	packages/db/prisma/seed/data	['REGISTERED_MEDICAL_PRACTITIONER', 'REGISTERED_DENTAL_PRACTITIONER']	
 PRESCRIBER_CLASSES	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:513	packages/db/prisma/seed/data	[ 'REGISTERED_MEDICAL_PRACTITIONER', 'REGISTERED_DENTIST', 'REGISTERED_NURSE', 'EEA_EQUIV…	
 prescriberRules	var	local	packages/db/prisma/seed/data/regulatory-us.ts:341	packages/db/prisma/seed/data	: RuleSeed[]	
+PRESCRIPTION_CLASSES	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:454	packages/db/prisma/seed/data	: readonly BdClass[]	Everything section 40(ঘ) requires a prescription for — that is, everything but OTC.
 PRESCRIPTION_FIELDS	const	local	apps/api/src/services/clinical/encounter-content.service.ts:1065	apps/api/services/clinical	[ 'strength', 'doseUnit', 'route', 'frequency', 'frequencyUnit', 'durationValue', 'durati…	
 PRESCRIPTION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:65	apps/api/openapi/registry	'1f8a4c60-3e97-4b25-9d78-6c0b5a2e8d31'	
+PRESCRIPTION_REGISTER_DETAIL	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:539	packages/db/prisma/seed/data	'Record the supply in the prescription register at the time…	What rule 24(3) obliges, said once so seven rules cannot drift apart.
+PRESCRIPTION_REGISTER_FIELDS	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:528	packages/db/prisma/seed/data	[ 'SERIAL_NUMBER', 'DATE_OF_SUPPLY', 'PRESCRIBER_NAME_AND_ADDRESS', 'PATIENT_NAME', 'DRUG…	The seven particulars rule 24(3) requires in the prescription register.
 PRESCRIPTION_ROW_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:447	apps/api/openapi/registry	'3b7f0a52-9d46-4c81-8e35-1a2c6b9d4e07'	The row joining this consultation to its amoxicillin line.
 PRESCRIPTION_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:144	apps/api/services/clinical	{ id: true, strength: true, dose: true, doseUnit: true, route: true, frequency: true, fre…	
 PRESCRIPTION_SIGNED_AT	const	export	apps/api/src/openapi/registry/fixtures.ts:98	apps/api/openapi/registry	'2026-03-17T04:22:00.000Z'	
@@ -5161,7 +5185,7 @@ seedDoctor	fn/async	local	apps/api/tests/integration/fee-schedule.test.ts:137	ap
 seedPermissions	fn/async	export	packages/db/prisma/seed/permissions.ts:15	packages/db/prisma/seed	(): Promise<Map<PermissionCode, string>>	
 seedPlans	fn/async	export	packages/db/prisma/seed/plans.ts:6	packages/db/prisma/seed	(): Promise<void>	
 seedProductMasters	fn/async	export	packages/db/prisma/seed/product-masters.ts:22	packages/db/prisma/seed	(): Promise<void>	
-seedRegulatoryPacks	fn/async	export	packages/db/prisma/seed/regulatory-packs.ts:427	packages/db/prisma/seed	(): Promise<void>	
+seedRegulatoryPacks	fn/async	export	packages/db/prisma/seed/regulatory-packs.ts:493	packages/db/prisma/seed	(): Promise<void>	
 seedRoleDesignations	fn/async	export	packages/db/prisma/seed/role-designations.ts:53	packages/db/prisma/seed	(): Promise<void>	
 seedSettingDefinitions	fn/async	export	packages/db/prisma/seed/setting-definitions.ts:40	packages/db/prisma/seed	(): Promise<void>	
 SeedStorageProfile	interface	export	packages/db/prisma/seed/data/product-masters.ts:192	packages/db/prisma/seed/data	{ code, name, minTemperatureC, maxTemperatureC, minHumidityPct, maxHumidityPct, lightSensitivity, requiresControlledAccess, hazardClass, handlingNotes }	
@@ -5669,6 +5693,7 @@ SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-ae-az.ts:1
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-ae-du.ts:138	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-au-vic.ts:290	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-au.ts:145	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
+SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:369	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:413	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-in.ts:223	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
 SUPPLY_TO_PATIENT	const	local	packages/db/prisma/seed/data/regulatory-sg.ts:281	packages/db/prisma/seed/data	['DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE']	Every transaction in which a product reaches a patient, whatever the channel.
@@ -6530,6 +6555,7 @@ writeLines	fn/async	local	apps/api/src/services/consumption/template.service.ts:
 WriteLinesInput	interface	local	apps/api/src/services/consumption/consumption.service.ts:1001	apps/api/services/consumption	{ consumptionId, branchId, startingLineNumber, patientId, occurredAt, lines, movementType }	
 writeThemeCookie	fn	export	apps/web/src/lib/theme.ts:215	apps/web/lib	(name: string, value: string): void	
 yearBounds	fn	export	packages/billing/src/numbering.ts:54	packages/billing	(at: Date): { start: Date; end: Date }	The UTC year boundaries the count above is taken over.
+yearsAgo	fn	local	apps/api/tests/integration/bd-rule-pack.test.ts:120	apps/api/tests/integration	(years: number): string	A prescription written exactly `years` calendar years ago, to the day.
 yenInvoice	var	export	packages/documents/src/invoice/samples.ts:251	packages/documents/invoice	: InvoiceDocumentData	
 zero	fn	export	packages/payments/src/money.ts:49	packages/payments	(currency: string): Money	
 zeroIn	fn	export	packages/billing/src/policy.ts:167	packages/billing	(currency: string): Money	Zero in the given currency. A trial upgrade owes nothing for the old plan.

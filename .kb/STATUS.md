@@ -1499,14 +1499,39 @@ said would differ.
   for. The tenant-isolation case found it; a third migration made it symmetric.
 
 **PI-13 (US, federal + California), PI-15 (Australia, national + Victoria),
-PI-16 (Singapore), PI-17 (Abu Dhabi + Dubai) and PI-18 (Ireland) have since
-shipped; PI-19 (Nepal) is next. PI-22 and PI-23 are also open**,
+PI-16 (Singapore), PI-17 (Abu Dhabi + Dubai), PI-18 (Ireland) and PI-21
+(Bangladesh) have since shipped; PI-19 (Nepal) and PI-20 (Sri Lanka) were skipped
+at the user's request on 2026-08-24 and are DEFERRED rather than blocked. PI-22
+and PI-23 are also open**,
 and PI-12 gave both more to do: reporting now has deliveries to report on, and a
 recall cannot yet reach stock held for an order nobody has packed.
 
 ⚠️ **PI-14 (Great Britain) is BLOCKED** — legislation.gov.uk returns `202` on
 every attempt. New South Wales returns `403`, which is why PI-15's state pack is
 Victoria.
+
+⚠️ **PI-21 is the first pack read from a text that is not in English, and both of
+its statutes say the English yields.** Section 83(2) of Bangladesh's ঔষধ ও
+কসমেটিকস্ আইন, ২০২৩ and section 70(2) of its মাদকদ্রব্য নিয়ন্ত্রণ আইন, ২০১৮ each
+provide that where the Bangla and English texts conflict, the Bangla prevails —
+so every one of `BD 1.0.0`'s 56 rules was read off the Bangla on
+bdlaws.minlaw.gov.bd, and the commercial English translations were refused for
+the reason PI-17 refused the UAE's decrees as restated. ⚠️ **Nothing in the
+framework had to change for it** — the first pack since PI-6 that needed no key,
+no parser change and no engine change. What changes is what `SOURCE_VERIFIED`
+means: for `BD` it cannot be closed by anybody who does not read Bangla.
+
+⚠️ **And PI-21 carries three PERMISSIVE gaps, which is the direction this
+programme is otherwise shaped against.** Bangladeshi law sets no prescription
+validity at all, confines its no-repeat-unless-endorsed rule to a 1952 schedule
+of five substances, and — through rule 53(2) of the Bengal Drugs Rules, 1946 —
+**disapplies** the labelling Part from a dispensed medicine and re-imposes it for
+Schedule D poisons alone. Taken together, one Bangladeshi prescription is good
+forever and for any number of supplies. All three are the law rather than the
+pack, and all three are pinned by a behaviour case so the cheap fix fails.
+⚠️ **The operative rulebook also predates the country and the regulator's own
+copy stops at December 1952**, which is a worse exposure than PI-18's Irish one:
+Ireland at least publishes each amendment separately.
 
 ⚠️ **PI-18 is the first jurisdiction in this programme that FORBIDS remote
 supply.** Regulation 19 of Ireland's Medicinal Products (Prescription and Control

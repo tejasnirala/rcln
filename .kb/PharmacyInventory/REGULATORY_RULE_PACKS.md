@@ -178,7 +178,15 @@ Required cases per pack:
 
 PI-6 India (pilot) → PI-13 US → PI-15 Australia → PI-16 Singapore (shipped) →
 (PI-14 UK is blocked on source access and was skipped) →
-PI-17 UAE (shipped, emirates only) → PI-18 Ireland → PI-19 Nepal → PI-20 Sri Lanka → PI-21 Bangladesh.
+PI-17 UAE (shipped, emirates only) → PI-18 Ireland (shipped) → **PI-21 Bangladesh
+(shipped)** → PI-19 Nepal and PI-20 Sri Lanka, both DEFERRED on 2026-08-24 at the
+user's request rather than blocked.
+
+⚠️ **BANGLADESH IS THE FIRST PACK READ FROM A NON-ENGLISH AUTHENTIC TEXT**, and
+both of its statutes provide expressly that the Bangla prevails over any English
+translation. Nothing in this framework had to change for it — see GAP 7 in
+COUNTRY_RULE_PACK_SURVEY for what that does and does not mean for
+`SOURCE_VERIFIED`.
 
 India first because the existing domain model, tax engine and invoice numbering
 are already exercised there. The US second because it is the hardest — federal
