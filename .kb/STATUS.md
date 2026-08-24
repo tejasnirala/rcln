@@ -1499,14 +1499,27 @@ said would differ.
   for. The tenant-isolation case found it; a third migration made it symmetric.
 
 **PI-13 (US, federal + California), PI-15 (Australia, national + Victoria),
-PI-16 (Singapore) and PI-17 (Abu Dhabi + Dubai) have since shipped; PI-18
-(Ireland) is next. PI-22 and PI-23 are also open**,
+PI-16 (Singapore), PI-17 (Abu Dhabi + Dubai) and PI-18 (Ireland) have since
+shipped; PI-19 (Nepal) is next. PI-22 and PI-23 are also open**,
 and PI-12 gave both more to do: reporting now has deliveries to report on, and a
 recall cannot yet reach stock held for an order nobody has packed.
 
 ⚠️ **PI-14 (Great Britain) is BLOCKED** — legislation.gov.uk returns `202` on
 every attempt. New South Wales returns `403`, which is why PI-15's state pack is
 Victoria.
+
+⚠️ **PI-18 is the first jurisdiction in this programme that FORBIDS remote
+supply.** Regulation 19 of Ireland's Medicinal Products (Prescription and Control
+of Supply) Regulations 2003 prohibits mail order of any medicinal product,
+regulation 19(5) extends that to information society services, and regulation
+19A(8)(b) shuts the door on a prescription medicine sent to a person in the
+State. Six classifications carry `ONLINE_DISPENSING` with `permitted: false`,
+which refuses — where every earlier pack either conditioned remote supply or said
+nothing, and saying nothing PERMITS it. It also needed one framework key:
+`requiresDistanceSellingAuthorisation`, because regulation 19A(1) gates
+non-prescription distance selling on a PSI register the platform cannot see.
+⚠️ **And its `CountryInfo.regions` check came back clean for the first time** —
+Irish medicines law is national, so no sub-national pack can be made inert.
 
 ⚠️ **PI-17 is the first country configured only from below.** The UAE's federal
 sources are unreachable — `uaelegislation.gov.ae` returns `403` and

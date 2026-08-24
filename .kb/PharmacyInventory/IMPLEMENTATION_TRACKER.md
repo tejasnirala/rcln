@@ -55,7 +55,8 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-15     | Australia Rule Pack (national + Victoria)      | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
 | PI-16     | Singapore Rule Pack                            | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
 | PI-17     | UAE Rule Packs (Abu Dhabi + Dubai)             | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed; no federal pack       |
-| PI-18..21 | Country Rule Packs (IE, NP, LK, BD)            | NOT_STARTED               | —                                        |
+| PI-18     | Ireland Rule Pack                              | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
+| PI-19..21 | Country Rule Packs (NP, LK, BD)                | NOT_STARTED               | —                                        |
 | PI-22     | Reporting & Cost Accounting                    | NOT_STARTED               | PI-4                                     |
 | PI-23     | Identifier Resolution / Barcode                | NOT_STARTED               | PI-1, PI-2                               |
 | PI-24     | Global Hardening                               | NOT_STARTED               | everything                               |
@@ -2176,3 +2177,142 @@ workspace packages through `turbo run test`. `db:rls:check` 131 tables;
 ⚠️ **THE `[e-l]` SLICE WAS KILLED ON ITS FIRST RUN AND RE-RUN TO GREEN.** A
 backgrounded slice that is killed prints nothing and looks exactly like one still
 running — worth knowing for the next session that runs the suite in pieces.
+
+---
+
+## PI-18 — Ireland Rule Pack
+
+**Branch:** `feat/pi-18-ie-rule-pack` · **Result:** complete, ⚠️ **not reviewed**
+
+`IE 1.0.0` — 50 rules, 7 sources, 3 authorities, no migration. The sixth
+rule-pack phase running with no schema change, and the first that needed a
+framework key.
+
+### The finding: a jurisdiction that FORBIDS remote supply
+
+Every pack before this one either said nothing about remote supply — which
+PERMITS it, on the strength of rules about a counter, as
+`packages/regulatory/tests/online-sale-gap.test.ts` shows — or conditioned it
+(21 U.S.C. 829(e)). Ireland prohibits it, in three provisions that leave no room:
+regulation 19(1) of S.I. No. 540 of 2003, regulation 19(5) as inserted by S.I.
+No. 87 of 2015, and regulation 19A(8)(b). Every prescription-controlled
+classification carries `ONLINE_DISPENSING` with `permitted: false`, which
+REFUSES — the first in the programme.
+
+⚠️ **THIS IS WHERE PI-12'S SECOND GATE STOPS LOOKING REDUNDANT.** A `REFUSED`
+decision enforces nothing until a named human sets a pack to
+`PRODUCTION_ENABLED`, and nobody has. `confirmOnlineOrder` refuses independently,
+on the clinic's own `online_sale_position`. Ireland is where the two finally
+agree about the same product — and only one of them cites the law.
+
+### The one framework change: `requiresDistanceSellingAuthorisation`
+
+Regulation 19A(1) permits distance selling of a NON-prescription medicine only by
+a supplier "entered on the ISS supply list" the Pharmaceutical Society of Ireland
+keeps. Written with the keys that existed before PI-18, the closest expressible
+rule was a bare `permitted: true` — which asserts the opposite of the regulation,
+the same inversion `requiresPriorInPersonEvaluation` was added to stop in PI-13a.
+
+Added to `OnlineDispensingParameters`, parsed, and raised as
+`VERIFY_PRIOR_AUTHORISATION` — the condition kind that already exists for exactly
+this shape. It mirrors `ControlledScheduleParameters.priorAuthorisationRequired`
+key for key and is deliberately not a second idea. The alternative was to write
+no rule at all, which resolves `UNDETERMINED` and refuses every lawful Irish
+over-the-counter distance sale while reporting that nobody has legislated.
+
+### The pattern PI-17 asked the next phase to carry, on its first outing
+
+⚠️ **A GATE CONDITIONAL ON A FACT THE PLATFORM DOES NOT MODEL — TWICE, IN ONE
+PACK.**
+
+1. **`branch.licence_type`, the FOURTH jurisdiction to ask.** Regulation 7(6)
+   confines a First Schedule Part C prescription to a hospital. No Part C
+   classification is defined, so a Part C product refuses. Defining one with the
+   ordinary rules would have been worse than defining nothing.
+2. **A prescription's own stated validity.** Regulation 7(5)(a)(ii), from 1 March
+   2024, permits up to twelve months where the prescriber wrote a period on the
+   prescription or a pharmacist recorded a regulation 9A review. Neither is on
+   `PresentedPrescription`, so the pack states limb (i) and refuses on day 183 a
+   dispense that may be lawful — a wrong answer in the refusing direction,
+   written knowingly, pinned by a behaviour case, and recorded in KNOWN_ISSUES.
+
+### `CountryInfo.regions` — the check that finally came back clean
+
+Third outing of PI-16's "check this list first". `IE` is `[]` and correctly so:
+Irish medicines law is national, so no sub-national pack can exist to be made
+inert. One loose end recorded rather than fixed blind — `labels.region` says
+'County' and no county can be selected; adding twenty-six would also offer them
+on the platform's tax-registration screen, and Irish VAT is national.
+
+### Sources, and this pack's largest exposure
+
+⚠️ **IRELAND PUBLISHES NO CONSOLIDATION OF AN S.I.** The 2003 Regulations have
+been amended more than forty times; the eISB serves the text of 2003 and each
+amendment separately. Three amendments bearing on rules here were read in full
+and are their own source rows — S.I. No. 201 of 2007 (nurse prescribers), S.I.
+No. 87 of 2015 (regulation 19(5) and 19A), S.I. No. 73 of 2024 (the substituted
+validity). The rest were checked for whether they touch regulations 5, 6, 7, 9,
+10, 17, 18, 19 or 20. **That is a check, not a guarantee.**
+
+### Three rules that were researched and NOT written
+
+- **Falsified Medicines traceability.** Directly applicable in Ireland;
+  `eur-lex.europa.eu` answers `202` on every path. No source, no rule — and
+  `evaluateTraceability` REFUSES on a missing identifier while the dispense path
+  sends no GTIN, so a rule written from memory would have refused every Irish
+  dispense.
+- **Controlled-drug container marking.** Regulation 17(1) of the 2017
+  Regulations requires it and regulation **17(2)(d) disapplies the whole of it**
+  from supply by or on a practitioner's prescription — which is every dispense
+  this platform performs.
+- **Reporting.** Regulation 24 is on demand, within fourteen days of a written
+  demand. There is no periodic return, and a `REPORTING_REQUIREMENT` rule raises
+  its condition on every evaluation.
+
+- **DB** n/a — no migration
+- **BE** `data/regulatory-ie.ts` (50 rules, 7 sources), one `PACKS` entry;
+  `requiresDistanceSellingAuthorisation` + `distanceSellingAuthority` on
+  `OnlineDispensingParameters`, parsed in `parameters.ts` and handled in
+  `evaluateOnlineDispensing`
+- **TEST** 52 behaviour cases in `apps/api/tests/integration/ie-rule-pack.test.ts`,
+  including both directions of the remote-supply prohibition, the day-183
+  refusal, the Part C `UNDETERMINED`, and the two schedule lists that are not the
+  same list
+- **DOC** COUNTRY_SUPPORT_MATRIX (IE row + header), KNOWN_ISSUES, CHANGELOG,
+  COUNTRY_RULE_PACK_SURVEY, NEXT_SESSION, STATUS
+- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
+  security reviewer has run over this diff
+
+### ⚠️ Two defects PI-18 found in code it did not write
+
+**1. `AU-SCHEDULE-S8` refuses every Schedule 8 transaction outside Victoria.**
+It carries `{ scheduleName: 'Schedule 8' }` and nothing else;
+`parseControlledSchedule` rejects a document that imposes no obligation, so the
+rule resolves `UNDETERMINED`, which refuses. Its file comment says the opposite
+in so many words, and its behaviour case asserts the rule code appears and no
+conditions were raised — exactly what an unreadable rule produces, and it never
+asserts the outcome. **Not fixed here**: the fix is a decision about Australia
+(delete the rule, or let the parser accept a `scheduleName`-only rule as
+informational) that changes behaviour in seven jurisdictions. KNOWN_ISSUES.
+
+**2. An unclassified rule is a fail-open for every classification its pack does
+not recognise.** Found in this pack's own first draft — `IE-LABEL-DISPENSE` was
+written unclassified, faithfully, and a Part C product then matched only it and
+came back `PERMITTED_WITH_CONDITIONS`. Fixed here by writing the labelling rule
+once per classification. ⚠️ **`IN`, `US`, `SG` and `US-CA` have the same shape**;
+read off the rule rows rather than run, and recorded rather than changed.
+
+**Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
+`turbo typecheck --concurrency=1`, then the tests. ⚠️ `pnpm test` still OOMs the
+api container (exit 137, KNOWN_ISSUES #2), so `turbo lint`/`typecheck` ran at
+`--concurrency=1` and the api suite ran in six path slices:
+**299 unit + 1,747 integration (tenant-isolation included in the `[t-v]` slice,
+and 470 again on its own), all green**, plus 25 workspace packages through
+`turbo run test` and 120 in `@rcln/regulatory`. `db:rls:check` 131 tables;
+`docs:validate` 437/437. No migration, so nothing moved in the schema.
+
+⚠️ **THE SEED UPSERTS AND NEVER DELETES.** Three rule codes were renamed during
+the phase (`IE-LABEL-DISPENSE`, `IE-SCHEDULE-CD3`, `IE-SCHEDULE-CD4A`) and their
+rows survived a re-seed as orphans. They were deleted from the dev database by
+hand. A pack whose codes change between seeds leaves rules nobody wrote still
+matching — worth knowing before the next rule-pack phase renames anything.

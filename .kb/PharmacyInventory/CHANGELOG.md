@@ -5,6 +5,100 @@ discussed.
 
 ---
 
+## 2026-08-20 — PI-18: the first jurisdiction that says no
+
+**Phase:** PI-18 · **Branch:** `feat/pi-18-ie-rule-pack` · **Result:** complete,
+**not reviewed** · **Tests:** +52 integration behaviour cases. No migration.
+
+`IE 1.0.0` — 50 rules, 7 sources, 3 authorities, read from the electronic Irish
+Statute Book.
+
+### Ireland forbids remote supply, and no earlier pack could say that
+
+Every pack in this programme so far either said nothing about remote supply or
+conditioned it. Saying nothing is not neutral: a pack that regulates supply lists
+`ONLINE_DISPENSE` alongside `DISPENSE` on its prescription rules, so a pack
+silent about the channel PERMITS it on the strength of rules about a counter.
+That fail-open is what PI-12's second gate exists to close.
+
+Ireland is the first jurisdiction that closes it from the law's side:
+
+```
+19.(1)  A person shall not supply by mail order any medicinal product.
+19.(5)  The provisions of this Regulation shall also apply to the supply, by way
+        of information society service, of medicinal products which ... may only
+        be supplied on foot of a prescription.
+19A.(8) Nothing in this Regulation shall be construed as permitting ...
+        (b) the supply of a medicinal product subject to prescription control in
+        the State at a distance ... to a person in the State.
+```
+
+Six classifications carry `ONLINE_DISPENSING` with `permitted: false`, which
+`REFUSES` before the destination or the exclusions are even looked at.
+
+### One framework key, on PI-13a's precedent
+
+Regulation 19A(1) permits distance selling of a **non**-prescription medicine
+only by a supplier "entered on the ISS supply list" kept by the Pharmaceutical
+Society of Ireland. With the keys that existed, the closest expressible rule was
+a bare `permitted: true` — asserting the opposite of the regulation, exactly as
+`permitted: true` alone once asserted the opposite of 21 U.S.C. 829(e).
+
+`OnlineDispensingParameters.requiresDistanceSellingAuthorisation` and
+`distanceSellingAuthority` were added, and raise `VERIFY_PRIOR_AUTHORISATION` —
+the condition kind that already existed for a fact established before the
+transaction, by somebody else, which the dispenser can verify and never perform.
+It mirrors `ControlledScheduleParameters.priorAuthorisationRequired` key for key.
+
+### The six months that may lawfully be twelve
+
+S.I. No. 73 of 2024 substituted regulation 7(5)(a) from 1 March 2024: six months,
+**or** up to twelve where the prescriber wrote a period on the prescription or a
+pharmacist recorded a regulation 9A review — and never for a controlled drug.
+`PresentedPrescription` holds neither fact, so the pack states limb (i) alone.
+
+⚠️ **THAT REFUSES ON DAY 183 A DISPENSE THAT MAY BE LAWFUL — the refusing
+direction, which is the one nobody audits.** It is written that way because
+`validityMonths: 12` would permit, silently, the far larger set of prescriptions
+on which nobody specified anything. A behaviour case pins the refusal so the
+cheap fix fails the suite; the real fix is the field.
+
+### Three things researched and deliberately not written
+
+- **The Falsified Medicines unique identifier.** Directly applicable in Ireland,
+  and `eur-lex.europa.eu` answers `202` with a client-side challenge on every
+  path — by `curl` with a browser user agent and by the fetch tool alike. No
+  source, no rule. ⚠️ **And a lucky escape**: `evaluateTraceability` REFUSES on a
+  missing identifier and `createDispenseWithin` sends no GTIN, so the obvious
+  `requiredIdentifiers: ['GTIN', ...]` would have refused every Irish dispense.
+- **Controlled-drug container marking.** Regulation 17(1) requires it;
+  regulation 17(2)(d) disapplies the whole of it from supply on a practitioner's
+  prescription. A rule from 17(1) alone would impose what 17(2) lifts.
+- **A Part C classification.** Regulation 7(6) confines it to a hospital, and
+  rcln has no `branch.licence_type` — the **fourth** jurisdiction to ask for that
+  field. Defining the classification with ordinary rules would have handed a
+  community pharmacy a clean `PERMITTED` for a supply the regulation forbids;
+  defining nothing makes it `UNDETERMINED`, which refuses.
+
+### The regions check, finally clean
+
+Australia's empty `CountryInfo.regions` cost PI-15 a working pack and the UAE's
+cost PI-17 two. Ireland's is empty and correct — medicines law is national, so no
+sub-national pack can exist to be made inert. One loose end recorded rather than
+fixed blind: `labels.region` says 'County' and no county can be selected.
+
+### The research hazard worth carrying forward
+
+⚠️ **IRELAND PUBLISHES NO CONSOLIDATION OF A STATUTORY INSTRUMENT.** The 2003
+Regulations have been amended more than forty times and the eISB serves the 2003
+text and each amendment separately, so the principal instrument reads as though
+nothing has changed. Three amendments bearing on rules here were read in full and
+are their own source rows; the rest were checked for whether they touch the
+regulations in play. That is a check, not a guarantee, and it is this pack's
+largest exposure.
+
+---
+
 ## 2026-08-20 — PI-17: a country regulated only from below
 
 **Phase:** PI-17 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,

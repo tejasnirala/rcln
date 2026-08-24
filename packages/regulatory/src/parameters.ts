@@ -255,6 +255,33 @@ export interface OnlineDispensingParameters {
    *   proviso IS the section.
    */
   requiresPriorInPersonEvaluation: boolean | undefined;
+  /**
+   * Is remote supply lawful only for a supplier already on a public register of
+   * distance sellers? (PI-18.)
+   *
+   * ⚠️ THE SAME SHAPE AS `ControlledScheduleParameters.priorAuthorisationRequired`
+   *   AND DELIBERATELY NOT A SECOND IDEA — a fact established before the
+   *   transaction, by somebody else, which the dispenser can verify and never
+   *   perform. It raises `VERIFY_PRIOR_AUTHORISATION`, the condition kind that
+   *   already exists for exactly this.
+   *
+   * ⚠️ WITHOUT IT, IRELAND'S POSITION INVERTS ITSELF THE WAY THE UNITED STATES'
+   *   DID BEFORE `requiresPriorInPersonEvaluation`. Regulation 19A(1) of the
+   *   Medicinal Products (Prescription and Control of Supply) Regulations 2003
+   *   does not authorise distance selling of a non-prescription medicine; it
+   *   forbids it unless the seller "has been entered on the ISS supply list"
+   *   kept by the Pharmaceutical Society of Ireland. Expressed with the keys
+   *   that existed before this one, the closest available rule was
+   *   `permitted: true` — a bare permission, with the registration that makes
+   *   the supply lawful silently dropped.
+   *
+   *   The alternative was to write no rule at all, which resolves `UNDETERMINED`
+   *   and refuses every lawful Irish over-the-counter distance sale while
+   *   reporting that nobody has legislated — and Ireland plainly has.
+   */
+  requiresDistanceSellingAuthorisation: boolean | undefined;
+  /** Who keeps the register — named in the condition so a screen can say where to look. */
+  distanceSellingAuthority: string | undefined;
 }
 
 export interface AuthorityParameters {
@@ -505,6 +532,11 @@ export function parseOnlineDispensing(parameters: unknown): Parsed<OnlineDispens
     excludedClassifications: readStringArray(source.value, 'excludedClassifications'),
     destinationCountryCodes: readStringArray(source.value, 'destinationCountryCodes'),
     requiresPriorInPersonEvaluation: readBoolean(source.value, 'requiresPriorInPersonEvaluation'),
+    requiresDistanceSellingAuthorisation: readBoolean(
+      source.value,
+      'requiresDistanceSellingAuthorisation'
+    ),
+    distanceSellingAuthority: readString(source.value, 'distanceSellingAuthority'),
   });
   if (!parsed.ok) return parsed;
   if (parsed.value.permitted === undefined) {
