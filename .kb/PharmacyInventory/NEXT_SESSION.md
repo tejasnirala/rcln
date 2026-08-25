@@ -2,6 +2,95 @@
 
 **Read this first.** Updated at the end of every session.
 
+**Written:** 2026-08-25 · **By:** session PI-22 (Reporting & Cost Accounting).
+
+## PI-22 first, because it is the freshest and it is unreviewed
+
+✅ **PI-22 SHIPPED:** nine reports plus a menu, on branch
+`feat/pi-22-reporting-cost-accounting`. **No migration, no new table, no RLS
+policy, no tenant-isolation case** — every figure is arithmetic over tables nine
+earlier phases wrote, computed at read inside `withTenant`. 18 integration cases,
+16 unit cases, 6 new route-gate cases. ⚠️ **NOT REVIEWED** — and neither are
+PI-21, PI-18, PI-17, PI-16, PI-15, PI-13a, PI-13 and PI-12.
+
+⚠️ **THIS IS THE FIRST PHASE IN THE PROGRAMME WHOSE CORE IS RAW SQL, AND IT IS
+THE ONE THING A REVIEWER SHOULD LOOK AT FIRST.** Nine `$queryRaw` aggregates in
+`services/reports/`, every value parameterised, no `Prisma.raw` anywhere, and the
+two table aliases the cost helpers depend on (`src` and `bt`) are FIXED BY
+CONVENTION rather than passed as arguments — specifically so there is no
+identifier-shaped hole for somebody to interpolate into later. Read
+`services/reports/shared.ts` before the two service files; it argues every one of
+those choices.
+
+⚠️ **`procedure-contribution` DOES NOT CONTAIN THE PROCEDURE'S FEE, AND CANNOT.**
+Nothing in this schema prices one procedure differently from another:
+`fee_schedule_entries` prices a fee TYPE, a `PROCEDURE` invoice carries no
+reference back, and `charge_requests` is CHECKed to `PHARMACY`/`INVENTORY`. So
+"contribution" is the margin on MATERIALS. Every field says `consumable`, the
+response carries `procedureFeeIncluded: false`, the screen prints it above the
+table. **KNOWN_ISSUES #27, and the largest honest gap the phase leaves.** Closing
+it is a charging-model change — a per-procedure rate card plus a `PROCEDURE`
+charge-request source — and whoever does it should add the `PROCEDURE` invoice
+reference column PI-8 deliberately left out at the same time.
+
+⚠️ **THE TWO CASES MOST LIKELY TO BE BROKEN BY SOMEBODY TIDYING UP.** Both are
+pinned, and both look like improvements:
+
+1. **A `COALESCE(cost, 0)` in the fallback chain.** It passes every other
+   assertion and silently reports uncosted stock as worth nothing. The contract,
+   the service, the screen and one integration case all insist on `null` plus a
+   quantity in `totals[].unvaluedQuantityBase`.
+2. **Reading the ledger's SIGN instead of its status pair.** `CHANGES_HOLDING` is
+   `(status_from IS NULL OR status_to IS NULL)` because a MOVE carries BOTH
+   statuses and a POSITIVE quantity — quarantine, recall, expiry, damage. Using
+   the sign reports an expiry sweep as a delivery. The fixture quarantines 30
+   units so that implementation fails.
+
+⚠️ **AND THIS PHASE MADE THE MISTAKE ITS OWN DOCUMENTATION PREDICTED, WHICH IS
+THE MOST USEFUL THING IN THIS NOTE.** INVENTORY_ARCHITECTURE.md carries a warning
+headed "⚠️ THE COST, FOR PI-22": in-transit stock is not in `stock_balances`. The
+first draft of the valuation filtered `stock_balances` on
+`status = 'IN_TRANSIT'` — a status that exists in the enum and that **nothing in
+this codebase ever writes**, because PI-3 put the quantity on the transfer
+DOCUMENT. It honoured the flag, returned rows, and valued stock on a van at
+nothing. Nothing raised, nothing failed, and the total looked plausible. **The
+prediction had been written down in this directory and was read after the code
+was written.** Read the warnings in the architecture docs for the area you are
+touching BEFORE the code, not while validating it.
+
+⚠️ **AND `pnpm test` OOMS THE CONTAINER, NOT V8.** KNOWN_ISSUES #2 said "raise
+the heap"; raising `--max-old-space-size` to 4096 gets the process **SIGKILLed**
+against `mem_limit: 3g` instead of throwing. The api suite ran as
+`jest --shard=n/3`. Somebody should either raise the limit in
+`docker-compose.yml` or add `workerIdleMemoryLimit` to `apps/api/jest.config.ts`
+— it is now masking failures in a suite of ~2,100 cases.
+
+### Where to start on PI-22, if you are reviewing it
+
+- `services/reports/shared.ts` — the cost fallback chain, the fixed aliases, the
+  per-currency fold, and why the joins are LATERAL rather than CTEs.
+- `packages/contracts/src/reports.ts` — the header states the four things these
+  numbers are NOT. Read it before reading a figure off any of them.
+- `routes/v1/reports.routes.ts` — the conditional `authorize(EXPORT)`. It is the
+  one departure from the standard chain in the codebase, and the header argues it.
+- `services/reports/csv.ts` — the formula-injection guard. Every string in these
+  files came out of a clinic's own text field.
+- `apps/web/.../reports/[reportKey]/export/route.ts` — forces `format=csv` so a
+  hand-typed `format=json` cannot turn the proxy into an unaudited JSON route
+  that skips the export permission.
+
+⚠️ **NOTHING ELSE CHANGED.** No schema, no permission code, no rule pack, no
+`@rcln/regulatory`. Every open item from PI-21 is still open: `AU-SCHEDULE-S8` is
+still broken, the unclassified-rule fail-open in `IN`/`US`/`SG`/`US-CA` is still
+unrun, re-seeding a rule still never updates its transactions, and no plan is
+priced in BDT/NPR/LKR.
+
+The next unstarted phases are PI-23 (Identifier Resolution / Barcode) and PI-24
+(Global Hardening). PI-23 has the most callers waiting on it — KNOWN_ISSUES #25,
+#25b and #31 are all the same debt.
+
+---
+
 **Written:** 2026-08-24 · **By:** session PI-21 (the Bangladesh rule pack).
 
 ## PI-21 first, because it is the freshest and it is unreviewed

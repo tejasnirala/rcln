@@ -35,6 +35,7 @@ import pharmacyRoutes from '../../src/routes/v1/pharmacy.routes.js';
 import onlineOrderRoutes from '../../src/routes/v1/online-pharmacy.routes.js';
 import consumptionRoutes from '../../src/routes/v1/consumption.routes.js';
 import { recallRoutes, traceabilityRoutes } from '../../src/routes/v1/recalls.routes.js';
+import reportRoutes from '../../src/routes/v1/reports.routes.js';
 
 /**
  * ⚠️ THIS SUITE TOUCHES NO DATABASE AND STILL HAS TO HANG UP.
@@ -149,6 +150,16 @@ const ROUTERS: { name: string; router: IRouter }[] = [
    */
   { name: 'recalls', router: recallRoutes },
   { name: 'traceability', router: traceabilityRoutes },
+  /*
+   * ⚠️ REPORTS ARE AUDITED FOR THE REASON CONSUMPTION IS, AND IT IS THE CLOSEST
+   *   CALL OF ALL OF THEM (PI-22). Two of the nine reports READ
+   *   `clinical_consumptions`, whose `patient_id` is NOT NULL — so they open the
+   *   most patient-bound table in the programme, and they are the one surface in
+   *   it that returns nobody. The whole design rests on that grouping holding,
+   *   and the case below is where "no report names a patient" stops being a
+   *   sentence in a header and becomes an assertion.
+   */
+  { name: 'reports', router: reportRoutes },
 ];
 
 /**
@@ -206,6 +217,7 @@ const NOT_CLINICAL: string[] = [
 ];
 
 const AUDITED_FILES: string[] = [
+  'reports.routes.ts',
   'recalls.routes.ts',
   'pharmacy.routes.ts',
   'online-pharmacy.routes.ts',
@@ -592,6 +604,72 @@ describe('recall separates the counts from the names', () => {
     expect(moving.length).toBe(4);
     for (const route of moving) {
       expect(route.permissions).toEqual([PERMISSIONS.RECALL_EXECUTE]);
+    }
+  });
+});
+
+/**
+ * ⚠️ INVARIANT 7 FROM A THIRD SIDE, AND THE ONE MOST LIKELY TO BE BROKEN BY
+ *   SOMEBODY BEING HELPFUL (PI-22). Every report here answers in products, lots,
+ *   suppliers and procedure TYPES. Two of them read the clinical consumption
+ *   register to do it, and the obvious next feature request — "and show me which
+ *   patients" — is one column away in the SQL and a completely different act:
+ *   `recall.trace.patients` territory, with its own permission and a
+ *   `data_access_logs` row per read. These cases are what makes that column a
+ *   failing test rather than a merged pull request.
+ */
+describe('reports read the clinical record, name nobody, and write nothing', () => {
+  const routes = routesOf(reportRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBe(10);
+  });
+
+  /**
+   * ⚠️ A REPORT THAT ACCEPTED A `POST` WOULD BE A REPORT THAT CHANGED SOMETHING.
+   *   Nothing in this domain has a write: a stored report answer is a second
+   *   source of truth for a figure `stock_ledger` already holds exactly.
+   */
+  it('serves nothing but GET', () => {
+    for (const route of routes) expect(route.method).toBe('GET');
+  });
+
+  it('carries no clinical code on any route', () => {
+    const clinical = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(clinical).toEqual([]);
+  });
+
+  /**
+   * ⚠️ AND NO `recall.trace.patients` EITHER. That code buys a page of named
+   *   people, and a report gated on it would be a bulk PHI disclosure wearing a
+   *   management report's name.
+   */
+  it('carries no patient-tracing code on any route', () => {
+    for (const route of routes) {
+      expect(route.permissions ?? []).not.toContain(PERMISSIONS.RECALL_TRACE_PATIENTS);
+    }
+  });
+
+  it('gates every route on exactly one report code', () => {
+    for (const route of routes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^report\./);
+    }
+  });
+
+  /**
+   * ⚠️ `report.export` IS NEVER A ROUTE'S OWN GATE, WHICH IS THE HALF OF THE
+   *   EXPORT RULE A STACK AUDIT CAN SEE. It is applied CONDITIONALLY, inside the
+   *   chain, when `?format=csv` is asked for — so it is always ON TOP of the
+   *   report's own read code and never instead of it. A route that carried it as
+   *   its `authorize` would be a report readable by anybody holding the export
+   *   verb and nothing else.
+   */
+  it('never uses the export code as a route’s own gate', () => {
+    for (const route of routes) {
+      expect(route.permissions ?? []).not.toContain(PERMISSIONS.REPORT_EXPORT);
     }
   });
 });

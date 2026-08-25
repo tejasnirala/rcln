@@ -1501,10 +1501,44 @@ said would differ.
 **PI-13 (US, federal + California), PI-15 (Australia, national + Victoria),
 PI-16 (Singapore), PI-17 (Abu Dhabi + Dubai), PI-18 (Ireland) and PI-21
 (Bangladesh) have since shipped; PI-19 (Nepal) and PI-20 (Sri Lanka) were skipped
-at the user's request on 2026-08-24 and are DEFERRED rather than blocked. PI-22
-and PI-23 are also open**,
-and PI-12 gave both more to do: reporting now has deliveries to report on, and a
-recall cannot yet reach stock held for an order nobody has packed.
+at the user's request on 2026-08-24 and are DEFERRED rather than blocked.
+**PI-22 (Reporting & Cost Accounting) shipped on 2026-08-25; PI-23 is still
+open**, and PI-12 gave both more to do: reporting has deliveries to report on,
+and a recall cannot yet reach stock held for an order nobody has packed.
+
+⚠️ **PI-22 ADDED NINE REPORTS AND NOT ONE TABLE, WHICH IS THE DECISION TO KNOW
+ABOUT IT.** Valuation, aging, movement, dead stock, held stock, supplier
+performance, dispensing, consumption cost and procedure contribution are all
+computed at read, inside `withTenant`, over the tables nine earlier phases wrote
+— because a stored report answer is a second source of truth for a figure
+`stock_ledger` already holds exactly (PI-ADR-004, applied to reading). So there is
+no migration, no RLS policy and no tenant-isolation case; there IS raw SQL, which
+makes it the first phase in the programme whose core is `$queryRaw`, and the first
+thing a reviewer should look at.
+
+⚠️ **Two of those nine read `clinical_consumptions`, whose `patient_id` is NOT
+NULL, and neither returns one.** The grain is the product or the procedure TYPE,
+`patient_id` appears in no SELECT list in `services/reports/`, and no
+`data_access_logs` row is written anywhere in the domain — the same line
+`/traceability/forward` draws against `/traceability/affected`, with no "names"
+half on this side of it. `route-gates.test.ts` now asserts the router carries no
+`clinical.*` code and no `recall.trace.patients`, so the obvious next feature
+request is a failing test rather than a merged pull request.
+
+⚠️ **`procedure-contribution` cannot include the procedure's own fee, and the
+response says so as data.** Nothing in this schema prices one procedure
+differently from another: `fee_schedule_entries` prices a fee TYPE, a `PROCEDURE`
+invoice carries no reference back by PI-8's deliberate design, and
+`charge_requests` is CHECKed to `PHARMACY`/`INVENTORY`. So "contribution" is the
+margin on MATERIALS; every field says `consumable` and `procedureFeeIncluded` is a
+literal `false`. Closing it is a charging-model change, not a reporting one.
+
+⚠️ **And nothing in those reports is ever valued at zero to make the arithmetic
+work.** A lot no basis can cost comes back `null` with its quantity intact, and
+that quantity travels in a per-currency `unvaluedQuantityBase` — because a zero is
+a number somebody adds up and a null is a number somebody goes and fixes.
+`totals` is an array for the same reason: `product_cost_averages` is keyed by
+currency, so summing across one produces a figure in no currency at all.
 
 ⚠️ **PI-14 (Great Britain) is BLOCKED** — legislation.gov.uk returns `202` on
 every attempt. New South Wales returns `403`, which is why PI-15's state pack is

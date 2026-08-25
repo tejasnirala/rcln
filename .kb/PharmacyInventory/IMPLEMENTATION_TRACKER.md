@@ -59,7 +59,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-19  | Nepal Rule Pack                                | DEFERRED                  | skipped by request — see PI-21           |
 | PI-20  | Sri Lanka Rule Pack                            | DEFERRED                  | skipped by request — see PI-21           |
 | PI-21  | Bangladesh Rule Pack                           | **COMPLETE** (2026-08-24) | — ⚠️ not reviewed                        |
-| PI-22  | Reporting & Cost Accounting                    | NOT_STARTED               | PI-4                                     |
+| PI-22  | Reporting & Cost Accounting                    | **COMPLETE** (2026-08-25) | — ⚠️ not reviewed                        |
 | PI-23  | Identifier Resolution / Barcode                | NOT_STARTED               | PI-1, PI-2                               |
 | PI-24  | Global Hardening                               | NOT_STARTED               | everything                               |
 
@@ -2508,3 +2508,142 @@ moved in the schema. The seed prints `BD 1.0.0: 4 sources, 56 rules`.
 ⚠️ **THE SEED HAD TO BE FORCED TO NOTICE A CHANGED RULE.** `appliesToTransactions`
 is written on create only, so the `BD-RETAIN-*` fix reached the dev database only
 after the pack's rules were deleted by hand. See KNOWN_ISSUES.
+
+---
+
+# PI-22 — Reporting & Cost Accounting · COMPLETE
+
+**Dependencies:** PI-4. **Size:** L. **Completion date:** 2026-08-25.
+
+Nine reads over the tables nine earlier phases wrote, **and not one new table.**
+A report that stored its answer would be a second source of truth for a figure
+`stock_ledger` already holds exactly — PI-ADR-004's rule applied to reading. So
+there is no migration, no RLS policy and no tenant-isolation case: every query
+runs inside `withTenant`, and RLS applies to raw SQL exactly as it applies to the
+client.
+
+| Report                   | Path                                          | Gate                    |
+| ------------------------ | --------------------------------------------- | ----------------------- |
+| the menu                 | `GET /reports`                                | `report.dashboard.read` |
+| `inventory-valuation`    | `/reports/inventory/valuation`                | `report.inventory.read` |
+| `inventory-aging`        | `/reports/inventory/aging`                    | `report.inventory.read` |
+| `inventory-movement`     | `/reports/inventory/movement`                 | `report.inventory.read` |
+| `dead-stock`             | `/reports/inventory/dead-stock`               | `report.inventory.read` |
+| `quarantine-exposure`    | `/reports/inventory/quarantine`               | `report.inventory.read` |
+| `supplier-performance`   | `/reports/procurement/supplier-performance`   | `report.inventory.read` |
+| `dispensing`             | `/reports/pharmacy/dispensing`                | `report.inventory.read` |
+| `consumption-cost`       | `/reports/consumption/cost`                   | `report.clinical.read`  |
+| `procedure-contribution` | `/reports/consumption/procedure-contribution` | `report.revenue.read`   |
+
+The five permission codes already existed and were held by nobody's routes.
+
+## The four things these numbers are not
+
+⚠️ **1. `procedure-contribution` DOES NOT CONTAIN THE PROCEDURE'S FEE, AND
+CANNOT.** Nothing in this schema prices one procedure differently from another:
+`fee_schedule_entries` prices a fee TYPE (`PROCEDURE` is one string for every
+procedure a clinic performs), a `PROCEDURE` invoice carries no reference back by
+deliberate design, and `charge_requests` is CHECKed to `PHARMACY`/`INVENTORY`. So
+the revenue side is what was billed **for the materials**; every field says
+`consumable` and the response carries `procedureFeeIncluded: false` as a fact
+rather than a footnote. **This is the largest honest gap the phase leaves** and it
+is a charging-model change, not a reporting one. KNOWN_ISSUES #27.
+
+⚠️ **2. NOTHING IS EVER VALUED AT ZERO TO MAKE THE ARITHMETIC WORK.** A lot with
+no cost under either basis comes back `unitCostMinor: null` with its quantity
+intact, and that quantity travels in `totals[].unvaluedQuantityBase`. A
+`COALESCE(cost, 0)` anywhere in the chain would pass every other assertion in the
+suite and silently report uncosted stock as worth nothing. It is the case the
+integration suite exists for.
+
+⚠️ **3. EVERY TOTAL IS PER CURRENCY, AND `totals` IS AN ARRAY.** PI-4 made
+multi-currency procurement explicit rather than fixing it — `product_cost_averages`
+is keyed BY currency — so adding them would produce a number in no currency at
+all. `procedure-contribution` FULL OUTER JOINs cost and revenue **on currency**,
+which means a clinic holding two averages for one product gets two rows.
+KNOWN_ISSUES #28.
+
+⚠️ **4. A MOVE IS NOT A CHANGE IN HOLDING, AND THE TEST FOR IT IS THE STATUS PAIR
+RATHER THAN THE SIGN.** PI-2's direction CHECK gives ADDS `status_to` alone,
+REMOVES `status_from` alone, and MOVES both with a POSITIVE quantity — quarantine,
+recall, reservation, expiry and damage are all moves. `CHANGES_HOLDING` is
+`(status_from IS NULL OR status_to IS NULL)`, and reading the sign instead would
+report an expiry sweep as a delivery. `opening + received − issued ≡ closing` is
+asserted per row.
+
+## Other decisions worth knowing
+
+- ⚠️ **In-transit stock is read off the TRANSFER DOCUMENT, and the first draft of
+  this report got it wrong in exactly the way INVENTORY_ARCHITECTURE.md
+  predicted.** `IN_TRANSIT` is a `StockStatus` that **nothing ever writes** — PI-3
+  put the quantity on `stock_transfer_lines` because a sender-owned bucket would
+  make the RECEIVER write against a branch RLS hides from them. The draft filtered
+  on the status: the flag was honoured, the query returned rows, the total looked
+  plausible, and stock on a van was worth nothing. `includeInTransit` now adds
+  `sent − received` over `DISPATCHED` **and** `PARTIALLY_RECEIVED` lines at the
+  SENDING branch, so an org-wide valuation counts it once and a partly-received
+  transfer is not reported as nowhere. **The prediction was in the docs and was
+  read after the code was written**, which is the transferable lesson.
+- **Exporting is `report.export` ON TOP of the report's own read code.** Applied
+  as a conditional second `authorize()` when `?format=csv` is asked for, because
+  the format is a query parameter and the conjunction is not otherwise
+  expressible. Reading a figure and walking out with the whole table are
+  different acts.
+- ⚠️ **The CSV defuses formula injection.** A cell beginning `=`, `+`, `-` or `@`
+  is a FORMULA to Excel, LibreOffice and Sheets, and every string in these files
+  came out of a clinic's own text field — a lot number keyed at a goods receipt is
+  not validated against starting with `=`. Escaping is not enough; the leading
+  apostrophe is, and it goes inside the RFC 4180 quoting rather than outside.
+- **The window is two calendar dates and is never turned into instants in Node.**
+  Every dated query compares `(x.occurred_at AT TIME ZONE b.timezone)::date`, so
+  three branches in three zones each get their own days. Invariant 6, resolved in
+  the only place that knows all three zones at once.
+- **The cost chain is two LATERAL joins and not CTEs**, so the `COUNT(*)` that
+  pages a report cannot be missing a `WITH` the page had. It hangs off the
+  BALANCE row and not the lot — `batch_id` is nullable on four of these tables, and
+  a batch-keyed lookup would silently drop every untracked product.
+- **No `data_access_logs` row anywhere.** Two reports read
+  `clinical_consumptions`, whose `patient_id` is NOT NULL, and both group it away
+  before the first projection. `patient_id` is in no SELECT list in the
+  directory, and `route-gates.test.ts` asserts the router carries no `clinical.*`
+  code and no `recall.trace.patients`.
+- **`procedure-contribution` sorts in Node, alone among the nine**, because
+  contribution is major-unit revenue minus minor-unit cost and the conversion
+  belongs to `toMoney`. An ORDER BY would have had to reproduce the currency's
+  scale in SQL.
+
+## Stations
+
+- **DB** n/a — no migration, no new table, no RLS policy, no isolation case
+- **BE** `services/reports/{shared,inventory-reports.service,activity-reports.service,catalogue,csv}.ts`,
+  `routes/v1/reports.routes.ts`, mounted in `routes/v1/index.ts`
+- **CT** `packages/contracts/src/reports.ts` (nine query/response pairs, the
+  catalogue, `reportCurrencyTotal`), exported last in `index.ts`
+- **API** `openapi/registry/reports.ts` + a `Reports` tag and mount;
+  `docs:validate` 447/447
+- **FE** `/reports` (catalogue) and `/reports/[reportKey]` (detail) with a
+  `/export` route handler that proxies the CSV with the httpOnly token and forces
+  `format=csv`; `lib/report-specs.ts`; `components/tenant/report-{catalogue,view}.tsx`;
+  a `Reports` nav entry behind any of four codes
+- **TEST** 18 cases in `tests/integration/reports.test.ts` (the arithmetic, the
+  unvalued lot, the quarantine that is not an issue, branch scoping), 16 in
+  `tests/unit/report-csv.test.ts` (formula injection, per-currency folding,
+  null-not-zero ratios), and 6 new cases in `tests/unit/route-gates.test.ts`
+- **AUTHZ** no new codes — the five `report.*` codes existed since IAM and were
+  gating nothing
+- **DOC** this section, CHANGELOG, KNOWN_ISSUES (#27, #28), CURRENT_STATUS,
+  NEXT_SESSION, README, STATUS
+- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
+  security reviewer has run over this diff
+
+**Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
+`turbo run typecheck --concurrency=1` (29/29 green), then the tests.
+⚠️ `pnpm test` still OOMs the api project (KNOWN_ISSUES #2), so the api suite ran
+as three `jest --shard=n/3` slices: **682 + 722 + 729 = 2,133 cases across 100
+suites, all green**, plus every other workspace package through `turbo run test`.
+Shard 3 needed `--max-old-space-size=2400` — at the default it dies on
+`Ineffective mark-compacts near heap limit`, and at 4096 the whole suite is
+SIGKILLed against the container's `mem_limit: 3g` instead. Both numbers are worth
+recording: **the ceiling is the container, not V8**, which is not what #2's
+mitigation assumed. `docs:validate` 447/447; `db:rls:check` 131 tables (run for
+reassurance — there is no migration, so nothing moved in the schema).

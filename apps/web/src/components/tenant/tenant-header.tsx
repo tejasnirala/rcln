@@ -334,6 +334,37 @@ function clinicNav(permissions: string[]): NavLink[] {
      * decides what every patient is charged. Read and manage are separate codes;
      * either makes the screen worth opening.
      */
+    /*
+     * What all of that adds up to (PI-22). Nine reads over the tables the stock,
+     * buying, counter and consultation tabs write — and not one of them stores
+     * an answer.
+     *
+     * ⚠️ FIVE CODES, ANY OF WHICH MAKES THE TAB WORTH OPENING, AND THE MENU
+     *   BEHIND IT RENDERS ONLY THE REPORTS THE CALLER HOLDS. `report.dashboard.read`
+     *   is what actually gates the menu, but a clinic that grants an accountant
+     *   `report.revenue.read` alone and forgets the dashboard code would hide the
+     *   tab from the one person it was granted for — so the tab appears for any
+     *   of them and the screen says which are open.
+     *
+     * ⚠️ ITS OWN TAB RATHER THAN A PANEL ON STOCK, FOR THE REASON PRODUCT RECALLS
+     *   IS ITS OWN TAB. Stock says what the clinic HOLDS right now; a report is a
+     *   statement about a MOMENT or a PERIOD, printed, filed and compared against
+     *   next year's. Folding it into Stock would file "what did March cost us"
+     *   beside "how many boxes are in the fridge".
+     *
+     * Sits after Rules and before Tax: it is the last thing in the operational
+     * run and the first thing an accountant opens.
+     */
+    {
+      href: '/reports',
+      label: 'Reports',
+      permission: [
+        'report.dashboard.read',
+        'report.inventory.read',
+        'report.clinical.read',
+        'report.revenue.read',
+      ],
+    },
     { href: '/taxes', label: 'Tax', permission: ['billing.tax.read'] },
     { href: '/members', label: 'Staff', permission: ['iam.user.read'] },
     { href: '/roles', label: 'Roles', permission: ['iam.role.read'] },
