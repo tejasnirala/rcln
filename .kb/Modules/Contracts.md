@@ -41,6 +41,7 @@ Zod schemas shared by API and web. The request/response shape is written once an
 - `packages/contracts/src/products.ts`
 - `packages/contracts/src/recall.ts`
 - `packages/contracts/src/regulatory.ts`
+- `packages/contracts/src/reports.ts`
 - `packages/contracts/src/tax.ts`
 - `packages/contracts/src/tenancy.ts`
 - `packages/contracts/src/visit-history.ts`
@@ -71,6 +72,15 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `AffectedPartyQuery` | type | `packages/contracts/src/recall.ts:401` |
 | `affectedPartyResponse` | zod | `packages/contracts/src/recall.ts:361` |
 | `AffectedPartyResponse` | type | `packages/contracts/src/recall.ts:403` |
+| `agingBucket` | zod | `packages/contracts/src/reports.ts:320` |
+| `AgingBucket` | type | `packages/contracts/src/reports.ts:330` |
+| `agingBucketTotal` | zod | `packages/contracts/src/reports.ts:349` |
+| `agingQuery` | var | `packages/contracts/src/reports.ts:301` |
+| `AgingQuery` | type | `packages/contracts/src/reports.ts:309` |
+| `agingReport` | var | `packages/contracts/src/reports.ts:357` |
+| `AgingReport` | type | `packages/contracts/src/reports.ts:364` |
+| `agingRow` | var | `packages/contracts/src/reports.ts:332` |
+| `AgingRow` | type | `packages/contracts/src/reports.ts:346` |
 | `allocationPlanLine` | zod | `packages/contracts/src/inventory.ts:1285` |
 | `AllocationPlanLine` | type | `packages/contracts/src/inventory.ts:1348` |
 | `allocationPlanRequest` | zod | `packages/contracts/src/inventory.ts:1270` |
@@ -313,6 +323,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `ConsumptionCandidateLot` | type | `packages/contracts/src/consumption.ts:465` |
 | `consumptionCorrectionKind` | zod | `packages/contracts/src/consumption.ts:66` |
 | `ConsumptionCorrectionKind` | type | `packages/contracts/src/consumption.ts:453` |
+| `consumptionCostQuery` | var | `packages/contracts/src/reports.ts:645` |
+| `ConsumptionCostQuery` | type | `packages/contracts/src/reports.ts:653` |
+| `consumptionCostReport` | var | `packages/contracts/src/reports.ts:682` |
+| `ConsumptionCostReport` | type | `packages/contracts/src/reports.ts:688` |
+| `consumptionCostRow` | var | `packages/contracts/src/reports.ts:655` |
+| `ConsumptionCostRow` | type | `packages/contracts/src/reports.ts:680` |
 | `consumptionDetail` | var | `packages/contracts/src/consumption.ts:407` |
 | `ConsumptionDetail` | type | `packages/contracts/src/consumption.ts:478` |
 | `consumptionLineDetail` | zod | `packages/contracts/src/consumption.ts:360` |
@@ -347,6 +363,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `ConsumptionTemplateSummary` | type | `packages/contracts/src/consumption.ts:459` |
 | `correctConsumptionRequest` | zod | `packages/contracts/src/consumption.ts:334` |
 | `CorrectConsumptionRequest` | type | `packages/contracts/src/consumption.ts:473` |
+| `costBasis` | zod | `packages/contracts/src/reports.ts:124` |
+| `CostBasis` | type | `packages/contracts/src/reports.ts:125` |
 | `COUNTRIES` | const | `packages/contracts/src/locale.ts:397` |
 | `countryCode` | var | `packages/contracts/src/products.ts:152` |
 | `countryInfo` | fn | `packages/contracts/src/locale.ts:662` |
@@ -480,6 +498,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `creditNoteLineRequest` | zod | `packages/contracts/src/invoices.ts:267` |
 | `CreditNoteLineRequest` | type | `packages/contracts/src/invoices.ts:283` |
 | `currencyCode` | var | `packages/contracts/src/common.ts:128` |
+| `deadStockQuery` | var | `packages/contracts/src/reports.ts:427` |
+| `DeadStockQuery` | type | `packages/contracts/src/reports.ts:436` |
+| `deadStockReport` | var | `packages/contracts/src/reports.ts:455` |
+| `DeadStockReport` | type | `packages/contracts/src/reports.ts:461` |
+| `deadStockRow` | var | `packages/contracts/src/reports.ts:438` |
+| `DeadStockRow` | type | `packages/contracts/src/reports.ts:453` |
 | `decideChargeRequest` | zod | `packages/contracts/src/charging.ts:304` |
 | `DecideChargeRequest` | type | `packages/contracts/src/charging.ts:338` |
 | `decideGoodsReceiptQualityRequest` | zod | `packages/contracts/src/procurement.ts:731` |
@@ -533,6 +557,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `DispenseStatus` | type | `packages/contracts/src/pharmacy.ts:647` |
 | `dispenseSummary` | zod | `packages/contracts/src/pharmacy.ts:480` |
 | `DispenseSummary` | type | `packages/contracts/src/pharmacy.ts:670` |
+| `dispensingQuery` | var | `packages/contracts/src/reports.ts:590` |
+| `DispensingQuery` | type | `packages/contracts/src/reports.ts:597` |
+| `dispensingReport` | var | `packages/contracts/src/reports.ts:617` |
+| `DispensingReport` | type | `packages/contracts/src/reports.ts:621` |
+| `dispensingRow` | var | `packages/contracts/src/reports.ts:599` |
+| `DispensingRow` | type | `packages/contracts/src/reports.ts:615` |
 | `doctorBranchSettingDetail` | zod | `packages/contracts/src/doctors.ts:478` |
 | `DoctorBranchSettingDetail` | type | `packages/contracts/src/doctors.ts:573` |
 | `doctorBranchSettingRequest` | zod | `packages/contracts/src/doctors.ts:204` |
@@ -687,6 +717,8 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `goodsReceiptSummary` | zod | `packages/contracts/src/procurement.ts:813` |
 | `GoodsReceiptSummary` | type | `packages/contracts/src/procurement.ts:1078` |
 | `hasTimezoneChoice` | fn | `packages/contracts/src/locale.ts:674` |
+| `holdKind` | zod | `packages/contracts/src/reports.ts:476` |
+| `HoldKind` | type | `packages/contracts/src/reports.ts:477` |
 | `impersonateRequest` | zod | `packages/contracts/src/auth.ts:131` |
 | `ImpersonateRequest` | type | `packages/contracts/src/auth.ts:331` |
 | `impersonationClaimRequest` | zod | `packages/contracts/src/auth.ts:156` |
@@ -799,6 +831,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `memberStatusRequest` | zod | `packages/contracts/src/tenancy.ts:457` |
 | `MemberStatusRequest` | type | `packages/contracts/src/tenancy.ts:954` |
 | `minorAmount` | zod | `packages/contracts/src/procurement.ts:97` |
+| `movementQuery` | var | `packages/contracts/src/reports.ts:385` |
+| `MovementQuery` | type | `packages/contracts/src/reports.ts:390` |
+| `movementReport` | var | `packages/contracts/src/reports.ts:410` |
+| `MovementReport` | type | `packages/contracts/src/reports.ts:413` |
+| `movementRow` | var | `packages/contracts/src/reports.ts:392` |
+| `MovementRow` | type | `packages/contracts/src/reports.ts:408` |
 | `NationalIdFormat` | interface | `packages/contracts/src/locale.ts:127` |
 | `nationalIdFormatFor` | fn | `packages/contracts/src/locale.ts:941` |
 | `nationalIdTypesFor` | fn | `packages/contracts/src/locale.ts:935` |
@@ -921,6 +959,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `PreviousVisitResponse` | type | `packages/contracts/src/visit-history.ts:189` |
 | `previousVisitSource` | zod | `packages/contracts/src/visit-history.ts:144` |
 | `PreviousVisitSourceValue` | type | `packages/contracts/src/visit-history.ts:145` |
+| `procedureContributionQuery` | var | `packages/contracts/src/reports.ts:708` |
+| `ProcedureContributionQuery` | type | `packages/contracts/src/reports.ts:713` |
+| `procedureContributionReport` | var | `packages/contracts/src/reports.ts:743` |
+| `ProcedureContributionReport` | type | `packages/contracts/src/reports.ts:750` |
+| `procedureContributionRow` | var | `packages/contracts/src/reports.ts:715` |
+| `ProcedureContributionRow` | type | `packages/contracts/src/reports.ts:741` |
 | `productCategory` | zod | `packages/contracts/src/products.ts:263` |
 | `ProductCategory` | type | `packages/contracts/src/products.ts:865` |
 | `productCategoryListResponse` | zod | `packages/contracts/src/products.ts:286` |
@@ -1011,6 +1055,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `PurchaseSummary` | interface | `packages/contracts/src/billing.ts:240` |
 | `qualificationSummary` | zod | `packages/contracts/src/doctors.ts:390` |
 | `QualificationSummary` | type | `packages/contracts/src/doctors.ts:570` |
+| `quarantineQuery` | var | `packages/contracts/src/reports.ts:479` |
+| `QuarantineQuery` | type | `packages/contracts/src/reports.ts:485` |
+| `quarantineReport` | var | `packages/contracts/src/reports.ts:512` |
+| `QuarantineReport` | type | `packages/contracts/src/reports.ts:517` |
+| `quarantineRow` | var | `packages/contracts/src/reports.ts:487` |
+| `QuarantineRow` | type | `packages/contracts/src/reports.ts:510` |
 | `readableQuantity` | fn | `packages/contracts/src/inventory.ts:222` |
 | `reasonCode` | var | `packages/contracts/src/inventory.ts:194` |
 | `recallBatchDetail` | zod | `packages/contracts/src/recall.ts:141` |
@@ -1114,6 +1164,16 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `ReplaceProductTaxClassificationsRequest` | type | `packages/contracts/src/products.ts:902` |
 | `replaceStorageAreasRequest` | zod | `packages/contracts/src/inventory.ts:341` |
 | `ReplaceStorageAreasRequest` | type | `packages/contracts/src/inventory.ts:869` |
+| `reportCatalogue` | zod | `packages/contracts/src/reports.ts:782` |
+| `ReportCatalogue` | type | `packages/contracts/src/reports.ts:785` |
+| `reportCurrencyTotal` | zod | `packages/contracts/src/reports.ts:185` |
+| `ReportCurrencyTotal` | type | `packages/contracts/src/reports.ts:193` |
+| `reportDescriptor` | zod | `packages/contracts/src/reports.ts:765` |
+| `ReportDescriptor` | type | `packages/contracts/src/reports.ts:780` |
+| `reportFormat` | zod | `packages/contracts/src/reports.ts:107` |
+| `ReportFormat` | type | `packages/contracts/src/reports.ts:108` |
+| `reportKey` | zod | `packages/contracts/src/reports.ts:79` |
+| `ReportKey` | type | `packages/contracts/src/reports.ts:90` |
 | `rescheduleAppointmentRequest` | var | `packages/contracts/src/appointments.ts:192` |
 | `RescheduleAppointmentRequest` | type | `packages/contracts/src/appointments.ts:813` |
 | `rescheduleInitiator` | zod | `packages/contracts/src/appointments.ts:189` |
@@ -1271,6 +1331,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `SupplierDetail` | type | `packages/contracts/src/procurement.ts:1039` |
 | `supplierListResponse` | zod | `packages/contracts/src/procurement.ts:240` |
 | `SupplierListResponse` | type | `packages/contracts/src/procurement.ts:1040` |
+| `supplierPerformanceQuery` | var | `packages/contracts/src/reports.ts:537` |
+| `SupplierPerformanceQuery` | type | `packages/contracts/src/reports.ts:541` |
+| `supplierPerformanceReport` | var | `packages/contracts/src/reports.ts:567` |
+| `SupplierPerformanceReport` | type | `packages/contracts/src/reports.ts:571` |
+| `supplierPerformanceRow` | zod | `packages/contracts/src/reports.ts:543` |
+| `SupplierPerformanceRow` | type | `packages/contracts/src/reports.ts:565` |
 | `supplierProductListResponse` | zod | `packages/contracts/src/procurement.ts:363` |
 | `SupplierProductListResponse` | type | `packages/contracts/src/procurement.ts:1048` |
 | `supplierProductQuery` | zod | `packages/contracts/src/procurement.ts:319` |
@@ -1461,6 +1527,12 @@ Zod schemas shared by API and web. The request/response shape is written once an
 | `upsertProductPriceRequest` | zod | `packages/contracts/src/charging.ts:165` |
 | `UpsertProductPriceRequest` | type | `packages/contracts/src/charging.ts:173` |
 | `uuid` | zod | `packages/contracts/src/common.ts:3` |
+| `valuationQuery` | var | `packages/contracts/src/reports.ts:234` |
+| `ValuationQuery` | type | `packages/contracts/src/reports.ts:250` |
+| `valuationReport` | var | `packages/contracts/src/reports.ts:279` |
+| `ValuationReport` | type | `packages/contracts/src/reports.ts:286` |
+| `valuationRow` | var | `packages/contracts/src/reports.ts:261` |
+| `ValuationRow` | type | `packages/contracts/src/reports.ts:277` |
 | `verificationConfirmRequest` | zod | `packages/contracts/src/auth.ts:118` |
 | `VerificationConfirmRequest` | type | `packages/contracts/src/auth.ts:328` |
 | `verificationRequestResult` | zod | `packages/contracts/src/auth.ts:166` |

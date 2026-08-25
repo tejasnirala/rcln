@@ -5,6 +5,132 @@ discussed.
 
 ---
 
+## 2026-08-25 — PI-22: nine reports, no new tables
+
+**Phase:** PI-22 · **Branch:** `feat/pi-22-reporting-cost-accounting` ·
+**Result:** complete, **not reviewed** · **Tests:** +18 integration, +16 unit,
++6 route-gate cases. **No migration**, no new table, no RLS policy, no
+tenant-isolation case.
+
+Valuation, aging, movement, dead stock, held stock, supplier performance,
+dispensing, consumption cost and procedure contribution — plus a menu that
+resolves availability server-side. All ten are GETs under `/api/v1/reports`,
+behind the five `report.*` codes that have existed since IAM and were gating
+nothing.
+
+### Not one new table, and that is the load-bearing decision
+
+A report that stored its answer would be a second source of truth for a figure
+`stock_ledger` already holds exactly. Every figure here is arithmetic over
+`stock_balances`, `stock_ledger`, `batches`, `product_cost_averages`,
+`consumption_lines`, `charge_requests`, `dispense_lines` and the procurement
+documents, computed at read, inside `withTenant` — so RLS applies to the raw SQL
+exactly as it applies to the client, and every predicate still names
+`organization_id` and `branch_id` anyway (ADR-0003, layer two).
+
+### `procedure-contribution` does not contain the procedure's fee
+
+And cannot. `fee_schedule_entries` prices a fee TYPE — `PROCEDURE` is one string
+for every procedure a clinic performs — a `PROCEDURE` invoice carries no
+reference back by the design PI-8 argued for, and `charge_requests.source_type`
+is CHECKed to `PHARMACY`/`INVENTORY`. So the revenue side is what was billed for
+the MATERIALS: every field says `consumable`, the response carries
+`procedureFeeIncluded: false`, the screen prints it above the table, and the
+registry entry leads with it. ⚠️ **The largest honest gap the phase leaves**
+(KNOWN_ISSUES #27), and it is a charging-model change rather than a reporting one.
+
+### Nothing is valued at zero to make the arithmetic work
+
+A lot with no cost under either basis comes back `unitCostMinor: null` with its
+quantity intact, and that quantity travels in `totals[].unvaluedQuantityBase`
+rather than vanishing. A `COALESCE(cost, 0)` anywhere in the fallback chain would
+pass every other assertion in the suite and silently report a clinic's uncosted
+stock as worth nothing — a number that goes straight into a total somebody signs.
+It is the case the integration suite exists for, and the screen renders it in
+`signal` beside the money because it is a thing to go and fix.
+
+### A MOVE is not a change in holding, and the test is the status pair
+
+PI-2's `stock_ledger_direction` CHECK gives ADDS `status_to` alone, REMOVES
+`status_from` alone, and MOVES **both** with a POSITIVE quantity — quarantine,
+recall, reservation, expiry and damage are all moves. `CHANGES_HOLDING` is
+therefore `(status_from IS NULL OR status_to IS NULL)` and never the sign, because
+reading the sign would report an expiry sweep as a delivery.
+`opening + received − issued ≡ closing` is asserted per row, and the fixture
+quarantines 30 units specifically so a sign-based implementation fails.
+
+### In-transit stock — and the mistake this phase made and caught
+
+INVENTORY_ARCHITECTURE.md carried a warning headed "⚠️ **THE COST, FOR PI-22**":
+in-transit stock is not in `stock_balances`. **The first draft of the valuation
+made exactly the predicted mistake** — it filtered `stock_balances` on
+`status = 'IN_TRANSIT'`, a status that exists in the enum and that **nothing in
+this codebase ever writes**. PI-3 put the quantity on the transfer DOCUMENT
+because a sender-owned bucket would make the receiver write a removal against a
+branch RLS hides from them. The draft honoured the flag, returned rows, and
+reported stock on a van as worth nothing; nothing raised.
+
+`includeInTransit` now sums `sent − received` over the lines of `DISPATCHED`
+**and** `PARTIALLY_RECEIVED` transfers — the second because a transfer of ten
+boxes with four received is four on a shelf and six on a van, and filtering to
+`DISPATCHED` would report the six as nowhere. It is attributed to the SENDING
+branch, which is what makes an org-wide valuation count it once.
+
+⚠️ **The transferable lesson is not about transfers.** The prediction was written
+down, in this directory, and was read after the code was written rather than
+before.
+
+### Exporting is a second permission, applied conditionally
+
+`report.export` is required ON TOP of the report's own read code, as a second
+`authorize()` that runs only when `?format=csv` is asked for — the format is a
+query parameter, so the conjunction is not otherwise expressible. The web side
+proxies the download through a route handler so the httpOnly token is never
+exposed, and forces `format=csv` so a hand-typed `format=json` cannot turn that
+route into an unaudited JSON proxy that skips the export code.
+
+⚠️ **And the CSV defuses formula injection.** A cell beginning `=`, `+`, `-` or
+`@` is a FORMULA to Excel, LibreOffice and Sheets, and every string in these
+files came out of a clinic's own text field — a lot number keyed at a goods
+receipt is validated against nothing of the sort. The leading apostrophe goes
+INSIDE the RFC 4180 quoting; outside, it does nothing.
+
+### Two reports read the most patient-bound table in the programme
+
+`clinical_consumptions.patient_id` is NOT NULL, and neither report returns one.
+`patient_id` appears in no SELECT list in `services/reports/`, no
+`data_access_logs` row is written, and `route-gates.test.ts` now asserts the
+router carries no `clinical.*` code and no `recall.trace.patients`. The obvious
+next request — "and show me which patients" — is one column away in the SQL and a
+completely different act; those cases are what makes it a failing test rather
+than a merged pull request.
+
+### Smaller things worth knowing
+
+- The cost lookup is two LATERAL joins rather than CTEs, so the `COUNT(*)` that
+  pages a report cannot be missing a `WITH` the page had. It hangs off the
+  BALANCE row, not the lot: `batch_id` is nullable on four of these tables and a
+  batch-keyed lookup silently drops every untracked product.
+- Every dated query compares `(x.occurred_at AT TIME ZONE b.timezone)::date`, so
+  a report over three branches in three zones gives each branch its own days.
+  The window is never turned into instants in Node.
+- `totals` is an ARRAY, one entry per currency. `product_cost_averages` is keyed
+  by currency, so adding them would produce a number in no currency at all.
+- Ordering happens in an outer SELECT over the projection: every money column is
+  cast `::text` on the way out, and `ORDER BY value_minor` on text sorts `9`
+  above `10000` — which puts the most valuable stock in the clinic at the bottom
+  of page one, silently.
+- `procedure-contribution` sorts in Node, alone among the nine, because
+  contribution is major-unit revenue minus minor-unit cost and that conversion
+  belongs to `toMoney` rather than to a hand-written `× 100` in an ORDER BY.
+
+⚠️ **`pnpm test` still OOMs the api container, and it is the CONTAINER'S 3 GB
+limit rather than V8's heap** — raising `--max-old-space-size` gets the process
+SIGKILLed instead of throwing. KNOWN_ISSUES #2, unchanged; the api suite ran as
+three `jest --shard=n/3` slices.
+
+---
+
 ## 2026-08-24 — PI-21: the first pack read in a language other than English
 
 **Phase:** PI-21 · **Branch:** `feat/pi-21-bd-rule-pack` · **Result:** complete,

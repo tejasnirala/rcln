@@ -44,6 +44,7 @@ import platformRoutes from '../routes/v1/platform.routes.js';
 import productRoutes from '../routes/v1/products.routes.js';
 import publicRoutes from '../routes/v1/public.routes.js';
 import regulatoryRoutes from '../routes/v1/regulatory.routes.js';
+import reportRoutes from '../routes/v1/reports.routes.js';
 import roleRoutes from '../routes/v1/roles.routes.js';
 import taxRoutes from '../routes/v1/tax.routes.js';
 import visualMapRoutes from '../routes/v1/visual-maps.routes.js';
@@ -95,6 +96,7 @@ export const TAGS = [
   'Charging & consumption',
   'Invoicing & tax',
   'Recall & traceability',
+  'Reports',
   'Billing (subscription)',
   'Audit',
   'Platform admin',
@@ -175,6 +177,8 @@ export const MOUNTS: readonly Mount[] = [
   { prefix: `${V1}/consumption`, router: consumptionRoutes, tag: 'Charging & consumption' },
   { prefix: `${V1}/recalls`, router: recallRoutes, tag: 'Recall & traceability' },
   { prefix: `${V1}/traceability`, router: traceabilityRoutes, tag: 'Recall & traceability' },
+
+  { prefix: `${V1}/reports`, router: reportRoutes, tag: 'Reports' },
 
   { prefix: `${V1}/invoices`, router: invoiceRoutes, tag: 'Invoicing & tax' },
   { prefix: `${V1}/tax`, router: taxRoutes, tag: 'Invoicing & tax' },

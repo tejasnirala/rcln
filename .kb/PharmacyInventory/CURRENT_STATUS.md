@@ -38,6 +38,13 @@ force the receiver to write against a branch RLS hides from them. PI-22's
 valuation must add the outstanding lines of `DISPATCHED` transfers. See
 [NEXT_SESSION.md](NEXT_SESSION.md) decision 1.
 
+✅ **PI-22 DID THAT — AFTER FIRST GETTING IT WRONG, WHICH IS WORTH KEEPING.** The
+first draft of `inventory-valuation` filtered `stock_balances` on
+`status = 'IN_TRANSIT'`, a status nothing in the codebase writes. It honoured the
+flag, returned rows, and reported stock on a van as worth nothing. The paragraph
+above predicted it. `includeInTransit` now sums `sent − received` over
+`DISPATCHED` and `PARTIALLY_RECEIVED` transfer lines at the sending branch.
+
 PI-4 shipped procurement — twelve tables, the supplier/document tenancy seam, and
 seven screens. PI-5 shipped the regulatory FRAMEWORK: six tables, the pure
 `@rcln/regulatory` engine, the sign-off ladder, and five screens. `db:rls:check`

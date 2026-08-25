@@ -48,6 +48,7 @@ import {
   unitRoutes,
 } from './product-catalogue.routes.js';
 import regulatoryRoutes from './regulatory.routes.js';
+import reportRoutes from './reports.routes.js';
 import pharmacyRoutes from './pharmacy.routes.js';
 import onlineOrderRoutes from './online-pharmacy.routes.js';
 import platformRoutes from './platform.routes.js';
@@ -287,6 +288,26 @@ router.use('/online-orders', onlineOrderRoutes);
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather
 // than an error — see services/iam/guards.ts.
+/*
+ * WHAT ALL OF THAT ADDS UP TO (PI-22). Nine reads over the tables the eight
+ * phases above wrote, and not one new table — a report that stored its own
+ * answer would be a second source of truth for a number `stock_ledger` already
+ * holds exactly.
+ *
+ * ⚠️ NOT PHI, AND THAT IS A DESIGN CONSTRAINT RATHER THAN AN OBSERVATION. Two of
+ *    the nine read `clinical_consumptions`, whose `patient_id` is NOT NULL, and
+ *    both group it away: the grain is the product or the procedure TYPE. Nothing
+ *    here writes a `data_access_logs` row because nothing here discloses a
+ *    person — the same line `/traceability/forward` draws against
+ *    `/traceability/affected`, with no "names" half on this side of it.
+ *
+ * ⚠️ EXPORTING NEEDS `report.export` ON TOP OF THE REPORT'S OWN READ CODE. It is
+ *    applied as a second `authorize()` when `?format=csv` is asked for, because
+ *    walking out of the building with the whole table is not the same act as
+ *    reading a figure on a screen.
+ */
+router.use('/reports', reportRoutes);
+
 router.use('/roles', roleRoutes);
 router.use('/members', memberRoutes);
 

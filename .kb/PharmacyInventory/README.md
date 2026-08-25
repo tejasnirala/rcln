@@ -5,22 +5,20 @@ about this programme lives in this directory. Start here.
 
 ```text
 CURRENT PHASE:        none in flight
-CURRENT STATUS:       PI-0..PI-13, PI-15, PI-16, PI-17 COMPLETE
-LAST COMPLETED PHASE: PI-17 — UAE rule packs (Abu Dhabi + Dubai)
+CURRENT STATUS:       PI-0..PI-13, PI-15..PI-18, PI-21, PI-22 COMPLETE
+LAST COMPLETED PHASE: PI-22 — Reporting & Cost Accounting
 CURRENT WORK:         none
-NEXT PHASE:           PI-18 (IE); PI-22, PI-23 also open.
+NEXT PHASE:           PI-23 (Identifier Resolution / Barcode) or PI-24
+                      (Global Hardening). PI-19 (NP) and PI-20 (LK) are
+                      DEFERRED by request, not blocked.
                       ⚠️ PI-14 (GB) is BLOCKED — legislation.gov.uk returned
                       202 on every attempt in the country survey. An access
                       route is needed before that phase opens.
 BLOCKERS:             PI-14 (see above).
-                      ⚠️ PI-13a, PI-13, PI-15, PI-16 AND PI-17 ARE NOT REVIEWED — neither
+                      ⚠️ PI-12, PI-13a, PI-13, PI-15, PI-16, PI-17, PI-18,
+                      PI-21 AND PI-22 ARE NOT REVIEWED — neither
                       /code-review nor the security reviewer has run over
-                      those diffs.
-                      ✅ PI-12 IS FULLY REVIEWED. Security: 2 CRITICAL,
-                      1 HIGH, 3 MEDIUM, 4 LOW. Code: 8 WARNING, 7 INFO, no
-                      CRITICAL. All acted on; both CRITICALs carry a regression
-                      test verified against the reverted code.
-LAST UPDATED:         2026-08-20
+                      those diffs. PI-22 is the one carrying raw SQL.
 ```
 
 ---

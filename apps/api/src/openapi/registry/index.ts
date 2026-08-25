@@ -41,6 +41,7 @@ import { platformDocs } from './platform.js';
 import { productDocs } from './products.js';
 import { recallDocs } from './recalls.js';
 import { regulatoryDocs } from './regulatory.js';
+import { reportDocs } from './reports.js';
 import { publicDocs } from './public.js';
 import { webhookDocs } from './webhooks.js';
 
@@ -65,6 +66,7 @@ export const DOCS: DocRegistry = {
   ...chargingDocs,
   ...invoiceDocs,
   ...recallDocs,
+  ...reportDocs,
   ...billingDocs,
   ...platformDocs,
   ...pharmacyDocs,
@@ -112,6 +114,8 @@ export const TAG_DESCRIPTIONS: Partial<Record<Tag, string>> = {
     'What the clinic bills a PATIENT, the registrations it bills under, and what a visit costs. Not the subscription rcln charges the clinic — that is Billing.',
   'Recall & traceability':
     "A manufacturer's notice and the work it starts: which lots are still on which shelf, and which named people already received the product.",
+  Reports:
+    "What all of the above adds up to: valuation, aging, movement, dead stock, held stock, supplier performance, dispensing, consumption cost and procedure contribution. Nine reads, no new tables, and no patient in any of them. Exporting any of them as CSV needs `report.export` **on top of** the report's own read permission.",
   'Billing (subscription)':
     'What the clinic pays rcln, and how. Reading the invoice and cancelling the subscription are separate permissions.',
   Audit: "A record's own history. Read-only — `audit_logs` is append-only at the database.",

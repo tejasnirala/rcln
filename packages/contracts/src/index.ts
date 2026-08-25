@@ -48,3 +48,9 @@ export * from './recall.js';
 export * from './online-pharmacy.js';
 export * from './tax.js';
 export * from './locale.js';
+/* ⚠️ AFTER `products.js` and `common.js`, whose `decimalString` and
+   `calendarDate` it imports. It deliberately imports nothing from the nine
+   surfaces it REPORTS on — a report re-states a figure in its own shape rather
+   than re-exporting the shape that wrote it, so `inventory.js` renaming a field
+   is a compile error here rather than a silent change to a CSV column heading. */
+export * from './reports.js';

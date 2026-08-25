@@ -119,6 +119,17 @@ ageLabel	fn	local	apps/web/src/components/tenant/patient-search.tsx:112	apps/web
 ageLine	fn	export	apps/web/src/lib/patient-words.ts:32	apps/web/lib	(patient: { age: number | null; ageIsApproximate: boolean; g…): string	"34 · Female", or "approx. 60 · Male" when the age was estimated.
 AgeRestrictionParameters	interface	export	packages/regulatory/src/parameters.ts:177	packages/regulatory	{ minimumAgeYears, verificationRequired }	
 ageYearsOn	fn	export	apps/api/src/services/pharmacy/shared.ts:300	apps/api/services/pharmacy	(dateOfBirth: Date | null, on: Date): number | undefined	Whole years, from a date of birth the caller must not otherwise pass on.
+AGING_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:194	apps/api/routes/v1	: readonly CsvColumn<AgingRow>[]	
+agingBucket	zod	export	packages/contracts/src/reports.ts:320	packages/contracts	z.enum(…)	
+AgingBucket	type	export	packages/contracts/src/reports.ts:330	packages/contracts	z.infer<typeof agingBucket>	
+agingBucketTotal	zod	export	packages/contracts/src/reports.ts:349	packages/contracts	z.object(…)	Per-bucket subtotals, so the screen can draw the shape without the rows.
+agingQuery	var	export	packages/contracts/src/reports.ts:301	packages/contracts	reportScope.extend(…)	
+AgingQuery	type	export	packages/contracts/src/reports.ts:309	packages/contracts	z.infer<typeof agingQuery>	
+agingReport	var	export	packages/contracts/src/reports.ts:357	packages/contracts	reportEnvelope.extend(…)	
+AgingReport	type	export	packages/contracts/src/reports.ts:364	packages/contracts	z.infer<typeof agingReport>	
+agingRow	var	export	packages/contracts/src/reports.ts:332	packages/contracts	productRef.extend(branchRef.shape).extend(…)	
+AgingRow	type	export	packages/contracts/src/reports.ts:346	packages/contracts	z.infer<typeof agingRow>	
+AgingSqlRow	interface	local	apps/api/src/services/reports/inventory-reports.service.ts:374	apps/api/services/reports	{ branch_id, branch_name, product_id, product_name, product_code, base_unit_symbol, bucket, batch_id, lot_number, expires_on, received_at, days_to_expiry, days_held, quantity_base, unit_cost_minor, c…	
 Alert	component	local	apps/web/src/components/tenant/login-form.tsx:112	apps/web/components/tenant	({ state }: { state: LoginFormState })	
 Alert	component	export	apps/web/src/components/ui/alert.tsx:53	apps/web/components/ui	({ tone, children, className, }: { tone: keyof typeof TONES;…)	
 ALERT_DAYS_KEY	const	local	apps/api/src/services/inventory/expiry.service.ts:55	apps/api/services/inventory	'inventory.expiry_alert_days'	
@@ -320,7 +331,7 @@ assertJurisdiction	fn	local	apps/api/src/services/branch/branch.service.ts:71	ap
 assertKeyMatchesEnvironment	fn	local	packages/payments/src/providers/razorpay.ts:1536	packages/payments/providers	(keyId: string, environment: 'sandbox' | 'production'): void	
 assertLotIsReceivable	fn/async	local	apps/api/src/services/procurement/goods-receipt.service.ts:335	apps/api/services/procurement	(tx: TxClient, branchId: string, productName: string, expiresOn: Date | null): Promise<void>	
 assertMayOverride	fn	export	apps/api/src/services/consumption/shared.ts:97	apps/api/services/consumption	(options: ConsumptionActionOptions, productName: string, expected: string, actual: string): void	
-assertMountsCover	fn	export	apps/api/src/openapi/mounts.ts:199	apps/api/openapi	(reachable: ReadonlySet<IRouter>): void	
+assertMountsCover	fn	export	apps/api/src/openapi/mounts.ts:203	apps/api/openapi	(reachable: ReadonlySet<IRouter>): void	
 assertMutable	fn	local	apps/api/src/services/clinical/master.service.ts:45	apps/api/services/clinical	(row: { organization_id: string | null }): void	
 assertMutable	fn	local	apps/api/src/services/clinical/template.service.ts:60	apps/api/services/clinical	(row: { organizationId: string | null }): void	
 assertMutable	fn	local	apps/api/src/services/clinical/visual-map.service.ts:112	apps/api/services/clinical	(row: { organizationId: string | null }): void	
@@ -496,6 +507,8 @@ balanceOf	fn/async	local	apps/api/tests/integration/stock-movements.test.ts:125	
 Bar	component	local	apps/web/src/components/shell/platform-strip.tsx:62	apps/web/components/shell	({ children }: { children: React.ReactNode })	
 BASE_SCALE	const	export	packages/inventory/src/units.ts:51	packages/inventory	6	The ledger's precision. `Decimal(18,6)` in Postgres (PI-ADR-010).
 baseCookie	var	export	apps/web/src/lib/session-cookie.ts:21	apps/web/lib	{ httpOnly: true, // Lax, not Strict: Strict would drop the cookie on the cross-host redi…	
+BASIS_FILTER	const	local	apps/web/src/lib/report-specs.ts:64	apps/web/lib	: ReportFilter	
+BASIS_PARAM	const	local	apps/api/src/openapi/registry/reports.ts:53	apps/api/openapi/registry	"`BATCH` values each lot at what **that** lot cost; `MOVING…	
 BATCH	const	export	apps/api/src/openapi/registry/fixtures.ts:320	apps/api/openapi/registry	{ id: BATCH_ID, productId: PRODUCT_ID, batchNumber: 'AMX24K118', expiresOn: '2027-08-31',…	
 BATCH_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:68	apps/api/openapi/registry	'8d1c5f72-4a09-4e37-b628-9c3f0b7a5e14'	
 BATCH_MANAGE	const	local	apps/api/src/routes/v1/inventory.routes.ts:167	apps/api/routes/v1	PERMISSIONS.BATCH_MANAGE	
@@ -588,10 +601,13 @@ BRANCH_404	const	local	apps/api/src/openapi/registry/procurement.ts:69	apps/api/
 BRANCH_A	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:29	apps/api/tests/integration/tenant-isolation	'aaaaaaaa-0000-0000-0000-0000000000a1'	
 BRANCH_B1	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:30	apps/api/tests/integration/tenant-isolation	'bbbbbbbb-0000-0000-0000-0000000000b1'	
 BRANCH_B2	const	export	apps/api/tests/integration/tenant-isolation/harness.ts:31	apps/api/tests/integration/tenant-isolation	'bbbbbbbb-0000-0000-0000-0000000000b2'	
+BRANCH_COLUMN	const	local	apps/web/src/lib/report-specs.ts:74	apps/web/lib	: ReportColumn	
+BRANCH_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:174	apps/api/routes/v1	[{ header: 'Branch', field: 'branchName' }] as const	
 BRANCH_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:33	apps/api/openapi/registry	'8f1b0c4e-2d3a-4b5c-9e7f-1a2b3c4d5e6f'	Bengaluru, Karnataka. The primary branch and the default for every example.
 BRANCH_ID_NOTE	const	local	apps/api/src/openapi/registry/branches.ts:41	apps/api/openapi/registry	"The branch's `id`, as returned by `GET /api/v1/branches`. …	
 BRANCH_KOCHI	const	export	apps/api/src/openapi/registry/fixtures.ts:137	apps/api/openapi/registry	{ ...BRANCH, id: BRANCH_KOCHI_ID, name: 'Alpha Clinic — Kochi', code: 'KOC-MG', isPrimary…	
 BRANCH_KOCHI_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:35	apps/api/openapi/registry	'3c9d5a71-8e42-4f16-b0d3-7a5e9c1f2b84'	Kochi, Kerala. The SECOND branch, and the one that makes inter-state tax real.
+BRANCH_PARAM	const	local	apps/api/src/openapi/registry/reports.ts:49	apps/api/openapi/registry	'One branch, or omit for **every branch you can see**. This…	Shared prose, so nine endpoints cannot describe the same rule nine ways.
 BRANCH_SELECT	const	local	apps/api/src/services/branch/branch.service.ts:124	apps/api/services/branch	{ id: true, name: true, code: true, branchType: true, status: true, isPrimary: true, time…	The shape Prisma is asked for, so list and detail cannot drift apart.
 BRANCH_STATUSES	const	local	apps/web/src/components/tenant/branch-list.tsx:30	apps/web/components/tenant	: SelectOption[]	"Open/Paused/Closed", not ACTIVE/INACTIVE/CLOSED — nobody pauses a branch by setting it inactive.
 BRANCH_TYPES	const	local	apps/web/src/components/tenant/branch-list.tsx:21	apps/web/components/tenant	: SelectOption[]	What kind of place this is. The API enum, named the way a clinic says it.
@@ -611,8 +627,10 @@ BranchesPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/bra
 BranchForm	component	local	apps/web/src/components/tenant/patient-chart.tsx:756	apps/web/components/tenant	({ slug, patientId, branches, }: { slug: string; patientId: …)	
 BranchFormState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:24	apps/web/app/(tenant)/t/[slug]/(app)/branches	{ status: 'idle' | 'error' | 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }	
 branchIdFrom	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:36	apps/web/app/(tenant)/t/[slug]/(app)/members	(formData: FormData): string | null	The empty string is how a `<select>` says "every branch"; the API wants null.
+branchIn	fn	local	apps/api/src/services/reports/activity-reports.service.ts:65	apps/api/services/reports	(branchIds: readonly string[]): Prisma.Sql	
 branchInstant	fn/async	export	apps/api/src/services/invoicing/invoice.service.ts:731	apps/api/services/invoicing	(tx: TxClient, branchId: string, day: string): Promise<Date>	
 branchJurisdictionWithin	fn/async	export	apps/api/src/services/regulatory/evaluation.service.ts:640	apps/api/services/regulatory	(tx: TxClient, organizationId: string, branchId: string): Promise<Jurisdiction>	
+branchList	fn	export	apps/api/src/services/reports/shared.ts:87	apps/api/services/reports	(branchIds: readonly string[]): Prisma.Sql	Branch ids as a SQL list, always non-empty by the time it is called.
 BranchList	component	export	apps/web/src/components/tenant/branch-list.tsx:209	apps/web/components/tenant	({ slug, branches, organization, canReadHistory, }: { slug: …)	
 branchListResponse	zod	export	packages/contracts/src/tenancy.ts:604	packages/contracts	z.object(…)	
 BranchListResponse	type	export	packages/contracts/src/tenancy.ts:960	packages/contracts	z.infer<typeof branchListResponse>	
@@ -623,6 +641,7 @@ BranchOperatingHoursRequest	type	export	packages/contracts/src/tenancy.ts:961	pa
 BranchOption	interface	local	apps/web/src/components/tenant/invitation-list.tsx:25	apps/web/components/tenant	{ id, name, code }	
 BranchOption	type	local	apps/web/src/components/tenant/member-list.tsx:30	apps/web/components/tenant	MemberListResponse['branches'][number]	
 branchParams	zod	local	apps/api/src/routes/v1/branches.routes.ts:52	apps/api/routes/v1	z.object(…)	
+branchRef	zod	local	packages/contracts/src/reports.ts:225	packages/contracts	z.object(…)	
 BranchRow	interface	local	apps/api/src/services/branch/branch.service.ts:153	apps/api/services/branch	{ id, name, code, branchType, status, isPrimary, timezone, phone, email, addressLine1, addressLine2, city, state, pincode, countryCode, regionCode, operatingHours }	
 BranchRow	type	local	apps/api/src/services/tax/clinic-tax.service.ts:147	apps/api/services/tax	{ id: string; name: string; countryCode: string; regionCode: string | null }	A branch as the coverage calculation needs it.
 branchSummary	zod	export	packages/contracts/src/auth.ts:184	packages/contracts	z.object(…)	
@@ -633,7 +652,9 @@ Browser	component	local	apps/web/src/components/tenant/classification-picker.tsx
 bucket	fn/async	local	apps/api/tests/integration/recall.test.ts:168	apps/api/tests/integration	(batchId: string, status: string): Promise<string>	What one lot holds in one bucket. The ledger's answer, read from the cache.
 Bucket	interface	export	apps/web/src/components/tenant/stock-status.tsx:87	apps/web/components/tenant	{ status, quantity }	
 BUCKET_LABEL	const	local	apps/web/src/components/tenant/purchase-return-panel.tsx:34	apps/web/components/tenant	: Record<string, string>	
+BUCKET_RANK	const	local	apps/api/src/services/reports/inventory-reports.service.ts:361	apps/api/services/reports	Prisma.sql` CASE bucket WHEN 'EXPIRED' THEN 0 WHEN 'D0_30' …	Sort order for the buckets, so `bucket` sorts as time rather than as text.
 BucketBar	component	export	apps/web/src/components/tenant/stock-status.tsx:134	apps/web/components/tenant	({ buckets, unit, label, }: { buckets: Bucket[]; unit: strin…)	One lot's holding, drawn. `unit` is the product's base unit symbol — every quantity in the programme is denominated in …
+bucketExpression	fn	local	apps/api/src/services/reports/inventory-reports.service.ts:344	apps/api/services/reports	(clock: 'receipt' | 'expiry'): Prisma.Sql	
 bucketKey	fn	local	packages/inventory/src/movement.ts:271	packages/inventory	(key: BucketKey): string	
 BucketKey	interface	local	packages/inventory/src/movement.ts:224	packages/inventory	{ organizationId, branchId, productId, batchId, serialId, locationId, status }	
 bucketQuantity	fn/async	local	packages/inventory/src/movement.ts:325	packages/inventory	(tx: TxClient, key: BucketKey): Promise<string>	
@@ -641,6 +662,7 @@ BUCKETS	component	local	apps/web/src/components/tenant/adjustment-form.tsx:67	ap
 BUCKETS	component	local	apps/web/src/components/tenant/purchase-return-form.tsx:34	apps/web/components/tenant	[ { value: '', label: 'Which stock is going back?' }, { value: 'AVAILABLE', label: 'Sound…	
 budget	fn	local	apps/api/src/middleware/rateLimiter.middleware.ts:31	apps/api/middleware	(max: number): number	
 buildAuthSession	fn/async	export	apps/api/src/services/auth/login.service.ts:248	apps/api/services/auth	(input: BuildSessionInput): Promise<AuthSession>	
+buildCatalogue	fn	export	apps/api/src/services/reports/catalogue.ts:135	apps/api/services/reports	(granted: readonly string[]): ReportCatalogue	
 buildDraft	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:175	apps/web/components/tenant	(prescription: PharmacyPrescriptionDetail, plans: LinePlan[]): DraftLine[]	
 BUILDERS	const	local	packages/payments/src/registry.ts:35	packages/payments	: Record<ProviderName, (config: PaymentsConfig) => PaymentProvider>	
 buildKey	fn	export	packages/storage/src/keys.ts:94	packages/storage	(parts: readonly string[]): string	
@@ -757,14 +779,18 @@ categoryPath	fn/async	local	apps/api/src/services/regulatory/evaluation.service.
 CategoryRow	interface	local	apps/api/src/services/product/category.service.ts:46	apps/api/services/product	{ id, code, name, parent_id, description, display_order, is_active, organization_id, depth, has_children }	
 CategoryRow	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:570	apps/web/components/tenant	({ category }: { category: TaxCategoryCard })	One category, and where its rates came from.
 categorySubtreeIds	fn/async	export	apps/api/src/services/product/category.service.ts:234	apps/api/services/product	(tx: TxClient, id: string): Promise<string[]>	
+cell	fn	local	apps/api/src/services/reports/csv.ts:30	apps/api/services/reports	(value: unknown): string	
+cellClass	fn	local	apps/web/src/components/tenant/report-view.tsx:91	apps/web/components/tenant	(column: ReportColumn): string	
+cellText	fn	local	apps/web/src/components/tenant/report-view.tsx:55	apps/web/components/tenant	(column: ReportColumn, row: Record<string, unknown>): string	
 CELSIUS_PLACES	const	local	packages/contracts/src/locale.ts:1192	packages/contracts	100	Decimal places `temperature_c` is stored at — `Decimal(4, 2)`, so 0.01 °C.
 CERTAINTIES	component	local	apps/web/src/components/tenant/consultation-content.tsx:509	apps/web/components/tenant	[ { value: 'CONFIRMED', label: 'Confirmed' }, { value: 'PROVISIONAL', label: 'Provisional…	
-chainOf	fn	local	apps/api/tests/unit/route-gates.test.ts:243	apps/api/tests/unit	(router: IRouter): string[]	
+chainOf	fn	local	apps/api/tests/unit/route-gates.test.ts:255	apps/api/tests/unit	(router: IRouter): string[]	
 Change	component	local	apps/web/src/components/tenant/vitals-history.tsx:211	apps/web/components/tenant	({ change, temperatureUnit, }: { change: VitalsChange; tempe…)	
 ChangeDirection	type	export	packages/billing/src/proration.ts:106	packages/billing	'UPGRADE' | 'LATERAL' | 'DOWNGRADE'	
 changedMeasurements	fn	local	apps/api/src/services/appointment/vitals.service.ts:314	apps/api/services/appointment	(before: VitalsRow, after: VitalsRow): string[]	Which measurements differ between two versions of a row. Names, never values.
 changePasswordRequest	zod	export	packages/contracts/src/auth.ts:51	packages/contracts	z.object(…)	
 ChangeRecord	interface	export	packages/billing/src/engine/checkout.ts:895	packages/billing/engine	{ subscriptionId, changeType, currency, fromPlanId, fromPlanPriceId, toPlanId, toPlanPriceId, prorationCredit, prorationCharge, amountDue, invoiceId, effectiveAt, actorUserId, reason }	
+CHANGES_HOLDING	const	local	apps/api/src/services/reports/inventory-reports.service.ts:560	apps/api/services/reports	Prisma.sql`(l.status_from IS NULL OR l.status_to IS NULL)`	
 changesFrom	fn	local	apps/api/src/services/audit/history.service.ts:43	apps/api/services/audit	(before: unknown, after: unknown): AuditFieldChange[]	
 Channel	interface	local	apps/web/src/components/tenant/contact-verification.tsx:32	apps/web/components/tenant	{ channel, label, destination, verified }	
 ChannelRow	component	local	apps/web/src/components/tenant/contact-verification.tsx:93	apps/web/components/tenant	({ slug, channel, label, destination, verified }: Channel & …)	
@@ -905,6 +931,7 @@ clearValues	fn/async	local	apps/api/tests/integration/setting-resolver.test.ts:8
 client	var	local	packages/db/src/client.ts:21	packages/db	: PrismaClient | undefined	
 clientAddress	fn/async	local	apps/web/src/lib/api.ts:85	apps/web/lib	(): Promise<string | undefined>	
 clientAddress	fn	local	apps/web/src/proxy.ts:97	apps/web	(request: NextRequest): Record<string, string>	The browser's address, as a header to pass on — or nothing if we do not know it. A chain of proxies appends, so the ori…
+CLINICAL	const	local	apps/api/src/routes/v1/reports.routes.ts:107	apps/api/routes/v1	PERMISSIONS.REPORT_CLINICAL	
 CLINICAL_AUTHORING	const	local	packages/permissions/src/roles.ts:57	packages/permissions	: PermissionCode[]	
 CLINICAL_LOCALE	const	local	apps/web/src/lib/format.ts:90	apps/web/lib	'en-GB'	
 CLINICAL_MASTERS	const	export	packages/db/prisma/seed/data/clinical-masters.ts:38	packages/db/prisma/seed/data	: ClinicalMasterSeed[]	
@@ -1117,10 +1144,12 @@ consultForStockMovement	fn/async	export	apps/api/src/services/regulatory/consult
 consultForSupply	fn/async	export	apps/api/src/services/pharmacy/consult.ts:107	apps/api/services/pharmacy	(tx: TxClient, ctx: TenantContext, input: SupplyConsultation): Promise<SupplyDecision>	Ask, snapshot, and refuse where the platform is allowed to. Throws `RegulatoryRefusalError` (422, never 403) when the d…
 consultingWeek	fn	local	apps/web/src/components/tenant/working-day-picker.tsx:343	apps/web/components/tenant	(days: WorkingDay[]): string	
 consumeChallenge	fn/async	export	apps/api/src/services/auth/challenge.service.ts:98	apps/api/services/auth	(input: { purpose: AuthTokenPurpose; identifier: string; cod…): Promise<string>	
+CONSUMPTION_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:276	apps/api/routes/v1	: readonly CsvColumn<ConsumptionCostRow>[]	
 CONSUMPTION_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:532	apps/api/openapi/registry	'0c9e5b74-2a18-4f63-8d05-7b3a1c6e9d42'	
 CONSUMPTION_READ	const	local	apps/api/src/routes/v1/consumption.routes.ts:91	apps/api/routes/v1	PERMISSIONS.CONSUMPTION_READ	
 CONSUMPTION_RECORD	const	local	apps/api/src/routes/v1/consumption.routes.ts:92	apps/api/routes/v1	PERMISSIONS.CONSUMPTION_RECORD	
 CONSUMPTION_RECORD_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:530	apps/api/openapi/registry	'4b8a1d67-0c39-4e85-8b74-6f2c5a9e3d10'	
+CONSUMPTION_SIGN	const	local	apps/api/src/services/reports/activity-reports.service.ts:279	apps/api/services/reports	Prisma.sql` CASE WHEN cc.kind = 'CONSUMPTION_REVERSAL' THEN…	
 CONSUMPTION_TEMPLATE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:528	apps/api/openapi/registry	'1e0d5c86-3b74-4a29-9f51-8c2a6b0e4d37'	
 CONSUMPTION_TEMPLATE_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:529	apps/api/openapi/registry	'95c7b230-8f16-4d54-9a83-2e0b7c1a5f69'	
 ConsumptionActionOptions	interface	export	apps/api/src/services/consumption/shared.ts:69	apps/api/services/consumption	{ route, ipAddress, userAgent, actingBranchId, permissionCodes }	What every consumption route hands its service.
@@ -1134,6 +1163,13 @@ consumptionCandidateLot	zod	export	packages/contracts/src/consumption.ts:189	pac
 ConsumptionCandidateLot	type	export	packages/contracts/src/consumption.ts:465	packages/contracts	z.infer<typeof consumptionCandidateLot>	
 consumptionCorrectionKind	zod	export	packages/contracts/src/consumption.ts:66	packages/contracts	z.enum(…)	The two kinds a caller may ASK for. `CONSUMPTION` comes from the other route.
 ConsumptionCorrectionKind	type	export	packages/contracts/src/consumption.ts:453	packages/contracts	z.infer<typeof consumptionCorrectionKind>	
+consumptionCostQuery	var	export	packages/contracts/src/reports.ts:645	packages/contracts	datedReportScope.extend(…)	
+ConsumptionCostQuery	type	export	packages/contracts/src/reports.ts:653	packages/contracts	z.infer<typeof consumptionCostQuery>	
+consumptionCostReport	var	export	packages/contracts/src/reports.ts:682	packages/contracts	reportEnvelope.extend(…)	
+ConsumptionCostReport	type	export	packages/contracts/src/reports.ts:688	packages/contracts	z.infer<typeof consumptionCostReport>	
+consumptionCostRow	var	export	packages/contracts/src/reports.ts:655	packages/contracts	branchRef.extend(…)	
+ConsumptionCostRow	type	export	packages/contracts/src/reports.ts:680	packages/contracts	z.infer<typeof consumptionCostRow>	
+ConsumptionCostSqlRow	interface	local	apps/api/src/services/reports/activity-reports.service.ts:283	apps/api/services/reports	{ branch_id, branch_name, product_id, product_name, product_code, base_unit_symbol, procedure_item_id, procedure_name, event_count, expected_base, actual_base, override_count, unit_cost_minor, curren…	
 consumptionDetail	var	export	packages/contracts/src/consumption.ts:407	packages/contracts	consumptionSummary.extend(…)	
 ConsumptionDetail	type	export	packages/contracts/src/consumption.ts:478	packages/contracts	z.infer<typeof consumptionDetail>	
 consumptionLineDetail	zod	export	packages/contracts/src/consumption.ts:360	packages/contracts	z.object(…)	
@@ -1193,6 +1229,8 @@ contextFor	fn	local	apps/api/tests/integration/invoicing-tax.test.ts:153	apps/ap
 ContinueLink	component	local	apps/web/src/components/tenant/login-form.tsx:93	apps/web/components/tenant	({ state }: { state: LoginFormState })	
 CONTRACT_NAMES	const	local	apps/api/src/openapi/schema.ts:39	apps/api/openapi	new Map(…)	
 contractNameOf	fn	export	apps/api/src/openapi/schema.ts:47	apps/api/openapi	(schema: ZodType): string | null	The name `@rcln/contracts` exports this schema under, if it exports it.
+CONTRIBUTION_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:291	apps/api/routes/v1	: readonly CsvColumn<ProcedureContributionRow>[]	
+ContributionSqlRow	interface	local	apps/api/src/services/reports/activity-reports.service.ts:498	apps/api/services/reports	{ branch_id, branch_name, procedure_item_id, procedure_name, performed_count, currency, revenue_major, cost_minor, unbilled_minor }	
 ControlIdentity	type	local	apps/web/src/components/ui/field.tsx:175	apps/web/components/ui	{ id: string; name?: string } | { id?: string; name: string }	
 CONTROLLED_DRUG_PRESCRIBERS	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:533	packages/db/prisma/seed/data	[ 'REGISTERED_MEDICAL_PRACTITIONER', 'REGISTERED_DENTIST', 'REGISTERED_VETERINARY_PRACTIT…	
 CONTROLLED_DRUG_PRESCRIBERS	const	local	packages/db/prisma/seed/data/regulatory-sg.ts:325	packages/db/prisma/seed/data	[ 'MEDICAL_PRACTITIONER', 'DENTIST', 'VETERINARY_SURGEON', 'COLLABORATIVE_PRESCRIBING_PRA…	
@@ -1221,7 +1259,13 @@ CorrectConsumptionRequest	type	export	packages/contracts/src/consumption.ts:473	
 correctVitals	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:688	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, vitalsId: string, _previous: VitalsState, formData: FormData): Promise<VitalsState>	
 CostAverageList	component	export	apps/web/src/components/tenant/cost-average-list.tsx:32	apps/web/components/tenant	({ costAverages, meta, branches }: Props)	
 costAverageRoutes	var	export	apps/api/src/routes/v1/procurement.routes.ts:850	apps/api/routes/v1	: IRouter	
+costBasis	zod	export	packages/contracts/src/reports.ts:124	packages/contracts	z.enum(…)	
+CostBasis	type	export	packages/contracts/src/reports.ts:125	packages/contracts	z.infer<typeof costBasis>	
+costColumns	fn	export	apps/api/src/services/reports/shared.ts:187	apps/api/services/reports	(basis: CostBasis): Prisma.Sql	
+costJoins	fn	export	apps/api/src/services/reports/shared.ts:148	apps/api/services/reports	(organizationId: string): Prisma.Sql	
+costPerCurrency	fn	export	apps/api/src/services/reports/shared.ts:214	apps/api/services/reports	(organizationId: string): Prisma.Sql	
 CostsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/costs/page.tsx:17	apps/web/app/(tenant)/t/[slug]/(app)/procurement/costs	({ params, searchParams, }: { params: Promise<{ slug: string…)	
+count	fn	export	apps/api/src/services/reports/shared.ts:255	apps/api/services/reports	(value: number | string | null | undefined): number	A count column, cast `::int` in SQL and therefore already a number.
 countdown	fn	local	apps/web/src/components/tenant/invitation-list.tsx:38	apps/web/components/tenant	(daysLeft: number): string	
 COUNTER_DISPENSERS	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:478	packages/db/prisma/seed/data	[ 'GRADE_A_PHARMACIST', 'GRADE_B_DIPLOMA_PHARMACIST', 'GRADE_C_PHARMACY_TECHNICIAN', ]	
 CounterSaleForm	component	export	apps/web/src/components/tenant/counter-sale-form.tsx:54	apps/web/components/tenant	({ slug, branches, locations, products }: Props)	
@@ -1231,6 +1275,7 @@ countFor	fn/async	local	apps/api/tests/integration/demo-requests.test.ts:54	apps
 COUNTRIES	const	export	packages/contracts/src/locale.ts:397	packages/contracts	: readonly CountryInfo[]	
 COUNTRIES_BY_CURRENCY	const	local	packages/payments/src/currency.ts:96	packages/payments	: Readonly<Record<BillingCurrency, readonly string[]>>	
 countRoutes	fn	export	apps/api/src/openapi/introspect.ts:132	apps/api/openapi	(router: IRouter): number	
+countRows	fn/async	export	apps/api/src/services/reports/shared.ts:389	apps/api/services/reports	(tx: TxClient, query: Prisma.Sql): Promise<number>	
 COUNTRY_OPTIONS	const	local	apps/web/src/components/tenant/branch-list.tsx:61	apps/web/components/tenant	: SelectOption[]	
 countryCode	var	export	packages/contracts/src/products.ts:152	packages/contracts	z .string() .trim() .length(2) .regex(/^[A-Za-z]{2}$/, 'two…	ISO 3166-1 alpha-2. Uppercased, so `in` from a form stores as `IN`.
 countryCode	var	local	packages/contracts/src/tax.ts:58	packages/contracts	z .string() .length(2) .regex(/^[A-Za-z]{2}$/, 'two letters…	
@@ -1481,6 +1526,9 @@ creditedPerLine	fn/async	local	apps/api/src/services/invoicing/credit-note.servi
 creditInvoice	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:294	apps/web/app/(tenant)/t/[slug]/(app)/invoices	(slug: string, invoiceId: string, reason: string, lines: { invoiceItemId: string; quantity?: string | undefin…): Promise<InvoiceFormState>	
 creditNoteLineRequest	zod	export	packages/contracts/src/invoices.ts:267	packages/contracts	z.object(…)	
 CreditNoteLineRequest	type	export	packages/contracts/src/invoices.ts:283	packages/contracts	z.infer<typeof creditNoteLineRequest>	
+CSV_ROW_CAP	const	export	apps/api/src/services/reports/shared.ts:37	apps/api/services/reports	5000	
+CsvColumn	interface	export	apps/api/src/services/reports/csv.ts:38	apps/api/services/reports	{ header, field }	A column: the heading a person reads, and the field it comes from.
+csvFilename	fn	export	apps/api/src/services/reports/csv.ts:66	apps/api/services/reports	(key: string, window: { from: string; to: string } | null): string	`stock-valuation-2026-08-25.csv` — a name that sorts and says what it is.
 Cta	component	export	apps/web/src/components/marketing/cta.tsx:19	apps/web/components/marketing	({ href, variant = 'primary', event, className, children, }:…)	A call to action keeps its name for the whole flow: the button that says "Book a demo" leads to a form whose submit say…
 ctx	fn	local	packages/permissions/tests/resolver.test.ts:25	packages/permissions/tests	(overrides: Partial<AccessContext>): AccessContext	
 CURRENCIES	const	export	apps/web/src/lib/locale-options.ts:40	apps/web/lib	: LocaleOption[]	
@@ -1501,6 +1549,7 @@ customerName	fn	local	apps/api/src/services/invoicing/appointment-billing.servic
 customerName	fn	local	apps/api/src/services/invoicing/charge-billing.service.ts:375	apps/api/services/invoicing	(charge: ChargeRow): string	
 cutBlock	fn	local	apps/api/src/services/appointment/availability.service.ts:217	apps/api/services/appointment	(block: ResolvedBlock, context: { now: Date; branchClosed: boolean; blocked: Excep…): AvailabilitySlot[]	
 DARK_QUERY	const	export	apps/web/src/lib/theme.ts:173	apps/web/lib	'(prefers-color-scheme: dark)'	The media query the `system` appearance follows. One string, two callers.
+DASHBOARD	const	local	apps/api/src/routes/v1/reports.routes.ts:105	apps/api/routes/v1	PERMISSIONS.REPORT_DASHBOARD	
 DataAccessEntry	interface	export	apps/api/src/services/audit/data-access.service.ts:43	apps/api/services/audit	{ accessType, resource, patientId, resourceId, resultCount, searchTerm, branchId, route, ipAddress, userAgent }	
 dataAccessRows	fn/async	local	apps/api/tests/integration/pharmacy.test.ts:140	apps/api/tests/integration	(): Promise<{ resource: string; patient_id: string | null }[]>	Everything the counter did to a patient's record, as the compliance table saw it.
 databaseUrl	var	local	apps/api/src/config/index.ts:99	apps/api/config	getEnvVar(…)	
@@ -1509,6 +1558,8 @@ DataType	type	local	apps/api/src/services/organization/setting.service.ts:44	app
 DATE_LOCALE	const	local	packages/documents/src/invoice/format.ts:35	packages/documents/invoice	'en-GB'	
 DATE_PATTERN	const	local	apps/web/src/lib/calendar-range.ts:33	apps/web/lib	/^\d{4}-\d{2}-\d{2}$/	
 dateColumn	fn	local	apps/api/src/services/invoicing/invoice.service.ts:782	apps/api/services/invoicing	(value: string | null | undefined): Date | null	`YYYY-MM-DD` → the value a `DATE` column takes, matching every other service.
+DATED_PAGE_PARAMS	const	local	apps/api/src/openapi/registry/reports.ts:68	apps/api/openapi/registry	{ ...PAGE_PARAMS, from: WINDOW_PARAM, to: WINDOW_PARAM, }	
+datedReportScope	var	local	packages/contracts/src/reports.ts:172	packages/contracts	reportScope.extend(…)	
 dateIn	fn	local	apps/api/tests/integration/online-pharmacy.test.ts:115	apps/api/tests/integration	(days: number): string	
 dateIn	fn	local	apps/api/tests/integration/pharmacy.test.ts:106	apps/api/tests/integration	(days: number): string	
 dateIn	fn	local	apps/api/tests/integration/procurement.test.ts:160	apps/api/tests/integration	(days: number): string	The date a lot expires, as `YYYY-MM-DD`, offset from today.
@@ -1546,6 +1597,14 @@ deactivateCategory	fn/async	export	apps/api/src/services/product/category.servic
 deactivateMaster	fn/async	export	apps/api/src/services/clinical/master.service.ts:383	apps/api/services/clinical	(ctx: TenantContext, itemId: string, options: { ipAddress?: string | undefined; userAgent?: stri…): Promise<void>	
 deactivateNode	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:588	apps/api/services/doctor	(ctx: TenantContext, id: string, options: TaxonomyActionOptions): Promise<void>	
 deactivateTerm	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical-terms/actions.ts:61	apps/web/app/(tenant)/t/[slug]/(app)/clinical-terms	(slug: string, itemId: string): Promise<TermFormState>	
+DEAD_STOCK_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:222	apps/api/routes/v1	: readonly CsvColumn<DeadStockRow>[]	
+deadStockQuery	var	export	packages/contracts/src/reports.ts:427	packages/contracts	reportScope.extend(…)	
+DeadStockQuery	type	export	packages/contracts/src/reports.ts:436	packages/contracts	z.infer<typeof deadStockQuery>	
+deadStockReport	var	export	packages/contracts/src/reports.ts:455	packages/contracts	reportEnvelope.extend(…)	
+DeadStockReport	type	export	packages/contracts/src/reports.ts:461	packages/contracts	z.infer<typeof deadStockReport>	
+deadStockRow	var	export	packages/contracts/src/reports.ts:438	packages/contracts	productRef.extend(branchRef.shape).extend(…)	
+DeadStockRow	type	export	packages/contracts/src/reports.ts:453	packages/contracts	z.infer<typeof deadStockRow>	
+DeadStockSqlRow	interface	local	apps/api/src/services/reports/inventory-reports.service.ts:722	apps/api/services/reports	{ branch_id, branch_name, product_id, product_name, product_code, base_unit_symbol, quantity_base, last_issued_at, last_received_at, first_seen_at, idle_days, issued_last_year, unit_cost_minor, curre…	
 decideChargeAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:73	apps/web/app/(tenant)/t/[slug]/(app)/charges	(slug: string, chargeRequestId: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>	
 decideChargeRequest	fn/async	export	apps/api/src/services/charging/charge-request.service.ts:778	apps/api/services/charging	(ctx: TenantContext, chargeRequestId: string, input: DecideChargeRequest, options: ChargingActionOptions): Promise<ChargeRequestSummary>	
 decideChargeRequest	zod	export	packages/contracts/src/charging.ts:304	packages/contracts	z.discriminatedUnion(…)	
@@ -1585,6 +1644,7 @@ defaultBranchId	fn/async	export	apps/api/src/services/auth/login.service.ts:197	
 defaultChargePolicy	fn	export	apps/api/src/services/charging/policy.service.ts:81	apps/api/services/charging	(productType: ProductType): ChargePolicyValue	The default tier of the chain. Everything not in the set above is consumed rather than sold — gauze, gloves, disinfecta…
 DefaultItems	component	local	packages/documents/src/invoice/items.tsx:361	packages/documents/invoice	({ data, fmt }: ItemTableProps): JSX.Element	
 defaultTimezoneFor	fn	export	packages/contracts/src/locale.ts:669	packages/contracts	(code: string | null | undefined): string	The zone to assume before anyone has chosen.
+defaultWindow	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:52	apps/web/app/(tenant)/t/[slug]/(app)/reports/[reportKey]	(): { from: string; to: string }	The last full calendar month, in UTC, for a dated report opened cold.
 definition	fn	local	apps/api/tests/integration/consultation-templates.test.ts:62	apps/api/tests/integration	(over: Record<string, unknown>): Record<string, unknown>	A minimal but LEGAL document — every mandatory key stated explicitly.
 DEFINITION_SELECT	const	local	apps/api/src/services/organization/setting.service.ts:141	apps/api/services/organization	{ key: true, module: true, dataType: true, defaultValue: true, allowedScopes: true, allow…	
 DefinitionList	component	export	apps/web/src/components/marketing/legal.tsx:160	apps/web/components/marketing	({ items }: { items: { term: ReactNode; detail: ReactNode }[…)	
@@ -1702,6 +1762,8 @@ DialFormat	interface	export	packages/contracts/src/locale.ts:105	packages/contra
 dialFormatFor	fn	export	packages/contracts/src/locale.ts:1083	packages/contracts	(code: string | null | undefined): DialFormat	The calling code and national digit count. Falls back to India's.
 Diff	interface	local	apps/api/src/services/audit/audit.service.ts:251	apps/api/services/audit	{ before, after }	
 diffSnapshots	fn	export	apps/api/src/services/audit/audit.service.ts:262	apps/api/services/audit	(before: AuditSnapshot | undefined, after: AuditSnapshot | undefined): Diff	
+direction	fn	local	apps/api/src/services/reports/activity-reports.service.ts:61	apps/api/services/reports	(order: 'asc' | 'desc'): Prisma.Sql	
+direction	fn	local	apps/api/src/services/reports/inventory-reports.service.ts:123	apps/api/services/reports	(order: 'asc' | 'desc'): Prisma.Sql	A closed set of sort keys per report — see the note on `reportPage`.
 Direction	type	local	packages/inventory/src/movement.ts:119	packages/inventory	'ADD' | 'REMOVE' | 'MOVE' | 'EITHER'	
 DIRECTION	const	export	packages/inventory/src/movement.ts:121	packages/inventory	: Record<StockMovementType, Direction>	
 discardDraft	fn/async	export	apps/api/src/services/clinical/template.service.ts:615	apps/api/services/clinical	(ctx: TenantContext, templateId: string, versionId: string, options: TemplateActionOptions): Promise<void>	
@@ -1767,7 +1829,15 @@ DispenseStatus	type	export	packages/contracts/src/pharmacy.ts:647	packages/contr
 dispenseSummary	zod	export	packages/contracts/src/pharmacy.ts:480	packages/contracts	z.object(…)	
 DispenseSummary	type	export	packages/contracts/src/pharmacy.ts:670	packages/contracts	z.infer<typeof dispenseSummary>	
 DispenseWorkspacePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/prescriptions/[encounterId]/dispense/page.tsx:48	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy/prescriptions/[encounterId]/dispense	({ params, }: { params: Promise<{ slug: string; encounterId:…)	
+DISPENSING_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:264	apps/api/routes/v1	: readonly CsvColumn<DispensingRow>[]	
 DispensingLocation	interface	export	apps/api/src/services/pharmacy/shared.ts:40	apps/api/services/pharmacy	{ id, name, kind, requiresControlledAccess, hasControlledAccess }	
+dispensingQuery	var	export	packages/contracts/src/reports.ts:590	packages/contracts	datedReportScope.extend(…)	
+DispensingQuery	type	export	packages/contracts/src/reports.ts:597	packages/contracts	z.infer<typeof dispensingQuery>	
+dispensingReport	var	export	packages/contracts/src/reports.ts:617	packages/contracts	reportEnvelope.extend(…)	
+DispensingReport	type	export	packages/contracts/src/reports.ts:621	packages/contracts	z.infer<typeof dispensingReport>	
+dispensingRow	var	export	packages/contracts/src/reports.ts:599	packages/contracts	productRef.extend(branchRef.shape).extend(…)	
+DispensingRow	type	export	packages/contracts/src/reports.ts:615	packages/contracts	z.infer<typeof dispensingRow>	
+DispensingSqlRow	interface	local	apps/api/src/services/reports/activity-reports.service.ts:86	apps/api/services/reports	{ branch_id, branch_name, product_id, product_name, product_code, base_unit_symbol, supply_count, quantity_base, returned_quantity_base, override_count, billed_major, currency }	
 DispensingWorkspace	component	export	apps/web/src/components/tenant/dispensing-workspace.tsx:218	apps/web/components/tenant	({ slug, prescription, plans, substitutions, locations, canD…)	
 display	fn	local	apps/web/src/components/tenant/clinic-settings.tsx:62	apps/web/components/tenant	(value: unknown, setting?: SettingItem): string	
 display	fn	local	apps/web/src/components/tenant/vitals-history.tsx:243	apps/web/components/tenant	(field: string, value: number | null, unit: TemperatureUnit): string	A stored value as the clinic reads it: converted where the unit is the clinic's, and with the unit printed so a bare nu…
@@ -1776,7 +1846,7 @@ displayOrder	zod	local	packages/contracts/src/encounter-content.ts:171	packages/
 divideRationalHalfUp	fn	local	packages/inventory/src/costing.ts:255	packages/inventory	(value: Rational): number	
 divideRounded	fn	export	packages/payments/src/money.ts:116	packages/payments	(numerator: number, denominator: number, rounding: Rounding): number	Integer division with an explicit rounding mode, correct for negatives.
 DocRegistry	type	export	apps/api/src/openapi/types.ts:50	apps/api/openapi	Readonly<Record<string, EndpointDoc>>	`GET /api/v1/branches/:branchId` -> the prose for it.
-DOCS	const	export	apps/api/src/openapi/registry/index.ts:47	apps/api/openapi/registry	: DocRegistry	
+DOCS	const	export	apps/api/src/openapi/registry/index.ts:48	apps/api/openapi/registry	: DocRegistry	
 DOCTOR	const	export	apps/api/src/openapi/registry/fixtures.ts:178	apps/api/openapi/registry	{ id: DOCTOR_ID, membershipId: MEMBERSHIP_ID, fullName: 'Dr Meera Krishnan', registration…	
 DOCTOR_BRANCH_SETTING_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:423	apps/api/openapi/registry	'8e1a4c73-5f92-4d08-b647-2c0d9b3a7e56'	
 DOCTOR_DETAIL	const	local	apps/api/src/openapi/registry/doctors.ts:91	apps/api/openapi/registry	{ ...DOCTOR_SUMMARY, registrationCouncil: DOCTOR.registrationCouncil, registrationValidTi…	
@@ -2026,7 +2096,10 @@ Entry	component	local	apps/web/src/components/tenant/record-history.tsx:229	apps
 ENTRY_SELECT	const	local	apps/api/src/services/fees/fee-schedule.service.ts:59	apps/api/services/fees	{ id: true, branchId: true, doctorProfileId: true, feeType:…	
 EntryRow	type	local	apps/api/src/services/fees/fee-schedule.service.ts:68	apps/api/services/fees	Prisma.FeeScheduleEntryGetPayload<{ select: typeof ENTRY_SELECT }>	
 env	var	local	apps/api/src/config/index.ts:52	apps/api/config	getEnvVar(…)	
+envelope	fn	export	apps/api/src/services/reports/shared.ts:360	apps/api/services/reports	(input: EnvelopeInput): { reportKey: ReportKey; generatedAt: string; branchIds: str…	
+ENVELOPE	const	local	apps/api/src/openapi/registry/reports.ts:74	apps/api/openapi/registry	{ branchIds: [BRANCH_ID], generatedAt: '2026-03-17T09:00:00.000Z', page: 1, limit: 50, to…	
 ENVELOPE_SCHEMAS	const	export	apps/api/src/openapi/envelope.ts:19	apps/api/openapi	: Record<string, JsonSchema>	
+EnvelopeInput	interface	export	apps/api/src/services/reports/shared.ts:349	apps/api/services/reports	{ reportKey, branchIds, window, page, limit, total, format, rowsReturned }	What every report's envelope is built from, so the nine cannot disagree.
 EPISODE_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:432	apps/api/openapi/registry	'EPI-2026-00913'	
 EPISODE_EXAMPLE	const	local	apps/api/src/openapi/registry/clinical.ts:55	apps/api/openapi/registry	{ id: EPISODE_ID, code: EPISODE_CODE, title: 'Recurrent sore throat', status: 'OPEN', pat…	
 EPISODE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:431	apps/api/openapi/registry	'7e4a0b96-3c58-4d21-8f67-2b9d5c1a0e34'	Every visit belongs to an episode; a follow-up chain shares one.
@@ -2109,6 +2182,7 @@ ExpiredBucket	interface	export	packages/inventory/src/expiry.ts:77	packages/inve
 expireIdentifier	fn/async	export	apps/api/src/services/product/identifier.service.ts:164	apps/api/services/product	(ctx: TenantContext, productId: string, identifierId: string, options: CatalogueActionOptions): Promise<void>	
 expireIdentifierAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:265	apps/web/app/(tenant)/t/[slug]/(app)/products	(slug: string, productId: string, identifierId: string): Promise<ProductFormState>	Expires the identifier rather than removing it — stock received under it must keep resolving. The button says "Expire" …
 expireTrial	fn/async	export	packages/billing/src/engine/renewal.ts:312	packages/billing/engine	(organizationId: string, subscriptionId: string, runtime: BillingRuntime, run: TenantRunner): Promise<boolean>	
+EXPIRY_DAYS	const	local	apps/api/src/services/reports/inventory-reports.service.ts:337	apps/api/services/reports	Prisma.sql` (bt.expires_on - (now() AT TIME ZONE b.timezone…	
 EXPIRY_HORIZON_DAYS	const	local	apps/api/src/services/pharmacy/dashboard.service.ts:24	apps/api/services/pharmacy	30	How far ahead "expiring soon" looks. A month is a dispensary's ordering cycle.
 expiryDate	fn	local	apps/api/src/services/auth/session.service.ts:98	apps/api/services/auth	(): Date	
 expiryFrom	fn	local	apps/api/src/services/invitation/invitation.service.ts:165	apps/api/services/invitation	(now: Date): Date	
@@ -2121,6 +2195,8 @@ expiryReportResponse	zod	export	packages/contracts/src/inventory.ts:829	packages
 ExpiryReportResponse	type	export	packages/contracts/src/inventory.ts:900	packages/contracts	z.infer<typeof expiryReportResponse>	
 ExpiryRow	interface	local	apps/api/src/services/inventory/expiry.service.ts:76	apps/api/services/inventory	{ batch_id, branch_id, product_id, product_name, lot_number, expires_on, days_remaining, quantity_available, base_unit_symbol, status }	
 EXPONENT_OVERRIDES	const	local	packages/payments/src/currency.ts:35	packages/payments	: Readonly<Record<string, number>>	
+EXPORT	const	local	apps/api/src/routes/v1/reports.routes.ts:109	apps/api/routes/v1	PERMISSIONS.REPORT_EXPORT	
+exportGate	fn	local	apps/api/src/routes/v1/reports.routes.ts:124	apps/api/routes/v1	(req: Request, res: Response, next: NextFunction): void	
 extension	fn	local	apps/web/src/components/tenant/invoice-draft-editor.tsx:519	apps/web/components/tenant	(line: EditableLine, currency: string): string	
 EyeIcon	component	local	apps/web/src/components/ui/password-control.tsx:84	apps/web/components/ui	()	Currently hidden — this shows it.
 EyeOffIcon	component	local	apps/web/src/components/ui/password-control.tsx:99	apps/web/components/ui	()	Currently visible — this hides it. Same eye, struck through.
@@ -2232,6 +2308,7 @@ fitsAnyRole	fn	local	apps/api/src/services/iam/designation.service.ts:110	apps/a
 flatTax	fn	local	packages/invoicing/tests/pricing.test.ts:37	packages/invoicing/tests	(rateBps: number): InvoicePricingInput['quoteTax']	
 foldBuckets	fn	local	apps/web/src/components/tenant/stock-overview.tsx:213	apps/web/components/tenant	(rows: StockBalanceListResponse['balances']): FoldedEntry[]	Collapse one location's bucket rows into one entry per (product, lot).
 FoldedEntry	interface	local	apps/web/src/components/tenant/stock-overview.tsx:202	apps/web/components/tenant	{ key, productName, productCode, lotNumber, expiresOn, unit, buckets }	
+foldTotals	fn	export	apps/api/src/services/reports/shared.ts:290	apps/api/services/reports	(rows: readonly TotalledRow[]): ReportCurrencyTotal[]	
 FOLLOW_UP_APPOINTMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:436	apps/api/openapi/registry	'9a6c3e07-4d82-4b15-8f93-0e7b2a5c1d68'	The follow-up booked out of the same visit.
 FOLLOW_UP_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:437	apps/api/openapi/registry	'APT-2026-004630'	
 FOLLOW_UP_TYPES	const	local	apps/web/src/components/tenant/consultation-content.tsx:1359	apps/web/components/tenant	[ { value: 'ROUTINE', label: 'Routine review' }, { value: 'PROCEDURE_REVIEW', label: 'Aft…	
@@ -2262,6 +2339,7 @@ format	fn	local	apps/api/src/services/numbering/number-sequence.service.ts:230	a
 format	fn	local	apps/web/src/components/tenant/checkout/provider-checkout.tsx:281	apps/web/components/tenant/checkout	(minor: number, currency: string): string	
 format	fn	local	apps/web/src/components/tenant/record-history.tsx:406	apps/web/components/tenant	(value: unknown): string	
 format	fn	local	apps/web/src/lib/calendar-range.ts:48	apps/web/lib	(at: Date): string	
+FORMAT_PARAM	const	local	apps/api/src/openapi/registry/reports.ts:51	apps/api/openapi/registry	"`json` (default) or `csv`. **`csv` requires `report.export…	
 formatClinicDate	fn	export	apps/web/src/lib/format.ts:120	apps/web/lib	(value: string | Date, timeZone: string): string	`9 Aug 2026`.
 formatClinicDateTime	fn	export	apps/web/src/lib/format.ts:128	apps/web/lib	(value: string | Date, timeZone: string, timeFormat: TimeFormat): string	`9 Aug 2026, 4:40 pm`. The full stamp, for a heading or an audit row.
 formatClinicTime	fn	export	apps/web/src/lib/format.ts:101	apps/web/lib	(value: string | Date, timeZone: string, timeFormat: TimeFormat): string	
@@ -2283,6 +2361,7 @@ formatRationalQuantity	fn	local	packages/inventory/src/costing.ts:296	packages/i
 formatZodErrors	fn	local	apps/api/src/middleware/error.middleware.ts:16	apps/api/middleware	(error: ZodError): Record<string, string[]>	Format Zod validation errors
 forTemperatureBox	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:538	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(errors: Record<string, string[]>): Record<string, string[]>	`temperatureC` (the contract's field) -> `temperature` (the form's box).
 forTenant	fn	export	packages/db/src/tenant.ts:200	packages/db	(ctx: TenantContext): ReturnType<PrismaClient['$extends']>	
+FORWARDED	component	local	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:29	apps/web/app/(tenant)/t/[slug]/(app)/reports/[reportKey]	[ 'branchId', 'page', 'sortBy', 'sortOrder', 'from', 'to', 'basis', 'clock', 'groupBy', '…	
 forwardTrace	fn/async	export	apps/api/src/services/recall/trace.service.ts:171	apps/api/services/recall	(ctx: TenantContext, query: ForwardTraceQuery): Promise<ForwardTraceResponse>	
 forwardTraceLocation	zod	export	packages/contracts/src/recall.ts:257	packages/contracts	z.object(…)	
 ForwardTraceLocation	type	export	packages/contracts/src/recall.ts:396	packages/contracts	z.infer<typeof forwardTraceLocation>	
@@ -2319,12 +2398,15 @@ GENERAL_MEDICINE	const	local	apps/api/src/openapi/registry/clinical-taxonomy.ts:
 GENERAL_SOURCES	const	local	apps/api/src/services/invoicing/invoice-visibility.ts:72	apps/api/services/invoicing	INVOICE_SOURCE_TYPES.filter(…)	The sources any holder of `billing.invoice.read` sees.
 generalLimiter	var	export	apps/api/src/middleware/rateLimiter.middleware.ts:33	apps/api/middleware	rateLimit(…)	
 generateInviteToken	fn	export	apps/api/src/services/auth/token.service.ts:154	apps/api/services/auth	(): string	
+generateMetadata	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:11	apps/web/app/(tenant)/t/[slug]/(app)/reports/[reportKey]	({ params, }: { params: Promise<{ reportKey: string }>; }): Promise<Metadata>	
 generateOtpCode	fn	export	apps/api/src/services/auth/token.service.ts:164	apps/api/services/auth	(): string	A numeric OTP of the configured length, zero-padded, uniformly random.
 generateRefreshToken	fn	export	apps/api/src/services/auth/token.service.ts:121	apps/api/services/auth	(): string	256 bits of entropy, url-safe. Returned to the caller exactly once.
 GENERIC_FAILURE	const	local	apps/web/src/app/(tenant)/t/[slug]/actions.ts:39	apps/web/app/(tenant)/t/[slug]	'Those credentials are not valid.'	One message for every credential failure — see login.service.ts for why.
 GET	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/[invoiceId]/pdf/route.ts:33	apps/web/app/(tenant)/t/[slug]/(app)/invoices/[invoiceId]/pdf	(_request: NextRequest, { params }: { params: Promise<{ slug: string; invoiceId: st…): Promise<NextResponse>	
 GET	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/[invoiceId]/preview/route.ts:27	apps/web/app/(tenant)/t/[slug]/(app)/invoices/[invoiceId]/preview	(_request: NextRequest, { params }: { params: Promise<{ slug: string; invoiceId: st…): Promise<NextResponse>	
+GET	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/export/route.ts:36	apps/web/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/export	(request: NextRequest, { params }: { params: Promise<{ slug: string; reportKey: st…): Promise<NextResponse>	
 getAccessToken	fn/async	export	apps/web/src/lib/session.ts:86	apps/web/lib	(): Promise<string | undefined>	
+getAgingReport	fn/async	export	apps/api/src/services/reports/inventory-reports.service.ts:394	apps/api/services/reports	(ctx: TenantContext, query: AgingQuery, _options: ReportOptions): Promise<AgingReport>	
 getAncestors	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:338	apps/api/services/doctor	(ctx: TenantContext, id: string): Promise<TaxonomyNodeWithAncestors>	
 getAppointment	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:643	apps/api/services/appointment	(ctx: TenantContext, appointmentId: string, options: AppointmentActionOptions, scope: { withBilling?: boolean }): Promise<AppointmentDetail>	
 getAppointmentBilling	fn/async	export	apps/api/src/services/invoicing/appointment-billing.service.ts:472	apps/api/services/invoicing	(ctx: TenantContext, appointmentId: string): Promise<AppointmentBilling>	
@@ -2338,10 +2420,13 @@ getChargeQueueSummary	fn/async	export	apps/api/src/services/charging/charge-requ
 getComposition	fn/async	export	apps/api/src/services/product/catalogue.service.ts:434	apps/api/services/product	(ctx: TenantContext, compositionId: string): Promise<CompositionSummary>	
 getConsultationConfig	fn/async	export	apps/api/src/services/clinical/consultation-config.service.ts:412	apps/api/services/clinical	(ctx: TenantContext, appointmentId: string): Promise<ConsultationConfigResponse>	
 getConsumption	fn/async	export	apps/api/src/services/consumption/consumption.service.ts:259	apps/api/services/consumption	(ctx: TenantContext, id: string, options: ConsumptionActionOptions): Promise<ConsumptionDetail>	
+getConsumptionCostReport	fn/async	export	apps/api/src/services/reports/activity-reports.service.ts:302	apps/api/services/reports	(ctx: TenantContext, query: ConsumptionCostQuery, _options: ReportOptions): Promise<ConsumptionCostReport>	
 getConsumptionTemplate	fn/async	export	apps/api/src/services/consumption/template.service.ts:170	apps/api/services/consumption	(ctx: TenantContext, id: string): Promise<ConsumptionTemplateDetail>	
 getDbClient	fn	export	packages/db/src/client.ts:43	packages/db	(): PrismaClient	
+getDeadStockReport	fn/async	export	apps/api/src/services/reports/inventory-reports.service.ts:741	apps/api/services/reports	(ctx: TenantContext, query: DeadStockQuery, _options: ReportOptions): Promise<DeadStockReport>	
 getDispense	fn/async	export	apps/api/src/services/pharmacy/dispense.service.ts:279	apps/api/services/pharmacy	(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<DispenseDetail>	
 getDispenseReturn	fn/async	export	apps/api/src/services/pharmacy/return.service.ts:357	apps/api/services/pharmacy	(ctx: TenantContext, id: string): Promise<DispenseReturnDetail>	
+getDispensingReport	fn/async	export	apps/api/src/services/reports/activity-reports.service.ts:101	apps/api/services/reports	(ctx: TenantContext, query: DispensingQuery, _options: ReportOptions): Promise<DispensingReport>	
 getDoctor	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:561	apps/api/services/doctor	(ctx: TenantContext, doctorId: string): Promise<DoctorDetail>	
 getDoctorCompensation	fn/async	export	apps/api/src/services/doctor/doctor-compensation.service.ts:60	apps/api/services/doctor	(ctx: TenantContext, doctorId: string, access: CompensationAccess): Promise<DoctorCompensationDetail>	
 getDocument	fn/async	export	packages/documents/src/store/document.service.ts:268	packages/documents/store	(ctx: TenantContext, documentId: string): Promise<StoredDocument>	Metadata only. Throws `NOT_FOUND` for a document this tenant cannot see.
@@ -2361,6 +2446,7 @@ getLocation	fn/async	export	apps/api/src/services/inventory/location.service.ts:
 getMandateStatus	fn/async	export	apps/api/src/services/billing/billing.service.ts:347	apps/api/services/billing	(ctx: TenantContext, mandateId: string): Promise<MandateStatusResponse>	The state of the clinic's payment authorisation. Read from our own row. `reconcileMandate` is the pull that goes to the…
 getMedicineDetail	fn/async	export	apps/api/src/services/product/medicine.service.ts:59	apps/api/services/product	(ctx: TenantContext, productId: string): Promise<MedicineDetail | null>	
 getMember	fn/async	export	apps/api/src/services/iam/member.service.ts:315	apps/api/services/iam	(ctx: TenantContext, membershipId: string): Promise<MemberDetail>	
+getMovementReport	fn/async	export	apps/api/src/services/reports/inventory-reports.service.ts:580	apps/api/services/reports	(ctx: TenantContext, query: MovementQuery, _options: ReportOptions): Promise<MovementReport>	
 getOnlineOrder	fn/async	export	apps/api/src/services/pharmacy/online-order.service.ts:363	apps/api/services/pharmacy	(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<OnlineOrderDetail>	
 getOptionalEnvVar	fn	local	apps/api/src/config/index.ts:35	apps/api/config	(key: string): string | undefined	
 getOrganization	fn/async	export	apps/api/src/services/organization/organization.service.ts:142	apps/api/services/organization	(ctx: TenantContext): Promise<OrganizationProfile>	
@@ -2373,9 +2459,11 @@ getPharmacyDashboard	fn/async	export	apps/api/src/services/pharmacy/dashboard.se
 getPharmacyPrescription	fn/async	export	apps/api/src/services/pharmacy/queue.service.ts:214	apps/api/services/pharmacy	(ctx: TenantContext, encounterId: string, options: PharmacyActionOptions): Promise<PharmacyPrescriptionDetail>	
 getPlatformSession	var	export	apps/web/src/lib/session.ts:273	apps/web/lib	cache(…)	
 getPreviousVisit	fn/async	export	apps/api/src/services/clinical/visit-history.service.ts:441	apps/api/services/clinical	(ctx: TenantContext, appointmentId: string, options: VisitHistoryReadOptions): Promise<PreviousVisitResponse>	
+getProcedureContributionReport	fn/async	export	apps/api/src/services/reports/activity-reports.service.ts:510	apps/api/services/reports	(ctx: TenantContext, query: ProcedureContributionQuery, _options: ReportOptions): Promise<ProcedureContributionReport>	
 getProduct	fn/async	export	apps/api/src/services/product/product.service.ts:327	apps/api/services/product	(ctx: TenantContext, productId: string): Promise<ProductDetail>	
 getPurchaseOrder	fn/async	export	apps/api/src/services/procurement/purchase-order.service.ts:449	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<PurchaseOrderDetail>	
 getPurchaseReturn	fn/async	export	apps/api/src/services/procurement/purchase-return.service.ts:449	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<PurchaseReturnDetail>	
+getQuarantineReport	fn/async	export	apps/api/src/services/reports/inventory-reports.service.ts:969	apps/api/services/reports	(ctx: TenantContext, query: QuarantineQuery, _options: ReportOptions): Promise<QuarantineReport>	
 getRecall	fn/async	export	apps/api/src/services/recall/recall.service.ts:228	apps/api/services/recall	(ctx: TenantContext, id: string): Promise<RecallDetail>	
 getRefreshToken	fn/async	export	apps/web/src/lib/session.ts:90	apps/web/lib	(): Promise<string | undefined>	
 getRequisition	fn/async	export	apps/api/src/services/procurement/requisition.service.ts:304	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<PurchaseRequisitionDetail>	
@@ -2386,10 +2474,12 @@ getStorageProvider	fn	export	packages/documents/src/store/runtime.ts:76	packages
 getSubdomain	fn	local	apps/web/src/proxy.ts:77	apps/web	(host: string): string | null	
 getSubtree	fn/async	export	apps/api/src/services/doctor/clinical-taxonomy.service.ts:301	apps/api/services/doctor	(ctx: TenantContext, id: string, includeInactive: boolean): Promise<TaxonomyTreeNode>	
 getSupplier	fn/async	export	apps/api/src/services/procurement/supplier.service.ts:154	apps/api/services/procurement	(ctx: TenantContext, id: string): Promise<SupplierDetail>	
+getSupplierPerformanceReport	fn/async	export	apps/api/src/services/reports/activity-reports.service.ts:722	apps/api/services/reports	(ctx: TenantContext, query: SupplierPerformanceQuery, _options: ReportOptions): Promise<SupplierPerformanceReport>	
 getTaxRateCard	fn/async	export	apps/api/src/services/tax/clinic-tax.service.ts:1187	apps/api/services/tax	(ctx: TenantContext): Promise<TaxRateCardResponse>	
 getTemplate	fn/async	export	apps/api/src/services/clinical/template.service.ts:236	apps/api/services/clinical	(ctx: TenantContext, templateId: string, versionId?: string | undefined): Promise<ConsultationTemplateDetail>	
 getTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.ts:535	apps/api/services/inventory	(ctx: TenantContext, id: string): Promise<StockTransferDetail>	
 getTransporter	fn	local	apps/api/src/services/notification/smtp.sender.ts:33	apps/api/services/notification	(): Promise<Transporter>	
+getValuationReport	fn/async	export	apps/api/src/services/reports/inventory-reports.service.ts:149	apps/api/services/reports	(ctx: TenantContext, query: ValuationQuery, _options: ReportOptions): Promise<ValuationReport>	
 getVisitHistory	fn/async	export	apps/api/src/services/clinical/visit-history.service.ts:203	apps/api/services/clinical	(ctx: TenantContext, patientId: string, query: VisitHistoryQuery, options: VisitHistoryReadOptions): Promise<VisitHistoryResponse>	
 getVisualMap	fn/async	export	apps/api/src/services/clinical/visual-map.service.ts:233	apps/api/services/clinical	(ctx: TenantContext, mapId: string): Promise<VisualMapDetail>	
 getWorkingDays	fn/async	export	apps/api/src/services/appointment/appointment.service.ts:495	apps/api/services/appointment	(ctx: TenantContext, input: { branchId: string; doctorProfileId: string; from: s…): Promise<WorkingDaysResponse>	Which days the doctor consults on, across a span — what the date picker greys out. The cheap question; `getAvailability…
@@ -2472,6 +2562,8 @@ headerValue	fn	export	packages/payments/src/providers/shared.ts:92	packages/paym
 HEALTHCARE_DEFAULTS	const	local	packages/db/prisma/seed/tax-rule-defaults.ts:75	packages/db/prisma/seed	: { countryCode: string; scheme: 'GST' | 'VAT'; lineName: string; split: 'NONE' |…	
 HEALTHCARE_SERVICE_CATEGORIES	const	local	packages/db/prisma/seed/tax-rule-defaults.ts:61	packages/db/prisma/seed	[ { category: 'CONSULTATION', description: 'Doctor consultation' }, { category: 'PROCEDUR…	
 healthDocs	var	export	apps/api/src/openapi/registry/health.ts:32	apps/api/openapi/registry	: DocRegistry	
+HELD_DAYS	const	local	apps/api/src/services/reports/inventory-reports.service.ts:340	apps/api/services/reports	Prisma.sql` ((now() AT TIME ZONE b.timezone)::date - (bt.re…	
+HELD_STATUSES	const	local	apps/api/src/services/reports/inventory-reports.service.ts:65	apps/api/services/reports	['QUARANTINED', 'BLOCKED', 'EXPIRED', 'DAMAGED', 'RECALLED'] as const	
 heldByLine	fn/async	local	apps/api/src/services/pharmacy/online-order.service.ts:196	apps/api/services/pharmacy	(tx: TxClient, organizationId: string, lineIds: readonly string[]): Promise<Map<string, Prisma.Decimal>>	
 heldStatusFor	fn	local	apps/web/src/components/tenant/lot-list.tsx:255	apps/web/components/tenant	(status: BatchListResponse['batches'][number]['status'])	
 history	fn	local	packages/clinical/tests/definition.test.ts:28	packages/clinical/tests	(over: Record<string, unknown>): Record<string, unknown>	
@@ -2481,6 +2573,8 @@ historyOf	fn	local	apps/api/tests/integration/audit-history.test.ts:90	apps/api/
 HistoryState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:23	apps/web/app/(tenant)/t/[slug]/(app)	| { status: 'ok'; history: AuditHistoryResponse; /** * The clinic's zone, so the drawer can stamp each entry in it. * * ⚠️ RETURNED WITH THE PAYLOAD RATHER THA…	
 holdBatchWithin	fn/async	local	apps/api/src/services/recall/recall.service.ts:571	apps/api/services/recall	(tx: TxClient, ctx: TenantContext, recall: { id: string; reference: string; noticeReference: s…, row: { id: string; batchId: string; branchId: string; lotNu…, note: string | null, options: RecallActi…	
 holderCounts	fn/async	local	apps/api/src/services/iam/role.service.ts:94	apps/api/services/iam	(tx: TxClient, roleIds: string[]): Promise<Map<string, number>>	
+holdKind	zod	export	packages/contracts/src/reports.ts:476	packages/contracts	z.enum(…)	
+HoldKind	type	export	packages/contracts/src/reports.ts:477	packages/contracts	z.infer<typeof holdKind>	
 HomePage	component	export	apps/web/src/app/(marketing)/page.tsx:161	apps/web/app/(marketing)	()	
 HostedCharge	interface	export	packages/payments/src/types.ts:247	packages/payments	{ redirectUrl, embedded, sessionToken }	A charge that needs the customer present.
 HostedMandate	interface	export	packages/payments/src/types.ts:284	packages/payments	{ redirectUrl, sessionToken }	
@@ -2621,6 +2715,7 @@ Interval	type	export	packages/billing/src/periods.ts:25	packages/billing	'MONTH'
 INTERVAL_UNITS	const	local	apps/web/src/components/tenant/consultation-content.tsx:1353	apps/web/components/tenant	[ { value: 'DAYS', label: 'days' }, { value: 'WEEKS', label: 'weeks' }, { value: 'MONTHS'…	
 INTERVALS	component	local	apps/web/src/components/tenant/doctor-create-form.tsx:72	apps/web/components/tenant	: SelectOption[]	
 INTERVALS	component	local	apps/web/src/components/tenant/doctor-pay-panel.tsx:30	apps/web/components/tenant	: SelectOption[]	
+inTransitRows	fn	local	apps/api/src/services/reports/inventory-reports.service.ts:104	apps/api/services/reports	(organizationId: string, branchIds: readonly string[]): Prisma.Sql	
 IntrospectedRoute	interface	export	apps/api/src/openapi/introspect.ts:37	apps/api/openapi	{ method, path, permissions, validated, gates }	
 introspectRouter	fn	export	apps/api/src/openapi/introspect.ts:75	apps/api/openapi	(router: IRouter): IntrospectedRoute[]	
 invalid	fn	export	packages/inventory/src/errors.ts:32	packages/inventory	(message: string): InventoryError	
@@ -2630,6 +2725,7 @@ invalidateOrganizationHosts	fn/async	local	apps/api/src/services/organization/or
 invalidateTenantCache	fn/async	export	apps/api/src/middleware/tenant.middleware.ts:167	apps/api/middleware	(host: string): Promise<void>	Called after any change to organizations/organization_domains.
 invalidateUserAccess	fn/async	export	apps/api/src/services/auth/access.service.ts:183	apps/api/services/auth	(userId: string, organizationId: string): Promise<void>	Call after any write to membership_roles or membership_permission_overrides.
 invalidToken	fn	local	apps/api/src/services/invitation/invitation.service.ts:531	apps/api/services/invitation	(): never	One answer for every dead token — expired, revoked, replayed or forged.
+INVENTORY	const	local	apps/api/src/routes/v1/reports.routes.ts:106	apps/api/routes/v1	PERMISSIONS.REPORT_INVENTORY	
 INVENTORY_SWEEP_CRON	const	export	packages/queue/src/index.ts:198	packages/queue	'10 * * * *'	
 INVENTORY_SWEEP_JOB	const	export	packages/queue/src/index.ts:183	packages/queue	'EXPIRY_SWEEP'	
 inventoryDocs	var	export	apps/api/src/openapi/registry/inventory.ts:129	apps/api/openapi/registry	: DocRegistry	
@@ -3182,6 +3278,7 @@ main	fn/async	local	packages/db/scripts/apply-grants.ts:94	packages/db/scripts	(
 main	fn/async	local	packages/db/scripts/check-rls.ts:108	packages/db/scripts	(): Promise<void>	
 MAIN_BRANCH	const	local	apps/api/src/openapi/registry/branches.ts:13	apps/api/openapi/registry	{ id: BRANCH_ID, name: 'Alpha Clinic — Indiranagar', code: 'BLR-IND', branchType: 'CLINIC…	One fully-populated branch, used as the response example throughout.
 maintainsPlatformLaw	fn	local	packages/permissions/src/roles.ts:145	packages/permissions	(p: PermissionCode): boolean	
+majorToMinor	fn	local	apps/api/src/services/reports/activity-reports.service.ts:77	apps/api/services/reports	(value: string | null, currency: string | null): number | null	
 majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:95	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(value: FormDataEntryValue | null): number | null	
 majorToMinor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:103	apps/web/app/(tenant)/t/[slug]/(app)/stock	(value: FormDataEntryValue | null): number | null	
 makeAppointment	fn/async	local	apps/api/tests/integration/visit-history.test.ts:199	apps/api/tests/integration	(episodeId: string, number: string, offsetDays: number, parentId: string | null): Promise<string>	A booking on a journey, checked in and ready for a consultation.
@@ -3193,6 +3290,7 @@ makeProduct	fn/async	local	apps/api/tests/integration/consumption.test.ts:126	ap
 makeProduct	fn/async	local	apps/api/tests/integration/ie-rule-pack.test.ts:143	apps/api/tests/integration	(key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
 makeProduct	fn/async	local	apps/api/tests/integration/india-rule-pack.test.ts:90	apps/api/tests/integration	(key: string, type: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	A product of `type`, with a profile asserting `classification` where given.
 makeProduct	fn/async	local	apps/api/tests/integration/recall.test.ts:126	apps/api/tests/integration	(code: string, type: string, tracking): Promise<string>	
+makeProduct	fn/async	local	apps/api/tests/integration/reports.test.ts:116	apps/api/tests/integration	(code: string): Promise<string>	
 makeProduct	fn/async	local	apps/api/tests/integration/sg-rule-pack.test.ts:110	apps/api/tests/integration	(key: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
 makeProduct	fn/async	local	apps/api/tests/integration/us-rule-pack.test.ts:113	apps/api/tests/integration	(into: Record<string, string>, organizationId: string, key: string, type: string, classification: string | null, unitId: string, jurisdictionId: string): Promise<void>	
 makeTerm	fn/async	local	apps/api/tests/integration/consultation-journey.test.ts:151	apps/api/tests/integration	(kind: string, code: string, name: string): Promise<string>	
@@ -3391,6 +3489,7 @@ metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/regulatory/jurisdic
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/regulatory/rule-packs/[packId]/page.tsx:10	apps/web/app/(tenant)/t/[slug]/(app)/regulatory/rule-packs/[packId]	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/regulatory/rule-packs/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/regulatory/rule-packs	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/regulatory/sources/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/regulatory/sources	: Metadata	
+metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/reports	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/roles/page.tsx:9	apps/web/app/(tenant)/t/[slug]/(app)/roles	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/settings/page.tsx:14	apps/web/app/(tenant)/t/[slug]/(app)/settings	: Metadata	
 metadata	var	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:14	apps/web/app/(tenant)/t/[slug]/(app)/stock/adjustments/new	: Metadata	
@@ -3425,7 +3524,9 @@ MIN_FILL_MS	const	local	apps/api/src/routes/v1/public.routes.ts:43	apps/api/rout
 MIN_LINK_LIFETIME_SECONDS	const	local	packages/payments/src/providers/razorpay.ts:119	packages/payments/providers	16 * 60	
 Miniature	component	local	apps/web/src/components/shell/theme-settings.tsx:287	apps/web/components/shell	({ appearance, accent, half, }: { appearance: ResolvedAppear…)	
 minor	fn	local	apps/api/src/services/invoicing/invoice.service.ts:791	apps/api/services/invoicing	(value: Prisma.Decimal, currency: string): number	The column → minor units, per row, at the row's own currency.
+minor	fn	export	apps/api/src/services/reports/shared.ts:238	apps/api/services/reports	(value: string | null | undefined): number | null	
 minorAmount	zod	export	packages/contracts/src/procurement.ts:97	packages/contracts	z.int().min(…)	
+minorOrZero	fn	export	apps/api/src/services/reports/shared.ts:245	apps/api/services/reports	(value: string | null | undefined): number	The same, where the absence of a figure means zero rather than "unknown".
 minorUnitExponent	fn	export	packages/payments/src/currency.ts:64	packages/payments	(currency: string): number	
 MINUTE_MS	const	local	apps/api/src/services/appointment/availability.service.ts:47	apps/api/services/appointment	60_000	
 missing	fn	export	packages/inventory/src/errors.ts:35	packages/inventory	(resource: string): InventoryError	
@@ -3462,9 +3563,10 @@ monthsAgo	fn	local	apps/api/tests/integration/ae-rule-pack.test.ts:86	apps/api/t
 monthsAgo	fn	local	apps/api/tests/integration/au-rule-pack.test.ts:99	apps/api/tests/integration	(months: number): string	
 monthsAgo	fn	local	apps/api/tests/integration/ie-rule-pack.test.ts:100	apps/api/tests/integration	(months: number): string	A prescription written exactly `months` calendar months ago, to the day.
 mostSpecific	fn	export	packages/regulatory/src/selection.ts:161	packages/regulatory	(rules: readonly RegulatoryRule[]): RegulatoryRule[]	
-Mount	interface	export	apps/api/src/openapi/mounts.ts:106	apps/api/openapi	{ prefix, router, tag }	
-MOUNTS	const	export	apps/api/src/openapi/mounts.ts:115	apps/api/openapi	: readonly Mount[]	
+Mount	interface	export	apps/api/src/openapi/mounts.ts:108	apps/api/openapi	{ prefix, router, tag }	
+MOUNTS	const	export	apps/api/src/openapi/mounts.ts:117	apps/api/openapi	: readonly Mount[]	
 moveAppointment	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:328	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(slug: string, appointmentId: string, status: 'CONFIRMED' | 'CHECKED_IN' | 'IN_PROGRESS' | 'COMPL…): Promise<BookingState>	Confirm, check in, start, complete — one step at a time.
+MOVEMENT_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:207	apps/api/routes/v1	: readonly CsvColumn<MovementRow>[]	
 MOVEMENT_LABEL	const	local	apps/web/src/components/tenant/stock-ledger-view.tsx:30	apps/web/components/tenant	: Record<string, string>	
 MOVEMENT_TYPES	const	local	apps/web/src/components/tenant/adjustment-form.tsx:43	apps/web/components/tenant	[ { value: 'ADJUSTMENT', label: 'Correct the count' }, { value: 'DAMAGE', label: 'Damaged…	
 movementDeps	var	export	apps/api/src/services/inventory/movement.service.ts:46	apps/api/services/inventory	: MovementDeps	
@@ -3472,6 +3574,13 @@ movementDeps	var	export	apps/worker/src/inventory/deps.ts:26	apps/worker/invento
 MovementDeps	interface	export	packages/inventory/src/movement.ts:76	packages/inventory	{ recordAudit, loadUnitGraph }	
 MovementInput	interface	export	packages/inventory/src/movement.ts:200	packages/inventory	{ branchId, productId, batchId, serialId, movementType, quantity, adjustmentDirection, unitId, packagingLevel, locationId, statusFrom, statusTo, reasonCode, reasonNote, occurredAt, referenceType, ref…	
 MovementOptions	interface	export	packages/inventory/src/movement.ts:96	packages/inventory	{ ipAddress, userAgent }	Request provenance, carried into the audit row.
+movementQuery	var	export	packages/contracts/src/reports.ts:385	packages/contracts	datedReportScope.extend(…)	
+MovementQuery	type	export	packages/contracts/src/reports.ts:390	packages/contracts	z.infer<typeof movementQuery>	
+movementReport	var	export	packages/contracts/src/reports.ts:410	packages/contracts	reportEnvelope.extend(…)	
+MovementReport	type	export	packages/contracts/src/reports.ts:413	packages/contracts	z.infer<typeof movementReport>	
+movementRow	var	export	packages/contracts/src/reports.ts:392	packages/contracts	productRef.extend(branchRef.shape).extend(…)	
+MovementRow	type	export	packages/contracts/src/reports.ts:408	packages/contracts	z.infer<typeof movementRow>	
+MovementSqlRow	interface	local	apps/api/src/services/reports/inventory-reports.service.ts:562	apps/api/services/reports	{ branch_id, branch_name, product_id, product_name, product_code, base_unit_symbol, opening_base, received_base, issued_base, dispensed_base, consumed_base, transferred_out_base, disposed_base, adjus…	
 moveSerial	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1106	apps/api/services/consumption	(tx: TxClient, serialId: string, patientId: string | null): Promise<void>	
 MRN_PREFIX_KEY	const	local	apps/api/src/services/patient/patient.service.ts:69	apps/api/services/patient	'patient.mrn_prefix'	
 MS_PER_DAY	const	local	packages/billing/src/periods.ts:32	packages/billing	86_400_000	
@@ -3546,6 +3655,7 @@ number	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:51	a
 number	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:92	apps/web/app/(tenant)/t/[slug]/(app)/patients	(formData: FormData, key: string): number | undefined	
 numberOrNull	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:171	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(value: FormDataEntryValue | null): number | null	A whole-number field. `NaN` for a typo, for the reason `majorToMinor` gives.
 numberOrUndefined	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:387	apps/web/app/(tenant)/t/[slug]/(app)/products	(value: FormDataEntryValue | null): number | undefined	
+NUMERIC	component	local	apps/web/src/components/tenant/report-view.tsx:89	apps/web/components/tenant	new Set(…)	
 obj	fn	export	packages/payments/src/providers/shared.ts:35	packages/payments/providers	(source: Json | undefined, key: string): Json | undefined	
 ObjectMetadata	interface	export	packages/storage/src/types.ts:45	packages/storage	{ key, sizeBytes, contentType, checksum, storedAt }	
 ObligationParameters	interface	export	packages/regulatory/src/parameters.ts:314	packages/regulatory	{ detail, fields, years, cadence, recipient, method, witnessRequired }	
@@ -3616,6 +3726,7 @@ operationId	fn	local	apps/api/src/openapi/document.ts:34	apps/api/openapi	(metho
 optional	fn	local	apps/worker/src/index.ts:35	apps/worker	(value: string | undefined): string | undefined	An optional variable, where blank means unset. Mirrors the API's config.
 Optional	type	export	apps/api/src/types/index.ts:6	apps/api/types	T | undefined	
 optionProblem	fn	local	packages/clinical/src/validate.ts:130	packages/clinical	(field: FieldDescriptor, value: unknown): string | null	
+options	fn	local	apps/api/src/routes/v1/reports.routes.ts:133	apps/api/routes/v1	(req: Request): ReportOptions	Reports own no writes, so a route hands its service nothing but the branch.
 ORDER	component	local	apps/web/src/components/tenant/stock-status.tsx:56	apps/web/components/tenant	: StockStatus[]	Drawing order. Available leads; the rest follow in decreasing usefulness.
 ORDER_DETAIL	const	local	apps/api/src/openapi/registry/online-pharmacy.ts:95	apps/api/openapi/registry	{ ...ORDER_SUMMARY, address: DELIVERY_ADDRESS, notes: null, confirmedByName: 'Anitha Rao'…	
 ORDER_DISPATCH	const	local	apps/api/src/routes/v1/online-pharmacy.routes.ts:94	apps/api/routes/v1	PERMISSIONS.ONLINE_ORDER_DISPATCH	
@@ -3698,6 +3809,7 @@ packParams	zod	local	apps/api/src/routes/v1/regulatory.routes.ts:120	apps/api/ro
 PACKS	const	local	packages/db/prisma/seed/regulatory-packs.ts:154	packages/db/prisma/seed	: readonly PackSeed[]	
 PackSeed	interface	local	packages/db/prisma/seed/regulatory-packs.ts:123	packages/db/prisma/seed	{ countryCode, regionCode, countryName, authorities, sources, rules, packAuthorityCode, version, name, description, effectiveFrom }	
 PAGE	const	export	packages/documents/src/chrome/styles.ts:58	packages/documents/chrome	{ width: `${String(WIDTH_MM)}mm`, height: '297mm', /** * The left and right margin. * * ⚠…	
+PAGE_PARAMS	const	local	apps/api/src/openapi/registry/reports.ts:60	apps/api/openapi/registry	{ page: 'Page number, from 1.', limit: 'Rows per page, up to 200.', sortOrder: '`asc` or …	
 PageFooter	component	export	packages/documents/src/chrome/page-chrome.tsx:123	packages/documents/chrome	({ chrome, children, }: { chrome: DocumentChrome; children?:…): JSX.Element	
 PageHeader	component	export	packages/documents/src/chrome/page-chrome.tsx:34	packages/documents/chrome	({ chrome }: { chrome: DocumentChrome }): JSX.Element	
 pageMeta	fn	export	apps/api/src/services/regulatory/shared.ts:236	apps/api/services/regulatory	(total: number, page: number, limit: number): { page: number; limit: number; total: number; totalPages: n…	The page envelope every list in this domain returns.
@@ -3868,6 +3980,7 @@ payload	fn	local	apps/api/tests/integration/recall.test.ts:103	apps/api/tests/in
 payload	fn	local	apps/api/tests/integration/reference-configurations.test.ts:72	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/registration.test.ts:66	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/regulatory.test.ts:59	apps/api/tests/integration	(slug: string, label: string)	
+payload	fn	local	apps/api/tests/integration/reports.test.ts:93	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/setting-resolver.test.ts:49	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/settings.test.ts:65	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/sg-rule-pack.test.ts:87	apps/api/tests/integration	(slug: string, label: string)	
@@ -4088,6 +4201,12 @@ PrivacyPolicyPage	component	export	apps/web/src/app/(marketing)/legal/privacy/pa
 problem	fn	local	packages/clinical/tests/dosing.test.ts:21	packages/clinical/tests	(request: DoseRequest): string	
 PROCEDURE_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:114	apps/api/services/clinical	{ id: true, diagnosisId: true, performedOn: true, status: true, notes: true, displayOrder…	
 PROCEDURE_STATUSES	const	local	apps/web/src/components/tenant/consultation-content.tsx:596	apps/web/components/tenant	[ { value: 'PLANNED', label: 'Planned' }, { value: 'PERFORMED', label: 'Performed' }, { v…	
+procedureContributionQuery	var	export	packages/contracts/src/reports.ts:708	packages/contracts	datedReportScope.extend(…)	
+ProcedureContributionQuery	type	export	packages/contracts/src/reports.ts:713	packages/contracts	z.infer<typeof procedureContributionQuery>	
+procedureContributionReport	var	export	packages/contracts/src/reports.ts:743	packages/contracts	reportEnvelope.extend(…)	
+ProcedureContributionReport	type	export	packages/contracts/src/reports.ts:750	packages/contracts	z.infer<typeof procedureContributionReport>	
+procedureContributionRow	var	export	packages/contracts/src/reports.ts:715	packages/contracts	branchRef.extend(…)	
+ProcedureContributionRow	type	export	packages/contracts/src/reports.ts:741	packages/contracts	z.infer<typeof procedureContributionRow>	
 ProcedureSection	component	export	apps/web/src/components/tenant/consultation-content.tsx:602	apps/web/components/tenant	(props: ContentSectionProps & { /** * The places this consul…)	
 processBillingJob	fn/async	export	apps/worker/src/billing/processor.ts:137	apps/worker/billing	(job: BillingJob, deps: BillingProcessorDeps): Promise<void>	
 PROCESSORS	const	local	apps/worker/src/index.ts:153	apps/worker	: Partial<Record<QueueName, (jobName: string, data: unknown) => Promise<void>>>	Processors land here as each phase is built. Registering the queues means jobs enqueued by the API are durably held rat…
@@ -4103,6 +4222,8 @@ PRODUCT_CAP	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/pur
 PRODUCT_CAP	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/requisitions/new/page.tsx:11	apps/web/app/(tenant)/t/[slug]/(app)/procurement/requisitions/new	100	
 PRODUCT_CAP	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/new/page.tsx:16	apps/web/app/(tenant)/t/[slug]/(app)/procurement/returns/new	100	
 PRODUCT_CAP	const	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/suppliers/[supplierId]/page.tsx:22	apps/web/app/(tenant)/t/[slug]/(app)/procurement/suppliers/[supplierId]	100	
+PRODUCT_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:175	apps/api/routes/v1	[ { header: 'Product', field: 'productName' }, { header: 'Code', field: 'productCode' }, …	
+PRODUCT_COLUMNS	const	local	apps/web/src/lib/report-specs.ts:75	apps/web/lib	: readonly ReportColumn[]	
 PRODUCT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:67	apps/api/openapi/registry	'5b3e9a04-8c71-4d62-9f85-2a7c1e6b3d94'	
 PRODUCT_NOTE	const	local	apps/api/src/openapi/registry/products.ts:54	apps/api/openapi/registry	'The product, as `GET /api/v1/products` lists it. A platfor…	
 PRODUCT_PRICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:527	apps/api/openapi/registry	'd6a83f15-4e07-4b92-8c36-0a5b1e7d2c48'	
@@ -4151,6 +4272,7 @@ ProductPriceListResponse	interface	export	packages/contracts/src/charging.ts:196
 ProductRecallDetail	component	export	apps/web/src/components/tenant/product-recall-detail.tsx:66	apps/web/components/tenant	({ slug, recall, candidates, affected, patientCount, timeZon…)	
 ProductRecallList	component	export	apps/web/src/components/tenant/product-recall-list.tsx:69	apps/web/components/tenant	({ slug, recalls, meta, products, timeZone, canCreate }: Pro…)	
 ProductRecallNav	component	export	apps/web/src/components/tenant/product-recall-nav.tsx:24	apps/web/components/tenant	()	
+productRef	zod	local	packages/contracts/src/reports.ts:218	packages/contracts	z.object(…)	The identity every product-grained row repeats.
 productRegistrationStatus	zod	export	packages/contracts/src/regulatory.ts:115	packages/contracts	z.enum(…)	
 ProductRegistrationStatus	type	export	packages/contracts/src/regulatory.ts:721	packages/contracts	z.infer<typeof productRegistrationStatus>	
 ProductRegulatoryProfile	interface	export	packages/regulatory/src/types.ts:146	packages/regulatory	{ id, jurisdiction, classification, controlledSchedule, prescriptionRequirement, registrationNumber, registrationStatus, onlineSalePosition, effectiveFrom, effectiveTo }	What a clinic asserts about this product here, from `product_regulatory_profiles`.
@@ -4212,6 +4334,7 @@ Props	interface	local	apps/web/src/components/tenant/purchase-order-panel.tsx:24
 Props	interface	local	apps/web/src/components/tenant/purchase-return-form.tsx:44	apps/web/components/tenant	{ slug, branches, suppliers, products, locations, receipt, moreProducts }	
 Props	interface	local	apps/web/src/components/tenant/purchase-return-list.tsx:25	apps/web/components/tenant	{ purchaseReturns, meta, branches, suppliers, canManage }	
 Props	interface	local	apps/web/src/components/tenant/purchase-return-panel.tsx:22	apps/web/components/tenant	{ slug, purchaseReturn, canManage }	
+Props	interface	local	apps/web/src/components/tenant/report-view.tsx:38	apps/web/components/tenant	{ reportKey, spec, rows, totals, page, limit, total, generatedAt, window, canExport, exportHref, extraNote }	
 Props	interface	local	apps/web/src/components/tenant/requisition-form.tsx:26	apps/web/components/tenant	{ slug, branches, products, suppliers, moreProducts }	
 Props	interface	local	apps/web/src/components/tenant/requisition-list.tsx:39	apps/web/components/tenant	{ requisitions, meta, branches, canCreate }	
 Props	interface	local	apps/web/src/components/tenant/requisition-panel.tsx:28	apps/web/components/tenant	{ slug, requisition, canCreate, canApprove, canOrder }	
@@ -4321,6 +4444,7 @@ PurchaseSummary	interface	export	packages/contracts/src/billing.ts:240	packages/
 PURPOSE	component	local	apps/web/src/components/tenant/contact-verification.tsx:88	apps/web/components/tenant	: Record<VerifyChannel, string>	
 PutObjectInput	interface	export	packages/storage/src/types.ts:29	packages/storage	{ key, body, contentType, overwrite }	
 q	fn	export	apps/api/src/services/shared/branch.ts:79	apps/api/services/shared	(value: Prisma.Decimal | number | string): string	A decimal as the wire wants it: a string, never a float.
+qty	fn	export	apps/api/src/services/reports/shared.ts:250	apps/api/services/reports	(value: string | null | undefined): string	A quantity as the wire wants it: a string, never a float.
 QUADRANTS	const	local	packages/db/prisma/seed/data/visual-maps.ts:125	packages/db/prisma/seed/data	: VisualRegionSeed[]	
 QUALIFICATION_MBBS_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:417	apps/api/openapi/registry	'9d4a1c68-3b07-4f52-8e96-7a2d5b0c8e31'	
 QUALIFICATION_MD_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:418	apps/api/openapi/registry	'2c6f9b53-0e84-4a17-9b40-8d3c1e7a5f92'	
@@ -4336,6 +4460,14 @@ QUANTITY_SCALE	const	export	packages/invoicing/src/quantity.ts:21	packages/invoi
 quantityBasis	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:124	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(form: FormData, index: number): { unitId?: string | null; packagingLevel?: number | null }	
 quantityInBaseUnits	fn/async	export	apps/api/src/services/product/packaging.service.ts:218	apps/api/services/product	(ctx: TenantContext, productId: string, quantity: string, level: number): Promise<string>	
 QuantityLimitParameters	interface	export	packages/regulatory/src/parameters.ts:136	packages/regulatory	{ maxPerTransactionBase, maxPerPeriodBase, periodDays, maxDaysSupply }	
+QUARANTINE_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:235	apps/api/routes/v1	: readonly CsvColumn<QuarantineRow>[]	
+quarantineQuery	var	export	packages/contracts/src/reports.ts:479	packages/contracts	reportScope.extend(…)	
+QuarantineQuery	type	export	packages/contracts/src/reports.ts:485	packages/contracts	z.infer<typeof quarantineQuery>	
+quarantineReport	var	export	packages/contracts/src/reports.ts:512	packages/contracts	reportEnvelope.extend(…)	
+QuarantineReport	type	export	packages/contracts/src/reports.ts:517	packages/contracts	z.infer<typeof quarantineReport>	
+quarantineRow	var	export	packages/contracts/src/reports.ts:487	packages/contracts	productRef.extend(branchRef.shape).extend(…)	
+QuarantineRow	type	export	packages/contracts/src/reports.ts:510	packages/contracts	z.infer<typeof quarantineRow>	
+QuarantineSqlRow	interface	local	apps/api/src/services/reports/inventory-reports.service.ts:950	apps/api/services/reports	{ branch_id, branch_name, product_id, product_name, product_code, base_unit_symbol, hold, batch_id, lot_number, expires_on, quantity_base, held_since, reason, unit_cost_minor, currency, value_minor }	
 QUEUE	const	export	packages/queue/src/index.ts:35	packages/queue	{ NOTIFICATIONS: 'notifications', DOCUMENTS: 'documents', REPORTS: 'reports', BILLING: 'b…	
 QueueName	type	export	packages/queue/src/index.ts:45	packages/queue	(typeof QUEUE)[keyof typeof QUEUE]	
 queues	var	local	apps/worker/src/index.ts:139	apps/worker	createQueues(…)	
@@ -4357,6 +4489,7 @@ rate	fn	local	apps/web/src/components/tenant/checkout/provider-checkout.tsx:286	
 rateFor	fn	export	packages/tax/src/selection.ts:242	packages/tax	(supply: TaxableSupply, registration: IssuerRegistration): ResolvedRate	
 RateLimitError	class	export	apps/api/src/utils/errors.ts:85	apps/api/utils	{ }	429 - Rate Limit Error
 RateWords	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:634	apps/web/components/tenant	({ rule }: { rule: ClinicTaxRuleSummary })	
+ratio	fn	export	apps/api/src/services/reports/shared.ts:268	apps/api/services/reports	(numerator: number, denominator: number): string | null	
 rational	fn	local	packages/clinical/src/dosing.ts:148	packages/clinical	(n: bigint, d: bigint): Rational	
 rational	fn	export	packages/inventory/src/units.ts:102	packages/inventory	(n: bigint, d: bigint): Rational	
 Rational	interface	local	packages/clinical/src/dosing.ts:78	packages/clinical	{ n, d }	An exact non-negative rational. Always reduced, denominator always positive.
@@ -4744,6 +4877,36 @@ replaceTaxClassifications	fn/async	export	apps/api/src/services/product/tax-clas
 replaceTaxClassificationsAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:288	apps/web/app/(tenant)/t/[slug]/(app)/products	(slug: string, productId: string, classifications: unknown): Promise<ProductFormState>	
 ReplayRow	interface	local	apps/api/src/services/inventory/balance.service.ts:244	apps/api/services/inventory	{ product_id, batch_id, serial_id, location_id, status, replayed, cached }	
 repoRoot	var	local	apps/api/src/config/index.ts:13	apps/api/config	new URL('../../../../', import.meta.url).pathname	
+REPORT_PATHS	const	export	apps/web/src/lib/report-specs.ts:344	apps/web/lib	: Record<string, string>	Where each report is served from, relative to `/api/v1`.
+REPORT_SPECS	const	export	apps/web/src/lib/report-specs.ts:80	apps/web/lib	: Record<string, ReportSpec>	
+reportCatalogue	zod	export	packages/contracts/src/reports.ts:782	packages/contracts	z.object(…)	
+ReportCatalogue	type	export	packages/contracts/src/reports.ts:785	packages/contracts	z.infer<typeof reportCatalogue>	
+ReportCatalogueList	component	export	apps/web/src/components/tenant/report-catalogue.tsx:22	apps/web/components/tenant	({ catalogue }: { catalogue: ReportCatalogue })	
+ReportColumn	interface	export	apps/web/src/lib/report-specs.ts:36	apps/web/lib	{ header, field, kind }	
+reportCurrencyTotal	zod	export	packages/contracts/src/reports.ts:185	packages/contracts	z.object(…)	
+ReportCurrencyTotal	type	export	packages/contracts/src/reports.ts:193	packages/contracts	z.infer<typeof reportCurrencyTotal>	
+reportDefinition	fn	export	apps/api/src/services/reports/catalogue.ts:124	apps/api/services/reports	(key: ReportKey): ReportDefinition	The definition behind one key, for the router and the CSV filename.
+ReportDefinition	interface	export	apps/api/src/services/reports/catalogue.ts:21	apps/api/services/reports	{ key, title, summary, path, permission, dated }	
+reportDescriptor	zod	export	packages/contracts/src/reports.ts:765	packages/contracts	z.object(…)	
+ReportDescriptor	type	export	packages/contracts/src/reports.ts:780	packages/contracts	z.infer<typeof reportDescriptor>	
+reportDocs	var	export	apps/api/src/openapi/registry/reports.ts:101	apps/api/openapi/registry	: DocRegistry	
+reportEnvelope	zod	local	packages/contracts/src/reports.ts:203	packages/contracts	z.object(…)	
+ReportFieldKind	type	export	apps/web/src/lib/report-specs.ts:20	apps/web/lib	| 'text' /** An identifier a person reads character by character — a lot, a code. */ | 'mono' /** A quantity in base units, right-aligned. Arrives as a decimal…	
+ReportFilter	interface	export	apps/web/src/lib/report-specs.ts:42	apps/web/lib	{ name, label, kind, options, placeholder }	
+reportFormat	zod	export	packages/contracts/src/reports.ts:107	packages/contracts	z.enum(…)	
+ReportFormat	type	export	packages/contracts/src/reports.ts:108	packages/contracts	z.infer<typeof reportFormat>	
+reportKey	zod	export	packages/contracts/src/reports.ts:79	packages/contracts	z.enum(…)	
+ReportKey	type	export	packages/contracts/src/reports.ts:90	packages/contracts	z.infer<typeof reportKey>	
+ReportOptions	interface	export	apps/api/src/services/reports/shared.ts:40	apps/api/services/reports	{ actingBranchId }	Reports own no writes, so this is only ever what a route knows about a read.
+reportPage	zod	local	packages/contracts/src/reports.ts:140	packages/contracts	z.object(…)	
+ReportPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:83	apps/web/app/(tenant)/t/[slug]/(app)/reports/[reportKey]	({ params, searchParams, }: { params: Promise<{ slug: string…)	
+ReportResponse	interface	local	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:59	apps/web/app/(tenant)/t/[slug]/(app)/reports/[reportKey]	{ reportKey, generatedAt, window, page, limit, total, truncated, rows, totals, procedureFeeIncluded }	
+reportRoutes	var	local	apps/api/src/routes/v1/reports.routes.ts:111	apps/api/routes/v1	: IRouter	
+REPORTS	const	export	apps/api/src/services/reports/catalogue.ts:47	apps/api/services/reports	: readonly ReportDefinition[]	
+reportScope	var	local	packages/contracts/src/reports.ts:147	packages/contracts	reportPage.extend(…)	Every report is asked of a place, or of every place the caller can see.
+ReportsPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/reports/page.tsx:25	apps/web/app/(tenant)/t/[slug]/(app)/reports	({ params }: { params: Promise<{ slug: string }> })	
+ReportSpec	interface	export	apps/web/src/lib/report-specs.ts:50	apps/web/lib	{ title, blurb, dated, caveat, filters, columns }	
+ReportView	component	export	apps/web/src/components/tenant/report-view.tsx:102	apps/web/components/tenant	({ reportKey, spec, rows, totals, page, limit, total, genera…)	
 repriceDraftInvoice	fn/async	export	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:398	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<PricedDraftInvoice>	
 repriceLoadedDraft	fn/async	local	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:407	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, invoice: LoadedDraft): Promise<PricedDraftInvoice>	The half of the above that a caller which has already loaded the draft uses.
 request	fn	local	packages/regulatory/tests/engine.test.ts:43	packages/regulatory/tests	(over: Partial<RegulatoryRequest>): RegulatoryRequest	
@@ -4877,6 +5040,7 @@ resolveRecallBatchAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/
 resolveRecallBatchRequest	zod	export	packages/contracts/src/recall.ts:123	packages/contracts	z.object(…)	
 ResolveRecallBatchRequest	type	export	packages/contracts/src/recall.ts:383	packages/contracts	z.infer<typeof resolveRecallBatchRequest>	
 resolveReceivingPolicy	fn/async	export	apps/api/src/services/procurement/shared.ts:228	apps/api/services/procurement	(tx: TxClient, ctx: TenantContext, branchId: string): Promise<{ tolerancePercent: number; qualityHoldRequired: bo…	
+resolveReportBranches	fn	export	apps/api/src/services/reports/shared.ts:57	apps/api/services/reports	(ctx: TenantContext, named: string | undefined): string[]	
 resolveSettingForBranches	fn/async	export	apps/api/src/services/settings/resolver.service.ts:166	apps/api/services/settings	(tx: TxClient, key: string, scopes: { organizationId: string; branchIds: string[] }): Promise<Map<string, SettingValue>>	
 resolveSettings	fn/async	export	apps/api/src/services/settings/resolver.service.ts:69	apps/api/services/settings	(tx: TxClient, keys: string[], scopes: SettingScopes): Promise<Map<string, SettingValue>>	
 resolveSlotEnd	fn	local	apps/api/src/services/appointment/appointment.service.ts:294	apps/api/services/appointment	(availability: AvailabilityResponse, startsAt: Date, durationMinutes: number | undefined): Date	
@@ -4896,6 +5060,8 @@ resolveUnitCost	fn/async	local	apps/api/src/services/procurement/purchase-order.
 resolveVat	fn	local	packages/tax/src/engine.ts:430	packages/tax	(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction): Quote	
 resolveViaProvider	fn	local	packages/tax/src/engine.ts:475	packages/tax	(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction, missing: string): Quote	
 resolveWeightStaleDays	fn/async	export	apps/api/src/services/patient/patient.service.ts:358	apps/api/services/patient	(tx: TxClient, ctx: TenantContext, branchId?: string): Promise<number>	
+resolveWindow	fn	export	apps/api/src/services/reports/shared.ts:79	apps/api/services/reports	(from: string, to: string): { from: string; to: string }	
+respond	fn	local	apps/api/src/routes/v1/reports.routes.ts:145	apps/api/routes/v1	(res: Response, report: { reportKey: ReportKey; window: { from: string; to:…, columns: readonly CsvColumn<Row>[], format: 'json' | 'csv'): void	
 restateLine	fn/async	local	apps/api/src/services/consumption/consumption.service.ts:1321	apps/api/services/consumption	(tx: TxClient, ctx: TenantContext, record: StoredRecord, existing: StoredLine, requested: ConsumptionLineRequest, context: PrepareContext): Promise<void>	
 RestoreButton	component	local	apps/web/src/components/tenant/member-list.tsx:758	apps/web/components/tenant	({ slug, member }: { slug: string; member: MemberDetail })	
 restoreMember	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:243	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, _previous: MemberFormState): Promise<MemberFormState>	
@@ -4921,6 +5087,7 @@ returnUrlFor	fn	export	packages/billing/src/engine/checkout.ts:960	packages/bill
 revalidate	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:59	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string, recallId?: string): void	
 revalidateDoctor	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:34	apps/web/app/(tenant)/t/[slug]/(app)/doctors	(slug: string, doctorId?: string): void	
 revalidateOrder	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/orders/actions.ts:81	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy/orders	(slug: string, orderId?: string): void	
+REVENUE	const	local	apps/api/src/routes/v1/reports.routes.ts:108	apps/api/routes/v1	PERMISSIONS.REPORT_REVENUE	
 reverseChargeForReturnWithin	fn/async	export	apps/api/src/services/charging/charge-request.service.ts:394	apps/api/services/charging	(tx: TxClient, ctx: TenantContext, input: Omit<RaiseChargeRequestsInput, 'lines' | 'kind'> & {…): Promise<{ raised: number; cancelled: number }>	
 ReversedLine	interface	export	apps/api/src/services/charging/charge-request.service.ts:490	apps/api/services/charging	{ originalDispenseLineId }	A return line, and the supply line it came off.
 Revision	component	local	apps/web/src/components/tenant/vitals-history.tsx:140	apps/web/components/tenant	({ revision, timezone, timeFormat, temperatureUnit, }: { rev…)	
@@ -4997,7 +5164,7 @@ router	var	local	apps/api/src/routes/v1/doctors.routes.ts:95	apps/api/routes/v1	
 router	var	local	apps/api/src/routes/v1/encounters.routes.ts:109	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/fees.routes.ts:54	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/health.routes.ts:7	apps/api/routes/v1	: IRouter	
-router	var	local	apps/api/src/routes/v1/index.ts:57	apps/api/routes/v1	: IRouter	
+router	var	local	apps/api/src/routes/v1/index.ts:58	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/invitations.routes.ts:43	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/invoices.routes.ts:93	apps/api/routes/v1	: IRouter	
 router	var	local	apps/api/src/routes/v1/members.routes.ts:55	apps/api/routes/v1	: IRouter	
@@ -5015,7 +5182,7 @@ router	var	local	apps/api/src/routes/v1/visual-maps.routes.ts:61	apps/api/routes
 router	var	local	apps/api/src/routes/v1/webhooks.routes.ts:37	apps/api/routes/v1	: IRouter	
 ROUTES	component	local	apps/web/src/components/tenant/consultation-content.tsx:760	apps/web/components/tenant	[ { value: 'ORAL', label: 'By mouth' }, { value: 'TOPICAL', label: 'On the skin' }, { val…	
 ROUTES	component	local	apps/web/src/components/tenant/product-panel.tsx:119	apps/web/components/tenant	[ '', 'ORAL', 'SUBLINGUAL', 'BUCCAL', 'INTRAVENOUS', 'INTRAMUSCULAR', 'SUBCUTANEOUS', 'IN…	
-routesOf	fn	local	apps/api/tests/unit/route-gates.test.ts:66	apps/api/tests/unit	(router: IRouter): Route[]	
+routesOf	fn	local	apps/api/tests/unit/route-gates.test.ts:67	apps/api/tests/unit	(router: IRouter): Route[]	
 row	fn/async	local	apps/api/tests/integration/invoice-lifecycle.test.ts:205	apps/api/tests/integration	(sql: string, params: unknown[]): Promise<T>	Read a row back as the OWNER, so a test never mistakes an RLS miss for a value.
 Row	type	local	apps/api/src/services/inventory/reason-code.service.ts:58	apps/api/services/inventory	Prisma.StockReasonCodeGetPayload<object>	
 Row	type	local	apps/api/src/services/inventory/reservation.service.ts:65	apps/api/services/inventory	Prisma.StockReservationGetPayload<{ include: typeof summaryInclude }>	
@@ -5203,6 +5370,7 @@ SelectElementProps	type	local	apps/web/src/components/ui/field.tsx:437	apps/web/
 SelectItem	type	export	apps/web/src/components/ui/field.tsx:415	apps/web/components/ui	SelectOption | SelectOptionGroup	
 SelectOption	interface	export	apps/web/src/components/ui/field.tsx:404	apps/web/components/ui	{ value, label, disabled }	
 SelectOptionGroup	interface	export	apps/web/src/components/ui/field.tsx:410	apps/web/components/ui	{ label, options }	
+SELLABLE_STATUSES	const	local	apps/api/src/services/reports/inventory-reports.service.ts:64	apps/api/services/reports	['AVAILABLE', 'RESERVED'] as const	
 sendCreated	fn	export	apps/api/src/utils/response.ts:45	apps/api/utils	(res: Response, data: T, message: string): Response	Send created response (201)
 sender	var	export	apps/api/src/services/notification/sender.ts:86	apps/api/services/notification	: NotificationSender	
 sendError	fn	export	apps/api/src/utils/response.ts:63	apps/api/utils	(res: Response, message: string, statusCode: number, errors?: Record<string, string[]>): Response	Send error response
@@ -5653,6 +5821,7 @@ sumQuantities	fn	local	apps/api/src/services/recall/recall.service.ts:111	apps/a
 sumQuantities	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:122	apps/web/components/tenant	(values: readonly string[]): string	Add decimal quantity strings without going through a float. ⚠️ SIX PLACES, BECAUSE THAT IS `stock_ledger`'s SCALE. Fixe…
 sumRationals	fn	local	packages/inventory/src/costing.ts:282	packages/inventory	(a: Rational, b: Rational): Rational	
 SUPPLIER	const	export	apps/api/src/openapi/registry/fixtures.ts:330	apps/api/openapi/registry	{ id: SUPPLIER_ID, name: 'MedSource Distributors', code: 'SUP-MEDSRC', gstin: '29AABCM123…	
+SUPPLIER_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:248	apps/api/routes/v1	: readonly CsvColumn<SupplierPerformanceRow>[]	
 SUPPLIER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:70	apps/api/openapi/registry	'e6c0b382-1f47-4a95-8d26-7b3e5a1c9f40'	
 SUPPLIER_MANAGE	const	local	apps/api/src/routes/v1/procurement.routes.ts:187	apps/api/routes/v1	PERMISSIONS.SUPPLIER_MANAGE	
 SUPPLIER_PRODUCT	const	local	apps/api/src/openapi/registry/procurement.ts:93	apps/api/openapi/registry	{ id: SUPPLIER_PRODUCT_ID, supplierId: SUPPLIER_ID, supplierName: SUPPLIER.name, productI…	
@@ -5669,6 +5838,12 @@ SupplierPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pro
 SupplierPanel	component	export	apps/web/src/components/tenant/supplier-panel.tsx:55	apps/web/components/tenant	({ slug, supplier, priceBook, products, units, canManage, mo…)	
 supplierParams	zod	local	apps/api/src/routes/v1/procurement.routes.ts:240	apps/api/routes/v1	z.object(…)	
 supplierPayload	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:148	apps/web/app/(tenant)/t/[slug]/(app)/procurement	(form: FormData): Record<string, unknown>	
+supplierPerformanceQuery	var	export	packages/contracts/src/reports.ts:537	packages/contracts	datedReportScope.extend(…)	
+SupplierPerformanceQuery	type	export	packages/contracts/src/reports.ts:541	packages/contracts	z.infer<typeof supplierPerformanceQuery>	
+supplierPerformanceReport	var	export	packages/contracts/src/reports.ts:567	packages/contracts	reportEnvelope.extend(…)	
+SupplierPerformanceReport	type	export	packages/contracts/src/reports.ts:571	packages/contracts	z.infer<typeof supplierPerformanceReport>	
+supplierPerformanceRow	zod	export	packages/contracts/src/reports.ts:543	packages/contracts	z.object(…)	
+SupplierPerformanceRow	type	export	packages/contracts/src/reports.ts:565	packages/contracts	z.infer<typeof supplierPerformanceRow>	
 supplierProductListResponse	zod	export	packages/contracts/src/procurement.ts:363	packages/contracts	z.object(…)	
 SupplierProductListResponse	type	export	packages/contracts/src/procurement.ts:1048	packages/contracts	z.infer<typeof supplierProductListResponse>	
 supplierProductParams	zod	local	apps/api/src/routes/v1/procurement.routes.ts:400	apps/api/routes/v1	z.object(…)	
@@ -5681,6 +5856,7 @@ supplierQuery	zod	export	packages/contracts/src/procurement.ts:191	packages/cont
 SupplierQuery	type	export	packages/contracts/src/procurement.ts:1036	packages/contracts	z.infer<typeof supplierQuery>	
 supplierRoutes	var	export	apps/api/src/routes/v1/procurement.routes.ts:238	apps/api/routes/v1	: IRouter	
 SuppliersPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/suppliers/page.tsx:20	apps/web/app/(tenant)/t/[slug]/(app)/procurement/suppliers	({ params, searchParams, }: { params: Promise<{ slug: string…)	
+SupplierSqlRow	interface	local	apps/api/src/services/reports/activity-reports.service.ts:703	apps/api/services/reports	{ supplier_id, supplier_name, supplier_code, currency, orders_placed, orders_received, orders_without_promised_date, orders_on_time, orders_late, total_days_late, ordered_base, received_base, receipt…	
 supplierStatus	zod	export	packages/contracts/src/procurement.ts:53	packages/contracts	z.enum(…)	
 SupplierStatus	type	export	packages/contracts/src/procurement.ts:1027	packages/contracts	z.infer<typeof supplierStatus>	
 supplierSummary	zod	export	packages/contracts/src/procurement.ts:209	packages/contracts	z.object(…)	
@@ -5736,9 +5912,9 @@ TABS	component	local	apps/web/src/components/tenant/recall-list.tsx:35	apps/web/
 TABS	component	local	apps/web/src/components/tenant/regulatory-nav.tsx:26	apps/web/components/tenant	[ { href: '/regulatory/jurisdictions', label: 'Places' }, { href: '/regulatory/authoritie…	
 TABS	component	local	apps/web/src/components/tenant/stock-nav.tsx:26	apps/web/components/tenant	[ { href: '/stock', label: 'Overview' }, { href: '/stock/lots', label: 'Lots' }, { href: …	
 TABS	component	local	apps/web/src/components/tenant/usage-nav.tsx:26	apps/web/components/tenant	[ { href: '/usage', label: 'Used', exact: true }, { href: '/usage/templates', label: 'Tem…	
-Tag	type	export	apps/api/src/openapi/mounts.ts:104	apps/api/openapi	(typeof TAGS)[number]	
-TAG_DESCRIPTIONS	const	export	apps/api/src/openapi/registry/index.ts:78	apps/api/openapi/registry	: Partial<Record<Tag, string>>	What each section of the API is, in one paragraph a stranger can read.
-TAGS	const	export	apps/api/src/openapi/mounts.ts:78	apps/api/openapi	[ 'Health', 'Authentication', 'Public', 'Organization', 'Branches', 'Members & Roles', 'D…	The documentation's own sections, in the order a reader should meet them.
+Tag	type	export	apps/api/src/openapi/mounts.ts:106	apps/api/openapi	(typeof TAGS)[number]	
+TAG_DESCRIPTIONS	const	export	apps/api/src/openapi/registry/index.ts:80	apps/api/openapi/registry	: Partial<Record<Tag, string>>	What each section of the API is, in one paragraph a stranger can read.
+TAGS	const	export	apps/api/src/openapi/mounts.ts:79	apps/api/openapi	[ 'Health', 'Authentication', 'Public', 'Organization', 'Branches', 'Members & Roles', 'D…	The documentation's own sections, in the order a reader should meet them.
 TakeOnlineOrderPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/orders/new/page.tsx:18	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy/orders/new	({ params, }: { params: Promise<{ slug: string }>; })	
 takeOrder	fn/async	local	apps/api/tests/integration/online-pharmacy.test.ts:164	apps/api/tests/integration	(productId, quantity): Promise<string>	
 takeRoleAway	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:81	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, assignmentId: string, _previous: MemberFormState): Promise<MemberFormState>	
@@ -5900,6 +6076,7 @@ toCalendarDate	fn	export	apps/api/src/services/product/values.ts:36	apps/api/ser
 toCategory	fn	local	apps/api/src/services/product/category.service.ts:59	apps/api/services/product	(row: CategoryRow): ProductCategory	
 toCelsius	fn	export	packages/contracts/src/locale.ts:1219	packages/contracts	(value: number, unit: TemperatureUnit): number	
 toComposition	fn	local	apps/api/src/services/product/catalogue.service.ts:372	apps/api/services/product	(row: CompositionWithIngredients): CompositionSummary	
+toCsv	fn	export	apps/api/src/services/reports/csv.ts:43	apps/api/services/reports	(columns: readonly CsvColumn<T>[], rows: readonly T[], truncated: boolean): string	
 toCustomer	fn	local	apps/api/src/routes/v1/invoices.routes.ts:174	apps/api/routes/v1	(customer: CreateInvoiceRequest['customer']): { name: string; phone: string | null; email: string | null;…	
 toDate	fn	local	apps/api/src/services/clinical/encounter-content.service.ts:612	apps/api/services/clinical	(value: string | null | undefined): Date | null | undefined	A `YYYY-MM-DD` as the UTC midnight Postgres stores in a `date`.
 toDate	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:51	apps/api/services/doctor	(yyyymmdd: string): Date	A bare `date` column: read it in UTC or it slides a day either way.
@@ -6048,9 +6225,11 @@ toSummary	fn	local	apps/api/src/services/procurement/supplier-product.service.ts
 toSummary	fn	local	apps/api/src/services/procurement/supplier.service.ts:64	apps/api/services/procurement	(row: DetailRow): SupplierSummary	
 toSummary	fn	local	apps/api/src/services/product/product.service.ts:112	apps/api/services/product	(row: { id: string; organizationId: string | null; code: str…): ProductSummary	
 toSummary	fn	local	apps/api/src/services/recall/recall.service.ts:121	apps/api/services/recall	(row: SummaryRow): RecallSummary	
+TotalledRow	interface	export	apps/api/src/services/reports/shared.ts:274	apps/api/services/reports	{ currency, valueMinor, quantityBase }	Rows the totals block is folded from, whatever report produced them.
 TotalRow	component	local	packages/documents/src/invoice/document.tsx:408	packages/documents/invoice	({ label, value }: { label: string; value: string }): JSX.Element	
 Totals	component	local	apps/web/src/components/tenant/invoice-detail.tsx:496	apps/web/components/tenant	({ invoice, amount, }: { invoice: InvoiceDetail; amount: (mi…)	
 Totals	component	local	packages/documents/src/invoice/document.tsx:353	packages/documents/invoice	({ data, fmt }: { data: InvoiceDocumentData; fmt: InvoiceFor…): JSX.Element	
+TOTALS_NOTE	const	local	apps/api/src/openapi/registry/reports.ts:57	apps/api/openapi/registry	'`totals` is an **array, one entry per currency**, and is c…	
 totalsOf	fn	local	apps/api/src/services/procurement/purchase-order.service.ts:349	apps/api/services/procurement	(lines: ResolvedLine[]): { subtotalMinor: bigint; taxAmountMinor: bigint; totalMinor…	
 toTaxIdentifier	fn	local	apps/api/src/services/procurement/supplier.service.ts:48	apps/api/services/procurement	(row: DetailRow['taxIdentifiers'][number]): SupplierTaxIdentifierDetail	
 toTemplate	fn	local	apps/api/src/services/clinical/template.service.ts:134	apps/api/services/clinical	(row: TemplateRow, versions: readonly VersionRow[]): ConsultationTemplate	
@@ -6368,7 +6547,7 @@ uuid	zod	export	packages/contracts/src/common.ts:3	packages/contracts	z.uuid(…
 UUID	const	local	apps/api/src/services/billing/webhook.service.ts:240	apps/api/services/billing	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{…	
 UuidParam	type	export	apps/api/src/schemas/common.schema.ts:58	apps/api/schemas	z.infer<typeof uuidParamSchema>	
 uuidParamSchema	zod	export	apps/api/src/schemas/common.schema.ts:6	apps/api/schemas	z.object(…)	UUID parameter schema
-V1	const	local	apps/api/src/openapi/mounts.ts:113	apps/api/openapi	'/api/v1'	
+V1	const	local	apps/api/src/openapi/mounts.ts:115	apps/api/openapi	'/api/v1'	
 validate	fn	export	apps/api/src/middleware/validate.middleware.ts:83	apps/api/middleware	(schema: ZodSchema, source: ValidationSource): RequestHandler	Validation middleware factory
 ValidatedShape	interface	export	apps/api/src/middleware/validate.middleware.ts:24	apps/api/middleware	{ schema, source }	
 validatedShapesOf	fn	export	apps/api/src/middleware/validate.middleware.ts:39	apps/api/middleware	(handler: unknown): readonly ValidatedShape[] | null	The shapes a `validate(...)` / `validateMultiple(...)` handler enforces, if it is one.
@@ -6379,6 +6558,16 @@ ValidationError	class	export	apps/api/src/utils/errors.ts:32	apps/api/utils	{ er
 ValidationProblem	interface	export	packages/clinical/src/validate.ts:43	packages/clinical	{ sectionKey, fieldKey, problem }	Everything wrong with a consultation, not merely the first thing.
 ValidationSource	type	export	apps/api/src/middleware/validate.middleware.ts:8	apps/api/middleware	'body' | 'query' | 'params'	Location of data to validate
 VALIDITY_NOTE	const	local	packages/db/prisma/seed/data/regulatory-ie.ts:591	packages/db/prisma/seed/data	'A prescription may not be dispensed more than six months a…	The sentence every prescription rule ends with, so the six months is never read as final.
+VALUATION_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:181	apps/api/routes/v1	: readonly CsvColumn<ValuationRow>[]	
+VALUATION_ROW	const	local	apps/api/src/openapi/registry/reports.ts:83	apps/api/openapi/registry	{ branchId: BRANCH_ID, branchName: BRANCH.name, productId: PRODUCT_ID, productName: PRODU…	
+valuationQuery	var	export	packages/contracts/src/reports.ts:234	packages/contracts	reportScope.extend(…)	
+ValuationQuery	type	export	packages/contracts/src/reports.ts:250	packages/contracts	z.infer<typeof valuationQuery>	
+valuationReport	var	export	packages/contracts/src/reports.ts:279	packages/contracts	reportEnvelope.extend(…)	
+ValuationReport	type	export	packages/contracts/src/reports.ts:286	packages/contracts	z.infer<typeof valuationReport>	
+valuationRow	var	export	packages/contracts/src/reports.ts:261	packages/contracts	productRef.extend(branchRef.shape).extend(…)	
+ValuationRow	type	export	packages/contracts/src/reports.ts:277	packages/contracts	z.infer<typeof valuationRow>	
+ValuationSqlRow	interface	local	apps/api/src/services/reports/inventory-reports.service.ts:131	apps/api/services/reports	{ branch_id, branch_name, product_id, product_name, product_code, base_unit_symbol, batch_id, lot_number, expires_on, quantity_base, available_base, unit_cost_minor, currency, applied_basis, value_mi…	
+valuationStatuses	fn	local	apps/api/src/services/reports/inventory-reports.service.ts:67	apps/api/services/reports	(query: ValuationQuery): string[]	
 valueOf	fn	local	packages/billing/src/entitlements.ts:59	packages/billing	(row: FeatureRow | OverrideRow, type?: FeatureValueType): number | boolean | null	
 valueOf	fn	export	packages/inventory/src/costing.ts:241	packages/inventory	(unitCostBase: number | bigint, quantityBase: string): bigint	`unitCostBase * quantityBase`, rounded HALF-UP — what a quantity of stock is worth at a given unit cost.
 valueProblem	fn	local	packages/clinical/src/validate.ts:335	packages/clinical	(value: unknown): string | null	
@@ -6524,6 +6713,8 @@ whyNot	fn	local	apps/web/src/components/tenant/appointment-billing-panel.tsx:312
 widestWindow	fn	local	apps/api/src/services/inventory/expiry.service.ts:68	apps/api/services/inventory	(value: unknown): number	
 WIDTH_MM	const	local	packages/documents/src/chrome/styles.ts:46	packages/documents/chrome	210	
 widths	fn	local	apps/web/src/components/tenant/stock-status.tsx:101	apps/web/components/tenant	(buckets: Bucket[]): { status: StockStatus; percent: number; quantity: string }[]	
+WINDOW_PARAM	const	local	apps/api/src/openapi/registry/reports.ts:55	apps/api/openapi/registry	"Inclusive calendar dates, resolved in **each branch's own …	
+windowFor	fn	export	apps/api/src/services/reports/shared.ts:92	apps/api/services/reports	(format: ReportFormat, page: number, limit: number): { take: number; skip: number }	`LIMIT`/`OFFSET`, or the CSV cap when the caller asked for a file.
 withCurrent	fn	export	apps/web/src/lib/locale-options.ts:59	apps/web/lib	(options: LocaleOption[], current: string): LocaleOption[]	
 withdrawProduct	fn/async	export	apps/api/src/services/product/product.service.ts:685	apps/api/services/product	(ctx: TenantContext, productId: string, options: CatalogueActionOptions): Promise<void>	
 withdrawProductAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:200	apps/web/app/(tenant)/t/[slug]/(app)/products	(slug: string, productId: string): Promise<ProductFormState>	

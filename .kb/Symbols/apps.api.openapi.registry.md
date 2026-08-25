@@ -4,7 +4,7 @@
 
 > Appointments — the day board, the availability engine, and the observations taken before the doctor is reached.
 
-Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/registry/audit.ts` · `apps/api/src/openapi/registry/auth.ts` · `apps/api/src/openapi/registry/billing.ts` · `apps/api/src/openapi/registry/branches.ts` · `apps/api/src/openapi/registry/catalogue-masters.ts` · `apps/api/src/openapi/registry/charging.ts` · `apps/api/src/openapi/registry/clinical-config.ts` · `apps/api/src/openapi/registry/clinical-taxonomy.ts` · `apps/api/src/openapi/registry/clinical.ts` · `apps/api/src/openapi/registry/doctors.ts` · `apps/api/src/openapi/registry/encounters.ts` · `apps/api/src/openapi/registry/fixtures.ts` · `apps/api/src/openapi/registry/health.ts` · `apps/api/src/openapi/registry/index.ts` · `apps/api/src/openapi/registry/inventory.ts` · `apps/api/src/openapi/registry/invoices.ts` · `apps/api/src/openapi/registry/members.ts` · `apps/api/src/openapi/registry/online-pharmacy.ts` · `apps/api/src/openapi/registry/organization.ts` · `apps/api/src/openapi/registry/patients.ts` · `apps/api/src/openapi/registry/pharmacy.ts` · `apps/api/src/openapi/registry/platform.ts` · `apps/api/src/openapi/registry/procurement.ts` · `apps/api/src/openapi/registry/products.ts` · `apps/api/src/openapi/registry/public.ts` · `apps/api/src/openapi/registry/recalls.ts` · `apps/api/src/openapi/registry/regulatory.ts` · `apps/api/src/openapi/registry/webhooks.ts`
+Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/registry/audit.ts` · `apps/api/src/openapi/registry/auth.ts` · `apps/api/src/openapi/registry/billing.ts` · `apps/api/src/openapi/registry/branches.ts` · `apps/api/src/openapi/registry/catalogue-masters.ts` · `apps/api/src/openapi/registry/charging.ts` · `apps/api/src/openapi/registry/clinical-config.ts` · `apps/api/src/openapi/registry/clinical-taxonomy.ts` · `apps/api/src/openapi/registry/clinical.ts` · `apps/api/src/openapi/registry/doctors.ts` · `apps/api/src/openapi/registry/encounters.ts` · `apps/api/src/openapi/registry/fixtures.ts` · `apps/api/src/openapi/registry/health.ts` · `apps/api/src/openapi/registry/index.ts` · `apps/api/src/openapi/registry/inventory.ts` · `apps/api/src/openapi/registry/invoices.ts` · `apps/api/src/openapi/registry/members.ts` · `apps/api/src/openapi/registry/online-pharmacy.ts` · `apps/api/src/openapi/registry/organization.ts` · `apps/api/src/openapi/registry/patients.ts` · `apps/api/src/openapi/registry/pharmacy.ts` · `apps/api/src/openapi/registry/platform.ts` · `apps/api/src/openapi/registry/procurement.ts` · `apps/api/src/openapi/registry/products.ts` · `apps/api/src/openapi/registry/public.ts` · `apps/api/src/openapi/registry/recalls.ts` · `apps/api/src/openapi/registry/regulatory.ts` · `apps/api/src/openapi/registry/reports.ts` · `apps/api/src/openapi/registry/webhooks.ts`
 
 ## fn
 
@@ -38,6 +38,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `AUDIT_SUPPORT_ID` | `'3e8b5c71-0a49-4d26-9b83-6f2c1e7a5d90'` | `apps/api/src/openapi/registry/fixtures.ts:396` |  |
 | `AUDIT_UPDATE_ID` | `'d0f4a916-8b23-4e57-9c60-1a8d3f5b7e24'` | `apps/api/src/openapi/registry/fixtures.ts:394` |  |
 | `AUTHORITY_ID` | `'a70b4d16-8e39-4c85-9a02-5f1d7b3c6e94'` | `apps/api/src/openapi/registry/fixtures.ts:483` |  |
+| `BASIS_PARAM` <sub>local</sub> | `"`BATCH` values each lot at what **that** lot cost; `MOVING…` | `apps/api/src/openapi/registry/reports.ts:53` |  |
 | `BATCH` | `{ id: BATCH_ID, productId: PRODUCT_ID, batchNumber: 'AMX24K118', expiresOn: '2027-08-31',…` | `apps/api/src/openapi/registry/fixtures.ts:320` |  |
 | `BATCH_ID` | `'8d1c5f72-4a09-4e37-b628-9c3f0b7a5e14'` | `apps/api/src/openapi/registry/fixtures.ts:68` |  |
 | `BATCH_SUMMARY` <sub>local</sub> | `{ id: BATCH_ID, branchId: BRANCH_ID, productId: PRODUCT_ID, productName: PRODUCT.name, lo…` | `apps/api/src/openapi/registry/inventory.ts:88` |  |
@@ -48,6 +49,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `BRANCH_ID_NOTE` <sub>local</sub> | `"The branch's `id`, as returned by `GET /api/v1/branches`. …` | `apps/api/src/openapi/registry/branches.ts:41` |  |
 | `BRANCH_KOCHI` | `{ ...BRANCH, id: BRANCH_KOCHI_ID, name: 'Alpha Clinic — Kochi', code: 'KOC-MG', isPrimary…` | `apps/api/src/openapi/registry/fixtures.ts:137` |  |
 | `BRANCH_KOCHI_ID` | `'3c9d5a71-8e42-4f16-b0d3-7a5e9c1f2b84'` | `apps/api/src/openapi/registry/fixtures.ts:35` | Kochi, Kerala. The SECOND branch, and the one that makes inter-state tax real. |
+| `BRANCH_PARAM` <sub>local</sub> | `'One branch, or omit for **every branch you can see**. This…` | `apps/api/src/openapi/registry/reports.ts:49` | Shared prose, so nine endpoints cannot describe the same rule nine ways. |
 | `CAPSULE` <sub>local</sub> | `{ id: UNIT_CAPSULE_ID, code: 'CAPSULE', name: 'Capsule', symbol: 'cap', unitClass: 'COUNT…` | `apps/api/src/openapi/registry/catalogue-masters.ts:46` |  |
 | `CARDIOLOGY` <sub>local</sub> | `{ id: SPECIALTY_CARDIOLOGY_ID, code: 'CARDIOLOGY', name: 'Cardiology', parentId: SPECIALT…` | `apps/api/src/openapi/registry/clinical-taxonomy.ts:65` |  |
 | `CARE_CONTEXT_ID` | `'d3f9b247-8e05-4a61-9c73-5b1d2e8a6c40'` | `apps/api/src/openapi/registry/fixtures.ts:464` |  |
@@ -70,6 +72,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `CONVERSION` <sub>local</sub> | `{ id: UNIT_CONVERSION_ID, fromUnitId: UNIT_STRIP_ID, fromUnitCode: 'STRIP', toUnitId: UNI…` | `apps/api/src/openapi/registry/catalogue-masters.ts:68` |  |
 | `CREDIT_NOTE_ID` | `'3d6e0a95-8b27-4c14-9f83-2b7a5c0e1d46'` | `apps/api/src/openapi/registry/fixtures.ts:538` |  |
 | `CURRENCY` | `'INR'` | `apps/api/src/openapi/registry/fixtures.ts:353` |  |
+| `DATED_PAGE_PARAMS` <sub>local</sub> | `{ ...PAGE_PARAMS, from: WINDOW_PARAM, to: WINDOW_PARAM, }` | `apps/api/src/openapi/registry/reports.ts:68` |  |
 | `DELIVERY_ADDRESS` | `{ recipientName: 'Ravi Subramanian', recipientPhone: '+919845067890', addressLine1: '42 L…` | `apps/api/src/openapi/registry/fixtures.ts:575` | Where the parcel goes. ⚠️ PHI in every field but the two jurisdiction codes. |
 | `DEMO_RECEIPT` <sub>local</sub> | `{ type: 'object', required: ['received'], properties: { received: { type: 'boolean', cons…` | `apps/api/src/openapi/registry/public.ts:19` |  |
 | `DESIGNATION_AYURVEDA_ID` | `'3a7e1d54-0b96-4c28-8f41-6d2c9b5a0e73'` | `apps/api/src/openapi/registry/fixtures.ts:372` | A title this clinic added; rcln ships no Ayurveda designation. |
@@ -85,7 +88,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `DISPENSE_RETURN_ID` | `'c5983a26-0d47-4e81-9b32-8f6c1a4e7b90'` | `apps/api/src/openapi/registry/fixtures.ts:472` |  |
 | `DISPENSE_SUMMARY` <sub>local</sub> | `{ id: DISPENSE_ID, dispenseNumber: DISPENSE_NUMBER, kind: 'PRESCRIPTION', status: 'DISPEN…` | `apps/api/src/openapi/registry/pharmacy.ts:55` |  |
 | `DISPENSED_AT` | `'2026-03-17T04:37:00.000Z'` | `apps/api/src/openapi/registry/fixtures.ts:99` |  |
-| `DOCS` | `: DocRegistry` | `apps/api/src/openapi/registry/index.ts:47` |  |
+| `DOCS` | `: DocRegistry` | `apps/api/src/openapi/registry/index.ts:48` |  |
 | `DOCTOR` | `{ id: DOCTOR_ID, membershipId: MEMBERSHIP_ID, fullName: 'Dr Meera Krishnan', registration…` | `apps/api/src/openapi/registry/fixtures.ts:178` |  |
 | `DOCTOR_BRANCH_SETTING_ID` | `'8e1a4c73-5f92-4d08-b647-2c0d9b3a7e56'` | `apps/api/src/openapi/registry/fixtures.ts:423` |  |
 | `DOCTOR_DETAIL` <sub>local</sub> | `{ ...DOCTOR_SUMMARY, registrationCouncil: DOCTOR.registrationCouncil, registrationValidTi…` | `apps/api/src/openapi/registry/doctors.ts:91` |  |
@@ -106,12 +109,14 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `ENCOUNTER_NUMBER` | `'ENC-2026-002877'` | `apps/api/src/openapi/registry/fixtures.ts:445` |  |
 | `ENCOUNTER_OPENED_AT` | `'2026-03-17T04:04:00.000Z'` | `apps/api/src/openapi/registry/fixtures.ts:97` |  |
 | `ENCOUNTER_PROCEDURE_ID` | `'8f3c6a02-7d51-4b96-9e48-0b5a2c7e1d63'` | `apps/api/src/openapi/registry/fixtures.ts:531` |  |
+| `ENVELOPE` <sub>local</sub> | `{ branchIds: [BRANCH_ID], generatedAt: '2026-03-17T09:00:00.000Z', page: 1, limit: 50, to…` | `apps/api/src/openapi/registry/reports.ts:74` |  |
 | `EPISODE_CODE` | `'EPI-2026-00913'` | `apps/api/src/openapi/registry/fixtures.ts:432` |  |
 | `EPISODE_EXAMPLE` <sub>local</sub> | `{ id: EPISODE_ID, code: EPISODE_CODE, title: 'Recurrent sore throat', status: 'OPEN', pat…` | `apps/api/src/openapi/registry/clinical.ts:55` |  |
 | `EPISODE_ID` | `'7e4a0b96-3c58-4d21-8f67-2b9d5c1a0e34'` | `apps/api/src/openapi/registry/fixtures.ts:431` | Every visit belongs to an episode; a follow-up chain shares one. |
 | `EXCEPTION` <sub>local</sub> | `{ id: DOCTOR_EXCEPTION_ID, branchId: BRANCH_ID, branchName: 'Alpha Clinic — Indiranagar',…` | `apps/api/src/openapi/registry/doctors.ts:119` |  |
 | `FOLLOW_UP_APPOINTMENT_ID` | `'9a6c3e07-4d82-4b15-8f93-0e7b2a5c1d68'` | `apps/api/src/openapi/registry/fixtures.ts:436` | The follow-up booked out of the same visit. |
 | `FOLLOW_UP_NUMBER` | `'APT-2026-004630'` | `apps/api/src/openapi/registry/fixtures.ts:437` |  |
+| `FORMAT_PARAM` <sub>local</sub> | `"`json` (default) or `csv`. **`csv` requires `report.export…` | `apps/api/src/openapi/registry/reports.ts:51` |  |
 | `FULFILMENT_ID` | `'9d3e5b71-6a08-4f42-8c95-1b7d0e2a6c53'` | `apps/api/src/openapi/registry/fixtures.ts:474` |  |
 | `GENERAL_MEDICINE` <sub>local</sub> | `{ id: SPECIALTY_GENERAL_MEDICINE_ID, code: 'GENERAL_MEDICINE', name: 'General Medicine', …` | `apps/api/src/openapi/registry/clinical-taxonomy.ts:51` |  |
 | `GOODS_RECEIPT` <sub>local</sub> | `{ id: GOODS_RECEIPT_ID, goodsReceiptNumber: 'GRN-2026-000589', branchId: BRANCH_ID, suppl…` | `apps/api/src/openapi/registry/procurement.ts:145` |  |
@@ -167,6 +172,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `OVERRIDE_ID` | `'0d7a4c93-8e26-4b51-9f70-3c5b1a2e6d84'` | `apps/api/src/openapi/registry/fixtures.ts:378` |  |
 | `OWN_ONLY` <sub>local</sub> | `'A row rcln ships cannot be edited by a clinic — the write …` | `apps/api/src/openapi/registry/catalogue-masters.ts:43` |  |
 | `PACKAGING_ID` | `'7e2c5f90-6d18-4b43-8a07-9c1b3e5d0a62'` | `apps/api/src/openapi/registry/fixtures.ts:497` |  |
+| `PAGE_PARAMS` <sub>local</sub> | `{ page: 'Page number, from 1.', limit: 'Rows per page, up to 200.', sortOrder: '`asc` or …` | `apps/api/src/openapi/registry/reports.ts:60` |  |
 | `PATIENT` | `{ id: PATIENT_ID, uhid: 'ALP-000241', subjectType: 'HUMAN', fullName: 'Ravi Subramanian',…` | `apps/api/src/openapi/registry/fixtures.ts:190` |  |
 | `PATIENT_ADDRESS_ID` | `'9e4b2c76-0a38-4d51-8c97-3f1b6a5e0d24'` | `apps/api/src/openapi/registry/fixtures.ts:570` |  |
 | `PATIENT_ANIMAL` | `{ id: PATIENT_ANIMAL_ID, uhid: 'ALP-000402', subjectType: 'ANIMAL', fullName: 'Kaapi Subr…` | `apps/api/src/openapi/registry/fixtures.ts:244` |  |
@@ -256,7 +262,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `SUPPLIER_TAX_ID` | `'4e8b3a07-1d56-4f92-8c40-7b2e9a6c5d13'` | `apps/api/src/openapi/registry/fixtures.ts:520` |  |
 | `SUPPORT_USER` | `{ id: 'f4a7d208-6c31-4e95-8b72-0d5a3c9e1b46', fullName: 'Priya Nair (rcln support)', } as…` | `apps/api/src/openapi/registry/fixtures.ts:404` | An rcln staff member acting inside the clinic (ADR-0012). Deliberately not one of the clinic's own people: the whole point of `onBehalfOf` is that the clinic c… |
 | `SYMPTOM_ROW_ID` | `'2d9e4b07-6c58-4a13-8f72-5b0a3c9e1d64'` | `apps/api/src/openapi/registry/fixtures.ts:449` |  |
-| `TAG_DESCRIPTIONS` | `: Partial<Record<Tag, string>>` | `apps/api/src/openapi/registry/index.ts:78` | What each section of the API is, in one paragraph a stranger can read. |
+| `TAG_DESCRIPTIONS` | `: Partial<Record<Tag, string>>` | `apps/api/src/openapi/registry/index.ts:80` | What each section of the API is, in one paragraph a stranger can read. |
 | `TAX_REGISTRATION` <sub>local</sub> | `{ id: TAX_REGISTRATION_ID, countryCode: 'IN', regionCode: 'KA', scheme: 'GST', registrati…` | `apps/api/src/openapi/registry/invoices.ts:97` |  |
 | `TAX_REGISTRATION_ID` | `'e04b9c37-5a18-4e62-8d70-1a6c4b2e9f53'` | `apps/api/src/openapi/registry/fixtures.ts:539` |  |
 | `TAX_RULE` <sub>local</sub> | `{ id: TAX_RULE_ID, countryCode: 'IN', regionCode: 'KA', scheme: 'GST', taxCategory: 'GST_…` | `apps/api/src/openapi/registry/invoices.ts:111` |  |
@@ -269,6 +275,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `TEMPLATE_VERSION_ID` | `'6b2d8f41-3a07-4e95-9c68-0d5b1e7a4c32'` | `apps/api/src/openapi/registry/fixtures.ts:451` |  |
 | `TODAY` | `'2026-03-17'` | `apps/api/src/openapi/registry/fixtures.ts:95` |  |
 | `TOKEN_LIFECYCLE` <sub>local</sub> | `` ### What you get back \`accessToken\` is a short-lived JW…` | `apps/api/src/openapi/registry/auth.ts:62` |  |
+| `TOTALS_NOTE` <sub>local</sub> | `'`totals` is an **array, one entry per currency**, and is c…` | `apps/api/src/openapi/registry/reports.ts:57` |  |
 | `TRACKING_REFERENCE` | `'BLR7742199814'` | `apps/api/src/openapi/registry/fixtures.ts:572` | A consignment note, quoted back by the patient on the telephone. |
 | `TRANSFER` <sub>local</sub> | `{ id: STOCK_TRANSFER_ID, transferNumber: 'TRF-2026-000318', status: 'DRAFT', fromBranchId…` | `apps/api/src/openapi/registry/inventory.ts:115` |  |
 | `TRANSFER_LINE_ID` | `'9f4a2d76-0b58-4c31-8e69-5a7c3b1e0d24'` | `apps/api/src/openapi/registry/fixtures.ts:504` |  |
@@ -277,11 +284,13 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `UNIT_STRIP_ID` | `'8c30f4a5-1b67-4e29-9a84-3d5c7b0e2f16'` | `apps/api/src/openapi/registry/fixtures.ts:495` |  |
 | `USER` | `{ id: USER_ID, fullName: 'Dr Meera Krishnan', email: 'meera@alphaclinic.in', phone: '+919…` | `apps/api/src/openapi/registry/fixtures.ts:166` |  |
 | `USER_ID` | `'2b6a9c14-7d58-4e93-a1f0-3c8b5d2e7a94'` | `apps/api/src/openapi/registry/fixtures.ts:38` | Dr Meera Krishnan — the signed-in user in every session example. |
+| `VALUATION_ROW` <sub>local</sub> | `{ branchId: BRANCH_ID, branchName: BRANCH.name, productId: PRODUCT_ID, productName: PRODU…` | `apps/api/src/openapi/registry/reports.ts:83` |  |
 | `VERSION_NOTE` <sub>local</sub> | `"The version, from the template's `versions[]`."` | `apps/api/src/openapi/registry/clinical-config.ts:45` |  |
 | `VISUAL_MAP_ID` | `'b8025e73-4c19-4f86-9a52-7d3e0b6c1a94'` | `apps/api/src/openapi/registry/fixtures.ts:465` |  |
 | `VISUAL_REGION_ID` | `'9e4b2c70-6a15-4f83-8d29-3c7b0e5a1f46'` | `apps/api/src/openapi/registry/fixtures.ts:459` | A region on a body chart — where a finding was marked. |
 | `VITALS_ID` | `'1c9b6e40-5a37-4f82-9d05-8e3a7c2b4f61'` | `apps/api/src/openapi/registry/fixtures.ts:433` |  |
 | `VITALS_REVISION_ID` | `'5d0f8c23-7b19-4e64-8a37-1c6b9e5a2d70'` | `apps/api/src/openapi/registry/fixtures.ts:434` |  |
+| `WINDOW_PARAM` <sub>local</sub> | `"Inclusive calendar dates, resolved in **each branch's own …` | `apps/api/src/openapi/registry/reports.ts:55` |  |
 
 ## var
 
@@ -313,6 +322,7 @@ Files: `apps/api/src/openapi/registry/appointments.ts` · `apps/api/src/openapi/
 | `publicDocs` | `: DocRegistry` | `apps/api/src/openapi/registry/public.ts:25` |  |
 | `recallDocs` | `: DocRegistry` | `apps/api/src/openapi/registry/recalls.ts:85` |  |
 | `regulatoryDocs` | `: DocRegistry` | `apps/api/src/openapi/registry/regulatory.ts:42` |  |
+| `reportDocs` | `: DocRegistry` | `apps/api/src/openapi/registry/reports.ts:101` |  |
 | `webhookDocs` | `: DocRegistry` | `apps/api/src/openapi/registry/webhooks.ts:29` |  |
 
 ## interface
