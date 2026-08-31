@@ -22,7 +22,7 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "@node-rs/argon2": "^2.0.2",
+    "@node-rs/argon2": "^2.1.0",
     "@rcln/billing": "workspace:*",
     "@rcln/clinical": "workspace:*",
     "@rcln/contracts": "workspace:*",
@@ -44,7 +44,7 @@
     "helmet": "^8.1.0",
     "ioredis": "^5.9.0",
     "jsonwebtoken": "^9.0.3",
-    "nodemailer": "^9.0.5",
+    "nodemailer": "^9.0.6",
     "otplib": "^12.0.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
@@ -60,16 +60,16 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "catalog:",
     "@types/nodemailer": "^8.0.1",
-    "@types/pg": "^8.21.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^6.0.3",
     "eslint": "^9.39.2",
     "jest": "^30.2.0",
-    "pg": "^8.17.1",
+    "pg": "^8.23.0",
     "pino-pretty": "^13.1.2",
     "prettier": "^3.8.0",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.6",
-    "tsx": "^4.23.11",
+    "tsx": "^4.23.12",
     "typescript": "catalog:"
   }
 }
