@@ -16,6 +16,8 @@
  *   creating a lot or a serial          ->  `inventory.batch.manage`
  *   recording a movement                ->  `inventory.stock.adjust`
  *   holding or recalling a lot          ->  `inventory.batch.manage`
+ *   resolving a scan (PI-23)            ->  `inventory.stock.read`
+ *                                            + `product.definition.read`   ⚠
  *
  * ⚠️ READS ARE ALL BEHIND ONE CODE, DELIBERATELY, and it is the same call
  *   `product.definition.read` makes for the catalogue masters. Every stock
@@ -61,6 +63,7 @@ import {
   recordMovementRequest,
   releaseStockReservationRequest,
   replaceStorageAreasRequest,
+  scanResolveQuery,
   serialQuery,
   stockBalanceQuery,
   stockLedgerQuery,
@@ -89,6 +92,7 @@ import {
   type RecordMovementRequest,
   type ReleaseStockReservationRequest,
   type ReplaceStorageAreasRequest,
+  type ScanResolveQuery,
   type SerialQuery,
   type StockBalanceQuery,
   type StockLedgerQuery,
@@ -160,6 +164,7 @@ import {
   reserveStock,
 } from '../../services/inventory/reservation.service.js';
 import { planStockAllocation } from '../../services/inventory/allocation.service.js';
+import { resolveScan } from '../../services/inventory/resolve.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 const READ = PERMISSIONS.STOCK_READ;
@@ -169,6 +174,14 @@ const ADJUST = PERMISSIONS.STOCK_ADJUST;
 const TRANSFER = PERMISSIONS.STOCK_TRANSFER;
 const RESERVE = PERMISSIONS.STOCK_RESERVE;
 const REASON_CODE_MANAGE = PERMISSIONS.INVENTORY_REASON_CODE_MANAGE;
+/*
+ * ⚠️ PI-23'S RESOLVER IS THE ONE ROUTE ON THIS ROUTER BEHIND TWO CODES, AND
+ *   `authorize()` ANDs THEM. It answers a catalogue question and a stock
+ *   question in one round trip, and a caller holding only one of the two would
+ *   get half an answer with no way to tell which half was missing. Both roles
+ *   that scan — BRANCH_ADMIN and PHARMACIST — hold both today.
+ */
+const CATALOGUE_READ = PERMISSIONS.PRODUCT_DEFINITION_READ;
 
 const auditMeta = (req: Request): { ipAddress?: string; userAgent?: string } => ({
   ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
@@ -455,6 +468,30 @@ serialRoutes.post(
 // ---------------------------------------------------------------------------
 
 export const stockRoutes: IRouter = guarded();
+
+/**
+ * PI-23. Decode a scan and resolve it to a product, a lot and a device.
+ *
+ * ⚠️ A GET WITH THE PAYLOAD IN THE QUERY STRING, WHICH IS SAFE HERE AND WOULD
+ *   NOT BE ON MOST OF THIS ROUTER. A barcode names a trade item, a manufacturer's
+ *   lot and a device serial — it is not PHI and never identifies a person, so it
+ *   may sit in an access log and a browser history. Nothing patient-linked is
+ *   accepted or returned; see the service header, point 4.
+ *
+ * ⚠️ AND IT NEVER 404s FOR A CODE THAT MATCHED NOTHING. "This is GTIN X, lot Y,
+ *   and you have never stocked it" is a 200 with three empty arrays, because it
+ *   is the answer a storekeeper needs — a 404 would say the SCANNER failed when
+ *   what failed is the delivery.
+ */
+stockRoutes.get(
+  '/resolve',
+  authorize(READ, CATALOGUE_READ),
+  validate(scanResolveQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as ScanResolveQuery;
+    sendSuccess(res, await resolveScan(tenantContextFrom(req), query));
+  }
+);
 
 stockRoutes.get(
   '/balances',

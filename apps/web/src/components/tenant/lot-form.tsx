@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import type { BranchSummary, ManufacturerSummary, ProductSummary } from '@rcln/contracts';
 import { Input, Select, Textarea } from '@/components/ui/field';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import {
@@ -26,7 +27,9 @@ import {
  * ⚠️ ONLY BATCH-TRACKED PRODUCTS ARE OFFERED. A lot recorded against a product
  *   tracked NONE or SERIAL is a lot nothing can ever move — the service refuses
  *   it with a sentence, and offering the choice only to explain the refusal
- *   afterwards is a worse screen than not offering it.
+ *   afterwards is a worse screen than not offering it. The filter is on the
+ *   SEARCH now (PI-23), not on a pre-loaded list, so it holds for the whole
+ *   catalogue rather than for its first hundred rows.
  *
  * ⚠️ THE EXPIRY FIELD BECOMES REQUIRED WHEN THE CHOSEN PRODUCT IS
  *   EXPIRY-CONTROLLED. A lot with no expiry on such a product is invisible to
@@ -34,16 +37,19 @@ import {
  *   near-expiry report. The database refuses it too; this is the layer that
  *   explains why.
  */
+/**
+ * The two tracking modes a lot may belong to. `LOT_AND_SERIAL` counts: a device
+ * with both still arrives in a lot.
+ */
+const TRACKED_BY_LOT = ['LOT_BATCH', 'LOT_AND_SERIAL'];
+
 interface Props {
   slug: string;
   branches: BranchSummary[];
-  products: ProductSummary[];
   manufacturers: ManufacturerSummary[];
-  /** True when the product list was capped. Drives the honest hint below. */
-  moreProducts: boolean;
 }
 
-export function LotForm({ slug, branches, products, manufacturers, moreProducts }: Props) {
+export function LotForm({ slug, branches, manufacturers }: Props) {
   const router = useRouter();
 
   const [state, action, pending] = useActionState<StockFormState, FormData>(
@@ -51,9 +57,14 @@ export function LotForm({ slug, branches, products, manufacturers, moreProducts 
     IDLE_FORM
   );
 
-  const [productId, setProductId] = useState(products[0]?.id ?? '');
-
-  const product = useMemo(() => products.find((p) => p.id === productId), [productId, products]);
+  /*
+   * ⚠️ WHAT IS CHOSEN, NOT WHICH ID IS CHOSEN. Two fields below change shape with
+   *   the product — the expiry becomes required for an expiry-controlled one and
+   *   the cost label names its base unit — so the form needs the ROW, and the
+   *   picker hands it over. Before PI-23 that meant keeping a copy of the whole
+   *   catalogue in the component to look the id up in.
+   */
+  const [product, setProduct] = useState<ProductSummary | null>(null);
 
   useEffect(() => {
     if (state.status === 'saved') router.push('/stock/lots');
@@ -62,31 +73,10 @@ export function LotForm({ slug, branches, products, manufacturers, moreProducts 
   const err = (name: string): string[] | undefined => state.fieldErrors?.[name];
 
   const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
-  const productOptions = products.map((p) => ({
-    value: p.id,
-    label: `${p.name} (${p.code})`,
-  }));
   const manufacturerOptions = [
     { value: '', label: 'Same as the product’s' },
     ...manufacturers.map((m) => ({ value: m.id, label: m.name })),
   ];
-
-  if (products.length === 0) {
-    return (
-      <div className="max-w-2xl space-y-6">
-        <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">
-          Record a lot
-        </h1>
-        <div className="border-rule bg-card rounded-md border p-10 text-center">
-          <p className="text-ink text-[0.9375rem]">No product is tracked by lot yet.</p>
-          <p className="text-muted mx-auto mt-2 max-w-md text-[0.875rem]">
-            A lot belongs to a product whose tracking mode is “by lot / batch”. Set that on the
-            product in the catalogue first — it decides what every future movement of it must name.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <form action={action} className="max-w-2xl space-y-10">
@@ -127,22 +117,18 @@ export function LotForm({ slug, branches, products, manufacturers, moreProducts 
             errors={err('lotNumber')}
             hint="Exactly as printed on the pack. Case is preserved."
           />
-          <div className="sm:col-span-2">
-            <Select
-              name="productId"
-              label="Product"
-              required
-              options={productOptions}
-              value={productId}
-              onChange={(event) => setProductId(event.target.value)}
-              errors={err('productId')}
-              {...(moreProducts
-                ? {
-                    hint: 'Showing the first 200 batch-tracked products. Narrow the catalogue if the one you want is missing.',
-                  }
-                : {})}
-            />
-          </div>
+          <ProductPicker
+            slug={slug}
+            name="productId"
+            label="Product"
+            required
+            className="sm:col-span-2"
+            errors={err('productId')}
+            filters={{ isStockItem: true, status: 'ACTIVE', trackingModes: TRACKED_BY_LOT }}
+            onChoose={setProduct}
+            hint="Name, code, brand or barcode. Only products tracked by lot can be searched here."
+            emptyHint="Nothing matched among the products tracked by lot. A lot belongs to a product whose tracking mode is “by lot / batch” — set that on the product in the catalogue first."
+          />
           <div className="sm:col-span-2">
             <Select
               name="manufacturerId"

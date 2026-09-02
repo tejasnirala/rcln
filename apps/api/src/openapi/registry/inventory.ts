@@ -35,6 +35,7 @@ import {
   inventoryLocationListResponse,
   inventoryLocationSummary,
   recordMovementResponse,
+  scanResolveResponse,
   serialDetail,
   serialListResponse,
   serialSummary,
@@ -57,7 +58,10 @@ import {
   LOCATION_ID,
   PATIENT_ID,
   PRODUCT,
+  PRODUCT_GTIN,
   PRODUCT_ID,
+  SCAN_PAYLOAD,
+  SCAN_PAYLOAD_BRACKETED,
   REASON_CODE_ID,
   RESERVATION_ID,
   SERIAL_ID,
@@ -530,6 +534,164 @@ recorded.
             status: 'ASSIGNED',
             assignedPatientId: PATIENT_ID,
             assignedAt: '2026-03-17T04:00:00.000Z',
+          },
+        },
+      },
+    ],
+  },
+
+  'GET /api/v1/stock/resolve': {
+    summary: 'Resolve a scan',
+    description: `
+**One scanned string in; the product, the lot and the device it names out.** The
+endpoint behind every scanner field in the application.
+
+A modern medicine pack carries a GS1 DataMatrix, not a retail barcode, and its
+payload is an *element string* — application identifiers and their values run
+together with no separator: \`01\` is a GTIN and takes fourteen digits, \`17\` an
+expiry and takes six, \`10\` a lot number and runs to the next FNC1. Send it
+**exactly as the reader transmitted it**, symbology prefix and all; do not strip,
+split or upper-case anything first.
+
+Both forms are accepted — the encoded payload and the bracketed form printed
+underneath it, which is what somebody types when the reader dies. A bare EAN-13,
+UPC-A or GTIN-14 is accepted too, as is a clinic's own SKU.
+
+**Every length of the GTIN is searched.** A catalogue typed by hand holds the
+thirteen digits printed under the bars; the DataMatrix carries fourteen with a
+leading zero. Both resolve to the same product.
+
+**A code that matches nothing is a \`200\`, not a \`404\`.** "This is GTIN X, lot Y,
+expiring next August, and you have never stocked it" is the answer a storekeeper
+needs — it says the *delivery* is wrong, not the scanner. \`decoded\` always comes
+back, whether anything resolved or not.
+
+**\`products\` may hold more than one row, and the caller must not pick.**
+Repackagers reuse GTINs and two countries assign one national code to different
+medicines. \`isAmbiguous\` says so; the screen asks.
+
+**\`batches[].expiryMatchesScan\` is the field to act on.** The pack says one date
+and the lot on file says another: either the wrong lot was picked or the wrong
+date was typed at receipt, and this is the only moment anybody is holding both.
+\`null\` means the scan carried no date to compare.
+
+**Anything the decoder could not read comes back in \`decoded.unparsed\`,
+verbatim, with a warning** — it is never silently skipped, because resuming in the
+middle of an unknown identifier's data produces a lot number that looks entirely
+plausible and is not the one on the box.
+
+Behind \`inventory.stock.read\` **and** \`product.definition.read\`: it answers a
+catalogue question and a stock question in one round trip, and half an answer is
+worse than a refusal. Returns **no patient field** — which device is in which
+patient is \`GET /api/v1/serials/{serialId}\`, where the disclosure is logged.
+`.trim(),
+    response: scanResolveResponse,
+    params: {
+      code: 'The payload, exactly as the reader sent it.',
+      branchId: 'Narrow the stock half to one branch. Omitted, every branch in scope is searched.',
+      countryCode:
+        'Country-qualify the identifier lookup. A national code means different medicines in different countries.',
+    },
+    responseExamples: [
+      {
+        summary: 'A DataMatrix on a delivery: product, lot and expiry all resolve',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            decoded: {
+              format: 'GS1',
+              raw: SCAN_PAYLOAD,
+              gtin: PRODUCT_GTIN,
+              lotNumber: BATCH.batchNumber,
+              serialNumber: null,
+              expiresOn: BATCH.expiresOn,
+              producedOn: null,
+              quantity: null,
+              elements: [
+                { ai: '01', label: 'GTIN', value: PRODUCT_GTIN },
+                { ai: '17', label: 'Expiry date', value: '270831' },
+                { ai: '10', label: 'Lot or batch number', value: BATCH.batchNumber },
+              ],
+              unparsed: null,
+              warnings: [],
+            },
+            products: [
+              {
+                productId: PRODUCT_ID,
+                productCode: PRODUCT.code,
+                productName: PRODUCT.name,
+                brandName: null,
+                genericName: 'Amoxicillin',
+                trackingMode: 'LOT_BATCH',
+                isExpiryControlled: true,
+                baseUnitSymbol: 'cap',
+                matchedOn: { type: 'GTIN', value: PRODUCT_GTIN },
+              },
+            ],
+            batches: [
+              {
+                id: BATCH_ID,
+                branchId: BRANCH_ID,
+                branchName: 'Indiranagar',
+                productId: PRODUCT_ID,
+                productName: PRODUCT.name,
+                lotNumber: BATCH.batchNumber,
+                expiresOn: BATCH.expiresOn,
+                status: 'ACTIVE',
+                isDispensable: true,
+                quarantinedAt: null,
+                recalledAt: null,
+                availableQuantityBase: '480',
+                quantityOnHandBase: '480',
+                baseUnitSymbol: 'cap',
+                expiryMatchesScan: true,
+              },
+            ],
+            serials: [],
+            isAmbiguous: false,
+          },
+        },
+      },
+      {
+        summary: 'The bracketed form, typed by hand, for a lot this clinic has never received',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            decoded: {
+              format: 'GS1',
+              raw: SCAN_PAYLOAD_BRACKETED,
+              gtin: PRODUCT_GTIN,
+              lotNumber: BATCH.batchNumber,
+              serialNumber: null,
+              expiresOn: BATCH.expiresOn,
+              producedOn: null,
+              quantity: null,
+              elements: [
+                { ai: '01', label: 'GTIN', value: PRODUCT_GTIN },
+                { ai: '17', label: 'Expiry date', value: '270831' },
+                { ai: '10', label: 'Lot or batch number', value: BATCH.batchNumber },
+              ],
+              unparsed: null,
+              warnings: [],
+            },
+            products: [
+              {
+                productId: PRODUCT_ID,
+                productCode: PRODUCT.code,
+                productName: PRODUCT.name,
+                brandName: null,
+                genericName: 'Amoxicillin',
+                trackingMode: 'LOT_BATCH',
+                isExpiryControlled: true,
+                baseUnitSymbol: 'cap',
+                matchedOn: { type: 'GTIN', value: PRODUCT_GTIN },
+              },
+            ],
+            batches: [],
+            serials: [],
+            isAmbiguous: false,
           },
         },
       },

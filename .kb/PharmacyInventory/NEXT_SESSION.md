@@ -2,9 +2,94 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-25 · **By:** session PI-22 (Reporting & Cost Accounting).
+**Written:** 2026-09-02 · **By:** session PI-23 (identifier resolution).
 
-## PI-22 first, because it is the freshest and it is unreviewed
+## PI-23 first, because it is the freshest and it is unreviewed
+
+**Written:** 2026-09-02 · **By:** session PI-23 (identifier resolution).
+
+✅ **PI-23 SHIPPED:** a GS1/DataMatrix decoder in `@rcln/inventory`, one endpoint
+(`GET /v1/stock/resolve`), a scanner console at `/stock/scan`, scan-to-fill on the
+goods receipt, and two search pickers that replace **every capped `<select>` in
+the application**. On branch `feat/pi-23-identifier-resolution`. 33 unit cases, 11
+integration, 3 route-gate. **No migration, no new table, no RLS policy, no new
+permission code.** ⚠️ **NOT REVIEWED.**
+
+⚠️ **THE DECODER IS WHERE THE RISK IS, AND IT IS RISK NO INTEGRATION TEST REACHES.**
+Every defect it could carry returns a well-formed, plausible, WRONG answer — a lot
+number that is a prefix of the real one, an expiry a month early, a century
+inverted. A seeded clinic has no collisions and all its dates are in the 2020s, so
+`tests/unit/gs1.test.ts` is the only thing standing under it. **Attack that file
+first**, and read `packages/inventory/src/gs1.ts`'s header before arguing with any
+of its four refusals.
+
+⚠️ **THE ONE PERMISSION DECISION WORTH A SECOND OPINION.** `GET /stock/resolve` is
+the only route in the codebase behind TWO codes — `inventory.stock.read` AND
+`product.definition.read`, ANDed. The argument is that it answers a catalogue
+question and a stock question together, so one code alone hands half the answer to
+somebody entitled to neither half. Both roles that scan hold both today, so the
+conjunction costs nothing now; it is a decision about what happens when a clinic
+clones a narrower role.
+
+⚠️ **AND THE ONE PHI DECISION.** The resolver returns serials WITHOUT
+`assigned_patient_id`, deliberately, so no scan writes a `data_access_logs` row.
+The alternative — return it and log — would put one disclosure row per scan at a
+loading bay for a question nobody there asked. `scan-resolve.test.ts` asserts the
+field's absence, including in the serialised body.
+
+⚠️ **PI-23 CHANGED A SHARED UI PRIMITIVE.** `Input` in `components/ui/field.tsx`
+now takes a `ref` (`ComponentPropsWithRef` rather than `WithoutRef`), for the one
+screen that re-selects its own field after every scan. It is a widening and cannot
+break a call site that never passed one, but it is the only file outside this
+phase's own surface that moved.
+
+⚠️ **ELEVEN SCREENS LOST THEIR SERVER-SIDE PRODUCT FETCH.** Every `PRODUCT_CAP`
+and `PICKER_LIMIT` over the product catalogue is gone, along with the two capped
+lot fetches. That is a lot of forms touched for one phase, and none of it is
+covered by a test — `apps/web` has no test suite (`pnpm test` there prints "no web
+tests yet"). **The forms need a human at a keyboard**, particularly the ones that
+pre-fill from a document: goods receipt from an order, purchase order from a
+requisition, return from a receipt. Each of those now carries a `productName` on
+its line draft so the picker can show what was pre-filled.
+
+### Where to start on PI-23, if you are reviewing it
+
+- `packages/inventory/src/gs1.ts` — the header argues all four refusals. The AI
+  table is a healthcare subset on purpose; adding to it by guessing a length is
+  the one change that reintroduces the silent-wrong-lot failure.
+- `apps/api/src/services/inventory/resolve.service.ts` — four numbered decisions
+  in the header, and the `identifierCandidates` function is the one that decides
+  what a scan is allowed to match.
+- `apps/api/src/services/product/identifier.service.ts` — `currentIdentifierWhere`
+  was extracted so the scanner could not write a second copy of "valid here,
+  today". Three of its four conditions have each been a bug once.
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts` — the four lookups,
+  and the only one that touches PHI is marked at its own definition.
+- `apps/web/src/components/tenant/scan-console.tsx` — the element strip, which
+  shows WHERE the reader thought each field ended. That is the screen a wrong scan
+  is diagnosed from.
+
+### What PI-23 left, in one list
+
+#22 (no lot check against open recall notices at receipt — the phase #22 named),
+#33 ("Consultation" is still an id box), #34 (the procedure picker is still
+capped), #35 (no dedicated rate limiter), #36 (the AI table is a subset), #37 (the
+picker remounts on a scan).
+
+⚠️ **THE TEST SUITE NEEDS ATTENTION BEFORE PI-24, AND PI-22'S MITIGATION HAS
+STOPPED WORKING.** `jest --shard=n/3` at `--max-old-space-size=2400` — what PI-22
+recorded — now gets shard 3/3 SIGKILLed against `mem_limit: 3g`. **Six shards at
+1600 works: 102 suites, 2,180 tests, all green.** ⚠️ And shards 4–6 needed
+`--forceExit`: each printed a complete green summary and then hung on an open
+handle. That is a workaround that hides whatever is holding it, and "the suite is
+green" is a weaker claim while it is in place. KNOWN_ISSUES #2.
+
+⚠️ **PI-24 (GLOBAL HARDENING) IS NOW THE ONLY UNSTARTED PHASE.** Nine phases are
+unreviewed going into it, which is the thing PI-24 exists to fix.
+
+---
+
+## PI-22, still unreviewed
 
 ✅ **PI-22 SHIPPED:** nine reports plus a menu, on branch
 `feat/pi-22-reporting-cost-accounting`. **No migration, no new table, no RLS
@@ -93,7 +178,7 @@ The next unstarted phases are PI-23 (Identifier Resolution / Barcode) and PI-24
 
 **Written:** 2026-08-24 · **By:** session PI-21 (the Bangladesh rule pack).
 
-## PI-21 first, because it is the freshest and it is unreviewed
+## PI-21, still unreviewed
 
 ✅ **PI-21 SHIPPED:** `BD 1.0.0` — 56 rules, 4 sources, 3 authorities, on branch
 `feat/pi-21-bd-rule-pack`. 44 behaviour cases, no migration, and **no change to

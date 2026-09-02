@@ -1,16 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useMemo, useState } from 'react';
-import type {
-  BranchSummary,
-  InventoryLocationSummary,
-  ProductSummary,
-  BatchSummary,
-} from '@rcln/contracts';
+import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
+import type { BranchSummary, InventoryLocationSummary, ProductSummary } from '@rcln/contracts';
 import { Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
+import { ProductPicker } from '@/components/tenant/product-picker';
+import { lotsForProduct, type LotListState } from '@/app/(tenant)/t/[slug]/(app)/lookup-actions';
 import {
   createTransferAction,
   IDLE_FORM,
@@ -42,29 +39,35 @@ interface Props {
   slug: string;
   branches: BranchSummary[];
   locations: InventoryLocationSummary[];
-  products: ProductSummary[];
-  batches: BatchSummary[];
-  /** True when the product list was capped. Drives the honest hint below. */
-  moreProducts: boolean;
 }
 
+/**
+ * One line of the transfer.
+ *
+ * ⚠️ THE LOTS ARE PER LINE (PI-23), because each line names its own product and
+ *   a shared list would have to be the union of every line's — which is what the
+ *   capped, branch-wide `batches` prop used to be, and why a lot outside its
+ *   first two hundred rows could not be transferred at all.
+ */
 interface LineDraft {
   key: number;
-  productId: string;
+  product: ProductSummary | null;
   batchId: string;
   quantity: string;
+  lots: LotListState;
 }
+
+const EMPTY_LINE = (key: number): LineDraft => ({
+  key,
+  product: null,
+  batchId: '',
+  quantity: '',
+  lots: { status: 'idle' },
+});
 
 let nextKey = 1;
 
-export function TransferForm({
-  slug,
-  branches,
-  locations,
-  products,
-  batches,
-  moreProducts,
-}: Props) {
+export function TransferForm({ slug, branches, locations }: Props) {
   const router = useRouter();
 
   const [state, action, pending] = useActionState<StockFormState, FormData>(
@@ -74,9 +77,8 @@ export function TransferForm({
 
   const [fromBranchId, setFromBranchId] = useState(branches[0]?.id ?? '');
   const [toBranchId, setToBranchId] = useState(branches[0]?.id ?? '');
-  const [lines, setLines] = useState<LineDraft[]>([
-    { key: 0, productId: '', batchId: '', quantity: '' },
-  ]);
+  const [lines, setLines] = useState<LineDraft[]>([EMPTY_LINE(0)]);
+  const [, startLoadingLots] = useTransition();
 
   const isIntraBranch = fromBranchId === toBranchId;
 
@@ -99,24 +101,48 @@ export function TransferForm({
     [locations, toBranchId]
   );
 
-  /**
-   * Lots of the chosen product held at the SENDING branch.
-   *
-   * ⚠️ FILTERED BY BRANCH AS WELL AS BY PRODUCT. `batches` is branch-scoped, and
-   *   a lot at the destination is a different row with the same lot number —
-   *   offering it here would draft a line the API refuses with "that lot is held
-   *   at a different branch", which is a correct refusal and a bad form.
-   */
-  const lotsFor = (productId: string) =>
-    batches.filter((b) => b.productId === productId && b.branchId === fromBranchId);
-
-  const productOptions = [
-    { value: '', label: 'Choose a product' },
-    ...products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-  ];
-
   const updateLine = (key: number, patch: Partial<LineDraft>) => {
     setLines((current) => current.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  };
+
+  /**
+   * Load one line's lots, of the chosen product, held at the SENDING branch.
+   *
+   * ⚠️ AT THE SENDING BRANCH, AND THAT QUALIFICATION IS LOAD-BEARING. A lot at
+   *   the destination is a DIFFERENT ROW with the same printed lot number —
+   *   uniqueness is branch-qualified because one group receiving one lot at two
+   *   sites holds it twice, at two costs. Offering the destination's row would
+   *   draft a line the API refuses with "that lot is held at a different
+   *   branch": a correct refusal and a bad form.
+   */
+  const loadLots = (key: number, product: ProductSummary | null, branchId: string): void => {
+    if (product === null || branchId === '') {
+      updateLine(key, { lots: { status: 'idle' } });
+      return;
+    }
+    startLoadingLots(async () => {
+      updateLine(key, { lots: await lotsForProduct(slug, product.id, branchId) });
+    });
+  };
+
+  /**
+   * Changing the sending branch invalidates every line's lots at once — they were
+   * the OTHER branch's rows. Clearing the chosen lot with them is the point:
+   * leaving it would post a lot id the API refuses, from a picker that no longer
+   * lists it.
+   *
+   * ⚠️ IN THE HANDLER, NOT IN AN EFFECT ON `fromBranchId`. `react-hooks` refuses
+   *   a `setState` in an effect body, and it is right to here: the branch select
+   *   already knows what changed and `lines` is fresh in this render's closure,
+   *   so an effect would only add a cascading render and a ref to read the lines
+   *   back out of.
+   */
+  const changeSendingBranch = (next: string): void => {
+    setFromBranchId(next);
+    setLines((current) =>
+      current.map((l) => ({ ...l, batchId: '', lots: { status: 'idle' as const } }))
+    );
+    for (const line of lines) loadLots(line.key, line.product, next);
   };
 
   if (branches.length === 0 || locations.length === 0) {
@@ -164,7 +190,7 @@ export function TransferForm({
             value={fromBranchId}
             options={branchOptions}
             errors={err('fromBranchId')}
-            onChange={(event) => setFromBranchId(event.target.value)}
+            onChange={(event) => changeSendingBranch(event.target.value)}
             hint="The site the stock leaves. You need access to it."
           />
           <Select
@@ -217,32 +243,26 @@ export function TransferForm({
           </span>
         </div>
 
-        {moreProducts ? (
-          <p className="text-muted text-[0.8125rem]">
-            Showing the first {products.length} products. Searching the whole catalogue from here
-            comes with the barcode scanner.
-          </p>
-        ) : null}
-
         <ul className="space-y-4">
           {lines.map((line, index) => {
-            const lots = lotsFor(line.productId);
+            const lots = line.lots.status === 'done' ? line.lots.lots : [];
 
             return (
               <li key={line.key} className="border-rule bg-card space-y-3 rounded-md border p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Select
+                  <ProductPicker
+                    slug={slug}
                     name={`lines.${index}.productId`}
                     label="Product"
                     required
-                    value={line.productId}
-                    options={productOptions}
-                    onChange={(event) =>
-                      // The lot belongs to the old product, so it is cleared with
+                    filters={{ isStockItem: true, status: 'ACTIVE' }}
+                    onChoose={(product) => {
+                      // The lot belongs to the OLD product, so it is cleared with
                       // it. Leaving it would draft a line the API refuses with
                       // "that lot is not a lot of this product".
-                      updateLine(line.key, { productId: event.target.value, batchId: '' })
-                    }
+                      updateLine(line.key, { product, batchId: '', lots: { status: 'idle' } });
+                      loadLots(line.key, product, fromBranchId);
+                    }}
                   />
 
                   {lots.length > 0 ? (
@@ -302,9 +322,7 @@ export function TransferForm({
         <Button
           type="button"
           variant="secondary"
-          onClick={() =>
-            setLines((c) => [...c, { key: nextKey++, productId: '', batchId: '', quantity: '' }])
-          }
+          onClick={() => setLines((c) => [...c, EMPTY_LINE(nextKey++)])}
         >
           Add another line
         </Button>

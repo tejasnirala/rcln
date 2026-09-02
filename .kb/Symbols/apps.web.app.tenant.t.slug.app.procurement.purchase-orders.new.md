@@ -8,16 +8,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/purchase-orders/new
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `NewPurchaseOrderPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/purchase-orders/new/page.tsx:19` |  |
-
-## const
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `PRODUCT_CAP` <sub>local</sub> | `100` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/purchase-orders/new/page.tsx:17` |  |
+| `NewPurchaseOrderPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/purchase-orders/new/page.tsx:21` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/purchase-orders/new/page.tsx:15` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/purchase-orders/new/page.tsx:14` |  |

@@ -155,8 +155,14 @@ One list, one detail pattern, exports through the existing export permission.
 - Every destructive or irreversible action (adjustment, quarantine, dispense,
   recall execution) confirms with what will happen, in the clinic's units.
 - Scanner input is a focused text field that accepts a full GS1 payload and
-  resolves product + batch + serial in one round trip (PI-23). Never assume a
-  scan is only a product code.
+  resolves product + batch + serial in one round trip. Shipped in PI-23 as
+  `/stock/scan` and as the scan-to-fill field on the goods receipt; both send the
+  payload **verbatim**, because the decoder is the only thing that knows which
+  characters are data. Never assume a scan is only a product code.
+- Every product picker searches the server (`ProductPicker`), and so does the
+  patient picker on the order form (`PatientPicker`). ⚠️ **No screen fetches a
+  page of the catalogue to populate a dropdown any more** — the caps that used to
+  do that were KNOWN_ISSUES #25 and #25b.
 - Quantities are entered in whatever unit the user thinks in; the base-unit
   conversion is shown, never hidden.
 - Errors from the regulatory engine render its `reason` verbatim — that string

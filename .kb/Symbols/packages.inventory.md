@@ -4,7 +4,7 @@
 
 > FEFO allocation — WHICH lot goes out, and in what order (PI-3.5).
 
-Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.ts` · `packages/inventory/src/errors.ts` · `packages/inventory/src/expiry.ts` · `packages/inventory/src/index.ts` · `packages/inventory/src/movement.ts` · `packages/inventory/src/reservation-sweep.ts` · `packages/inventory/src/units.ts`
+Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.ts` · `packages/inventory/src/errors.ts` · `packages/inventory/src/expiry.ts` · `packages/inventory/src/gs1.ts` · `packages/inventory/src/index.ts` · `packages/inventory/src/movement.ts` · `packages/inventory/src/reservation-sweep.ts` · `packages/inventory/src/units.ts`
 
 ## fn
 
@@ -25,30 +25,42 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | `convertFromBase` | `(graph: UnitGraph, baseQuantity: string, baseUnitId: string, toUnitId: string): ConversionResult` | `packages/inventory/src/units.ts:361` | Express a base-unit quantity in something a human reads. Display only. |
 | `convertPackagingToBase` | `(levels: PackagingLevelRow[], quantity: string, level: number): ConversionResult` | `packages/inventory/src/units.ts:462` | A quantity entered at a packaging level, expressed in base units. |
 | `convertToBase` | `(graph: UnitGraph, quantity: string, fromUnitId: string, baseUnitId: string): ConversionResult` | `packages/inventory/src/units.ts:351` | Express a quantity in the product's base unit. The ledger's denomination. |
+| `decodeGs1Date` | `(value: string, now: Date): string \| null` | `packages/inventory/src/gs1.ts:322` |  |
+| `decodeScan` | `(input: string, now: Date): DecodedScan` | `packages/inventory/src/gs1.ts:474` |  |
 | `divideRationalHalfUp` <sub>local</sub> | `(value: Rational): number` | `packages/inventory/src/costing.ts:255` |  |
 | `expireBucket` | `(tx: TxClient, ctx: TenantContext, deps: MovementDeps, branchId: string, bucket: ExpiredBucket): Promise<void>` | `packages/inventory/src/expiry.ts:160` |  |
 | `findDueReservations` | `(tx: TxClient, branchId: string): Promise<DueReservation[]>` | `packages/inventory/src/reservation-sweep.ts:69` |  |
 | `findExpiredBuckets` | `(tx: TxClient, branchId: string): Promise<ExpiredBucket[]>` | `packages/inventory/src/expiry.ts:114` |  |
+| `fixed` <sub>local</sub> | `(label: string, length: number, numeric): AiSpec` | `packages/inventory/src/gs1.ts:137` |  |
 | `formatQuantity` | `(value: Rational, scale): ConversionResult` | `packages/inventory/src/units.ts:171` |  |
 | `formatRationalQuantity` <sub>local</sub> | `(value: Rational): string` | `packages/inventory/src/costing.ts:296` |  |
 | `gcd` <sub>local</sub> | `(a: bigint, b: bigint): bigint` | `packages/inventory/src/units.ts:86` |  |
+| `gtinVariants` | `(gtin: string): string[]` | `packages/inventory/src/gs1.ts:294` |  |
+| `hasValidCheckDigit` | `(digits: string): boolean` | `packages/inventory/src/gs1.ts:264` |  |
 | `invalid` | `(message: string): InventoryError` | `packages/inventory/src/errors.ts:32` |  |
 | `invert` | `(a: Rational): Rational` | `packages/inventory/src/units.ts:129` |  |
 | `lockBuckets` <sub>local</sub> | `(tx: TxClient, keys: BucketKey[]): Promise<void>` | `packages/inventory/src/movement.ts:283` |  |
+| `measureSpec` <sub>local</sub> | `(ai: string): AiSpec \| null` | `packages/inventory/src/gs1.ts:229` |  |
 | `missing` | `(resource: string): InventoryError` | `packages/inventory/src/errors.ts:35` |  |
 | `multiply` | `(a: Rational, b: Rational): Rational` | `packages/inventory/src/units.ts:115` |  |
 | `negate` <sub>local</sub> | `(quantity: string): string` | `packages/inventory/src/movement.ts:412` | Negate a decimal string without going through a float. |
 | `normalise` <sub>local</sub> | `(quantity: string): string` | `packages/inventory/src/allocate.ts:155` |  |
+| `normaliseGtin` | `(value: string): string \| null` | `packages/inventory/src/gs1.ts:278` | Left-pad to fourteen digits. The only form two GTINs are comparable in. |
 | `orderCandidates` | `(candidates: AllocationCandidate[], strategy: AllocationStrategy): AllocationCandidate[]` | `packages/inventory/src/allocate.ts:101` |  |
 | `packagingFactorToBase` | `(levels: PackagingLevelRow[], level: number): Rational` | `packages/inventory/src/units.ts:419` |  |
+| `parseBracketed` <sub>local</sub> | `(payload: string): ParseOutcome` | `packages/inventory/src/gs1.ts:364` |  |
+| `parseElementString` <sub>local</sub> | `(payload: string): ParseOutcome` | `packages/inventory/src/gs1.ts:386` |  |
 | `parseQuantity` | `(value: string): Rational` | `packages/inventory/src/units.ts:148` |  |
 | `planAllocation` | `(candidates: AllocationCandidate[], requestedQuantityBase: string, strategy: AllocationStrategy): AllocationPlan` | `packages/inventory/src/allocate.ts:180` |  |
 | `rational` | `(n: bigint, d: bigint): Rational` | `packages/inventory/src/units.ts:102` |  |
+| `readAi` <sub>local</sub> | `(payload: string, from: number): string \| null` | `packages/inventory/src/gs1.ts:247` |  |
 | `recordMovementIn` | `(tx: TxClient, ctx: TenantContext, deps: MovementDeps, input: MovementInput, options: MovementOptions): Promise<RecordMovementResponse>` | `packages/inventory/src/movement.ts:425` |  |
 | `releaseDueReservation` | `(tx: TxClient, ctx: TenantContext, deps: MovementDeps, reservation: DueReservation): Promise<boolean>` | `packages/inventory/src/reservation-sweep.ts:114` |  |
 | `removeFromAverage` | `(current: { valuedQuantityBase: string; valuedCostMinor: big…, quantityBase: string): { valuedQuantityBase: string; valuedCostMinor: bigint }` | `packages/inventory/src/costing.ts:214` |  |
 | `resolveStrategy` | `(requested: AllocationStrategy \| null \| undefined, productStrategy: AllocationStrategy \| null \| undefined): { strategy: AllocationStrategy; source: 'REQUEST' \| 'PRODUC…` | `packages/inventory/src/allocate.ts:228` |  |
 | `rollIntoAverage` | `(current: { valuedQuantityBase: string; valuedCostMinor: big…, receipt: { quantityBase: string; valueMinor: bigint }): { valuedQuantityBase: string; valuedCostMinor: bigint }` | `packages/inventory/src/costing.ts:180` |  |
+| `specFor` <sub>local</sub> | `(ai: string): AiSpec \| null` | `packages/inventory/src/gs1.ts:235` |  |
+| `stripPrefixes` <sub>local</sub> | `(input: string): string` | `packages/inventory/src/gs1.ts:344` |  |
 | `subtract` <sub>local</sub> | `(a: string, b: string): string` | `packages/inventory/src/allocate.ts:134` | Subtract two positive decimal strings exactly, over the rationals. |
 | `subtractQuantities` <sub>local</sub> | `(a: string, b: string): string` | `packages/inventory/src/costing.ts:277` |  |
 | `sumRationals` <sub>local</sub> | `(a: Rational, b: Rational): Rational` | `packages/inventory/src/costing.ts:282` |  |
@@ -57,6 +69,8 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | `toBaseUnits` | `(tx: TxClient, deps: MovementDeps, product: { id: string; baseUnitId: string; baseUnitCode: st…, input: Pick<MovementInput, 'quantity' \| 'unitId' \| 'packagi…): Promise<string>` | `packages/inventory/src/movement.ts:362` |  |
 | `unitCostFromPack` | `(pricePerPackMinor: number, quantityPerPack: string): number` | `packages/inventory/src/costing.ts:133` |  |
 | `valueOf` | `(unitCostBase: number \| bigint, quantityBase: string): bigint` | `packages/inventory/src/costing.ts:241` | `unitCostBase * quantityBase`, rounded HALF-UP — what a quantity of stock is worth at a given unit cost. |
+| `valueOf` <sub>local</sub> | `(elements: readonly Gs1Element[], ai: string): string \| null` | `packages/inventory/src/gs1.ts:446` |  |
+| `variable` <sub>local</sub> | `(label: string, max: number, numeric): AiSpec` | `packages/inventory/src/gs1.ts:144` |  |
 
 ## class
 
@@ -68,27 +82,37 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `AIS` <sub>local</sub> | `: Readonly<Record<string, AiSpec>>` | `packages/inventory/src/gs1.ts:162` |  |
 | `BASE_SCALE` | `6` | `packages/inventory/src/units.ts:51` | The ledger's precision. `Decimal(18,6)` in Postgres (PI-ADR-010). |
 | `DEFAULT_STATUS` <sub>local</sub> | `: Partial<Record<StockMovementType, { from?: StockStatus; to?: StockStatus }>>` | `packages/inventory/src/movement.ts:172` |  |
 | `DIRECTION` | `: Record<StockMovementType, Direction>` | `packages/inventory/src/movement.ts:121` |  |
+| `EMPTY` <sub>local</sub> | `: DecodedScan` | `packages/inventory/src/gs1.ts:449` |  |
+| `GS` <sub>local</sub> | `'\u001D'` | `packages/inventory/src/gs1.ts:45` | ASCII 29. FNC1 on the wire, whatever the symbology. |
+| `MEASURE_PREFIXES` <sub>local</sub> | `: readonly string[]` | `packages/inventory/src/gs1.ts:227` | The measure family: `31nn`–`36nn`, six digits, the last AI digit a decimal place. |
+| `SEPARATOR_ALIASES` <sub>local</sub> | `: readonly string[]` | `packages/inventory/src/gs1.ts:52` |  |
+| `SYMBOLOGY_IDENTIFIER` <sub>local</sub> | `/^\](?:d2\|d1\|C1\|C0\|Q3\|Q1\|e0\|E0\|E4\|X0)/` | `packages/inventory/src/gs1.ts:59` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `AiSpec` <sub>local</sub> | `{ label, length, max, numeric }` | `packages/inventory/src/gs1.ts:128` |  |
 | `AllocationCandidate` | `{ locationId, batchId, serialId, availableQuantityBase, expiresOn, receivedAt }` | `packages/inventory/src/allocate.ts:56` |  |
 | `AllocationLine` | `{ candidate, quantityBase }` | `packages/inventory/src/allocate.ts:68` |  |
 | `AllocationPlan` | `{ lines, requestedQuantityBase, allocatedQuantityBase, shortfallQuantityBase }` | `packages/inventory/src/allocate.ts:74` |  |
 | `BucketKey` <sub>local</sub> | `{ organizationId, branchId, productId, batchId, serialId, locationId, status }` | `packages/inventory/src/movement.ts:224` |  |
 | `ConversionResult` | `{ quantity, exact }` | `packages/inventory/src/units.ts:73` |  |
 | `ConversionRow` | `{ fromUnitId, toUnitId, numerator, denominator }` | `packages/inventory/src/units.ts:59` |  |
+| `DecodedScan` | `{ format, raw, gtin, gtinCandidates, lotNumber, serialNumber, expiresOn, producedOn, quantity, elements, unparsed, warnings }` | `packages/inventory/src/gs1.ts:95` |  |
 | `DueReservation` | `{ id, branchId, productId, batchId, serialId, locationId, quantityBase }` | `packages/inventory/src/reservation-sweep.ts:42` | One reservation that has run out of time. |
 | `DueRow` <sub>local</sub> | `{ batch_id, product_id, serial_id, location_id, quantity, as_of }` | `packages/inventory/src/expiry.ts:95` |  |
 | `ExpiredBucket` | `{ batchId, productId, serialId, locationId, quantity, asOf }` | `packages/inventory/src/expiry.ts:77` | One (product, lot, serial, shelf) holding of expired stock. |
+| `Gs1Element` | `{ ai, label, value }` | `packages/inventory/src/gs1.ts:86` |  |
 | `MovementDeps` | `{ recordAudit, loadUnitGraph }` | `packages/inventory/src/movement.ts:76` |  |
 | `MovementInput` | `{ branchId, productId, batchId, serialId, movementType, quantity, adjustmentDirection, unitId, packagingLevel, locationId, statusFrom, statusTo, reasonCode, reasonNote, occurredAt, referenceType, ref…` | `packages/inventory/src/movement.ts:200` |  |
 | `MovementOptions` | `{ ipAddress, userAgent }` | `packages/inventory/src/movement.ts:96` | Request provenance, carried into the audit row. |
 | `PackagingLevelRow` | `{ level, unitId, quantityOfChild }` | `packages/inventory/src/units.ts:395` |  |
+| `ParseOutcome` <sub>local</sub> | `{ elements, unparsed, warnings }` | `packages/inventory/src/gs1.ts:350` |  |
 | `Rational` | `{ n, d }` | `packages/inventory/src/units.ts:68` | An exact non-negative rational. Always reduced, denominator always positive. |
 | `ReservationSweepResult` | `{ branchId, released, failed }` | `packages/inventory/src/reservation-sweep.ts:52` |  |
 | `SweepResult` | `{ branchId, asOf, batchesExpired, movementsWritten, bucketsFailed }` | `packages/inventory/src/expiry.ts:63` |  |
@@ -103,4 +127,6 @@ Files: `packages/inventory/src/allocate.ts` · `packages/inventory/src/costing.t
 | `Direction` <sub>local</sub> | `'ADD' \| 'REMOVE' \| 'MOVE' \| 'EITHER'` | `packages/inventory/src/movement.ts:119` |  |
 | `InventoryErrorKind` | `'VALIDATION' \| 'NOT_FOUND' \| 'CONFLICT'` | `packages/inventory/src/errors.ts:17` |  |
 | `RunInTenant` | `<T>(ctx: TenantContext, fn: (tx: TxClient) => Promise<T>) => Promise<T>` | `packages/inventory/src/expiry.ts:192` | How a caller opens one transaction. Supplied rather than imported, for the same reason `MovementDeps` is: the API and the worker each have their own. |
+| `ScanFormat` | `\| 'GS1' /** Bare digits that scan as a trade item — EAN-13, UPC-A, GTIN-8, GTIN-14. */ \| 'GTIN' /** Anything else. A clinic's own SKU, a shelf label, a hand-ty…` | `packages/inventory/src/gs1.ts:61` |  |
+| `ScanWarning` | `\| 'CHECK_DIGIT_FAILED' /** An AI this decoder does not know. Everything from it on is `unparsed`. */ \| 'UNKNOWN_APPLICATION_IDENTIFIER' /** A fixed-length elem…` | `packages/inventory/src/gs1.ts:69` |  |
 | `UnitClass` | `'COUNT' \| 'VOLUME' \| 'MASS' \| 'LENGTH' \| 'AREA'` | `packages/inventory/src/units.ts:48` | Mirrors the `UnitClass` enum. Duplicated rather than imported so this module stays free of the generated Prisma client — see the header. |

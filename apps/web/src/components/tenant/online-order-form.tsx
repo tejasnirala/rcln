@@ -6,12 +6,13 @@ import type {
   BranchSummary,
   InventoryLocationSummary,
   OnlineOrderLineRequest,
-  ProductSummary,
 } from '@rcln/contracts';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/field';
 import { PharmacyNav } from '@/components/tenant/pharmacy-nav';
+import { PatientPicker } from '@/components/tenant/patient-picker';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import { createOnlineOrderAction } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/orders/actions';
 import { IDLE_FORM, type PharmacyFormState } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
 
@@ -35,12 +36,23 @@ import { IDLE_FORM, type PharmacyFormState } from '@/app/(tenant)/t/[slug]/(app)
  *
  * ⚠️ PHI: the address block is the most sensitive thing on this screen. It is
  *   posted, rendered, and stored nowhere on the client.
+ *
+ * ⚠️ THE PATIENT AND PRODUCT FIELDS WERE RAW UUID BOXES UNTIL PI-23
+ *   (KNOWN_ISSUES #25, #25b). "Patient" was a free-text input whose hint said
+ *   "the patient's id" — the database's concern, not the user's — so the only
+ *   way to fill it was to copy an id off another screen, and one mis-pasted
+ *   character sent a parcel to somebody else. Both are searches now.
+ *
+ * ⚠️ "CONSULTATION" IS STILL AN ID BOX, AND THAT IS AN API GAP RATHER THAN AN
+ *   OVERSIGHT. Nothing in `@rcln/contracts` lists a patient's consultations —
+ *   there is no `GET /encounters?patientId=` — so a picker here would need a new
+ *   endpoint, which is a contract change and not identifier resolution. The
+ *   field is optional, and the copy now says where the id comes from.
  */
 interface Props {
   slug: string;
   branches: BranchSummary[];
   locations: InventoryLocationSummary[];
-  products: ProductSummary[];
   /** The default country for the address, from the branch the clinic works in. */
   defaultCountryCode: string;
 }
@@ -48,6 +60,13 @@ interface Props {
 interface OrderLine {
   key: string;
   productId: string;
+  /**
+   * ⚠️ CARRIED ON THE LINE, NOT LOOKED UP (PI-23). The unit posted with a line is
+   *   the product's own base unit, and it used to be found by searching a
+   *   catalogue this component held — which silently posted an empty unit for any
+   *   product outside the fetched page. The picker hands both over together.
+   */
+  baseUnitId: string;
   quantity: string;
 }
 
@@ -59,20 +78,14 @@ const CHANNELS = [
   { value: 'COUNTER', label: 'Asked at the counter' },
 ];
 
-export function OnlineOrderForm({
-  slug,
-  branches,
-  locations,
-  products,
-  defaultCountryCode,
-}: Props) {
+export function OnlineOrderForm({ slug, branches, locations, defaultCountryCode }: Props) {
   const router = useRouter();
   /* AGENTS.md: on a failed submit, move focus to the first field at fault. */
   const formRef = useRef<HTMLFormElement>(null);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [locationId, setLocationId] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([
-    { key: crypto.randomUUID(), productId: '', quantity: '' },
+    { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
   ]);
 
   const [state, formAction, pending] = useActionState<PharmacyFormState, FormData>(
@@ -90,15 +103,15 @@ export function OnlineOrderForm({
 
   const payload: OnlineOrderLineRequest[] = lines
     .filter((line) => line.productId !== '' && Number(line.quantity) > 0)
-    .map((line) => {
-      const product = products.find((candidate) => candidate.id === line.productId);
-      return {
-        productId: line.productId,
-        quantity: line.quantity,
-        /* The product's own base unit: this form counts in what the shelf counts in. */
-        unitId: product?.baseUnitId ?? '',
-      } satisfies OnlineOrderLineRequest;
-    });
+    .map(
+      (line) =>
+        ({
+          productId: line.productId,
+          quantity: line.quantity,
+          /* The product's own base unit: this form counts in what the shelf counts in. */
+          unitId: line.baseUnitId,
+        }) satisfies OnlineOrderLineRequest
+    );
 
   const chosen = lines.map((line) => line.productId).filter((id) => id !== '');
   const duplicated = chosen.length !== new Set(chosen).size;
@@ -177,18 +190,19 @@ export function OnlineOrderForm({
             errors={state.fieldErrors?.['channel']}
             options={CHANNELS}
           />
-          <Input
-            label="Patient"
+          <PatientPicker
+            slug={slug}
             name="patientId"
-            errors={state.fieldErrors?.['patientId']}
-            hint="The patient's id. A parcel has to go to somebody on the clinic's list."
+            label="Patient"
             required
+            errors={state.fieldErrors?.['patientId']}
+            hint="Name, phone or UHID. A parcel has to go to somebody on this branch's list."
           />
           <Input
             label="Consultation"
             name="encounterId"
             errors={state.fieldErrors?.['encounterId']}
-            hint="Optional. The signed consultation whose prescription this fills."
+            hint="Optional. The signed consultation whose prescription this fills — copy its id from the prescription queue."
           />
         </fieldset>
 
@@ -248,18 +262,20 @@ export function OnlineOrderForm({
                 className="border-rule bg-card flex flex-wrap gap-3 rounded-md border p-4"
               >
                 <div className="min-w-64 flex-1">
-                  <Select
+                  <ProductPicker
+                    slug={slug}
                     label="Product"
-                    name={`product-${String(index)}`}
-                    value={line.productId}
-                    options={[
-                      { value: '', label: 'Choose a product' },
-                      ...products.map((product) => ({ value: product.id, label: product.name })),
-                    ]}
-                    onChange={(event) =>
+                    filters={{ isStockItem: true, status: 'ACTIVE' }}
+                    onChoose={(product) =>
                       setLines((current) =>
                         current.map((entry, position) =>
-                          position === index ? { ...entry, productId: event.target.value } : entry
+                          position === index
+                            ? {
+                                ...entry,
+                                productId: product?.id ?? '',
+                                baseUnitId: product?.baseUnitId ?? '',
+                              }
+                            : entry
                         )
                       )
                     }
@@ -310,7 +326,7 @@ export function OnlineOrderForm({
             onClick={() =>
               setLines((current) => [
                 ...current,
-                { key: crypto.randomUUID(), productId: '', quantity: '' },
+                { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
               ])
             }
           >

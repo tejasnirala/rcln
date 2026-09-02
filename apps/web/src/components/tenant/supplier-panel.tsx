@@ -2,16 +2,12 @@
 
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
-import type {
-  ProductSummary,
-  SupplierDetail,
-  SupplierProductListResponse,
-  UnitSummary,
-} from '@rcln/contracts';
+import type { SupplierDetail, SupplierProductListResponse, UnitSummary } from '@rcln/contracts';
 import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { ProcurementNav } from '@/components/tenant/procurement-nav';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import {
   addSupplierProductAction,
   addTaxIdentifierAction,
@@ -45,22 +41,12 @@ interface Props {
   slug: string;
   supplier: SupplierDetail;
   priceBook: SupplierProductListResponse['supplierProducts'];
-  products: ProductSummary[];
   units: UnitSummary[];
   canManage: boolean;
   /** True when the product list was capped. Drives the honest hint. */
-  moreProducts: boolean;
 }
 
-export function SupplierPanel({
-  slug,
-  supplier,
-  priceBook,
-  products,
-  units,
-  canManage,
-  moreProducts,
-}: Props) {
+export function SupplierPanel({ slug, supplier, priceBook, units, canManage }: Props) {
   const [taxState, taxAction, taxPending] = useActionState<ProcurementFormState, FormData>(
     addTaxIdentifierAction.bind(null, slug, supplier.id),
     IDLE_FORM
@@ -334,22 +320,15 @@ export function SupplierPanel({
               action={priceAction}
               className="border-rule bg-card space-y-3 rounded-md border p-4"
             >
-              {moreProducts ? (
-                <p className="text-muted text-[0.8125rem]">
-                  Showing the first {products.length} products. Searching the whole catalogue from
-                  here comes with the barcode scanner.
-                </p>
-              ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
-                <Select
+                <ProductPicker
+                  slug={slug}
                   label="Product"
                   name="productId"
                   required
-                  options={[
-                    { value: '', label: 'Choose a product' },
-                    ...products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-                  ]}
+                  filters={{ isStockItem: true, status: 'ACTIVE' }}
                   errors={priceErr('productId')}
+                  hint="Name, code, brand or barcode."
                 />
                 <Input
                   label="Their code"

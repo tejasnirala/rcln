@@ -1,9 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useMemo, useState } from 'react';
+import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
 import type {
-  BatchSummary,
   BranchSummary,
   InventoryLocationSummary,
   ProductSummary,
@@ -12,6 +11,8 @@ import type {
 import { Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
+import { ProductPicker } from '@/components/tenant/product-picker';
+import { lotsForProduct, type LotListState } from '@/app/(tenant)/t/[slug]/(app)/lookup-actions';
 import {
   IDLE_FORM,
   recordAdjustmentAction,
@@ -102,21 +103,10 @@ interface Props {
   slug: string;
   branches: BranchSummary[];
   locations: InventoryLocationSummary[];
-  products: ProductSummary[];
-  batches: BatchSummary[];
   reasonCodes: StockReasonCodeSummary[];
-  moreProducts: boolean;
 }
 
-export function AdjustmentForm({
-  slug,
-  branches,
-  locations,
-  products,
-  batches,
-  reasonCodes,
-  moreProducts,
-}: Props) {
+export function AdjustmentForm({ slug, branches, locations, reasonCodes }: Props) {
   const router = useRouter();
 
   const [state, action, pending] = useActionState<StockFormState, FormData>(
@@ -127,8 +117,29 @@ export function AdjustmentForm({
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [movementType, setMovementType] = useState('ADJUSTMENT');
   const [direction, setDirection] = useState<'INCREASE' | 'DECREASE'>('DECREASE');
-  const [productId, setProductId] = useState('');
+  const [product, setProduct] = useState<ProductSummary | null>(null);
+  const [lots, setLots] = useState<LotListState>({ status: 'idle' });
+  const [loadingLots, startLoadingLots] = useTransition();
   const [reasonCode, setReasonCode] = useState('');
+
+  /**
+   * This product's open lots at this branch, asked for once both are known
+   * (PI-23). Before, the page fetched the first 200 lots across every branch and
+   * this filtered them here — so a clinic with more than 200 open lots had lots
+   * that could not be adjusted at all, with nothing on screen saying why.
+   *
+   * ⚠️ CALLED FROM THE TWO HANDLERS, NOT FROM AN EFFECT — see `serial-form.tsx`,
+   *   which makes the same call for the same pair of inputs.
+   */
+  const loadLots = (next: ProductSummary | null, forBranch: string): void => {
+    if (next === null || forBranch === '') {
+      setLots({ status: 'idle' });
+      return;
+    }
+    startLoadingLots(async () => {
+      setLots(await lotsForProduct(slug, next.id, forBranch));
+    });
+  };
 
   useEffect(() => {
     if (state.status === 'saved') router.push('/stock/ledger');
@@ -142,11 +153,6 @@ export function AdjustmentForm({
   const branchLocations = useMemo(
     () => locations.filter((l) => l.branchId === branchId && l.isActive),
     [locations, branchId]
-  );
-
-  const lots = useMemo(
-    () => batches.filter((b) => b.productId === productId && b.branchId === branchId),
-    [batches, productId, branchId]
   );
 
   /*
@@ -166,7 +172,16 @@ export function AdjustmentForm({
 
   const chosenReason = availableReasons.find((r) => r.code === reasonCode);
 
-  if (branches.length === 0 || locations.length === 0 || products.length === 0) {
+  const lotChoices = useMemo(
+    () =>
+      (lots.status === 'done' ? lots.lots : []).map((b) => ({
+        value: b.id,
+        label: `${b.lotNumber} · ${b.expiresOn ?? 'no expiry'} · ${b.quantityAvailable} ${b.baseUnitSymbol} available`,
+      })),
+    [lots]
+  );
+
+  if (branches.length === 0 || locations.length === 0) {
     return (
       <div className="max-w-2xl space-y-6">
         <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">
@@ -175,8 +190,7 @@ export function AdjustmentForm({
         <div className="border-rule bg-card rounded-md border p-10 text-center">
           <p className="text-ink text-[0.9375rem]">There is nothing to adjust yet.</p>
           <p className="text-muted mx-auto mt-2 max-w-md text-[0.875rem]">
-            An adjustment corrects the count of a product on a shelf. Add a location and a stocked
-            product first.
+            An adjustment corrects the count of a product on a shelf. Add a location first.
           </p>
         </div>
       </div>
@@ -263,7 +277,11 @@ export function AdjustmentForm({
             value={branchId}
             options={branches.map((b) => ({ value: b.id, label: b.name }))}
             errors={err('branchId')}
-            onChange={(event) => setBranchId(event.target.value)}
+            onChange={(event) => {
+              setBranchId(event.target.value);
+              // The lots belonged to the other site, so they are re-asked for.
+              loadLots(product, event.target.value);
+            }}
           />
           <Select
             name="locationId"
@@ -274,24 +292,18 @@ export function AdjustmentForm({
           />
         </div>
 
-        {moreProducts ? (
-          <p className="text-muted text-[0.8125rem]">
-            Showing the first {products.length} products. Searching the whole catalogue from here
-            comes with the barcode scanner.
-          </p>
-        ) : null}
-
-        <Select
+        <ProductPicker
+          slug={slug}
           name="productId"
           label="Product"
           required
-          value={productId}
-          options={[
-            { value: '', label: 'Choose a product' },
-            ...products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-          ]}
           errors={err('productId')}
-          onChange={(event) => setProductId(event.target.value)}
+          filters={{ isStockItem: true, status: 'ACTIVE' }}
+          onChoose={(next) => {
+            setProduct(next);
+            loadLots(next, branchId);
+          }}
+          hint="Name, code, brand or barcode. Scanning the pack into this box finds it too."
         />
 
         {/*
@@ -300,20 +312,19 @@ export function AdjustmentForm({
              refuses the movement by name; offering an empty picker would leave
              the person hunting for a field that has nothing in it.
         */}
-        {lots.length > 0 ? (
+        {lotChoices.length > 0 ? (
           <Select
             name="batchId"
             label="Lot"
             required
-            options={[
-              { value: '', label: 'Choose a lot' },
-              ...lots.map((b) => ({
-                value: b.id,
-                label: `${b.lotNumber} · ${b.expiresOn ?? 'no expiry'} · ${b.quantityAvailable} ${b.baseUnitSymbol} available`,
-              })),
-            ]}
+            options={[{ value: '', label: 'Choose a lot' }, ...lotChoices]}
             errors={err('batchId')}
+            {...(lots.status === 'done' && lots.capped
+              ? { hint: 'Only the first hundred open lots are listed.' }
+              : {})}
           />
+        ) : loadingLots ? (
+          <p className="text-muted text-[0.8125rem]">Loading this product’s lots…</p>
         ) : null}
 
         <Input

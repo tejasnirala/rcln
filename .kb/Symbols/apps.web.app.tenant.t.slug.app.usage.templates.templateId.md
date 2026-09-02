@@ -12,12 +12,6 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/[templateId]/pa
 | --- | --- | --- | --- |
 | `ConsumptionTemplatePage` | `({ params, }: { params: Promise<{ slug: string; templateId: …)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/[templateId]/page.tsx:25` |  |
 
-## const
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `PICKER_LIMIT` <sub>local</sub> | `200` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/[templateId]/page.tsx:13` | How many products the picker offers before it admits it is showing a page. |
-
 ## var
 
 | name | signature | at | notes |

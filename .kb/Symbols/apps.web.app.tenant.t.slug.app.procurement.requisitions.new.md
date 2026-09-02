@@ -8,13 +8,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/requisitions/new/pa
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `NewRequisitionPage` | `({ params, }: { params: Promise<{ slug: string }>; })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/requisitions/new/page.tsx:13` |  |
-
-## const
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `PRODUCT_CAP` <sub>local</sub> | `100` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/requisitions/new/page.tsx:11` |  |
+| `NewRequisitionPage` | `({ params, }: { params: Promise<{ slug: string }>; })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/requisitions/new/page.tsx:12` |  |
 
 ## var
 

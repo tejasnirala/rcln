@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
-import type { ConsumptionTemplateDetail, ProductSummary } from '@rcln/contracts';
+import type { ConsumptionTemplateDetail } from '@rcln/contracts';
 import { Alert } from '@/components/ui/alert';
 import { UsageNav } from '@/components/tenant/usage-nav';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import {
   updateConsumptionTemplateAction,
   IDLE_USAGE_FORM,
@@ -31,9 +32,18 @@ import {
  *
  * ⚠️ NOT PHI.
  */
+/**
+ * ⚠️ THE LINE CARRIES THE PRODUCT'S NAME AND UNIT, NOT JUST ITS ID (PI-23). The
+ *   editor used to hold a copy of the first two hundred stocked products to look
+ *   an id up in, which is why a template citing anything outside that page had to
+ *   be patched into the list by hand or it would be silently dropped on the next
+ *   save. Carrying what is needed to DISPLAY the line makes that impossible.
+ */
 interface EditorLine {
   key: string;
   productId: string;
+  productName: string;
+  baseUnitSymbol: string;
   quantity: string;
   unitId: string;
   isOptional: boolean;
@@ -43,15 +53,16 @@ interface EditorLine {
 interface Props {
   slug: string;
   template: ConsumptionTemplateDetail;
-  products: ProductSummary[];
   canManage: boolean;
 }
 
-export function ConsumptionTemplateEditor({ slug, template, products, canManage }: Props) {
+export function ConsumptionTemplateEditor({ slug, template, canManage }: Props) {
   const [lines, setLines] = useState<EditorLine[]>(() =>
     template.lines.map((line) => ({
       key: line.id,
       productId: line.productId,
+      productName: line.productName,
+      baseUnitSymbol: line.baseUnitSymbol,
       quantity: line.quantity,
       unitId: line.unitId,
       isOptional: line.isOptional,
@@ -63,25 +74,6 @@ export function ConsumptionTemplateEditor({ slug, template, products, canManage 
     updateConsumptionTemplateAction.bind(null, slug, template.id),
     IDLE_USAGE_FORM
   );
-
-  const productById = new Map(products.map((product) => [product.id, product]));
-
-  /*
-   * ⚠️ A LINE WHOSE PRODUCT IS NOT IN THE PICKER IS STILL EDITABLE, and the
-   *   picker gains it. The list is the first 200 stocked products; a template
-   *   written last year may cite something outside that page, and dropping it
-   *   from the select would silently delete it on the next save.
-   */
-  for (const line of template.lines) {
-    if (!productById.has(line.productId)) {
-      productById.set(line.productId, {
-        id: line.productId,
-        name: line.productName,
-        baseUnitId: line.unitId,
-        baseUnitSymbol: line.baseUnitSymbol,
-      } as ProductSummary);
-    }
-  }
 
   function update(key: string, patch: Partial<EditorLine>): void {
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -146,77 +138,76 @@ export function ConsumptionTemplateEditor({ slug, template, products, canManage 
           ) : (
             <ul className="space-y-2">
               {lines.map((line) => {
-                const product = productById.get(line.productId);
                 return (
                   <li
                     key={line.key}
-                    className="border-rule bg-card flex flex-wrap items-end gap-3 rounded-md border p-4"
+                    className="border-rule bg-card space-y-3 rounded-md border p-4"
                   >
-                    <label className="min-w-56 flex-1 text-[0.8125rem]">
-                      <span className="text-muted block pb-1">Item</span>
-                      <select
-                        disabled={!canManage}
-                        className="border-rule bg-card text-ink w-full rounded-md border px-3 py-2 text-[0.875rem]"
-                        value={line.productId}
-                        onChange={(event) => {
-                          const next = productById.get(event.target.value);
-                          update(line.key, {
-                            productId: event.target.value,
-                            /* The unit follows the product: a strip of one thing
-                               is not a unit of another. */
-                            unitId: next?.baseUnitId ?? '',
-                          });
-                        }}
-                      >
-                        <option value="">Choose an item</option>
-                        {[...productById.values()].map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    <ProductPicker
+                      slug={slug}
+                      label="Item"
+                      disabled={!canManage}
+                      filters={{ isStockItem: true, status: 'ACTIVE' }}
+                      initial={
+                        line.productId === ''
+                          ? null
+                          : { id: line.productId, name: line.productName }
+                      }
+                      onChoose={(product) => {
+                        update(line.key, {
+                          productId: product?.id ?? '',
+                          productName: product?.name ?? '',
+                          baseUnitSymbol: product?.baseUnitSymbol ?? '',
+                          /* The unit follows the product: a strip of one thing
+                             is not a unit of another. */
+                          unitId: product?.baseUnitId ?? '',
+                        });
+                      }}
+                      hint="Name, code, brand or barcode. Only stocked products can go on a template — a consultation fee is not a material."
+                    />
 
-                    <label className="w-32 text-[0.8125rem]">
-                      <span className="text-muted block pb-1">How much</span>
-                      <input
-                        disabled={!canManage}
-                        inputMode="decimal"
-                        className="border-rule bg-card text-ink w-full rounded-md border px-3 py-2 text-[0.875rem]"
-                        value={line.quantity}
-                        onChange={(event) => {
-                          update(line.key, { quantity: event.target.value });
-                        }}
-                      />
-                    </label>
+                    <div className="flex flex-wrap items-end gap-3">
+                      <label className="w-32 text-[0.8125rem]">
+                        <span className="text-muted block pb-1">How much</span>
+                        <input
+                          disabled={!canManage}
+                          inputMode="decimal"
+                          className="border-rule bg-card text-ink w-full rounded-md border px-3 py-2 text-[0.875rem]"
+                          value={line.quantity}
+                          onChange={(event) => {
+                            update(line.key, { quantity: event.target.value });
+                          }}
+                        />
+                      </label>
 
-                    <span className="text-muted pb-2 text-[0.8125rem]">
-                      {product?.baseUnitSymbol ?? ''}
-                    </span>
+                      <span className="text-muted pb-2 text-[0.8125rem]">
+                        {line.baseUnitSymbol}
+                      </span>
 
-                    <label className="flex items-center gap-2 pb-2 text-[0.8125rem]">
-                      <input
-                        type="checkbox"
-                        disabled={!canManage}
-                        checked={line.isOptional}
-                        onChange={(event) => {
-                          update(line.key, { isOptional: event.target.checked });
-                        }}
-                      />
-                      <span className="text-ink">Sometimes</span>
-                    </label>
+                      <label className="flex items-center gap-2 pb-2 text-[0.8125rem]">
+                        <input
+                          type="checkbox"
+                          disabled={!canManage}
+                          checked={line.isOptional}
+                          onChange={(event) => {
+                            update(line.key, { isOptional: event.target.checked });
+                          }}
+                        />
+                        <span className="text-ink">Sometimes</span>
+                      </label>
 
-                    {canManage ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLines((current) => current.filter((row) => row.key !== line.key));
-                        }}
-                        className="text-muted hover:text-danger pb-2 text-[0.875rem]"
-                      >
-                        Remove
-                      </button>
-                    ) : null}
+                      {canManage ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLines((current) => current.filter((row) => row.key !== line.key));
+                          }}
+                          className="text-muted hover:text-danger pb-2 text-[0.875rem]"
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}
@@ -232,6 +223,8 @@ export function ConsumptionTemplateEditor({ slug, template, products, canManage 
                   {
                     key: `new-${String(current.length)}-${String(Date.now())}`,
                     productId: '',
+                    productName: '',
+                    baseUnitSymbol: '',
                     quantity: '',
                     unitId: '',
                     isOptional: false,

@@ -2,16 +2,12 @@
 
 import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type {
-  BranchSummary,
-  DispenseLineRequest,
-  InventoryLocationSummary,
-  ProductSummary,
-} from '@rcln/contracts';
+import type { BranchSummary, DispenseLineRequest, InventoryLocationSummary } from '@rcln/contracts';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/field';
 import { PharmacyNav } from '@/components/tenant/pharmacy-nav';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import {
   dispenseAction,
   IDLE_FORM,
@@ -42,21 +38,27 @@ interface Props {
   slug: string;
   branches: BranchSummary[];
   locations: InventoryLocationSummary[];
-  products: ProductSummary[];
 }
 
 interface SaleLine {
   key: string;
   productId: string;
+  /**
+   * ⚠️ CARRIED ON THE LINE, NOT LOOKED UP (PI-23). The unit posted with a line is
+   *   the product's own base unit, and it used to be found by searching a
+   *   catalogue this component held — which silently posted an empty unit for any
+   *   product outside the fetched page of 100. The picker hands both over.
+   */
+  baseUnitId: string;
   quantity: string;
 }
 
-export function CounterSaleForm({ slug, branches, locations, products }: Props) {
+export function CounterSaleForm({ slug, branches, locations }: Props) {
   const router = useRouter();
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [locationId, setLocationId] = useState(locations[0]?.id ?? '');
   const [lines, setLines] = useState<SaleLine[]>([
-    { key: crypto.randomUUID(), productId: '', quantity: '' },
+    { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
   ]);
 
   const [state, formAction, pending] = useActionState<PharmacyFormState, FormData>(
@@ -72,15 +74,15 @@ export function CounterSaleForm({ slug, branches, locations, products }: Props) 
 
   const payload: DispenseLineRequest[] = lines
     .filter((line) => line.productId !== '' && Number(line.quantity) > 0)
-    .map((line) => {
-      const product = products.find((candidate) => candidate.id === line.productId);
-      return {
-        productId: line.productId,
-        quantity: line.quantity,
-        // The product's own base unit: this form counts in what the shelf counts in.
-        unitId: product?.baseUnitId ?? '',
-      } satisfies DispenseLineRequest;
-    });
+    .map(
+      (line) =>
+        ({
+          productId: line.productId,
+          quantity: line.quantity,
+          // The product's own base unit: this form counts in what the shelf counts in.
+          unitId: line.baseUnitId,
+        }) satisfies DispenseLineRequest
+    );
 
   const locationsHere = locations.filter((location) => location.branchId === branchId);
 
@@ -146,21 +148,24 @@ export function CounterSaleForm({ slug, branches, locations, products }: Props) 
               className="border-rule bg-card flex flex-wrap gap-3 rounded-md border p-4"
             >
               <div className="min-w-64 flex-1">
-                <Select
+                <ProductPicker
+                  slug={slug}
                   label="Product"
-                  name={`product-${String(index)}`}
-                  value={line.productId}
-                  options={[
-                    { value: '', label: 'Choose a product' },
-                    ...products.map((product) => ({ value: product.id, label: product.name })),
-                  ]}
-                  onChange={(event) =>
+                  filters={{ isStockItem: true, status: 'ACTIVE' }}
+                  onChoose={(product) =>
                     setLines((current) =>
                       current.map((entry, position) =>
-                        position === index ? { ...entry, productId: event.target.value } : entry
+                        position === index
+                          ? {
+                              ...entry,
+                              productId: product?.id ?? '',
+                              baseUnitId: product?.baseUnitId ?? '',
+                            }
+                          : entry
                       )
                     )
                   }
+                  hint="Name, code, brand or barcode. Scanning the pack into this box finds it too."
                 />
               </div>
               <Input
@@ -200,7 +205,7 @@ export function CounterSaleForm({ slug, branches, locations, products }: Props) 
             onClick={() =>
               setLines((current) => [
                 ...current,
-                { key: crypto.randomUUID(), productId: '', quantity: '' },
+                { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
               ])
             }
           >

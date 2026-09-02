@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { InventoryLocationListResponse, ProductListResponse } from '@rcln/contracts';
+import type { InventoryLocationListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { branchesInScope, getAccessToken } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -28,19 +28,14 @@ export default async function CounterSalePage({ params }: { params: Promise<{ sl
   }
 
   const accessToken = await getAccessToken();
-  const [branches, locations, products] = await Promise.all([
+  /*
+   * ⚠️ THE PRODUCT LIST IS GONE (PI-23). It was capped at 100 — the picker limit
+   *   the whole programme carried — so a dispensary with a wider catalogue could
+   *   not find everything in the dropdown. The line picker searches now.
+   */
+  const [branches, locations] = await Promise.all([
     branchesInScope(slug),
     api<InventoryLocationListResponse>('/api/v1/inventory-locations?limit=100', {
-      slug,
-      accessToken,
-    }),
-    /*
-     * ⚠️ CAPPED AT 100, WHICH IS THE PICKER LIMIT THE REST OF THIS PROGRAMME HAS
-     *   AND THE ONE PI-23 REPLACES WITH A RESOLVER. A dispensary with a wider
-     *   catalogue than that cannot find everything in this dropdown today; it is
-     *   recorded in KNOWN_ISSUES rather than papered over with a bigger number.
-     */
-    api<ProductListResponse>('/api/v1/products?limit=100&isStockItem=true', {
       slug,
       accessToken,
     }),
@@ -59,12 +54,5 @@ export default async function CounterSalePage({ params }: { params: Promise<{ sl
     );
   }
 
-  return (
-    <CounterSaleForm
-      slug={slug}
-      branches={branches}
-      locations={dispensingPoints}
-      products={products.data?.products ?? []}
-    />
-  );
+  return <CounterSaleForm slug={slug} branches={branches} locations={dispensingPoints} />;
 }

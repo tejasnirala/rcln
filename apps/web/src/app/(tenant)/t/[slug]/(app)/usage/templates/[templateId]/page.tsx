@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import type { ConsumptionTemplateDetail, ProductListResponse } from '@rcln/contracts';
+import type { ConsumptionTemplateDetail } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { getAccessToken } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -9,16 +9,16 @@ import { usageAccess } from '../../guard';
 
 export const metadata: Metadata = { title: 'Consumption template' };
 
-/** How many products the picker offers before it admits it is showing a page. */
-const PICKER_LIMIT = 200;
-
 /**
  * <slug>.rcln.com/usage/templates/<id> — one version, and what it lists.
  *
- * ⚠️ THE PRODUCT PICKER IS SERVER-FETCHED AND STOCKED-ONLY. A template line has
+ * ⚠️ THE PRODUCT PICKER SEARCHES AND IS STOCKED-ONLY (PI-23). A template line has
  *   to name something that can come off a shelf; offering a consultation fee
  *   would produce a row the API refuses with a sentence about billing, which is
- *   a confusing place to learn that a fee is not a material.
+ *   a confusing place to learn that a fee is not a material. The filter is on the
+ *   search now rather than on a fetched page of two hundred, which is what used
+ *   to make a template citing anything outside that page a special case the
+ *   editor had to patch around.
  *
  * ⚠️ NOT PHI.
  */
@@ -38,17 +38,10 @@ export default async function ConsumptionTemplatePage({
     );
   }
 
-  const accessToken = await getAccessToken();
-  const [template, products] = await Promise.all([
-    api<ConsumptionTemplateDetail>(`/api/v1/consumption/templates/${templateId}`, {
-      slug,
-      accessToken,
-    }),
-    api<ProductListResponse>(
-      `/api/v1/products?isStockItem=true&status=ACTIVE&limit=${String(PICKER_LIMIT)}`,
-      { slug, accessToken }
-    ),
-  ]);
+  const template = await api<ConsumptionTemplateDetail>(
+    `/api/v1/consumption/templates/${templateId}`,
+    { slug, accessToken: await getAccessToken() }
+  );
 
   if (template.status === 404) notFound();
 
@@ -64,7 +57,6 @@ export default async function ConsumptionTemplatePage({
     <ConsumptionTemplateEditor
       slug={slug}
       template={template.data}
-      products={products.data?.products ?? []}
       canManage={access.canManageTemplates}
     />
   );

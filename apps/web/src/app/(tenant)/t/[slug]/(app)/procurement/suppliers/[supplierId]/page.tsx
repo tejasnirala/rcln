@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import type {
-  ProductListResponse,
   SupplierDetail,
   SupplierProductListResponse,
   UnitListResponse,
@@ -14,13 +13,11 @@ import { procurementAccess } from '../../guard';
 export const metadata: Metadata = { title: 'Supplier' };
 
 /**
- * ⚠️ THE PRODUCT PICKER IS CAPPED AT 100 AND THE SCREEN SAYS SO. Same cap the stock
- *   forms carry, and the same reason: searching the whole catalogue from a form comes
- *   with the barcode resolver in PI-23. A silent cap would let a buyer conclude the
- *   clinic does not stock something.
+ * ⚠️ THE PRODUCT PICKER SEARCHES NOW (PI-23) AND THIS PAGE FETCHES NO CATALOGUE.
+ *   It used to send the first hundred stocked products and say so on screen —
+ *   an honest cap, but one that still let a buyer conclude the clinic does not
+ *   stock something. Nothing is fetched until somebody types.
  */
-const PRODUCT_CAP = 100;
-
 export default async function SupplierPage({
   params,
 }: {
@@ -35,16 +32,12 @@ export default async function SupplierPage({
 
   const accessToken = await getAccessToken();
 
-  const [supplier, priceBook, products, units] = await Promise.all([
+  const [supplier, priceBook, units] = await Promise.all([
     api<SupplierDetail>(`/api/v1/procurement/suppliers/${supplierId}`, { slug, accessToken }),
     api<SupplierProductListResponse>(
       `/api/v1/procurement/supplier-products?supplierId=${supplierId}&limit=100`,
       { slug, accessToken }
     ),
-    api<ProductListResponse>(`/api/v1/products?limit=${String(PRODUCT_CAP)}&isStockItem=true`, {
-      slug,
-      accessToken,
-    }),
     api<UnitListResponse>('/api/v1/units?limit=100', { slug, accessToken }),
   ]);
 
@@ -57,10 +50,8 @@ export default async function SupplierPage({
       slug={slug}
       supplier={supplier.data}
       priceBook={priceBook.data?.supplierProducts ?? []}
-      products={products.data?.products ?? []}
       units={units.data?.units ?? []}
       canManage={access.canManageSuppliers}
-      moreProducts={(products.data?.meta.total ?? 0) > PRODUCT_CAP}
     />
   );
 }

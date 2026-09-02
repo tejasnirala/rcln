@@ -59,9 +59,12 @@ valuation; does not see prescriptions or clinical content.
 PO ──▶ Goods receipt ──▶ scan / type lot, expiry, serial, qty ──▶ post
 ```
 
-The scanner-heavy screen. A single scan may carry GTIN + lot + expiry + serial;
-the field accepts the whole payload and fills four inputs (PI-23). Refusals here
-are immediate and specific: _"This product is serialised — enter a serial for
+The scanner-heavy screen, and since PI-23 it has a scanner. A single scan may
+carry GTIN + lot + expiry + serial; the field accepts the whole payload and fills
+four inputs on the next empty line. ⚠️ **It fills and never posts** — the pack and
+the paperwork disagree often enough that a scanner which submitted would be worse
+than no scanner — and a code matching more than one product fills nothing and says
+so. Refusals here are immediate and specific: _"This product is serialised — enter a serial for
 each unit"_, not a validation summary at the bottom.
 
 ### Doctor / dentist / veterinarian — record what was used

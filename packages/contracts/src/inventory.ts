@@ -1347,3 +1347,170 @@ export type StockReservationListResponse = z.infer<typeof stockReservationListRe
 export type AllocationPlanRequest = z.infer<typeof allocationPlanRequest>;
 export type AllocationPlanLine = z.infer<typeof allocationPlanLine>;
 export type AllocationPlanResponse = z.infer<typeof allocationPlanResponse>;
+
+// ---------------------------------------------------------------------------
+// PI-23 — identifier resolution
+//
+// One scanned string in; the product, the lot and the device it names out, in
+// one round trip. `products.ts` already carries `resolveIdentifierQuery`, which
+// answers the PRODUCT half from a bare value and parses nothing — this is the
+// layer above it, and it lives here rather than there because two thirds of its
+// answer is stock.
+//
+// ⚠️ THE RESPONSE CARRIES NO PATIENT FIELD, AND THAT IS A DECISION RATHER THAN
+//   AN OMISSION. `serialSummary` above carries `assignedPatientId`, so every
+//   read of it writes a `data_access_logs` row (PI-ADR-016). Reusing that shape
+//   here would put a PHI disclosure on the hottest endpoint in the programme —
+//   one row per scan, at a loading bay, for a question nobody at the loading bay
+//   asked. `scannedSerial` is deliberately narrower: what the device is, where
+//   it is and whether it may move. Who it is IN is `/v1/serials/:id`, behind the
+//   logging that read already carries.
+// ---------------------------------------------------------------------------
+
+/**
+ * What the decoder made of the payload. Mirrors `ScanFormat` in
+ * `@rcln/inventory`; the service assigns one to the other, so the two cannot
+ * drift without failing typecheck.
+ */
+export const scanFormat = z.enum(['GS1', 'GTIN', 'PLAIN']);
+
+/** Mirrors `ScanWarning` in `@rcln/inventory`. Same compile-time link. */
+export const scanWarning = z.enum([
+  'CHECK_DIGIT_FAILED',
+  'UNKNOWN_APPLICATION_IDENTIFIER',
+  'TRUNCATED_ELEMENT',
+  'INVALID_DATE',
+  'NON_NUMERIC_DATA',
+  'AMBIGUOUS_VARIABLE_LENGTH',
+]);
+
+export const scanElement = z.object({
+  ai: z.string(),
+  label: z.string(),
+  value: z.string(),
+});
+
+/**
+ * The decode, returned WHETHER OR NOT ANYTHING RESOLVED.
+ *
+ * ⚠️ A scan that matches no product is not a failure and must not be answered
+ *   with one. "This is GTIN 08901234567890, lot AB12, expiring January 2027, and
+ *   this clinic has never stocked it" is a useful sentence at a goods receipt —
+ *   it is what tells a storekeeper the delivery is wrong rather than the scanner.
+ */
+export const decodedScan = z.object({
+  format: scanFormat,
+  raw: z.string(),
+  gtin: z.string().nullable(),
+  lotNumber: z.string().nullable(),
+  serialNumber: z.string().nullable(),
+  expiresOn: z.string().nullable(),
+  producedOn: z.string().nullable(),
+  quantity: z.string().nullable(),
+  elements: z.array(scanElement),
+  /** Whatever the decoder refused to read on. Shown, never swallowed. */
+  unparsed: z.string().nullable(),
+  warnings: z.array(scanWarning),
+});
+
+/**
+ * A lot the scan reached.
+ *
+ * ⚠️ `expiryMatchesScan` IS THE POINT OF SCANNING AT A GOODS RECEIPT AT ALL. The
+ *   pack says one date and the lot on file says another: either the wrong lot
+ *   was picked or the wrong date was typed, and both are found here or at a
+ *   recall six months later. `null` means the scan carried no date to compare.
+ */
+export const scannedBatch = z.object({
+  id: uuid,
+  branchId: uuid,
+  branchName: z.string(),
+  productId: uuid,
+  productName: z.string(),
+  lotNumber: z.string(),
+  expiresOn: z.string().nullable(),
+  status: batchStatus,
+  /** True only when the lot is ACTIVE, unexpired, unquarantined and unrecalled. */
+  isDispensable: z.boolean(),
+  quarantinedAt: z.string().nullable(),
+  recalledAt: z.string().nullable(),
+  /** Base units held as AVAILABLE at this branch. A string, per the file header. */
+  availableQuantityBase: decimalString,
+  quantityOnHandBase: decimalString,
+  baseUnitSymbol: z.string(),
+  expiryMatchesScan: z.boolean().nullable(),
+});
+
+/** A device the scan reached. No patient field — see the section header. */
+export const scannedSerial = z.object({
+  id: uuid,
+  branchId: uuid,
+  branchName: z.string(),
+  productId: uuid,
+  productName: z.string(),
+  serialNumber: z.string(),
+  status: serialStatus,
+  batchId: uuid.nullable(),
+  lotNumber: z.string().nullable(),
+  currentLocationId: uuid.nullable(),
+  currentLocationName: z.string().nullable(),
+  expiresOn: z.string().nullable(),
+});
+
+export const scanResolveQuery = z.object({
+  /** The payload, exactly as the reader sent it. Never pre-cleaned by the client. */
+  code: z.string().min(1).max(256),
+  /**
+   * Narrow the stock half to one branch. Omitted, it searches every branch in
+   * the caller's scope — which is what a group with a central store wants, and
+   * what RLS bounds anyway.
+   */
+  branchId: uuid.optional(),
+  /**
+   * Country-qualify the identifier lookup. A national code means different
+   * medicines in different countries; see `resolveIdentifierQuery`.
+   */
+  countryCode: z
+    .string()
+    .trim()
+    .length(2)
+    .transform((v) => v.toUpperCase())
+    .optional(),
+});
+
+export const scanResolveResponse = z.object({
+  decoded: decodedScan,
+  /** Every product carrying this identifier, never the first. */
+  products: z.array(
+    z.object({
+      productId: uuid,
+      productCode: catalogueCode,
+      productName: z.string(),
+      brandName: z.string().nullable(),
+      genericName: z.string().nullable(),
+      trackingMode,
+      isExpiryControlled: z.boolean(),
+      baseUnitSymbol: z.string(),
+      /** Which identifier matched, so the screen can say WHY this product. */
+      matchedOn: z.object({ type: z.string(), value: z.string() }),
+    })
+  ),
+  batches: z.array(scannedBatch),
+  serials: z.array(scannedSerial),
+  /**
+   * More than one product carries these digits. ⚠️ THE CALLER MUST NOT PICK ONE
+   *   — repackagers reuse GTINs and two countries assign one national code to
+   *   different medicines, so choosing silently is a patient-safety defect
+   *   wearing the costume of a convenience. The screen asks.
+   */
+  isAmbiguous: z.boolean(),
+});
+
+export type ScanFormat = z.infer<typeof scanFormat>;
+export type ScanWarning = z.infer<typeof scanWarning>;
+export type ScanElement = z.infer<typeof scanElement>;
+export type DecodedScan = z.infer<typeof decodedScan>;
+export type ScannedBatch = z.infer<typeof scannedBatch>;
+export type ScannedSerial = z.infer<typeof scannedSerial>;
+export type ScanResolveQuery = z.infer<typeof scanResolveQuery>;
+export type ScanResolveResponse = z.infer<typeof scanResolveResponse>;
