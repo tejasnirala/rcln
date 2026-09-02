@@ -244,6 +244,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `decideChargeRequest` | `z.discriminatedUnion(…)` | `packages/contracts/src/charging.ts:304` |  |
 | `decideGoodsReceiptQualityRequest` | `z.object(…)` | `packages/contracts/src/procurement.ts:731` |  |
 | `decideScheduleExceptionRequest` | `z.object(…)` | `packages/contracts/src/doctors.ts:354` | Approve or reject a pending exception. A separate permission from raising one. |
+| `decodedScan` | `z.object(…)` | `packages/contracts/src/inventory.ts:1401` |  |
 | `deliverOnlineOrderRequest` | `z.object(…)` | `packages/contracts/src/online-pharmacy.ts:243` |  |
 | `demoRequestInput` | `z.object(…)` | `packages/contracts/src/marketing.ts:17` |  |
 | `demoRequestResponse` | `z.object(…)` | `packages/contracts/src/marketing.ts:48` |  |
@@ -531,6 +532,13 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `rulePackQuery` | `z.object(…)` | `packages/contracts/src/regulatory.ts:368` |  |
 | `rulePackSummary` | `z.object(…)` | `packages/contracts/src/regulatory.ts:375` |  |
 | `saveTemplateVersionRequest` | `z.object(…)` | `packages/contracts/src/consultation.ts:180` |  |
+| `scanElement` | `z.object(…)` | `packages/contracts/src/inventory.ts:1387` |  |
+| `scanFormat` | `z.enum(…)` | `packages/contracts/src/inventory.ts:1375` | What the decoder made of the payload. Mirrors `ScanFormat` in `@rcln/inventory`; the service assigns one to the other, so the two cannot drift without failing … |
+| `scannedBatch` | `z.object(…)` | `packages/contracts/src/inventory.ts:1424` |  |
+| `scannedSerial` | `z.object(…)` | `packages/contracts/src/inventory.ts:1445` | A device the scan reached. No patient field — see the section header. |
+| `scanResolveQuery` | `z.object(…)` | `packages/contracts/src/inventory.ts:1460` |  |
+| `scanResolveResponse` | `z.object(…)` | `packages/contracts/src/inventory.ts:1481` |  |
+| `scanWarning` | `z.enum(…)` | `packages/contracts/src/inventory.ts:1378` | Mirrors `ScanWarning` in `@rcln/inventory`. Same compile-time link. |
 | `searchPatientQuery` | `z.object(…)` | `packages/contracts/src/patients.ts:460` |  |
 | `serialListResponse` | `z.object(…)` | `packages/contracts/src/inventory.ts:564` |  |
 | `serialQuery` | `z.object(…)` | `packages/contracts/src/inventory.ts:534` |  |
@@ -1133,6 +1141,7 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `DecideChargeRequest` | `z.infer<typeof decideChargeRequest>` | `packages/contracts/src/charging.ts:338` |  |
 | `DecideGoodsReceiptQualityRequest` | `z.infer<typeof decideGoodsReceiptQualityRequest>` | `packages/contracts/src/procurement.ts:1075` |  |
 | `DecideScheduleExceptionRequest` | `z.infer<typeof decideScheduleExceptionRequest>` | `packages/contracts/src/doctors.ts:590` |  |
+| `DecodedScan` | `z.infer<typeof decodedScan>` | `packages/contracts/src/inventory.ts:1512` |  |
 | `DeliverOnlineOrderRequest` | `z.infer<typeof deliverOnlineOrderRequest>` | `packages/contracts/src/online-pharmacy.ts:389` |  |
 | `DemoRequestInput` | `z.infer<typeof demoRequestInput>` | `packages/contracts/src/marketing.ts:46` |  |
 | `DemoRequestResponse` | `z.infer<typeof demoRequestResponse>` | `packages/contracts/src/marketing.ts:57` |  |
@@ -1457,6 +1466,13 @@ Files: `packages/contracts/src/appointments.ts` · `packages/contracts/src/audit
 | `RulePackSummary` | `z.infer<typeof rulePackSummary>` | `packages/contracts/src/regulatory.ts:748` |  |
 | `SaveEncounterDraftRequest` | `z.infer<typeof saveEncounterDraftRequest>` | `packages/contracts/src/encounters.ts:137` |  |
 | `SaveTemplateVersionRequest` | `z.infer<typeof saveTemplateVersionRequest>` | `packages/contracts/src/consultation.ts:183` |  |
+| `ScanElement` | `z.infer<typeof scanElement>` | `packages/contracts/src/inventory.ts:1511` |  |
+| `ScanFormat` | `z.infer<typeof scanFormat>` | `packages/contracts/src/inventory.ts:1509` |  |
+| `ScannedBatch` | `z.infer<typeof scannedBatch>` | `packages/contracts/src/inventory.ts:1513` |  |
+| `ScannedSerial` | `z.infer<typeof scannedSerial>` | `packages/contracts/src/inventory.ts:1514` |  |
+| `ScanResolveQuery` | `z.infer<typeof scanResolveQuery>` | `packages/contracts/src/inventory.ts:1515` |  |
+| `ScanResolveResponse` | `z.infer<typeof scanResolveResponse>` | `packages/contracts/src/inventory.ts:1516` |  |
+| `ScanWarning` | `z.infer<typeof scanWarning>` | `packages/contracts/src/inventory.ts:1510` |  |
 | `SearchPatientQuery` | `z.infer<typeof searchPatientQuery>` | `packages/contracts/src/patients.ts:842` |  |
 | `SerialDetail` | `z.infer<typeof serialDetail>` | `packages/contracts/src/inventory.ts:884` |  |
 | `SerialListResponse` | `z.infer<typeof serialListResponse>` | `packages/contracts/src/inventory.ts:885` |  |

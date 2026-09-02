@@ -226,6 +226,11 @@ A regulatory refusal is never a `403`. `403` means "you may not"; this means
 - Catalogue reads are cacheable per organization; platform rows are cacheable
   globally. Cache **ids and catalogue text only — never a batch, never a
   balance, never anything patient-linked.**
-- Barcode resolution (`/v1/inventory/resolve?code=…`, PI-23) is the hottest
-  endpoint in the programme. Index-only lookup, its own limiter.
+- Barcode resolution shipped in PI-23 as **`GET /v1/stock/resolve?code=…`**, not
+  `/v1/inventory/resolve` — there is no `/v1/inventory` mount, and `/v1/stock` is
+  where the balances, the ledger and the reason codes already live. It decodes a
+  GS1 element string and answers with the product, the lot and the device in one
+  round trip, behind `inventory.stock.read` **and** `product.definition.read`.
+  Index-only on `product_identifiers (organization_id, type, value)`.
+  ⚠️ **It still has no limiter of its own** (KNOWN_ISSUES #35).
 - Ledger reads always paginate. There is no unbounded ledger response.

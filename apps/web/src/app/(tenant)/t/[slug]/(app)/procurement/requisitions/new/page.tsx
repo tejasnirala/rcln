@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { ProductListResponse, SupplierListResponse } from '@rcln/contracts';
+import type { SupplierListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { branchesInScope, getAccessToken } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -8,8 +8,7 @@ import { procurementAccess } from '../../guard';
 
 export const metadata: Metadata = { title: 'Ask for stock' };
 
-const PRODUCT_CAP = 100;
-
+/* The product list is not fetched: the line picker searches (PI-23). */
 export default async function NewRequisitionPage({
   params,
 }: {
@@ -23,12 +22,8 @@ export default async function NewRequisitionPage({
   }
 
   const accessToken = await getAccessToken();
-  const [branches, products, suppliers] = await Promise.all([
+  const [branches, suppliers] = await Promise.all([
     branchesInScope(slug),
-    api<ProductListResponse>(`/api/v1/products?limit=${String(PRODUCT_CAP)}&isStockItem=true`, {
-      slug,
-      accessToken,
-    }),
     /*
      * ⚠️ THE SUPPLIER LIST IS OPTIONAL HERE AND A 403 IS NOT AN ERROR. A storekeeper
      *   holds `procurement.requisition.create` and need not hold
@@ -43,12 +38,6 @@ export default async function NewRequisitionPage({
   ]);
 
   return (
-    <RequisitionForm
-      slug={slug}
-      branches={branches}
-      products={products.data?.products ?? []}
-      suppliers={suppliers.data?.suppliers ?? []}
-      moreProducts={(products.data?.meta.total ?? 0) > PRODUCT_CAP}
-    />
+    <RequisitionForm slug={slug} branches={branches} suppliers={suppliers.data?.suppliers ?? []} />
   );
 }

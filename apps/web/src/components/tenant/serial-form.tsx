@@ -1,16 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useMemo, useState } from 'react';
-import type {
-  BatchListResponse,
-  BranchSummary,
-  InventoryLocationListResponse,
-  ProductSummary,
-} from '@rcln/contracts';
+import { useActionState, useEffect, useMemo, useState, useTransition } from 'react';
+import type { BranchSummary, InventoryLocationListResponse, ProductSummary } from '@rcln/contracts';
 import { Input, Select, Textarea } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
+import { ProductPicker } from '@/components/tenant/product-picker';
+import { lotsForProduct, type LotListState } from '@/app/(tenant)/t/[slug]/(app)/lookup-actions';
 import {
   createSerialAction,
   IDLE_FORM,
@@ -30,6 +27,13 @@ import {
  *   valid-looking row the service refuses; filtering here means the refusal
  *   never has to be explained.
  *
+ * ⚠️ BOTH PICKERS ASK THE SERVER NOW (PI-23), AND THE LOT ONE IS THE IMPORTANT
+ *   HALF. This form used to receive the first hundred lots at ANY branch for ANY
+ *   product and filter them in the browser, so the lot somebody was holding was
+ *   simply absent whenever the clinic had more than a hundred open lots. Asking
+ *   once the product AND the branch are known makes the list short enough to be
+ *   complete — and it is the index `batches` already carries.
+ *
  * A `LOT_AND_SERIAL` product needs both, so the lot field is required for one
  * and optional for a plain `SERIAL` product. The ledger's tracking CHECK is what
  * enforces it at the point it matters — this is the layer that says why.
@@ -37,14 +41,40 @@ import {
 interface Props {
   slug: string;
   branches: BranchSummary[];
-  products: ProductSummary[];
-  batches: BatchListResponse['batches'];
   locations: InventoryLocationListResponse['locations'];
-  /** True when the lot list was capped. Drives the honest hint below. */
-  moreLots: boolean;
 }
 
-export function SerialForm({ slug, branches, products, batches, locations, moreLots }: Props) {
+/** A serial belongs to a product tracked one of these two ways. */
+const TRACKED_BY_SERIAL = ['SERIAL', 'LOT_AND_SERIAL'];
+
+/**
+ * What the lot field says about itself, in one place.
+ *
+ * ⚠️ IT SAYS "CHOOSE A PRODUCT FIRST" RATHER THAN SHOWING AN EMPTY LIST. An empty
+ *   picker with no explanation is the state this form used to arrive in whenever
+ *   the lot was outside the fetched page, and nobody could tell the two apart.
+ */
+function lotHint(
+  product: ProductSummary | null,
+  needsLot: boolean,
+  lots: LotListState,
+  loading: boolean
+): string {
+  if (product === null) return 'Choose a product first.';
+  if (loading) return 'Loading this product’s lots…';
+  if (lots.status === 'error') return lots.message;
+  if (lots.status === 'done' && lots.lots.length === 0) {
+    return needsLot
+      ? 'This product is tracked by lot AND serial, and it has no open lot at this branch. Record the lot first.'
+      : 'No open lot for this product at this branch.';
+  }
+  const capped = lots.status === 'done' && lots.capped ? ' Only the first hundred are listed.' : '';
+  return needsLot
+    ? `Required: this product is tracked by lot AND serial, so every movement must name both.${capped}`
+    : `Only if this device came in an identified lot.${capped}`;
+}
+
+export function SerialForm({ slug, branches, locations }: Props) {
   const router = useRouter();
 
   const [state, action, pending] = useActionState<StockFormState, FormData>(
@@ -52,24 +82,42 @@ export function SerialForm({ slug, branches, products, batches, locations, moreL
     IDLE_FORM
   );
 
-  const [productId, setProductId] = useState(products[0]?.id ?? '');
+  const [product, setProduct] = useState<ProductSummary | null>(null);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
+  const [lots, setLots] = useState<LotListState>({ status: 'idle' });
+  const [loadingLots, startLoadingLots] = useTransition();
 
-  const product = useMemo(() => products.find((p) => p.id === productId), [productId, products]);
   const needsLot = product?.trackingMode === 'LOT_AND_SERIAL';
 
-  /* Only this product's lots, at this branch. See the header. */
+  /**
+   * The lots of one product at one branch.
+   *
+   * ⚠️ CALLED FROM THE TWO HANDLERS, NOT FROM AN EFFECT. It depends on both the
+   *   product and the branch, and either can move last — so BOTH handlers pass
+   *   the new value and the old one explicitly. An effect over `[product,
+   *   branchId]` would read more naturally and is what `react-hooks` refuses:
+   *   fetching in response to a render rather than to the act that caused it
+   *   cascades a render, and both handlers already know exactly what changed.
+   */
+  const loadLots = (next: ProductSummary | null, forBranch: string): void => {
+    if (next === null || forBranch === '') {
+      setLots({ status: 'idle' });
+      return;
+    }
+    startLoadingLots(async () => {
+      setLots(await lotsForProduct(slug, next.id, forBranch));
+    });
+  };
+
   const lotOptions = useMemo(
     () => [
       { value: '', label: needsLot ? 'Choose a lot' : 'No lot' },
-      ...batches
-        .filter((b) => b.productId === productId && b.branchId === branchId)
-        .map((b) => ({
-          value: b.id,
-          label: b.expiresOn ? `${b.lotNumber} — expires ${b.expiresOn}` : b.lotNumber,
-        })),
+      ...(lots.status === 'done' ? lots.lots : []).map((b) => ({
+        value: b.id,
+        label: b.expiresOn ? `${b.lotNumber} — expires ${b.expiresOn}` : b.lotNumber,
+      })),
     ],
-    [batches, branchId, needsLot, productId]
+    [lots, needsLot]
   );
 
   const locationOptions = useMemo(
@@ -87,23 +135,6 @@ export function SerialForm({ slug, branches, products, batches, locations, moreL
   }, [router, state.status]);
 
   const err = (name: string): string[] | undefined => state.fieldErrors?.[name];
-
-  if (products.length === 0) {
-    return (
-      <div className="max-w-2xl space-y-6">
-        <h1 className="font-display text-ink text-[1.75rem] leading-tight tracking-tight">
-          Record a serial
-        </h1>
-        <div className="border-rule bg-card rounded-md border p-10 text-center">
-          <p className="text-ink text-[0.9375rem]">No product is tracked by serial number yet.</p>
-          <p className="text-muted mx-auto mt-2 max-w-md text-[0.875rem]">
-            Set a product’s tracking mode to “by serial number” in the catalogue first. It decides
-            what every future movement of it must name.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <form action={action} className="max-w-2xl space-y-10">
@@ -128,7 +159,11 @@ export function SerialForm({ slug, branches, products, batches, locations, moreL
             required
             options={branches.map((b) => ({ value: b.id, label: b.name }))}
             value={branchId}
-            onChange={(event) => setBranchId(event.target.value)}
+            onChange={(event) => {
+              setBranchId(event.target.value);
+              // The lots belonged to the other site, so they are re-asked for.
+              loadLots(product, event.target.value);
+            }}
             errors={err('branchId')}
           />
           <Input
@@ -140,39 +175,29 @@ export function SerialForm({ slug, branches, products, batches, locations, moreL
             errors={err('serialNumber')}
             hint="Exactly as printed. Unique for this product, not globally — makers reuse each other’s."
           />
-          <div className="sm:col-span-2">
-            <Select
-              name="productId"
-              label="Product"
-              required
-              options={products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` }))}
-              value={productId}
-              onChange={(event) => setProductId(event.target.value)}
-              errors={err('productId')}
-            />
-          </div>
+          <ProductPicker
+            slug={slug}
+            name="productId"
+            label="Product"
+            required
+            className="sm:col-span-2"
+            errors={err('productId')}
+            filters={{ isStockItem: true, status: 'ACTIVE', trackingModes: TRACKED_BY_SERIAL }}
+            onChoose={(next) => {
+              setProduct(next);
+              loadLots(next, branchId);
+            }}
+            hint="Name, code, brand or barcode. Only products tracked by serial number can be searched here."
+            emptyHint="Nothing matched among the products tracked by serial number. Set a product’s tracking mode to “by serial number” in the catalogue first — it decides what every future movement of it must name."
+          />
           <Select
             name="batchId"
             label="Lot"
             required={needsLot}
             options={lotOptions}
+            disabled={product === null || loadingLots}
             errors={err('batchId')}
-            /*
-             * ⚠️ THE CAP IS STATED WHEN IT BITES. The lot list is fetched whole
-             *   for this branch and narrowed here to the chosen product, because
-             *   the product is picked after the page loads — so a lot outside
-             *   the first page simply is not in this select. Saying so beats an
-             *   empty picker the user cannot explain.
-             */
-            hint={
-              needsLot
-                ? `Required: this product is tracked by lot AND serial, so every movement must name both.${
-                    moreLots ? ' Only the most recent lots are listed.' : ''
-                  }`
-                : `Only if this device came in an identified lot.${
-                    moreLots ? ' Only the most recent lots are listed.' : ''
-                  }`
-            }
+            hint={lotHint(product, needsLot, lots, loadingLots)}
           />
           <Select
             name="currentLocationId"

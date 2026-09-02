@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-08-24 (PI-21 complete — the Bangladesh rule pack; PI-19 and PI-20 skipped)
+**Last updated:** 2026-09-02 (PI-23 complete — identifier resolution and the GS1 decoder)
 
 ## Status vocabulary
 
@@ -60,7 +60,7 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 | PI-20  | Sri Lanka Rule Pack                            | DEFERRED                  | skipped by request — see PI-21           |
 | PI-21  | Bangladesh Rule Pack                           | **COMPLETE** (2026-08-24) | — ⚠️ not reviewed                        |
 | PI-22  | Reporting & Cost Accounting                    | **COMPLETE** (2026-08-25) | — ⚠️ not reviewed                        |
-| PI-23  | Identifier Resolution / Barcode                | NOT_STARTED               | PI-1, PI-2                               |
+| PI-23  | Identifier Resolution / Barcode                | **COMPLETE** (2026-09-02) | — ⚠️ not reviewed                        |
 | PI-24  | Global Hardening                               | NOT_STARTED               | everything                               |
 
 ---
@@ -2647,3 +2647,115 @@ SIGKILLed against the container's `mem_limit: 3g` instead. Both numbers are wort
 recording: **the ceiling is the container, not V8**, which is not what #2's
 mitigation assumed. `docs:validate` 447/447; `db:rls:check` 131 tables (run for
 reassurance — there is no migration, so nothing moved in the schema).
+
+---
+
+# PI-23 — Identifier Resolution & Barcode/GS1 · COMPLETE
+
+**Dependencies:** PI-1, PI-2. **Size:** M. **Completion date:** 2026-09-02.
+
+A decode → resolve → act layer, and **no migration**: every table it reads —
+`product_identifiers`, `batches`, `serials`, `stock_balances` — was built in PI-1
+and PI-2. So there is no RLS policy and no new tenant-isolation case; the one
+endpoint runs inside `withTenant` and the branch filter is asserted against
+`ctx.branchIds`.
+
+| Leg   | What landed                                                                                   |
+| ----- | --------------------------------------------------------------------------------------------- |
+| DB    | n/a — no table, no column, no policy. Nothing in `packages/db` changed.                       |
+| BE    | `packages/inventory/src/gs1.ts` (pure decoder) · `services/inventory/resolve.service.ts`      |
+| CT    | `scanResolveQuery` / `scanResolveResponse` and friends in `contracts/src/inventory.ts`        |
+| API   | `GET /v1/stock/resolve`, gated `inventory.stock.read` **AND** `product.definition.read`       |
+| DOC   | `openapi/registry/inventory.ts` entry + three fixtures; `docs:validate` 448/448               |
+| FE    | `/stock/scan` console · `ProductPicker` · `PatientPicker` · scan-to-fill on the goods receipt |
+| TEST  | 33 unit cases on the decoder, 11 integration on the endpoint, 3 route-gate cases              |
+| AUTHZ | no new permission code — the two that gate it have existed since IAM                          |
+
+## The decoder, and the four things it refuses to do
+
+`decodeScan` takes one scanned string and returns the GTIN, lot, expiry, serial
+and count it carries. It is in `@rcln/inventory` rather than `apps/api` because
+the worker posts receipts and a second parser that disagrees about a century is
+the defect the file exists to prevent.
+
+1. ⚠️ **An unknown AI stops the parse.** There is no way to know how many
+   characters it consumes, so skipping it resumes reading in the MIDDLE of
+   somebody's data and yields a plausible lot number that is not the one on the
+   box. The remainder comes back in `unparsed`, and the screen shows it.
+2. ⚠️ **`DD = 00` is the last day of the month**, which is how most cartons
+   encode `EXP 01/2027`. Reading it as the 1st expires a month of stock early.
+3. ⚠️ **The century is the GS1 window** — 49 back, 50 forward. `2000 + yy` works
+   until 2050 and then dates every pack fifty years in the past, on one morning.
+4. ⚠️ **A variable field is read to the END, never cut at its maximum.** A lot
+   truncated at twenty characters is a plausible prefix that matches nothing and
+   looks right; one that visibly swallowed a serial is wrong to whoever is
+   holding the box. Over-length with no FNC1 anywhere is reported.
+
+## The resolver
+
+`GET /v1/stock/resolve?code=…&branchId=…&countryCode=…`
+
+- ⚠️ **Every length of the GTIN is searched.** A catalogue typed by hand holds
+  thirteen digits; the DataMatrix carries fourteen. Matching one form is a
+  scanner that "does not work for this product", reported months later.
+- ⚠️ **The lot is found even when the product is not.** A GTIN nobody catalogued
+  still carries a lot number that is often already on file.
+- ⚠️ **`expiryMatchesScan` is the field to act on.** Pack against record, at the
+  one moment somebody holds both.
+- ⚠️ **No patient field, on purpose.** `serials.assigned_patient_id` is PHI and
+  its reads write `data_access_logs`; this is the hottest endpoint in the
+  programme and it runs at a loading bay. `scan-resolve.test.ts` asserts the
+  absence.
+- ⚠️ **Two permission codes, ANDed.** The only route in the codebase with two.
+  One code alone hands half the answer to somebody entitled to neither half.
+- A code matching nothing is a **200 with three empty arrays**, never a 404.
+
+## The picker debt is paid (KNOWN_ISSUES #25, #25b)
+
+Eleven screens fetched the first 100 or 200 products at render and filtered them
+in a `<select>`; two asked for raw UUIDs. `ProductPicker` and `PatientPicker`
+search on the server, so **no page in the application now fetches a product list
+to populate a picker** — `PRODUCT_CAP` and `PICKER_LIMIT` are gone from every
+product picker. Lots followed: the serial, adjustment and transfer forms asked
+for the first 100–200 lots across every branch and filtered them in the browser;
+they now ask for one product at one branch, which is the index `batches` carries.
+
+## What this phase did NOT do
+
+- **The procedure picker on `/usage/templates` is still capped at 100.** It reads
+  `clinical-data`, not the product catalogue — a different search, and not
+  identifier resolution. KNOWN_ISSUES #34.
+- **"Consultation" on the order form is still an id box.** Nothing lists a
+  patient's consultations; a picker needs a new endpoint. KNOWN_ISSUES #33.
+- **No lot-number check against open recall notices at receipt** (KNOWN_ISSUES
+  #22 named this phase). The resolver surfaces the lot; matching it to a notice
+  needs `recall.notice.read` on top and would widen this endpoint's gate.
+- **No dedicated rate limiter**, which `API_ARCHITECTURE.md` asks for on this
+  endpoint. KNOWN_ISSUES #35.
+
+**Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the security
+reviewer has run over this diff.
+
+**Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
+then `turbo run typecheck --concurrency=1` (29/29), then the tests.
+`docs:validate` 448/448; `db:rls:check` 131 tables, unchanged.
+
+⚠️ **KNOWN_ISSUES #2 GOT WORSE, AND THE MITIGATION PI-22 RECORDED NO LONGER
+WORKS.** PI-22 ran the api suite as `jest --shard=n/3` with
+`--max-old-space-size=2400`; at that setting **shard 3/3 is now SIGKILLed against
+the container's `mem_limit: 3g`**. What worked was **six shards at 1600**:
+
+| shard     | suites  | tests                 |
+| --------- | ------- | --------------------- |
+| 1/6       | 17      | 358                   |
+| 2/6       | 17      | 324                   |
+| 3/6       | 17      | 340                   |
+| 4/6       | 17      | 394                   |
+| 5/6       | 17      | 462                   |
+| 6/6       | 17      | 302                   |
+| **total** | **102** | **2,180 — all green** |
+
+⚠️ **AND SHARDS 4–6 NEEDED `--forceExit`.** Each printed a complete green summary
+and then did not exit: an open handle somewhere in those suites keeps the process
+alive after the run. `--forceExit` is a workaround, not a fix, and it hides
+whatever is holding the handle — worth a look before PI-24 calls the suite clean.

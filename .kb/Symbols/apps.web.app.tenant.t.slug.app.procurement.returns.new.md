@@ -8,16 +8,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/new/page.ts
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `NewReturnPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/new/page.tsx:18` |  |
-
-## const
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `PRODUCT_CAP` <sub>local</sub> | `100` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/new/page.tsx:16` |  |
+| `NewReturnPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/new/page.tsx:16` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/new/page.tsx:14` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/returns/new/page.tsx:13` |  |

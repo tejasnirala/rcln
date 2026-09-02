@@ -36,6 +36,7 @@ import onlineOrderRoutes from '../../src/routes/v1/online-pharmacy.routes.js';
 import consumptionRoutes from '../../src/routes/v1/consumption.routes.js';
 import { recallRoutes, traceabilityRoutes } from '../../src/routes/v1/recalls.routes.js';
 import reportRoutes from '../../src/routes/v1/reports.routes.js';
+import { stockRoutes } from '../../src/routes/v1/inventory.routes.js';
 
 /**
  * ⚠️ THIS SUITE TOUCHES NO DATABASE AND STILL HAS TO HANG UP.
@@ -670,6 +671,48 @@ describe('reports read the clinical record, name nobody, and write nothing', () 
   it('never uses the export code as a route’s own gate', () => {
     for (const route of routes) {
       expect(route.permissions ?? []).not.toContain(PERMISSIONS.REPORT_EXPORT);
+    }
+  });
+});
+
+/**
+ * ⚠️ THE ONLY ROUTE IN THE CODEBASE BEHIND TWO PERMISSION CODES (PI-23), AND THE
+ *   CONJUNCTION IS THE SECURITY PROPERTY. `GET /stock/resolve` answers a
+ *   CATALOGUE question and a STOCK question in one round trip: what product these
+ *   digits name, and what lot and device of it this clinic holds. Gated on one
+ *   code alone it would hand half the answer to somebody entitled to neither
+ *   half — a caller with `product.definition.read` and no stock access would
+ *   learn lot numbers and quantities, and one with stock access alone would get
+ *   catalogue rows it may not browse.
+ *
+ *   `authorize()` ANDs its arguments, so the assertion is that BOTH are on the
+ *   route. Dropping either is a one-word change that returns 200 to more people
+ *   and breaks nothing else in the suite.
+ */
+describe('the scan resolver is gated on both reads', () => {
+  const resolveRoute = routesOf(stockRoutes).find((route) => route.path === '/resolve');
+
+  it('exists', () => {
+    expect(resolveRoute).toBeDefined();
+    expect(resolveRoute?.method).toBe('GET');
+  });
+
+  it('requires the stock read AND the catalogue read', () => {
+    expect(resolveRoute?.permissions).toEqual([
+      PERMISSIONS.STOCK_READ,
+      PERMISSIONS.PRODUCT_DEFINITION_READ,
+    ]);
+  });
+
+  /*
+   * ⚠️ AND IT CARRIES NO CLINICAL OR PATIENT-TRACING CODE, because it returns no
+   *   patient field — see `scan-resolve.test.ts`. A code appearing here would be
+   *   the signal that somebody has widened the response.
+   */
+  it('carries no clinical or patient-tracing code', () => {
+    for (const code of resolveRoute?.permissions ?? []) {
+      expect(code.startsWith('clinical.')).toBe(false);
+      expect(code).not.toBe(PERMISSIONS.RECALL_TRACE_PATIENTS);
     }
   });
 });

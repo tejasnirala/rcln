@@ -327,6 +327,25 @@ export const BATCH = {
   locationId: LOCATION_ID,
 } as const;
 
+/**
+ * The barcode on the Amoxicillin carton, and the GS1 DataMatrix printed beside
+ * it — the same lot as `BATCH`, expiring on the same day.
+ *
+ * ⚠️ THE CHECK DIGIT IS REAL. `08901234567890` passes GS1 mod-10, and PI-23's
+ *   resolver reports `CHECK_DIGIT_FAILED` on a payload that does not — so an
+ *   example built from a plausible-looking made-up number would document a
+ *   warning nobody asked for on the reference's own happy path.
+ *
+ * `890` is India's GS1 prefix, which is the right country for this clinic.
+ */
+export const PRODUCT_GTIN = '08901234567890';
+
+/** As a reader transmits it: AI 01, AI 17, then the variable-length lot. */
+export const SCAN_PAYLOAD = `01${PRODUCT_GTIN}17270831` + `10${BATCH.batchNumber}`;
+
+/** As it is printed underneath, and as somebody types it when the reader dies. */
+export const SCAN_PAYLOAD_BRACKETED = `(01)${PRODUCT_GTIN}(17)270831(10)${BATCH.batchNumber}`;
+
 export const SUPPLIER = {
   id: SUPPLIER_ID,
   name: 'MedSource Distributors',

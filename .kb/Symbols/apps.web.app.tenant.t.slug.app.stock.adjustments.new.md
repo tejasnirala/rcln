@@ -10,16 +10,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `NewAdjustmentPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:37` |  |
-
-## const
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `PICKER_LIMIT` <sub>local</sub> | `100` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:19` | How many products the picker offers before it admits it is showing a page. |
+| `NewAdjustmentPage` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:35` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:14` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/adjustments/new/page.tsx:9` |  |

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { InventoryLocationListResponse, ProductListResponse } from '@rcln/contracts';
+import type { InventoryLocationListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { branchesInScope, countryOf, getAccessToken } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -32,19 +32,15 @@ export default async function TakeOnlineOrderPage({
   }
 
   const accessToken = await getAccessToken();
-  const [branches, country, locations, products] = await Promise.all([
+  /*
+   * ⚠️ THE PRODUCT LIST IS GONE (PI-23). It was capped at 100 — the picker limit
+   *   the whole programme carried — and the form searches now. So does the patient
+   *   field, which was a box asking for a uuid.
+   */
+  const [branches, country, locations] = await Promise.all([
     branchesInScope(slug),
     countryOf(slug),
     api<InventoryLocationListResponse>('/api/v1/inventory-locations?limit=100', {
-      slug,
-      accessToken,
-    }),
-    /*
-     * ⚠️ CAPPED AT 100, THE PICKER LIMIT THE REST OF THIS PROGRAMME HAS AND THE
-     *   ONE PI-23 REPLACES WITH A RESOLVER. Recorded in KNOWN_ISSUES rather than
-     *   papered over with a bigger number.
-     */
-    api<ProductListResponse>('/api/v1/products?limit=100&isStockItem=true', {
       slug,
       accessToken,
     }),
@@ -68,7 +64,6 @@ export default async function TakeOnlineOrderPage({
       slug={slug}
       branches={branches}
       locations={dispensingPoints}
-      products={products.data?.products ?? []}
       defaultCountryCode={country}
     />
   );

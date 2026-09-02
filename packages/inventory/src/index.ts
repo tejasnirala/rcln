@@ -29,3 +29,9 @@ export * from './reservation-sweep.js';
 // `apps/api` for the reason `allocate.ts` is: costing arithmetic is wrong in a
 // way no integration test notices. See the file header.
 export * from './costing.js';
+// PI-23. The barcode decoder: one scanned string in, the GTIN, lot, expiry and
+// serial it carries out. Pure and database-free, here rather than in `apps/api`
+// for the reason the header gives — goods receipt, the counter and the recall
+// screen all scan, and a second parser that disagrees about a century is the
+// defect this file exists to make impossible.
+export * from './gs1.js';

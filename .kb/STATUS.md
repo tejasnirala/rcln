@@ -1502,9 +1502,28 @@ said would differ.
 PI-16 (Singapore), PI-17 (Abu Dhabi + Dubai), PI-18 (Ireland) and PI-21
 (Bangladesh) have since shipped; PI-19 (Nepal) and PI-20 (Sri Lanka) were skipped
 at the user's request on 2026-08-24 and are DEFERRED rather than blocked.
-**PI-22 (Reporting & Cost Accounting) shipped on 2026-08-25; PI-23 is still
-open**, and PI-12 gave both more to do: reporting has deliveries to report on,
-and a recall cannot yet reach stock held for an order nobody has packed.
+**PI-22 (Reporting & Cost Accounting) shipped on 2026-08-25 and PI-23
+(Identifier Resolution / Barcode) on 2026-09-02**, leaving **PI-24 (Global
+Hardening) as the only unstarted phase**. PI-12 gave both more to do: reporting
+has deliveries to report on, and a recall cannot yet reach stock held for an
+order nobody has packed.
+
+⚠️ **PI-23 ADDED A BARCODE DECODER AND NOT ONE TABLE EITHER.** `decodeScan` in
+`@rcln/inventory` takes a GS1 DataMatrix apart; `GET /v1/stock/resolve` turns the
+result into a product, a lot and a device in one round trip, over tables PI-1 and
+PI-2 already built. So again no migration, no RLS policy and no isolation case.
+Two things a reviewer should look at: it is **the only route in the codebase
+behind two permission codes** (`inventory.stock.read` AND
+`product.definition.read`, because it answers a catalogue question and a stock
+question together), and it deliberately returns serials **without**
+`assigned_patient_id` so that a scan at a loading bay writes no `data_access_logs`
+row — an absence a test asserts.
+
+⚠️ **And it removed every capped product picker in `apps/web`.** Eleven screens
+fetched the first 100 or 200 products at render and filtered them in a `<select>`;
+two asked for raw UUIDs. They search the server now. `apps/web` has no test suite,
+so that part of the diff is covered by typecheck and a human, and by nothing
+else.
 
 ⚠️ **PI-22 ADDED NINE REPORTS AND NOT ONE TABLE, WHICH IS THE DECISION TO KNOW
 ABOUT IT.** Valuation, aging, movement, dead stock, held stock, supplier

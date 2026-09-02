@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
-import type { BranchSummary, ProductSummary, SupplierSummary } from '@rcln/contracts';
+import type { BranchSummary, SupplierSummary } from '@rcln/contracts';
 import { Input, Select, Textarea } from '@/components/ui/field';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import {
@@ -26,9 +27,7 @@ import {
 interface Props {
   slug: string;
   branches: BranchSummary[];
-  products: ProductSummary[];
   suppliers: SupplierSummary[];
-  moreProducts: boolean;
 }
 
 interface LineDraft {
@@ -40,7 +39,7 @@ interface LineDraft {
 
 let nextKey = 1;
 
-export function RequisitionForm({ slug, branches, products, suppliers, moreProducts }: Props) {
+export function RequisitionForm({ slug, branches, suppliers }: Props) {
   const router = useRouter();
 
   const [state, action, pending] = useActionState<ProcurementFormState, FormData>(
@@ -125,27 +124,18 @@ export function RequisitionForm({ slug, branches, products, suppliers, moreProdu
           </span>
         </div>
 
-        {moreProducts ? (
-          <p className="text-muted text-[0.8125rem]">
-            Showing the first {products.length} products. Searching the whole catalogue from here
-            comes with the barcode scanner.
-          </p>
-        ) : null}
-
         <ul className="space-y-4">
           {lines.map((line, index) => (
             <li key={line.key} className="border-rule bg-card space-y-3 rounded-md border p-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                <Select
+                <ProductPicker
+                  slug={slug}
                   name={`lines.${index}.productId`}
                   label="Product"
                   required
-                  value={line.productId}
-                  options={[
-                    { value: '', label: 'Choose a product' },
-                    ...products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-                  ]}
-                  onChange={(event) => updateLine(line.key, { productId: event.target.value })}
+                  filters={{ isStockItem: true, status: 'ACTIVE' }}
+                  onChoose={(product) => updateLine(line.key, { productId: product?.id ?? '' })}
+                  hint="Name, code, brand or barcode."
                 />
                 <Input
                   name={`lines.${index}.quantity`}

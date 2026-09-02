@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
-import type { ProductSummary, RecallSummary } from '@rcln/contracts';
+import type { RecallSummary } from '@rcln/contracts';
 import { Input, Select, Textarea } from '@/components/ui/field';
 import { Alert } from '@/components/ui/alert';
 import { ProductRecallNav } from '@/components/tenant/product-recall-nav';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import { formatClinicDate } from '@/lib/format';
 import {
   createRecallAction,
@@ -61,12 +62,11 @@ interface Props {
   slug: string;
   recalls: RecallSummary[];
   meta: { total: number; page: number; limit: number };
-  products: ProductSummary[];
   timeZone: string;
   canCreate: boolean;
 }
 
-export function ProductRecallList({ slug, recalls, meta, products, timeZone, canCreate }: Props) {
+export function ProductRecallList({ slug, recalls, meta, timeZone, canCreate }: Props) {
   const [adding, setAdding] = useState(false);
   const [state, create, creating] = useActionState<RecallFormState, FormData>(
     createRecallAction.bind(null, slug),
@@ -102,17 +102,13 @@ export function ProductRecallList({ slug, recalls, meta, products, timeZone, can
       {canCreate ? (
         adding ? (
           <form action={create} className="border-rule bg-card space-y-4 rounded-md border p-4">
-            <Select
-              label="Which product"
+            <ProductPicker
+              slug={slug}
               name="productId"
-              hint="One product per notice. A notice covering three products is three pieces of work."
-              options={[
-                { value: '', label: 'Choose a product' },
-                ...products.map((product) => ({
-                  value: product.id,
-                  label: `${product.name} (${product.code})`,
-                })),
-              ]}
+              label="Which product"
+              required
+              hint="One product per notice. A notice covering three products is three pieces of work. Scanning the pack into this box finds it too."
+              filters={{ isStockItem: true, status: 'ACTIVE' }}
               errors={state.fieldErrors?.productId}
             />
             <Input

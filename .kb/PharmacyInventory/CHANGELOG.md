@@ -5,6 +5,94 @@ discussed.
 
 ---
 
+## 2026-09-02 — PI-23: one scan, three answers, and the end of the picker cap
+
+**Phase:** PI-23 · **Branch:** `feat/pi-23-identifier-resolution` ·
+**Result:** complete, **not reviewed** · **Tests:** +33 unit (the decoder),
++11 integration (the endpoint), +3 route-gate cases. **No migration**, no new
+table, no RLS policy, no tenant-isolation case, no new permission code.
+
+`decodeScan` in `@rcln/inventory` takes one scanned string apart; `resolveScan`
+in `apps/api` turns it into a product, a lot and a device in one round trip
+behind `GET /v1/stock/resolve`. On the web it is a scanner console at
+`/stock/scan`, a scan-to-fill field on the goods receipt, and two search pickers
+that replace every capped `<select>` in the application.
+
+### The decoder is in a package, and it refuses to guess
+
+It lives in `@rcln/inventory` beside `recordMovement` for the reason that file
+gives: the worker posts receipts, and a second barcode parser that disagrees
+about a century is exactly the defect the comments are about. Four refusals are
+load-bearing and each is pinned by a unit case:
+
+- **An unknown application identifier stops the parse.** Nothing knows how many
+  characters it consumes, so skipping it resumes reading in the MIDDLE of
+  somebody's data and produces a plausible lot number that is not the one on the
+  box. The remainder comes back in `unparsed` and the screen shows it.
+- **`DD = 00` is the last day of the month.** Most cartons encode `EXP 01/2027`
+  that way. Reading it as the 1st expires a month of controlled stock early.
+- **The century is the GS1 window, 49 back and 50 forward.** `2000 + yy` works
+  perfectly until 2050 and then dates every pack fifty years in the past.
+- **A variable-length field is read to the end, never cut at its maximum.** A lot
+  truncated at twenty characters is a plausible prefix that matches nothing and
+  looks correct; one that visibly swallowed a serial is wrong to whoever is
+  holding the box.
+
+### Every length of the GTIN is searched, and that is the whole endpoint
+
+A catalogue typed by hand holds the thirteen digits printed under the bars; the
+DataMatrix carries fourteen with a leading zero. Matching one form is a scanner
+that "does not work for this product", reported months later by somebody who
+cannot reproduce it. `gtinVariants` stops at the zeros — a real packaging
+indicator is a different trade item, a case of twelve rather than one box.
+
+### No patient field, and a test asserts the absence
+
+`serials.assigned_patient_id` answers "which patient has device 7742" and every
+read of it writes a `data_access_logs` row (PI-ADR-016). This is the hottest
+endpoint in the programme and it runs at a loading bay, so the serial comes back
+without it. Selecting it would be one word and would break no other test.
+
+### Two permission codes on one route, ANDed
+
+The only route in the codebase with two. It answers a catalogue question and a
+stock question together, so one code alone would hand half the answer to somebody
+entitled to neither half. `route-gates.test.ts` pins both.
+
+### The picker cap is gone from the whole application
+
+Eleven screens fetched the first 100 or 200 products at render; the order form
+and the goods receipt asked for raw UUIDs (KNOWN_ISSUES #25, #25b). `ProductPicker`
+and `PatientPicker` search on the server, and **no page now fetches a product list
+to populate a picker**. The lot pickers followed: the serial, adjustment and
+transfer forms asked for the first 100–200 lots across every branch and filtered
+them in the browser; they now ask for one product at one branch, which is the
+index `batches` already carries.
+
+⚠️ `react-hooks` refuses `setState` inside an effect, which is why all three lot
+loads happen in the branch and product handlers rather than in an effect over
+both. The handlers already know what changed.
+
+### What it did not do
+
+The procedure picker on `/usage/templates` reads `clinical-data` and is still
+capped (#34); "Consultation" on the order form is still an id box because nothing
+lists a patient's consultations (#33); there is no lot-number check against open
+recall notices at receipt, which #22 named this phase for (#32); and the endpoint
+has no rate limiter of its own (#35).
+
+### KNOWN_ISSUES #2 got worse, and PI-22's mitigation stopped working
+
+PI-22 ran the api suite as `jest --shard=n/3` with `--max-old-space-size=2400`. At
+that setting **shard 3/3 is now SIGKILLed against the container's `mem_limit: 3g`**.
+Six shards at 1600 is what worked: **102 suites, 2,180 tests, all green**
+(358 + 324 + 340 + 394 + 462 + 302). ⚠️ **Shards 4–6 also needed `--forceExit`** —
+each printed a complete green summary and then hung on an open handle. That is a
+workaround and it hides whatever is holding the handle; PI-24 should not call the
+suite clean without looking at it.
+
+---
+
 ## 2026-08-25 — PI-22: nine reports, no new tables
 
 **Phase:** PI-22 · **Branch:** `feat/pi-22-reporting-cost-accounting` ·

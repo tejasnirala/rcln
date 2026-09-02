@@ -10,7 +10,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts` · 
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `RecallsPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx:21` |  |
+| `RecallsPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx:18` |  |
 
 ## action
 
@@ -32,12 +32,6 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts` · 
 | `recallAccess` | `(slug: string): Promise<RecallAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts:30` |  |
 | `revalidate` <sub>local</sub> | `(slug: string, recallId?: string): void` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:59` |  |
 | `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): RecallFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:46` |  |
-
-## const
-
-| name | signature | at | notes |
-| --- | --- | --- | --- |
-| `PICKER_LIMIT` <sub>local</sub> | `200` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx:12` | How many products the create form's picker offers before it needs a search. |
 
 ## var
 

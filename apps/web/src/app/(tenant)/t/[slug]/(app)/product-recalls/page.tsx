@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { ProductListResponse, RecallListResponse } from '@rcln/contracts';
+import type { RecallListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { getAccessToken, timezoneOf } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -7,9 +7,6 @@ import { ProductRecallList } from '@/components/tenant/product-recall-list';
 import { recallAccess } from './guard';
 
 export const metadata: Metadata = { title: 'Recall notices' };
-
-/** How many products the create form's picker offers before it needs a search. */
-const PICKER_LIMIT = 200;
 
 /**
  * <slug>.rcln.com/product-recalls — every notice this clinic has raised.
@@ -49,19 +46,14 @@ export default async function RecallsPage({
     if (value) search.set(key, value);
   }
 
-  const [recalls, products, timeZone] = await Promise.all([
+  /*
+   * ⚠️ THE PRODUCT LIST IS GONE FROM THIS PAGE ENTIRELY (PI-23). It used to be
+   *   fetched only when the create form could be shown — two hundred rows, for a
+   *   picker that could not reach the rest of the catalogue. The picker searches
+   *   now, so the page pays for nothing at all until somebody types.
+   */
+  const [recalls, timeZone] = await Promise.all([
     api<RecallListResponse>(`/api/v1/recalls?${search.toString()}`, { slug, accessToken }),
-    /*
-     * ⚠️ FETCHED ONLY WHEN THE FORM CAN BE SHOWN. A reader who may not raise a
-     *   notice has no picker, and a request for two hundred products to render
-     *   nothing is a round trip paid on every page view.
-     */
-    access.canCreate
-      ? api<ProductListResponse>(
-          `/api/v1/products?isStockItem=true&status=ACTIVE&limit=${String(PICKER_LIMIT)}`,
-          { slug, accessToken }
-        )
-      : Promise.resolve({ ok: true, status: 200, data: undefined }),
     timezoneOf(slug),
   ]);
 
@@ -78,7 +70,6 @@ export default async function RecallsPage({
       slug={slug}
       recalls={recalls.data.items}
       meta={recalls.data}
-      products={products.ok && products.data ? products.data.products : []}
       timeZone={timeZone}
       canCreate={access.canCreate}
     />

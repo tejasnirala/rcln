@@ -237,11 +237,15 @@ recall and quarantine reports.
 
 ---
 
-### PI-23 — Identifier Resolution & Barcode/GS1
+### PI-23 — Identifier Resolution & Barcode/GS1 · shipped 2026-09-02
 
 A generic decode → resolve → act layer. A scan may carry GTIN + lot + expiry +
 serial in one string; the resolver returns a product _and_ a batch _and_ a
 serial, not just a product.
+
+Shipped as `decodeScan` in `@rcln/inventory`, `GET /v1/stock/resolve`, a scanner
+console at `/stock/scan` and scan-to-fill on the goods receipt — plus the search
+pickers that removed every capped `<select>` in `apps/web`. No migration.
 
 ---
 

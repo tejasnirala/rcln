@@ -20,14 +20,15 @@
  * under it, so an old identifier is expired rather than deleted. The resolver
  * excludes expired rows by default; history keeps them.
  *
- * PI-23 builds the GS1/DataMatrix decode layer ON TOP of this — a scan carrying
+ * PI-23 built the GS1/DataMatrix decode layer ON TOP of this — a scan carrying
  * GTIN + lot + expiry + serial resolves to a product AND a batch AND a serial.
- * This layer answers only the product half, and deliberately does not try to
- * parse anything.
+ * This layer answers only the product half and still parses nothing; what it
+ * shares with the scanner is `currentIdentifierWhere`, at the foot of this file,
+ * so there is exactly one definition of "valid here, today".
  *
  * NO PHI.
  */
-import { withTenant, type TenantContext } from '@rcln/db';
+import { withTenant, type Prisma, type TenantContext } from '@rcln/db';
 import type {
   CreateProductIdentifierRequest,
   ProductIdentifierDetail,
@@ -218,47 +219,12 @@ export async function resolveIdentifier(
   query: ResolveIdentifierQuery
 ): Promise<ResolveIdentifierResponse> {
   return withTenant(ctx, async (tx) => {
-    /*
-     * A CALENDAR DAY, not an instant. `effective_from`/`effective_to` are
-     * `@db.Date`, so comparing them against `new Date()` compares a day against
-     * a moment: `effectiveTo: { gte: now }` excluded a row on its own final
-     * valid day from midnight onwards. A barcode that stops scanning a day early
-     * presents as one unreproducible failure at a counter.
-     */
-    const today = calendarToday();
-
-    /*
-     * ⚠️ TWO `OR` GROUPS, SO THEY GO IN `AND`. THEY CANNOT BOTH BE `OR:` KEYS.
-     *   An object literal takes the LAST value for a repeated key, and a spread
-     *   counts — `{ ...(cond ? { OR: a } : {}), OR: b }` is just `{ OR: b }`.
-     *   Neither TypeScript nor eslint says a word.
-     *
-     *   Here that meant the country group vanished and this endpoint matched a
-     *   barcode against EVERY country's identifiers. National codes legitimately
-     *   collide across countries — that is why the column exists — so a scan at
-     *   an Indian counter could resolve to the medicine that code belongs to in
-     *   the US. Wrong-product-from-a-barcode is the failure this whole endpoint
-     *   exists to prevent.
-     */
     const rows = await tx.productIdentifier.findMany({
-      where: {
-        value: query.value,
+      where: currentIdentifierWhere({
+        values: [query.value],
         ...(query.type !== undefined ? { type: query.type } : {}),
-        effectiveFrom: { lte: today },
-        product: { deletedAt: null },
-        AND: [
-          /*
-           * A country-qualified search still matches identifiers recorded with
-           * NO country — those are valid everywhere, which is what NULL means
-           * here. Omitting the NULL branch would drop every platform GTIN, i.e.
-           * most of the catalogue, for any caller that passed a country.
-           */
-          ...(query.countryCode !== undefined
-            ? [{ OR: [{ countryCode: query.countryCode }, { countryCode: null }] }]
-            : []),
-          { OR: [{ effectiveTo: null }, { effectiveTo: { gte: today } }] },
-        ],
-      },
+        ...(query.countryCode !== undefined ? { countryCode: query.countryCode } : {}),
+      }),
       include: {
         product: {
           include: {
@@ -309,4 +275,61 @@ export async function resolveIdentifier(
       }),
     };
   });
+}
+
+/**
+ * The WHERE clause that says "an identifier that is valid HERE, TODAY".
+ *
+ * ⚠️ EXTRACTED SO PI-23'S SCAN RESOLVER CANNOT WRITE A SECOND ONE. Three of the
+ *   four conditions below are subtle enough that a re-derivation would get one
+ *   of them wrong, and each of the three has already been a bug once — see the
+ *   comments inside. The scanner asks the same question this does, with a list
+ *   of GTIN forms instead of a single value; that is the only difference, and it
+ *   is the only thing this signature varies.
+ */
+export function currentIdentifierWhere(input: {
+  values: readonly string[];
+  type?: ProductIdentifierDetail['type'];
+  countryCode?: string;
+}): Prisma.ProductIdentifierWhereInput {
+  /*
+   * A CALENDAR DAY, not an instant. `effective_from`/`effective_to` are
+   * `@db.Date`, so comparing them against `new Date()` compares a day against a
+   * moment: `effectiveTo: { gte: now }` excluded a row on its own final valid
+   * day from midnight onwards. A barcode that stops scanning a day early
+   * presents as one unreproducible failure at a counter.
+   */
+  const today = calendarToday();
+
+  /*
+   * ⚠️ TWO `OR` GROUPS, SO THEY GO IN `AND`. THEY CANNOT BOTH BE `OR:` KEYS.
+   *   An object literal takes the LAST value for a repeated key, and a spread
+   *   counts — `{ ...(cond ? { OR: a } : {}), OR: b }` is just `{ OR: b }`.
+   *   Neither TypeScript nor eslint says a word.
+   *
+   *   Here that meant the country group vanished and this lookup matched a
+   *   barcode against EVERY country's identifiers. National codes legitimately
+   *   collide across countries — that is why the column exists — so a scan at an
+   *   Indian counter could resolve to the medicine those digits belong to in the
+   *   US. Wrong-product-from-a-barcode is the failure this whole surface exists
+   *   to prevent.
+   */
+  return {
+    value: { in: [...input.values] },
+    ...(input.type !== undefined ? { type: input.type } : {}),
+    effectiveFrom: { lte: today },
+    product: { deletedAt: null },
+    AND: [
+      /*
+       * A country-qualified search still matches identifiers recorded with NO
+       * country — those are valid everywhere, which is what NULL means here.
+       * Omitting the NULL branch would drop every platform GTIN, i.e. most of
+       * the catalogue, for any caller that passed a country.
+       */
+      ...(input.countryCode !== undefined
+        ? [{ OR: [{ countryCode: input.countryCode }, { countryCode: null }] }]
+        : []),
+      { OR: [{ effectiveTo: null }, { effectiveTo: { gte: today } }] },
+    ],
+  };
 }

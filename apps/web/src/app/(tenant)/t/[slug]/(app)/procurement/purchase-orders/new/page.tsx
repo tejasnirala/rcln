@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import type {
   InventoryLocationListResponse,
-  ProductListResponse,
   PurchaseRequisitionDetail,
   SupplierListResponse,
   SupplierProductListResponse,
@@ -14,8 +13,11 @@ import { procurementAccess } from '../../guard';
 
 export const metadata: Metadata = { title: 'Raise an order' };
 
-const PRODUCT_CAP = 100;
-
+/*
+ * ⚠️ THE PRODUCT LIST IS NOT FETCHED (PI-23). It was the first hundred stocked
+ *   products; a buyer at a clinic with a real catalogue could not reach most of
+ *   what they order. The line picker searches instead.
+ */
 export default async function NewPurchaseOrderPage({
   params,
   searchParams,
@@ -36,13 +38,9 @@ export default async function NewPurchaseOrderPage({
     ? query['requisitionId'][0]
     : query['requisitionId'];
 
-  const [branches, suppliers, products, locations, priceBook, requisition] = await Promise.all([
+  const [branches, suppliers, locations, priceBook, requisition] = await Promise.all([
     branchesInScope(slug),
     api<SupplierListResponse>('/api/v1/procurement/suppliers?limit=100&status=ACTIVE', {
-      slug,
-      accessToken,
-    }),
-    api<ProductListResponse>(`/api/v1/products?limit=${String(PRODUCT_CAP)}&isStockItem=true`, {
       slug,
       accessToken,
     }),
@@ -67,11 +65,9 @@ export default async function NewPurchaseOrderPage({
       slug={slug}
       branches={branches}
       suppliers={suppliers.data?.suppliers ?? []}
-      products={products.data?.products ?? []}
       locations={locations.data?.locations ?? []}
       priceBook={priceBook.data?.supplierProducts ?? []}
       requisition={requisition?.data ?? null}
-      moreProducts={(products.data?.meta.total ?? 0) > PRODUCT_CAP}
     />
   );
 }

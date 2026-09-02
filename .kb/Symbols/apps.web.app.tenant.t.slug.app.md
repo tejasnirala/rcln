@@ -4,7 +4,7 @@
 
 > A record's history, fetched when somebody asks for it.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx` · `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx` · `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx`
 
 ## component
 
@@ -19,7 +19,18 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `lotsForProduct` | `(slug: string, productId: string, branchId: string): Promise<LotListState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:182` |  |
 | `readRecordHistory` | `(slug: string, entityType: string, entityId: string): Promise<HistoryState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:42` |  |
+| `resolveScan` | `(slug: string, code: string, branchId?: string): Promise<ScanState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:134` |  |
+| `searchPatients` | `(slug: string, rawTerm: string): Promise<PatientSearchState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:237` |  |
+| `searchProducts` | `(slug: string, rawTerm: string, filters: ProductSearchFilters): Promise<ProductSearchState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:66` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `LOT_LIMIT` <sub>local</sub> | `100` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:168` | How many lots one product at one branch offers before the screen says so. |
+| `SEARCH_LIMIT` <sub>local</sub> | `20` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:48` | How many rows one search offers. A person picks from a short list or types more. |
 
 ## var
 
@@ -28,8 +39,18 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/we
 | `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:8` |  |
 | `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:7` |  |
 
+## interface
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `ProductSearchFilters` | `{ trackingModes, isStockItem, status }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:50` |  |
+
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `HistoryState` | `\| { status: 'ok'; history: AuditHistoryResponse; /** * The clinic's zone, so the drawer can stamp each entry in it. * * ⚠️ RETURNED WITH THE PAYLOAD RATHER THA…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts:23` |  |
+| `LotListState` | `\| { status: 'idle' } \| { status: 'done'; lots: BatchSummary[]; capped: boolean } \| { status: 'error'; message: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:162` |  |
+| `PatientSearchState` | `\| { status: 'idle' } \| { status: 'done'; patients: PatientSummary[]; term: string } \| { status: 'error'; message: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:215` |  |
+| `ProductSearchState` | `\| { status: 'idle' } \| { status: 'done'; products: ProductSummary[]; term: string; capped: boolean } \| { status: 'error'; message: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:42` |  |
+| `ScanState` | `\| { status: 'idle' } \| { status: 'done'; result: ScanResolveResponse } \| { status: 'error'; message: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts:119` |  |

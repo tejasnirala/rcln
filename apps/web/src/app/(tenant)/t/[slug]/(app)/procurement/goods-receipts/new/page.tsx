@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import type {
   InventoryLocationListResponse,
   ManufacturerSummary,
-  ProductListResponse,
   PurchaseOrderDetail,
   SupplierListResponse,
 } from '@rcln/contracts';
@@ -14,12 +13,16 @@ import { procurementAccess } from '../../guard';
 
 export const metadata: Metadata = { title: 'Record a delivery' };
 
-const PRODUCT_CAP = 100;
-
 /**
- * The scanner-heavy screen. Everything it fetches is a picker; the one thing that
- * matters is that the LOT, EXPIRY and SERIAL boxes are typed off the pack rather than
- * looked up, because at this moment the pack is the only authority on them.
+ * The scanner-heavy screen, and since PI-23 it actually has a scanner. The one thing
+ * that matters is that the LOT, EXPIRY and SERIAL boxes come off the PACK rather than
+ * from a lookup, because at this moment the pack is the only authority on them — the
+ * scan field fills them from the DataMatrix for exactly that reason, and reports it
+ * when the pack and the lot on file disagree.
+ *
+ * ⚠️ THE PRODUCT LIST IS NO LONGER FETCHED. It was the first hundred stocked products,
+ *   which on a real catalogue is a picker that cannot reach the thing being delivered.
+ *   The form searches, and a scan skips the search entirely.
  */
 export default async function NewGoodsReceiptPage({
   params,
@@ -41,13 +44,9 @@ export default async function NewGoodsReceiptPage({
     ? query['purchaseOrderId'][0]
     : query['purchaseOrderId'];
 
-  const [branches, suppliers, products, locations, manufacturers, order] = await Promise.all([
+  const [branches, suppliers, locations, manufacturers, order] = await Promise.all([
     branchesInScope(slug),
     api<SupplierListResponse>('/api/v1/procurement/suppliers?limit=100&status=ACTIVE', {
-      slug,
-      accessToken,
-    }),
-    api<ProductListResponse>(`/api/v1/products?limit=${String(PRODUCT_CAP)}&isStockItem=true`, {
       slug,
       accessToken,
     }),
@@ -72,11 +71,9 @@ export default async function NewGoodsReceiptPage({
       slug={slug}
       branches={branches}
       suppliers={suppliers.data?.suppliers ?? []}
-      products={products.data?.products ?? []}
       locations={locations.data?.locations ?? []}
       manufacturers={manufacturers.data?.manufacturers ?? []}
       order={order?.data ?? null}
-      moreProducts={(products.data?.meta.total ?? 0) > PRODUCT_CAP}
     />
   );
 }
