@@ -49,8 +49,8 @@ export interface FieldRendererProps {
    *   that is hours out and looks perfectly ordinary.
    */
   timeZone: string;
-  /** The section's vocabulary scope. Ranks the selector's results (§34). */
-  scopeId?: string | undefined;
+  /** The section's vocabulary scopes. Scope the selector's results (§34). */
+  scopeIds?: readonly string[] | undefined;
 }
 
 const asString = (value: FieldValue): string =>
@@ -66,7 +66,7 @@ export function FieldRenderer({
   sectionKey,
   slug,
   timeZone,
-  scopeId,
+  scopeIds,
 }: FieldRendererProps) {
   const name = `${sectionKey}.${field.key}`;
   const shared = {
@@ -244,7 +244,7 @@ export function FieldRenderer({
           value={asString(value)}
           disabled={disabled}
           slug={slug}
-          {...(scopeId !== undefined ? { scopeId } : {})}
+          {...(scopeIds !== undefined ? { scopeIds } : {})}
           onChange={onChange}
         />
       );
@@ -325,7 +325,7 @@ function ServerSelect({
   value,
   disabled,
   slug,
-  scopeId,
+  scopeIds,
   onChange,
 }: {
   field: ConsultationFieldConfig;
@@ -333,7 +333,7 @@ function ServerSelect({
   value: string;
   disabled: boolean;
   slug: string;
-  scopeId?: string | undefined;
+  scopeIds?: readonly string[] | undefined;
   onChange: (value: FieldValue) => void;
 }) {
   const listId = useId();
@@ -359,13 +359,21 @@ function ServerSelect({
     if (!searching || kind === undefined) return;
     const query = ++latest.current;
     const timer = setTimeout(() => {
-      void searchClinicalTerms(slug, kind, value, scopeId).then((results) => {
+      /*
+       * ⚠️ SCOPED, WITH NO TOGGLE — AND THE AUTOMATIC WIDENING IS WHY THAT IS
+       *   SAFE. This is a one-line typeahead inside a template's own field, not
+       *   the browsable picker, and there is nowhere sensible to hang a
+       *   checkbox. `searchClinicalTerms` re-runs across the whole catalogue
+       *   when nothing in scope matches, so a term the clinic forgot to tag is
+       *   still reachable by typing it — which is the §34 guarantee.
+       */
+      void searchClinicalTerms(slug, kind, value, scopeIds ?? []).then((results) => {
         /* Ignore an answer that a later query has already overtaken. */
-        if (query === latest.current) setOptions(results);
+        if (query === latest.current) setOptions(results.items);
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [slug, kind, value, scopeId, searching]);
+  }, [slug, kind, value, scopeIds, searching]);
 
   return (
     <Field

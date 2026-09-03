@@ -641,7 +641,10 @@ function SectionBody({
       encounterId: content.encounterId,
       content: content.content,
       readOnly,
-      ...(section.scopeIds[0] !== undefined ? { scopeId: section.scopeIds[0] } : {}),
+      /* ⚠️ EVERY SCOPE THE SECTION NAMES, NOT `scopeIds[0]`. A template may scope
+         a section to more than one branch of the taxonomy, and taking the first
+         ranked by one of them with nothing on screen to say which. */
+      scopeIds: section.scopeIds,
       add: content.add,
       edit: content.edit,
       remove: content.remove,
@@ -712,7 +715,7 @@ function SectionBody({
             timeZone={timeZone}
             value={answers[field.key]}
             disabled={readOnly}
-            {...(section.scopeIds[0] !== undefined ? { scopeId: section.scopeIds[0] } : {})}
+            scopeIds={section.scopeIds}
             onChange={(value) => setSectionField(section.key, field.key, value)}
           />
         ))}

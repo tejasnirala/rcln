@@ -258,7 +258,7 @@ export interface VisualMappingSectionProps extends ContentSectionProps {
 }
 
 export function VisualMappingSection(props: VisualMappingSectionProps) {
-  const { slug, content, readOnly, scopeId, sectionKey, map, mapCode, add, edit, remove } = props;
+  const { slug, content, readOnly, scopeIds, sectionKey, map, mapCode, add, edit, remove } = props;
   const headingId = useId();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -289,8 +289,9 @@ export function VisualMappingSection(props: VisualMappingSectionProps) {
   }, [findings]);
 
   const search = useCallback(
-    (term: string) => searchClinicalTerms(slug, 'FINDING_TYPE', term, scopeId),
-    [slug, scopeId]
+    (term: string, allSpecialties: boolean) =>
+      searchClinicalTerms(slug, 'FINDING_TYPE', term, scopeIds ?? [], allSpecialties),
+    [slug, scopeIds]
   );
 
   /*
@@ -399,6 +400,7 @@ export function VisualMappingSection(props: VisualMappingSectionProps) {
                 hint="What you see here. The diagnosis it adds up to is the Diagnosis section — link them below."
                 disabled={readOnly}
                 search={search}
+                canWiden={(scopeIds?.length ?? 0) > 0}
                 onPick={(picked) => {
                   /*
                    * ⚠️ A TYPED FINDING IS NOT ACCEPTED, UNLIKE A TYPED SYMPTOM.

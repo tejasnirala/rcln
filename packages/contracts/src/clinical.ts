@@ -65,19 +65,57 @@ export type FollowUpTypeValue = z.infer<typeof followUpType>;
  *   whole master to the browser is a megabyte per screen and gets worse as the
  *   PLATFORM grows, because the platform catalogue is shared.
  *
- * ⚠️ `specialtyId` RANKS. IT DOES NOT FILTER. §11 and §34 are explicit: a
- *   medicine or a diagnosis relevant to several specialties must not be hidden
- *   from a doctor because nobody tagged it. Scoped matches sort first and
- *   unscoped matches still come back — a hard filter would mean that the day a
- *   clinic adds a diagnosis and forgets to tag it, that diagnosis becomes
+ * ⚠️ `specialtyIds` RANKS BY DEFAULT AND FILTERS ONLY WHEN ASKED. §11 and §34
+ *   are explicit: a medicine or a diagnosis relevant to several specialties must
+ *   not be hidden from a doctor because nobody tagged it. So scoped matches sort
+ *   first and unscoped matches still come back — because the day a clinic adds a
+ *   diagnosis and forgets to tag it, a hard filter would make that diagnosis
  *   invisible with no error and no way to notice.
+ *
+ * ⚠️ `onlyScoped` IS THAT HARD FILTER, AND IT IS OPT-IN FOR EXACTLY THAT REASON.
+ *   A dentist browsing "Symptoms" wants the four dental ones, not all eight —
+ *   the ranked list is the right answer for a SEARCH and the wrong one for a
+ *   BROWSE, where everything below the fold reads as noise. The caller asks for
+ *   the narrow list, and the caller is responsible for offering the way out of
+ *   it: `apps/web` widens automatically when nothing in scope matches and shows
+ *   a "showing all specialties" note when it does. §34 is preserved by there
+ *   always being a way back to the whole catalogue, not by refusing to narrow it.
  */
 export const clinicalMasterQuery = z.object({
   kind: clinicalMasterKind,
   /** Trigram-matched against `lower(name)`. Absent lists by display order. */
   search: z.string().trim().min(1).max(120).optional(),
-  /** A taxonomy node. Ranks, never filters — see above. */
-  specialtyId: uuid.optional(),
+  /**
+   * Taxonomy nodes to scope by, comma-separated — a template names one per
+   * section and may name several.
+   *
+   * ⚠️ A LIST BECAUSE THE OLD SINGULAR `specialtyId` SILENTLY DROPPED THE REST.
+   *   `consultation-engine.tsx` sent `scopeIds[0]`, so a section scoped to two
+   *   branches ranked by one of them and nobody could see which.
+   *
+   * ⚠️ AND A NODE HERE MEANS ITS WHOLE BRANCH — see `searchMasters`. Asking for
+   *   `DEN` matches a word tagged `DEN`, one tagged `ENDODONTICS` beneath it, and
+   *   one tagged `HUMAN` above it.
+   */
+  specialtyIds: z
+    .string()
+    .optional()
+    .transform((raw) =>
+      raw === undefined
+        ? []
+        : raw
+            .split(',')
+            .map((part) => part.trim())
+            .filter((part) => part !== '')
+    )
+    .pipe(z.array(uuid).max(8)),
+  /**
+   * Return ONLY terms in scope. Default false — see the note above.
+   *
+   * ⚠️ `z.stringbool()`, NOT `z.coerce.boolean()`. The latter reads the STRING
+   *   "false" as true, so a caller turning the filter off would turn it on.
+   */
+  onlyScoped: z.stringbool().default(false),
   parentId: uuid.optional(),
   includeInactive: z.coerce.boolean().default(false),
   page: z.coerce.number().int().min(1).default(1),

@@ -72,13 +72,35 @@ async function codingsFor(
 /**
  * Search the vocabulary.
  *
- * ⚠️ `specialtyId` RANKS. IT DOES NOT FILTER, and the LEFT JOIN below is the
- *   whole difference. §11 and §34 both say a word relevant to several
- *   specialties must not be hidden from a doctor because nobody tagged it — so
- *   a scope match sorts a row UP and its absence never removes one. An INNER
- *   JOIN here would mean that the day a clinic adds a diagnosis and forgets to
- *   tag it, that diagnosis becomes invisible to every doctor, with no error and
- *   nothing to notice.
+ * ⚠️ `specialtyIds` RANKS, AND THE LEFT JOIN BELOW IS WHAT MAKES THAT TRUE. §11
+ *   and §34 both say a word relevant to several specialties must not be hidden
+ *   from a doctor because nobody tagged it — so a scope match sorts a row UP and
+ *   its absence never removes one. An INNER JOIN here would mean that the day a
+ *   clinic adds a diagnosis and forgets to tag it, that diagnosis becomes
+ *   invisible to every doctor, with no error and nothing to notice.
+ *
+ * ⚠️ `onlyScoped` TURNS IT INTO A FILTER, AND IT IS THE CALLER'S DECISION. It is
+ *   a HAVING rather than an INNER JOIN so the two modes are one query and cannot
+ *   drift apart. What keeps §34 intact is not this endpoint refusing to narrow —
+ *   it is that the caller always offers the way back out. `apps/web` widens on
+ *   an empty scoped result and says so on screen.
+ *
+ * ⚠️ A SCOPE IS A BRANCH, NOT A NODE, AND THIS IS A FIX RATHER THAN A FEATURE.
+ *   `clinical_master_scopes.specialty_id` has always been documented as covering
+ *   "every node beneath it" — the model says so — while this query compared it
+ *   with `=`. So a clinic that tagged a word to `ENDODONTICS` got no ranking at
+ *   all for a dentist whose template scopes to `DEN`, which is precisely the
+ *   level a clinic is told to tag at. The CTE below walks BOTH ways from every
+ *   requested node:
+ *
+ *     up    HUMAN → DEN            an ancestor's word applies to the branch
+ *                                  ("Fever", tagged at the care context)
+ *     down  DEN → ENDODONTICS      a sub-specialty's word belongs to its domain
+ *                                  ("Pulpectomy", tagged at the leaf)
+ *
+ *   Both directions matter under `onlyScoped`: without `up` a filtered list
+ *   loses every general term, and without `down` it loses everything the clinic
+ *   tagged more precisely than the template asks.
  *
  * ⚠️ RAW SQL BECAUSE OF THE TRIGRAM INDEX. `lower(name) % $term` is what uses
  *   `clinical_master_items_name_trgm_idx`; Prisma's `contains` compiles to an
@@ -92,25 +114,72 @@ export async function searchMasters(
   return withTenant(ctx, async (tx) => {
     const offset = (query.page - 1) * query.pageSize;
     const search = query.search ?? null;
-    const specialtyId = query.specialtyId ?? null;
     const parentId = query.parentId ?? null;
+    /*
+     * ⚠️ AN EMPTY ARRAY IS THE "NO SCOPE ASKED FOR" CASE AND MUST STAY EMPTY.
+     *   `in_scope` then has no rows, the LEFT JOIN matches nothing, and the
+     *   ranking collapses to the clinic's own order — which is exactly what an
+     *   unscoped call meant before any of this existed. `onlyScoped` with no
+     *   nodes would therefore return nothing, so the caller is not allowed to
+     *   ask for that: the filter is ignored unless something was scoped.
+     */
+    const specialtyIds = query.specialtyIds;
+    const onlyScoped = query.onlyScoped && specialtyIds.length > 0;
 
     const rows = await tx.$queryRaw<(ItemRow & { total: bigint })[]>`
+      WITH RECURSIVE requested AS (
+        SELECT unnest(${specialtyIds}::uuid[]) AS id
+      ),
+      /* Every ancestor of a requested node, and the node itself. */
+      up AS (
+        SELECT sp.id, sp.parent_id
+          FROM specialties sp JOIN requested r ON r.id = sp.id
+         WHERE sp.deleted_at IS NULL
+        UNION
+        SELECT parent.id, parent.parent_id
+          FROM specialties parent JOIN up ON up.parent_id = parent.id
+         WHERE parent.deleted_at IS NULL
+      ),
+      /* Every descendant of a requested node, and the node itself. */
+      down AS (
+        SELECT sp.id
+          FROM specialties sp JOIN requested r ON r.id = sp.id
+         WHERE sp.deleted_at IS NULL
+        UNION
+        SELECT child.id
+          FROM specialties child JOIN down ON child.parent_id = down.id
+         WHERE child.deleted_at IS NULL
+      ),
+      in_scope AS (
+        SELECT id FROM up
+        UNION
+        SELECT id FROM down
+      )
       SELECT i.id, i.organization_id, i.kind, i.code, i.name, i.description,
              i.parent_id, i.display_order, i.is_active,
              count(*) OVER () AS total
         FROM clinical_master_items i
-        /* Ranking only — see the note above. A LEFT JOIN, never an INNER one. */
+        /* Ranking by default — a LEFT JOIN, never an INNER one. The narrowing,
+           when it is asked for, is the HAVING below. */
         LEFT JOIN clinical_master_scopes s
           ON s.item_id = i.id
-         AND ${specialtyId}::uuid IS NOT NULL
-         AND s.specialty_id = ${specialtyId}::uuid
+         AND s.specialty_id IN (SELECT id FROM in_scope)
        WHERE i.deleted_at IS NULL
          AND i.kind = ${query.kind}::"ClinicalMasterKind"
          AND (${query.includeInactive}::boolean OR i.is_active)
          AND (${parentId}::uuid IS NULL OR i.parent_id = ${parentId}::uuid)
          AND (${search}::text IS NULL OR lower(i.name) LIKE '%' || lower(${search}::text) || '%')
        GROUP BY i.id
+       /* ⚠️ max(s.relevance) IS THE "MATCHED" TEST, NOT count(s.id) > 0, so it
+          reads identically to the ORDER BY below and the two cannot disagree
+          about what in-scope means. relevance defaults to 0, never NULL, so a
+          match is never mistaken for an absence. Window functions run AFTER
+          HAVING, so the total counts the filtered set.
+
+          ⚠️ NO BACKTICKS ANYWHERE INSIDE THIS TEMPLATE LITERAL. A backtick in a
+          SQL comment ENDS the tagged template, and the parse error it produces
+          points at the comment rather than at the query. */
+       HAVING (${onlyScoped}::boolean = false OR max(s.relevance) IS NOT NULL)
        ORDER BY
          /* Scoped first, then the clinic's own words above the platform's, then
             the clinic's chosen order. A total order: name breaks every tie. */
@@ -200,11 +269,26 @@ export async function createMaster(
         ...(input.description !== undefined ? { description: input.description } : {}),
         ...(input.parentId !== undefined ? { parentId: input.parentId } : {}),
         ...(input.displayOrder !== undefined ? { displayOrder: input.displayOrder } : {}),
+        /*
+         * ⚠️ NEITHER NESTED CREATE MAY NAME `organizationId`, AND BOTH USED TO.
+         *   `codings` and `scopes` reach their item through a COMPOSITE relation
+         *   — (organization_id, item_id) -> (organization_id, id) — so
+         *   `organization_id` is one of the two columns Prisma fills in from the
+         *   parent it is creating. Supplying it as well is not merely redundant:
+         *   Prisma rejects the whole call, and the API answers 400 "Invalid data
+         *   provided", which names neither the field nor the relation.
+         *
+         *   That made `POST /clinical-data` fail for EVERY request carrying a
+         *   coding or a specialty — including the one the clinical-terms screen
+         *   sends, which is the only way a clinic tags its own vocabulary. It
+         *   went unnoticed because no test had ever created a term with either.
+         *   Inheriting the column is also the safer shape: a scope can no longer
+         *   disagree with the item it hangs off.
+         */
         ...(input.codings !== undefined && input.codings.length > 0
           ? {
               codings: {
                 create: input.codings.map((c) => ({
-                  organizationId: ctx.organizationId,
                   system: c.system,
                   code: c.code,
                   ...(c.display !== undefined ? { display: c.display } : {}),
@@ -216,10 +300,7 @@ export async function createMaster(
         ...(input.specialtyIds !== undefined && input.specialtyIds.length > 0
           ? {
               scopes: {
-                create: input.specialtyIds.map((specialtyId) => ({
-                  organizationId: ctx.organizationId,
-                  specialtyId,
-                })),
+                create: input.specialtyIds.map((specialtyId) => ({ specialtyId })),
               },
             }
           : {}),

@@ -199,7 +199,7 @@ describe('the clinical vocabulary', () => {
       `SELECT id FROM specialties WHERE organization_id IS NULL AND code = 'DEN'`
     );
     const res = await get(
-      `/clinical-data?kind=INVESTIGATION&specialtyId=${spec.rows[0]!.id}&pageSize=100`
+      `/clinical-data?kind=INVESTIGATION&specialtyIds=${spec.rows[0]!.id}&pageSize=100`
     );
     expect(res.status).toBe(200);
     const codes = res.body.data.items.map((i: { code: string }) => i.code);
@@ -212,10 +212,121 @@ describe('the clinical vocabulary', () => {
       `SELECT id FROM specialties WHERE organization_id IS NULL AND code = 'DEN'`
     );
     const res = await get(
-      `/clinical-data?kind=INVESTIGATION&specialtyId=${spec.rows[0]!.id}&pageSize=100`
+      `/clinical-data?kind=INVESTIGATION&specialtyIds=${spec.rows[0]!.id}&pageSize=100`
     );
     const codes: string[] = res.body.data.items.map((i: { code: string }) => i.code);
     expect(codes.indexOf('OPG')).toBeLessThan(codes.indexOf('CBC'));
+  });
+
+  /**
+   * The opt-in filter. The pair above pins that scoping RANKS; these pin that
+   * `onlyScoped` narrows, and that narrowing is the caller asking rather than
+   * this endpoint deciding.
+   */
+  it('drops the untagged term when the caller asks for only what is in scope', async () => {
+    const spec = await owner.query<{ id: string }>(
+      `SELECT id FROM specialties WHERE organization_id IS NULL AND code = 'DEN'`
+    );
+    const res = await get(
+      `/clinical-data?kind=INVESTIGATION&specialtyIds=${spec.rows[0]!.id}&onlyScoped=true&pageSize=100`
+    );
+    expect(res.status).toBe(200);
+    const codes = res.body.data.items.map((i: { code: string }) => i.code);
+    expect(codes).toContain('OPG');
+    expect(codes).not.toContain('CBC');
+    /* ⚠️ `total` MUST FOLLOW THE FILTER. It is a window function over the
+       grouped rows, so a HAVING that narrows the page and leaves the count
+       alone would page a filtered list against an unfiltered total. */
+    expect(res.body.data.total).toBe(codes.length);
+  });
+
+  /**
+   * ⚠️ `onlyScoped` WITH NO NODES MUST NOT RETURN AN EMPTY LIST. Nothing is in
+   *   scope when no scope was named, so obeying the flag literally would answer
+   *   "the catalogue is empty" to a caller who simply had no template scope.
+   */
+  it('ignores the filter when no specialty was named', async () => {
+    const res = await get('/clinical-data?kind=INVESTIGATION&onlyScoped=true&pageSize=100');
+    expect(res.status).toBe(200);
+    const codes = res.body.data.items.map((i: { code: string }) => i.code);
+    expect(codes).toContain('CBC');
+  });
+
+  /**
+   * ⚠️ THE BUG THE BRANCH WALK FIXES. `clinical_master_scopes.specialty_id` is
+   *   documented as covering every node beneath it, and the query compared it
+   *   with `=` — so a word tagged at the DOMAIN was invisible to a filter asking
+   *   at the LEAF, which is the level a doctor is actually classified at. A
+   *   dentist tagged `ENDODONTICS` got a filtered list of nothing.
+   */
+  it('matches a term tagged at the domain when the scope is a leaf beneath it', async () => {
+    const leaf = await owner.query<{ id: string }>(
+      `SELECT id FROM specialties WHERE organization_id IS NULL AND code = 'ENDODONTICS'`
+    );
+    const res = await get(
+      `/clinical-data?kind=PROCEDURE&specialtyIds=${leaf.rows[0]!.id}&onlyScoped=true&pageSize=100`
+    );
+    expect(res.status).toBe(200);
+    const codes = res.body.data.items.map((i: { code: string }) => i.code);
+    /* Both platform procedures are tagged at `DEN`, two levels up. */
+    expect(codes).toContain('ROOT_CANAL_TREATMENT');
+  });
+
+  /** And the other direction: a leaf's word belongs to its domain's list. */
+  it('matches a term tagged at a leaf when the scope is the domain above it', async () => {
+    const den = await owner.query<{ id: string }>(
+      `SELECT id FROM specialties WHERE organization_id IS NULL AND code = 'DEN'`
+    );
+    const endo = await owner.query<{ id: string }>(
+      `SELECT id FROM specialties WHERE organization_id IS NULL AND code = 'ENDODONTICS'`
+    );
+
+    const created = await post('/clinical-data', {
+      kind: 'PROCEDURE',
+      code: `PULPECTOMY_${SUFFIX.toUpperCase()}`,
+      name: 'Pulpectomy',
+      specialtyIds: [endo.rows[0]!.id],
+    });
+    expect(created.status).toBe(201);
+
+    const res = await get(
+      `/clinical-data?kind=PROCEDURE&specialtyIds=${den.rows[0]!.id}&onlyScoped=true&pageSize=100`
+    );
+    const codes = res.body.data.items.map((i: { code: string }) => i.code);
+    expect(codes).toContain(`PULPECTOMY_${SUFFIX.toUpperCase()}`);
+  });
+
+  /**
+   * ⚠️ THE REGRESSION THIS PINS SHIPPED AND NOTHING CAUGHT IT. `codings` and
+   *   `scopes` reach their item through a COMPOSITE relation, so a nested create
+   *   that also names `organizationId` is rejected outright — and every request
+   *   carrying either came back 400 "Invalid data provided", naming nothing. The
+   *   clinical-terms screen sends exactly that shape, so tagging a clinic's own
+   *   vocabulary was impossible. Every earlier test created a BARE term.
+   */
+  it('adds a term carrying both a coding and a specialty scope', async () => {
+    const spec = await owner.query<{ id: string }>(
+      `SELECT id FROM specialties WHERE organization_id IS NULL AND code = 'DEN'`
+    );
+
+    const res = await post('/clinical-data', {
+      kind: 'DIAGNOSIS',
+      code: `PULPITIS_${SUFFIX.toUpperCase()}`,
+      name: 'Irreversible pulpitis',
+      specialtyIds: [spec.rows[0]!.id],
+      codings: [{ system: 'ICD10', code: 'K04.0', isPrimary: true }],
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.codings).toHaveLength(1);
+
+    /* The scope row inherits the item's organization rather than being told it. */
+    const scopes = await owner.query<{ organization_id: string | null }>(
+      `SELECT s.organization_id FROM clinical_master_scopes s WHERE s.item_id = $1`,
+      [res.body.data.id]
+    );
+    expect(scopes.rows).toHaveLength(1);
+    expect(scopes.rows[0]!.organization_id).not.toBeNull();
   });
 
   it('lets a clinic add its own term', async () => {

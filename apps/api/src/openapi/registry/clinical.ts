@@ -81,16 +81,36 @@ cannot pick a symptom without also being allowed to invent one.
 
 \`codings\` carries the external code systems a term maps to — ICD-10 and
 friends — with at most one \`isPrimary\`. \`isOwn\` separates the terms rcln
-ships from those this clinic added. \`specialtyId\` narrows to what a given
-specialty actually uses, which is what keeps a dentist's symptom picker from
-offering the whole of medicine.
+ships from those this clinic added.
+
+### Scope: ranked by default, filtered on request
+
+\`specialtyIds\` names one or more taxonomy nodes — a care context, a domain, a
+specialty. By default it **ranks**: matching terms sort first and everything else
+follows, so a term nobody remembered to tag is still findable. That is
+deliberate; a hard filter would make an untagged diagnosis invisible with no
+error and nothing to notice.
+
+\`onlyScoped=true\` makes it a filter, which is what a browsable picker wants —
+a dentist opening the symptom list should see the dental ones, not the whole of
+medicine. **A caller that narrows is responsible for offering the way back out.**
+\`apps/web\` re-runs the search unscoped when nothing in scope matched and tells
+the clinician it has done so.
+
+⚠️ **A node means its whole branch, in both directions.** \`DEN\` matches a term
+tagged \`DEN\`, one tagged \`ENDODONTICS\` beneath it, and one tagged \`HUMAN\`
+above it — so a clinic tags once at the level it means, and a general term stays
+visible inside a narrowed list.
 `.trim(),
     response: clinicalMasterListResponse,
     paginated: true,
     params: {
       kind: 'Which dictionary — `SYMPTOM`, `DIAGNOSIS`, `PROCEDURE`, `INVESTIGATION`. Required.',
       search: 'Free-text match on name and code.',
-      specialtyId: 'Narrow to terms this specialty uses.',
+      specialtyIds:
+        'Taxonomy nodes, comma-separated. Ranks matching terms first; a node covers its whole branch.',
+      onlyScoped:
+        'Return only terms in scope. Defaults to `false` — see the note above before turning it on.',
       parentId: 'Narrow to children of one term.',
       includeInactive: 'Include retired terms. Defaults to `false`.',
       page: 'Page number, from 1.',
