@@ -67,11 +67,19 @@ Every variable in `.env.example`, grouped as the file groups them.
 
 ### Database
 
-| Variable              | Required               | Notes                                                                                          |
-| --------------------- | ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | **yes**                | The **app** role — `rcln_app`. RLS **enforced**. Used by api and worker at runtime             |
-| `DIRECT_DATABASE_URL` | **yes** for migrations | The **owner** role — `rcln_owner`. RLS **bypassed**. Migrations, seeds and `db:rls:check` only |
-| `DATABASE_POOL_SIZE`  | no, default `10`       |                                                                                                |
+| Variable              | Required                  | Notes                                                                                                            |
+| --------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | **yes**                   | The **app** role — `rcln_app`. RLS **enforced**. Used by api and worker at runtime                               |
+| `DIRECT_DATABASE_URL` | **yes** for migrations    | The **owner** role — `rcln_owner`. RLS **bypassed**. Migrations, seeds and `db:rls:check` only                   |
+| `DATABASE_POOL_SIZE`  | no, default `10`          |                                                                                                                  |
+| `TEST_DATABASE_NAME`  | no, default `rcl_testing` | The database the test suite runs against. Only the NAME — host, port and roles are taken from the two URLs above |
+
+> **The tests do not run against the development database.** `apps/api/tests/setup-env.ts`
+> rewrites both URLs above to `rcl_testing` before any module loads, and moves the
+> cache onto Redis logical database 2, so a run cannot bury the records a human
+> created in the browser or flush the dev server's rate limiters. Build it with
+> `pnpm db:test:setup` — the `migrate` compose service does that on every
+> `docker compose up`, which is what keeps it from falling a migration behind.
 
 > **These must be different roles.** If the app connects as the table owner,
 > Postgres silently skips every RLS policy and tenant isolation becomes a no-op

@@ -180,11 +180,18 @@ services:
       - permissions_node_modules:/app/packages/permissions/node_modules
       - config_node_modules:/app/packages/config/node_modules
       - db_generated:/app/packages/db/generated
+    # The last step builds `rcl_testing` — the database `pnpm test` writes to —
+    # and brings it level with the development one. It runs HERE rather than
+    # from the test command so that a schema change reaches both databases in
+    # the same `docker compose up`: a test database one migration behind fails
+    # in ways that read as application bugs. Idempotent, and a few seconds after
+    # the first run. See packages/db/scripts/test-database.ts.
     command: >
       sh -c "pnpm --filter @rcln/db exec prisma migrate deploy &&
              pnpm --filter @rcln/db run grants &&
              pnpm --filter @rcln/db run seed &&
-             pnpm --filter @rcln/db run rls:check"
+             pnpm --filter @rcln/db run rls:check &&
+             pnpm --filter @rcln/db run test:db:setup"
     depends_on:
       postgres:
         condition: service_healthy

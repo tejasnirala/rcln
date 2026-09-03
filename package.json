@@ -46,6 +46,7 @@
     "db:reset": "pnpm --filter @rcln/db run reset",
     "db:grants": "pnpm --filter @rcln/db run grants",
     "db:rls:check": "pnpm --filter @rcln/db run rls:check",
+    "db:test:setup": "pnpm --filter @rcln/db run test:db:setup",
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky",
     "commit": "cz",

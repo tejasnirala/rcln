@@ -370,6 +370,7 @@ assertRegionIsVisible	fn/async	local	apps/api/src/services/clinical/encounter-co
 assertRegistrationCoversBranch	fn/async	local	apps/api/src/services/invoicing/invoice-lifecycle.service.ts:901	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, branchId: string, suppliedAt: Date): Promise<void>	
 assertRemoteSupplyIsOpen	fn/async	local	apps/api/src/services/pharmacy/online-order.service.ts:923	apps/api/services/pharmacy	(tx: TxClient, productId: string, productName: string, place: { countryCode: string; regionCode: string | null }, on: Date): Promise<void>	
 assertRlsActive	fn/async	export	packages/db/src/client.ts:61	packages/db	(): Promise<void>	
+assertSafeName	fn	local	packages/db/scripts/setup-test-db.ts:57	packages/db/scripts	(name: string): void	
 assertSafeToDeactivate	fn/async	local	apps/api/src/services/doctor/clinical-taxonomy.service.ts:617	apps/api/services/doctor	(tx: TxClient, id: string): Promise<void>	
 assertSafeToDeactivate	fn/async	local	apps/api/src/services/product/category.service.ts:384	apps/api/services/product	(tx: TxClient, id: string): Promise<void>	
 assertSameCurrency	fn	local	packages/payments/src/money.ts:53	packages/payments	(a: Money, b: Money): void	
@@ -3344,6 +3345,7 @@ LOWER_Y	const	local	packages/db/prisma/seed/data/visual-maps.ts:76	packages/db/p
 main	fn/async	local	packages/db/prisma/seed.ts:47	packages/db/prisma	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/apply-grants.ts:94	packages/db/scripts	(): Promise<void>	
 main	fn/async	local	packages/db/scripts/check-rls.ts:108	packages/db/scripts	(): Promise<void>	
+main	fn/async	local	packages/db/scripts/setup-test-db.ts:74	packages/db/scripts	(): Promise<void>	
 MAIN_BRANCH	const	local	apps/api/src/openapi/registry/branches.ts:13	apps/api/openapi/registry	{ id: BRANCH_ID, name: 'Alpha Clinic — Indiranagar', code: 'BLR-IND', branchType: 'CLINIC…	One fully-populated branch, used as the response example throughout.
 maintainsPlatformLaw	fn	local	packages/permissions/src/roles.ts:145	packages/permissions	(p: PermissionCode): boolean	
 majorToMinor	fn	local	apps/api/src/services/reports/activity-reports.service.ts:77	apps/api/services/reports	(value: string | null, currency: string | null): number | null	
@@ -3882,6 +3884,7 @@ ownership	fn	local	apps/api/src/services/clinical/encounter-content.service.ts:5
 OwnProfilePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/profile/page.tsx:31	apps/web/app/(tenant)/t/[slug]/(app)/profile	({ params }: { params: Promise<{ slug: string }> })	
 OwnRuleRow	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:647	apps/web/components/tenant	({ slug, rule, canManage, canReadHistory, pending, onEnd, }:…)	
 P	const	local	packages/permissions/src/roles.ts:35	packages/permissions	PERMISSIONS	
+packageRoot	var	local	packages/db/scripts/setup-test-db.ts:50	packages/db/scripts	fileURLToPath(…)	
 PACKAGING_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:516	apps/api/openapi/registry	'7e2c5f90-6d18-4b43-8a07-9c1b3e5d0a62'	
 packagingFactorToBase	fn	export	packages/inventory/src/units.ts:419	packages/inventory	(levels: PackagingLevelRow[], level: number): Rational	
 PackagingLevelRow	interface	export	packages/inventory/src/units.ts:395	packages/inventory	{ level, unitId, quantityOfChild }	
@@ -5360,6 +5363,7 @@ RuleTable	component	local	apps/web/src/components/tenant/rule-pack-detail.tsx:92
 RuleVerdict	interface	local	packages/regulatory/src/engine.ts:75	packages/regulatory	{ outcome, message, conditions }	One rule's answer. Exactly one per applicable rule, so the snapshot is total.
 run	fn	local	apps/api/src/services/billing/billing.service.ts:99	apps/api/services/billing	(ctx: TenantContext, fn: (tx: TxClient) => Promise<T>): Promise<T>	How the engine opens a scoped transaction here: the ordinary `withTenant`.
 run	fn	local	apps/worker/src/billing/processor.ts:47	apps/worker/billing	(ctx, fn)	How the engine opens a scoped transaction here — the ordinary `withTenant`.
+run	fn	local	packages/db/scripts/setup-test-db.ts:66	packages/db/scripts	(label: string, args: string[], env: NodeJS.ProcessEnv): void	Run a workspace command with the test URLs pinned over whatever .env says.
 RunInTenant	type	export	packages/inventory/src/expiry.ts:192	packages/inventory	<T>(ctx: TenantContext, fn: (tx: TxClient) => Promise<T>) => Promise<T>	How a caller opens one transaction. Supplied rather than imported, for the same reason `MovementDeps` is: the API and t…
 runtimeFactory	fn	export	apps/worker/src/billing/runtime.ts:111	apps/worker/billing	(config: WorkerPaymentsConfig): (organizationId: string) => Promise<BillingRuntime>	
 runtimeFor	fn	export	apps/api/src/services/billing/billing.service.ts:74	apps/api/services/billing	(slug: string, actor?: BillingActor | undefined): BillingRuntime	
@@ -6189,6 +6193,7 @@ TermFormState	interface	export	apps/web/src/app/(tenant)/t/[slug]/(app)/clinical
 termLabel	fn	local	apps/web/src/components/tenant/consultation-content.tsx:375	apps/web/components/tenant	(row: { item: { name: string } | null; customText: string | …): string	The label a coded-or-typed row renders under.
 TermPicker	component	export	apps/web/src/components/tenant/consultation-content.tsx:148	apps/web/components/tenant	({ label, hint, placeholder, disabled, search, onPick, }: { …)	
 TermsPage	component	export	apps/web/src/app/(marketing)/legal/terms/page.tsx:30	apps/web/app/(marketing)/legal/terms	()	
+TEST_DATABASE_NAME	const	export	packages/db/scripts/test-database.ts:27	packages/db/scripts	process.env['TEST_DATABASE_NAME'] ?? 'rcl_testing'	Override with `TEST_DATABASE_NAME` if `rcl_testing` collides with something on a shared server. It is read once, here, …
 text	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/actions.ts:83	apps/web/app/(tenant)/t/[slug]/(app)/appointments	(formData: FormData, key: string): string | undefined	
 text	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/branches/actions.ts:37	apps/web/app/(tenant)/t/[slug]/(app)/branches	(formData: FormData, key: string): string | undefined	Empty strings from an untouched optional input mean "not provided".
 text	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:46	apps/web/app/(tenant)/t/[slug]/(app)/doctors	(formData: FormData, key: string): string | undefined	Empty strings from an untouched optional input mean "not provided".
@@ -6393,6 +6398,7 @@ TOTALS_NOTE	const	local	apps/api/src/openapi/registry/reports.ts:57	apps/api/ope
 totalsOf	fn	local	apps/api/src/services/procurement/purchase-order.service.ts:349	apps/api/services/procurement	(lines: ResolvedLine[]): { subtotalMinor: bigint; taxAmountMinor: bigint; totalMinor…	
 toTaxIdentifier	fn	local	apps/api/src/services/procurement/supplier.service.ts:48	apps/api/services/procurement	(row: DetailRow['taxIdentifiers'][number]): SupplierTaxIdentifierDetail	
 toTemplate	fn	local	apps/api/src/services/clinical/template.service.ts:134	apps/api/services/clinical	(row: TemplateRow, versions: readonly VersionRow[]): ConsultationTemplate	
+toTestDatabaseUrl	fn	export	packages/db/scripts/test-database.ts:36	packages/db/scripts	(url: string, name: string): string	
 toTime	fn	local	apps/api/src/services/branch/branch.service.ts:113	apps/api/services/branch	(hhmm: string): Date	
 toTime	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:40	apps/api/services/doctor	(hhmm: string): Date	
 toTimeFormat	fn	export	packages/contracts/src/locale.ts:1300	packages/contracts	(value: unknown): TimeFormat	
