@@ -47,9 +47,21 @@ export default async function PatientsPage({ params }: { params: Promise<{ slug:
   ]);
 
   const permissions = session?.permissions ?? [];
-  const countryCode =
-    session?.memberships.find((m) => m.organizationId === session.activeOrganizationId)
-      ?.countryCode ?? 'IN';
+  const membership = session?.memberships.find(
+    (m) => m.organizationId === session.activeOrganizationId
+  );
+  const countryCode = membership?.countryCode ?? 'IN';
+
+  /*
+   * ⚠️ THE ACTIVE BRANCH'S ANSWER, FALLING BACK TO THE ORGANIZATION'S (CO-1).
+   *   A group whose satellite is a small-animal practice registers animals there
+   *   and people at the main site, and the resolved profile on each branch is
+   *   what says so. An empty list — a clinic still in setup — leaves the picker
+   *   showing, which is the safe direction.
+   */
+  const careContextCodes =
+    membership?.branches.find((b) => b.id === session?.activeBranchId)?.profile.careContextCodes ??
+    [];
 
   if (!permissions.includes(PERMISSIONS.PATIENT_READ)) {
     return (
@@ -71,6 +83,13 @@ export default async function PatientsPage({ params }: { params: Promise<{ slug:
        * they do not hold.
        */
       countryCode={countryCode}
+      /*
+       * What this clinic treats. One context and the registration form stops
+       * asking "person or animal?" and answers it — which is the entire reason
+       * the onboarding wizard asks. Off the session for the same reason
+       * `countryCode` is: the front desk holds no settings permission.
+       */
+      careContextCodes={careContextCodes}
       canCreate={permissions.includes(PERMISSIONS.PATIENT_CREATE)}
     />
   );

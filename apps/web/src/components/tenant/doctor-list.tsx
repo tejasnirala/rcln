@@ -145,7 +145,7 @@ export function DoctorList({
   branches: BranchDetail[];
   specialties: SpecialtySummary[];
   qualifications: QualificationSummary[];
-  candidates: { userId: string; fullName: string }[];
+  candidates: { userId: string; fullName: string; email: string | null }[];
   /** The clinic's own price sheet, for the registration form's currency and defaults. */
   fees: FeeScheduleView | null;
   canReadSchedules: boolean;
@@ -363,8 +363,16 @@ export function DoctorList({
         <div className="border-rule bg-card mt-8 rounded-lg border border-dashed p-8 text-center">
           <p className="text-ink text-[0.9375rem] font-medium">No doctors yet</p>
           <p className="text-muted mx-auto mt-2 max-w-md text-[0.875rem] leading-relaxed">
+            {/*
+             * ⚠️ THE EMPTY CASE HAS TWO CAUSES NOW AND THE COPY NAMES BOTH.
+             *   Candidates are members who may author a consultation, so this is
+             *   empty either because nobody has been invited yet OR because the
+             *   colleague who was invited was given a role that does not consult
+             *   — which is the likelier of the two, and the one an admin would
+             *   never guess from "invite a colleague first".
+             */}
             {candidates.length === 0
-              ? 'Invite a colleague from Staff first — a doctor needs a login before they can be scheduled or sign a prescription.'
+              ? 'Nobody here can be registered as a doctor yet. A doctor needs a login and a role that lets them write consultations — invite them from Staff, or check the role the person you invited was given.'
               : 'Register a colleague as a doctor. You will be asked for their council number, what they treat, the hours they consult and what they are paid, all in one go.'}
           </p>
         </div>

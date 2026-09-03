@@ -9,7 +9,7 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { Button } from '@/components/ui/button';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { NationalIdInput } from '@/components/tenant/national-id-input';
-import { GENDERS, ageLine } from '@/lib/patient-words';
+import { BLOOD_GROUPS, GENDERS, ageLine } from '@/lib/patient-words';
 import {
   checkForDuplicates,
   lookupPostalCode,
@@ -70,18 +70,6 @@ function matchWord(matches: PatientDuplicateMatch[]): string {
   return 'name and date of birth';
 }
 
-const BLOOD_GROUPS: SelectOption[] = [
-  { value: 'UNKNOWN', label: 'Not known' },
-  { value: 'O_POSITIVE', label: 'O positive' },
-  { value: 'O_NEGATIVE', label: 'O negative' },
-  { value: 'A_POSITIVE', label: 'A positive' },
-  { value: 'A_NEGATIVE', label: 'A negative' },
-  { value: 'B_POSITIVE', label: 'B positive' },
-  { value: 'B_NEGATIVE', label: 'B negative' },
-  { value: 'AB_POSITIVE', label: 'AB positive' },
-  { value: 'AB_NEGATIVE', label: 'AB negative' },
-];
-
 /**
  * Whole years between a date of birth and today.
  *
@@ -134,12 +122,23 @@ export function PatientSearch({
   slug,
   branches,
   countryCode,
+  careContextCodes,
   canCreate,
 }: {
   slug: string;
   branches: BranchChoice[];
   /** The clinic's country, off the session. Drives every format on the form. */
   countryCode: string;
+  /**
+   * The care contexts this branch works in — `['HUMAN']`, `['VET']`, or both —
+   * resolved branch-over-organization and taken off the session (CO-1).
+   *
+   * ⚠️ ITS LENGTH DECIDES WHETHER THE FORM ASKS "PERSON OR ANIMAL?" AT ALL, and
+   *   that is the whole of the feature. It comes off the session rather than
+   *   from `GET /settings` for the reason `countryCode` does: the front desk
+   *   holds no settings permission, and this is their screen.
+   */
+  careContextCodes: string[];
   canCreate: boolean;
 }) {
   const [state, action, pending] = useActionState(searchPatients.bind(null, slug), EMPTY_SEARCH);
@@ -195,6 +194,7 @@ export function PatientSearch({
             slug={slug}
             branches={branches}
             countryCode={countryCode}
+            careContextCodes={careContextCodes}
             onDone={closeRegister}
           />
         </div>
@@ -471,12 +471,15 @@ function RegisterForm({
   slug,
   branches,
   countryCode,
+  careContextCodes,
   onDone,
 }: {
   slug: string;
   branches: BranchChoice[];
   /** The clinic's country. Decides address labels, ID types and dialling code. */
   countryCode: string;
+  /** See `PatientSearch`. One context means this form never asks. */
+  careContextCodes: string[];
   /**
    * Called once the panel should close. The outcome is handed UP rather than
    * rendered here, because this component is about to unmount — see the note on
@@ -518,7 +521,23 @@ function RegisterForm({
    *   changes what the rest of the form means, and it is the one answer here
    *   that cannot be corrected later without merging the record.
    */
-  const [subjectType, setSubjectType] = useState('HUMAN');
+  /*
+   * ⚠️ AND WHETHER IT IS ASKED AT ALL IS THE CLINIC'S ANSWER, NOT A CONSTANT
+   *   (CO-1). A practice that treats only animals said so during setup, so its
+   *   front desk is never shown this control and every record it creates is an
+   *   ANIMAL. A mixed practice sees the picker, defaulted to whichever context
+   *   it named first.
+   *
+   *   An UNKNOWN or empty list means nobody has answered yet — a clinic still in
+   *   setup — and the picker is shown. Refusing to ask is only safe once
+   *   somebody has said what the answer would be; defaulting silently to HUMAN
+   *   for an unconfigured veterinary practice is how dogs get registered as
+   *   people.
+   */
+  const asks = careContextCodes.length !== 1;
+  const [subjectType, setSubjectType] = useState(
+    careContextCodes.length === 1 && careContextCodes[0] === 'VET' ? 'ANIMAL' : 'HUMAN'
+  );
   const isAnimal = subjectType === 'ANIMAL';
 
   /**
@@ -635,18 +654,25 @@ function RegisterForm({
         </Alert>
       ) : null}
 
-      <Select
-        name="subjectType"
-        label="Registering"
-        value={subjectType}
-        onChange={(event) => setSubjectType(event.target.value)}
-        options={[
-          { value: 'HUMAN', label: 'A person' },
-          { value: 'ANIMAL', label: 'An animal' },
-        ]}
-        hint="This cannot be changed afterwards."
-        fieldClassName="mt-4"
-      />
+      {asks ? (
+        <Select
+          name="subjectType"
+          label="Registering"
+          value={subjectType}
+          onChange={(event) => setSubjectType(event.target.value)}
+          options={[
+            { value: 'HUMAN', label: 'A person' },
+            { value: 'ANIMAL', label: 'An animal' },
+          ]}
+          hint="This cannot be changed afterwards."
+          fieldClassName="mt-4"
+        />
+      ) : (
+        // Still submitted — the API decides nothing from the clinic's profile,
+        // so the value has to travel with the form exactly as it would if the
+        // desk had picked it.
+        <input type="hidden" name="subjectType" value={subjectType} />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Input
@@ -718,6 +744,25 @@ function RegisterForm({
             />
           </div>
         </Field>
+        {/*
+         * ⚠️ NEXT TO THE PHONE, AND NOT REQUIRED. `patients.email` is where an
+         *   appointment reminder and an invoice go when there is no mobile, so a
+         *   desk that cannot record it at registration records it nowhere — but
+         *   plenty of patients have no address to give, and a required box is
+         *   how a made-up one gets typed. Lower-cased by the contract, and
+         *   deliberately NOT part of the duplicate probe: two people sharing a
+         *   household address is ordinary, and `patients` carries no uniqueness
+         *   on this column.
+         */}
+        <Input
+          name="email"
+          label="Email"
+          type="email"
+          autoComplete="off"
+          hint="Optional. Used for reminders and receipts."
+          {...(state.fieldErrors?.['email'] ? { errors: state.fieldErrors['email'] } : {})}
+        />
+
         <Select
           name="branchId"
           label="Registering at"

@@ -10,10 +10,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/[doctorId]/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DoctorPage` | `({ params, }: { params: Promise<{ slug: string; doctorId: st…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/[doctorId]/page.tsx:28` |  |
+| `DoctorPage` | `({ params, }: { params: Promise<{ slug: string; doctorId: st…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/[doctorId]/page.tsx:33` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/[doctorId]/page.tsx:11` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/[doctorId]/page.tsx:16` |  |

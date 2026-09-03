@@ -37,6 +37,7 @@ import invitationRoutes from '../routes/v1/invitations.routes.js';
 import invoiceRoutes from '../routes/v1/invoices.routes.js';
 import memberRoutes from '../routes/v1/members.routes.js';
 import organizationRoutes from '../routes/v1/organization.routes.js';
+import onboardingRoutes from '../routes/v1/onboarding.routes.js';
 import patientRoutes from '../routes/v1/patients.routes.js';
 import pharmacyRoutes from '../routes/v1/pharmacy.routes.js';
 import onlineOrderRoutes from '../routes/v1/online-pharmacy.routes.js';
@@ -81,6 +82,7 @@ export const TAGS = [
   'Authentication',
   'Public',
   'Organization',
+  'Onboarding',
   'Branches',
   'Members & Roles',
   'Doctors',
@@ -120,6 +122,7 @@ export const MOUNTS: readonly Mount[] = [
   { prefix: `${V1}/public`, router: publicRoutes, tag: 'Public' },
   { prefix: `${V1}/platform`, router: platformRoutes, tag: 'Platform admin' },
   { prefix: `${V1}/organization`, router: organizationRoutes, tag: 'Organization' },
+  { prefix: `${V1}/onboarding`, router: onboardingRoutes, tag: 'Onboarding' },
   { prefix: `${V1}/branches`, router: branchRoutes, tag: 'Branches' },
   { prefix: `${V1}/invitations`, router: invitationRoutes, tag: 'Members & Roles' },
   { prefix: `${V1}/roles`, router: roleRoutes, tag: 'Members & Roles' },

@@ -28,6 +28,8 @@ export function NationalIdInput({
   countryCode,
   typeName,
   valueName,
+  defaultType,
+  defaultValue,
   errors,
   onSettled,
 }: {
@@ -35,6 +37,17 @@ export function NationalIdInput({
   countryCode: string;
   typeName: string;
   valueName: string;
+  /**
+   * What is already on the record, when this is an edit rather than a
+   * registration. `defaultValue` arrives NORMALISED — that is how the column
+   * stores it — and is put back through the document's mask for display, so an
+   * Aadhaar reads as `2345 6789 0123` again without the stored value changing.
+   *
+   * Read once, on mount. A form that re-seeded itself from props mid-edit would
+   * throw away what somebody was halfway through typing.
+   */
+  defaultType?: string | null | undefined;
+  defaultValue?: string | null | undefined;
   errors?: string[] | undefined;
   /**
    * The NORMALISED value, once the field is left.
@@ -47,8 +60,10 @@ export function NationalIdInput({
   onSettled?: ((value: string) => void) | undefined;
 }) {
   const types = nationalIdTypesFor(countryCode);
-  const [typeCode, setTypeCode] = useState('');
-  const [raw, setRaw] = useState('');
+  const [typeCode, setTypeCode] = useState(defaultType ?? '');
+  const [raw, setRaw] = useState(() =>
+    defaultValue ? applyNationalIdMask(countryCode, defaultType ?? '', defaultValue) : ''
+  );
 
   const format = types.find((t) => t.code === typeCode) ?? null;
   const normalized = normalizeNationalId(raw);
@@ -102,8 +117,13 @@ export function NationalIdInput({
           value={raw}
           onChange={(event) => accept(event.target.value)}
           onBlur={() => onSettled?.(normalized)}
-          // No type chosen means nothing to record against — see the Select above.
-          disabled={typeCode === ''}
+          /*
+           * No type chosen means nothing to record against — see the Select
+           * above. The exception is a record that already carries a number with
+           * no type on it: rows predate `nationalIdType`, and locking the field
+           * would leave the one value that most needs correcting uneditable.
+           */
+          disabled={typeCode === '' && raw === ''}
           autoComplete="off"
           inputMode={format?.numeric === true ? 'numeric' : 'text'}
           /*

@@ -14,6 +14,25 @@ import { toTestDatabaseUrl } from '../../../packages/db/scripts/test-database.js
 process.env['RATE_LIMIT_RELAXED'] = 'false';
 
 /**
+ * And the WINDOW, for the half of the same argument the flag above does not
+ * cover.
+ *
+ * ⚠️ `.env.example` TELLS DEVELOPERS TO SET `RATE_LIMIT_WINDOW_MS=10000` so that
+ *   clicking through the UI stops earning 429s, and the suite reads that same
+ *   `.env`. That is not survivable here. The first case in auth.test.ts's
+ *   rate-limit block fires TWELVE logins expecting the eleventh to be refused,
+ *   and every one of them is a real argon2 verification: the loop takes longer
+ *   than ten seconds on an unhurried machine, the bucket resets halfway through,
+ *   and the assertion fails with a 200 that looks like a broken limiter rather
+ *   than an expired window.
+ *
+ *   Fifteen minutes is the default the budgets in rateLimiter.middleware.ts are
+ *   written against, which is what those cases are asserting. Pinned rather than
+ *   defaulted for the reason above: a developer's `.env` really is setting it.
+ */
+process.env['RATE_LIMIT_WINDOW_MS'] = String(15 * 60 * 1000);
+
+/**
  * ⚠️ THE SUITES RUN AGAINST `rcl_testing`, NOT AGAINST THE DEVELOPMENT DATABASE.
  *
  *   102 suites register organizations, admit patients, dispense stock and issue

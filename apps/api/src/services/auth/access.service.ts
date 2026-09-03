@@ -7,8 +7,17 @@ import {
   type PermissionOverride,
   type RoleAssignment,
 } from '@rcln/permissions';
-import { toTimeFormat, type TimeFormat } from '@rcln/contracts';
+import {
+  toTimeFormat,
+  type ClinicModule,
+  type ClinicProfileSummary,
+  type TimeFormat,
+} from '@rcln/contracts';
 import { resolveSettingForBranches } from '../settings/resolver.service.js';
+import {
+  EMPTY_CLINIC_PROFILE,
+  resolveClinicProfiles,
+} from '../organization/clinic-profile.service.js';
 import { redis } from '../../utils/redis.js';
 import { logger } from '../../utils/logger.js';
 
@@ -308,7 +317,17 @@ export interface MembershipSummaryRow {
     timezone: string;
     /** The clock FACE, `12H` or `24H`. The other half of the same question. */
     timeFormat: TimeFormat;
+    /**
+     * What this branch said it is, resolved branch-over-organization (CO-1).
+     * Here for the reason `timezone` and `timeFormat` are: the patient form and
+     * the shell need it, and neither may require a settings permission.
+     */
+    profile: ClinicProfileSummary;
   }[];
+  /** Whether the onboarding wizard has been finished. NOT `registeredAt`. */
+  setupComplete: boolean;
+  /** The ORGANIZATION-level module answer, for the branch-less screens. */
+  modules: ClinicModule[];
 }
 
 export async function listMemberships(userId: string): Promise<MembershipSummaryRow[]> {
@@ -371,7 +390,27 @@ export async function listMemberships(userId: string): Promise<MembershipSummary
           branchIds: rows.map((b) => b.id),
         });
 
-        return rows.map((b) => ({ ...b, timeFormat: toTimeFormat(formats.get(b.id)) }));
+        /*
+         * ⚠️ IN THE SAME TRANSACTION AND WITH THE SAME BATCHING ARGUMENT as the
+         *   formats above, and DELIBERATELY OUTSIDE the 60-second
+         *   `loadUserAccess` cache. Caching it would mean every onboarding write
+         *   had to invalidate that cache, and a clinic that just finished setup
+         *   would watch the old nav for a minute. See the header of
+         *   clinic-profile.service.ts.
+         */
+        const profiles = await resolveClinicProfiles(tx, {
+          organizationId: org.id,
+          branchIds: rows.map((b) => b.id),
+        });
+
+        return {
+          branches: rows.map((b) => ({
+            ...b,
+            timeFormat: toTimeFormat(formats.get(b.id)),
+            profile: profiles.byBranch.get(b.id) ?? EMPTY_CLINIC_PROFILE,
+          })),
+          profiles,
+        };
       }
     );
 
@@ -381,7 +420,9 @@ export async function listMemberships(userId: string): Promise<MembershipSummary
       organizationSlug: org.slug,
       countryCode: org.countryCode,
       roles: [...new Set(access.roleAssignments.map((a) => a.roleCode))].sort(),
-      branches,
+      branches: branches.branches,
+      setupComplete: branches.profiles.completedAt !== null,
+      modules: branches.profiles.organization.modules,
     });
   }
 

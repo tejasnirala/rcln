@@ -1,0 +1,266 @@
+// ---------------------------------------------------------------------------
+// Onboarding — who this clinic is, asked once (CO-1)
+//
+// ⚠️ THE PROFILE SEEDS `setting_values`; IT DOES NOT REPLACE THEM. That is
+//   ADR-0018 and the single most important rule in this file. The wizard writes
+//   a `clinic_profiles` row recording who the clinic IS, and from it writes
+//   CONCRETE setting rows — once, idempotently, only where no explicit value
+//   already exists at that scope. Afterwards the clinic owns those settings and
+//   the settings screen tells the truth about them.
+//
+//   The seductive alternative is to read this table at request time AS the
+//   configuration. It halves the write path and breaks the settings screen
+//   permanently: the clinic changes `locale.time_format` in settings, the
+//   profile still says otherwise, and one question has two answers with nothing
+//   to arbitrate. It also makes re-onboarding destructive — re-entering the
+//   pharmacy step in year two would silently revert every tuned value.
+//
+//   So before adding a column here, ask whether the clinic can change its mind
+//   about it later. If it can, it is a setting row the clinic owns, not a
+//   column here.
+//
+// ── THE TWO LIVE READS ───────────────────────────────────────────────────────
+// This table IS read at request time, for exactly two things:
+//
+//   1. whether a nav tab renders     (`clinicNav` in tenant-header.tsx)
+//   2. whether the care-context picker appears on the patient form
+//
+// and for nothing else. In particular it is NOT read to resolve a consultation
+// template: `consultation-config.service.ts` already resolves the care context
+// from `patients.subject_type`, per patient. A pet clinic's templates are
+// already correct because its patients are ANIMAL, and a profile read there
+// would be a second, contradictable answer that breaks a mixed practice's one
+// human patient.
+//
+// ── NEVER AN AUTHORIZATION INPUT ─────────────────────────────────────────────
+// ⚠️ Hiding a nav tab is UX. `authorize()` still decides, and still refuses.
+//   A clinic that flips a module bit must thereby grant NOBODY anything. If you
+//   find yourself reading this table in a service that answers "may they", you
+//   have found a privilege escalation, not a feature.
+//
+//   The corollary is that "we do not run a pharmacy" and "you may not dispense"
+//   stay distinguishable, which is why modules are not permissions.
+//
+// ── NO SOFT DELETE, ANYWHERE IN THIS FILE ────────────────────────────────────
+// A decision, not an omission. `deletedAt` exists for records whose history
+// somebody reads back; a profile is CURRENT CONFIGURATION and its history is
+// `audit_logs`. Removing a branch override is a real DELETE, exactly as
+// `clearSetting` deletes a row rather than tombstoning it.
+//
+// ── NO PHI, NO MONEY ─────────────────────────────────────────────────────────
+// Nothing here is a fact about a patient or an amount. The one PHI-adjacent
+// consequence is indirect: the care-context step seeds
+// `patient.default_subject_type`, which changes what a patient RECORD defaults
+// to — and that is a setting, audited as one.
+// ---------------------------------------------------------------------------
+
+/// A module of the product, as the clinic thinks of it rather than as the
+/// codebase is laid out.
+///
+/// ⚠️ NOT A PERMISSION AND NOT AN ENTITLEMENT. Three different questions:
+///   `plan_features` says what the clinic MAY have (we sell it), this enum says
+///   what they picked from that, and `membership_roles` says who may touch it.
+///   Collapsing any two of them makes a billing question answerable by a
+///   configuration edit.
+///
+/// Adding a member is an enum value, a nav entry and — if it is sold
+/// separately — a `plan_features` key. It is never a change to the profile
+/// tables.
+enum ClinicModule {
+  APPOINTMENTS
+  CONSULTATIONS
+  PHARMACY
+  INVENTORY
+  PROCUREMENT
+  LAB
+  BILLING
+  ONLINE_ORDERS
+}
+
+/// The seven steps, in the order they are asked.
+///
+/// ⚠️ THE ORDER IS THE ENUM'S DECLARATION ORDER AND NOTHING ELSE EXPRESSES IT.
+///   The wizard's rail, the "next incomplete step" calculation and the review
+///   screen all read it from `ONBOARDING_STEP_ORDER` in @rcln/contracts, which
+///   mirrors this. Two lists that can disagree about which step comes third is
+///   how a wizard sends somebody backwards.
+enum OnboardingStep {
+  IDENTITY
+  CARE_CONTEXTS
+  MODULES
+  LOCALE_HOURS
+  TAX_BILLING
+  STAFF
+  REVIEW
+}
+
+/// What a clinic said it is. One row per organization, plus one per branch that
+/// answers differently.
+///
+/// ⚠️ `branch_id` IS NULLABLE AND NULL MEANS "THE ORGANIZATION'S ANSWER" — the
+///   `membership_roles` shape (ADR-0002), reused deliberately. It resolves
+///   BRANCH-over-ORGANIZATION exactly as `setting_values` does, so a hospital
+///   whose satellite is a standalone pharmacy is a second row with a different
+///   module set, and not a second table.
+///
+///   It is a RESOLUTION KEY, not a confidentiality boundary. Nothing on this
+///   row or its children is branch-confidential — "this site runs a pharmacy"
+///   is not a secret from the main site's staff — and nothing that is may be
+///   added to them.
+model ClinicProfile {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  /// NULL = the organization's answer. See the model comment.
+  branchId          String?   @map("branch_id") @db.Uuid
+  /// What kind of place this is, as the clinic describes itself. Seeds
+  /// `organizations.org_type` and the primary branch's `branch_type` at the
+  /// identity step; kept here because the review screen has to be able to say
+  /// what was answered, and because a group whose org type is CHAIN still has
+  /// branches that are individually a CLINIC or a LAB.
+  facilityKind      BranchType @default(CLINIC) @map("facility_kind")
+  /// Set by the REVIEW step, and the one authority on "is setup done".
+  ///
+  /// ⚠️ NOT `organizations.onboarded_at`, WHICH IS A DIFFERENT FACT. That column
+  ///   is set by `register.service.ts` the moment the form is submitted, so it
+  ///   has always meant REGISTERED — it is renamed `registered_at` in the same
+  ///   migration that creates this table. Reusing it would have marked every
+  ///   clinic on the platform as already onboarded, which is exactly the class
+  ///   of bug this file's header is about.
+  ///
+  ///   NULL on a branch-level row is normal and means nothing: completion is an
+  ///   organization-level fact, read from the row whose `branch_id` IS NULL.
+  completedAt       DateTime? @map("completed_at") @db.Timestamptz(6)
+  /// Who finished it. SetNull — they may leave, the configuration stays.
+  completedByUserId String?   @map("completed_by_user_id") @db.Uuid
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  /// Composite, so a profile can never claim another tenant's branch (ADR-0004).
+  branch       Branch?      @relation(fields: [organizationId, branchId], references: [organizationId, id], onDelete: Cascade)
+  completedBy  User?        @relation("ClinicProfileCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  careContexts ClinicProfileCareContext[]
+  modules      ClinicProfileModule[]
+
+  /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration. Without it an
+  /// organization can hold many org-level (NULL-branch) profiles and "what did
+  /// this clinic answer" has no answer — Postgres treats every NULL as distinct
+  /// from every other, so the constraint would permit exactly the rows it
+  /// exists to forbid. Same rewrite as `specialties`.
+  @@unique([organizationId, branchId])
+  /// Composite-FK target for the two child tables below.
+  @@unique([organizationId, id])
+  @@map("clinic_profiles")
+}
+
+/// Which care contexts this clinic works in — HUMAN, VET, or both.
+///
+/// ⚠️ ROWS OF `specialties` AT `CARE_CONTEXT` LEVEL, NOT A NEW ENUM, AND THAT
+///   IS THE WHOLE REASON THIS FEATURE IS SMALL. The taxonomy already has a
+///   `CARE_CONTEXT` root above `DOMAIN` (CE-1), and consultation templates,
+///   visual maps and clinical vocabulary already resolve by walking up to it.
+///   A parallel enum here would be a second vocabulary for the same idea, and
+///   the two would drift the first time a clinic defines its own context.
+///
+/// What it actually decides: ONE row means the patient form defaults
+/// `subject_type` and does not render the picker at all — the pet clinic that
+/// never has to answer "person or animal?". TWO or more means the picker
+/// appears. That is the entire behaviour.
+model ClinicProfileCareContext {
+  id             String @id @default(uuid()) @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  profileId      String @map("profile_id") @db.Uuid
+  /// ⚠️ A COPY OF THE PARENT'S `branch_id`, MAINTAINED BY THE SERVICE, AND IT
+  ///   EXISTS SOLELY SO `branch_isolation` HAS A COLUMN TO NAME.
+  ///
+  ///   The alternative was to leave this table org-scoped only and argue that a
+  ///   care-context list holds nothing branch-confidential. That argument is
+  ///   true today and is enforced by nothing — and a policy subquery against
+  ///   the parent would not have helped, because Postgres evaluates policy
+  ///   expressions with row security DISABLED on the tables they reference
+  ///   (see the `parent_scoped` note in enable-rls.sql). A real column that the
+  ///   generic branch loop can filter on is the version that keeps holding
+  ///   regardless of how the service layer is later rewritten.
+  ///
+  ///   ⚠️ THE FOREIGN KEY CANNOT ENFORCE THE COPY IS FAITHFUL. A composite FK
+  ///     including a nullable `branch_id` is MATCH SIMPLE, so a row with
+  ///     `branch_id` NULL skips the check entirely. The service writes both
+  ///     halves in one transaction and the isolation suite asserts they agree;
+  ///     there is no third guard, and adding one would mean a trigger.
+  branchId       String? @map("branch_id") @db.Uuid
+  /// A `CARE_CONTEXT` node. ⚠️ A PLAIN FK, NOT COMPOSITE, and it therefore needs
+  /// the RESTRICTIVE `specialty_visible` policy — `specialties` allows a NULL
+  /// organization_id for platform rows, so a composite FK cannot be drawn and
+  /// the row would otherwise be able to name another tenant's private node and
+  /// read its name back out of the join. Exactly `clinical_master_scopes`.
+  specialtyId    String @map("specialty_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profile      ClinicProfile @relation(fields: [organizationId, profileId], references: [organizationId, id], onDelete: Cascade)
+  specialty    Specialty     @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, profileId, specialtyId])
+  @@index([organizationId, profileId])
+  @@map("clinic_profile_care_contexts")
+}
+
+/// Which modules this clinic said it actually runs.
+///
+/// ⚠️ WHAT THEY PICKED, NOT WHAT THEY MAY HAVE. `plan_features` decides what is
+///   offerable and the module step refuses anything unentitled with a 422 — a
+///   plan failure, never a 403, because "your plan does not include Pharmacy"
+///   and "you may not dispense" are different sentences said to different
+///   people. A row here for a module the plan later stops covering is not
+///   corrupt; it is a clinic that downgraded, and the nav filter is not what
+///   should be enforcing that.
+model ClinicProfileModule {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  profileId      String       @map("profile_id") @db.Uuid
+  /// A copy of the parent's `branch_id` — see the identical note on
+  /// `ClinicProfileCareContext.branchId`, including why the FK cannot enforce it.
+  branchId       String?      @map("branch_id") @db.Uuid
+  module         ClinicModule
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profile      ClinicProfile @relation(fields: [organizationId, profileId], references: [organizationId, id], onDelete: Cascade)
+
+  @@unique([organizationId, profileId, module])
+  @@index([organizationId, profileId])
+  @@map("clinic_profile_modules")
+}
+
+/// How far through the wizard this organization is.
+///
+/// ⚠️ ORGANIZATION-LEVEL ONLY, WITH NO `branch_id` AND NO PLACE IN THE
+///   `branch_scoped` ARRAY. Progress is a fact about the setup session, not
+///   about a site: a group configures its branches from one wizard, and a
+///   per-branch copy of "step 3 is done" would be seven rows saying the same
+///   thing and one of them eventually saying something else.
+///
+/// A row exists only once its step has been visited, so absence means pending —
+/// which is what makes a fresh organization correct with no backfill.
+model ClinicOnboardingStep {
+  id                String         @id @default(uuid()) @db.Uuid
+  organizationId    String         @map("organization_id") @db.Uuid
+  step              OnboardingStep
+  /// NULL while the step has been opened but not saved. The rail renders three
+  /// states from this column alone: absent = pending, NULL = in progress,
+  /// set = done.
+  completedAt       DateTime?      @map("completed_at") @db.Timestamptz(6)
+  completedByUserId String?        @map("completed_by_user_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  completedBy  User?        @relation("ClinicOnboardingStepCompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, step])
+  @@map("clinic_onboarding_steps")
+}

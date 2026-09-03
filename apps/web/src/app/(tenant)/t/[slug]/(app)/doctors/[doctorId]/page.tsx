@@ -1,6 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import type { BranchListResponse, DoctorDetail, SpecialtyListResponse } from '@rcln/contracts';
+import type {
+  BranchListResponse,
+  DoctorDetail,
+  DoctorWeekResponse,
+  SpecialtyListResponse,
+} from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
 import { branchesInScope, getAccessToken, getSession, timezoneOf } from '@/lib/session';
@@ -83,6 +88,29 @@ export default async function DoctorPage({
 
   const permissions = session?.permissions ?? [];
 
+  /*
+   * This doctor's week at each site (DS-1), fetched here rather than in the
+   * panel so the client can switch sites without a round trip — and so the fold
+   * from schedule ROWS to a seven-row table lives in the API alone.
+   *
+   * ⚠️ FROM `branchesInScope`, NOT `GET /branches`, for the reason the patients
+   *   screen gives: the second is behind `branch.read`, which whoever runs the
+   *   rota need not hold. Skipped entirely without `doctor.schedule.read`, in
+   *   which case the panel renders read-only and asks for nothing.
+   */
+  const weekToken = await getAccessToken();
+  const weekResults = permissions.includes(PERMISSIONS.DOCTOR_SCHEDULE_READ)
+    ? await Promise.all(
+        branches.map((branch) =>
+          api<DoctorWeekResponse>(
+            `/api/v1/doctors/${doctorId}/week?branchId=${encodeURIComponent(branch.id)}`,
+            { slug, accessToken: weekToken }
+          )
+        )
+      )
+    : [];
+  const weeks = weekResults.flatMap((result) => (result.ok && result.data ? [result.data] : []));
+
   return (
     <DoctorProfile
       doctor={doctor.data}
@@ -93,6 +121,7 @@ export default async function DoctorPage({
       fees={fees}
       branches={branches}
       compensation={compensation}
+      weeks={weeks}
       canEditFees={permissions.includes(PERMISSIONS.FEE_SCHEDULE_MANAGE)}
       canEditPay={permissions.includes(PERMISSIONS.DOCTOR_COMPENSATION_MANAGE)}
       /*

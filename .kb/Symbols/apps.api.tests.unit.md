@@ -11,7 +11,7 @@ Files: `apps/api/tests/unit/audit-diff.test.ts` · `apps/api/tests/unit/charge-p
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `asRule` <sub>local</sub> | `(seed: Seed): RegulatoryRule` | `apps/api/tests/unit/rule-pack-readable.test.ts:66` |  |
-| `chainOf` <sub>local</sub> | `(router: IRouter): string[]` | `apps/api/tests/unit/route-gates.test.ts:256` |  |
+| `chainOf` <sub>local</sub> | `(router: IRouter): string[]` | `apps/api/tests/unit/route-gates.test.ts:264` |  |
 | `decision` <sub>local</sub> | `(over: Partial<RegulatoryDecisionResponse>): RegulatoryDecisionResponse` | `apps/api/tests/unit/regulatory-enforcement.test.ts:25` |  |
 | `declaredEndpointKeys` <sub>local</sub> | `(): Set<string>` | `apps/api/tests/unit/openapi.test.ts:37` | Every `METHOD /full/path` the mount table can reach. |
 | `ids` <sub>local</sub> | `(candidates: AllocationCandidate[]): (string \| null)[]` | `apps/api/tests/unit/inventory-allocation.test.ts:28` |  |

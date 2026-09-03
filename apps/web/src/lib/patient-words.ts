@@ -38,3 +38,34 @@ export function ageLine(patient: {
   if (patient.age === null) return sex;
   return `${patient.ageIsApproximate ? 'approx. ' : ''}${String(patient.age)} · ${sex}`;
 }
+
+/**
+ * Blood groups, in the order a desk reads them off a card — "not known" first,
+ * because it is both the default and the honest answer most of the time.
+ *
+ * ⚠️ HUMAN GROUPS. `bloodGroupValues` is ABO/Rh, which is a human taxonomy; an
+ *   animal record does not offer this field at all rather than inviting a
+ *   choice between eight wrong answers. See `IdentityStrip` in
+ *   `patient-chart.tsx`, which hides the line for the same reason.
+ */
+export const BLOOD_GROUPS: SelectOption[] = [
+  { value: 'UNKNOWN', label: 'Not known' },
+  { value: 'O_POSITIVE', label: 'O positive' },
+  { value: 'O_NEGATIVE', label: 'O negative' },
+  { value: 'A_POSITIVE', label: 'A positive' },
+  { value: 'A_NEGATIVE', label: 'A negative' },
+  { value: 'B_POSITIVE', label: 'B positive' },
+  { value: 'B_NEGATIVE', label: 'B negative' },
+  { value: 'AB_POSITIVE', label: 'AB positive' },
+  { value: 'AB_NEGATIVE', label: 'AB negative' },
+];
+
+/** `maritalStatusValues`, worded for a form. Not asked of an animal. */
+export const MARITAL_STATUSES: SelectOption[] = [
+  { value: 'UNKNOWN', label: 'Not recorded' },
+  { value: 'SINGLE', label: 'Single' },
+  { value: 'MARRIED', label: 'Married' },
+  { value: 'WIDOWED', label: 'Widowed' },
+  { value: 'DIVORCED', label: 'Divorced' },
+  { value: 'SEPARATED', label: 'Separated' },
+];

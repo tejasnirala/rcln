@@ -8,6 +8,7 @@ import {
   patientAllergyRequest,
   patientConditionRequest,
   patientContactRequest,
+  patientAppointmentsQuery,
   patientMedicationRequest,
   registerPatientAtBranchRequest,
   searchPatientQuery,
@@ -20,6 +21,7 @@ import {
   type PatientAllergyRequest,
   type PatientConditionRequest,
   type PatientContactRequest,
+  type PatientAppointmentsQuery,
   type PatientMedicationRequest,
   type RegisterPatientAtBranchRequest,
   type SearchPatientQuery,
@@ -63,6 +65,7 @@ import {
 } from '../../services/patient/patient-history.service.js';
 import { calculateDose, setAnimalProfile } from '../../services/patient/animal-profile.service.js';
 import { getVisitHistory } from '../../services/clinical/visit-history.service.js';
+import { listPatientAppointments } from '../../services/appointment/appointment.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 /**
@@ -408,6 +411,44 @@ router.post(
       meta(req, '/:patientId/dose-calculations')
     );
     sendSuccess(res, dose);
+  }
+);
+
+// --- bookings --------------------------------------------------------------
+
+/**
+ * Every booking this patient has, newest first — the Appointments tab on the
+ * chart.
+ *
+ * ⚠️ `appointment.read`, NOT `clinical.encounter.read`, AND THE LINE IS THE SAME
+ *   ONE `/visit-history` DRAWS FROM THE OTHER SIDE (CD-14). This answers WHEN
+ *   somebody came in, with whom, and whether they turned up. It carries no
+ *   diagnosis, no chief complaint and no consultation content — so the front
+ *   desk, which books the follow-ups and has to see what came before, may read
+ *   it. What was CONCLUDED at each of those visits is the other endpoint, behind
+ *   the clinical permission.
+ *
+ * ⚠️ IT WRITES A `data_access_logs` ROW even though the day board does not. The
+ *   board is a queue at a desk; this is one named person's booking history,
+ *   asked for by patient id. See the note on `listPatientAppointments`.
+ */
+router.get(
+  '/:patientId/appointments',
+  authorize(PERMISSIONS.APPOINTMENT_READ),
+  validate(patientParams, 'params'),
+  validate(patientAppointmentsQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { patientId } = req.params as z.infer<typeof patientParams>;
+    const query = req.query as unknown as PatientAppointmentsQuery;
+    sendSuccess(
+      res,
+      await listPatientAppointments(
+        tenantContextFrom(req),
+        patientId,
+        query,
+        meta(req, '/:patientId/appointments')
+      )
+    );
   }
 );
 

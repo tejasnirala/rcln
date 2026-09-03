@@ -15,6 +15,7 @@ import { z } from 'zod';
 import {
   doseCalculationResponse,
   patientDetail,
+  patientAppointmentsResponse,
   patientDuplicateMatch,
   patientHistoryResponse,
   patientListResponse,
@@ -25,8 +26,14 @@ import {
   ANIMAL_GUARDIAN_CONTACT,
   ANIMAL_GUARDIAN_CONTACT_ID,
   ANIMAL_PROFILE,
+  APPOINTMENT_AT,
+  APPOINTMENT_ID,
+  APPOINTMENT_NUMBER,
   BRANCH_ID,
   BRANCH_KOCHI_ID,
+  DOCTOR,
+  DOCTOR_ID,
+  PATIENT,
   PATIENT_ANIMAL,
   PATIENT_ID,
   PATIENT_TWO_ID,
@@ -627,6 +634,78 @@ log, the referrer header and browser history beside a patient id.
       patientId: PATIENT_ID_NOTE,
       contactId: "The contact `id` from the patient record's `contacts` array.",
     },
+  },
+
+  'GET /api/v1/patients/{patientId}/appointments': {
+    summary: "List a patient's bookings",
+    description: `
+Every appointment this patient has, newest first — what the Appointments tab on
+the chart renders.
+
+⚠️ **\`appointment.read\`, not \`clinical.encounter.read\`.** This answers *when*
+somebody came in, with whom, and whether they turned up. It carries no
+diagnosis, no chief complaint and no consultation content, so the front desk —
+which books the follow-ups and has to see what came before — may read it. What
+was *concluded* at those visits is \`/visit-history\`, behind the clinical
+permission.
+
+⚠️ **Not a filter on the day board, and could not be one.** \`GET /api/v1/appointments\`
+is anchored on a branch and a date range capped at 45 days; a history is
+unbounded in time by definition, so this paginates instead of ranging.
+
+⚠️ **Scoped to the caller's branches as well as their organization.** A patient
+treated at two branches has a history spanning both, and a caller confined to
+one sees only that one's bookings here.
+
+Rows carry \`cancellationReason\` but never \`reason\` — the same split the day
+board draws. \`liveInvoice\` is never populated: whether a visit is billed is the
+ledger's question.
+
+Writes a \`data_access_logs\` row. The day board does not; this singles out one
+patient's record, which is the line \`data_access_logs\` is drawn on.
+`.trim(),
+    response: patientAppointmentsResponse,
+    phi: true,
+    params: {
+      patientId: PATIENT_ID_NOTE,
+      page: '1-based.',
+      pageSize: 'Bookings per page, at most 50.',
+    },
+    responseExamples: [
+      {
+        summary: 'Two visits, the later one seen',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            patientId: PATIENT_ID,
+            appointments: [
+              {
+                id: APPOINTMENT_ID,
+                appointmentNumber: APPOINTMENT_NUMBER,
+                branchId: BRANCH_ID,
+                timezone: 'Asia/Kolkata',
+                patientId: PATIENT_ID,
+                patientName: PATIENT.fullName,
+                uhid: PATIENT.uhid,
+                doctorProfileId: DOCTOR_ID,
+                doctorName: DOCTOR.fullName,
+                scheduledStart: APPOINTMENT_AT,
+                scheduledEnd: '2026-03-17T04:15:00.000Z',
+                visitType: 'NEW',
+                source: 'FRONT_DESK',
+                status: 'COMPLETED',
+                cancellationReason: null,
+                checkedInAt: '2026-03-17T03:52:00.000Z',
+              },
+            ],
+            total: 1,
+            page: 1,
+            pageSize: 10,
+          },
+        },
+      },
+    ],
   },
 
   'GET /api/v1/patients/{patientId}/visit-history': {

@@ -2,7 +2,7 @@
 
 Living document. Update it when a phase completes or direction changes.
 
-**Last updated:** 2026-08-20 · **Current phase:** 0 complete; 1 complete except
+**Last updated:** 2026-09-03 · **Current phase:** 0 complete; 1 complete except
 the legal sign-off (onboarding, auth, branch CRUD, invitations, role/member
 management, email/phone verification, org settings, super-admin impersonation,
 one unified shell, remembered scope and per-record history); **2 complete except
@@ -57,6 +57,28 @@ the recall list's scan is bounded by a partial index, and every clinical route's
 permission gate is now audited off the Express stack rather than off a list
 somebody maintains. Everything about that programme lives in
 [`Consultation/`](Consultation/README.md).
+
+**CO-1 — clinic onboarding — is complete.** A registered clinic now walks a
+seven-step wizard once: who you are, who you treat, what you run, when you're
+open, how you bill, who works here, check and finish. Four tables
+(`clinic_profiles` and three children), two new permission codes, eight
+endpoints, a `(setup)` route group with a two-column rail, and the two consumers
+that make it visible — the nav filters by module, and a clinic that treats only
+animals never sees "person or animal?" on the patient form again.
+
+⚠️ **ITS LOAD-BEARING DECISION IS ADR-0018: THE PROFILE SEEDS `setting_values`
+AND DOES NOT REPLACE THEM.** Each step writes concrete setting rows, once, only
+where the clinic has not already answered — so the settings screen stays truthful
+and re-entering a step in year two cannot revert a tuned value. The profile is
+read live for exactly two things: whether a nav tab is drawn, and whether the
+patient form shows a care-context picker. It is never an authorization input.
+
+Care contexts reuse the `CARE_CONTEXT` taxonomy nodes CE-1 already added rather
+than a parallel enum, so templates, charts and vocabulary follow along for free.
+`organizations.onboarded_at` was renamed `registered_at` in the same migration —
+it was always stamped by registration, so reusing it would have read every
+existing clinic as already onboarded. No profile row is backfilled: every clinic
+walks the wizard once, on the same code path a new one takes.
 
 ⚠️ **NOTHING BLOCKS ON IT, AND THAT IS THE DESIGN.** One country has a pack, so
 every evaluation elsewhere answers `UNDETERMINED` — which refuses — and a call

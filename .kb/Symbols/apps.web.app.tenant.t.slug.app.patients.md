@@ -16,35 +16,38 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addAllergy` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:415` |  |
-| `addCondition` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:464` |  |
-| `addContact` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:374` |  |
-| `addMedication` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:512` |  |
-| `calculateDose` | `(slug: string, patientId: string, _previous: DoseState, formData: FormData): Promise<DoseState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:664` |  |
-| `checkForDuplicates` | `(slug: string, probe: { phone?: string; firstName?: string; dateOfBirth?: …): Promise<PatientDuplicateMatch[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:157` | Ask whether this person is already registered, before creating a record. A POST rather than a GET all the way down: the probe carries a phone number and a date… |
-| `lookupPostalCode` | `(countryCode: string, postalCode: string): Promise<PostalLookup \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:704` |  |
-| `registerAtBranch` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:353` | Register an existing patient at another clinic in the group. One record. |
-| `registerPatient` | `(slug: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:190` |  |
-| `removeAllergy` | `(slug: string, patientId: string, allergyId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:451` |  |
-| `removeCondition` | `(slug: string, patientId: string, conditionId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:499` |  |
-| `saveAnimalProfile` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:584` |  |
-| `searchPatients` | `(slug: string, _previous: SearchState, formData: FormData): Promise<SearchState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:105` |  |
-| `stopMedication` | `(slug: string, patientId: string, medicationId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:549` | Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together. |
-| `updatePatient` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:312` |  |
+| `addAllergy` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:456` |  |
+| `addCondition` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:505` |  |
+| `addContact` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:415` |  |
+| `addMedication` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:553` |  |
+| `calculateDose` | `(slug: string, patientId: string, _previous: DoseState, formData: FormData): Promise<DoseState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:705` |  |
+| `checkForDuplicates` | `(slug: string, probe: { phone?: string; firstName?: string; dateOfBirth?: …): Promise<PatientDuplicateMatch[]>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:160` | Ask whether this person is already registered, before creating a record. A POST rather than a GET all the way down: the probe carries a phone number and a date… |
+| `loadPatientAppointments` | `(slug: string, patientId: string, page: number): Promise<PatientAppointmentsState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:781` |  |
+| `loadPatientInvoices` | `(slug: string, patientId: string, page: number): Promise<PatientInvoicesState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:831` |  |
+| `lookupPostalCode` | `(countryCode: string, postalCode: string): Promise<PostalLookup \| null>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:745` |  |
+| `registerAtBranch` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:394` | Register an existing patient at another clinic in the group. One record. |
+| `registerPatient` | `(slug: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:193` |  |
+| `removeAllergy` | `(slug: string, patientId: string, allergyId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:492` |  |
+| `removeCondition` | `(slug: string, patientId: string, conditionId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:540` |  |
+| `saveAnimalProfile` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:625` |  |
+| `searchPatients` | `(slug: string, _previous: SearchState, formData: FormData): Promise<SearchState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:108` |  |
+| `stopMedication` | `(slug: string, patientId: string, medicationId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:590` | Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together. |
+| `updatePatient` | `(slug: string, patientId: string, _previous: PatientFormState, formData: FormData): Promise<PatientFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:315` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `checked` <sub>local</sub> | `(formData: FormData, key: string): boolean` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:97` |  |
-| `number` <sub>local</sub> | `(formData: FormData, key: string): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:92` |  |
-| `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:87` | Empty strings from an untouched optional input mean "not provided". |
+| `checked` <sub>local</sub> | `(formData: FormData, key: string): boolean` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:100` |  |
+| `number` <sub>local</sub> | `(formData: FormData, key: string): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:95` |  |
+| `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:90` | Empty strings from an untouched optional input mean "not provided". |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `EMPTY_SEARCH` <sub>local</sub> | `: SearchState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:79` |  |
+| `EMPTY_SEARCH` <sub>local</sub> | `: SearchState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:82` |  |
+| `TAB_PAGE_SIZE` <sub>local</sub> | `10` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:779` | Rows per tab. Ten fills the panel without turning the chart into a ledger. |
 
 ## var
 
@@ -56,6 +59,8 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DoseState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; fieldErrors?: Record<string, string[]>; dose?: DoseCalculationResponse; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:644` |  |
-| `PatientFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set when a registration was refused because the person is a…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:45` |  |
-| `SearchState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the results can say what they are results for. */ scope: …` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:55` |  |
+| `DoseState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; fieldErrors?: Record<string, string[]>; dose?: DoseCalculationResponse; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:685` |  |
+| `PatientAppointmentsState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; appointments: AppointmentSummary[]; total: number; page: number; pageSize: number; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:769` |  |
+| `PatientFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set when a registration was refused because the person is a…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:48` |  |
+| `PatientInvoicesState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; invoices: InvoiceListItem[]; total: number; page: number; pageSize: number; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:809` |  |
+| `SearchState` | `{ status: 'idle' \| 'error' \| 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the results can say what they are results for. */ scope: …` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:58` |  |

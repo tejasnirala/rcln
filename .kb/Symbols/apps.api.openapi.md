@@ -10,7 +10,7 @@ Files: `apps/api/src/openapi/document.ts` · `apps/api/src/openapi/envelope.ts` 
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `assertMountsCover` | `(reachable: ReadonlySet<IRouter>): void` | `apps/api/src/openapi/mounts.ts:203` |  |
+| `assertMountsCover` | `(reachable: ReadonlySet<IRouter>): void` | `apps/api/src/openapi/mounts.ts:206` |  |
 | `buildOpenApiDocument` | `(): Record<string, unknown>` | `apps/api/src/openapi/document.ts:179` | Build the whole document. Pure; the caller decides when to cache it. |
 | `collectEndpoints` <sub>local</sub> | `(): Endpoint[]` | `apps/api/src/openapi/document.ts:51` | Every documented endpoint, in mount order. |
 | `contractNameOf` | `(schema: ZodType): string \| null` | `apps/api/src/openapi/schema.ts:47` | The name `@rcln/contracts` exports this schema under, if it exports it. |
@@ -47,12 +47,12 @@ Files: `apps/api/src/openapi/document.ts` · `apps/api/src/openapi/envelope.ts` 
 | `ENVELOPE_SCHEMAS` | `: Record<string, JsonSchema>` | `apps/api/src/openapi/envelope.ts:19` |  |
 | `ERROR_CASES` | `: Record<number, ErrorCase>` | `apps/api/src/openapi/envelope.ts:113` |  |
 | `GATE_NAMES` <sub>local</sub> | `new Set(…)` | `apps/api/src/openapi/introspect.ts:30` | The middleware this codebase gates on, recognised by function name. |
-| `MOUNTS` | `: readonly Mount[]` | `apps/api/src/openapi/mounts.ts:117` |  |
+| `MOUNTS` | `: readonly Mount[]` | `apps/api/src/openapi/mounts.ts:119` |  |
 | `OVERVIEW` <sub>local</sub> | `` A multi-tenant API for running a clinic: appointments, th…` | `apps/api/src/openapi/document.ts:385` |  |
 | `REF_PREFIX` <sub>local</sub> | `'#/components/schemas/'` | `apps/api/src/openapi/schema.ts:50` |  |
 | `SHARED` <sub>local</sub> | `'Shared'` | `apps/api/src/openapi/schema.ts:53` | Where Zod's recursive/repeated subschemas end up. See `convert()`. |
-| `TAGS` | `[ 'Health', 'Authentication', 'Public', 'Organization', 'Branches', 'Members & Roles', 'D…` | `apps/api/src/openapi/mounts.ts:79` | The documentation's own sections, in the order a reader should meet them. |
-| `V1` <sub>local</sub> | `'/api/v1'` | `apps/api/src/openapi/mounts.ts:115` |  |
+| `TAGS` | `[ 'Health', 'Authentication', 'Public', 'Organization', 'Onboarding', 'Branches', 'Member…` | `apps/api/src/openapi/mounts.ts:80` | The documentation's own sections, in the order a reader should meet them. |
+| `V1` <sub>local</sub> | `'/api/v1'` | `apps/api/src/openapi/mounts.ts:117` |  |
 
 ## interface
 
@@ -63,7 +63,7 @@ Files: `apps/api/src/openapi/document.ts` · `apps/api/src/openapi/envelope.ts` 
 | `EndpointExample` | `{ summary, description, value }` | `apps/api/src/openapi/types.ts:13` |  |
 | `ErrorCase` <sub>local</sub> | `{ description, example }` | `apps/api/src/openapi/envelope.ts:101` |  |
 | `IntrospectedRoute` | `{ method, path, permissions, validated, gates }` | `apps/api/src/openapi/introspect.ts:37` |  |
-| `Mount` | `{ prefix, router, tag }` | `apps/api/src/openapi/mounts.ts:108` |  |
+| `Mount` | `{ prefix, router, tag }` | `apps/api/src/openapi/mounts.ts:110` |  |
 | `RouteLayer` <sub>local</sub> | `{ path, methods, stack }` | `apps/api/src/openapi/introspect.ts:51` | Express does not type its own stack. This is the shape it has in 5.x. |
 | `StackLayer` <sub>local</sub> | `{ name, handle, route }` | `apps/api/src/openapi/introspect.ts:56` |  |
 
@@ -74,4 +74,4 @@ Files: `apps/api/src/openapi/document.ts` · `apps/api/src/openapi/envelope.ts` 
 | `DocRegistry` | `Readonly<Record<string, EndpointDoc>>` | `apps/api/src/openapi/types.ts:50` | `GET /api/v1/branches/:branchId` -> the prose for it. |
 | `Io` | `'input' \| 'output'` | `apps/api/src/openapi/schema.ts:23` |  |
 | `JsonSchema` | `Record<string, unknown>` | `apps/api/src/openapi/schema.ts:22` |  |
-| `Tag` | `(typeof TAGS)[number]` | `apps/api/src/openapi/mounts.ts:106` |  |
+| `Tag` | `(typeof TAGS)[number]` | `apps/api/src/openapi/mounts.ts:108` |  |

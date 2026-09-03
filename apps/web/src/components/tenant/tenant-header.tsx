@@ -1,4 +1,4 @@
-import type { AuthSession } from '@rcln/contracts';
+import type { AuthSession, ClinicModule } from '@rcln/contracts';
 /*
  * ⚠️ THE CONSTANTS, NOT STRING LITERALS. All twenty-four nav entries used to
  *   spell their permission codes by hand, so a rename in `@rcln/permissions`
@@ -82,7 +82,28 @@ export function TenantHeader({ slug, session }: { slug: string; session: AuthSes
         // rewrite, and the apex serves a clinic finder at the same path.
         <SignOutButton action={signOut.bind(null, slug)} redirectTo="/login" />
       }
-      nav={{ label: 'Clinic', links: clinicNav(session.permissions) }}
+      /*
+       * ⚠️ TWO FILTERS, AND THEY ANSWER DIFFERENT QUESTIONS (CO-1). Permissions
+       *   decide what this person MAY open; modules decide what this clinic
+       *   SAID IT RUNS. A tab needs both — but only the first is security, and
+       *   the API still refuses a request for a hidden route exactly as before.
+       *
+       *   The modules come from the ACTIVE BRANCH's resolved profile, so a
+       *   group's pharmacy satellite draws a different menu from its OPD site.
+       *   Before a branch is chosen — and for a clinic that has not reached the
+       *   modules step — the organization's answer is the fallback, and an empty
+       *   answer means "show everything the permissions allow" rather than
+       *   "show nothing", which would hide the screen that fixes it.
+       */
+      nav={{
+        label: 'Clinic',
+        links: clinicNav(
+          session.permissions,
+          branches.find((b) => b.id === session.activeBranchId)?.profile.modules ??
+            membership?.modules ??
+            []
+        ),
+      }}
     />
   );
 }
@@ -98,8 +119,27 @@ export function TenantHeader({ slug, session }: { slug: string; session: AuthSes
  * so this reflects a role change on the next page load. A platform admin comes
  * back holding the whole catalogue, which is why they see every entry.
  */
-function clinicNav(permissions: string[]): NavLink[] {
-  return [
+function clinicNav(permissions: string[], modules: ClinicModule[]): NavLink[] {
+  /*
+   * An empty list means the clinic has not answered the modules question yet —
+   * a brand new clinic, or one mid-setup. Everything is offered in that case:
+   * a shell with no tabs is a shell nobody can get out of.
+   */
+  const runs = (module: ClinicModule): boolean => modules.length === 0 || modules.includes(module);
+
+  /*
+   * Annotated rather than inferred, so a link may legitimately omit `module` and
+   * the filter below can still ask every entry for it. Without the annotation
+   * TypeScript infers a union of two object shapes and `link.module` does not
+   * exist on half of them.
+   */
+  const entries: {
+    href: string;
+    label: string;
+    permission: string[];
+    /** Absent = always offered. See the filter at the foot of this function. */
+    module?: ClinicModule;
+  }[] = [
     { href: '/branches', label: 'Branches', permission: [P.BRANCH_READ] },
     // Sits next to Branches rather than under Staff: a doctor's working hours
     // are what the front desk books against, so this is a scheduling screen that
@@ -143,7 +183,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      *
      * Sits beside Appointments because that is where most of its rows come from.
      */
-    { href: '/invoices', label: 'Invoices', permission: [P.INVOICE_READ] },
+    { href: '/invoices', label: 'Invoices', permission: [P.INVOICE_READ], module: 'BILLING' },
     /*
      * ⚠️ "CHARGES", AND IT IS A SEPARATE TAB FROM INVOICES ON PURPOSE (PI-8).
      *   An invoice is a document that exists; this is everything that has been
@@ -161,7 +201,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      * come from. Gated on `billing.charge_request.read`, which a pharmacist holds
      * for visibility and the front desk holds to work.
      */
-    { href: '/charges', label: 'Charges', permission: [P.CHARGE_REQUEST_READ] },
+    { href: '/charges', label: 'Charges', permission: [P.CHARGE_REQUEST_READ], module: 'BILLING' },
     /*
      * ⚠️ "USAGE", AND IT IS A SEPARATE TAB FROM STOCK ON PURPOSE (PI-9). Stock
      *   says what the clinic HOLDS; this says what its procedures USED and how
@@ -178,7 +218,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      *
      * Sits after Charges because it is the other writer of that queue.
      */
-    { href: '/usage', label: 'Usage', permission: [P.CONSUMPTION_READ] },
+    { href: '/usage', label: 'Usage', permission: [P.CONSUMPTION_READ], module: 'INVENTORY' },
     /*
      * ⚠️ "CATALOGUE", NOT "PHARMACY" OR "PRODUCTS". One catalogue holds
      *   medicines, gloves, implants, reagents and dental materials, so naming
@@ -191,7 +231,12 @@ function clinicNav(permissions: string[]): NavLink[] {
      * daily. Gated on `product.definition.read`, which a doctor and a nurse hold
      * for lookup and a receptionist does not.
      */
-    { href: '/products', label: 'Catalogue', permission: [P.PRODUCT_DEFINITION_READ] },
+    {
+      href: '/products',
+      label: 'Catalogue',
+      permission: [P.PRODUCT_DEFINITION_READ],
+      module: 'INVENTORY',
+    },
     /*
      * ⚠️ "STOCK", NOT "INVENTORY", AND IT IS A SEPARATE TAB FROM CATALOGUE ON
      *   PURPOSE. The catalogue says what a thing IS; this says where it is and
@@ -208,7 +253,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      * and gated on `inventory.stock.read` — which a pharmacist and a branch
      * administrator hold, and a receptionist does not.
      */
-    { href: '/stock', label: 'Stock', permission: [P.STOCK_READ] },
+    { href: '/stock', label: 'Stock', permission: [P.STOCK_READ], module: 'INVENTORY' },
     /*
      * How stock GETS here, and what it cost (PI-4). The third tab of the same
      * triple: Catalogue says what a thing is, Stock says where it is, this says
@@ -234,6 +279,7 @@ function clinicNav(permissions: string[]): NavLink[] {
         P.GOODS_RECEIPT_MANAGE,
         P.REQUISITION_CREATE,
       ],
+      module: 'PROCUREMENT',
     },
     /*
      * The counter (PI-7). The fourth tab of what is now a quartet: Catalogue says
@@ -254,6 +300,7 @@ function clinicNav(permissions: string[]): NavLink[] {
       href: '/pharmacy',
       label: 'Pharmacy',
       permission: [P.DISPENSE_READ, P.DISPENSE_VERIFY, P.DISPENSE_CREATE, P.DISPENSE_RETURN],
+      module: 'PHARMACY',
     },
     /*
      * What the law allows to be done with the things in that catalogue (PI-5).
@@ -291,8 +338,18 @@ function clinicNav(permissions: string[]): NavLink[] {
      * has to be reached again. Gated on `recall.notice.read`, which a pharmacist
      * and a branch administrator hold.
      */
-    { href: '/product-recalls', label: 'Product recalls', permission: [P.RECALL_READ] },
-    { href: '/regulatory/jurisdictions', label: 'Rules', permission: [P.REGULATORY_READ] },
+    {
+      href: '/product-recalls',
+      label: 'Product recalls',
+      permission: [P.RECALL_READ],
+      module: 'INVENTORY',
+    },
+    {
+      href: '/regulatory/jurisdictions',
+      label: 'Rules',
+      permission: [P.REGULATORY_READ],
+      module: 'PHARMACY',
+    },
     /*
      * The clinical vocabulary. Sits after Rules rather than beside Patients
      * because it is a SETTINGS surface — nobody opens it during a clinic. Read
@@ -316,6 +373,7 @@ function clinicNav(permissions: string[]): NavLink[] {
       href: '/consultation-templates',
       label: 'Consultations',
       permission: [P.CLINICAL_TEMPLATE_MANAGE],
+      module: 'CONSULTATIONS',
     },
     /*
      * The pictures those consultations draw ON (CE-6). Its own entry rather than
@@ -385,7 +443,20 @@ function clinicNav(permissions: string[]): NavLink[] {
       label: 'Billing',
       permission: [P.ORG_BILLING_READ, P.ORG_BILLING_MANAGE],
     },
-  ]
-    .filter((link) => link.permission.some((code) => permissions.includes(code)))
-    .map(({ href, label }) => ({ href, label }));
+  ];
+
+  return (
+    entries
+      .filter((link) => link.permission.some((code) => permissions.includes(code)))
+      /*
+       * ⚠️ THE MODULE FILTER IS UX AND THE PERMISSION FILTER ABOVE IS SECURITY.
+       *   A link with no `module` is always offered — Patients, Staff, Roles,
+       *   Clinic and Billing are not something a clinic opts out of. Everything
+       *   else is hidden when the clinic said it does not run it, and hiding it
+       *   grants and revokes nothing: `authorize()` is unchanged and a caller who
+       *   types the URL meets exactly the gate they met before.
+       */
+      .filter((link) => link.module === undefined || runs(link.module))
+      .map(({ href, label }) => ({ href, label }))
+  );
 }

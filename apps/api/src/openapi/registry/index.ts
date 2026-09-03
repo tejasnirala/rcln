@@ -32,6 +32,7 @@ import { healthDocs } from './health.js';
 import { inventoryDocs } from './inventory.js';
 import { invoiceDocs } from './invoices.js';
 import { memberDocs } from './members.js';
+import { onboardingDocs } from './onboarding.js';
 import { organizationDocs } from './organization.js';
 import { patientDocs } from './patients.js';
 import { pharmacyDocs } from './pharmacy.js';
@@ -50,6 +51,7 @@ export const DOCS: DocRegistry = {
   ...authDocs,
   ...publicDocs,
   ...organizationDocs,
+  ...onboardingDocs,
   ...branchDocs,
   ...memberDocs,
   ...doctorDocs,

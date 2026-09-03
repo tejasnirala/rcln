@@ -24,6 +24,8 @@ import type {
   DoctorScheduleExceptionDetail,
   DoctorScheduleExceptionRequest,
   DoctorScheduleRequest,
+  DoctorWeekResponse,
+  SetDoctorWeekRequest,
 } from '@rcln/contracts';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
@@ -509,4 +511,240 @@ export async function decideException(
   });
 
   return toExceptionDetail(row);
+}
+
+// -- the week, as the schedule table edits it (DS-1) -------------------------
+
+/**
+ * A doctor's week at one branch, in the shape the table renders.
+ *
+ * ⚠️ THE TABLE IS A VIEW OF `doctor_schedules`, NOT A SECOND STORE. Two rows for
+ *   one day become the morning and evening columns; anything a clinic created
+ *   through the old block form still reads back here. A third block on one day
+ *   — which the old form allowed and this one cannot create — is not silently
+ *   dropped: it is folded into the span, so the table shows the doctor's real
+ *   working window rather than pretending the row does not exist. Saving then
+ *   normalises it to two periods, which is the only lossy moment and is the
+ *   user's own edit.
+ */
+export async function getDoctorWeek(
+  ctx: TenantContext,
+  doctorId: string,
+  branchId: string
+): Promise<DoctorWeekResponse> {
+  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
+
+  return withTenant(ctx, async (tx) => {
+    const branch = await tx.branch.findFirst({
+      where: { id: branchId, deletedAt: null },
+      select: {
+        name: true,
+        operatingHours: {
+          select: { dayOfWeek: true, opensAt: true, closesAt: true, isClosed: true },
+          orderBy: { dayOfWeek: 'asc' },
+        },
+      },
+    });
+    if (!branch) throw new NotFoundError('Branch');
+
+    const doctor = await tx.doctorProfile.findFirst({
+      where: { id: doctorId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!doctor) throw new NotFoundError('Doctor');
+
+    const [setting, rows, minutes] = await Promise.all([
+      tx.doctorBranchSetting.findFirst({
+        where: { doctorProfileId: doctorId, branchId },
+        select: { followsBranchHours: true },
+      }),
+      tx.doctorSchedule.findMany({
+        where: { doctorProfileId: doctorId, branchId, isActive: true },
+        select: {
+          dayOfWeek: true,
+          startTime: true,
+          endTime: true,
+          slotMinutes: true,
+          maxPatients: true,
+        },
+        orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      }),
+      effectiveSlotMinutes(tx, ctx, { branchId, doctorProfileId: doctorId }, null),
+    ]);
+
+    const days = [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => {
+      const blocks = rows.filter((r) => r.dayOfWeek === dayOfWeek);
+      const first = blocks[0];
+      const rest = blocks.slice(1);
+
+      return {
+        dayOfWeek,
+        morning: first
+          ? { startTime: fromTime(first.startTime), endTime: fromTime(first.endTime) }
+          : null,
+        /*
+         * Everything after the first block collapses into ONE evening period
+         * spanning from the second block's start to the last block's end. A
+         * clinic with three blocks on a Tuesday is rare and was expressible; the
+         * table shows the true outer window rather than hiding the third.
+         */
+        evening:
+          rest.length > 0 && rest[0] && rest[rest.length - 1]
+            ? {
+                startTime: fromTime(rest[0].startTime),
+                endTime: fromTime(rest[rest.length - 1]!.endTime),
+              }
+            : null,
+        slotMinutes: first?.slotMinutes ?? null,
+        maxPatients: first?.maxPatients ?? null,
+      };
+    });
+
+    return {
+      branchId,
+      branchName: branch.name,
+      followsBranchHours: setting?.followsBranchHours ?? false,
+      days,
+      branchHours: branch.operatingHours.map((h) => ({
+        dayOfWeek: h.dayOfWeek,
+        opensAt: fromTime(h.opensAt),
+        closesAt: fromTime(h.closesAt),
+        isClosed: h.isClosed,
+      })),
+      effectiveSlotMinutes: minutes,
+    };
+  });
+}
+
+/**
+ * Replace a doctor's whole week at one branch.
+ *
+ * ⚠️ NOT A PARTIAL UPDATE, for the reason `setOperatingHours` is not one: a week
+ *   is read as a set, and a per-day write leaves the doctor half on the new rota
+ *   and half on the old with nothing recording which is which.
+ *
+ * ⚠️ `followsBranchHours` SHORT-CIRCUITS THE DAYS AND DOES NOT DELETE THEM. A
+ *   doctor moved onto clinic hours keeps whatever week they had, inert; moving
+ *   them back restores it. Deleting would make the toggle destructive in a way
+ *   nothing on the screen warns about, and "same as the clinic" is a sentence
+ *   people flip back and forth while setting a practice up.
+ *
+ * ⚠️ AND THE OLD ROWS ARE DELETED RATHER THAN CLOSED OFF WITH `valid_to`.
+ *   `doctor_schedules` is effective-dated so a clinic can post next month's rota
+ *   in advance, but this endpoint edits THE CURRENT WEEK — and appointments
+ *   already booked carry their own times, so nothing historical reads these
+ *   rows. Keeping supserseded weeks would mean the engine had to pick between
+ *   two rotas for the same Tuesday, which is exactly the ambiguity the old form
+ *   produced.
+ */
+export async function setDoctorWeek(
+  ctx: TenantContext,
+  doctorId: string,
+  input: SetDoctorWeekRequest,
+  options: DoctorActionOptions = {}
+): Promise<DoctorWeekResponse> {
+  if (!ctx.branchIds.includes(input.branchId)) throw new NotFoundError('Branch');
+
+  await withTenant(ctx, async (tx) => {
+    const doctor = await tx.doctorProfile.findFirst({
+      where: { id: doctorId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!doctor) throw new NotFoundError('Doctor');
+
+    const before = await tx.doctorSchedule.findMany({
+      where: { doctorProfileId: doctorId, branchId: input.branchId },
+      select: { dayOfWeek: true, startTime: true, endTime: true },
+      orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+    });
+    const previous = await tx.doctorBranchSetting.findFirst({
+      where: { doctorProfileId: doctorId, branchId: input.branchId },
+      select: { id: true, followsBranchHours: true },
+    });
+
+    /*
+     * The flag lives on the doctor↔branch relationship, which may not exist yet
+     * — a doctor registered without branch settings is ordinary. `findFirst`
+     * then create/update rather than `upsert`, the same call every other write
+     * against a compound unique in this codebase makes.
+     */
+    if (previous) {
+      await tx.doctorBranchSetting.update({
+        where: { id: previous.id },
+        data: { followsBranchHours: input.followsBranchHours },
+      });
+    } else {
+      await tx.doctorBranchSetting.create({
+        data: {
+          organizationId: ctx.organizationId,
+          doctorProfileId: doctorId,
+          branchId: input.branchId,
+          followsBranchHours: input.followsBranchHours,
+        },
+      });
+    }
+
+    if (!input.followsBranchHours) {
+      await tx.doctorSchedule.deleteMany({
+        where: { doctorProfileId: doctorId, branchId: input.branchId },
+      });
+
+      const validFrom = new Date(`${input.validFrom ?? todayIso()}T00:00:00Z`);
+
+      const blocks = input.days.flatMap((day) =>
+        (['morning', 'evening'] as const).flatMap((key) => {
+          const period = day[key];
+          if (!period) return [];
+          return [
+            {
+              organizationId: ctx.organizationId,
+              doctorProfileId: doctorId,
+              branchId: input.branchId,
+              dayOfWeek: day.dayOfWeek,
+              startTime: toTime(period.startTime),
+              endTime: toTime(period.endTime),
+              slotMinutes: day.slotMinutes,
+              maxPatients: day.maxPatients,
+              validFrom,
+              isActive: true,
+            },
+          ];
+        })
+      );
+
+      if (blocks.length > 0) await tx.doctorSchedule.createMany({ data: blocks });
+    }
+
+    await recordAudit(tx, ctx, {
+      action: 'UPDATE',
+      entityType: 'doctor_schedules',
+      entityId: doctorId,
+      before: {
+        followsBranchHours: previous?.followsBranchHours ?? false,
+        // The week as a whole, in a form a human can read back.
+        week: before.map(
+          (b) => `${String(b.dayOfWeek)} ${fromTime(b.startTime)}-${fromTime(b.endTime)}`
+        ),
+      },
+      after: {
+        followsBranchHours: input.followsBranchHours,
+        week: input.followsBranchHours
+          ? 'the branch’s own opening hours'
+          : input.days.flatMap((d) =>
+              [d.morning, d.evening]
+                .filter((p) => p !== null)
+                .map((p) => `${String(d.dayOfWeek)} ${p.startTime}-${p.endTime}`)
+            ),
+      },
+      branchId: input.branchId,
+      ...options,
+    });
+  });
+
+  return getDoctorWeek(ctx, doctorId, input.branchId);
+}
+
+/** Today, as a calendar day. The rota starts applying now unless told otherwise. */
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
 }

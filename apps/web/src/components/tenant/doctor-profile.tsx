@@ -4,6 +4,7 @@ import type {
   BranchSummary,
   DoctorCompensationDetail,
   DoctorDetail,
+  DoctorWeekResponse,
   FeeScheduleView,
   QualificationSummary,
   SpecialtySummary,
@@ -81,6 +82,7 @@ export function DoctorProfile({
   qualifications = [],
   editableBranches = [],
   canUpdate = false,
+  weeks = [],
   canManageSchedules = false,
   canArchive = false,
   canReadHistory = false,
@@ -131,6 +133,11 @@ export function DoctorProfile({
    */
   editableBranches?: BranchDetail[];
   canUpdate?: boolean;
+  /**
+   * This doctor's week at each site the caller can see (DS-1). Empty when the
+   * caller cannot read schedules, in which case the hours panel is not rendered.
+   */
+  weeks?: DoctorWeekResponse[];
   canManageSchedules?: boolean;
   canArchive?: boolean;
   canReadHistory?: boolean;
@@ -280,6 +287,13 @@ export function DoctorProfile({
           slug={slug}
           doctor={doctor}
           branches={editableBranches}
+          /*
+           * One week per site the caller can see, fetched server-side so
+           * switching sites is instant and the fold from schedule rows to a
+           * seven-row table happens in ONE place — the API — rather than being
+           * reimplemented here where the two could drift.
+           */
+          weeks={weeks}
           canEdit={canManageSchedules}
         />
       ) : (

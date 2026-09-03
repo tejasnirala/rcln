@@ -326,6 +326,22 @@ export const createDoctorRequest = z
     /** The recurring week. Blocks are validated against each other before insert. */
     schedules: z.array(doctorScheduleRequest).max(60).optional(),
     /**
+     * Branches where this doctor consults whenever the CLINIC is open (DS-1).
+     *
+     * ⚠️ A LIST OF BRANCH IDS RATHER THAN A BOOLEAN, because the answer is per
+     *   SITE: a consultant can be full-time at the main clinic and visit the
+     *   satellite on Tuesday evenings. The flag lives on the doctor↔branch
+     *   relationship for exactly that reason.
+     *
+     * ⚠️ AND A BRANCH NAMED HERE SHOULD CARRY NO `schedules` ROWS. The engine
+     *   reads the branch's opening hours INSTEAD of the doctor's own — never
+     *   both — so blocks sent for such a branch are stored and ignored. The
+     *   registration form does not send them; the API does not refuse them,
+     *   because they become live again the moment the clinic turns the option
+     *   off, which is the same "kept, not deleted" behaviour the profile has.
+     */
+    followsBranchHours: z.array(uuid).max(50).optional(),
+    /**
      * Opening prices, at this doctor's organization-wide scope (`branchId` null).
      * Per-branch overrides are the fee grid's job on the profile afterwards.
      */
@@ -481,6 +497,16 @@ export const doctorBranchSettingDetail = z.object({
   branchName: z.string(),
   /** ⚠️ Fees are no longer here — see `doctorBranchSettingRequest`. */
   followUpFreeDays: z.number().int().nullable(),
+  /**
+   * This doctor consults whenever the branch is open (DS-1).
+   *
+   * ⚠️ WHEN TRUE, `schedules` FOR THIS BRANCH ARE NOT WHAT THE ENGINE READS.
+   *   The week is derived from the branch's own opening hours, live, so the
+   *   doctor follows the clinic when the clinic changes. Any `doctor_schedules`
+   *   rows they have are kept and simply not consulted — turning this off
+   *   restores them.
+   */
+  followsBranchHours: z.boolean(),
   isActive: z.boolean(),
 });
 
@@ -588,3 +614,173 @@ export type DoctorBranchSettingRequest = z.infer<typeof doctorBranchSettingReque
 export type DoctorScheduleRequest = z.infer<typeof doctorScheduleRequest>;
 export type DoctorScheduleExceptionRequest = z.infer<typeof doctorScheduleExceptionRequest>;
 export type DecideScheduleExceptionRequest = z.infer<typeof decideScheduleExceptionRequest>;
+
+/**
+ * Somebody who could be given a doctor profile (the /doctors screen's picker).
+ *
+ * ⚠️ NOT "EVERY MEMBER". The list is the people who hold
+ *   `clinical.encounter.create` — the permission that defines authoring the
+ *   clinical record (invariant 7) — and NOT the people assigned a role called
+ *   DOCTOR. Nothing in this codebase names a role (ADR-0002), and a clinic that
+ *   clones DOCTOR into "Senior Consultant" would otherwise vanish from the only
+ *   screen that can register its consultants.
+ *
+ * `email` is here to tell two people with the same name apart, which a clinic
+ * with two Dr Sharmas needs and a bare name cannot do. It is staff contact
+ * detail, not PHI.
+ *
+ * ⚠️ NULLABLE, BECAUSE `users.email` IS. A member invited by phone alone has
+ *   none, and that is an ordinary shape rather than a broken row — the picker
+ *   shows the name by itself for them.
+ */
+export const doctorCandidate = z.object({
+  userId: uuid,
+  fullName: z.string(),
+  email: z.string().nullable(),
+});
+export type DoctorCandidate = z.infer<typeof doctorCandidate>;
+
+export const doctorCandidateListResponse = z.object({
+  candidates: z.array(doctorCandidate),
+});
+export type DoctorCandidateListResponse = z.infer<typeof doctorCandidateListResponse>;
+
+/**
+ * One day of a doctor's week, as the schedule table edits it (DS-1).
+ *
+ * ⚠️ TWO PERIODS, NOT ONE, AND NOT AN UNBOUNDED LIST. A single from/to cannot
+ *   express the morning-and-evening OPD that most clinics here actually run,
+ *   and an unbounded list is what the old "add a block" form was — which let a
+ *   clinic create three overlapping Tuesdays and had no way to show the week at
+ *   a glance. Two named periods is the shape the day really has.
+ *
+ * `null` for either period means "not consulting then". Both null is a day off,
+ * and is how a six-day week is expressed — there is no separate `isClosed`,
+ * because an empty day already says it and two ways to say one thing is how
+ * they come to disagree.
+ */
+export const doctorDayPeriod = z.object({
+  startTime: clockTime,
+  endTime: clockTime,
+});
+
+export const doctorScheduleDay = z
+  .object({
+    /** 0 = Sunday, matching Postgres `extract(dow)` and `branch_operating_hours`. */
+    dayOfWeek: z.number().int().min(0).max(6),
+    morning: doctorDayPeriod.nullable(),
+    evening: doctorDayPeriod.nullable(),
+    /** Null inherits the resolved `appointment.slot_minutes` setting. */
+    slotMinutes: z.number().int().min(5).max(240).nullable(),
+    /** Advisory cap for the DAY. Not enforced by a constraint — see the model. */
+    maxPatients: z.number().int().min(1).max(500).nullable(),
+  })
+  .superRefine((v, ctx) => {
+    for (const key of ['morning', 'evening'] as const) {
+      const period = v[key];
+      if (period && period.endTime <= period.startTime) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key, 'endTime'],
+          message: 'must be after the start time — an overnight clinic is two days',
+        });
+      }
+    }
+    /*
+     * ⚠️ THE EVENING MUST START AFTER THE MORNING ENDS. Without this a table
+     *   row reading 09:00-17:00 and 13:00-20:00 is accepted, and the engine
+     *   generates the overlapping hour's slots TWICE — two bookable 13:30s for
+     *   one doctor, which is a double-booking the UI cannot show.
+     */
+    if (v.morning && v.evening && v.evening.startTime < v.morning.endTime) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['evening', 'startTime'],
+        message: 'must be after the morning session ends',
+      });
+    }
+    if (v.evening && !v.morning) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['morning'],
+        message: 'fill the first session before the second',
+      });
+    }
+  });
+
+/**
+ * A doctor's whole week at one branch, replaced in one call.
+ *
+ * ⚠️ NOT A PARTIAL UPDATE, AND FOR THE REASON `setOperatingHours` IS NOT ONE:
+ *   a week is read as a set. A per-day endpoint leaves the doctor in a state
+ *   where some days are the new rota and some are the old one, with nothing
+ *   recording which is which.
+ */
+export const setDoctorWeekRequest = z
+  .object({
+    branchId: uuid,
+    /**
+     * True = this doctor consults whenever the clinic is open, and `days` is
+     * ignored. The clinic's hours are then read LIVE, so changing them changes
+     * the doctor's week too.
+     */
+    followsBranchHours: z.boolean(),
+    /** Exactly the days being set. Absent days are treated as days off. */
+    days: z.array(doctorScheduleDay).max(7),
+    /**
+     * When the new week starts applying. Defaults to today in the service.
+     *
+     * ⚠️ IT DOES NOT REWRITE HISTORY. Appointments already booked keep the times
+     *   they were booked at; this decides which rota the engine offers from here
+     *   on.
+     */
+    validFrom: calendarDate.optional(),
+  })
+  .superRefine((v, ctx) => {
+    const seen = new Set<number>();
+    for (const day of v.days) {
+      if (seen.has(day.dayOfWeek)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['days'],
+          message: 'each day of the week may appear only once',
+        });
+      }
+      seen.add(day.dayOfWeek);
+    }
+  });
+
+/** A doctor's week at one branch, as the table renders it. */
+export const doctorWeekResponse = z.object({
+  branchId: uuid,
+  branchName: z.string(),
+  followsBranchHours: z.boolean(),
+  /** Always seven entries, Sunday first, so the table needs no gap-filling. */
+  days: z.array(
+    z.object({
+      dayOfWeek: z.number().int(),
+      morning: z.object({ startTime: z.string(), endTime: z.string() }).nullable(),
+      evening: z.object({ startTime: z.string(), endTime: z.string() }).nullable(),
+      slotMinutes: z.number().int().nullable(),
+      maxPatients: z.number().int().nullable(),
+    })
+  ),
+  /**
+   * The branch's own week, so the table can show what "same as the clinic"
+   * actually means rather than making somebody go and look it up.
+   */
+  branchHours: z.array(
+    z.object({
+      dayOfWeek: z.number().int(),
+      opensAt: z.string(),
+      closesAt: z.string(),
+      isClosed: z.boolean(),
+    })
+  ),
+  /** What an inherited slot length resolves to, for the placeholder. */
+  effectiveSlotMinutes: z.number().int(),
+});
+
+export type DoctorScheduleDay = z.infer<typeof doctorScheduleDay>;
+export type SetDoctorWeekRequest = z.infer<typeof setDoctorWeekRequest>;
+export type DoctorWeekResponse = z.infer<typeof doctorWeekResponse>;

@@ -480,8 +480,26 @@ export const VISUAL_REGION_ID = '9e4b2c70-6a15-4f83-8d29-3c7b0e5a1f46';
 /* ────────────────────── consultation configuration ────────────────────── */
 
 export const TEMPLATE_DRAFT_VERSION_ID = '2a8c5f60-7b31-4d94-8e26-0c9b4a7e3f18';
+/**
+ * The `HUMAN` care context — the platform `CARE_CONTEXT` node at the root of the
+ * specialty taxonomy, seeded in `seed/data/specialties.ts`.
+ */
 export const CARE_CONTEXT_ID = 'd3f9b247-8e05-4a61-9c73-5b1d2e8a6c40';
+/**
+ * Its sibling, `VET`. The other platform care context, and the one Kaapi the dog
+ * is treated under — a clinic that names only this one is the pet practice whose
+ * front desk is never asked "person or animal?".
+ */
+export const CARE_CONTEXT_VET_ID = '1f6b3d95-7a20-4e48-8c31-9b5d0a2e7c64';
 export const VISUAL_MAP_ID = 'b8025e73-4c19-4f86-9a52-7d3e0b6c1a94';
+
+/* ───────────────────────────── onboarding ─────────────────────────────── */
+
+/**
+ * Alpha Clinic's organization-level profile row — the one whose `branch_id` is
+ * NULL, recording what the clinic as a whole said it is.
+ */
+export const CLINIC_PROFILE_ID = '5a7c1e94-3b60-4d28-9f45-2e8b0c6a3d71';
 
 /* ──────────────────────────── the dispensary ──────────────────────────── */
 

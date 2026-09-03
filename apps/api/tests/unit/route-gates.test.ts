@@ -207,6 +207,14 @@ const NOT_CLINICAL: string[] = [
   'invitations.routes.ts',
   'invoices.routes.ts',
   'members.routes.ts',
+  /*
+   * ⚠️ THE SETUP WIZARD AUTHORS NOTHING CLINICAL AND CARRIES NO `clinical.*`
+   *   CODE, which is the property `AUDITED_FILES` exists to police. It names no
+   *   patient and reads none: the closest it comes is deciding what a patient
+   *   RECORD defaults to, which is a setting. Audited by
+   *   `tests/integration/onboarding.test.ts` and the onboarding isolation suite.
+   */
+  'onboarding.routes.ts',
   'organization.routes.ts',
   'patients.routes.ts',
   'procurement.routes.ts',

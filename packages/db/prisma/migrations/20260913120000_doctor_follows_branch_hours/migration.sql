@@ -1,0 +1,18 @@
+-- ---------------------------------------------------------------------------
+-- DS-1 — a doctor may consult on the branch's own hours.
+--
+-- ⚠️ THE AVAILABILITY ENGINE DERIVES THE WEEK FROM `branch_operating_hours`
+--   WHEN THIS IS TRUE. It does not copy those hours into `doctor_schedules`,
+--   and the difference is the reason the column exists: a clinic that changes
+--   its opening hours must not leave every full-time doctor on last month's
+--   rota, silently, with nothing on any screen saying so.
+--
+-- ⚠️ `DEFAULT false`, AND NO BACKFILL. Every doctor written before this column
+--   keeps exactly the availability they had. Defaulting to true would have made
+--   every doctor with no schedule rows — today unbookable, on purpose — bookable
+--   for the whole of the clinic's week the moment this deployed.
+--
+-- No RLS change: `doctor_branch_settings` is already in the org_scoped and
+-- branch_scoped arrays and its policies name no column this adds.
+-- ---------------------------------------------------------------------------
+ALTER TABLE "doctor_branch_settings" ADD COLUMN "follows_branch_hours" BOOLEAN NOT NULL DEFAULT false;

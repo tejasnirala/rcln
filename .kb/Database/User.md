@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 76 |
+| relations | 78 |
 
 ## Columns
 
@@ -117,6 +117,8 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `onlineShipmentsShipped` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsShipped OnlineOrderShipment[] @relation("OnlineOrderShipmentShippedBy")` |
 | `onlineShipmentsDelivered` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsDelivered OnlineOrderShipment[] @relation("OnlineOrderShipmentDeliveredBy")` |
 | `onlineShipmentsFailed` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsFailed OnlineOrderShipment[] @relation("OnlineOrderShipmentFailedBy")` |
+| `clinicProfilesCompleted` | [`ClinicProfile`](ClinicProfile.md) | `clinicProfilesCompleted ClinicProfile[] @relation("ClinicProfileCompletedBy")` |
+| `onboardingStepsCompleted` | [`ClinicOnboardingStep`](ClinicOnboardingStep.md) | `onboardingStepsCompleted ClinicOnboardingStep[] @relation("ClinicOnboardingStepCompletedBy")` |
 
 ## Indexes and constraints
 
@@ -172,4 +174,6 @@ erDiagram
     User }o--o{ Recall : relates
     User }o--o{ OnlineOrder : relates
     User }o--o{ OnlineOrderShipment : relates
+    User }o--o{ ClinicProfile : relates
+    User }o--o{ ClinicOnboardingStep : relates
 ```

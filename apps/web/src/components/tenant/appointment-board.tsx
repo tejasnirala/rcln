@@ -31,6 +31,13 @@ import {
   type DateRange,
 } from '@/lib/calendar-range';
 import { GENDERS, ageLine } from '@/lib/patient-words';
+import {
+  APPOINTMENT_STATUS_DOT,
+  APPOINTMENT_STATUS_RAIL,
+  APPOINTMENT_STATUS_WORDS as STATUS_WORDS,
+  isFinished,
+} from '@/lib/appointment-words';
+import { AppointmentStatusChip, CancellationReason } from '@/components/tenant/appointment-status';
 import { WorkingDayPicker } from '@/components/tenant/working-day-picker';
 import {
   bookAppointment,
@@ -62,7 +69,12 @@ import { loadFeeQuote } from '@/app/(tenant)/t/[slug]/(app)/fees/actions';
  *   quiet card the rest of the app uses.
  *
  * ⚠️ STATUS IS NEVER CARRIED BY COLOUR ALONE (WCAG 1.4.1, and AGENTS.md lists it
- *   as a rule already got wrong once). Every row states its status in words.
+ *   as a rule already got wrong once). Every row states its status in words, in
+ *   a chip that is tinted as a SECOND signal — and the 2px rail down the row's
+ *   left edge is a third, for the glance from across the desk. Take the colour
+ *   away and the board still reads correctly; take the word away and it does
+ *   not. See `lib/appointment-words.ts` for the ramp and why each hue is what it
+ *   is.
  *
  * ⚠️ THE DATE IS A URL PARAMETER; THE PATIENT LOOKUP IS NOT. A date is nobody's
  *   surname. A search term is, and it never reaches the address bar.
@@ -80,16 +92,6 @@ const IDLE_LOOKUP: LookupState = { status: 'idle', patients: [] };
 
 /** Same rule, same reason — see `IDLE_LOOKUP` above. */
 const IDLE_REGISTER: QuickRegisterState = { status: 'idle' };
-
-const STATUS_WORDS: Record<AppointmentStatusValue, string> = {
-  BOOKED: 'Booked',
-  CONFIRMED: 'Confirmed',
-  CHECKED_IN: 'Arrived',
-  IN_PROGRESS: 'With the doctor',
-  COMPLETED: 'Seen',
-  CANCELLED: 'Cancelled',
-  NO_SHOW: 'Did not attend',
-};
 
 /** What the row's one button does next, and what it should say. */
 const NEXT_STEP: Partial<
@@ -821,6 +823,16 @@ function DayTally({
                 onClick={() => onSelect(selected === status ? null : status)}
                 className={chip(selected === status, count > 0)}
               >
+                {/*
+                  The legend for the rails on the rows below. Decorative — the
+                  count and the word carry it (WCAG 1.4.1) — and it is the only
+                  colour on this chip, so it never competes with the ring and
+                  weight that state SELECTION.
+                */}
+                <span
+                  aria-hidden="true"
+                  className={`mr-1.5 inline-block size-2 rounded-full align-middle ${APPOINTMENT_STATUS_DOT[status]}`}
+                />
                 <span className="text-ink font-medium">{count}</span> {STATUS_WORDS[status]}
               </button>
             </li>
@@ -965,10 +977,7 @@ function AppointmentRow({
   const isFuture = appointment.scheduledStart > asOf;
 
   const step = NEXT_STEP[appointment.status];
-  const finished =
-    appointment.status === 'COMPLETED' ||
-    appointment.status === 'CANCELLED' ||
-    appointment.status === 'NO_SHOW';
+  const finished = isFinished(appointment.status);
 
   const run = (action: () => Promise<BookingState>) => {
     startTransition(async () => {
@@ -1006,7 +1015,17 @@ function AppointmentRow({
      *   between a doctor and the front desk is what that page SHOWS, and that is
      *   decided there, by permission, not by hiding the way in.
      */
-    <div className="relative flex flex-wrap items-start gap-4 px-4 py-3 transition-colors hover:bg-[color-mix(in_oklab,var(--color-drape)_6%,transparent)] focus-within:bg-[color-mix(in_oklab,var(--color-drape)_6%,transparent)]">
+    <div
+      /*
+       * ⚠️ THE RAIL IS A LEFT BORDER ON THE ROW ITSELF, NOT A SPACER ELEMENT.
+       *   It has to run the row's full height — a cancelled booking with a long
+       *   reason under it is two lines tall, and a fixed-height mark beside it
+       *   would stop halfway down and read as a rendering fault. `border-l-2` is
+       *   always present so the 2px never shifts the row's text when the status
+       *   changes; only the COLOUR moves, and `BOOKED`'s is transparent.
+       */
+      className={`relative flex flex-wrap items-start gap-4 border-l-2 px-4 py-3 transition-colors hover:bg-[color-mix(in_oklab,var(--color-drape)_6%,transparent)] focus-within:bg-[color-mix(in_oklab,var(--color-drape)_6%,transparent)] ${APPOINTMENT_STATUS_RAIL[appointment.status]}`}
+    >
       <Link
         href={`/appointments/${appointment.id}`}
         className="absolute inset-0 rounded-sm"
@@ -1041,14 +1060,29 @@ function AppointmentRow({
           {appointment.patientName}
           <span className="text-muted font-mono ml-2 text-[0.75rem]">{appointment.uhid}</span>
         </p>
-        <p className="text-muted mt-0.5 text-[0.8125rem]">
-          {appointment.doctorName} · {/* An identifier, not a control — see the row link above. */}
-          <span className="font-mono">{appointment.appointmentNumber}</span> ·{' '}
-          {/* ⚠️ The word, never colour alone. */}
-          <span className={finished ? 'text-muted' : 'text-drape font-medium'}>
-            {STATUS_WORDS[appointment.status]}
+        <p className="text-muted mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.8125rem]">
+          <span>
+            {appointment.doctorName} ·{' '}
+            {/* An identifier, not a control — see the row link above. */}
+            <span className="font-mono">{appointment.appointmentNumber}</span>
           </span>
+          {/* ⚠️ The word, never colour alone — the chip always prints it. */}
+          <AppointmentStatusChip status={appointment.status} />
         </p>
+
+        {/*
+          ⚠️ ON THE BOARD AND NOT ONLY ON THE DETAIL PAGE, WHICH IS A DELIBERATE
+            DISCLOSURE. Without it the only way to find out why a row is struck
+            through is to open the visit — and that page also shows the chief
+            complaint, so the cheaper question forces the more expensive read.
+            `appointmentSummary` in @rcln/contracts sets out the boundary and
+            what it costs; `reason` stays behind the detail endpoint.
+        */}
+        <CancellationReason
+          status={appointment.status}
+          reason={appointment.cancellationReason}
+          className="mt-1"
+        />
         {error !== undefined ? (
           <Alert tone="error" className="relative z-10 mt-2">
             {error}

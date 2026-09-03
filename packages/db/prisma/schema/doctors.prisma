@@ -187,6 +187,11 @@ model Specialty {
   /// "Send them to a cardiologist" (CE-4). A plain FK, so `encounter_referrals`
   /// needs `specialty_visible` — see that model.
   referrals            EncounterReferral[]    @relation("ReferralSpecialty")
+  /// Which clinics work in this care context (CO-1). ⚠️ In practice only
+  /// `CARE_CONTEXT` nodes are named here — the service enforces it, the FK
+  /// cannot. A plain FK, so `clinic_profile_care_contexts` carries the same
+  /// `specialty_visible` RESTRICTIVE policy `clinical_master_scopes` does.
+  clinicProfileContexts ClinicProfileCareContext[]
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -368,6 +373,31 @@ model DoctorBranchSetting {
   /// window inside which a review is free, and it belongs to the relationship
   /// between a doctor and a branch rather than to a price list.
   followUpFreeDays Int?     @map("follow_up_free_days") @db.SmallInt
+  /// This doctor consults whenever the branch is open (DS-1).
+  ///
+  /// ⚠️ THE AVAILABILITY ENGINE READS IT AND DERIVES THE WEEK FROM
+  ///   `branch_operating_hours` — it does NOT copy those hours into
+  ///   `doctor_schedules`. That is the whole point: a full-time doctor and the
+  ///   clinic they work at are the same week BY DEFINITION, so a clinic that
+  ///   changes its opening hours must not leave every such doctor quietly on
+  ///   last month's rota. Copying looks equivalent and goes stale silently,
+  ///   which is the failure this column exists to prevent.
+  ///
+  /// ⚠️ IT IS THE OPPOSITE CALL FROM ADR-0018, DELIBERATELY, AND THE DIFFERENCE
+  ///   IS WORTH HOLDING ON TO. The clinic profile SEEDS settings because "who
+  ///   do you treat" is a one-time answer the clinic then owns. This is a
+  ///   standing RELATIONSHIP — "the same as the clinic" has to keep meaning
+  ///   that, or it means nothing.
+  ///
+  /// ⚠️ AND IT MAKES `doctor_schedules` ROWS INERT RATHER THAN DELETING THEM.
+  ///   A doctor switched to clinic hours keeps whatever week they had; switching
+  ///   back restores it. The engine consults one source or the other, never
+  ///   both, so there is no question of the two being merged.
+  ///
+  /// Defaults to false, so every doctor written before this column existed keeps
+  /// exactly the availability they had — a backfill would have silently made
+  /// every scheduleless doctor bookable.
+  followsBranchHours Boolean @default(false) @map("follows_branch_hours")
   isActive         Boolean  @default(true) @map("is_active")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

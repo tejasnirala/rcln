@@ -80,7 +80,20 @@ model Organization {
   /// rate. Guessing VALID is revenue we never collected and cannot reclaim.
   taxIdStatus TaxIdStatus        @default(NOT_PROVIDED) @map("tax_id_status")
   ownerUserId String?            @map("owner_user_id") @db.Uuid
-  onboardedAt DateTime?          @map("onboarded_at") @db.Timestamptz(6)
+  /// When the registration form was submitted and this tenant came into being.
+  ///
+  /// ⚠️ IT WAS CALLED `onboarded_at` AND IT NEVER MEANT THAT. `register.service.ts`
+  ///   sets it inside the registration transaction, so it has always recorded
+  ///   REGISTERED — the moment a form became an organization, a branch and an
+  ///   owner. Onboarding is the seven-step wizard that runs afterwards, and
+  ///   whether it finished is `clinic_profiles.completed_at` (CO-1, ADR-0018).
+  ///
+  ///   Renaming it was the alternative to reusing it, and reusing it would have
+  ///   read every clinic already on the platform as fully onboarded — the exact
+  ///   silent-wrong-answer this codebase keeps producing. The migration does it
+  ///   with `ALTER TABLE ... RENAME COLUMN`, hand-written: Prisma Migrate
+  ///   generates DROP + ADD for a field rename, which loses every row's value.
+  registeredAt DateTime?         @map("registered_at") @db.Timestamptz(6)
   createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(6)
@@ -195,6 +208,14 @@ model Organization {
   /// Tenant data, unlike the five law tables above: it records what happened
   /// HERE, not what the law says.
   regulatoryDecisions       RegulatoryDecision[]
+
+  // -- Onboarding (CO-1) ------------------------------------------------------
+  /// Who this clinic said it is (ADR-0018). One org-level row plus one per
+  /// branch that answers differently.
+  clinicProfiles            ClinicProfile[]
+  clinicProfileCareContexts ClinicProfileCareContext[]
+  clinicProfileModules      ClinicProfileModule[]
+  clinicOnboardingSteps     ClinicOnboardingStep[]
 
   // -- Pharmacy dispensing (PI-7) ---------------------------------------------
   prescriptionFulfilments PrescriptionFulfilment[]
@@ -456,6 +477,12 @@ model Branch {
   /// What was found on a chart here (CE-6). Carries its own `branch_id` for the
   /// reason the eight above do.
   clinicalFindings        ClinicalFinding[]
+
+  // -- Onboarding (CO-1) ------------------------------------------------------
+  /// This site's own answer, where it differs from the organization's — the
+  /// satellite that is a standalone pharmacy. Absent for most branches, which
+  /// inherit the org-level row.
+  clinicProfiles          ClinicProfile[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

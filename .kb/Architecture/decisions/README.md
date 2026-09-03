@@ -25,6 +25,7 @@ why matters more than the conclusion.
 | [0015](0015-slot-duration-has-one-source.md)                            | Slot duration has one authoritative source                   | Accepted                               |
 | [0016](0016-patient-identity-is-org-wide-attendance-is-branch-local.md) | Patient identity is org-wide; attendance is branch-local     | Accepted, extends 0007                 |
 | [0017](0017-theme-is-a-device-preference.md)                            | The theme is a device preference, composed not enumerated    | Accepted                               |
+| [0018](0018-clinic-profile-seeds-settings.md)                           | The clinic profile seeds settings; it does not replace them  | Accepted                               |
 
 ## Format
 

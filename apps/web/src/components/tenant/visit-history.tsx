@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { TimeFormat, VisitHistoryEpisode, VisitHistoryVisit } from '@rcln/contracts';
 import { Alert } from '@/components/ui/alert';
 import { formatClinicDate, formatClinicDateTime } from '@/lib/format';
+import { statusWord } from '@/lib/appointment-words';
 
 /**
  * Everything that has happened to one patient, journey by journey (CE-5, §18).
@@ -24,16 +25,6 @@ import { formatClinicDate, formatClinicDateTime } from '@/lib/format';
  *   dermatological one render identically, because what the server sent is a
  *   diagnosis and a count either way.
  */
-
-const STATUS_WORDS: Record<string, string> = {
-  BOOKED: 'Booked',
-  CONFIRMED: 'Confirmed',
-  CHECKED_IN: 'Checked in',
-  IN_PROGRESS: 'With the doctor',
-  COMPLETED: 'Seen',
-  CANCELLED: 'Cancelled',
-  NO_SHOW: 'Did not attend',
-};
 
 const ENCOUNTER_WORDS: Record<string, string> = {
   DRAFT: 'Being written',
@@ -228,7 +219,7 @@ function Visit({ visit, timeFormat }: { visit: VisitHistoryVisit; timeFormat: Ti
         <p className="text-muted mt-1 text-[0.8125rem]">
           {visit.appointmentStatus === null
             ? 'No consultation recorded.'
-            : `${STATUS_WORDS[visit.appointmentStatus] ?? visit.appointmentStatus} · nothing written up.`}
+            : `${statusWord(visit.appointmentStatus)} · nothing written up.`}
         </p>
       ) : (
         <div className="mt-1">

@@ -65,6 +65,7 @@ const SUMMARY = {
   visitType: 'NEW',
   source: 'FRONT_DESK',
   status: 'BOOKED',
+  cancellationReason: null,
   checkedInAt: null,
 };
 
@@ -73,7 +74,6 @@ const DETAIL = {
   status: 'CHECKED_IN',
   checkedInAt: '2026-03-17T03:52:00.000Z',
   reason: 'Fever and sore throat for three days',
-  cancellationReason: null,
   startedAt: null,
   completedAt: null,
   mrn: PATIENT.mrn,
@@ -271,6 +271,11 @@ caller holding \`billing.invoice.read\` — and is **omitted entirely** otherwis
 because a doctor shown \`null\` on every row would read the board as "nothing has
 been billed today".
 
+⚠️ **THE ROW CARRIES \`cancellationReason\` BUT NOT \`reason\`.** Why the booking
+was called off is on the board, so a crossed-out row explains itself; why the
+patient was coming is the chief complaint and stays behind
+\`GET /{appointmentId}\`. It is \`null\` on every status but \`CANCELLED\`.
+
 Every read here writes a \`data_access_logs\` row.
 `.trim(),
     response: appointmentListResponse,
@@ -312,6 +317,24 @@ Every read here writes a \`data_access_logs\` row.
           data: {
             appointments: [
               { ...SUMMARY, status: 'CHECKED_IN', checkedInAt: '2026-03-17T03:52:00.000Z' },
+            ],
+          },
+        },
+      },
+      {
+        summary: 'A booking that was called off',
+        description:
+          '`cancellationReason` is set on `CANCELLED` rows and `null` on every other status, so the board can say why a row is struck through without opening the visit.',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            appointments: [
+              {
+                ...SUMMARY,
+                status: 'CANCELLED',
+                cancellationReason: 'Patient unwell, will rebook',
+              },
             ],
           },
         },
@@ -703,6 +726,11 @@ Book a continuation of this visit.
 **The patient and the branch come off the parent, not the body**, so this cannot
 be used to book for somebody else while looking like a continuation. The new
 booking joins the parent's clinical episode.
+
+⚠️ **THE PARENT MUST BE A VISIT THAT HAPPENED.** A \`CANCELLED\` or \`NO_SHOW\`
+booking produced nothing to follow up on, so it is refused \`409\` — take a new
+booking instead, which is what a patient rebooking after calling off actually
+wants. The same two statuses \`POST /{appointmentId}/vitals\` refuses on.
 
 ⚠️ **\`fulfilsRecommendationId\` ticks off a recall the doctor asked for — and
 this is still \`appointment.create\`, not a clinical code.** Recording that a

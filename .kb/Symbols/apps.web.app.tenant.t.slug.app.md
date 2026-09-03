@@ -12,7 +12,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/we
 | --- | --- | --- | --- |
 | `Entry` <sub>local</sub> | `({ href, label, detail }: { href: string; label: string; det…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:134` |  |
 | `Stat` <sub>local</sub> | `({ label, value, detail }: { label: string; value: string; d…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:124` |  |
-| `TenantAppLayout` | `({ children, params, }: { children: React.ReactNode; params:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:32` |  |
+| `TenantAppLayout` | `({ children, params, }: { children: React.ReactNode; params:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:34` |  |
 | `TenantHome` | `({ params }: { params: Promise<{ slug: string }> })` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:24` |  |
 
 ## fn
@@ -38,7 +38,7 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/history-actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:8` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/layout.tsx:10` |  |
 | `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/page.tsx:7` |  |
 
 ## interface

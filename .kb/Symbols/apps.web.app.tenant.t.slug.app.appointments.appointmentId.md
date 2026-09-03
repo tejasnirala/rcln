@@ -10,17 +10,16 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/pa
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ConsultationPage` | `({ params, }: { params: Promise<{ slug: string; appointmentI…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:72` |  |
+| `ConsultationPage` | `({ params, }: { params: Promise<{ slug: string; appointmentI…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:74` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `STATUS_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:411` |  |
-| `VISIT_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:421` |  |
+| `VISIT_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:481` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:21` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/appointments/[appointmentId]/page.tsx:23` |  |

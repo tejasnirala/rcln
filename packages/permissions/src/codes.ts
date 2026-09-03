@@ -63,6 +63,23 @@ export const PERMISSIONS = {
   ORG_UPDATE: 'organization.update',
   ORG_BILLING_READ: 'organization.billing.read',
   ORG_BILLING_MANAGE: 'organization.billing.manage',
+  /*
+   * The onboarding wizard (CO-1).
+   *
+   * ⚠️ ORG-WIDE, NOT BRANCH-SCOPED, EVEN THOUGH THE WIZARD CAN WRITE A BRANCH
+   *   OVERRIDE. Deciding that the satellite runs a pharmacy is the
+   *   ORGANIZATION's decision about one of its sites, not a decision delegated
+   *   to whoever runs that site. The `branchId` travels in the request body and
+   *   is checked against the caller's own branches in the service.
+   *
+   * ⚠️ AND WRITE IS WHAT THE SHELL GATES ITS REDIRECT ON. A caller who holds it
+   *   is sent to the wizard until setup is finished; everyone else gets a
+   *   banner. Gating on the CODE rather than on ORG_OWNER is ADR-0002 — no role
+   *   is named anywhere — and it means a clinic that clones a role to delegate
+   *   setup gets the redirect too, which is what they asked for by cloning it.
+   */
+  ORG_ONBOARDING_READ: 'organization.onboarding.read',
+  ORG_ONBOARDING_WRITE: 'organization.onboarding.write',
 
   // -- branch ----------------------------------------------------------------
   BRANCH_READ: 'branch.read',

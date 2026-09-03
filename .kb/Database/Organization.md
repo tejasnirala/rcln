@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | tenant-scoped | no |
 | RLS | exempt — resolved by hostname before a tenant context exists |
 | columns | 17 |
-| relations | 126 |
+| relations | 130 |
 
 ## Columns
 
@@ -29,7 +29,7 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `taxId` | `String?` | `taxId String? @map("tax_id") @db.VarChar(32)` |
 | `taxIdStatus` | `TaxIdStatus` | `taxIdStatus TaxIdStatus @default(NOT_PROVIDED) @map("tax_id_status")` |
 | `ownerUserId` | `String?` | `ownerUserId String? @map("owner_user_id") @db.Uuid` |
-| `onboardedAt` | `DateTime?` | `onboardedAt DateTime? @map("onboarded_at") @db.Timestamptz(6)` |
+| `registeredAt` | `DateTime?` | `registeredAt DateTime? @map("registered_at") @db.Timestamptz(6)` |
 | `createdAt` | `DateTime` | `createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)` |
 | `updatedAt` | `DateTime` | `updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)` |
 | `deletedAt` | `DateTime?` | `deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)` |
@@ -122,6 +122,10 @@ Declared at `packages/db/prisma/schema/tenancy.prisma:34`.
 | `productCostAverages` | [`ProductCostAverage`](ProductCostAverage.md) | `productCostAverages ProductCostAverage[]` |
 | `productRegulatoryProfiles` | [`ProductRegulatoryProfile`](ProductRegulatoryProfile.md) | `productRegulatoryProfiles ProductRegulatoryProfile[]` |
 | `regulatoryDecisions` | [`RegulatoryDecision`](RegulatoryDecision.md) | `regulatoryDecisions RegulatoryDecision[]` |
+| `clinicProfiles` | [`ClinicProfile`](ClinicProfile.md) | `clinicProfiles ClinicProfile[]` |
+| `clinicProfileCareContexts` | [`ClinicProfileCareContext`](ClinicProfileCareContext.md) | `clinicProfileCareContexts ClinicProfileCareContext[]` |
+| `clinicProfileModules` | [`ClinicProfileModule`](ClinicProfileModule.md) | `clinicProfileModules ClinicProfileModule[]` |
+| `clinicOnboardingSteps` | [`ClinicOnboardingStep`](ClinicOnboardingStep.md) | `clinicOnboardingSteps ClinicOnboardingStep[]` |
 | `prescriptionFulfilments` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `prescriptionFulfilments PrescriptionFulfilment[]` |
 | `dispenses` | [`Dispense`](Dispense.md) | `dispenses Dispense[]` |
 | `dispenseLines` | [`DispenseLine`](DispenseLine.md) | `dispenseLines DispenseLine[]` |
@@ -259,6 +263,10 @@ erDiagram
     Organization }o--o{ ProductCostAverage : relates
     Organization }o--o{ ProductRegulatoryProfile : relates
     Organization }o--o{ RegulatoryDecision : relates
+    Organization }o--o{ ClinicProfile : relates
+    Organization }o--o{ ClinicProfileCareContext : relates
+    Organization }o--o{ ClinicProfileModule : relates
+    Organization }o--o{ ClinicOnboardingStep : relates
     Organization }o--o{ PrescriptionFulfilment : relates
     Organization }o--o{ Dispense : relates
     Organization }o--o{ DispenseLine : relates

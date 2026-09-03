@@ -482,7 +482,27 @@ DECLARE
     -- site. All three are in the branch_scoped array below as well.
     'online_orders',
     'online_order_lines',
-    'online_order_shipments'
+    'online_order_shipments',
+    -- ---------------------------------------------------------------------
+    -- Onboarding (CO-1). Who this clinic said it is, and how far through the
+    -- wizard it got. THREE OF THE FOUR are in the branch_scoped array below.
+    --
+    -- ⚠️ `clinic_onboarding_steps` IS THE ONE THAT IS NOT, and it has no
+    --   `branch_id` column at all — progress is a fact about the setup session,
+    --   not about a site. A group configures every branch from one wizard, so a
+    --   per-branch copy of "step 3 is done" would be several rows saying the
+    --   same thing until one of them eventually said something else. The branch
+    --   loop's predicate would name a column that does not exist and the
+    --   CREATE POLICY would raise at migration time.
+    --
+    -- ⚠️ NOTHING HERE IS AN AUTHORIZATION INPUT (ADR-0018). These rows decide
+    --   whether a nav tab renders and whether the patient form shows a picker.
+    --   `authorize()` still decides who may do anything, and a clinic that
+    --   flips a module bit grants nobody anything.
+    'clinic_profiles',
+    'clinic_profile_care_contexts',
+    'clinic_profile_modules',
+    'clinic_onboarding_steps'
     -- ⚠️ `appointment_status_history` IS NOT HERE, and putting it back is a
     --    security regression. Permissive policies OR together, so an org-only
     --    `tenant_isolation` beside its hand-written `parent_isolation` would
@@ -750,6 +770,27 @@ CREATE POLICY specialty_visible ON clinical_master_scopes AS RESTRICTIVE
   WITH CHECK (EXISTS (
     SELECT 1 FROM specialties s
     WHERE s.id = clinical_master_scopes.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ));
+
+-- ---------------------------------------------------------------------------
+-- `clinic_profile_care_contexts.specialty_id` (CO-1) — the same plain-FK hole,
+-- on the table that decides which care contexts a clinic works in.
+--
+-- Without it a clinic attaches ANOTHER clinic's private CARE_CONTEXT node to
+-- its own profile and reads that node's name straight back out of the join that
+-- renders the wizard's checkboxes.
+-- ---------------------------------------------------------------------------
+DROP POLICY IF EXISTS specialty_visible ON clinic_profile_care_contexts;
+CREATE POLICY specialty_visible ON clinic_profile_care_contexts AS RESTRICTIVE
+  USING (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = clinic_profile_care_contexts.specialty_id
+      AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
+  ))
+  WITH CHECK (EXISTS (
+    SELECT 1 FROM specialties s
+    WHERE s.id = clinic_profile_care_contexts.specialty_id
       AND (s.organization_id IS NULL OR s.organization_id = app_current_org())
   ));
 
@@ -1817,7 +1858,34 @@ DECLARE
     --   the main site's delivery book.
     'online_orders',
     'online_order_lines',
-    'online_order_shipments'
+    'online_order_shipments',
+    -- Onboarding (CO-1). ⚠️ THREE OF THE FOUR — `clinic_onboarding_steps` is
+    --   org-wide and has no `branch_id`; see the note in the org_scoped array.
+    --
+    -- ⚠️ THE `IS NULL` HALF BELOW IS LIVE HERE, NOT DEAD CODE, and this is one
+    --   of the few places in the file where that is true. NULL means "the
+    --   ORGANIZATION's answer" and every member must be able to read it; a row
+    --   with a branch set is that site's override and is visible only to
+    --   members scoped there. Compare `product_prices`, which has the same
+    --   shape for the same reason, and contrast the pharmacy seven, where
+    --   `branch_id` is NOT NULL and the half is dead.
+    --
+    -- ⚠️ THE TWO CHILDREN CARRY THEIR OWN `branch_id` — A COPY OF THE PARENT'S,
+    --   WRITTEN BY THE SERVICE — RATHER THAN INHERITING ONE THROUGH A PARENT
+    --   PREDICATE. The alternative was to leave them org-scoped and argue that
+    --   a module list holds nothing branch-confidential; true today, enforced
+    --   by nothing tomorrow. An EXISTS against the parent would not have
+    --   helped, because a policy expression is evaluated with row security
+    --   DISABLED on the tables it references — the lesson
+    --   `appointment_status_history` records below.
+    --
+    --   ⚠️ WHAT REMAINS UNCHECKED BY THE DATABASE: that a child's `branch_id`
+    --     equals its parent's. A composite FK over a nullable column is MATCH
+    --     SIMPLE and skips the check when the column is NULL. The service
+    --     writes both in one transaction; the isolation suite asserts it.
+    'clinic_profiles',
+    'clinic_profile_care_contexts',
+    'clinic_profile_modules'
   ];
 BEGIN
   FOREACH t IN ARRAY branch_scoped LOOP

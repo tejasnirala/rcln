@@ -1,4 +1,12 @@
 export * from './common.js';
+/* ⚠️ BEFORE `auth.js`, WHICH IMPORTS `clinicProfileSummary` AND `clinicModule`
+   FROM IT — the session carries the resolved profile so the shell can draw the
+   right nav and the patient form the right default. That is also why the file
+   imports nothing but `common.js`: anything it pulled in would have to come
+   before it too, and a Zod module cycle fails at runtime rather than at lint.
+   The wizard's own request/response shapes are `onboarding-wizard.js`, exported
+   further down. */
+export * from './onboarding.js';
 export * from './auth.js';
 export * from './tenancy.js';
 export * from './marketing.js';
@@ -48,6 +56,11 @@ export * from './recall.js';
 export * from './online-pharmacy.js';
 export * from './tax.js';
 export * from './locale.js';
+/* ⚠️ AFTER `tenancy.js` (for `operatingHour`), `tax.js` (for
+   `createClinicTaxRegistrationRequest`) and `locale.js` (for `TIME_FORMATS`) —
+   it imports from all three. Its session-borne half is `onboarding.js`, which
+   is exported before `auth.js` for the opposite reason. */
+export * from './onboarding-wizard.js';
 /* ⚠️ AFTER `products.js` and `common.js`, whose `decimalString` and
    `calendarDate` it imports. It deliberately imports nothing from the nine
    surfaces it REPORTS on — a report re-states a figure in its own shape rather

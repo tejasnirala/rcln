@@ -13,6 +13,8 @@
  *   fusing them is the mistake this router is shaped to prevent.
  */
 import {
+  doctorCandidateListResponse,
+  doctorWeekResponse,
   doctorCompensationDetail,
   doctorDetail,
   doctorListResponse,
@@ -131,6 +133,46 @@ const EXCEPTION = {
 };
 
 export const doctorDocs: DocRegistry = {
+  'GET /api/v1/doctors/candidates': {
+    summary: 'List who could be made a doctor',
+    description: `
+The people this clinic could give a doctor profile to: ACTIVE members who do not
+already have one, and who **hold \`clinical.encounter.create\`**.
+
+⚠️ **It filters on that permission, not on a role called DOCTOR.** Roles live on
+\`membership_roles\` and nothing in this API names one — a clinic that clones
+DOCTOR into "Senior Consultant" is doing the supported thing, and a filter by
+role name would quietly hide every one of those people from the only screen that
+can register them. The permission is the definition: authoring the clinical
+record is what a doctor profile exists for.
+
+Resolution is **DENY > GRANT > role grant**, so a locum granted authoring on
+their own membership appears, and somebody explicitly denied it does not.
+
+An empty list means there is nobody left to add — the screen hides its "add"
+button rather than opening a picker with no options in it.
+`.trim(),
+    response: doctorCandidateListResponse,
+    responseExamples: [
+      {
+        summary: 'One consultant not yet registered',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            candidates: [
+              { userId: USER_ID, fullName: 'Dr Meera Iyer', email: 'meera@alpha.example' },
+            ],
+          },
+        },
+      },
+      {
+        summary: 'Everybody who could be a doctor already is',
+        value: { success: true, message: 'Success', data: { candidates: [] } },
+      },
+    ],
+  },
+
   'GET /api/v1/doctors/masters': {
     summary: 'List specialties and qualifications',
     description: `
@@ -766,6 +808,126 @@ which level it came from.
         },
       },
     ],
+  },
+
+  'GET /api/v1/doctors/{doctorId}/week': {
+    summary: "Get a doctor's week at one branch",
+    description: `
+The seven days as the schedule table edits them: a morning period, an optional
+evening period, and the slot length and cap for each day.
+
+\`branchId\` is **required**. A doctor consulting at two sites has two weeks,
+and guessing which one is being read is how the wrong rota gets shown.
+
+\`followsBranchHours: true\` means this doctor consults whenever the clinic is
+open. \`days\` still carries whatever week they had — it is kept, not deleted,
+so turning the option off restores it — but the availability engine is reading
+\`branchHours\` instead, **live**. A clinic that changes its opening hours
+changes this doctor's too.
+
+\`branchHours\` is the clinic's own week, returned so the table can show what
+"same as the clinic" actually means rather than sending somebody to look it up.
+`.trim(),
+    response: doctorWeekResponse,
+    responseExamples: [
+      {
+        summary: 'A consultant with a morning and an evening OPD',
+        value: {
+          success: true,
+          message: 'Success',
+          data: {
+            branchId: BRANCH_ID,
+            branchName: 'Whitefield',
+            followsBranchHours: false,
+            days: [
+              { dayOfWeek: 0, morning: null, evening: null, slotMinutes: null, maxPatients: null },
+              {
+                dayOfWeek: 1,
+                morning: { startTime: '09:00', endTime: '13:00' },
+                evening: { startTime: '17:00', endTime: '20:00' },
+                slotMinutes: 15,
+                maxPatients: 30,
+              },
+            ],
+            branchHours: [
+              { dayOfWeek: 1, opensAt: '09:00', closesAt: '20:00', isClosed: false },
+              { dayOfWeek: 0, opensAt: '09:00', closesAt: '13:00', isClosed: true },
+            ],
+            effectiveSlotMinutes: 15,
+          },
+        },
+      },
+    ],
+    errors: [404],
+  },
+
+  'PUT /api/v1/doctors/{doctorId}/week': {
+    summary: "Replace a doctor's week at one branch",
+    description: `
+Replaces the whole week in one call. **Not a partial update**, for the reason
+\`PUT /api/v1/branches/{branchId}/operating-hours\` is not one: a week is read as
+a set, and a per-day write leaves the doctor half on the new rota and half on the
+old with nothing recording which is which.
+
+A day absent from \`days\`, or one with both periods null, is a day off.
+
+⚠️ **\`followsBranchHours: true\` ignores \`days\` and does not delete them.**
+The doctor keeps whatever week they had, inert, and turning the option off
+restores it — this is a sentence people flip back and forth while setting a
+practice up, and a destructive toggle with no warning on screen would be a trap.
+
+The evening period must start after the morning ends. Without that the engine
+would generate the overlapping hour's slots twice, producing two bookable 13:30s
+for one doctor that no screen can show.
+`.trim(),
+    response: doctorWeekResponse,
+    requestExamples: [
+      {
+        summary: 'Morning and evening OPD, six days',
+        value: {
+          branchId: BRANCH_ID,
+          followsBranchHours: false,
+          validFrom: '2026-03-01',
+          days: [
+            {
+              dayOfWeek: 1,
+              morning: { startTime: '09:00', endTime: '13:00' },
+              evening: { startTime: '17:00', endTime: '20:00' },
+              slotMinutes: 15,
+              maxPatients: 30,
+            },
+            {
+              dayOfWeek: 6,
+              morning: { startTime: '10:00', endTime: '14:00' },
+              evening: null,
+              slotMinutes: 20,
+              maxPatients: null,
+            },
+          ],
+        },
+      },
+      {
+        summary: 'A visiting specialist, three hours a day',
+        value: {
+          branchId: BRANCH_ID,
+          followsBranchHours: false,
+          days: [
+            {
+              dayOfWeek: 2,
+              morning: { startTime: '16:00', endTime: '19:00' },
+              evening: null,
+              slotMinutes: 30,
+              maxPatients: 6,
+            },
+          ],
+        },
+      },
+      {
+        summary: 'A full-time doctor, on the clinic’s own hours',
+        value: { branchId: BRANCH_ID, followsBranchHours: true, days: [] },
+      },
+    ],
+    errors: [400, 404],
   },
 
   'GET /api/v1/doctors/{doctorId}/schedules': {

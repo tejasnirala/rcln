@@ -21,6 +21,7 @@ import doctorRoutes from './doctors.routes.js';
 import designationRoutes from './designations.routes.js';
 import memberRoutes from './members.routes.js';
 import organizationRoutes from './organization.routes.js';
+import onboardingRoutes from './onboarding.routes.js';
 import patientRoutes from './patients.routes.js';
 import productRoutes from './products.routes.js';
 import {
@@ -316,6 +317,12 @@ router.use('/members', memberRoutes);
 // behind it are RLS-EXEMPT, so the scoping is entirely in the service — read the
 // headers of organization.service.ts and setting.service.ts before touching it.
 router.use('/organization', organizationRoutes);
+
+// The setup wizard a new clinic walks once (CO-1). Singular and id-less for the
+// reason `/organization` is; a BRANCH id travels in three of the step bodies and
+// is checked against the caller's own branches in the service. Nothing it writes
+// is an authorization input — see ADR-0018.
+router.use('/onboarding', onboardingRoutes);
 
 // What the clinic pays and how. Reading and changing it are separate
 // permissions, because downloading last month's invoice and cancelling the

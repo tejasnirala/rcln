@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useState } from 'react';
+import { useActionState, useCallback, useEffect, useRef, useState } from 'react';
+import { splitE164 } from '@rcln/contracts';
 import type {
   AnimalProfileDetail,
   PatientAllergyDetail,
@@ -10,12 +11,14 @@ import type {
   PatientHistoryResponse,
   PatientMedicationDetail,
 } from '@rcln/contracts';
-import { Input, Select, type SelectOption } from '@/components/ui/field';
+import { Field, Input, Select, describedBy, type SelectOption } from '@/components/ui/field';
+import { PhoneInput } from '@/components/ui/phone-input';
+import { NationalIdInput } from '@/components/tenant/national-id-input';
 import { Button } from '@/components/ui/button';
-import { Alert } from '@/components/ui/alert';
+import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { RecordHistory } from '@/components/tenant/record-history';
 import { type BranchChoice } from '@/components/tenant/patient-search';
-import { ageLine } from '@/lib/patient-words';
+import { BLOOD_GROUPS, GENDERS, MARITAL_STATUSES, ageLine } from '@/lib/patient-words';
 import {
   addAllergy,
   addCondition,
@@ -92,6 +95,7 @@ export function PatientChart({
   patient,
   history,
   branches,
+  countryCode,
   canReadHistory,
   canUpdate,
   canCreate,
@@ -103,6 +107,13 @@ export function PatientChart({
   patient: PatientDetail;
   history: PatientHistoryResponse | null;
   branches: BranchChoice[];
+  /**
+   * The CLINIC's country, off the session. Decides which identity documents the
+   * edit form offers — the same list the registration desk was given, and not
+   * something the front desk could otherwise learn, because `GET /organization`
+   * is behind a permission they do not hold.
+   */
+  countryCode: string;
   canReadHistory: boolean;
   canUpdate: boolean;
   canCreate: boolean;
@@ -114,8 +125,33 @@ export function PatientChart({
   const [panel, setPanel] = useState<
     'none' | 'edit' | 'branch' | 'allergy' | 'condition' | 'medicine' | 'animal'
   >('none');
-  const toggle = (next: Exclude<typeof panel, 'none'>) =>
+
+  /*
+   * ⚠️ THE SAVE HAS TO SAY SOMETHING AFTER THE FORM CLOSES. Collapsing the panel
+   *   is the right answer to "it worked", but on its own it is ambiguous: a
+   *   marital status or an ID type changes nothing visible on the strip above,
+   *   so the screen would look identical whether the write landed or the panel
+   *   had simply been dismissed. The banner is the difference, and it is cleared
+   *   the moment anything else is opened.
+   */
+  const [saved, setSaved] = useState(false);
+
+  const toggle = (next: Exclude<typeof panel, 'none'>) => {
+    setSaved(false);
     setPanel((current) => (current === next ? 'none' : next));
+  };
+
+  /*
+   * Stable, because `EditForm` closes itself from an effect keyed on this — a
+   * fresh arrow every render would re-run that effect on every render.
+   */
+  const closeEdit = useCallback(() => {
+    setPanel('none');
+  }, []);
+  const finishEdit = useCallback(() => {
+    setPanel('none');
+    setSaved(true);
+  }, []);
 
   const elsewhere = branches.filter(
     (branch) => !patient.registrations.some((r) => r.branchId === branch.id)
@@ -203,9 +239,21 @@ export function PatientChart({
         ) : null}
       </div>
 
+      {saved ? (
+        <Alert tone="success" className="mt-4">
+          Record updated.
+        </Alert>
+      ) : null}
+
       {panel === 'edit' ? (
         <Card className="mt-4">
-          <EditForm slug={slug} patient={patient} />
+          <EditForm
+            slug={slug}
+            patient={patient}
+            countryCode={countryCode}
+            onSaved={finishEdit}
+            onCancel={closeEdit}
+          />
         </Card>
       ) : null}
 
@@ -721,32 +769,222 @@ function AllergyRows({
 // Forms
 // ---------------------------------------------------------------------------
 
-function EditForm({ slug, patient }: { slug: string; patient: PatientDetail }) {
+/**
+ * Correcting the identity half of a record — every field the update contract
+ * accepts, which is every field on `patients` that is not issued by the system
+ * or moved by a call of its own.
+ *
+ * ⚠️ WHAT IS DELIBERATELY NOT HERE, so the absences read as decisions:
+ *   - `uhid` and the branch record numbers are issued, never typed.
+ *   - `branchId` is a REGISTRATION, not an edit — "Register at another clinic"
+ *     above, because a patient attends a second branch rather than moving.
+ *   - `subjectType` is refused by the contract: a record registered as the
+ *     wrong kind is a merge, not an edit.
+ *   - `status` is refused for the same reason — DECEASED and MERGED each carry
+ *     a second field that has to move with them.
+ *   - Addresses and contacts are their own rows with their own endpoints.
+ *
+ * ⚠️ AN EMPTY BOX MEANS "UNCHANGED", NOT "CLEAR IT". `updatePatientRequest` is
+ *   `.partial()` over optional strings with no nulls in it, so the action omits
+ *   whatever was left blank and the stored value stands. Deleting a phone
+ *   number is not something this form can express today, and pretending
+ *   otherwise — submitting `''` — would be refused by `contactPhone` as a
+ *   validation error about a field the user had just emptied on purpose.
+ */
+function EditForm({
+  slug,
+  patient,
+  countryCode,
+  onSaved,
+  onCancel,
+}: {
+  slug: string;
+  patient: PatientDetail;
+  countryCode: string;
+  /** Collapse the panel and say so. Must be stable — see the effect below. */
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
   const [state, action, pending] = useActionState(updatePatient.bind(null, slug, patient.id), IDLE);
+  const isAnimal = patient.subjectType === 'ANIMAL';
+
+  /*
+   * On a failed submit, put the user on the first field at fault — or on the
+   * message when the failure names no field (apps/web/AGENTS.md). Eleven fields
+   * is exactly the form where an error scrolled off the top goes unread.
+   */
+  const formRef = useRef<HTMLFormElement>(null);
+  useOutcomeFocus(state.status, formRef);
+
+  /*
+   * Close the panel once the write has landed. In an EFFECT and not in render:
+   * calling a parent's setState while rendering a child is what produces
+   * "Cannot update a component while rendering a different component". The same
+   * arrangement `branch-list.tsx` and `doctor-create-form.tsx` use.
+   */
+  useEffect(() => {
+    if (state.status === 'saved') onSaved();
+  }, [state.status, onSaved]);
+
+  /*
+   * The date of birth is controlled so the approximate age can disappear the
+   * moment one is typed — the same arrangement as the registration form, and
+   * for the same reason: the contract refuses the pair, mirroring the
+   * `patients_age_single_source` CHECK. UNMOUNTED rather than disabled, because
+   * an unmounted input submits nothing on every browser.
+   */
+  const [dob, setDob] = useState(patient.dateOfBirth ?? '');
+
+  /*
+   * The stored number is E.164; the control wants it split back into a calling
+   * code and national digits. An unmatched code keeps its digits and falls back
+   * to the clinic's country rather than blanking the field.
+   */
+  const stored = splitE164(patient.phone);
+  const [phoneCountry, setPhoneCountry] = useState(stored.countryCode ?? countryCode);
+  const [phone, setPhone] = useState(stored.national);
+
+  const err = (field: string): string[] | undefined => state.fieldErrors?.[field];
 
   return (
-    <form action={action} className="grid gap-4">
+    <form ref={formRef} action={action} className="grid gap-4">
       {state.status === 'error' && state.message ? (
         <Alert tone="error">{state.message}</Alert>
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Input name="firstName" label="First name" defaultValue={patient.firstName} />
-        <Input name="lastName" label="Last name" defaultValue={patient.lastName ?? ''} />
-        <Input name="phone" label="Phone" type="tel" defaultValue={patient.phone ?? ''} />
-        <Input name="email" label="Email" type="email" defaultValue={patient.email ?? ''} />
+        <Input
+          name="firstName"
+          label={isAnimal ? 'Name' : 'First name'}
+          defaultValue={patient.firstName}
+          autoComplete="off"
+          {...(err('firstName') ? { errors: err('firstName') } : {})}
+        />
+        <Input
+          name="lastName"
+          label={isAnimal ? 'Household name' : 'Last name'}
+          defaultValue={patient.lastName ?? ''}
+          autoComplete="off"
+          {...(err('lastName') ? { errors: err('lastName') } : {})}
+        />
+
         <Input
           name="dateOfBirth"
           label="Date of birth"
           type="date"
-          defaultValue={patient.dateOfBirth ?? ''}
-          hint={patient.ageIsApproximate ? 'Replaces the estimated age.' : undefined}
+          value={dob}
+          onChange={(event) => setDob(event.target.value)}
+          // Nobody is born tomorrow. Stops a typo becoming a negative age.
+          max={new Date().toISOString().slice(0, 10)}
+          {...(patient.ageIsApproximate ? { hint: 'Replaces the estimated age.' } : {})}
+          {...(err('dateOfBirth') ? { errors: err('dateOfBirth') } : {})}
+        />
+        {dob === '' ? (
+          <Input
+            name="approxAgeYears"
+            label="…or age in years"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={130}
+            defaultValue={patient.approxAgeYears ?? ''}
+            hint="Only if the date of birth is not known."
+            {...(err('approxAgeYears') ? { errors: err('approxAgeYears') } : {})}
+          />
+        ) : (
+          <div aria-hidden="true" />
+        )}
+
+        <Select name="gender" label="Sex" options={GENDERS} defaultValue={patient.gender} />
+
+        {/*
+          ⚠️ NO BLOOD GROUP AND NO MARITAL STATUS ON AN ANIMAL, for the reason
+            `IdentityStrip` gives above: `bloodGroupValues` is the human ABO/Rh
+            taxonomy, and neither question has an answer about a dog. Offering
+            them reads as a gap in the record somebody ought to fill in.
+        */}
+        {isAnimal ? null : (
+          <>
+            <Select
+              name="bloodGroup"
+              label="Blood group"
+              options={BLOOD_GROUPS}
+              defaultValue={patient.bloodGroup}
+            />
+            <Select
+              name="maritalStatus"
+              label="Marital status"
+              options={MARITAL_STATUSES}
+              defaultValue={patient.maritalStatus}
+            />
+          </>
+        )}
+
+        {/*
+         * One control, not two fields — see PhoneInput. The calling code is
+         * selectable because a patient may be a visitor, and it starts on
+         * whatever the stored number actually says rather than on the clinic's
+         * own country.
+         */}
+        <Field name="phone" label="Phone" {...(err('phone') ? { errors: err('phone') } : {})}>
+          <PhoneInput
+            id="phone"
+            name="phone"
+            countryCode={phoneCountry}
+            national={phone}
+            onCountryChange={setPhoneCountry}
+            onNationalChange={setPhone}
+            autoComplete="off"
+            invalid={Boolean(err('phone'))}
+            describedBy={describedBy('phone', false, Boolean(err('phone')))}
+          />
+        </Field>
+        <Input
+          name="email"
+          label="Email"
+          type="email"
+          defaultValue={patient.email ?? ''}
+          autoComplete="off"
+          {...(err('email') ? { errors: err('email') } : {})}
+        />
+
+        <Input
+          name="abhaNumber"
+          label="ABHA number"
+          defaultValue={patient.abhaNumber ?? ''}
+          autoComplete="off"
+          className="font-mono"
+          hint="14 digits, or an address like someone@abdm. One per person."
+          {...(err('abhaNumber') ? { errors: err('abhaNumber') } : {})}
+        />
+        {/*
+         * The document list is the CLINIC's country, not the patient's — the
+         * same list the registration desk was offered, so a record edited here
+         * cannot acquire a type that screen could never have produced. It always
+         * ends with Passport and "Something else".
+         */}
+        <NationalIdInput
+          countryCode={countryCode}
+          typeName="nationalIdType"
+          valueName="nationalId"
+          defaultType={patient.nationalIdType}
+          defaultValue={patient.nationalId}
+          {...(err('nationalId') ? { errors: err('nationalId') } : {})}
         />
       </div>
 
-      <div>
+      <div className="border-rule flex flex-wrap gap-3 border-t pt-5">
         <Button type="submit" disabled={pending}>
           {pending ? 'Saving…' : 'Save changes'}
+        </Button>
+        {/*
+          Nothing is kept: the panel unmounts, so reopening it reads the stored
+          record again rather than whatever was half-typed. That is the point of
+          a cancel — "leave the record as it is" — and it is why there is no
+          confirmation on it.
+        */}
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          Cancel
         </Button>
       </div>
     </form>

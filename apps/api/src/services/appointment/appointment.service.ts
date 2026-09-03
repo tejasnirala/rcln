@@ -32,6 +32,8 @@ import type {
   AppointmentVisitTypeValue,
   AvailabilityResponse,
   CreateAppointmentRequest,
+  PatientAppointmentsQuery,
+  PatientAppointmentsResponse,
   RescheduleAppointmentRequest,
   UpdateAppointmentRequest,
   WorkingDaysResponse,
@@ -229,6 +231,14 @@ function toSummary(row: AppointmentRow): AppointmentSummary {
     visitType: row.visitType,
     source: row.source,
     status: row.status,
+    /*
+     * ⚠️ ON THE BOARD ROW, WHERE `reason` IS NOT. See the note on
+     *   `appointmentSummary`: the chief complaint stays behind the detail
+     *   endpoint that logs its disclosure; why a booking was called off does
+     *   not, because otherwise the only way to find out is to open the page
+     *   that discloses the complaint too.
+     */
+    cancellationReason: row.cancellationReason,
     checkedInAt: row.checkedInAt?.toISOString() ?? null,
   };
 }
@@ -631,6 +641,96 @@ async function rangeBounds(
   const row = rows[0];
   if (!row) throw new NotFoundError('Branch');
   return [row.day_start, row.day_end];
+}
+
+/**
+ * Every booking one patient has, newest first — the chart's Appointments tab.
+ *
+ * ⚠️ THIS ONE LOGS, AND THE DAY BOARD BESIDE IT DOES NOT. The rule
+ *   `data-access.service.ts` states is: log a read that discloses clinical
+ *   content, or that singles out one patient's record. `listDay` does neither —
+ *   it is a queue of who is expected at a desk today, and it is polled. This is
+ *   the second half of that sentence: one named person's entire booking history,
+ *   asked for by patient id. Whether it is a lot of rows or none, the question
+ *   asked was about one patient, and that is the read the table exists to
+ *   evidence. `SEARCH`, not `VIEW`, so it is never deduplicated: somebody
+ *   reading one patient's history eleven times is itself the signal.
+ *
+ * ⚠️ IT CARRIES NO DIAGNOSES, AND THAT IS WHY `appointment.read` IS ENOUGH. The
+ *   front desk books follow-ups off this list and has to see what came before.
+ *   What was CONCLUDED at each visit is `/visit-history` behind
+ *   `clinical.encounter.read` (CD-14), and nothing here widens that.
+ *
+ * ⚠️ SCOPED TO `ctx.branchIds` AS WELL AS BY RLS. A patient treated at two
+ *   branches has a history spanning both, and a caller scoped to one may not
+ *   read the other's bookings through this door — the same second layer
+ *   `getPreviousVisit` applies to the row it finds. RLS scopes the organization;
+ *   this scopes the branch.
+ *
+ * ⚠️ NO `ownDoctorOnly`, UNLIKE THE BOARD. There it is an access control: a
+ *   caller who may not enumerate the practitioners may not read across their
+ *   diaries either. Here the question is not "what is everyone doing today" but
+ *   "what has happened to this patient" — a history filtered to the reader's own
+ *   visits is a history with gaps in it, presented as complete, which is worse
+ *   on a chart than showing a colleague's name. `visit-history` makes the same
+ *   call for the same reason.
+ */
+export async function listPatientAppointments(
+  ctx: TenantContext,
+  patientId: string,
+  query: PatientAppointmentsQuery,
+  options: AppointmentActionOptions = {}
+): Promise<PatientAppointmentsResponse> {
+  return withTenant(ctx, async (tx) => {
+    /*
+     * ⚠️ 404 FOR A PATIENT RLS CANNOT SEE, RATHER THAN AN EMPTY LIST. "This
+     *   patient has no bookings" and "this patient is not yours" are different
+     *   answers, and returning the first for the second is how a tenancy bug
+     *   goes unnoticed. Same opening as `getVisitHistory`.
+     */
+    const patient = await tx.patient.findFirst({
+      where: { id: patientId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!patient) throw new NotFoundError('Patient');
+
+    const where = {
+      patientId,
+      deletedAt: null,
+      branchId: { in: ctx.branchIds },
+    };
+
+    const [total, rows] = await Promise.all([
+      tx.appointment.count({ where }),
+      tx.appointment.findMany({
+        where,
+        select: APPOINTMENT_SELECT,
+        /* Newest first — a chart is read backwards from the last visit. `id`
+           breaks the tie so the order is total across pages: two bookings at the
+           same instant would otherwise shuffle between page 1 and page 2 and
+           drop a row out of both. */
+        orderBy: [{ scheduledStart: 'desc' }, { id: 'desc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+    ]);
+
+    await recordDataAccess(tx, ctx, {
+      accessType: 'SEARCH',
+      resource: 'APPOINTMENT',
+      patientId,
+      resultCount: rows.length,
+      ...options,
+    });
+
+    return {
+      patientId,
+      appointments: rows.map(toSummary),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  });
 }
 
 /**
@@ -1312,10 +1412,29 @@ export async function createFollowUp(
           patientId: true,
           doctorProfileId: true,
           clinicalEpisodeId: true,
+          status: true,
           patient: { select: { status: true } },
         },
       });
       if (!parent) throw new NotFoundError('Appointment');
+
+      /*
+       * ⚠️ A FOLLOW-UP CONTINUES A VISIT THAT HAPPENED. A booking that was called
+       *   off or never attended produced nothing to follow up ON — no
+       *   consultation, no findings, no recommendation — so the honest act is a
+       *   fresh booking, which is a different call and does not inherit the
+       *   parent's episode, doctor and frozen fee.
+       *
+       *   The same rule and the same two statuses `recordVitals` refuses on, for
+       *   the same reason it gives: these rows are what every later report reads
+       *   as "did not happen", and hanging live bookings off one puts a visit
+       *   chain in a place no screen would explain.
+       */
+      if (parent.status === 'CANCELLED' || parent.status === 'NO_SHOW') {
+        throw new ConflictError(
+          'That booking did not go ahead, so a follow-up cannot be booked from it. Book a new appointment instead.'
+        );
+      }
 
       if (parent.patient.status === 'MERGED') {
         throw new ConflictError('That record has been merged into another one.');
@@ -1639,7 +1758,7 @@ function detailOf(
     ...toSummary(row),
     ...('liveInvoice' in chain ? { liveInvoice: chain.liveInvoice } : {}),
     reason: row.reason,
-    cancellationReason: row.cancellationReason,
+    /* `cancellationReason` comes through `toSummary` — see the contract. */
     startedAt: row.startedAt?.toISOString() ?? null,
     completedAt: row.completedAt?.toISOString() ?? null,
     mrn: row.registration.mrn,

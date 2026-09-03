@@ -257,6 +257,41 @@ export async function seedSettingDefinitions(): Promise<void> {
       helpText:
         'How many days an animal’s recorded weight is treated as current for. After that the dose calculator still answers, and says the weight should be checked first — a puppy weighed three months ago is a different animal today. Set 1 to recheck at almost every visit; 0 is not a valid answer and falls back to 90.',
     },
+    /*
+     * CO-1. What a new patient record IS before anybody touches the form, and
+     * the one setting the onboarding wizard exists to produce.
+     *
+     * ⚠️ IT DOES NOT DECIDE WHETHER THE PICKER IS SHOWN — the profile's care
+     *   context COUNT does (ADR-0018). A clinic that treats only animals has
+     *   one care context, so the front desk is never asked the question and
+     *   this supplies the answer; a mixed practice has two, the picker appears,
+     *   and this is only what it starts on. Conflating the two would leave a
+     *   mixed practice unable to register a human, which is the failure mode
+     *   worth naming in a settings file.
+     *
+     * ⚠️ AND IT IS NOT DERIVED FROM THE PROFILE AT READ TIME. The wizard SEEDS
+     *   this row once and the clinic owns it afterwards, which is what lets the
+     *   settings screen tell the truth and what makes re-onboarding in year two
+     *   non-destructive. See ADR-0018.
+     *
+     * BRANCH as well as ORGANIZATION, for the reason `patient.mrn_prefix` is:
+     * a group whose satellite is a small-animal practice and whose main site is
+     * a human OPD is one organization with two honest answers.
+     */
+    {
+      key: 'patient.default_subject_type',
+      module: 'patient',
+      dataType: 'STRING' as const,
+      defaultValue: 'HUMAN',
+      allowedScopes: ['ORGANIZATION', 'BRANCH'],
+      description: 'What a new patient is by default',
+      helpText:
+        'Whether a new record starts as a person or an animal. A clinic that treats only one of them never sees the question at all — this is the answer it uses. A clinic that treats both is asked each time, starting from this.',
+      allowedValues: [
+        { value: 'HUMAN', label: 'A person' },
+        { value: 'ANIMAL', label: 'An animal' },
+      ],
+    },
     {
       key: 'staff.employee_code_prefix',
       module: 'staff',
