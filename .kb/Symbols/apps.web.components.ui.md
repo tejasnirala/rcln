@@ -12,12 +12,12 @@ Files: `apps/web/src/components/ui/alert.tsx` · `apps/web/src/components/ui/but
 | --- | --- | --- | --- |
 | `Alert` | `({ tone, children, className, }: { tone: keyof typeof TONES;…)` | `apps/web/src/components/ui/alert.tsx:53` |  |
 | `Button` | `({ variant = 'primary', size = 'md', fullWidth, className, t…)` | `apps/web/src/components/ui/button.tsx:36` |  |
-| `EyeIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:84` | Currently hidden — this shows it. |
-| `EyeOffIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:99` | Currently visible — this hides it. Same eye, struck through. |
+| `EyeIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:92` | Currently hidden — this shows it. |
+| `EyeOffIcon` <sub>local</sub> | `()` | `apps/web/src/components/ui/password-control.tsx:107` | Currently visible — this hides it. Same eye, struck through. |
 | `Field` | `({ name, label, hint, errors, action, className, children }:…)` | `apps/web/src/components/ui/field.tsx:56` |  |
 | `FieldError` | `({ name, message }: { name: string; message: string })` | `apps/web/src/components/ui/field.tsx:88` |  |
 | `Input` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:270` |  |
-| `PasswordControl` | `({ className, disabled, ...rest }: React.ComponentPropsWitho…)` | `apps/web/src/components/ui/password-control.tsx:32` |  |
+| `PasswordControl` | `({ className, disabled, ...rest }: React.ComponentPropsWithR…)` | `apps/web/src/components/ui/password-control.tsx:32` |  |
 | `PhoneInput` | `({ id, name, countryCode, national, onNationalChange, onCoun…)` | `apps/web/src/components/ui/phone-input.tsx:33` |  |
 | `Select` | `({ label, hint, errors, action, fieldClassName, className, i…)` | `apps/web/src/components/ui/field.tsx:330` |  |
 | `SIZES` <sub>local</sub> | `{ // py-3 clears the 24px minimum target from WCAG 2.5.8 on its own. md: 'px-5 py-3 text-…` | `apps/web/src/components/ui/button.tsx:30` |  |

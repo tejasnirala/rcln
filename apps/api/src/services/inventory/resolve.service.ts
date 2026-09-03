@@ -155,6 +155,7 @@ function toScannedBatch(row: BatchRow, scannedExpiry: string | null, today: stri
 
 async function findBatches(
   tx: TxClient,
+  organizationId: string,
   branchIds: string[],
   lotNumber: string,
   productIds: string[],
@@ -168,6 +169,16 @@ async function findBatches(
   const today = toCalendarDate(calendarToday());
   const rows = await tx.batch.findMany({
     where: {
+      /*
+       * ⚠️ EXPLICIT, NOT LEFT TO RLS (ADR-0003's second layer). The policy is
+       *   the backstop, not the scoping — and the same phase group says so out
+       *   loud at `fulfilment.service.ts`. `branchIds` comes from
+       *   `branchScope`, which cannot yield a branch outside the caller's
+       *   context today, so this is not exploitable; it becomes exploitable the
+       *   day somebody widens that function and leaves one layer standing on
+       *   the hottest new read in the programme. (PI-24 review.)
+       */
+      organizationId,
       branchId: { in: branchIds },
       /*
        * ⚠️ EXACT, CASE-SENSITIVE. A lot number is an identifier and `AB12` is not
@@ -228,9 +239,22 @@ export async function resolveScan(
                 },
               },
             },
-            // The clinic's own row before a platform row, exactly as
-            // `resolveIdentifier` orders it.
-            orderBy: [{ organizationId: 'desc' }, { isPrimary: 'desc' }],
+            /*
+             * The clinic's own row before a platform row, exactly as
+             * `resolveIdentifier` orders it.
+             *
+             * ⚠️ `nulls: 'last'` IS REQUIRED, AND WITHOUT IT THIS ORDERED THE
+             *   OTHER WAY. `organization_id` is NULL on a platform row, and
+             *   Postgres defaults `DESC` to NULLS FIRST — so a bare
+             *   `{ organizationId: 'desc' }` put the PLATFORM definition ahead
+             *   of the clinic's own. A clinic that clones a platform product and
+             *   keeps its GTIN then scans to the catalogue entry it does not
+             *   use, and with `take: MATCH_LIMIT` a GTIN on many platform rows
+             *   could push the clinic's own row out of the result entirely.
+             *   The same trap is documented at three other call sites in this
+             *   codebase, each with this fix applied. (PI-24 review.)
+             */
+            orderBy: [{ organizationId: { sort: 'desc', nulls: 'last' } }, { isPrimary: 'desc' }],
             take: MATCH_LIMIT,
           });
 
@@ -265,7 +289,14 @@ export async function resolveScan(
     const batches =
       decoded.lotNumber === null
         ? []
-        : await findBatches(tx, branchIds, decoded.lotNumber, productIds, decoded.expiresOn);
+        : await findBatches(
+            tx,
+            ctx.organizationId,
+            branchIds,
+            decoded.lotNumber,
+            productIds,
+            decoded.expiresOn
+          );
 
     /*
      * A serial is unique per (tenant, product, serial number), so a scan with no
@@ -278,6 +309,8 @@ export async function resolveScan(
         ? []
         : await tx.serial.findMany({
             where: {
+              /* Explicit for the same reason as `findBatches` above. */
+              organizationId: ctx.organizationId,
               branchId: { in: branchIds },
               serialNumber: decoded.serialNumber,
               ...(productIds.length > 0 ? { productId: { in: productIds } } : {}),

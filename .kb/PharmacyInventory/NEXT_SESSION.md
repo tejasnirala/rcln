@@ -2,6 +2,69 @@
 
 **Read this first.** Updated at the end of every session.
 
+**Written:** 2026-09-02 · **By:** session PI-24 (global hardening, part one).
+
+## PI-24's review sweep has RUN, and everything it found is fixed but one
+
+**Written:** 2026-09-03 · **By:** session PI-24 (global hardening).
+
+✅ Four reviewers over `git diff c0f3adc..HEAD` — 267 files, ~39k insertions,
+partitioned by concern (tenancy/PHI/authz · api+services · `apps/web` ·
+regulatory packs). **PI-12 through PI-23 are no longer unreviewed.**
+
+⚠️ **THE REGULATORY REVIEW WAS THE ONE THAT MATTERED, AND IT FOUND THINGS BY
+RUNNING THE ENGINE RATHER THAN READING THE RULES.** Three fail-OPEN defects in the
+framework and four in the packs — a classification typo that permitted a
+controlled dispense in four countries with no prescription rule in its reasons; an
+empty list that disabled its own limb seven ways; a future-dated prescription
+dispensed in India and Bangladesh; Ireland refusing an unlicensed person a POM and
+permitting them morphine. **Every one produced a well-formed, plausible, fully
+reasoned decision.** None had a test. All are fixed, with 23 regression cases in
+`packages/regulatory/tests/fail-open.test.ts` — and one of those fixes was
+verified by temporarily reverting it and watching the guard fail.
+
+⚠️ **ONE FINDING IS DELIBERATELY UNFIXED: the Abu Dhabi and Dubai refill ladders.**
+The lawful day-30 refill is refused by two rules at once because `validityDays: 3`
+runs from `issuedOn` and those three days are the window to PRESENT the
+prescription. The framework half is mechanical; the pack half is a reading of DOH
+§5.4.4 / DHA 18.7.4(e) that cannot be verified from here, and its error direction
+is PERMITTING a controlled-drug supply. It fails CLOSED. **Give this to somebody
+with the instruments — do not guess it.**
+
+✅ **`pnpm test` IS ONE COMMAND — 103 suites, 2,198 cases, ~75s, exit 0.** No
+sharding, no `--forceExit`. If an older note told you to run six shards by hand,
+it is out of date.
+
+- ⚠️ `tests/setup-after-env.ts` imports the producer INSIDE the hook on purpose —
+  a top-level import there freezes `config` before `storage-path.test.ts` can set
+  its variable, which broke four cases the first time and will again.
+- The memory ceiling is the CONTAINER'S. `--max-old-space-size` has now failed
+  three times; the worker is recycled instead.
+
+⚠️ **TWO TESTS PINNED THE BUG THEY WERE NAMED FOR**, which is the most useful
+thing in this note. `bd-rule-pack.test.ts` was titled "still refuses a prescription
+dated after the day it is dispensed" and asserted `not.toBe('REFUSED')`. The AU and
+SG controlled-schedule cases asserted "the code appears and no conditions were
+raised" — which is exactly what an UNREADABLE rule produces, so they passed while
+the rule refused every Schedule 8 transaction in seven jurisdictions. **When a case
+asserts an absence, ask what else produces that absence.**
+
+## Where to start
+
+- `packages/regulatory/tests/fail-open.test.ts` — every case is a regression guard
+  for something that was live. Read it before touching `selection.ts` or
+  `parameters.ts`.
+- `.kb/PharmacyInventory/KNOWN_ISSUES.md`, the PI-24 sweep section — the full list.
+
+## What PI-24 still owes
+
+- **No E2E, and `apps/web` still has no test suite at all.** It is the largest
+  remaining hole: 49 files reviewed statically and nothing else.
+- No data migration rehearsal, no production readiness gates.
+- #22 (recall check at receipt), #33, #34 — feature work PI-23 scoped out.
+
+---
+
 **Written:** 2026-09-02 · **By:** session PI-23 (identifier resolution).
 
 ## PI-23 first, because it is the freshest and it is unreviewed

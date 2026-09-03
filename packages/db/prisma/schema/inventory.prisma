@@ -1140,7 +1140,6 @@ model StockTransferLine {
   /// twice on one document is a mistake with two plausible readings — did they
   /// mean the sum, or did they type it twice — and neither should be guessed.
   @@unique([organizationId, transferId, productId, batchId, serialId])
-  @@index([organizationId, transferId])
   @@index([organizationId, productId])
   @@index([organizationId, batchId])
   @@map("stock_transfer_lines")

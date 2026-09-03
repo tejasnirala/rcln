@@ -10,18 +10,18 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `FORWARDED` <sub>local</sub> | `[ 'branchId', 'page', 'sortBy', 'sortOrder', 'from', 'to', 'basis', 'clock', 'groupBy', '…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:29` |  |
-| `ReportPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:83` |  |
+| `FORWARDED` <sub>local</sub> | `[ 'branchId', 'page', 'sortBy', 'sortOrder', 'from', 'to', 'basis', 'clock', 'groupBy', '…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:30` |  |
+| `ReportPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:95` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `defaultWindow` <sub>local</sub> | `(): { from: string; to: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:52` | The last full calendar month, in UTC, for a dated report opened cold. |
-| `generateMetadata` | `({ params, }: { params: Promise<{ reportKey: string }>; }): Promise<Metadata>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:11` |  |
+| `defaultWindow` <sub>local</sub> | `(): { from: string; to: string }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:62` |  |
+| `generateMetadata` | `({ params, }: { params: Promise<{ reportKey: string }>; }): Promise<Metadata>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:12` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ReportResponse` <sub>local</sub> | `{ reportKey, generatedAt, window, page, limit, total, truncated, rows, totals, procedureFeeIncluded }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:59` |  |
+| `ReportResponse` <sub>local</sub> | `{ reportKey, generatedAt, window, page, limit, total, truncated, rows, totals, procedureFeeIncluded }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/reports/[reportKey]/page.tsx:71` |  |

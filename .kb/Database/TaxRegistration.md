@@ -31,4 +31,3 @@ Declared at `packages/db/prisma/schema/tax.prisma:120`.
 ## Indexes and constraints
 
 - `@@unique([countryCode, regionCode, scheme])`
-- `@@index([countryCode])`

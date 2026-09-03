@@ -7,6 +7,7 @@ import {
   BILLING_SWEEP_JOB,
   INVENTORY_SWEEP_CRON,
   INVENTORY_SWEEP_JOB,
+  NOTIFICATION_JOB,
   QUEUE,
   RESERVATION_SWEEP_CRON,
   RESERVATION_SWEEP_JOB,
@@ -16,6 +17,7 @@ import {
   type QueueName,
 } from '@rcln/queue';
 import { configureDocumentStore } from '@rcln/documents/store';
+import { createSender } from '@rcln/notifications';
 import { DOCUMENT_JOB, type InvoicePdfJob } from '@rcln/queue';
 import { isAbsolute, resolve as resolvePath } from 'node:path';
 
@@ -28,8 +30,12 @@ import {
   type WorkerPaymentsConfig,
 } from './billing/runtime.js';
 import { processBillingJob, sweepDueSubscriptions } from './billing/processor.js';
-import { sweepExpiredStock } from './inventory/expiry.processor.js';
+import { alertOnExpiringStock, sweepExpiredStock } from './inventory/expiry.processor.js';
 import { sweepDueReservations } from './inventory/reservation.processor.js';
+import {
+  processNotificationJob,
+  type NotificationDeps,
+} from './notifications/notification.processor.js';
 
 /** An optional variable, where blank means unset. Mirrors the API's config. */
 function optional(value: string | undefined): string | undefined {
@@ -62,6 +68,36 @@ createDbClient({ url: databaseUrl, logQueries: false });
  * renewal that cannot find the authorisation it is meant to charge. Both read
  * the same environment variables from the same `.env`.
  */
+/**
+ * The worker's own binding of the notification sender.
+ *
+ * ⚠️ IT MIRRORS THE API'S, and must stay in step with it for the same reason
+ *   `paymentsConfig` does: both read the same variables from the same `.env`,
+ *   and a worker sending from a different address — or through a relay the API
+ *   does not know about — is a delivery the clinic cannot account for. The
+ *   IMPLEMENTATION is shared (`@rcln/notifications`); only the configuration is
+ *   read twice, because a worker cannot import an app's config.
+ */
+const notificationDeps: NotificationDeps = {
+  sender: createSender(
+    {
+      provider: process.env['EMAIL_PROVIDER'] === 'smtp' ? 'smtp' : 'console',
+      from: process.env['EMAIL_FROM'] ?? 'noreply@rcln.local',
+      isProduction: process.env['NODE_ENV'] === 'production',
+      smtp: {
+        host: process.env['SMTP_HOST'] ?? 'mailpit',
+        port: Number(process.env['SMTP_PORT'] ?? 1025),
+        secure: process.env['SMTP_SECURE'] === 'true',
+        user: optional(process.env['SMTP_USER']),
+        password: optional(process.env['SMTP_PASSWORD']),
+      },
+    },
+    logger
+  ),
+  logger,
+  webUrl: process.env['WEB_URL'] ?? 'http://lvh.me:3000',
+};
+
 const paymentsConfig: WorkerPaymentsConfig = {
   provider: process.env['PAYMENT_PROVIDER'],
   redisUrl,
@@ -166,8 +202,16 @@ const PROCESSORS: Partial<Record<QueueName, (jobName: string, data: unknown) => 
     logger.warn({ jobName }, 'unknown document job — no processor for it');
   },
 
+  /**
+   * Telling somebody that something happened.
+   *
+   * ⚠️ THIS HANDLER USED TO LOG "processor not implemented yet", WHICH IS WHY
+   *   AN ACCEPTED ORDER TOLD THE PATIENT NOTHING (KNOWN_ISSUES #26, KI-6). The
+   *   sender lives in `@rcln/notifications` rather than in the API precisely so
+   *   this file can use the same one — see that package's header.
+   */
   [QUEUE.NOTIFICATIONS]: async (jobName, data) => {
-    logger.info({ jobName, data }, 'notification job received — processor not implemented yet');
+    await processNotificationJob(jobName, data, notificationDeps);
   },
 
   /**
@@ -199,6 +243,17 @@ const PROCESSORS: Partial<Record<QueueName, (jobName: string, data: unknown) => 
   [QUEUE.INVENTORY]: async (jobName) => {
     if (jobName === INVENTORY_SWEEP_JOB) {
       await sweepExpiredStock(logger);
+      /*
+       * ⚠️ AFTER THE SWEEP, ON THE SAME TICK, AND IT ONLY ENQUEUES. The sweep
+       *   moves stock that has already expired; this tells each branch what is
+       *   about to, which is the only moment anybody can still act. Running it
+       *   second means a lot that expired overnight has already left the
+       *   dispensable pool and is not counted twice. The job id caps it at one
+       *   mail per branch per day — see `alertOnExpiringStock`.
+       */
+      await alertOnExpiringStock(logger, async (job, id) => {
+        await queues[QUEUE.NOTIFICATIONS].add(NOTIFICATION_JOB.STOCK_EXPIRING, job, { jobId: id });
+      });
       return;
     }
     /*

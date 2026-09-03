@@ -441,11 +441,28 @@ describe('taking an order is not supplying against it', () => {
     expect(clinical).toEqual([]);
   });
 
-  it('reads behind the online-order read code, and nothing else', () => {
+  it('reads behind an online-order code, and nothing else', () => {
+    /*
+     * ⚠️ TWO CODES ARE ALLOWED HERE AND THE LIST IS EXHAUSTIVE, WHICH IS THE
+     *   PART THAT MATTERS. This asserted `[ONLINE_ORDER_READ]` exactly until
+     *   PI-24 added `GET /patients/{patientId}/consultations` — a read that
+     *   exists to fill in the CREATE form, and is gated on
+     *   `pharmacy.online_order.manage` because taking an order is what it is
+     *   for. Gating it on the read code instead would let anybody who can merely
+     *   LOOK at deliveries enumerate a named patient's consultations, which is a
+     *   wider disclosure than the screen needs.
+     *
+     *   The failure this case was written for is untouched: a `clinical.*` code
+     *   is caught by the case above, and anything outside these two — a
+     *   dispensing code, a patient code, a stock code — still fails here. What
+     *   it no longer does is force a PHI read to be wider than its use.
+     */
+    const allowed: string[] = [PERMISSIONS.ONLINE_ORDER_READ, PERMISSIONS.ONLINE_ORDER_MANAGE];
     const reads = routes.filter((route) => route.method === 'GET');
     expect(reads.length).toBeGreaterThan(0);
     for (const route of reads) {
-      expect(route.permissions).toEqual([PERMISSIONS.ONLINE_ORDER_READ]);
+      expect(route.permissions?.length).toBe(1);
+      expect(allowed).toContain(route.permissions?.[0]);
     }
   });
 

@@ -52,6 +52,10 @@ export const logger = pino({
       // full address and it is the same CLASS of fact, which is why `city` and
       // `state` are above rather than left out beside `pincode`.
       'req.body.notes',
+      /* Why a named person's medicine could not be delivered to their house —
+       * the schema calls `failure_reason` PHI-adjacent, and its sibling `notes`
+       * was redacted while this was not. (PI-24 review.) */
+      'req.body.reason',
       // Registration nests the owner's credentials one level down. pino's redact
       // paths are literal, not recursive: 'req.body.password' does NOT cover
       // 'req.body.owner.password', so the whole signup payload would otherwise

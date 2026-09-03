@@ -90,6 +90,17 @@ const EMPTY_LINE = (key: number): LineDraft => ({
   unitCost: '',
 });
 
+/*
+ * ⚠️ EVERY KEY COMES FROM HERE, INCLUDING THE PRE-FILLED ONES. It used to start
+ *   at 1 while lines pre-filled from a document were keyed by ARRAY INDEX —
+ *   0, 1, 2 … — so the first line the user added took key 1 and COLLIDED with
+ *   the second line off the order. `updateLine` matches on key and patches
+ *   every match, so typing a quantity into the new line wrote it into the
+ *   ordered line too, choosing a product overwrote that line's product while it
+ *   still posted the original `purchaseOrderLineId`, and "remove" deleted both.
+ *   The result was a received line pointing at the wrong product against a real
+ *   purchase-order line. Found in the PI-24 review.
+ */
 let nextKey = 1;
 
 export function GoodsReceiptForm({
@@ -117,14 +128,14 @@ export function GoodsReceiptForm({
          */
         order.lines
           .filter((line) => Number(line.outstandingQuantityBase) > 0)
-          .map((line, index) => ({
-            ...EMPTY_LINE(index),
+          .map((line) => ({
+            ...EMPTY_LINE(nextKey++),
             productId: line.productId,
             productName: line.productName,
             purchaseOrderLineId: line.id,
             quantity: line.outstandingQuantityBase,
           }))
-      : [EMPTY_LINE(0)]
+      : [EMPTY_LINE(nextKey++)]
   );
   const [scan, setScan] = useState('');
   const [scanNote, setScanNote] = useState<{
@@ -410,20 +421,22 @@ export function GoodsReceiptForm({
 
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {/*
-                  ⚠️ KEYED ON THE CHOSEN PRODUCT SO A SCAN CAN CHANGE IT. The picker
-                     owns its own choice — it is a search box, not a controlled
-                     select — so filling this line from a barcode has to remount it
-                     with a new `initial`. Without the key a scanned product would
-                     be posted correctly and shown as whatever was there before.
+                  ⚠️ CONTROLLED, SO A SCAN CAN CHANGE IT WITHOUT A REMOUNT. This
+                     used to be `key={line.productId}`: the picker owned its own
+                     choice, `initial` is read once, so filling the line from a
+                     barcode meant throwing the subtree away and rebuilding it —
+                     which also threw away the search term, the result list, the
+                     scroll position and the operator's focus, after every
+                     carton. `value` hands the choice to the form, which already
+                     holds it. KNOWN_ISSUES #37. (PI-24 review.)
                 */}
                 <ProductPicker
-                  key={line.productId}
                   slug={slug}
                   name={`lines.${index}.productId`}
                   label="Product"
                   required
                   filters={{ isStockItem: true, status: 'ACTIVE' }}
-                  initial={
+                  value={
                     line.productId === '' ? null : { id: line.productId, name: line.productName }
                   }
                   onChoose={(product) =>

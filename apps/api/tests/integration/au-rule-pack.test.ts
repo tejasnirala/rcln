@@ -362,6 +362,21 @@ describe('the Poisons Standard floor applies where no state pack does', () => {
      */
     const decision = await evaluateNational('S8', { prescription: VALID_PRESCRIPTION });
 
+    /*
+     * ⚠️ THE OUTCOME IS ASSERTED FIRST, AND IT WAS NOT BEFORE — WHICH IS WHY
+     *   THIS CASE PASSED FOR TWO PHASES WHILE THE RULE REFUSED EVERY SCHEDULE 8
+     *   TRANSACTION IN SEVEN JURISDICTIONS. `AU-SCHEDULE-S8` carried only a
+     *   `scheduleName`, the parser refused it as imposing no obligation, and an
+     *   unreadable rule resolves UNDETERMINED — which refuses. The three
+     *   assertions below cannot tell that apart from a permissive rule: an
+     *   unreadable rule ALSO puts its code in the reasons and ALSO raises none
+     *   of these conditions. Asserting the absence of obligations without
+     *   asserting the presence of a permission describes both equally well.
+     *   Fixed in PI-24; `rule-pack-readable.test.ts` now guards the class.
+     */
+    expect(decision.outcome).not.toBe('REFUSED');
+    expect(decision.outcome).not.toBe('UNDETERMINED');
+
     expect(codes(decision)).toContain('AU-SCHEDULE-S8');
     expect(conditionKinds(decision)).not.toContain('RECORD_IN_CONTROLLED_REGISTER');
     expect(conditionKinds(decision)).not.toContain('VERIFY_PRIOR_AUTHORISATION');

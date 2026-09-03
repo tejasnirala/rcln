@@ -36,7 +36,6 @@ Declared at `packages/db/prisma/schema/products.prisma:345`.
 ## Indexes and constraints
 
 - `@@unique([organizationId, fromUnitId, toUnitId])`
-- `@@index([organizationId, fromUnitId])`
 - `@@index([organizationId, toUnitId])`
 
 ## Neighbourhood

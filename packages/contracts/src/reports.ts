@@ -346,11 +346,27 @@ export const agingRow = productRef.extend(branchRef.shape).extend({
 export type AgingRow = z.infer<typeof agingRow>;
 
 /** Per-bucket subtotals, so the screen can draw the shape without the rows. */
+/**
+ * One bucket's subtotal, per currency.
+ *
+ * ⚠️ `valueMinor` IS NULLABLE AND `unvaluedQuantityBase` IS NOT DECORATION —
+ *   BOTH FOR THE REASON `reportCurrencyTotal` GIVES. Stock nobody has costed is
+ *   stock the clinic HOLDS and cannot value, and a bucket used to report it as
+ *   worth zero: the aggregate ran `SUM(COALESCE(value_minor, 0))`, which is
+ *   never NULL for a non-empty group, so the unvalued mechanism could not fire
+ *   and `buckets[]` dropped the uncosted quantity entirely by filtering out the
+ *   currency-less row. The valuation report, over the same shelf on the same
+ *   day, answered `null` plus a quantity — two reports, two answers. (PI-24.)
+ */
 export const agingBucketTotal = z.object({
   bucket: agingBucket,
-  currency: z.string().length(3),
+  /** Null when nothing in this bucket could be costed at all. */
+  currency: z.string().length(3).nullable(),
   quantityBase: decimalString,
-  valueMinor: z.int(),
+  /** Null means "not valued", and must never be rendered as zero. */
+  valueMinor: z.int().nullable(),
+  /** How much of `quantityBase` carries no cost. */
+  unvaluedQuantityBase: decimalString,
   lineCount: z.int(),
 });
 

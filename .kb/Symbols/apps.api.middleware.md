@@ -21,6 +21,7 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 | `describeValidator` <sub>local</sub> | `(handler: T, shapes: ValidatedShape[]): T` | `apps/api/src/middleware/validate.middleware.ts:30` | Stamp the schemas a handler validates onto the handler itself. |
 | `errorHandler` | `(err: Error, req: Request, res: Response, _next: NextFunction): Response` | `apps/api/src/middleware/error.middleware.ts:33` | Global error handler middleware Must be registered LAST in middleware chain |
 | `formatZodErrors` <sub>local</sub> | `(error: ZodError): Record<string, string[]>` | `apps/api/src/middleware/error.middleware.ts:16` | Format Zod validation errors |
+| `getScanBudget` <sub>local</sub> | `(): number` | `apps/api/src/middleware/rateLimiter.middleware.ts:34` | 40 scans a minute across the configured window. |
 | `invalidateTenantCache` | `(host: string): Promise<void>` | `apps/api/src/middleware/tenant.middleware.ts:167` | Called after any change to organizations/organization_domains. |
 | `isPrismaKnownError` <sub>local</sub> | `(e: Error): e is Error & { code: string }` | `apps/api/src/middleware/error.middleware.ts:5` | Structural check for a Prisma known-request error. |
 | `lookupTenant` <sub>local</sub> | `(host: string): Promise<ResolvedTenant \| null>` | `apps/api/src/middleware/tenant.middleware.ts:70` |  |
@@ -48,15 +49,16 @@ Files: `apps/api/src/middleware/auth.middleware.ts` · `apps/api/src/middleware/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `authLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:45` | Auth endpoints are the ones worth brute-forcing, so they get their own budget. |
-| `generalLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:33` |  |
-| `identityLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:133` |  |
-| `inviteLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:170` |  |
-| `otpLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:224` | OTP sending is metered per phone number, not per IP — an attacker rotating IPs must not be able to spam one person's handset (and burn your SMS credit). |
-| `publicFormLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:63` |  |
-| `registrationLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:79` |  |
-| `slugCheckLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:99` |  |
-| `verificationLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:205` |  |
+| `authLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:79` | Auth endpoints are the ones worth brute-forcing, so they get their own budget. |
+| `generalLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:36` |  |
+| `identityLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:167` |  |
+| `inviteLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:204` |  |
+| `otpLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:258` | OTP sending is metered per phone number, not per IP — an attacker rotating IPs must not be able to spam one person's handset (and burn your SMS credit). |
+| `publicFormLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:97` |  |
+| `registrationLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:113` |  |
+| `scanLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:67` |  |
+| `slugCheckLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:133` |  |
+| `verificationLimiter` | `rateLimit(…)` | `apps/api/src/middleware/rateLimiter.middleware.ts:239` |  |
 
 ## interface
 

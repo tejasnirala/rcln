@@ -783,7 +783,12 @@ export const IE_RULES: RuleSeed[] = [
    *   EITHER. That is the right way round — it is already being refused, and a
    *   labelling obligation attached to a refusal is noise.
    */
-  ...[...PRESCRIPTION_TIERS.map((tier) => tier.classification), IE_CLASSIFICATIONS.pharmacyOnly]
+  ...(
+    [
+      ...PRESCRIPTION_TIERS.map((tier) => tier.classification),
+      IE_CLASSIFICATIONS.pharmacyOnly,
+    ] as string[]
+  )
     .concat(CONTROLLED_SCHEDULES.map((schedule) => schedule.classification))
     .map((classification) => ({
       code: `IE-LABEL-${classification}`,
@@ -862,6 +867,43 @@ export const IE_RULES: RuleSeed[] = [
     },
     citation:
       'S.I. No. 488 of 2008, reg. 5(1)(d); exemption from S.I. No. 540 of 2003, reg. 20(3)(c)',
+  })),
+
+  /*
+   * The same rule for the controlled schedules, and its ABSENCE INVERTED THE
+   * WHOLE GATE.
+   *
+   * ⚠️ THIS PACK REFUSED AN UNLICENSED PERSON A PART A POM AND PERMITTED THEM
+   *   MORPHINE. `IE-DISPENSER-*` was generated over `PRESCRIPTION_TIERS` only,
+   *   and `IE-DISPENSER-PHARMACY-ONLY` covers the pharmacy-only class — so
+   *   `CD_SCHEDULE_2`, `CD_SCHEDULE_3` and `CD_SCHEDULE_4_PART_1` had no
+   *   `PHARMACIST_AUTHORITY` rule at all, and a Schedule 2 supply by somebody
+   *   holding no registration whatsoever came back PERMITTED. Every other pack
+   *   in the programme gates its controlled supply. Regulation 5(1)(d), which
+   *   the rules above already cite, is not limited to the First Schedule tiers.
+   *   Found in the PI-24 review by running the engine rather than reading the
+   *   rows.
+   *
+   * ⚠️ AND NO `exemptWhenActorIsPrescriber` HERE, WHICH IS THE DELIBERATE
+   *   DIFFERENCE FROM THE THREE ABOVE. Regulation 20(3)(c) disapplies
+   *   regulations 5 and 6 of the 2003 Regulations; it says nothing about the
+   *   Misuse of Drugs Regulations, so a practitioner dispensing a controlled
+   *   drug to their own patient is not carried out of this requirement by it.
+   */
+  ...CONTROLLED_SCHEDULES.map((schedule) => ({
+    code: `IE-DISPENSER-${schedule.key}`,
+    ruleType: 'PHARMACIST_AUTHORITY',
+    statement:
+      `The supply of a ${schedule.name} controlled drug, and the dispensing of the prescription ` +
+      'for it, must be carried out by or under the personal supervision of a registered ' +
+      'pharmacist. Hand this to one.',
+    sourceKey: 'IE_RRPB_2008',
+    appliesToClassification: schedule.classification,
+    appliesToTransactions: SUPPLY_TO_PATIENT,
+    parameters: {
+      permittedLicenceTypes: ['REGISTERED_PHARMACIST'],
+    },
+    citation: 'S.I. No. 488 of 2008, reg. 5(1)(d)',
   })),
 
   /*
@@ -1149,50 +1191,70 @@ export const IE_RULES: RuleSeed[] = [
   /*
    * Regulation 19(1) — the register, for Schedules 1 and 2.
    *
-   * ⚠️ ONLY SCHEDULE 2 GETS A `CONTROLLED_SCHEDULE` RULE, AND THE REASON IS A
-   *   FRAMEWORK CONSTRAINT RATHER THAN A READING OF THE REGULATION.
-   *   `parseControlledSchedule` REFUSES a document that imposes no obligation —
-   *   "it is a controlled-schedule rule that imposes no obligation" — so a rule
-   *   carrying only `scheduleName` resolves `UNDETERMINED`, **which refuses**.
-   *   Regulation 19(1) reaches Schedules 1 and 2 and stops; Schedule 3 and Part
-   *   1 of Schedule 4 need no register, no safe under this rule type and no
-   *   prior authorisation, so there is nothing this rule type could honestly
-   *   carry for them.
+   * ⚠️ ALL THREE SCHEDULES GET A `CONTROLLED_SCHEDULE` RULE, AND ONLY ONE OF
+   *   THEM CARRIES A REGISTER. Regulation 19(1) reaches Schedules 1 and 2 and
+   *   stops, so Schedule 3 and Part 1 of Schedule 4 need no register, no safe
+   *   under this rule type and no prior authorisation. What they still need is
+   *   to be NAMED: a decision that does not say "this is a controlled drug"
+   *   reads exactly like an ordinary supply.
    *
-   * ⚠️ THE COST IS REAL AND IS ACCEPTED: A SCHEDULE 3 DECISION DOES NOT NAME THE
-   *   SCHEDULE. The reason line "This is a Schedule 3 controlled drug" would be
-   *   worth having, and there is no way to get it without asserting an
-   *   obligation the Regulations do not impose. Recorded in KNOWN_ISSUES; the
-   *   fix is a `scheduleName`-only rule that the parser accepts as informational,
-   *   which is a framework decision and not Ireland's to make.
+   *   Until PI-24 they had no rule at all, and the reason was a framework
+   *   constraint rather than a reading of the regulation —
+   *   `parseControlledSchedule` refused a document that imposed no obligation,
+   *   so a `scheduleName`-only rule resolved `UNDETERMINED`, **which refuses**.
+   *   The framework now takes `informationalOnly`, an EXPLICIT opt-out: the
+   *   deliberate label is accepted, and a rule that imposes nothing without
+   *   saying so still fails closed, because that shape is what a mistyped
+   *   parameter looks like.
    *
-   * ⚠️ AND THIS IS EXACTLY THE DEFECT `AU-SCHEDULE-S8` SHIPPED WITH IN PI-15 —
-   *   found while writing this file. That rule carries `{ scheduleName:
-   *   'Schedule 8' }` and nothing else, so every Schedule 8 transaction outside
-   *   Victoria answers `UNDETERMINED`, which refuses. Its own comment says
-   *   "`evaluateControlledSchedule` permits with an empty condition list and one
-   *   reason line naming the schedule", and its behaviour case asserts the rule
-   *   CODE appears and that no conditions were raised — which is precisely what
-   *   an unreadable rule produces. **Do not copy that shape here.**
+   * ⚠️ THE SHAPE THIS FILE ONCE WARNED AGAINST IS NOW THE SUPPORTED ONE, AND THE
+   *   WARNING IS WORTH KEEPING FOR WHAT IT CAUGHT. `AU-SCHEDULE-S8` shipped in
+   *   PI-15 carrying `{ scheduleName: 'Schedule 8' }` and nothing else — found
+   *   while writing this file — so every Schedule 8 transaction outside Victoria
+   *   answered `UNDETERMINED`, which refuses, in seven jurisdictions. Its own
+   *   comment claimed the opposite, and its behaviour case asserted the rule CODE
+   *   appeared and that no conditions were raised, which is precisely what an
+   *   unreadable rule produces. Both it and `SG-SCHEDULE-CD3` are fixed in PI-24,
+   *   and `apps/api/tests/unit/rule-pack-readable.test.ts` now parses every rule
+   *   in every pack so the class cannot ship a third time.
    *
    * ⚠️ NO `storageLocationKinds`, BECAUSE THE SAFE IS ITS OWN RULE. Article 5 of
    *   the Safe Custody Regulations is about a receptacle rather than a room, and
    *   `IE-STORE-*` below carries it with `controlledAccessRequired`, which is
    *   the fact a location row actually holds.
    */
-  ...CONTROLLED_SCHEDULES.filter((schedule) => schedule.registerRequired).map((schedule) => ({
+  ...CONTROLLED_SCHEDULES.map((schedule) => ({
     code: `IE-SCHEDULE-${schedule.key}`,
     ruleType: 'CONTROLLED_SCHEDULE',
-    statement:
-      `This is a ${schedule.name} controlled drug. Enter every quantity obtained and every ` +
-      'quantity supplied in the controlled drugs register for its class, in chronological ' +
-      'order and showing a running stock balance, on the day it happens or the next day — in ' +
-      'ink, never altered, and corrected only by a dated marginal note.',
+    statement: schedule.registerRequired
+      ? `This is a ${schedule.name} controlled drug. Enter every quantity obtained and every ` +
+        'quantity supplied in the controlled drugs register for its class, in chronological ' +
+        'order and showing a running stock balance, on the day it happens or the next day — in ' +
+        'ink, never altered, and corrected only by a dated marginal note.'
+      : `This is a ${schedule.name} controlled drug. Its supply, possession and storage are ` +
+        'restricted under the Misuse of Drugs Regulations, which require no register entry for ' +
+        'this schedule.',
     sourceKey: 'IE_MDR_2017',
     appliesToClassification: schedule.classification,
     appliesToTransactions: [...SUPPLY_TO_PATIENT, 'STOCK', 'TRANSFER', 'DISPOSE'],
-    parameters: { scheduleName: schedule.name, registerRequired: true },
-    citation: 'S.I. No. 173 of 2017, regs. 19(1), 19(2) and 19(5)',
+    parameters: schedule.registerRequired
+      ? { scheduleName: schedule.name, registerRequired: true }
+      : /*
+         * ⚠️ THE COST RECORDED ABOVE, NOW PAID (PI-24). The paragraph said the
+         *   reason line "This is a Schedule 3 controlled drug" was worth having
+         *   and unobtainable without asserting a register Regulation 19(1) does
+         *   not impose — and that the fix was a framework decision, not
+         *   Ireland's. That decision was taken: `informationalOnly` is the
+         *   explicit opt-out from the "imposes no obligation" refusal, so the
+         *   schedule can be NAMED without an obligation being invented for it.
+         *   Nothing about the reading of the regulation changed — Schedule 3 and
+         *   Part 1 of Schedule 4 still require no register, and the safe is still
+         *   `IE-STORE-*`.
+         */
+        { scheduleName: schedule.name, informationalOnly: true },
+    citation: schedule.registerRequired
+      ? 'S.I. No. 173 of 2017, regs. 19(1), 19(2) and 19(5)'
+      : 'S.I. No. 173 of 2017, reg. 19(1) — which reaches Schedules 1 and 2 and stops',
   })),
 
   /*
@@ -1218,7 +1280,17 @@ export const IE_RULES: RuleSeed[] = [
       'safe or cabinet constructed and maintained so as to prevent unauthorised access to it.',
     sourceKey: 'IE_SAFE_CUSTODY_1982',
     appliesToClassification: schedule.classification,
-    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE'],
+    /*
+     * ⚠️ `ONLINE_DISPENSE` INCLUDED — WITHOUT IT THE COUNTER REFUSED WHAT THE
+     *   PARCEL PERMITTED. A controlled medicine supplied from an open shelf was
+     *   refused over the counter by `controlledAccessRequired` and not consulted
+     *   at all when the same medicine went out as an online order, because the
+     *   storage rules predate PI-12 making `ONLINE_DISPENSE` a live transaction.
+     *   The stock is on the same shelf either way — the packing counter is the
+     *   location the consult is given for. Eight rules across seven packs had
+     *   this gap. (PI-24 review.)
+     */
+    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE'],
     parameters: {
       controlledAccessRequired: true,
       detail:

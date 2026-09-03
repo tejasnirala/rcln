@@ -362,3 +362,68 @@ async function priorQuantitySupplied(
    */
   return (rows[0]?.total ?? new Prisma.Decimal(0)).toString();
 }
+
+/**
+ * What the engine is told about the prescription behind a supply.
+ *
+ * ⚠️ ONE COPY, BECAUSE THERE WERE TWO AND THEY WILL NOT STAY IN STEP.
+ *   `dispense.service.ts` and `online-order.service.ts` each built this block
+ *   themselves — the same six fields, the same `dispenseLine.count`, the same
+ *   two conditional spreads, near-identical comments. That is precisely the
+ *   shape KNOWN_ISSUES #14 names as this codebase's recurring failure, and the
+ *   consequence here is specific: the first change anybody makes to it — not
+ *   counting returned dispenses as refills, adding the prescriber-class field
+ *   the US pack needs, honouring an endorsement differently — has to be made
+ *   twice, and the copy that is missed permits or refuses differently depending
+ *   on whether the patient walked in or ordered from home. `pnpm kb:find
+ *   prescriptionFacts` returned nothing: there was no helper to have found.
+ *   (PI-24 review.)
+ *
+ * ⚠️ A FINALIZED CONSULTATION IS A SIGNED PRESCRIPTION. `FINALIZED` is the
+ *   doctor putting their name to it — the same act `clinical.prescription.sign`
+ *   describes — and both callers assert it before reaching here.
+ *
+ * ⚠️ `refillsUsed` COUNTS DISPENSINGS, NOT QUANTITY. A repeat rule counts how
+ *   many times this prescribed line has actually been SUPPLIED; counting
+ *   quantity would let three part-supplies of one course read as three repeats,
+ *   and counting accepted ORDERS would let three cancelled ones do the same.
+ *
+ * ⚠️ ABSENT IS NOT `false`, WHICH IS WHY THE LAST TWO ARE SPREAD RATHER THAN
+ *   COERCED. NULL is "the prescriber did not address repeats" — the ordinary
+ *   case, which the engine reads as no endorsement. `false` is a positive
+ *   instruction that this may NOT be repeated. Sending `repeatsAuthorised:
+ *   false` for every prescription ever written would turn silence into a
+ *   refusal the prescriber never wrote. And a `true` with no limit still
+ *   resolves UNDETERMINED, which refuses: an endorsement stating no number is
+ *   not an unlimited one.
+ */
+export async function presentedPrescriptionFor(
+  tx: TxClient,
+  ctx: TenantContext,
+  encounter: { finalizedAt: Date | null; startedAt: Date } | null | undefined,
+  prescriptionLine:
+    | { id: string; repeatsAuthorised: boolean | null; repeatsAuthorisedLimit: number | null }
+    | null
+    | undefined
+): Promise<EvaluateRegulatoryRequest['prescription'] | undefined> {
+  if (!encounter) return undefined;
+
+  const refillsUsed = prescriptionLine
+    ? await tx.dispenseLine.count({
+        where: { organizationId: ctx.organizationId, encounterPrescriptionId: prescriptionLine.id },
+      })
+    : 0;
+
+  return {
+    presented: true,
+    signedByQualifiedPrescriber: true,
+    issuedOn: (encounter.finalizedAt ?? encounter.startedAt).toISOString().slice(0, 10),
+    refillsUsed,
+    ...(prescriptionLine?.repeatsAuthorised != null
+      ? { repeatsAuthorised: prescriptionLine.repeatsAuthorised }
+      : {}),
+    ...(prescriptionLine?.repeatsAuthorisedLimit != null
+      ? { repeatsAuthorisedLimit: prescriptionLine.repeatsAuthorisedLimit }
+      : {}),
+  };
+}

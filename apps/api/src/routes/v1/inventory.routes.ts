@@ -113,6 +113,7 @@ import {
   tenantContextFrom,
 } from '../../middleware/auth.middleware.js';
 import { loadUserAccess, permissionsFor } from '../../services/auth/access.service.js';
+import { scanLimiter } from '../../middleware/rateLimiter.middleware.js';
 import { requireTenant } from '../../middleware/tenant.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import {
@@ -485,6 +486,13 @@ export const stockRoutes: IRouter = guarded();
  */
 stockRoutes.get(
   '/resolve',
+  /*
+   * ⚠️ ITS OWN BUDGET, AND A BIGGER ONE — see `scanLimiter`. The shared
+   *   `generalLimiter` allows 100 requests per fifteen minutes, which a
+   *   storekeeper reaches partway through unpacking one delivery.
+   *   (KNOWN_ISSUES #35, closed in PI-24.)
+   */
+  scanLimiter,
   authorize(READ, CATALOGUE_READ),
   validate(scanResolveQuery, 'query'),
   async (req: Request, res: Response): Promise<void> => {

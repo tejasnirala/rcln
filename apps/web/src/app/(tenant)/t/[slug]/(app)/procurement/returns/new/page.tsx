@@ -48,6 +48,17 @@ export default async function NewReturnPage({
         }),
   ]);
 
+  /* A failed pre-fill is not the same as no pre-fill — see the goods-receipt
+   * page for what the silent version cost. (PI-24 review.) */
+  if (goodsReceiptId !== undefined && !receipt?.data) {
+    return (
+      <Alert tone="error">
+        That delivery could not be loaded, so this return has not been pre-filled. Open it from the
+        delivery itself rather than keying it by hand.
+      </Alert>
+    );
+  }
+
   return (
     <PurchaseReturnForm
       slug={slug}

@@ -10,15 +10,18 @@ Files: `apps/worker/src/inventory/deps.ts` · `apps/worker/src/inventory/expiry.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `alertOnExpiringStock` | `(logger: Logger, enqueue: (job: StockExpiringNotificationJob, id: string) =>…): Promise<void>` | `apps/worker/src/inventory/expiry.processor.ts:213` |  |
+| `expireAbandonedOrders` | `(ctx: TenantContext, branchId: string, logger: Logger): Promise<number>` | `apps/worker/src/inventory/reservation.processor.ts:175` |  |
 | `sweepDueReservations` | `(logger: Logger): Promise<void>` | `apps/worker/src/inventory/reservation.processor.ts:68` |  |
-| `sweepExpiredStock` | `(logger: Logger): Promise<void>` | `apps/worker/src/inventory/expiry.processor.ts:79` |  |
+| `sweepExpiredStock` | `(logger: Logger): Promise<void>` | `apps/worker/src/inventory/expiry.processor.ts:81` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BRANCHES_PER_TICK` <sub>local</sub> | `200` | `apps/worker/src/inventory/expiry.processor.ts:57` |  |
+| `BRANCHES_PER_TICK` <sub>local</sub> | `200` | `apps/worker/src/inventory/expiry.processor.ts:59` |  |
 | `BRANCHES_PER_TICK` <sub>local</sub> | `200` | `apps/worker/src/inventory/reservation.processor.ts:50` |  |
+| `EXPIRY_ALERT_WINDOW_DAYS` <sub>local</sub> | `30` | `apps/worker/src/inventory/expiry.processor.ts:211` |  |
 
 ## var
 
@@ -30,5 +33,6 @@ Files: `apps/worker/src/inventory/deps.ts` · `apps/worker/src/inventory/expiry.
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DueBranch` <sub>local</sub> | `{ branch_id, organization_id, actor_user_id }` | `apps/worker/src/inventory/expiry.processor.ts:59` |  |
+| `DueBranch` <sub>local</sub> | `{ branch_id, organization_id, actor_user_id }` | `apps/worker/src/inventory/expiry.processor.ts:61` |  |
 | `DueBranch` <sub>local</sub> | `{ branch_id, organization_id, actor_user_id }` | `apps/worker/src/inventory/reservation.processor.ts:52` |  |
+| `ExpiringBranch` <sub>local</sub> | `{ branch_id, organization_id, actor_user_id, batch_count }` | `apps/worker/src/inventory/expiry.processor.ts:196` |  |

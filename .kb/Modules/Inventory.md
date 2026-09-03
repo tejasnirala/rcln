@@ -107,7 +107,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 
 ## Workspace dependencies
 
-`@rcln/contracts` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/inventory` · `@rcln/permissions`
+`@rcln/contracts` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/inventory` · `@rcln/permissions` · `@rcln/queue`
 
 ## Known limitations
 
@@ -123,6 +123,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 
 | name | kind | at |
 | --- | --- | --- |
+| `alertOnExpiringStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:213` |
 | `AllocationCandidate` | interface | `packages/inventory/src/allocate.ts:56` |
 | `AllocationLine` | interface | `packages/inventory/src/allocate.ts:68` |
 | `AllocationPlan` | interface | `packages/inventory/src/allocate.ts:74` |
@@ -152,7 +153,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `BatchListResponse` | type | `packages/contracts/src/inventory.ts:876` |
 | `batchQuery` | zod | `packages/contracts/src/inventory.ts:398` |
 | `BatchQuery` | type | `packages/contracts/src/inventory.ts:873` |
-| `batchRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:304` |
+| `batchRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:305` |
 | `batchStatus` | zod | `packages/contracts/src/inventory.ts:55` |
 | `BatchStatus` | type | `packages/contracts/src/inventory.ts:854` |
 | `batchSummary` | zod | `packages/contracts/src/inventory.ts:420` |
@@ -202,6 +203,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `dispatchTransfer` | fn | `apps/api/src/services/inventory/transfer.service.ts:821` |
 | `dispatchTransferAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:473` |
 | `DueReservation` | interface | `packages/inventory/src/reservation-sweep.ts:42` |
+| `expireAbandonedOrders` | fn | `apps/worker/src/inventory/reservation.processor.ts:175` |
 | `expireBucket` | fn | `packages/inventory/src/expiry.ts:160` |
 | `ExpiredBucket` | interface | `packages/inventory/src/expiry.ts:77` |
 | `expiryReport` | fn | `apps/api/src/services/inventory/expiry.service.ts:97` |
@@ -229,7 +231,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `InventoryLocationListResponse` | type | `packages/contracts/src/inventory.ts:866` |
 | `inventoryLocationQuery` | zod | `packages/contracts/src/inventory.ts:272` |
 | `InventoryLocationQuery` | type | `packages/contracts/src/inventory.ts:863` |
-| `inventoryLocationRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:229` |
+| `inventoryLocationRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:230` |
 | `inventoryLocationSummary` | zod | `packages/contracts/src/inventory.ts:293` |
 | `InventoryLocationSummary` | type | `packages/contracts/src/inventory.ts:864` |
 | `invert` | fn | `packages/inventory/src/units.ts:129` |
@@ -316,7 +318,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `reserveStockAction` | action | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:618` |
 | `reserveStockIn` | fn | `apps/api/src/services/inventory/reservation.service.ts:259` |
 | `ReserveStockInput` | interface | `apps/api/src/services/inventory/reservation.service.ts:225` |
-| `resolveScan` | fn | `apps/api/src/services/inventory/resolve.service.ts:198` |
+| `resolveScan` | fn | `apps/api/src/services/inventory/resolve.service.ts:209` |
 | `resolveStrategy` | fn | `packages/inventory/src/allocate.ts:228` |
 | `rollIntoAverage` | fn | `packages/inventory/src/costing.ts:180` |
 | `RunInTenant` | type | `packages/inventory/src/expiry.ts:192` |
@@ -343,7 +345,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `SerialListResponse` | type | `packages/contracts/src/inventory.ts:885` |
 | `serialQuery` | zod | `packages/contracts/src/inventory.ts:534` |
 | `SerialQuery` | type | `packages/contracts/src/inventory.ts:882` |
-| `serialRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:394` |
+| `serialRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:395` |
 | `SerialsPage` | component | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/serials/page.tsx:21` |
 | `serialStatus` | zod | `packages/contracts/src/inventory.ts:76` |
 | `SerialStatus` | type | `packages/contracts/src/inventory.ts:856` |
@@ -386,7 +388,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `StockReservationStatus` | type | `packages/contracts/src/inventory.ts:1321` |
 | `stockReservationSummary` | zod | `packages/contracts/src/inventory.ts:1214` |
 | `StockReservationSummary` | type | `packages/contracts/src/inventory.ts:1344` |
-| `stockRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:470` |
+| `stockRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:471` |
 | `stockStatus` | zod | `packages/contracts/src/inventory.ts:64` |
 | `StockStatus` | type | `packages/contracts/src/inventory.ts:855` |
 | `stockTransferDetail` | var | `packages/contracts/src/inventory.ts:1155` |
@@ -399,7 +401,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `StockTransferListResponse` | type | `packages/contracts/src/inventory.ts:1339` |
 | `stockTransferQuery` | zod | `packages/contracts/src/inventory.ts:1096` |
 | `StockTransferQuery` | type | `packages/contracts/src/inventory.ts:1335` |
-| `stockTransferRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:725` |
+| `stockTransferRoutes` | var | `apps/api/src/routes/v1/inventory.routes.ts:733` |
 | `stockTransferStatus` | zod | `packages/contracts/src/inventory.ts:920` |
 | `StockTransferStatus` | type | `packages/contracts/src/inventory.ts:1320` |
 | `stockTransferSummary` | zod | `packages/contracts/src/inventory.ts:1129` |
@@ -412,7 +414,7 @@ Where a thing IS and how much of it there is. The other half of the product cata
 | `sweepDueReservations` | fn | `apps/worker/src/inventory/reservation.processor.ts:68` |
 | `sweepExpiredReservations` | fn | `packages/inventory/src/reservation-sweep.ts:159` |
 | `sweepExpiredStock` | fn | `apps/api/src/services/inventory/expiry.service.ts:185` |
-| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:79` |
+| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:81` |
 | `sweepExpiredStock` | fn | `packages/inventory/src/expiry.ts:204` |
 | `SweepResult` | interface | `packages/inventory/src/expiry.ts:63` |
 | `toBaseUnits` | fn | `packages/inventory/src/movement.ts:362` |

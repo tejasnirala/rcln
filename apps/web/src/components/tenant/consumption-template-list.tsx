@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import type { ClinicalMasterItem, ConsumptionTemplateSummary } from '@rcln/contracts';
-import { Input, Select } from '@/components/ui/field';
+import { Input } from '@/components/ui/field';
+import { ProcedurePicker } from '@/components/tenant/procedure-picker';
 import { Alert } from '@/components/ui/alert';
 import { UsageNav } from '@/components/tenant/usage-nav';
 import {
@@ -85,14 +86,20 @@ export function ConsumptionTemplateList({ slug, templates, procedures, canManage
       {canManage ? (
         adding ? (
           <form action={create} className="border-rule bg-card space-y-4 rounded-md border p-4">
-            <Select
+            {/*
+              ⚠️ A SEARCH, NOT A LIST. This was a `<Select>` over the first
+                 hundred procedures the page fetched (KNOWN_ISSUES #34), so a
+                 clinic whose dictionary ran past a hundred simply could not
+                 choose the rest — and nothing on screen said the list was cut.
+                 The picker asks the server per keystroke, exactly as the product
+                 and patient pickers do.
+            */}
+            <ProcedurePicker
+              slug={slug}
               label="Procedure"
               name="itemId"
-              hint="A template belongs to one procedure."
-              options={[
-                { value: '', label: 'Choose a procedure' },
-                ...procedures.map((item) => ({ value: item.id, label: item.name })),
-              ]}
+              required
+              hint="A template belongs to one procedure. Search by name or code."
               errors={state.fieldErrors?.itemId}
             />
             <Input

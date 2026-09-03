@@ -4,7 +4,7 @@
 
 > The flat catalogue masters: manufacturers, active ingredients, compositions and storage requirement profiles.
 
-Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/services/product/category.service.ts` · `apps/api/src/services/product/identifier.service.ts` · `apps/api/src/services/product/medicine.service.ts` · `apps/api/src/services/product/packaging.service.ts` · `apps/api/src/services/product/product.service.ts` · `apps/api/src/services/product/tax-classification.service.ts` · `apps/api/src/services/product/unit.service.ts` · `apps/api/src/services/product/units.ts` · `apps/api/src/services/product/values.ts`
+Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/services/product/category.service.ts` · `apps/api/src/services/product/identifier.service.ts` · `apps/api/src/services/product/import.service.ts` · `apps/api/src/services/product/medicine.service.ts` · `apps/api/src/services/product/packaging.service.ts` · `apps/api/src/services/product/product.service.ts` · `apps/api/src/services/product/tax-classification.service.ts` · `apps/api/src/services/product/unit.service.ts` · `apps/api/src/services/product/units.ts` · `apps/api/src/services/product/values.ts`
 
 ## fn
 
@@ -30,7 +30,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `createStorageProfile` | `(ctx: TenantContext, input: CreateStorageProfileRequest, options: CatalogueActionOptions): Promise<StorageProfileSummary>` | `apps/api/src/services/product/catalogue.service.ts:620` |  |
 | `createUnit` | `(ctx: TenantContext, input: CreateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:210` |  |
 | `createUnitConversion` | `(ctx: TenantContext, input: CreateUnitConversionRequest, options: CatalogueActionOptions): Promise<UnitConversionSummary>` | `apps/api/src/services/product/unit.service.ts:334` |  |
-| `currentIdentifierWhere` | `(input: { values: readonly string[]; type?: ProductIdentifie…): Prisma.ProductIdentifierWhereInput` | `apps/api/src/services/product/identifier.service.ts:290` |  |
+| `currentIdentifierWhere` | `(input: { values: readonly string[]; type?: ProductIdentifie…): Prisma.ProductIdentifierWhereInput` | `apps/api/src/services/product/identifier.service.ts:297` |  |
 | `deactivateCategory` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/category.service.ts:355` |  |
 | `decimalToString` | `(value: { toString(): string } \| null): string \| null` | `apps/api/src/services/product/values.ts:100` | `Decimal` columns come back as a Prisma Decimal. `toString()` preserves every digit; `Number()` would not, which is the whole reason quantities are strings on … |
 | `deleteUnitConversion` | `(ctx: TenantContext, conversionId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/unit.service.ts:462` |  |
@@ -41,6 +41,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `getComposition` | `(ctx: TenantContext, compositionId: string): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:434` |  |
 | `getMedicineDetail` | `(ctx: TenantContext, productId: string): Promise<MedicineDetail \| null>` | `apps/api/src/services/product/medicine.service.ts:59` |  |
 | `getProduct` | `(ctx: TenantContext, productId: string): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:327` |  |
+| `importProducts` | `(ctx: TenantContext, input: ProductImportRequest, options: CatalogueActionOptions): Promise<ProductImportResponse>` | `apps/api/src/services/product/import.service.ts:109` |  |
 | `isCurrentOn` | `(effectiveTo: Date \| null, on: Date): boolean` | `apps/api/src/services/product/values.ts:72` |  |
 | `listActiveIngredients` | `(ctx: TenantContext, query: { q?: string \| undefined; includeInactive: boolean; …): Promise<ActiveIngredientSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:203` |  |
 | `listCategories` | `(ctx: TenantContext, includeInactive: boolean): Promise<ProductCategory[]>` | `apps/api/src/services/product/category.service.ts:193` |  |
@@ -62,6 +63,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `replacePackagings` | `(ctx: TenantContext, productId: string, input: ReplaceProductPackagingRequest, options: CatalogueActionOptions): Promise<ProductPackagingDetail[]>` | `apps/api/src/services/product/packaging.service.ts:93` |  |
 | `replaceTaxClassifications` | `(ctx: TenantContext, productId: string, input: ReplaceProductTaxClassificationsRequest, options: CatalogueActionOptions): Promise<ProductTaxClassificationDetail[]>` | `apps/api/src/services/product/tax-classification.service.ts:91` |  |
 | `resolveIdentifier` | `(ctx: TenantContext, query: ResolveIdentifierQuery): Promise<ResolveIdentifierResponse>` | `apps/api/src/services/product/identifier.service.ts:217` |  |
+| `resolveMasters` <sub>local</sub> | `(tx: TxClient, codes: { units: string[]; categories: string[]; manufacture…): Promise<{ units: Map<string, string>; categories: Map<strin…` | `apps/api/src/services/product/import.service.ts:57` | Every master the file mentions, resolved once. ⚠️ THE CLINIC'S ROW WINS. Read both, then prefer the tenant's — stated rather than ordered, so nobody has to rem… |
 | `resolveTaxCategories` | `(tx: TxClient, productIds: readonly string[], jurisdiction: { countryCode: string; regionCode?: string \| …, on: Date): Promise<Map<string, ResolvedTaxCategoryResponse>>` | `apps/api/src/services/product/tax-classification.service.ts:231` |  |
 | `resolveTaxCategory` | `(tx: TxClient, productId: string, jurisdiction: { countryCode: string; regionCode?: string \| …, on: Date): Promise<ResolvedTaxCategoryResponse>` | `apps/api/src/services/product/tax-classification.service.ts:200` |  |
 | `resolveTaxCategoryForTenant` | `(ctx: TenantContext, productId: string, jurisdiction: { countryCode: string; regionCode?: string \| …, on: Date): Promise<ResolvedTaxCategoryResponse>` | `apps/api/src/services/product/tax-classification.service.ts:305` | The HTTP-facing wrapper. Opens its own transaction. |
@@ -85,6 +87,12 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `upsertMedicineDetail` | `(ctx: TenantContext, productId: string, input: MedicineDetailRequest, options: CatalogueActionOptions): Promise<MedicineDetail>` | `apps/api/src/services/product/medicine.service.ts:85` |  |
 | `withdrawProduct` | `(ctx: TenantContext, productId: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/product/product.service.ts:685` |  |
 
+## class
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `ImportRolledBack` <sub>local</sub> | `{ }` | `apps/api/src/services/product/import.service.ts:289` |  |
+
 ## var
 
 | name | signature | at | notes |
@@ -99,6 +107,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | --- | --- | --- | --- |
 | `CatalogueActionOptions` | `{ ipAddress, userAgent, roleCodes }` | `apps/api/src/services/product/unit.service.ts:46` |  |
 | `CategoryRow` <sub>local</sub> | `{ id, code, name, parent_id, description, display_order, is_active, organization_id, depth, has_children }` | `apps/api/src/services/product/category.service.ts:46` |  |
+| `RowResult` <sub>local</sub> | `{ row, code, outcome, productId, message }` | `apps/api/src/services/product/import.service.ts:43` |  |
 | `UnitRow` <sub>local</sub> | `{ id, organization_id, code, name, symbol, unit_class, is_base, is_active }` | `apps/api/src/services/product/unit.service.ts:73` |  |
 
 ## type

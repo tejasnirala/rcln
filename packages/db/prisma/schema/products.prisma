@@ -359,7 +359,6 @@ model UnitConversion {
   toUnit       UnitOfMeasure @relation("ConversionToUnit", fields: [toUnitId], references: [id], onDelete: Restrict)
 
   @@unique([organizationId, fromUnitId, toUnitId])
-  @@index([organizationId, fromUnitId])
   @@index([organizationId, toUnitId])
   @@map("unit_conversions")
 }
@@ -812,7 +811,6 @@ model ProductPackaging {
   unit         UnitOfMeasure @relation(fields: [unitId], references: [id], onDelete: Restrict)
 
   @@unique([organizationId, productId, level])
-  @@index([organizationId, productId])
   @@map("product_packagings")
 }
 
@@ -856,6 +854,16 @@ model ProductIdentifier {
   @@unique([organizationId, type, value, countryCode])
   /// The barcode lookup, which becomes the hottest read in the programme at
   /// PI-23. Index-only for the common case.
+  ///
+  /// ⚠️ KEPT DELIBERATELY, THOUGH IT IS A STRICT PREFIX OF THE UNIQUE ABOVE.
+  ///   PI-24 dropped twenty-two indexes of exactly this shape: Postgres serves
+  ///   a prefix query from the wider unique index, so the narrow one is a second
+  ///   B-tree maintained on every write for nothing. That argument is a WRITE
+  ///   argument, and it is weakest here — a product identifier is written when
+  ///   somebody catalogues a product and read on every scan at the counter and
+  ///   the loading bay. One column narrower is fewer pages per index-only scan
+  ///   on the hottest read in the programme, against a write cost this table
+  ///   barely pays. If that ever inverts, this is the first index to go.
   @@index([organizationId, type, value])
   @@index([organizationId, productId])
   @@map("product_identifiers")
@@ -907,7 +915,6 @@ model ProductTaxClassification {
   /// NULLS NOT DISTINCT in the migration — organization_id and region_code are
   /// both nullable.
   @@unique([organizationId, productId, countryCode, regionCode, effectiveFrom])
-  @@index([organizationId, productId, countryCode])
   @@map("product_tax_classifications")
 }
 

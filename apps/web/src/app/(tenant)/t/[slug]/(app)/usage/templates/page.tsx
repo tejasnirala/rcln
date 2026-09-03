@@ -9,7 +9,17 @@ import { usageAccess } from '../guard';
 export const metadata: Metadata = { title: 'Consumption templates' };
 
 /** How many procedures the picker offers before it admits it is showing a page. */
-const PICKER_LIMIT = 100;
+/*
+ * ⚠️ ONE ROW, AND IT IS NOT A PICKER ANY MORE (KNOWN_ISSUES #34). This used to
+ *   be `PICKER_LIMIT = 100`: the page fetched the first hundred procedures and
+ *   the form filtered them in a `<select>`, so a clinic whose dictionary ran
+ *   longer could not choose the rest and nothing said the list was cut.
+ *   `ProcedurePicker` now searches the server, so the only thing this fetch
+ *   still answers is "does the dictionary have ANYTHING in it" — which decides
+ *   whether the screen offers the form or tells somebody to populate the
+ *   dictionary first. One row answers that.
+ */
+const EXISTENCE_CHECK = 1;
 
 /**
  * <slug>.rcln.com/usage/templates — what each procedure normally uses.
@@ -59,7 +69,7 @@ export default async function ConsumptionTemplatesPage({
       accessToken,
     }),
     api<ClinicalMasterListResponse>(
-      `/api/v1/clinical-data?kind=PROCEDURE&pageSize=${String(PICKER_LIMIT)}`,
+      `/api/v1/clinical-data?kind=PROCEDURE&pageSize=${String(EXISTENCE_CHECK)}`,
       { slug, accessToken }
     ),
   ]);

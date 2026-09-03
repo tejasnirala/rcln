@@ -4,12 +4,14 @@ import { revalidatePath } from 'next/cache';
 import {
   createProductRequest,
   medicineDetailRequest,
+  productImportRequest,
   replaceProductPackagingRequest,
   replaceProductRegulatoryProfilesRequest,
   replaceProductTaxClassificationsRequest,
   type CreateProductIdentifierRequest,
   type MedicineDetail,
   type ProductDetail,
+  type ProductImportResponse,
   type ProductIdentifierDetail,
   type ProductPackagingDetail,
   type ProductRegulatoryProfileDetail,
@@ -389,4 +391,61 @@ function numberOrUndefined(value: FormDataEntryValue | null): number | undefined
   if (text === null) return undefined;
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Bulk import
+// ---------------------------------------------------------------------------
+
+export type ProductImportState =
+  | { status: 'idle' }
+  | { status: 'error'; message: string }
+  | { status: 'done'; result: ProductImportResponse };
+
+/**
+ * Send a parsed spreadsheet to the import endpoint.
+ *
+ * ⚠️ THE CSV IS PARSED IN THE BROWSER AND POSTED AS JSON, WHICH IS WHY NEITHER
+ *   THIS FILE NOR THE API HANDLES MULTIPART. A file upload would need a parser
+ *   on the server, a size limit, a content-type sniff and a temp file, all to
+ *   arrive at the array of rows the browser already had. The API's contract is
+ *   the rows — so the same import is scriptable with `curl` by anybody who would
+ *   rather not use a screen at all.
+ *
+ * ⚠️ AND THE ROWS ARE VALIDATED HERE AGAINST THE SAME SCHEMA THE API USES. A
+ *   spreadsheet produces strings for everything; `productImportRequest` coerces
+ *   and refuses, so a person gets "row 12: expiry control needs batch tracking"
+ *   rather than a 400 with one message.
+ */
+export async function importProductsAction(
+  slug: string,
+  rows: unknown[],
+  dryRun: boolean
+): Promise<ProductImportState> {
+  const parsed = productImportRequest.safeParse({ rows, dryRun });
+  if (!parsed.success) {
+    const first = parsed.error.issues[0];
+    return {
+      status: 'error',
+      message: first
+        ? `Row ${String(Number(first.path[1] ?? 0) + 1)}: ${first.message} (${String(first.path[2] ?? '')})`
+        : 'The file could not be read.',
+    };
+  }
+
+  const result = await api<ProductImportResponse>('/api/v1/products/import', {
+    method: 'POST',
+    body: parsed.data,
+    slug,
+    accessToken: await getAccessToken(),
+  });
+
+  if (!result.ok || !result.data) {
+    return { status: 'error', message: result.message ?? 'The import could not be run.' };
+  }
+
+  if (!parsed.data.dryRun && result.data.failed === 0) {
+    revalidatePath(`/t/${slug}/products`);
+  }
+  return { status: 'done', result: result.data };
 }

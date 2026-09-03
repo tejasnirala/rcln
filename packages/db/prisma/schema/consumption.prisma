@@ -419,7 +419,6 @@ model ConsumptionLine {
   @@unique([organizationId, consumptionId, lineNumber])
   @@unique([organizationId, id])
   @@unique([organizationId, branchId, id])
-  @@index([organizationId, consumptionId])
   /// "How much of this product do procedures actually use" — PI-22's read.
   @@index([organizationId, productId])
   @@index([organizationId, templateLineId])

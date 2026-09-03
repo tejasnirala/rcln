@@ -391,11 +391,22 @@ describe('the prescription requirement, and the one carve-out from it', () => {
 
   it('still refuses a prescription dated after the day it is dispensed', async () => {
     /*
-     * The engine's own guard rather than Bangladesh's: a future-dated
-     * prescription is refused wherever a validity is configured. With none
-     * configured here the guard does not run, so this case pins that the
-     * ABSENCE of a validity is what lets it through — the honest statement of
-     * the gap above.
+     * The engine's own guard rather than Bangladesh's, and it now runs.
+     *
+     * ⚠️ THIS CASE USED TO ASSERT THE OPPOSITE OF ITS OWN TITLE, AND THAT IS
+     *   WORTH KEEPING IN VIEW. It read `not.toBe('REFUSED')` and explained,
+     *   honestly, that the future-dating guard sat INSIDE the validity
+     *   conditional — so a pack configuring no validity never ran it, and a
+     *   prescription dated thirty days from now was dispensed. Bangladesh
+     *   deliberately configures none, because no Gazette notification sets a
+     *   period, and India is in the same position. So the gap was live in two
+     *   countries and this file pinned it rather than reporting it.
+     *
+     *   PI-24 hoisted the guard out of the conditional: no jurisdiction permits
+     *   dispensing against a prescription that has not been written yet, and
+     *   `evaluateRefillRule` had always checked it unconditionally. The
+     *   twenty-year-old prescription above is still permitted — that gap is
+     *   Bangladesh's own and is unchanged.
      */
     const future = new Date();
     future.setUTCDate(future.getUTCDate() + 30);
@@ -403,7 +414,7 @@ describe('the prescription requirement, and the one carve-out from it', () => {
       prescription: { ...DOCTOR_RX, issuedOn: future.toISOString() },
     });
 
-    expect(decision.outcome).not.toBe('REFUSED');
+    expect(decision.outcome).toBe('REFUSED');
   });
 });
 

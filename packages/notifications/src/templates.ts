@@ -126,5 +126,132 @@ export function renderEmail(template: EmailTemplate, vars: Record<string, string
         ),
       };
     }
+
+    /*
+     * ⚠️ THE THREE DELIVERY EMAILS CARRY A REFERENCE AND A STATUS AND NOTHING
+     *   ELSE, AND THAT IS THE WHOLE DESIGN. No patient name, no medicine, no
+     *   quantity, no clinic name — because each of those, in an inbox and on a
+     *   relay's disk, is a statement about somebody's health. "Your metformin
+     *   has shipped" names a condition to anyone who reads the notification on a
+     *   lock screen. The reference is meaningless to a stranger and sufficient
+     *   to the patient, and everything else is one sign-in away.
+     *
+     *   `link` therefore goes to the ORDER, behind authentication. If a future
+     *   template needs to say more than this, that is a PHI decision and not a
+     *   copy change.
+     */
+    case 'ORDER_CONFIRMED': {
+      const reference = required(vars, 'reference', template);
+      const link = required(vars, 'link', template);
+
+      return {
+        subject: `Your order ${reference} is confirmed`,
+        text: [
+          `Your pharmacy order ${reference} has been confirmed and is being prepared.`,
+          '',
+          'Sign in to see what is on it:',
+          link,
+        ].join('\n'),
+        html: layout(
+          'Your order is confirmed',
+          [
+            '<p style="margin:0 0 24px;font-size:14px;line-height:1.6">',
+            `Order ${escapeHtml(reference)} has been confirmed and is being prepared. `,
+            'Sign in to see the details.</p>',
+            button(link, 'View your order'),
+          ].join('')
+        ),
+      };
+    }
+
+    case 'ORDER_SHIPPED': {
+      const reference = required(vars, 'reference', template);
+      const link = required(vars, 'link', template);
+      const tracking = vars['tracking'];
+
+      return {
+        subject: `Your order ${reference} is on its way`,
+        text: [
+          `Your pharmacy order ${reference} has been dispatched.`,
+          tracking ? `Tracking reference: ${tracking}` : '',
+          '',
+          'Sign in to see the details:',
+          link,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        html: layout(
+          'Your order is on its way',
+          [
+            '<p style="margin:0 0 24px;font-size:14px;line-height:1.6">',
+            `Order ${escapeHtml(reference)} has been dispatched.`,
+            tracking ? ` Tracking reference: ${escapeHtml(tracking)}.` : '',
+            '</p>',
+            button(link, 'View your order'),
+          ].join('')
+        ),
+      };
+    }
+
+    case 'ORDER_DELIVERY_FAILED': {
+      const reference = required(vars, 'reference', template);
+      const link = required(vars, 'link', template);
+
+      return {
+        subject: `Your order ${reference} could not be delivered`,
+        /*
+         * ⚠️ THE REASON IS NOT IN THE BODY. `failure_reason` is free text a
+         *   courier or a pharmacist wrote about a named person's address, and
+         *   the schema calls it PHI-adjacent for that reason. It stays behind
+         *   the sign-in.
+         */
+        text: [
+          `Your pharmacy order ${reference} could not be delivered.`,
+          '',
+          'Sign in to see what happened and arrange another attempt:',
+          link,
+        ].join('\n'),
+        html: layout(
+          'Your order could not be delivered',
+          [
+            '<p style="margin:0 0 24px;font-size:14px;line-height:1.6">',
+            `Order ${escapeHtml(reference)} could not be delivered. `,
+            'Sign in to see what happened and arrange another attempt.</p>',
+            button(link, 'View your order'),
+          ].join('')
+        ),
+      };
+    }
+
+    /*
+     * The one that goes to STAFF rather than to a patient, and it still names no
+     * product: a medicine about to expire at a named clinic is a fact about
+     * stock, but the list is long, changes hourly and belongs on the screen that
+     * can act on it. The count is what decides whether somebody opens it.
+     */
+    case 'STOCK_EXPIRING': {
+      const count = required(vars, 'count', template);
+      const link = required(vars, 'link', template);
+      const days = vars['withinDays'] ?? '30';
+
+      return {
+        subject: `${count} batch${count === '1' ? '' : 'es'} expiring within ${days} days`,
+        text: [
+          `${count} batch${count === '1' ? '' : 'es'} at your branch expire within ${days} days.`,
+          '',
+          'Review them here:',
+          link,
+        ].join('\n'),
+        html: layout(
+          'Stock is expiring',
+          [
+            '<p style="margin:0 0 24px;font-size:14px;line-height:1.6">',
+            `${escapeHtml(count)} batch${count === '1' ? '' : 'es'} at your branch expire within `,
+            `${escapeHtml(days)} days. Review them and decide what to do.</p>`,
+            button(link, 'Review expiring stock'),
+          ].join('')
+        ),
+      };
+    }
   }
 }

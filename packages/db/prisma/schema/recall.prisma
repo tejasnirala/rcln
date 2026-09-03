@@ -257,7 +257,6 @@ model RecallBatch {
   ///   reads as a race rather than as a duplicate.
   @@unique([organizationId, recallId, batchId])
   @@unique([organizationId, id])
-  @@index([organizationId, recallId])
   /// "Is this lot under recall" — asked from the STOCK side, by a lot screen.
   @@index([organizationId, batchId])
   @@index([organizationId, branchId, status])

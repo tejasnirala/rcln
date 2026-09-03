@@ -438,7 +438,17 @@ export const IN_RULES: RuleSeed[] = [
       'in a separated part of the premises only responsible persons can reach.',
     sourceKey: 'IN_DRUGS_RULES_1945',
     appliesToClassification: IN_CLASSIFICATIONS.scheduleX,
-    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE'],
+    /*
+     * ⚠️ `ONLINE_DISPENSE` INCLUDED — WITHOUT IT THE COUNTER REFUSED WHAT THE
+     *   PARCEL PERMITTED. A controlled medicine supplied from an open shelf was
+     *   refused over the counter by `controlledAccessRequired` and not consulted
+     *   at all when the same medicine went out as an online order, because the
+     *   storage rules predate PI-12 making `ONLINE_DISPENSE` a live transaction.
+     *   The stock is on the same shelf either way — the packing counter is the
+     *   location the consult is given for. Eight rules across seven packs had
+     *   this gap. (PI-24 review.)
+     */
+    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE'],
     parameters: {
       locationKinds: ['CONTROLLED_CABINET'],
       controlledAccessRequired: true,
@@ -507,7 +517,17 @@ export const IN_RULES: RuleSeed[] = [
       'Only a registered pharmacist may compound, prepare, mix or dispense a medicine on a ' +
       'prescription. Hand this to a registered pharmacist.',
     sourceKey: 'IN_PHARMACY_ACT_1948',
-    appliesToTransactions: ['DISPENSE'],
+    /*
+     * ⚠️ `SUPPLY_TO_PATIENT`, NOT `['DISPENSE']` — AND THE LITERAL LEFT INDIA'S
+     *   ONLINE SUPPLY WITH NO PHARMACIST GATE AT ALL. This was the only
+     *   hand-written transaction list among the pack's supply rules, so when
+     *   PI-12 made `ONLINE_DISPENSE` a live transaction the rule stopped
+     *   selecting for it: packing a Schedule H medicine into a parcel was
+     *   permitted with no registered pharmacist, while handing the identical
+     *   medicine across the counter was refused. Section 42(1) draws no such
+     *   distinction. (PI-24 review.)
+     */
+    appliesToTransactions: SUPPLY_TO_PATIENT,
     parameters: {
       permittedLicenceTypes: ['REGISTERED_PHARMACIST'],
       exemptWhenActorIsPrescriber: true,

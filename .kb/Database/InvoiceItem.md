@@ -56,7 +56,6 @@ Declared at `packages/db/prisma/schema/invoicing.prisma:468`.
 
 - `@@unique([organizationId, id])`
 - `@@unique([organizationId, invoiceId, lineNumber])`
-- `@@index([organizationId, invoiceId])`
 - `@@index([organizationId, creditedInvoiceItemId])`
 
 ## Neighbourhood

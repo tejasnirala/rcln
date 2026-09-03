@@ -424,6 +424,16 @@ export interface RegulatoryDecision {
    *   what that dispense says — the same discipline the invoice engine applies to
    *   tax, for the same reason: a record somebody has already answered to an
    *   inspector for must not silently restate itself.
+   *
+   * ⚠️ IT HOLDS PACK IDS, NOT PACK-VERSION IDS, AND THE NAME IS WRONG RATHER
+   *   THAN THE CONTENT. `evaluate` fills it from `rule.packId`; the version
+   *   travels separately on `RegulatoryRule.packVersion` and is snapshotted onto
+   *   each reason. The name is kept deliberately: this field is on the wire
+   *   contract, is written into `regulatory_decisions.pack_versions` on every
+   *   dispense, movement and disposal, and is read back by inspectors — so
+   *   renaming it changes an API response and the meaning of rows nobody may
+   *   rewrite, which is a real cost for a naming defect. Read it as "which packs
+   *   decided this", and take the version from the reasons. (PI-24 review.)
    */
   packVersionIds: readonly string[];
   /**

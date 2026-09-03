@@ -174,12 +174,24 @@ export function ProductList({ products, meta, categories, manufacturers, canMana
             the `primary` variant's, the same way login-form and signup-form
             already spell them out for their own anchors. */}
         {canManage ? (
-          <Link
-            href="/products/new"
-            className="bg-drape text-paper hover:bg-drape-deep inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-medium transition-colors duration-150"
-          >
-            Add a product
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            {/* Secondary, because a clinic adds one product often and imports a
+                catalogue once — but it has to be FINDABLE from here, or the
+                answer to "I have four hundred medicines" is four hundred trips
+                through the form beside it. */}
+            <Link
+              href="/products/import"
+              className="border-rule text-ink hover:bg-drape-tint/40 inline-flex items-center justify-center rounded-md border px-5 py-3 text-[0.9375rem] font-medium transition-colors duration-150"
+            >
+              Import a catalogue
+            </Link>
+            <Link
+              href="/products/new"
+              className="bg-drape text-paper hover:bg-drape-deep inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-medium transition-colors duration-150"
+            >
+              Add a product
+            </Link>
+          </div>
         ) : null}
       </header>
 

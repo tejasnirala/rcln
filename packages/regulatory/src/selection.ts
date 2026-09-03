@@ -242,9 +242,8 @@ export function needsClassificationButHasNone(request: RegulatoryRequest): boole
   if (!CLASSIFIED_PRODUCT_TYPES.includes(request.product.type)) return false;
 
   const classification = request.profile?.classification ?? null;
-  if (classification !== null) return false;
 
-  return request.rules.some((rule) => {
+  const candidates = request.rules.filter((rule) => {
     if (rule.appliesToClassification === null) return false;
     if (!isInForce(rule, request.occurredAt)) return false;
     if (!coversJurisdiction(rule.jurisdiction, request.jurisdiction)) return false;
@@ -266,6 +265,35 @@ export function needsClassificationButHasNone(request: RegulatoryRequest): boole
     }
     return true;
   });
+
+  if (candidates.length === 0) return false;
+  if (classification === null) return true;
+
+  /*
+   * ⚠️ AND A CLASSIFICATION THIS JURISDICTION DOES NOT RECOGNISE IS THE SAME
+   *   QUESTION, WHICH THIS USED TO ANSWER "yes, permitted".
+   *
+   *   The test was `classification !== null` — has the product got A
+   *   classification — rather than has it got one that means anything HERE. So
+   *   a single typo defeated the whole guard: file oxycodone as `Schedule H`
+   *   instead of `SCHEDULE_H` and `coversProduct`'s exact match dropped every
+   *   classification-keyed rule, while the pack's UNCLASSIFIED rules — the
+   *   retention obligation, the "who may dispense" rule, the labelling rule,
+   *   which every real pack has — still applied and still PERMITTED. The
+   *   dispense came back `PERMITTED_WITH_CONDITIONS` with no prescription rule
+   *   anywhere in its reasons, and looked fully reasoned.
+   *
+   *   Verified open in four packs before this fix — IN, SG, US and US-CA — on
+   *   DISPENSE, and in IN, US and US-CA on COUNTER_SALE, STOCK, TRANSFER,
+   *   CONSUME and DISPOSE. `regulatory-in.ts` warns about this exact typo and
+   *   asserts it "resolves to UNDETERMINED and refuses". It did not. (PI-24.)
+   *
+   *   Recognition is defined against the rules that would otherwise have
+   *   matched this product, so it costs no new configuration: a classification
+   *   no candidate rule names is one the pack has nothing to say about, and an
+   *   unanswerable question refuses.
+   */
+  return !candidates.some((rule) => rule.appliesToClassification === classification);
 }
 
 /** Is a profile the one that applies on this day? Same window rules as a rule. */

@@ -10,13 +10,13 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ConsumptionTemplatesPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/page.tsx:25` |  |
+| `ConsumptionTemplatesPage` | `({ params, searchParams, }: { params: Promise<{ slug: string…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/page.tsx:35` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PICKER_LIMIT` <sub>local</sub> | `100` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/page.tsx:12` | How many procedures the picker offers before it admits it is showing a page. |
+| `EXISTENCE_CHECK` <sub>local</sub> | `1` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/templates/page.tsx:22` | How many procedures the picker offers before it admits it is showing a page. |
 
 ## var
 

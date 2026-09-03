@@ -65,6 +65,13 @@ export const onlineOrderChannel = z.enum(['WEB', 'PHONE', 'WHATSAPP', 'EMAIL', '
 export const onlineOrderStatus = z.enum([
   'DRAFT',
   'CONFIRMED',
+  /**
+   * Confirmed, then the stock hold lapsed before anybody packed it (PI-24).
+   *
+   * Keeps its number and its confirmation — see the enum comment in
+   * `online-pharmacy.prisma` for why it is neither DRAFT nor CANCELLED.
+   */
+  'EXPIRED',
   'PACKED',
   'SHIPPED',
   'DELIVERED',
@@ -121,6 +128,54 @@ export const onlineOrderAddress = z.object({
 // ---------------------------------------------------------------------------
 // Placing and amending a draft
 // ---------------------------------------------------------------------------
+
+/* ---------------------------------------------------------------------------
+ * Naming the consultation an order is against
+ * ------------------------------------------------------------------------- */
+
+/**
+ * One of a patient's consultations, in the ONLY shape a picker needs.
+ *
+ * ⚠️ NO DIAGNOSIS, NO COMPLAINT, NO NOTE — AND THAT IS WHY THIS EXISTS RATHER
+ *   THAN THE ORDER FORM CALLING `visit-history`. That endpoint answers the same
+ *   question and carries the whole chart, gated on `clinical.encounter.read`,
+ *   which is right for a doctor reading a patient's clinical past and wrong for
+ *   a pharmacy assistant taking a delivery order over the phone. Pointing the
+ *   picker at it would have handed the counter a list of diagnoses through a
+ *   dropdown. So: when it happened, who saw them, and whether it is finished.
+ *
+ * ⚠️ THE PRESCRIPTION COUNT, NOT THE PRESCRIPTIONS. "3 items prescribed" is what
+ *   tells two consultations on one day apart; the items themselves are the
+ *   chart, and the order form loads them separately once a consultation is
+ *   chosen — behind the permission that actually covers them.
+ */
+export const patientConsultationSummary = z.object({
+  id: uuid,
+  /** When the patient was seen. UTC with a `Z`, rendered in the branch's zone. */
+  occurredAt: z.string(),
+  status: z.string(),
+  /** Who saw them. A name the person on the phone can repeat back. */
+  doctorName: z.string().nullable(),
+  branchName: z.string().nullable(),
+  prescribedItemCount: z.number().int(),
+});
+export type PatientConsultationSummary = z.infer<typeof patientConsultationSummary>;
+
+export const patientConsultationsQuery = z.object({
+  /**
+   * ⚠️ FINALIZED ONLY BY DEFAULT. An order is dispensed against a prescription a
+   *   doctor has signed; an open consultation has not been signed, so offering
+   *   it invites an order against a prescription that may still change.
+   */
+  includeOpen: z.coerce.boolean().default(false),
+  limit: z.coerce.number().int().min(1).max(25).default(10),
+});
+export type PatientConsultationsQuery = z.infer<typeof patientConsultationsQuery>;
+
+export const patientConsultationsResponse = z.object({
+  consultations: z.array(patientConsultationSummary),
+});
+export type PatientConsultationsResponse = z.infer<typeof patientConsultationsResponse>;
 
 export const onlineOrderLineRequest = z.object({
   /** The prescribed line this answers. Absent where no prescription backs it. */

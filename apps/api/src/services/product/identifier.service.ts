@@ -234,9 +234,16 @@ export async function resolveIdentifier(
           },
         },
       },
-      // A clinic's own row before a platform row: if both resolve, the one the
-      // clinic curated is the one it means.
-      orderBy: [{ organizationId: 'desc' }, { isPrimary: 'desc' }],
+      /*
+       * A clinic's own row before a platform row: if both resolve, the one the
+       * clinic curated is the one it means.
+       *
+       * ⚠️ `nulls: 'last'` IS REQUIRED. `organization_id` is NULL on a platform
+       *   row and Postgres defaults `DESC` to NULLS FIRST, so the bare form
+       *   returned the platform row first — the opposite of the sentence above.
+       *   (PI-24 review.)
+       */
+      orderBy: [{ organizationId: { sort: 'desc', nulls: 'last' } }, { isPrimary: 'desc' }],
       take: 25,
     });
 

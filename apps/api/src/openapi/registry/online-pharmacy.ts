@@ -19,13 +19,19 @@
  *   function the counter uses — which is why it is gated on
  *   `pharmacy.dispense.create` and not on an online-specific code.
  */
-import { onlineOrderDetail, onlineOrderListResponse } from '@rcln/contracts';
+import {
+  onlineOrderDetail,
+  onlineOrderListResponse,
+  patientConsultationsResponse,
+} from '@rcln/contracts';
 import type { DocRegistry } from '../types.js';
 import {
   BRANCH_ID,
   DELIVERY_ADDRESS,
   DISPENSE_ID,
   DISPENSE_NUMBER,
+  BRANCH,
+  DOCTOR,
   ENCOUNTER_ID,
   LOCATION_ID,
   ONLINE_ORDER_ID,
@@ -148,6 +154,47 @@ up, \`PACKED\` has left the shelf, and the last three are the courier's business
             orders: [ORDER_SUMMARY],
             meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
           },
+        },
+      },
+    ],
+  },
+
+  'GET /api/v1/online-orders/patients/{patientId}/consultations': {
+    summary: "List a patient's recent consultations",
+    description: `
+The consultations an order can be raised against, in the only shape a picker
+needs: when it happened, who saw them, and how many items were prescribed.
+
+⚠️ **This is not the clinical record, deliberately.**
+\`GET /patients/{patientId}/visit-history\` answers the same question and returns
+DIAGNOSES, gated on \`clinical.encounter.read\`. That is right for a doctor and
+wrong for somebody taking a delivery order over the phone — so this endpoint
+exists, gated on \`pharmacy.online_order.manage\`, and carries no finding, no
+complaint and no note.
+
+Finalized consultations only unless \`includeOpen\` says otherwise: an order is
+dispensed against a prescription a doctor has signed, and an open consultation's
+prescription may still change.
+
+Writes a \`data_access_logs\` row — naming somebody's consultations is a
+disclosure about a named patient even without the findings.
+`.trim(),
+    response: patientConsultationsResponse,
+    errors: [404],
+    responseExamples: [
+      {
+        summary: 'Two recent consultations',
+        value: {
+          consultations: [
+            {
+              id: ENCOUNTER_ID,
+              occurredAt: '2026-09-01T09:20:00.000Z',
+              status: 'FINALIZED',
+              doctorName: DOCTOR.fullName,
+              branchName: BRANCH.name,
+              prescribedItemCount: 3,
+            },
+          ],
         },
       },
     ],

@@ -53,7 +53,6 @@ Declared at `packages/db/prisma/schema/inventory.prisma:1057`.
 ## Indexes and constraints
 
 - `@@unique([organizationId, transferId, productId, batchId, serialId])`
-- `@@index([organizationId, transferId])`
 - `@@index([organizationId, productId])`
 - `@@index([organizationId, batchId])`
 

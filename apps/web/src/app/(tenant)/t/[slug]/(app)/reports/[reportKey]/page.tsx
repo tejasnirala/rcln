@@ -1,9 +1,10 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { ReportCurrencyTotal } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
-import { getAccessToken, getSession } from '@/lib/session';
+import { getAccessToken, getSession, timeFormatOf, timezoneOf } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { ReportView } from '@/components/tenant/report-view';
 import { REPORT_PATHS, REPORT_SPECS } from '@/lib/report-specs';
@@ -48,11 +49,22 @@ const FORWARDED = [
   'procedureItemId',
 ] as const;
 
-/** The last full calendar month, in UTC, for a dated report opened cold. */
+/**
+ * The last full calendar month, in UTC, for a dated report opened cold.
+ *
+ * ⚠️ IT USED TO SAY THIS AND COMPUTE THE CURRENT MONTH. `getUTCMonth()` for the
+ *   start and `getUTCMonth() + 1, 0` for the end is 1–30 September on the 2nd of
+ *   September: one day of data and twenty-eight days of future, with nothing on
+ *   the screen to say the window was not the one the sentence promised. An
+ *   accountant opening "what did last month cost" read a near-empty table as an
+ *   answer. The comment was the intent; the code now matches it. (PI-24 review.)
+ */
 function defaultWindow(): { from: string; to: string } {
   const now = new Date();
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+  /* Day 0 of this month is the last day of the previous one, and it handles
+   * January correctly because `Date.UTC` normalises the month. */
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
   return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
 }
 
@@ -95,6 +107,9 @@ export default async function ReportPage({
 
   const session = await getSession(slug);
   const permissions = session?.permissions ?? [];
+  /* The clinic's zone and clock for every `datetime` column — see ReportView's
+   * `timeZone` prop for why these are not optional. */
+  const [timeZone, timeFormat] = await Promise.all([timezoneOf(slug), timeFormatOf(slug)]);
 
   const search = new URLSearchParams();
   for (const key of FORWARDED) {
@@ -129,29 +144,42 @@ export default async function ReportPage({
   exportSearch.delete('page');
 
   return (
-    <ReportView
-      reportKey={reportKey}
-      spec={spec}
-      rows={data.rows}
-      totals={data.totals ?? []}
-      page={data.page}
-      limit={data.limit}
-      total={data.total}
-      generatedAt={data.generatedAt}
-      window={data.window}
-      canExport={permissions.includes(PERMISSIONS.REPORT_EXPORT)}
-      exportHref={`/reports/${reportKey}/export?${exportSearch.toString()}`}
-      /*
-       * ⚠️ THE ONE REPORT THAT SAYS WHAT IT IS NOT, ON THE SCREEN. The response
-       *   carries `procedureFeeIncluded: false` as a hard fact rather than as
-       *   documentation, and this is where a reader meets it — above the table,
-       *   before they read a contribution figure as profit.
-       */
-      extraNote={
-        data.procedureFeeIncluded === false
-          ? 'Materials only. The procedure’s own fee is not in these figures — nothing in this product prices one procedure differently from another.'
-          : undefined
-      }
-    />
+    <Suspense fallback={null}>
+      {/*
+      ⚠️ SUSPENSE BECAUSE THE CHILD CALLS `useSearchParams`. Next's docs are
+         explicit that a STATIC page reading it without a boundary fails the
+         production BUILD. This route is dynamic today — its page reads cookies
+         through `getSession` — so nothing breaks, but CLAUDE.md forbids
+         `pnpm build` as a verification step, which means that trap would be
+         sprung by a deploy rather than by anything we run. The boundary costs
+         nothing and removes it. (PI-24 review.)
+    */}
+      <ReportView
+        reportKey={reportKey}
+        spec={spec}
+        rows={data.rows}
+        totals={data.totals ?? []}
+        page={data.page}
+        limit={data.limit}
+        total={data.total}
+        generatedAt={data.generatedAt}
+        window={data.window}
+        canExport={permissions.includes(PERMISSIONS.REPORT_EXPORT)}
+        exportHref={`/reports/${reportKey}/export?${exportSearch.toString()}`}
+        timeZone={timeZone}
+        timeFormat={timeFormat}
+        /*
+         * ⚠️ THE ONE REPORT THAT SAYS WHAT IT IS NOT, ON THE SCREEN. The response
+         *   carries `procedureFeeIncluded: false` as a hard fact rather than as
+         *   documentation, and this is where a reader meets it — above the table,
+         *   before they read a contribution figure as profit.
+         */
+        extraNote={
+          data.procedureFeeIncluded === false
+            ? 'Materials only. The procedure’s own fee is not in these figures — nothing in this product prices one procedure differently from another.'
+            : undefined
+        }
+      />
+    </Suspense>
   );
 }

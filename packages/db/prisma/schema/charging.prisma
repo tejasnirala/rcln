@@ -186,7 +186,6 @@ model ChargePolicyRule {
   @@unique([organizationId, productId, productCategoryId, productType])
   @@unique([organizationId, id])
   /// The resolver's read: every candidate rule for one product, in one index.
-  @@index([organizationId, productId])
   @@index([organizationId, productCategoryId])
   @@index([organizationId, productType])
   @@map("charge_policy_rules")
@@ -254,7 +253,6 @@ model ProductPrice {
   @@unique([organizationId, productId, branchId, currency])
   @@unique([organizationId, id])
   /// The resolver's read: both candidate rows for one product, in one index.
-  @@index([organizationId, productId])
   @@map("product_prices")
 }
 

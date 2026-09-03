@@ -456,6 +456,39 @@ export const SG_RULES: RuleSeed[] = [
   },
 
   /*
+   * The same question for the controlled schedules — and its absence was the
+   * hole in this pack's two-vocabulary mitigation.
+   *
+   * ⚠️ MORPHINE FILED UNDER THE MISUSE OF DRUGS SPELLING COULD BE DISPENSED AN
+   *   UNLIMITED NUMBER OF TIMES. `SG-REPEAT-POM` is keyed
+   *   `PRESCRIPTION_ONLY_MEDICINE`, and the controlled fan-out generated every
+   *   other axis — `SG-RX-*`, `SG-PRESCRIBER-*`, `SG-SUPPLY-*`, `SG-SCHEDULE-*`,
+   *   `SG-STORE-*`, `SG-RETAIN-*`, `SG-DISPOSE-*` — but no refill rule. So the
+   *   pack's claim that "neither spelling is silently thinner than the other"
+   *   held on six axes and failed on the seventh: filed as a POM a 41st supply
+   *   was refused, filed as `MDA_SECOND_SCHEDULE` it was permitted. The clinic
+   *   choosing the MORE accurate classification got the weaker rule set.
+   *   (PI-24 review.)
+   *
+   * ⚠️ NO `endorsedRepeatsPermitted`, UNLIKE THE POM RULE ABOVE. Regulation
+   *   12(1) permits a single dispensing and the Misuse of Drugs Regulations
+   *   create no endorsement provision, so there is no repeat for a prescriber to
+   *   authorise. Copying the POM parameters wholesale would invent one.
+   */
+  ...CONTROLLED_SCHEDULES.map(({ key, classification, name }) => ({
+    code: `SG-REPEAT-${key}`,
+    ruleType: 'REFILL_RULE',
+    statement:
+      `A prescription for a ${name} controlled drug may be dispensed once. It may not be ` +
+      'repeated.',
+    sourceKey: 'SG_MISUSE_OF_DRUGS',
+    appliesToClassification: classification,
+    appliesToTransactions: SUPPLY_TO_PATIENT,
+    parameters: { refillsAllowed: 0 },
+    citation: 'Misuse of Drugs Regulations, reg. 12(1)',
+  })),
+
+  /*
    * Regulation 17(1) — the dispensing label, and the only rule in this pack that
    * names no classification at all.
    *
@@ -840,7 +873,18 @@ export const SG_RULES: RuleSeed[] = [
     appliesToTransactions: [...SUPPLY_TO_PATIENT, 'STOCK', 'TRANSFER', 'DISPOSE'],
     parameters: register
       ? { scheduleName: `${name} (Misuse of Drugs Regulations)`, registerRequired: true }
-      : { scheduleName: `${name} (Misuse of Drugs Regulations)` },
+      : /*
+         * ⚠️ INFORMATIONAL, AND IT HAS TO SAY SO. The Third Schedule requires no
+         *   register, so this rule carries no obligation at all — and a
+         *   controlled-schedule rule that imposes nothing is refused by the
+         *   parser unless it declares itself, because that shape is otherwise
+         *   indistinguishable from `registerRequired` mistyped. Without the flag
+         *   the rule is UNREADABLE, which RESOLVES AS A REFUSAL: every Third
+         *   Schedule supply, movement, transfer and disposal in Singapore blocked
+         *   by the rule meant only to label them. Found in PI-24 by running the
+         *   parser over every pack; the AU pack had the identical defect.
+         */
+        { scheduleName: `${name} (Misuse of Drugs Regulations)`, informationalOnly: true },
     citation: register
       ? 'Misuse of Drugs Regulations, regs 14(1), 15 and 2(1)'
       : 'Misuse of Drugs Regulations, regs 8 and 14(1) — which names the Second and Fourth Schedules only',
@@ -874,7 +918,17 @@ export const SG_RULES: RuleSeed[] = [
       'pharmacist or the person authorised to supply them.',
     sourceKey: 'SG_MISUSE_OF_DRUGS',
     appliesToClassification: classification,
-    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE'],
+    /*
+     * ⚠️ `ONLINE_DISPENSE` INCLUDED — WITHOUT IT THE COUNTER REFUSED WHAT THE
+     *   PARCEL PERMITTED. A controlled medicine supplied from an open shelf was
+     *   refused over the counter by `controlledAccessRequired` and not consulted
+     *   at all when the same medicine went out as an online order, because the
+     *   storage rules predate PI-12 making `ONLINE_DISPENSE` a live transaction.
+     *   The stock is on the same shelf either way — the packing counter is the
+     *   location the consult is given for. Eight rules across seven packs had
+     *   this gap. (PI-24 review.)
+     */
+    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE'],
     parameters: {
       controlledAccessRequired: true,
       detail:

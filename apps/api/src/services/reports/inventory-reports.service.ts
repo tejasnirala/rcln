@@ -471,15 +471,31 @@ export async function getAgingReport(
           currency: string | null;
           quantity_base: string;
           value_minor: string | null;
+          unvalued_quantity_base: string;
           line_count: number;
         }[]
       >(
+        /*
+         * ⚠️ NO `COALESCE(value_minor, 0)` HERE, AND THE PINNED REASON APPLIES
+         *   TO A GROUP AS MUCH AS TO A ROW. `SUM(COALESCE(x, 0))` is never NULL
+         *   for a non-empty group, so it reported a bucket of uncosted stock as
+         *   worth ZERO and made `foldTotals`' unvalued branch unreachable from
+         *   this report — while `inventory-valuation`, over the same shelf on
+         *   the same day, correctly answered `null` plus a quantity. `FILTER`
+         *   keeps the two questions apart: what this bucket is worth, and how
+         *   much of it nothing has costed. (PI-24 review.)
+         */
         Prisma.sql`
           SELECT r.bucket,
                  r.currency,
-                 SUM(r.quantity_base::numeric)::text            AS quantity_base,
-                 SUM(COALESCE(r.value_minor::numeric, 0))::text AS value_minor,
-                 COUNT(*)::int                                  AS line_count
+                 SUM(r.quantity_base::numeric)::text AS quantity_base,
+                 SUM(r.value_minor::numeric) FILTER (WHERE r.value_minor IS NOT NULL)::text
+                   AS value_minor,
+                 COALESCE(
+                   SUM(r.quantity_base::numeric) FILTER (WHERE r.value_minor IS NULL),
+                   0
+                 )::text AS unvalued_quantity_base,
+                 COUNT(*)::int AS line_count
             FROM (${projection}) r
            GROUP BY r.bucket, r.currency
         `
@@ -520,21 +536,49 @@ export async function getAgingReport(
       basis: query.basis,
       clock: query.clock,
       rows: shaped,
-      buckets: bucketTotals
-        .filter((row) => row.currency !== null)
-        .map((row) => ({
-          bucket: row.bucket,
-          currency: row.currency as string,
-          quantityBase: qty(row.quantity_base),
-          valueMinor: minor(row.value_minor) ?? 0,
-          lineCount: count(row.line_count),
-        })),
+      /*
+       * ⚠️ NOT FILTERED ON `currency !== null` ANY MORE. That filter dropped a
+       *   bucket whose stock nothing had costed out of the response entirely,
+       *   so the quantity vanished rather than being reported as unvalued —
+       *   and `valueMinor: … ?? 0` said the rest of it was worth nothing.
+       */
+      buckets: bucketTotals.map((row) => ({
+        bucket: row.bucket,
+        currency: row.currency,
+        quantityBase: qty(row.quantity_base),
+        valueMinor: minor(row.value_minor),
+        unvaluedQuantityBase: qty(row.unvalued_quantity_base),
+        lineCount: count(row.line_count),
+      })),
+      /*
+       * ⚠️ EACH BUCKET IS SPLIT INTO ITS VALUED AND UNVALUED HALVES BEFORE
+       *   FOLDING. `foldTotals` reads one row as wholly valued or wholly not —
+       *   which is true of the per-row callers, and is NOT true of a group
+       *   aggregate: a bucket routinely holds some costed stock and some that
+       *   nothing has costed. Passing the group whole would file the uncosted
+       *   quantity under the currency as though it had been valued, which is
+       *   the same lie in a different place.
+       */
       totals: foldTotals(
-        bucketTotals.map((row) => ({
-          currency: row.currency,
-          valueMinor: minor(row.value_minor),
-          quantityBase: qty(row.quantity_base),
-        }))
+        bucketTotals.flatMap((row) => {
+          const unvalued = new Prisma.Decimal(qty(row.unvalued_quantity_base));
+          const whole = new Prisma.Decimal(qty(row.quantity_base));
+          const valued = whole.minus(unvalued);
+          return [
+            ...(valued.greaterThan(0)
+              ? [
+                  {
+                    currency: row.currency,
+                    valueMinor: minor(row.value_minor),
+                    quantityBase: valued.toString(),
+                  },
+                ]
+              : []),
+            ...(unvalued.greaterThan(0)
+              ? [{ currency: null, valueMinor: null, quantityBase: unvalued.toString() }]
+              : []),
+          ];
+        })
       ),
     };
   });
@@ -759,11 +803,22 @@ export async function getDeadStockReport(
              MAX(l.occurred_at) FILTER (WHERE ${CHANGES_HOLDING} AND l.quantity_base < 0) AS last_issued_at,
              MAX(l.occurred_at) FILTER (WHERE ${CHANGES_HOLDING} AND l.quantity_base > 0) AS last_received_at,
              MIN(l.occurred_at)                                                           AS first_seen_at,
+             /*
+              * THE BRANCH'S OWN CALENDAR YEAR, NOT A UTC INSTANT. This read
+              *   now() - interval '365 days', a UTC instant, while idle_days a
+              *   few lines below resolves the branch's own date -- so for a
+              *   branch several hours off UTC the two halves of one report
+              *   disagreed about where the year ends, and daysOfCover moved at
+              *   the margin. Same discipline as everywhere else in this file.
+              *   (PI-24 review.)
+              */
              COALESCE(-SUM(l.quantity_base) FILTER (
                WHERE ${CHANGES_HOLDING} AND l.quantity_base < 0
-                 AND l.occurred_at >= now() - interval '365 days'
+                 AND (l.occurred_at AT TIME ZONE b.timezone)::date
+                       >= (now() AT TIME ZONE b.timezone)::date - 365
              ), 0)                                                                        AS issued_last_year
         FROM stock_ledger l
+        JOIN branches b ON b.id = l.branch_id AND b.organization_id = l.organization_id
        WHERE l.organization_id = ${ctx.organizationId}::uuid
          AND l.branch_id IN (${Prisma.join(branchIds.map((id) => Prisma.sql`${id}::uuid`))})
        GROUP BY l.branch_id, l.product_id

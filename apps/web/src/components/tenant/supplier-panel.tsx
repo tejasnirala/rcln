@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
 import type { SupplierDetail, SupplierProductListResponse, UnitSummary } from '@rcln/contracts';
+import { formatMoney, money } from '@rcln/payments';
 import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
@@ -296,10 +297,12 @@ export function SupplierPanel({ slug, supplier, priceBook, units, canManage }: P
                   ) : null}
                 </div>
                 <p className="text-muted mt-1 text-[0.8125rem]">
-                  {row.currency} {(row.pricePerPackMinor / 100).toFixed(2)} per {row.packUnitSymbol}{' '}
+                  {/* ⚠️ `formatMoney`, never `/ 100` — see the purchase-order
+                   * form for why. (PI-24 review.) */}
+                  {formatMoney(money(row.pricePerPackMinor, row.currency))} per {row.packUnitSymbol}{' '}
                   of {row.quantityPerPack} {row.baseUnitSymbol}
                   {' · '}
-                  {row.currency} {(row.unitCostBase / 100).toFixed(2)} per {row.baseUnitSymbol}
+                  {formatMoney(money(row.unitCostBase, row.currency))} per {row.baseUnitSymbol}
                   {row.leadTimeDays === null ? '' : ` · ${row.leadTimeDays} day lead time`}
                 </p>
                 <p className="text-muted mt-0.5 text-[0.75rem]">

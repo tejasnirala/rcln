@@ -60,6 +60,17 @@ export default async function NewPurchaseOrderPage({
         }),
   ]);
 
+  /* A failed pre-fill is not the same as no pre-fill — see the goods-receipt
+   * page for what the silent version cost. (PI-24 review.) */
+  if (requisitionId !== undefined && !requisition?.data) {
+    return (
+      <Alert tone="error">
+        That requisition could not be loaded, so this order has not been pre-filled. Open it from
+        the requisition itself rather than keying it by hand.
+      </Alert>
+    );
+  }
+
   return (
     <PurchaseOrderForm
       slug={slug}

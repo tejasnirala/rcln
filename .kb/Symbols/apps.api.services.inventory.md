@@ -25,7 +25,7 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | `deleteReasonCode` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<void>` | `apps/api/src/services/inventory/reason-code.service.ts:316` |  |
 | `dispatchTransfer` | `(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<StockTransferDetail>` | `apps/api/src/services/inventory/transfer.service.ts:821` |  |
 | `expiryReport` | `(ctx: TenantContext, query: ExpiryReportQuery): Promise<ExpiryReportResponse>` | `apps/api/src/services/inventory/expiry.service.ts:97` |  |
-| `findBatches` <sub>local</sub> | `(tx: TxClient, branchIds: string[], lotNumber: string, productIds: string[], scannedExpiry: string \| null): Promise<ScannedBatch[]>` | `apps/api/src/services/inventory/resolve.service.ts:156` |  |
+| `findBatches` <sub>local</sub> | `(tx: TxClient, organizationId: string, branchIds: string[], lotNumber: string, productIds: string[], scannedExpiry: string \| null): Promise<ScannedBatch[]>` | `apps/api/src/services/inventory/resolve.service.ts:156` |  |
 | `findBatchOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/inventory/batch.service.ts:135` |  |
 | `findLocationOrThrow` <sub>local</sub> | `(tx: TxClient, id: string): Promise<DetailRow>` | `apps/api/src/services/inventory/location.service.ts:89` |  |
 | `findOrCreateDestinationBatch` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, line: { productId: string; lotNumber: string \| null; manufa…, toBranchId: string): Promise<string \| null>` | `apps/api/src/services/inventory/transfer.service.ts:1034` |  |
@@ -56,7 +56,7 @@ Files: `apps/api/src/services/inventory/allocation.service.ts` · `apps/api/src/
 | `reserveStock` | `(ctx: TenantContext, input: CreateStockReservationRequest, options: CatalogueActionOptions): Promise<StockReservationSummary>` | `apps/api/src/services/inventory/reservation.service.ts:156` |  |
 | `reserveStockIn` | `(tx: TxClient, ctx: TenantContext, input: ReserveStockInput, options: CatalogueActionOptions): Promise<Row>` | `apps/api/src/services/inventory/reservation.service.ts:259` |  |
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, fromBranchId: string, lines: StockTransferLineRequest[]): Promise<ResolvedLine[]>` | `apps/api/src/services/inventory/transfer.service.ts:282` |  |
-| `resolveScan` | `(ctx: TenantContext, query: ScanResolveQuery): Promise<ScanResolveResponse>` | `apps/api/src/services/inventory/resolve.service.ts:198` |  |
+| `resolveScan` | `(ctx: TenantContext, query: ScanResolveQuery): Promise<ScanResolveResponse>` | `apps/api/src/services/inventory/resolve.service.ts:209` |  |
 | `setBatchHold` | `(ctx: TenantContext, id: string, action: 'QUARANTINE' \| 'QUARANTINE_RELEASE' \| 'RECALL', input: { reason: string; recallReference?: string \| null \| …, options: CatalogueActionOptions): Promise<BatchD…` | `apps/api/src/services/inventory/batch.service.ts:393` |  |
 | `sum` <sub>local</sub> | `(balances: { status: string; quantity: Prisma.Decimal }[], only?: string): string` | `apps/api/src/services/inventory/resolve.service.ts:108` |  |
 | `sumQuantities` <sub>local</sub> | `(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus?: string): string` | `apps/api/src/services/inventory/batch.service.ts:83` |  |

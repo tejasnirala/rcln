@@ -307,7 +307,6 @@ model DispenseLine {
   @@unique([organizationId, dispenseId, lineNumber])
   @@unique([organizationId, id])
   @@unique([organizationId, branchId, id])
-  @@index([organizationId, dispenseId])
   @@index([organizationId, productId])
   /// "How much of this prescribed line has been supplied" — the fulfilment
   /// arithmetic, and the reason PI-7 needed no column on the clinical record.

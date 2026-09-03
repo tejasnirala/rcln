@@ -3,6 +3,10 @@
 import type {
   BatchListResponse,
   BatchSummary,
+  ClinicalMasterListResponse,
+  ClinicalMasterItem,
+  PatientConsultationSummary,
+  PatientConsultationsResponse,
   PatientListResponse,
   PatientSummary,
   ProductListResponse,
@@ -29,10 +33,17 @@ import { getAccessToken } from '@/lib/session';
  *   server. A `/api` proxy route would have to re-implement the tenant header
  *   and the token read, and would be a second door onto the same two endpoints.
  *
- * `slug` is bound on the server before this reaches the browser. Everything else
- * comes FROM the browser, which is fine: both endpoints gate on a permission
- * code and both tables are under RLS, so a tampered argument returns this
- * clinic's own rows or none.
+ * ⚠️ `slug` IS CLIENT-CONTROLLED, exactly as everywhere else. This file used to
+ *   claim it was "bound on the server before this reaches the browser"; it is
+ *   not — `PatientPicker` is a Client Component and passes it in, so every
+ *   argument here comes FROM the browser. That is still fine, and the reason is
+ *   worth stating correctly rather than comfortably: the action pairs the slug
+ *   with the caller's own httpOnly token, and the API refuses a token whose
+ *   organization does not match the host-resolved tenant. Both endpoints also
+ *   gate on a permission code and both tables are under RLS, so a tampered
+ *   argument returns this clinic's own rows or none. The false sentence was the
+ *   more dangerous half — it is precisely what stops the next reviewer checking,
+ *   in a file that returns patient names. (PI-24 review.)
  *
  * ⚠️ THREE OF THE FOUR CARRY NO PHI AT ALL — a product is a product and a barcode
  *   names a box. `searchPatients` is the exception and is marked at its own
@@ -255,4 +266,95 @@ export async function searchPatients(slug: string, rawTerm: string): Promise<Pat
   }
 
   return { status: 'done', patients: result.data.patients, term };
+}
+
+export type ProcedureSearchState =
+  | { status: 'idle' }
+  | { status: 'done'; procedures: ClinicalMasterItem[]; term: string }
+  | { status: 'error'; message: string };
+
+/**
+ * Find a procedure in the clinical dictionary.
+ *
+ * ⚠️ THE LAST CAPPED PICKER IN THE APPLICATION (KNOWN_ISSUES #34). PI-23
+ *   replaced every `<select>` over the PRODUCT catalogue and stopped there,
+ *   because this one reads the clinical dictionary rather than products — a
+ *   different endpoint, a different permission, and so not identifier-resolution
+ *   work. The consequence was the same one though: `/usage/templates` fetched
+ *   the first hundred procedures at render and filtered them in the browser, so
+ *   a clinic with a longer list simply could not reach the rest.
+ *
+ * ⚠️ NO PHI. A procedure is a dictionary entry and names nobody, which is why
+ *   `GET /clinical-data` is deliberately not read-audited. It IS gated on
+ *   `appointment.read`, which a storekeeper may not hold — hence the 403 branch.
+ */
+export async function searchProcedures(
+  slug: string,
+  rawTerm: string
+): Promise<ProcedureSearchState> {
+  const term = rawTerm.trim();
+  if (term.length < 2) return { status: 'idle' };
+
+  const query = new URLSearchParams({
+    kind: 'PROCEDURE',
+    search: term,
+    pageSize: '10',
+  });
+  const result = await api<ClinicalMasterListResponse>(
+    `/api/v1/clinical-data?${query.toString()}`,
+    { slug, accessToken: await getAccessToken() }
+  );
+
+  if (!result.ok || !result.data) {
+    return {
+      status: 'error',
+      message:
+        result.status === 403
+          ? 'You do not have access to the clinical dictionary.'
+          : (result.message ?? 'The search could not be run.'),
+    };
+  }
+
+  return { status: 'done', procedures: result.data.items, term };
+}
+
+export type ConsultationSearchState =
+  | { status: 'idle' }
+  | { status: 'done'; consultations: PatientConsultationSummary[] }
+  | { status: 'error'; message: string };
+
+/**
+ * The consultations an order can be raised against, for one patient.
+ *
+ * ⚠️ IT IS THE PHARMACY ENDPOINT, NOT `visit-history` (KNOWN_ISSUES #33). The
+ *   clinical one answers the same question and returns DIAGNOSES; this returns
+ *   when, who and how many items were prescribed. The order form is worked by
+ *   somebody taking a phone call, and a dropdown is not where a chart belongs.
+ *
+ * ⚠️ PHI, LIGHTLY. No finding, no complaint — but naming somebody's
+ *   consultations still says they were seen, so the API writes the
+ *   `data_access_logs` row and nothing here is cached, logged or put in a URL.
+ */
+export async function consultationsForPatient(
+  slug: string,
+  patientId: string
+): Promise<ConsultationSearchState> {
+  if (patientId === '') return { status: 'idle' };
+
+  const result = await api<PatientConsultationsResponse>(
+    `/api/v1/online-orders/patients/${patientId}/consultations?limit=10`,
+    { slug, accessToken: await getAccessToken() }
+  );
+
+  if (!result.ok || !result.data) {
+    return {
+      status: 'error',
+      message:
+        result.status === 403
+          ? 'You do not have access to this patient’s consultations.'
+          : (result.message ?? 'The consultations could not be loaded.'),
+    };
+  }
+
+  return { status: 'done', consultations: result.data.consultations };
 }

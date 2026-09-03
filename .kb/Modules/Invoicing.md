@@ -227,6 +227,7 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `PageHeader` | component | `packages/documents/src/chrome/page-chrome.tsx:34` |
 | `pageRule` | fn | `packages/documents/src/chrome/styles.ts:125` |
 | `parseQuantity` | fn | `packages/invoicing/src/quantity.ts:27` |
+| `pdfOptionsFor` | fn | `apps/worker/src/documents/pdf.renderer.ts:124` |
 | `periodFor` | fn | `apps/api/src/services/invoicing/invoice-number.service.ts:159` |
 | `pharmacyInvoice` | fn | `packages/documents/src/invoice/samples.ts:495` |
 | `practitionerProfileFor` | fn | `apps/api/src/services/invoicing/invoice-visibility.ts:235` |
@@ -243,7 +244,7 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `renderInvoiceHtml` | fn | `packages/documents/src/invoice/render.tsx:69` |
 | `RenderInvoiceOptions` | interface | `packages/documents/src/invoice/render.tsx:57` |
 | `renderInvoicePdf` | fn | `apps/worker/src/documents/invoice-pdf.job.ts:54` |
-| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:35` |
+| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:36` |
 | `repriceDraftInvoice` | fn | `apps/api/src/services/invoicing/invoice-lifecycle.service.ts:398` |
 | `requestInvoicePdf` | fn | `apps/api/src/services/invoicing/issue-invoice.ts:67` |
 | `resetDocumentStoreForTesting` | fn | `packages/documents/src/store/runtime.ts:99` |
@@ -258,7 +259,7 @@ The clinic billing a PATIENT: one engine, many billable sources, the clinic's ow
 | `StylesheetOptions` | interface | `packages/documents/src/invoice/styles.ts:54` |
 | `taxColumnsFor` | fn | `packages/documents/src/invoice/items.tsx:94` |
 | `TaxContext` | interface | `apps/api/src/services/invoicing/tax.service.ts:44` |
-| `taxForItem` | fn | `apps/api/src/services/invoicing/tax.service.ts:256` |
+| `taxForItem` | fn | `apps/api/src/services/invoicing/tax.service.ts:287` |
 | `toDecimal` | fn | `apps/api/src/services/invoicing/money.ts:28` |
 | `toMoney` | fn | `apps/api/src/services/invoicing/money.ts:39` |
 | `unregisteredInvoice` | var | `packages/documents/src/invoice/samples.ts:169` |

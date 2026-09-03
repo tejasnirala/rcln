@@ -1,13 +1,15 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useState, useTransition } from 'react';
+import { useCallback, useOptimistic, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { formatMoney, money } from '@rcln/payments';
 import type { ReportCurrencyTotal } from '@rcln/contracts';
 import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import type { ReportColumn, ReportSpec } from '@/lib/report-specs';
+import { formatClinicDateTime } from '@/lib/format';
+import type { TimeFormat } from '@rcln/contracts';
 
 /**
  * One report: its filters, its totals, and its rows.
@@ -50,9 +52,28 @@ interface Props {
   /** The `?format=csv` URL, already carrying the current filters. */
   exportHref: string;
   extraNote?: string | undefined;
+  /**
+   * The clinic's zone and clock, for every `datetime` column.
+   *
+   * ⚠️ NOT OPTIONAL, AND NOT DEFAULTED. `datetime` cells used to render
+   *   `new Date(v).toISOString().slice(0, 10)` — the browser-agnostic answer,
+   *   which is to say UTC. A lot issued at 04:00 on 3 September in Kolkata is
+   *   22:30 on 2 September in UTC, so `lastIssuedAt` and `heldSince` reported
+   *   the PREVIOUS DAY and moved rows across a bucket on the ageing and
+   *   held-stock reports, with nothing on the column to say so. CLAUDE.md
+   *   invariant 6: the clinic's zone, never the container's. A default here
+   *   would let a caller forget and be wrong by a day. (PI-24 review.)
+   */
+  timeZone: string;
+  timeFormat: TimeFormat;
 }
 
-function cellText(column: ReportColumn, row: Record<string, unknown>): string {
+function cellText(
+  column: ReportColumn,
+  row: Record<string, unknown>,
+  timeZone: string,
+  timeFormat: TimeFormat
+): string {
   const value = row[column.field];
   if (value === null || value === undefined || value === '') return '—';
 
@@ -73,7 +94,7 @@ function cellText(column: ReportColumn, row: Record<string, unknown>): string {
       return Number.isFinite(asNumber) ? `${(asNumber * 100).toFixed(1)}%` : '—';
     }
     case 'datetime':
-      return new Date(String(value)).toISOString().slice(0, 10);
+      return formatClinicDateTime(String(value), timeZone, timeFormat);
     case 'tag':
       return String(value).toLowerCase().replaceAll('_', ' ');
     case 'qty':
@@ -112,6 +133,8 @@ export function ReportView({
   canExport,
   exportHref,
   extraNote,
+  timeZone,
+  timeFormat,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -119,6 +142,28 @@ export function ReportView({
   const [pending, startTransition] = useTransition();
   const [from, setFrom] = useState(searchParams.get('from') ?? reportWindow?.from ?? '');
   const [to, setTo] = useState(searchParams.get('to') ?? reportWindow?.to ?? '');
+
+  /*
+   * ⚠️ THE SELECTS SHOWED THE OLD VALUE FOR THE WHOLE ROUND TRIP, AND THE USER
+   *   PICKED TWICE. Each is controlled by `searchParams`, and `setFilter`
+   *   navigates inside `startTransition` — so `searchParams` does not change
+   *   until the SERVER render commits, and React re-rendered the control with
+   *   the previous value in the meantime. On a slow report somebody chose
+   *   "Branch B", watched it snap back to "Branch A", and chose again, firing a
+   *   second navigation. `useOptimistic` shows the pending choice and is
+   *   discarded automatically when the real params arrive. (PI-24 review.)
+   */
+  const [optimisticParams, setOptimisticParam] = useOptimistic(
+    searchParams,
+    (current: URLSearchParams, patch: Record<string, string>) => {
+      const next = new URLSearchParams(current.toString());
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === '') next.delete(key);
+        else next.set(key, value);
+      }
+      return next;
+    }
+  );
 
   const setFilter = useCallback(
     (patch: Record<string, string>) => {
@@ -130,9 +175,14 @@ export function ReportView({
       // Changing a filter while on page 7 lands on page 7 of a shorter set, and
       // the screen shows an empty table for a filter that matched plenty.
       next.delete('page');
-      startTransition(() => router.replace(`${pathname}?${next.toString()}`, { scroll: false }));
+      startTransition(() => {
+        /* Inside the transition, so React keeps it until the navigation
+         * commits and then drops it for the real params. */
+        setOptimisticParam(patch);
+        router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+      });
     },
-    [pathname, router, searchParams]
+    [pathname, router, searchParams, setOptimisticParam]
   );
 
   const goToPage = useCallback(
@@ -221,7 +271,7 @@ export function ReportView({
                 key={filter.name}
                 label={filter.label}
                 name={filter.name}
-                value={searchParams.get(filter.name) ?? filter.options?.[0]?.value ?? ''}
+                value={optimisticParams.get(filter.name) ?? filter.options?.[0]?.value ?? ''}
                 options={[...(filter.options ?? [])]}
                 onChange={(event) => setFilter({ [filter.name]: event.target.value })}
               />
@@ -329,7 +379,7 @@ export function ReportView({
                   <tr key={`${reportKey}-${index}`}>
                     {spec.columns.map((column) => (
                       <td key={column.field} className={cellClass(column)}>
-                        {cellText(column, row)}
+                        {cellText(column, row, timeZone, timeFormat)}
                       </td>
                     ))}
                   </tr>

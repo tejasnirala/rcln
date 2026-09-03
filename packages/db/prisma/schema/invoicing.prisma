@@ -565,7 +565,6 @@ model InvoiceItem {
   @@unique([organizationId, id])
   /// Two lines cannot claim the same position on one document.
   @@unique([organizationId, invoiceId, lineNumber])
-  @@index([organizationId, invoiceId])
   /// "How much of this line has already been credited?" — summed per line across
   /// every live note, on every credit note raised.
   @@index([organizationId, creditedInvoiceItemId])

@@ -61,6 +61,17 @@ interface LineDraft {
   statusFrom: string;
 }
 
+/*
+ * ⚠️ EVERY KEY COMES FROM HERE, INCLUDING THE PRE-FILLED ONES. It used to start
+ *   at 1 while lines pre-filled from a document were keyed by ARRAY INDEX —
+ *   0, 1, 2 … — so the first line the user added took key 1 and COLLIDED with
+ *   the second line off the order. `updateLine` matches on key and patches
+ *   every match, so typing a quantity into the new line wrote it into the
+ *   ordered line too, choosing a product overwrote that line's product while it
+ *   still posted the original `purchaseOrderLineId`, and "remove" deleted both.
+ *   The result was a received line pointing at the wrong product against a real
+ *   purchase-order line. Found in the PI-24 review.
+ */
 let nextKey = 1;
 
 export function PurchaseReturnForm({ slug, branches, suppliers, locations, receipt }: Props) {
@@ -74,8 +85,8 @@ export function PurchaseReturnForm({ slug, branches, suppliers, locations, recei
   const [branchId, setBranchId] = useState(receipt?.branchId ?? branches[0]?.id ?? '');
   const [lines, setLines] = useState<LineDraft[]>(
     receipt
-      ? receipt.lines.map((line, index) => ({
-          key: index,
+      ? receipt.lines.map((line) => ({
+          key: nextKey++,
           productId: line.productId,
           productName: line.productName,
           goodsReceiptLineId: line.id,
@@ -90,7 +101,7 @@ export function PurchaseReturnForm({ slug, branches, suppliers, locations, recei
         }))
       : [
           {
-            key: 0,
+            key: nextKey++,
             productId: '',
             productName: '',
             goodsReceiptLineId: '',
@@ -234,13 +245,12 @@ export function PurchaseReturnForm({ slug, branches, suppliers, locations, recei
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <ProductPicker
-                  key={line.productId}
                   slug={slug}
                   name={`lines.${index}.productId`}
                   label="Product"
                   required
                   filters={{ isStockItem: true, status: 'ACTIVE' }}
-                  initial={
+                  value={
                     line.productId === '' ? null : { id: line.productId, name: line.productName }
                   }
                   onChoose={(product) =>
