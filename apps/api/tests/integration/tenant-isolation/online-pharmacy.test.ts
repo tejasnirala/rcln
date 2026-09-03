@@ -208,6 +208,49 @@ describe('online pharmacy', () => {
     expect(seen).toBe(0);
   });
 
+  /**
+   * ⚠️ THE THIRD TABLE HAD NO CROSS-TENANT CASE AT ALL, AND IT IS THE ONE THAT
+   *   NAMES A PERSON. Every shipment assertion in this file runs as `owner` —
+   *   which BYPASSES RLS — and checks a CHECK constraint. So `online_orders` and
+   *   `online_order_lines` were each proved isolated and `online_order_shipments`
+   *   was proved only to reject a malformed row. It carries `received_by_name`
+   *   and the tracking reference, and its `branch_id` is denormalised off the
+   *   parent, so it is where a `branch_isolation` regression would surface
+   *   first. (PI-24 security review.)
+   */
+  it("shows one clinic nothing of another's shipments", async () => {
+    await owner.query(
+      `INSERT INTO online_order_shipments
+         (id, organization_id, branch_id, online_order_id, carrier_name, package_count,
+          shipped_at, shipped_by_id, updated_at)
+       VALUES ($1, $2, $3, $4, 'Iso Courier', 1, now(), $5, now())
+       ON CONFLICT DO NOTHING`,
+      [SHIPMENT_B, ORG_B, BRANCH_B1, ORDER_B, ON_USER_B]
+    );
+
+    const seen = await atBranches(ORG_A, [BRANCH_A], async () => {
+      const { rows } = await app.query('SELECT id FROM online_order_shipments WHERE id = $1', [
+        SHIPMENT_B,
+      ]);
+      return rows.length;
+    });
+    expect(seen).toBe(0);
+  });
+
+  it('refuses to write a shipment into another clinic', async () => {
+    await expect(
+      atBranches(ORG_A, [BRANCH_A], () =>
+        app.query(
+          `INSERT INTO online_order_shipments
+             (id, organization_id, branch_id, online_order_id, carrier_name, package_count,
+              shipped_at, shipped_by_id, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, 'Smuggled Courier', 1, now(), $4, now())`,
+          [ORG_B, BRANCH_B1, ORDER_B, ON_USER_A]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
   it('refuses to write an order into another clinic', async () => {
     await expect(
       atBranches(ORG_A, [BRANCH_A], () =>

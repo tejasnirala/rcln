@@ -1,4 +1,11 @@
 import type { AuthSession } from '@rcln/contracts';
+/*
+ * ⚠️ THE CONSTANTS, NOT STRING LITERALS. All twenty-four nav entries used to
+ *   spell their permission codes by hand, so a rename in `@rcln/permissions`
+ *   would silently hide a tab with no build error — the navigation would just
+ *   quietly lose a section for everybody. (PI-24 review.)
+ */
+import { PERMISSIONS as P } from '@rcln/permissions';
 import { signOut } from '@/app/(tenant)/t/[slug]/actions';
 import { AppHeader } from '@/components/shell/app-header';
 import type { NavLink } from '@/components/shell/app-nav';
@@ -93,7 +100,7 @@ export function TenantHeader({ slug, session }: { slug: string; session: AuthSes
  */
 function clinicNav(permissions: string[]): NavLink[] {
   return [
-    { href: '/branches', label: 'Branches', permission: ['branch.read'] },
+    { href: '/branches', label: 'Branches', permission: [P.BRANCH_READ] },
     // Sits next to Branches rather than under Staff: a doctor's working hours
     // are what the front desk books against, so this is a scheduling screen that
     // happens to be about people, not a personnel one.
@@ -104,14 +111,14 @@ function clinicNav(permissions: string[]): NavLink[] {
     //   is not offered to them and `GET /doctors` would refuse it anyway. The
     //   nav and the API are reading the same code, which is the only way the two
     //   cannot drift — and no role is named anywhere (ADR-0002).
-    { href: '/doctors', label: 'Doctors', permission: ['doctor.directory.read'] },
+    { href: '/doctors', label: 'Doctors', permission: [P.DOCTOR_DIRECTORY_READ] },
     // First in the list that is about the people being treated rather than the
     // people doing the treating, and the only destination behind it that
     // discloses PHI. Every screen under it writes a `data_access_logs` row.
-    { href: '/patients', label: 'Patients', permission: ['patient.read'] },
+    { href: '/patients', label: 'Patients', permission: [P.PATIENT_READ] },
     // Sits after Patients because it is about them, and before Staff because it
     // is the screen the front desk actually works from all day.
-    { href: '/appointments', label: 'Appointments', permission: ['appointment.read'] },
+    { href: '/appointments', label: 'Appointments', permission: [P.APPOINTMENT_READ] },
     /*
      * ⚠️ `appointment.read`, THE SAME CODE AS THE BOARD, AND NOT A CLINICAL ONE
      *   (CE-5). The recall list is worked by the front desk: somebody rings the
@@ -124,7 +131,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      * Sits directly after Appointments because it is the same desk's second
      * screen: the board is today, and this is who should have been on it.
      */
-    { href: '/recall', label: 'Recall', permission: ['appointment.read'] },
+    { href: '/recall', label: 'Recall', permission: [P.APPOINTMENT_READ] },
     /*
      * ⚠️ "INVOICES", NOT "BILLING" — THE TAB BELOW IS ALREADY CALLED BILLING AND
      *   IS A DIFFERENT DOCUMENT ENTIRELY. That one is rcln billing the CLINIC
@@ -136,7 +143,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      *
      * Sits beside Appointments because that is where most of its rows come from.
      */
-    { href: '/invoices', label: 'Invoices', permission: ['billing.invoice.read'] },
+    { href: '/invoices', label: 'Invoices', permission: [P.INVOICE_READ] },
     /*
      * ⚠️ "CHARGES", AND IT IS A SEPARATE TAB FROM INVOICES ON PURPOSE (PI-8).
      *   An invoice is a document that exists; this is everything that has been
@@ -154,7 +161,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      * come from. Gated on `billing.charge_request.read`, which a pharmacist holds
      * for visibility and the front desk holds to work.
      */
-    { href: '/charges', label: 'Charges', permission: ['billing.charge_request.read'] },
+    { href: '/charges', label: 'Charges', permission: [P.CHARGE_REQUEST_READ] },
     /*
      * ⚠️ "USAGE", AND IT IS A SEPARATE TAB FROM STOCK ON PURPOSE (PI-9). Stock
      *   says what the clinic HOLDS; this says what its procedures USED and how
@@ -171,7 +178,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      *
      * Sits after Charges because it is the other writer of that queue.
      */
-    { href: '/usage', label: 'Usage', permission: ['consumption.record.read'] },
+    { href: '/usage', label: 'Usage', permission: [P.CONSUMPTION_READ] },
     /*
      * ⚠️ "CATALOGUE", NOT "PHARMACY" OR "PRODUCTS". One catalogue holds
      *   medicines, gloves, implants, reagents and dental materials, so naming
@@ -184,7 +191,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      * daily. Gated on `product.definition.read`, which a doctor and a nurse hold
      * for lookup and a receptionist does not.
      */
-    { href: '/products', label: 'Catalogue', permission: ['product.definition.read'] },
+    { href: '/products', label: 'Catalogue', permission: [P.PRODUCT_DEFINITION_READ] },
     /*
      * ⚠️ "STOCK", NOT "INVENTORY", AND IT IS A SEPARATE TAB FROM CATALOGUE ON
      *   PURPOSE. The catalogue says what a thing IS; this says where it is and
@@ -201,7 +208,7 @@ function clinicNav(permissions: string[]): NavLink[] {
      * and gated on `inventory.stock.read` — which a pharmacist and a branch
      * administrator hold, and a receptionist does not.
      */
-    { href: '/stock', label: 'Stock', permission: ['inventory.stock.read'] },
+    { href: '/stock', label: 'Stock', permission: [P.STOCK_READ] },
     /*
      * How stock GETS here, and what it cost (PI-4). The third tab of the same
      * triple: Catalogue says what a thing is, Stock says where it is, this says
@@ -222,10 +229,10 @@ function clinicNav(permissions: string[]): NavLink[] {
       href: '/procurement/suppliers',
       label: 'Buying',
       permission: [
-        'pharmacy.supplier.manage',
-        'pharmacy.purchase_order.read',
-        'pharmacy.goods_receipt.manage',
-        'procurement.requisition.create',
+        P.SUPPLIER_MANAGE,
+        P.PURCHASE_ORDER_READ,
+        P.GOODS_RECEIPT_MANAGE,
+        P.REQUISITION_CREATE,
       ],
     },
     /*
@@ -246,12 +253,7 @@ function clinicNav(permissions: string[]): NavLink[] {
     {
       href: '/pharmacy',
       label: 'Pharmacy',
-      permission: [
-        'pharmacy.dispense.read',
-        'pharmacy.dispense.verify',
-        'pharmacy.dispense.create',
-        'pharmacy.dispense.return',
-      ],
+      permission: [P.DISPENSE_READ, P.DISPENSE_VERIFY, P.DISPENSE_CREATE, P.DISPENSE_RETURN],
     },
     /*
      * What the law allows to be done with the things in that catalogue (PI-5).
@@ -289,8 +291,8 @@ function clinicNav(permissions: string[]): NavLink[] {
      * has to be reached again. Gated on `recall.notice.read`, which a pharmacist
      * and a branch administrator hold.
      */
-    { href: '/product-recalls', label: 'Product recalls', permission: ['recall.notice.read'] },
-    { href: '/regulatory/jurisdictions', label: 'Rules', permission: ['regulatory.rule.read'] },
+    { href: '/product-recalls', label: 'Product recalls', permission: [P.RECALL_READ] },
+    { href: '/regulatory/jurisdictions', label: 'Rules', permission: [P.REGULATORY_READ] },
     /*
      * The clinical vocabulary. Sits after Rules rather than beside Patients
      * because it is a SETTINGS surface — nobody opens it during a clinic. Read
@@ -301,7 +303,7 @@ function clinicNav(permissions: string[]): NavLink[] {
     {
       href: '/clinical-terms',
       label: 'Clinical terms',
-      permission: ['appointment.read'],
+      permission: [P.APPOINTMENT_READ],
     },
     /*
      * What a consultation is MADE OF, as opposed to the words it is written in
@@ -313,7 +315,7 @@ function clinicNav(permissions: string[]): NavLink[] {
     {
       href: '/consultation-templates',
       label: 'Consultations',
-      permission: ['clinical.template.manage'],
+      permission: [P.CLINICAL_TEMPLATE_MANAGE],
     },
     /*
      * The pictures those consultations draw ON (CE-6). Its own entry rather than
@@ -325,7 +327,7 @@ function clinicNav(permissions: string[]): NavLink[] {
     {
       href: '/visual-maps',
       label: 'Charts',
-      permission: ['clinical.visual_map.manage'],
+      permission: [P.CLINICAL_VISUAL_MAP_MANAGE],
     },
     /*
      * The rate card BEHIND those invoices. A separate tab rather than a panel on
@@ -339,12 +341,15 @@ function clinicNav(permissions: string[]): NavLink[] {
      * buying, counter and consultation tabs write — and not one of them stores
      * an answer.
      *
-     * ⚠️ FIVE CODES, ANY OF WHICH MAKES THE TAB WORTH OPENING, AND THE MENU
+     * ⚠️ FOUR CODES, ANY OF WHICH MAKES THE TAB WORTH OPENING, AND THE MENU
      *   BEHIND IT RENDERS ONLY THE REPORTS THE CALLER HOLDS. `report.dashboard.read`
      *   is what actually gates the menu, but a clinic that grants an accountant
      *   `report.revenue.read` alone and forgets the dashboard code would hide the
      *   tab from the one person it was granted for — so the tab appears for any
-     *   of them and the screen says which are open.
+     *   of them and the screen says which are open. `REPORT_EXPORT` is the fifth
+     *   report code and is deliberately NOT here: it lets somebody download a
+     *   report, not read one, so on its own it opens an empty tab. (The comment
+     *   said "five" and listed four — PI-24 review.)
      *
      * ⚠️ ITS OWN TAB RATHER THAN A PANEL ON STOCK, FOR THE REASON PRODUCT RECALLS
      *   IS ITS OWN TAB. Stock says what the clinic HOLDS right now; a report is a
@@ -358,24 +363,19 @@ function clinicNav(permissions: string[]): NavLink[] {
     {
       href: '/reports',
       label: 'Reports',
-      permission: [
-        'report.dashboard.read',
-        'report.inventory.read',
-        'report.clinical.read',
-        'report.revenue.read',
-      ],
+      permission: [P.REPORT_DASHBOARD, P.REPORT_INVENTORY, P.REPORT_CLINICAL, P.REPORT_REVENUE],
     },
-    { href: '/taxes', label: 'Tax', permission: ['billing.tax.read'] },
-    { href: '/members', label: 'Staff', permission: ['iam.user.read'] },
-    { href: '/roles', label: 'Roles', permission: ['iam.role.read'] },
-    { href: '/invitations', label: 'Invitations', permission: ['iam.user.read'] },
+    { href: '/taxes', label: 'Tax', permission: [P.BILLING_TAX_READ] },
+    { href: '/members', label: 'Staff', permission: [P.IAM_USER_READ] },
+    { href: '/roles', label: 'Roles', permission: [P.IAM_ROLE_READ] },
+    { href: '/invitations', label: 'Invitations', permission: [P.IAM_USER_READ] },
     // Two codes, either of which makes the screen worth opening: it holds the
     // clinic's particulars and its defaults behind separate permissions, and
     // renders whichever half the API answered.
     {
       href: '/settings',
       label: 'Clinic',
-      permission: ['organization.read', 'settings.organization.read'],
+      permission: [P.ORG_READ, P.SETTINGS_ORG_READ],
     },
     // Reading the plan and the invoices is a different permission from changing
     // them; either one makes the screen worth opening, and the screen itself
@@ -383,7 +383,7 @@ function clinicNav(permissions: string[]): NavLink[] {
     {
       href: '/billing',
       label: 'Billing',
-      permission: ['organization.billing.read', 'organization.billing.manage'],
+      permission: [P.ORG_BILLING_READ, P.ORG_BILLING_MANAGE],
     },
   ]
     .filter((link) => link.permission.some((code) => permissions.includes(code)))

@@ -43,6 +43,7 @@ import {
   createProductIdentifierRequest,
   createProductRequest,
   medicineDetailRequest,
+  productImportRequest,
   productListQuery,
   replaceProductPackagingRequest,
   replaceProductRegulatoryProfilesRequest,
@@ -51,6 +52,7 @@ import {
   updateProductRequest,
   type CreateProductIdentifierRequest,
   type CreateProductRequest,
+  type ProductImportRequest,
   type MedicineDetailRequest,
   type ProductListQuery,
   type ReplaceProductPackagingRequest,
@@ -77,6 +79,7 @@ import {
   updateProduct,
   withdrawProduct,
 } from '../../services/product/product.service.js';
+import { importProducts } from '../../services/product/import.service.js';
 import {
   addIdentifier,
   expireIdentifier,
@@ -259,6 +262,36 @@ router.post(
       auditMeta(req)
     );
     sendSuccess(res, product, 'Product added', 201);
+  }
+);
+
+/**
+ * Import a catalogue from a spreadsheet.
+ *
+ * ⚠️ `dryRun` FIRST, ALWAYS — and the screen enforces it rather than the API.
+ *   A hand-built file is wrong the first time, and the useful answer is the
+ *   whole list of what is wrong rather than the first row that failed.
+ *
+ * ⚠️ 200 EVEN WHEN ROWS FAILED, AND THAT IS NOT A SWALLOWED ERROR. "Four of your
+ *   two hundred rows name a unit that does not exist" is an ANSWER to the
+ *   question asked, delivered in full, with nothing written. A 400 would carry
+ *   one message and lose the report. The transaction is rolled back either way —
+ *   a partly imported catalogue is the state nobody can reason about.
+ *
+ * Gated on `product.definition.manage`, exactly as adding one product is: an
+ * import is four hundred of the same act, not a different one.
+ */
+router.post(
+  '/import',
+  authorize(PERMISSIONS.PRODUCT_DEFINITION_MANAGE),
+  validate(productImportRequest, 'body'),
+  async (req: Request, res: Response): Promise<void> => {
+    const result = await importProducts(
+      tenantContextFrom(req),
+      req.body as ProductImportRequest,
+      auditMeta(req)
+    );
+    sendSuccess(res, result, result.dryRun ? 'File checked' : 'Catalogue imported');
   }
 );
 

@@ -4,7 +4,7 @@
 
 > The arithmetic, on its own, because a quantity limit that is wrong once in a thousand comparisons is worse than one that is wrong always: nobody finds it, and when they do it is at a controlled-substance reconciliation.
 
-Files: `packages/regulatory/tests/decimal.test.ts` · `packages/regulatory/tests/engine.test.ts` · `packages/regulatory/tests/online-sale-gap.test.ts` · `packages/regulatory/tests/profile-gap.test.ts`
+Files: `packages/regulatory/tests/decimal.test.ts` · `packages/regulatory/tests/engine.test.ts` · `packages/regulatory/tests/fail-open.test.ts` · `packages/regulatory/tests/online-sale-gap.test.ts` · `packages/regulatory/tests/profile-gap.test.ts`
 
 ## fn
 
@@ -13,7 +13,9 @@ Files: `packages/regulatory/tests/decimal.test.ts` · `packages/regulatory/tests
 | `permissive` <sub>local</sub> | `(over: Partial<RegulatoryRule>): RegulatoryRule` | `packages/regulatory/tests/online-sale-gap.test.ts:28` | A rule that applies to EVERY transaction and permits — the fail-open's engine. |
 | `profile` <sub>local</sub> | `(onlineSalePosition: string): RegulatoryRequest['profile']` | `packages/regulatory/tests/online-sale-gap.test.ts:49` |  |
 | `request` <sub>local</sub> | `(over: Partial<RegulatoryRequest>): RegulatoryRequest` | `packages/regulatory/tests/engine.test.ts:43` |  |
+| `request` <sub>local</sub> | `(over: Partial<RegulatoryRequest>): RegulatoryRequest` | `packages/regulatory/tests/fail-open.test.ts:40` |  |
 | `request` <sub>local</sub> | `(over: Partial<RegulatoryRequest>): RegulatoryRequest` | `packages/regulatory/tests/online-sale-gap.test.ts:62` |  |
 | `request` <sub>local</sub> | `(over: Partial<RegulatoryRequest>): RegulatoryRequest` | `packages/regulatory/tests/profile-gap.test.ts:46` |  |
 | `rule` <sub>local</sub> | `(over: Partial<RegulatoryRule>): RegulatoryRule` | `packages/regulatory/tests/engine.test.ts:22` |  |
+| `rule` <sub>local</sub> | `(over: Partial<RegulatoryRule>): RegulatoryRule` | `packages/regulatory/tests/fail-open.test.ts:19` |  |
 | `rule` <sub>local</sub> | `(over: Partial<RegulatoryRule>): RegulatoryRule` | `packages/regulatory/tests/profile-gap.test.ts:25` |  |

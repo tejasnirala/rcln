@@ -66,6 +66,27 @@ export default async function NewGoodsReceiptPage({
         }),
   ]);
 
+  /*
+   * ⚠️ A FAILED PRE-FILL IS NOT THE SAME AS NO PRE-FILL, AND IT USED TO RENDER
+   *   IDENTICALLY. `order?.data ?? null` collapsed a 403, a 404 and a 502 into
+   *   the "nobody asked for an order" case: the buyer clicked Receive on a real
+   *   purchase order, got a completely empty delivery form, assumed the feature
+   *   did not exist and keyed forty lines by hand — and because the
+   *   `purchaseOrderId` hidden input only renders when `order` is non-null, the
+   *   receipt was never linked and the order stayed outstanding for ever. Every
+   *   other fetch on this page has an error path; this one did not.
+   *   (PI-24 review.)
+   */
+  if (purchaseOrderId !== undefined && !order?.data) {
+    return (
+      <Alert tone="error">
+        That purchase order could not be loaded, so this delivery has not been pre-filled. Open it
+        from the order itself rather than keying it by hand — a receipt recorded here would not be
+        linked to it.
+      </Alert>
+    );
+  }
+
   return (
     <GoodsReceiptForm
       slug={slug}

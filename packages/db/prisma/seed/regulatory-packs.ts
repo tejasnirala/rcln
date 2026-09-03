@@ -51,6 +51,8 @@
  *   distinction is theoretical; the day it stops being theoretical, nobody gets
  *   a warning.
  */
+import type { Prisma } from '../../generated/prisma/index.js';
+
 import { prisma } from './client.js';
 import {
   IN_AUTHORITIES,
@@ -151,7 +153,17 @@ interface PackSeed {
   effectiveFrom: string;
 }
 
-const PACKS: readonly PackSeed[] = [
+/**
+ * Exported so a test can hold the packs to the rest of the platform.
+ *
+ * ⚠️ A PACK'S REGION HAS TO BE A REGION `locale.ts` ADMITS, AND TWICE IT WAS
+ *   NOT. `regions` gates `branches.region_code`, so a pack for a subdivision
+ *   the list omits matches nothing for ever while looking perfectly seeded —
+ *   Australia and the UAE both shipped that way. `rule-pack-readable.test.ts`
+ *   now asserts it mechanically, which is a check that cannot be forgotten the
+ *   way "remember to look at `locale.ts`" was. (PI-24 review.)
+ */
+export const PACKS: readonly PackSeed[] = [
   {
     countryCode: 'IN',
     countryName: 'India',
@@ -626,7 +638,15 @@ export async function seedRegulatoryPacks(): Promise<void> {
         },
         update: {
           statement: rule.statement,
-          parameters: rule.parameters,
+          /*
+           * ⚠️ CAST BECAUSE A SEED'S `Record<string, unknown>` IS WIDER THAN
+           *   PRISMA'S JSON INPUT, WHICH EXCLUDES `undefined`. The packs never
+           *   write one — every parameter is a literal in a seed file — and the
+           *   engine's parsers refuse anything they cannot read, which is the
+           *   check that actually matters here. Surfaced when PI-24 gave this
+           *   directory a typecheck for the first time.
+           */
+          parameters: rule.parameters as Prisma.InputJsonObject,
           sourceId,
         },
         create: {
@@ -642,7 +662,15 @@ export async function seedRegulatoryPacks(): Promise<void> {
             ? { appliesToClassification: rule.appliesToClassification }
             : {}),
           appliesToTransactions: rule.appliesToTransactions as never,
-          parameters: rule.parameters,
+          /*
+           * ⚠️ CAST BECAUSE A SEED'S `Record<string, unknown>` IS WIDER THAN
+           *   PRISMA'S JSON INPUT, WHICH EXCLUDES `undefined`. The packs never
+           *   write one — every parameter is a literal in a seed file — and the
+           *   engine's parsers refuse anything they cannot read, which is the
+           *   check that actually matters here. Surfaced when PI-24 gave this
+           *   directory a typecheck for the first time.
+           */
+          parameters: rule.parameters as Prisma.InputJsonObject,
           sourceId,
           version: 1,
           effectiveFrom: day(pack.effectiveFrom),

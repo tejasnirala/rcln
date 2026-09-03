@@ -144,13 +144,14 @@ Stores, retrieves and RENDERS every document the platform holds. One provider in
 | `PageFooter` | component | `packages/documents/src/chrome/page-chrome.tsx:123` |
 | `PageHeader` | component | `packages/documents/src/chrome/page-chrome.tsx:34` |
 | `pageRule` | fn | `packages/documents/src/chrome/styles.ts:125` |
+| `pdfOptionsFor` | fn | `apps/worker/src/documents/pdf.renderer.ts:124` |
 | `pharmacyInvoice` | fn | `packages/documents/src/invoice/samples.ts:495` |
 | `PutObjectInput` | interface | `packages/storage/src/types.ts:29` |
 | `readDocument` | fn | `packages/documents/src/store/document.service.ts:194` |
 | `renderInvoiceHtml` | fn | `packages/documents/src/invoice/render.tsx:69` |
 | `RenderInvoiceOptions` | interface | `packages/documents/src/invoice/render.tsx:57` |
 | `renderInvoicePdf` | fn | `apps/worker/src/documents/invoice-pdf.job.ts:54` |
-| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:35` |
+| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:36` |
 | `resetDocumentStoreForTesting` | fn | `packages/documents/src/store/runtime.ts:99` |
 | `SANS_400_LATIN` | const | `packages/documents/src/fonts.generated.ts:13` |
 | `SANS_400_LATIN_EXT` | const | `packages/documents/src/fonts.generated.ts:16` |

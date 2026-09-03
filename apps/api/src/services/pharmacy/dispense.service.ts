@@ -45,7 +45,6 @@ import type {
   DispenseListResponse,
   DispenseQuery,
   DispenseSummary,
-  EvaluateRegulatoryRequest,
 } from '@rcln/contracts';
 import { toBaseUnits } from '@rcln/inventory';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
@@ -55,7 +54,7 @@ import { issueNumber } from '../numbering/number-sequence.service.js';
 import { movementDeps, recordMovementIn } from '../inventory/movement.service.js';
 import { planStockAllocationWithin } from '../inventory/allocation.service.js';
 import { raiseChargeRequestsWithin } from '../charging/charge-request.service.js';
-import { consultForSupply } from './consult.js';
+import { consultForSupply, presentedPrescriptionFor } from './consult.js';
 import {
   ageYearsOn,
   auditMeta,
@@ -878,57 +877,12 @@ export async function createDispenseWithin(
        */
       const evidence = allocations[0];
 
-      const prescriptionFacts: EvaluateRegulatoryRequest['prescription'] | undefined = encounter
-        ? {
-            presented: true,
-            /*
-             * ⚠️ A FINALIZED CONSULTATION IS A SIGNED PRESCRIPTION. `FINALIZED` is
-             *   the doctor putting their name to it — the same act
-             *   `clinical.prescription.sign` describes — and it was asserted above.
-             */
-            signedByQualifiedPrescriber: true,
-            issuedOn: (encounter.finalizedAt ?? encounter.startedAt).toISOString().slice(0, 10),
-            /*
-             * ⚠️ HOW MANY TIMES THIS PRESCRIBED LINE HAS ALREADY BEEN SUPPLIED,
-             *   NOT HOW MUCH. A repeat rule counts DISPENSINGS; counting quantity
-             *   would let three part-supplies of one course read as three repeats.
-             */
-            refillsUsed: prescriptionLine
-              ? await tx.dispenseLine.count({
-                  where: {
-                    organizationId: ctx.organizationId,
-                    encounterPrescriptionId: prescriptionLine.id,
-                  },
-                })
-              : 0,
-            /*
-             * ⚠️ THE PRESCRIBER'S ENDORSEMENT, READ FROM THE CLINICAL RECORD
-             *   (PI-8, closing KNOWN_ISSUES #8). PI-7 closed the framework half —
-             *   the engine has been able to be TOLD a repeat was endorsed since
-             *   then — and nothing could tell it, because `encounter_prescriptions`
-             *   had a quantity and a duration and no field saying "may be
-             *   dispensed twice". A lawful endorsed repeat was therefore refused.
-             *
-             * ⚠️ ABSENT IS STILL NOT `false`, AND THAT IS WHY THE COLUMN IS
-             *   NULLABLE AND THESE ARE SPREAD RATHER THAN COERCED. NULL is "the
-             *   prescriber did not address repeats", which is the ordinary case
-             *   and is what the engine treats as no endorsement; `false` is a
-             *   positive instruction that this may NOT be repeated. Sending
-             *   `repeatsAuthorised: false` for every prescription ever written
-             *   would turn silence into a refusal the prescriber never wrote.
-             *
-             * ⚠️ AND A `true` WITH NO LIMIT STILL RESOLVES `UNDETERMINED`, WHICH
-             *   REFUSES. An endorsement stating no number is not an unlimited
-             *   one — PI-7's tests pin exactly that, and nothing here weakens it.
-             */
-            ...(prescriptionLine?.repeatsAuthorised != null
-              ? { repeatsAuthorised: prescriptionLine.repeatsAuthorised }
-              : {}),
-            ...(prescriptionLine?.repeatsAuthorisedLimit != null
-              ? { repeatsAuthorisedLimit: prescriptionLine.repeatsAuthorisedLimit }
-              : {}),
-          }
-        : undefined;
+      const prescriptionFacts = await presentedPrescriptionFor(
+        tx,
+        ctx,
+        encounter,
+        prescriptionLine
+      );
 
       const consultation = await consultForSupply(tx, ctx, {
         branchId,

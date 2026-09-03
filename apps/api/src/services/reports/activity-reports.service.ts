@@ -627,13 +627,27 @@ export async function getProcedureContributionReport(
      *   ones, and the conversion between them belongs to `toMoney` — which knows
      *   the currency's scale and lives in TypeScript. Reproducing that scale in
      *   an ORDER BY would be the `× 100` this file's header refuses, written
-     *   somewhere nobody would look for it. The page is capped at 200 rows for
-     *   JSON and at the CSV cap otherwise, so the sort is over a bounded set.
+     *   somewhere nobody would look for it.
+     *
+     * ⚠️ WHICH MEANS THE WHOLE REPORT IS FETCHED, AND IT USED TO BE `LIMIT
+     *   take + skip`. That limit was the PAGE window, not the report: Postgres
+     *   returned the first fifty rows it happened to produce — no `ORDER BY`
+     *   anywhere in the SQL — and those fifty were sorted in Node and returned
+     *   as "the fifty procedures with the highest contribution". With 500
+     *   procedures the most profitable one was absent nine times in ten, page
+     *   two re-sorted a different overlapping set so rows both duplicated and
+     *   vanished, and `totals` folded the same truncated slice — the subtotal
+     *   wearing the word "total" that `foldTotals`' own header forbids.
+     *
+     *   Sorting in Node only works if Node sees everything, so the fetch is now
+     *   the whole set. It is bounded by procedure × branch × currency — one row
+     *   per procedure a clinic actually performed in the window, not per
+     *   procedure PERFORMED — which is the smallest result set of the nine
+     *   reports, and `countRows` below already runs the same `base`.
+     *   (PI-24 review.)
      */
     const [allRows, total] = await Promise.all([
-      tx.$queryRaw<ContributionSqlRow[]>(
-        Prisma.sql`SELECT r.* FROM (${projection}) r LIMIT ${take + skip} OFFSET 0`
-      ),
+      tx.$queryRaw<ContributionSqlRow[]>(Prisma.sql`SELECT r.* FROM (${projection}) r`),
       countRows(tx, Prisma.sql`SELECT COUNT(*)::int AS total ${base}`),
     ]);
 

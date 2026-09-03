@@ -43,7 +43,6 @@ Declared at `packages/db/prisma/schema/regulatory.prisma:499`.
 ## Indexes and constraints
 
 - `@@unique([organizationId, productId, jurisdictionId, effectiveFrom])`
-- `@@index([organizationId, productId])`
 - `@@index([organizationId, jurisdictionId])`
 
 ## Neighbourhood

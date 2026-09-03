@@ -148,7 +148,6 @@ model TaxRegistration {
   /// constrain the country-wide rows — appended by hand to the migration, as
   /// ADR-0004 requires.
   @@unique([countryCode, regionCode, scheme])
-  @@index([countryCode])
   @@map("tax_registrations")
 }
 
@@ -227,7 +226,6 @@ model IssuerTaxRegistration {
   /// reference (organization_id, id) so neither can point at another tenant's
   /// registration.
   @@unique([organizationId, id])
-  @@index([organizationId, countryCode])
   @@map("issuer_tax_registrations")
 }
 
@@ -270,7 +268,6 @@ model IssuerTaxRegistrationBranch {
 
   @@unique([organizationId, taxRegistrationId, branchId])
   @@index([organizationId, branchId])
-  @@index([organizationId, taxRegistrationId])
   @@map("issuer_tax_registration_branches")
 }
 

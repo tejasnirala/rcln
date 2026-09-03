@@ -78,7 +78,7 @@ Files: `apps/api/src/services/invoicing/appointment-billing.service.ts` · `apps
 | `resolveLines` <sub>local</sub> | `(tx: TxClient, appointment: BillableAppointment, dates: { suppliedOn: string; parentOn: string \| null }, currency: string, input: CreateAppointmentInvoiceRequest): Promise<DraftLineInput[]>` | `apps/api/src/services/invoicing/appointment-billing.service.ts:664` |  |
 | `resolveLines` <sub>local</sub> | `(original: Original, input: CreateCreditNoteRequest, alreadyCreditedByItem: ReadonlyMap<string, Prisma.Decimal>): ResolvedCreditLine[]` | `apps/api/src/services/invoicing/credit-note.service.ts:306` |  |
 | `summariseTaxes` <sub>local</sub> | `(items: DetailRow['items'], currency: string): InvoiceTaxLine[]` | `apps/api/src/services/invoicing/invoice.service.ts:931` |  |
-| `taxForItem` | `(context: TaxContext, input: { net: Money; /** Matched exactly against `tax_rules…): TaxQuote` | `apps/api/src/services/invoicing/tax.service.ts:256` |  |
+| `taxForItem` | `(context: TaxContext, input: { net: Money; /** Matched exactly against `tax_rules…): TaxQuote` | `apps/api/src/services/invoicing/tax.service.ts:287` |  |
 | `toDecimal` | `(value: Money): Prisma.Decimal` | `apps/api/src/services/invoicing/money.ts:28` | Minor units -> the column. |
 | `toDetail` <sub>local</sub> | `(row: DetailRow, document: Awaited<ReturnType<typeof currentDocument>>): InvoiceDetail` | `apps/api/src/services/invoicing/invoice.service.ts:824` |  |
 | `toItemDetail` <sub>local</sub> | `(item: DetailRow['items'][number], currency: string): InvoiceItemDetail` | `apps/api/src/services/invoicing/invoice.service.ts:891` |  |

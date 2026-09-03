@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import type { OnlineOrderListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
@@ -38,8 +39,16 @@ export default async function OnlineOrdersPage({
     'branchId',
     'status',
     'channel',
-    'patientId',
-    'encounterId',
+    /*
+     * ⚠️ NO `patientId` OR `encounterId` HERE. Nothing on this screen produces
+     *   them — its filters are branch, status, channel and tracking reference —
+     *   so forwarding them bought nothing and made
+     *   `alpha.rcln.com/pharmacy/orders?patientId=<uuid>` a bookmarkable,
+     *   Referer-leaking, shoulder-readable URL that identifies one patient.
+     *   CLAUDE.md: never a patient identifier in a query param. A screen that
+     *   genuinely needs this reaches it through the patient's own record.
+     *   (PI-24 review.)
+     */
     'trackingReference',
     'from',
     'to',
@@ -66,11 +75,22 @@ export default async function OnlineOrdersPage({
   }
 
   return (
-    <OnlineOrderList
-      orders={orders.data?.orders ?? []}
-      meta={orders.data?.meta ?? { page: 1, limit: 20, total: 0, totalPages: 1 }}
-      branches={branches}
-      canTakeOrders={access.canManageOrders}
-    />
+    <Suspense fallback={null}>
+      {/*
+      ⚠️ SUSPENSE BECAUSE THE CHILD CALLS `useSearchParams`. Next's docs are
+         explicit that a STATIC page reading it without a boundary fails the
+         production BUILD. This route is dynamic today — its page reads cookies
+         through `getSession` — so nothing breaks, but CLAUDE.md forbids
+         `pnpm build` as a verification step, which means that trap would be
+         sprung by a deploy rather than by anything we run. The boundary costs
+         nothing and removes it. (PI-24 review.)
+    */}
+      <OnlineOrderList
+        orders={orders.data?.orders ?? []}
+        meta={orders.data?.meta ?? { page: 1, limit: 20, total: 0, totalPages: 1 }}
+        branches={branches}
+        canTakeOrders={access.canManageOrders}
+      />
+    </Suspense>
   );
 }

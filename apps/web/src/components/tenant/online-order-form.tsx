@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/field';
 import { PharmacyNav } from '@/components/tenant/pharmacy-nav';
 import { PatientPicker } from '@/components/tenant/patient-picker';
+import { ConsultationPicker } from '@/components/tenant/consultation-picker';
 import { ProductPicker } from '@/components/tenant/product-picker';
 import { createOnlineOrderAction } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/orders/actions';
 import { IDLE_FORM, type PharmacyFormState } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
@@ -55,6 +56,8 @@ interface Props {
   locations: InventoryLocationSummary[];
   /** The default country for the address, from the branch the clinic works in. */
   defaultCountryCode: string;
+  /** The branch's zone, so a consultation date reads as the clinic's day. */
+  timeZone: string;
 }
 
 interface OrderLine {
@@ -78,11 +81,20 @@ const CHANNELS = [
   { value: 'COUNTER', label: 'Asked at the counter' },
 ];
 
-export function OnlineOrderForm({ slug, branches, locations, defaultCountryCode }: Props) {
+export function OnlineOrderForm({
+  slug,
+  branches,
+  locations,
+  defaultCountryCode,
+  timeZone,
+}: Props) {
   const router = useRouter();
   /* AGENTS.md: on a failed submit, move focus to the first field at fault. */
   const formRef = useRef<HTMLFormElement>(null);
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
+  /* Held here because the consultation picker is a sibling of the patient
+   * picker, not a child of it. */
+  const [patientId, setPatientId] = useState('');
   const [locationId, setLocationId] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([
     { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
@@ -116,6 +128,19 @@ export function OnlineOrderForm({ slug, branches, locations, defaultCountryCode 
   const chosen = lines.map((line) => line.productId).filter((id) => id !== '');
   const duplicated = chosen.length !== new Set(chosen).size;
 
+  /*
+   * ⚠️ A LINE WITH A MEDICINE AND NO USABLE QUANTITY IS DROPPED FROM THE
+   *   PAYLOAD, AND USED TO BE DROPPED IN SILENCE. The only thing this form
+   *   posts is the hidden `lines` JSON above — the per-line quantity inputs are
+   *   never read — so a quantity left blank, typed as `0`, or written "2 boxes"
+   *   removed that medicine from the order with nothing on screen to say so,
+   *   while the submit button stayed enabled as long as ONE line survived. The
+   *   pharmacist took a three-medicine order over the phone, saved it, and the
+   *   detail screen showed two. The duplicate case a few lines below has always
+   *   had a visible warning; this one had none. (PI-24 review.)
+   */
+  const incomplete = lines.filter((line) => line.productId !== '' && !(Number(line.quantity) > 0));
+
   const locationsHere = locations.filter((location) => location.branchId === branchId);
 
   return (
@@ -142,6 +167,15 @@ export function OnlineOrderForm({ slug, branches, locations, defaultCountryCode 
               ))}
             </ul>
           ) : null}
+        </Alert>
+      ) : null}
+
+      {incomplete.length > 0 ? (
+        <Alert tone="warning">
+          {incomplete.length === 1
+            ? 'One line has a medicine but no quantity, and will not be ordered.'
+            : `${incomplete.length} lines have a medicine but no quantity, and will not be ordered.`}{' '}
+          Give each one a quantity, or remove the line.
         </Alert>
       ) : null}
 
@@ -197,12 +231,22 @@ export function OnlineOrderForm({ slug, branches, locations, defaultCountryCode 
             required
             errors={state.fieldErrors?.['patientId']}
             hint="Name, phone or UHID. A parcel has to go to somebody on this branch's list."
+            onChoose={(patient) => setPatientId(patient?.id ?? '')}
           />
-          <Input
-            label="Consultation"
+          {/*
+            ⚠️ A LIST OF THE PATIENT'S CONSULTATIONS, NOT AN ID BOX
+               (KNOWN_ISSUES #33). This asked a receptionist to paste a uuid
+               copied off the prescription queue. It loads once a patient is
+               chosen, and shows date, doctor and item count — never a diagnosis,
+               which is why it reads the pharmacy endpoint rather than the
+               clinical one.
+          */}
+          <ConsultationPicker
+            slug={slug}
             name="encounterId"
+            patientId={patientId}
+            timeZone={timeZone}
             errors={state.fieldErrors?.['encounterId']}
-            hint="Optional. The signed consultation whose prescription this fills — copy its id from the prescription queue."
           />
         </fieldset>
 

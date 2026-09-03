@@ -43,7 +43,6 @@ Declared at `packages/db/prisma/schema/recall.prisma:214`.
 
 - `@@unique([organizationId, recallId, batchId])`
 - `@@unique([organizationId, id])`
-- `@@index([organizationId, recallId])`
 - `@@index([organizationId, batchId])`
 - `@@index([organizationId, branchId, status])`
 

@@ -4,73 +4,76 @@
 
 > How a supply consults the law, and what it does with the answer (PI-7).
 
-Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pharmacy/dashboard.service.ts` · `apps/api/src/services/pharmacy/dispense.service.ts` · `apps/api/src/services/pharmacy/fulfilment.service.ts` · `apps/api/src/services/pharmacy/online-order.service.ts` · `apps/api/src/services/pharmacy/queue.service.ts` · `apps/api/src/services/pharmacy/return.service.ts` · `apps/api/src/services/pharmacy/shared.ts` · `apps/api/src/services/pharmacy/substitution.service.ts`
+Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pharmacy/dashboard.service.ts` · `apps/api/src/services/pharmacy/dispense.service.ts` · `apps/api/src/services/pharmacy/fulfilment.service.ts` · `apps/api/src/services/pharmacy/notify.ts` · `apps/api/src/services/pharmacy/online-order.service.ts` · `apps/api/src/services/pharmacy/queue.service.ts` · `apps/api/src/services/pharmacy/return.service.ts` · `apps/api/src/services/pharmacy/shared.ts` · `apps/api/src/services/pharmacy/substitution.service.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addressColumns` <sub>local</sub> | `(address: CreateOnlineOrderRequest['address']): { recipientName: string; recipientPhone: string; addressLin…` | `apps/api/src/services/pharmacy/online-order.service.ts:653` | The address columns, in the shape both writes use. |
+| `addressColumns` <sub>local</sub> | `(address: CreateOnlineOrderRequest['address']): { recipientName: string; recipientPhone: string; addressLin…` | `apps/api/src/services/pharmacy/online-order.service.ts:657` | The address columns, in the shape both writes use. |
 | `ageYearsOn` | `(dateOfBirth: Date \| null, on: Date): number \| undefined` | `apps/api/src/services/pharmacy/shared.ts:300` | Whole years, from a date of birth the caller must not otherwise pass on. |
-| `assertAddressBelongsToPatient` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, patientId: string, patientAddressId: string \| null): Promise<void>` | `apps/api/src/services/pharmacy/online-order.service.ts:610` |  |
-| `assertRemoteSupplyIsOpen` <sub>local</sub> | `(tx: TxClient, productId: string, productName: string, place: { countryCode: string; regionCode: string \| null }, on: Date): Promise<void>` | `apps/api/src/services/pharmacy/online-order.service.ts:919` |  |
+| `assertAddressBelongsToPatient` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, patientId: string, patientAddressId: string \| null): Promise<void>` | `apps/api/src/services/pharmacy/online-order.service.ts:614` |  |
+| `assertRemoteSupplyIsOpen` <sub>local</sub> | `(tx: TxClient, productId: string, productName: string, place: { countryCode: string; regionCode: string \| null }, on: Date): Promise<void>` | `apps/api/src/services/pharmacy/online-order.service.ts:923` |  |
 | `availableByProduct` <sub>local</sub> | `(tx: TxClient, branchId: string, productIds: readonly string[]): Promise<Map<string, Prisma.Decimal>>` | `apps/api/src/services/pharmacy/queue.service.ts:392` |  |
-| `cancelOnlineOrder` | `(ctx: TenantContext, id: string, body: CancelOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:1213` |  |
+| `cancelOnlineOrder` | `(ctx: TenantContext, id: string, body: CancelOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:1194` |  |
 | `cancelPrescriptionFulfilment` | `(ctx: TenantContext, encounterId: string, body: CancelPrescriptionFulfilmentRequest, options: PharmacyActionOptions): Promise<PharmacyPrescriptionDetail>` | `apps/api/src/services/pharmacy/queue.service.ts:542` |  |
-| `confirmOnlineOrder` | `(ctx: TenantContext, id: string, body: ConfirmOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:958` |  |
+| `confirmOnlineOrder` | `(ctx: TenantContext, id: string, body: ConfirmOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:962` |  |
 | `consultForReturn` | `(tx: TxClient, ctx: TenantContext, input: Omit<SupplyConsultation, 'transaction'> & { requestR…): Promise<{ decisionId: string; disposition: 'RESTOCKED' \| 'Q…` | `apps/api/src/services/pharmacy/consult.ts:241` |  |
 | `consultForSupply` | `(tx: TxClient, ctx: TenantContext, input: SupplyConsultation): Promise<SupplyDecision>` | `apps/api/src/services/pharmacy/consult.ts:107` | Ask, snapshot, and refuse where the platform is allowed to. Throws `RegulatoryRefusalError` (422, never 403) when the decision both fails to permit AND comes f… |
-| `createDispense` | `(ctx: TenantContext, body: CreateDispenseRequest, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:554` | Supply it. |
+| `createDispense` | `(ctx: TenantContext, body: CreateDispenseRequest, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:553` | Supply it. |
 | `createDispenseReturn` | `(ctx: TenantContext, dispenseId: string, body: CreateDispenseReturnRequest, options: PharmacyActionOptions): Promise<DispenseReturnDetail>` | `apps/api/src/services/pharmacy/return.service.ts:32` |  |
-| `createDispenseWithin` | `(tx: TxClient, ctx: TenantContext, branchId: string, body: CreateDispenseRequest, options: PharmacyActionOptions, remote?: RemoteSupply): Promise<string>` | `apps/api/src/services/pharmacy/dispense.service.ts:599` |  |
-| `createOnlineOrder` | `(ctx: TenantContext, body: CreateOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:691` |  |
-| `decisionFromSnapshot` <sub>local</sub> | `(row: DetailRow['lines'][number]['regulatoryDecision']): { outcome: 'PERMITTED' \| 'PERMITTED_WITH_CONDITIONS' \| 'REF…` | `apps/api/src/services/pharmacy/dispense.service.ts:119` |  |
-| `decisionFromSnapshot` <sub>local</sub> | `(row: NonNullable<DetailRow['lines'][number]['regulatoryDeci…): NonNullable<OnlineOrderLineDetail['acceptanceDecision']>` | `apps/api/src/services/pharmacy/online-order.service.ts:121` |  |
-| `deliverOnlineOrder` | `(ctx: TenantContext, id: string, body: DeliverOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:409` |  |
+| `createDispenseWithin` | `(tx: TxClient, ctx: TenantContext, branchId: string, body: CreateDispenseRequest, options: PharmacyActionOptions, remote?: RemoteSupply): Promise<string>` | `apps/api/src/services/pharmacy/dispense.service.ts:598` |  |
+| `createOnlineOrder` | `(ctx: TenantContext, body: CreateOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:695` |  |
+| `decisionFromSnapshot` <sub>local</sub> | `(row: DetailRow['lines'][number]['regulatoryDecision']): { outcome: 'PERMITTED' \| 'PERMITTED_WITH_CONDITIONS' \| 'REF…` | `apps/api/src/services/pharmacy/dispense.service.ts:118` |  |
+| `decisionFromSnapshot` <sub>local</sub> | `(row: NonNullable<DetailRow['lines'][number]['regulatoryDeci…): NonNullable<OnlineOrderLineDetail['acceptanceDecision']>` | `apps/api/src/services/pharmacy/online-order.service.ts:125` |  |
+| `deliverOnlineOrder` | `(ctx: TenantContext, id: string, body: DeliverOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:448` |  |
 | `dispensedByPrescriptionLine` | `(tx: TxClient, organizationId: string, encounterPrescriptionIds: readonly string[]): Promise<Map<string, Prisma.Decimal>>` | `apps/api/src/services/pharmacy/shared.ts:189` |  |
 | `displayName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/queue.service.ts:68` | A patient's name from its two halves. Users carry one `full_name` instead. |
-| `failOnlineOrderDelivery` | `(ctx: TenantContext, id: string, body: FailOnlineOrderDeliveryRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:477` |  |
-| `getDispense` | `(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:279` |  |
+| `failOnlineOrderDelivery` | `(ctx: TenantContext, id: string, body: FailOnlineOrderDeliveryRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:516` |  |
+| `getDispense` | `(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<DispenseDetail>` | `apps/api/src/services/pharmacy/dispense.service.ts:278` |  |
 | `getDispenseReturn` | `(ctx: TenantContext, id: string): Promise<DispenseReturnDetail>` | `apps/api/src/services/pharmacy/return.service.ts:357` |  |
-| `getOnlineOrder` | `(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:363` |  |
+| `getOnlineOrder` | `(ctx: TenantContext, id: string, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:367` |  |
 | `getPharmacyDashboard` | `(ctx: TenantContext, query: PharmacyDashboardQuery, options: PharmacyActionOptions): Promise<PharmacyDashboardResponse>` | `apps/api/src/services/pharmacy/dashboard.service.ts:26` |  |
 | `getPharmacyPrescription` | `(ctx: TenantContext, encounterId: string, options: PharmacyActionOptions): Promise<PharmacyPrescriptionDetail>` | `apps/api/src/services/pharmacy/queue.service.ts:214` |  |
-| `heldByLine` <sub>local</sub> | `(tx: TxClient, organizationId: string, lineIds: readonly string[]): Promise<Map<string, Prisma.Decimal>>` | `apps/api/src/services/pharmacy/online-order.service.ts:196` |  |
+| `heldByLine` <sub>local</sub> | `(tx: TxClient, organizationId: string, lineIds: readonly string[]): Promise<Map<string, Prisma.Decimal>>` | `apps/api/src/services/pharmacy/online-order.service.ts:200` |  |
 | `isDispensableStatus` <sub>local</sub> | `(status: string): boolean` | `apps/api/src/services/pharmacy/queue.service.ts:63` |  |
-| `listDispenses` | `(ctx: TenantContext, query: DispenseQuery, options: PharmacyActionOptions): Promise<DispenseListResponse>` | `apps/api/src/services/pharmacy/dispense.service.ts:222` |  |
-| `listOnlineOrders` | `(ctx: TenantContext, query: OnlineOrderQuery, options: PharmacyActionOptions): Promise<OnlineOrderListResponse>` | `apps/api/src/services/pharmacy/online-order.service.ts:287` |  |
+| `listDispenses` | `(ctx: TenantContext, query: DispenseQuery, options: PharmacyActionOptions): Promise<DispenseListResponse>` | `apps/api/src/services/pharmacy/dispense.service.ts:221` |  |
+| `listOnlineOrders` | `(ctx: TenantContext, query: OnlineOrderQuery, options: PharmacyActionOptions): Promise<OnlineOrderListResponse>` | `apps/api/src/services/pharmacy/online-order.service.ts:291` |  |
+| `listPatientConsultations` | `(ctx: TenantContext, patientId: string, query: PatientConsultationsQuery, options: PharmacyActionOptions): Promise<PatientConsultationsResponse>` | `apps/api/src/services/pharmacy/online-order.service.ts:1290` |  |
 | `listPrescriptionQueue` | `(ctx: TenantContext, query: PrescriptionQueueQuery, options: PharmacyActionOptions): Promise<PrescriptionQueueResponse>` | `apps/api/src/services/pharmacy/queue.service.ts:82` |  |
 | `listSubstitutionCandidates` | `(ctx: TenantContext, productId: string, query: SubstitutionQuery, options: PharmacyActionOptions): Promise<SubstitutionResponse>` | `apps/api/src/services/pharmacy/substitution.service.ts:44` |  |
-| `loadDispenseForReturn` | `(tx: TxClient, organizationId: string, dispenseId: string): Promise<{ id: string; branchId: string; locationId: string;…` | `apps/api/src/services/pharmacy/dispense.service.ts:1244` | Guard used by the return path, kept here so both agree on what "posted" means. |
-| `loadOrder` <sub>local</sub> | `(tx: TxClient, organizationId: string, id: string): Promise<{ id: string; branchId: string; locationId: string;…` | `apps/api/src/services/pharmacy/fulfilment.service.ts:77` | The order, in the shape every act below needs it. |
+| `loadDispenseForReturn` | `(tx: TxClient, organizationId: string, dispenseId: string): Promise<{ id: string; branchId: string; locationId: string;…` | `apps/api/src/services/pharmacy/dispense.service.ts:1198` | Guard used by the return path, kept here so both agree on what "posted" means. |
+| `loadOrder` <sub>local</sub> | `(tx: TxClient, organizationId: string, id: string): Promise<{ id: string; branchId: string; locationId: string;…` | `apps/api/src/services/pharmacy/fulfilment.service.ts:79` | The order, in the shape every act below needs it. |
 | `lockDispenseLine` <sub>local</sub> | `(tx: TxClient, dispenseLineId: string): Promise<void>` | `apps/api/src/services/pharmacy/return.service.ts:426` |  |
-| `packOnlineOrder` | `(ctx: TenantContext, id: string, body: PackOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:141` | Make the parcel up: consume the holds, write the dispense, move the order on. |
-| `patientName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/dispense.service.ts:107` | A patient's name from its two halves. Users carry one `full_name` instead. |
-| `patientName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/online-order.service.ts:109` |  |
+| `notifyAboutOrder` | `(ctx: TenantContext, event: OrderEvent, order: { id: string; branchId: string }): Promise<void>` | `apps/api/src/services/pharmacy/notify.ts:27` |  |
+| `packOnlineOrder` | `(ctx: TenantContext, id: string, body: PackOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:143` | Make the parcel up: consume the holds, write the dispense, move the order on. |
+| `patientName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/dispense.service.ts:106` | A patient's name from its two halves. Users carry one `full_name` instead. |
+| `patientName` <sub>local</sub> | `(patient: { firstName: string; lastName: string \| null }): string` | `apps/api/src/services/pharmacy/online-order.service.ts:113` |  |
+| `presentedPrescriptionFor` | `(tx: TxClient, ctx: TenantContext, encounter: { finalizedAt: Date \| null; startedAt: Date } \| …, prescriptionLine: \| { id: string; repeatsAuthorised: boolea…): Promise<EvaluateRegulatoryRequest['pres…` | `apps/api/src/services/pharmacy/consult.ts:400` |  |
 | `priorQuantitySupplied` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, input: { patientId: string; productId: string; before: Date…): Promise<string>` | `apps/api/src/services/pharmacy/consult.ts:333` |  |
 | `recordDecision` | `(tx: TxClient, ctx: TenantContext, input: DecisionSnapshotInput): Promise<string>` | `apps/api/src/services/pharmacy/shared.ts:143` |  |
-| `refreshDispenseStatus` | `(tx: TxClient, dispenseId: string): Promise<void>` | `apps/api/src/services/pharmacy/dispense.service.ts:1229` |  |
+| `refreshDispenseStatus` | `(tx: TxClient, dispenseId: string): Promise<void>` | `apps/api/src/services/pharmacy/dispense.service.ts:1183` |  |
 | `refreshFulfilment` | `(tx: TxClient, ctx: TenantContext, encounterId: string, branchId: string): Promise<void>` | `apps/api/src/services/pharmacy/shared.ts:228` |  |
 | `refusingRuleCodes` | `(decision: RegulatoryDecisionResponse): string[]` | `apps/api/src/services/pharmacy/shared.ts:118` | The codes that did not permit. Log-safe: a code, never a patient. |
-| `resolveAllocations` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string, productId: string, productName: string, quantityBase: string, requested: DispenseLineRequest['allocations']): Promise<ResolvedAllocation[]>` | `apps/api/src/services/pharmacy/dispense.service.ts:356` |  |
+| `resolveAllocations` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, branchId: string, productId: string, productName: string, quantityBase: string, requested: DispenseLineRequest['allocations']): Promise<ResolvedAllocation[]>` | `apps/api/src/services/pharmacy/dispense.service.ts:355` |  |
 | `resolveBranchId` | `(ctx: TenantContext, named: string \| undefined, acting: string \| null \| undefined): string` | `apps/api/src/services/pharmacy/shared.ts:32` |  |
 | `resolveDispensingLocation` | `(tx: TxClient, branchId: string, locationId: string): Promise<DispensingLocation>` | `apps/api/src/services/pharmacy/shared.ts:56` |  |
-| `resolveLines` <sub>local</sub> | `(tx: TxClient, lines: CreateOnlineOrderRequest['lines'], prescribed: Map<string, { productId: string }>): Promise<ResolvedLine[]>` | `apps/api/src/services/pharmacy/online-order.service.ts:509` |  |
-| `resolveSubject` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, patientId: string, encounterId: string \| null): Promise<{ dateOfBirth: Date \| null; subjectType: 'HUMAN' \| …` | `apps/api/src/services/pharmacy/online-order.service.ts:411` |  |
-| `shipOnlineOrder` | `(ctx: TenantContext, id: string, body: ShipOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:335` |  |
+| `resolveLines` <sub>local</sub> | `(tx: TxClient, lines: CreateOnlineOrderRequest['lines'], prescribed: Map<string, { productId: string }>): Promise<ResolvedLine[]>` | `apps/api/src/services/pharmacy/online-order.service.ts:513` |  |
+| `resolveSubject` <sub>local</sub> | `(tx: TxClient, ctx: TenantContext, patientId: string, encounterId: string \| null): Promise<{ dateOfBirth: Date \| null; subjectType: 'HUMAN' \| …` | `apps/api/src/services/pharmacy/online-order.service.ts:415` |  |
+| `shipOnlineOrder` | `(ctx: TenantContext, id: string, body: ShipOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/fulfilment.service.ts:371` |  |
 | `toDecisionSummary` | `(decision: RegulatoryDecisionResponse): DispenseRegulatorySummary` | `apps/api/src/services/pharmacy/shared.ts:102` |  |
-| `toDetail` <sub>local</sub> | `(row: DetailRow): DispenseDetail` | `apps/api/src/services/pharmacy/dispense.service.ts:170` |  |
-| `toDetail` <sub>local</sub> | `(tx: TxClient, row: DetailRow): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:222` |  |
-| `toSummary` <sub>local</sub> | `(row: DetailRow): DispenseSummary` | `apps/api/src/services/pharmacy/dispense.service.ts:147` |  |
-| `toSummary` <sub>local</sub> | `(row: DetailRow): OnlineOrderSummary` | `apps/api/src/services/pharmacy/online-order.service.ts:148` |  |
-| `updateOnlineOrder` | `(ctx: TenantContext, id: string, body: UpdateOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:790` |  |
+| `toDetail` <sub>local</sub> | `(row: DetailRow): DispenseDetail` | `apps/api/src/services/pharmacy/dispense.service.ts:169` |  |
+| `toDetail` <sub>local</sub> | `(tx: TxClient, row: DetailRow): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:226` |  |
+| `toSummary` <sub>local</sub> | `(row: DetailRow): DispenseSummary` | `apps/api/src/services/pharmacy/dispense.service.ts:146` |  |
+| `toSummary` <sub>local</sub> | `(row: DetailRow): OnlineOrderSummary` | `apps/api/src/services/pharmacy/online-order.service.ts:152` |  |
+| `updateOnlineOrder` | `(ctx: TenantContext, id: string, body: UpdateOnlineOrderRequest, options: PharmacyActionOptions): Promise<OnlineOrderDetail>` | `apps/api/src/services/pharmacy/online-order.service.ts:794` |  |
 | `verifyPrescription` | `(ctx: TenantContext, encounterId: string, body: VerifyPrescriptionRequest, options: PharmacyActionOptions): Promise<PharmacyPrescriptionDetail>` | `apps/api/src/services/pharmacy/queue.service.ts:426` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `EVERYTHING_ON_THE_SHELF` <sub>local</sub> | `'999999999999'` | `apps/api/src/services/pharmacy/dispense.service.ts:319` |  |
+| `EVERYTHING_ON_THE_SHELF` <sub>local</sub> | `'999999999999'` | `apps/api/src/services/pharmacy/dispense.service.ts:318` |  |
 | `EXPIRY_HORIZON_DAYS` <sub>local</sub> | `30` | `apps/api/src/services/pharmacy/dashboard.service.ts:24` | How far ahead "expiring soon" looks. A month is a dispensary's ordering cycle. |
 | `MAX_CANDIDATES` <sub>local</sub> | `20` | `apps/api/src/services/pharmacy/substitution.service.ts:42` | How many equivalents a screen is shown. A shortlist, not a catalogue dump. |
 
@@ -78,8 +81,8 @@ Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pha
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.DispenseInclude>()(…)` | `apps/api/src/services/pharmacy/dispense.service.ts:73` |  |
-| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.OnlineOrderInclude>()(…)` | `apps/api/src/services/pharmacy/online-order.service.ts:81` |  |
+| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.DispenseInclude>()(…)` | `apps/api/src/services/pharmacy/dispense.service.ts:72` |  |
+| `detailInclude` <sub>local</sub> | `Prisma.validator<Prisma.OnlineOrderInclude>()(…)` | `apps/api/src/services/pharmacy/online-order.service.ts:85` |  |
 
 ## interface
 
@@ -88,9 +91,9 @@ Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pha
 | `DecisionSnapshotInput` | `{ branchId, productId, transaction, quantityBase, decision }` | `apps/api/src/services/pharmacy/shared.ts:125` |  |
 | `DispensingLocation` | `{ id, name, kind, requiresControlledAccess, hasControlledAccess }` | `apps/api/src/services/pharmacy/shared.ts:40` |  |
 | `PharmacyActionOptions` | `{ ipAddress, userAgent, route, actingBranchId, roleCodes }` | `apps/api/src/services/pharmacy/queue.service.ts:45` | The audit/data-access metadata a route hands down. |
-| `RemoteSupply` | `{ onlineOrderId, destination, held }` | `apps/api/src/services/pharmacy/dispense.service.ts:542` |  |
-| `ResolvedAllocation` | `{ locationId, batchId, serialId, quantityBase, isOverride, overrideReason, lotNumber, expiresOn, serialNumber }` | `apps/api/src/services/pharmacy/dispense.service.ts:329` |  |
-| `ResolvedLine` <sub>local</sub> | `{ encounterPrescriptionId, productId, quantityEntered, unitId, quantityBase }` | `apps/api/src/services/pharmacy/online-order.service.ts:394` |  |
+| `RemoteSupply` | `{ onlineOrderId, destination, held }` | `apps/api/src/services/pharmacy/dispense.service.ts:541` |  |
+| `ResolvedAllocation` | `{ locationId, batchId, serialId, quantityBase, isOverride, overrideReason, lotNumber, expiresOn, serialNumber }` | `apps/api/src/services/pharmacy/dispense.service.ts:328` |  |
+| `ResolvedLine` <sub>local</sub> | `{ encounterPrescriptionId, productId, quantityEntered, unitId, quantityBase }` | `apps/api/src/services/pharmacy/online-order.service.ts:398` |  |
 | `SupplyConsultation` | `{ branchId, productId, locationId, quantityBase, transaction, destination, occurredAt, prescription, patient, substitution, traceability, priorQuantityInPeriodBase, patientId, actor, documentId }` | `apps/api/src/services/pharmacy/consult.ts:46` |  |
 | `SupplyDecision` | `{ decisionId, summary, decision }` | `apps/api/src/services/pharmacy/consult.ts:95` |  |
 
@@ -98,5 +101,6 @@ Files: `apps/api/src/services/pharmacy/consult.ts` · `apps/api/src/services/pha
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DetailRow` <sub>local</sub> | `Prisma.DispenseGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/pharmacy/dispense.service.ts:104` |  |
-| `DetailRow` <sub>local</sub> | `Prisma.OnlineOrderGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/pharmacy/online-order.service.ts:107` |  |
+| `DetailRow` <sub>local</sub> | `Prisma.DispenseGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/pharmacy/dispense.service.ts:103` |  |
+| `DetailRow` <sub>local</sub> | `Prisma.OnlineOrderGetPayload<{ include: typeof detailInclude }>` | `apps/api/src/services/pharmacy/online-order.service.ts:111` |  |
+| `OrderEvent` <sub>local</sub> | `\| typeof NOTIFICATION_JOB.ONLINE_ORDER_CONFIRMED \| typeof NOTIFICATION_JOB.ONLINE_ORDER_SHIPPED \| typeof NOTIFICATION_JOB.ONLINE_ORDER_DELIVERY_FAILED` | `apps/api/src/services/pharmacy/notify.ts:22` |  |

@@ -83,6 +83,23 @@ interface Props {
    *   back the whole row, because that is what a NEW choice actually is.
    */
   initial?: ChosenProduct | null;
+  /**
+   * The chosen product, when the PARENT owns it — a line in a form that a scan
+   * can fill in from outside.
+   *
+   * ⚠️ THIS EXISTS SO THE THREE SCANNING FORMS DO NOT HAVE TO REMOUNT THE
+   *   PICKER, WHICH IS KNOWN_ISSUES #37. `initial` seeds `useState` and is
+   *   therefore read once, so a scan that changed the line's product could not
+   *   reach it — the forms passed `key={line.productId}` and threw the whole
+   *   subtree away instead. That worked, and it cost the search term, the result
+   *   list, the scroll position and the FOCUS on every scan, which on a goods
+   *   receipt means the operator's cursor leaves the scan box after each carton.
+   *
+   *   Passing `value` (even `null`) makes the component controlled and `initial`
+   *   is ignored; omitting it leaves the other thirteen call sites exactly as
+   *   they were. (PI-24 review.)
+   */
+  value?: ChosenProduct | null;
   /** Told what was chosen, for a form that reacts to it — an expiry that becomes required. */
   onChoose?: (product: ProductSummary | null) => void;
   /** What to say when nothing in the catalogue can be chosen here. */
@@ -103,19 +120,24 @@ export function ProductPicker({
   errors,
   filters,
   initial = null,
+  value,
   onChoose,
   emptyHint = 'Nothing matched. Try part of the name, the product code, or its barcode.',
   disabled = false,
   className,
 }: Props) {
   const fieldId = useId();
-  const [chosen, setChosen] = useState<ChosenProduct | null>(initial);
+  const [internalChosen, setInternalChosen] = useState<ChosenProduct | null>(initial);
+  /* Controlled when `value` was passed at all — `null` is a choice, `undefined`
+   * is "you own this". */
+  const controlled = value !== undefined;
+  const chosen = controlled ? value : internalChosen;
   const [term, setTerm] = useState('');
   const [state, setState] = useState<ProductSearchState>(IDLE);
   const [pending, startTransition] = useTransition();
 
   const choose = (product: ProductSummary | null): void => {
-    setChosen(product);
+    if (!controlled) setInternalChosen(product);
     setState(IDLE);
     setTerm('');
     onChoose?.(product);
@@ -164,6 +186,19 @@ export function ProductPicker({
         <p className="border-rule bg-paper text-muted mt-2 rounded-md border px-3.5 py-2.5 text-[0.9375rem]">
           Nothing chosen
         </p>
+        {/*
+         * ⚠️ THE EMPTY HIDDEN INPUT BELONGS HERE TOO, and this branch returned
+         *   before reaching it — so a disabled picker posted no key at all,
+         *   contradicting the reasoning stated at the input further down. No
+         *   call site passes `disabled` today, so it was latent; the first one
+         *   that does would get a Zod error filed under the wrong field.
+         *
+         *   Always empty: the `chosen` branch above has already returned by
+         *   here, so a disabled picker with a choice renders there (without the
+         *   Change button) and this branch is only ever the empty one.
+         *   (PI-24 review.)
+         */}
+        {name === undefined ? null : <input type="hidden" name={name} value="" />}
       </div>
     );
   }

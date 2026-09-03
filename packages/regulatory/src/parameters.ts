@@ -74,6 +74,34 @@ function readDecimal(source: Record<string, unknown>, key: string): Parsed<strin
   return { ok: true, value: raw };
 }
 
+/**
+ * A list of strings, and an EMPTY one is refused.
+ *
+ * ⚠️ `[]` IS NOT "NO OPINION", IT IS A LIMB THAT SILENTLY STOPS CHECKING.
+ *   Every "did the author say anything?" guard in this file tests
+ *   `=== undefined`, so an empty array slips past the guard as a present,
+ *   well-formed value and then disables the very check it belongs to. PI-24
+ *   found seven of these, all permitting:
+ *
+ *     `{requiredIdentifiers: []}`      — traceability imposes nothing
+ *     `{storageLocationKinds: []}`     — a controlled drug may be kept anywhere
+ *     `{prohibitedSubjectTypes: []}`   — a species prohibition prohibits nobody
+ *     `{destinationCountryCodes: []}`  — an online sale may go anywhere
+ *     `{excludedClassifications: []}`  — no classification is excluded
+ *     `{fields: []}`                   — a label with no particulars on it
+ *     `{locationKinds: []}`            — a storage rule that checks no location
+ *
+ *   Two of them defeat a guard added specifically to stop this class:
+ *   `{scheduleName, storageLocationKinds: []}` reads as "imposes an obligation",
+ *   skips the informational branch, and then imposes nothing — which is the
+ *   `AU-SCHEDULE-S8` defect coming back through a side door.
+ *
+ *   The reasoning was already written down for two keys, at `parseSpeciesRestriction`:
+ *   an empty list is "far more likely to be a truncated edit than an intention".
+ *   That is true of all of them, so it belongs here rather than in one parser.
+ *   No shipped pack writes an empty parameter array, so refusing costs nothing
+ *   today and closes the class permanently.
+ */
 function readStringArray(
   source: Record<string, unknown>,
   key: string
@@ -82,6 +110,9 @@ function readStringArray(
   if (raw === undefined || raw === null) return { ok: true, value: undefined };
   if (!Array.isArray(raw) || raw.some((entry) => typeof entry !== 'string')) {
     return fail(`"${key}" is not a list of strings`);
+  }
+  if (raw.length === 0) {
+    return fail(`"${key}" is an empty list — say nothing, or say what belongs in it`);
   }
   return { ok: true, value: raw as string[] };
 }
@@ -229,6 +260,28 @@ export interface ControlledScheduleParameters {
   priorAuthorisationRequired: boolean | undefined;
   /** Who issues it — named in the condition so the screen can say where to look. */
   authorisationAuthority: string | undefined;
+  /**
+   * This rule exists to NAME the schedule, and imposes nothing. (PI-24.)
+   *
+   * ⚠️ IT MUST BE SAID OUT LOUD, AND THAT IS THE ENTIRE POINT OF THE FLAG.
+   *   A rule carrying only a `scheduleName` is indistinguishable from one whose
+   *   author meant to write `registerRequired` and mistyped it — and in a
+   *   controlled-drugs engine those two must not resolve the same way. Without
+   *   the flag the parser refuses both, which is why `AU-SCHEDULE-S8` refused
+   *   every Schedule 8 transaction in seven Australian jurisdictions; with it,
+   *   the deliberate case says so and the mistyped one still fails closed.
+   *
+   *   So it is not a relaxation of the "imposes no obligation" refusal below.
+   *   It is the one documented way to opt out of it, and setting it beside a
+   *   real obligation is refused as a contradiction.
+   *
+   * Some jurisdictions genuinely impose nothing beyond the label: the Poisons
+   * Standard creates no national register, safe or retention requirement, and
+   * Ireland's Regulation 19(1) stops after Schedules 1 and 2. The decision still
+   * has to be able to say "this is a controlled drug", or a Schedule 8 supply in
+   * Sydney comes back indistinguishable from an ordinary one.
+   */
+  informationalOnly: boolean | undefined;
 }
 
 export interface SubstitutionParameters {
@@ -470,12 +523,8 @@ export function parseSpeciesRestriction(parameters: unknown): Parsed<SpeciesRest
   if (prohibitedSubjectTypes?.some((entry) => entry !== 'HUMAN' && entry !== 'ANIMAL')) {
     return fail('"prohibitedSubjectTypes" may only contain "HUMAN" and "ANIMAL"');
   }
-  if (permittedSpecies?.length === 0 || prohibitedSpecies?.length === 0) {
-    /* An empty allow-list refuses every animal alive and an empty deny-list
-     * refuses none — both are far more likely to be a truncated edit than an
-     * intention, and neither is worth guessing at. */
-    return fail('it states an empty species list');
-  }
+  /* The empty-list refusal that used to live here now covers every list key —
+   * see `readStringArray`, which is where this reasoning was generalised. */
   return parsed;
 }
 
@@ -489,21 +538,48 @@ export function parseControlledSchedule(parameters: unknown): Parsed<ControlledS
     storageLocationKinds: readStringArray(source.value, 'storageLocationKinds'),
     priorAuthorisationRequired: readBoolean(source.value, 'priorAuthorisationRequired'),
     authorisationAuthority: readString(source.value, 'authorisationAuthority'),
+    informationalOnly: readBoolean(source.value, 'informationalOnly'),
   });
   if (!parsed.ok) return parsed;
+
+  const imposesNothing =
+    parsed.value.registerRequired === undefined &&
+    parsed.value.witnessRequired === undefined &&
+    parsed.value.storageLocationKinds === undefined &&
+    parsed.value.priorAuthorisationRequired === undefined;
+
+  if (parsed.value.informationalOnly === true) {
+    /*
+     * ⚠️ INFORMATIONAL AND OBLIGATORY AT ONCE HAS NO HONEST READING. Either the
+     *   flag is stale and the obligation is real, or the obligation was pasted
+     *   in from a neighbouring rule — and guessing which would either drop a
+     *   register entry or invent one. The pack says one thing or the other.
+     */
+    if (!imposesNothing) {
+      return fail(
+        'it is marked informational and also imposes an obligation, and only one of those can be true'
+      );
+    }
+    /* Nothing to label with is not informational, it is empty. */
+    if (parsed.value.scheduleName === undefined) {
+      return sayNothing('scheduleName', 'which schedule the decision should name');
+    }
+    return parsed;
+  }
 
   /*
    * ⚠️ A CONTROLLED-SCHEDULE RULE THAT IMPOSES NOTHING IS A BROKEN RULE, NOT A
    *   PERMISSIVE ONE. `{}` previously returned PERMITTED with no register entry
    *   and no witness — the exact obligations the rule type exists to carry.
+   *
+   *   A pack that genuinely imposes nothing says `informationalOnly: true` above
+   *   and is let through. Reaching here means the rule neither imposes anything
+   *   nor claims to be a label, which is what a mistyped parameter looks like.
    */
-  if (
-    parsed.value.registerRequired === undefined &&
-    parsed.value.witnessRequired === undefined &&
-    parsed.value.storageLocationKinds === undefined &&
-    parsed.value.priorAuthorisationRequired === undefined
-  ) {
-    return fail('it is a controlled-schedule rule that imposes no obligation');
+  if (imposesNothing) {
+    return fail(
+      'it is a controlled-schedule rule that imposes no obligation and does not say it is informational'
+    );
   }
   return parsed;
 }
@@ -653,6 +729,19 @@ export function parseImportRestriction(parameters: unknown): Parsed<ImportRestri
   if (!parsed.ok) return parsed;
   if (parsed.value.permitted === undefined) {
     return sayNothing('permitted', 'whether import is allowed');
+  }
+  /*
+   * ⚠️ "A LICENCE IS REQUIRED" WITHOUT SAYING WHICH ONE WAS SATISFIED BY ANY
+   *   LICENCE AT ALL. `evaluateImportRestriction` fell back to `held.length > 0`,
+   *   so a pharmacist's dispensing registration satisfied an import-licence
+   *   requirement — "we could not name what is needed" resolving as "anything
+   *   will do", which is the same shape as the empty-list class above.
+   *   Refusing the pair at the parser is the fix `parseQuantityLimit` already
+   *   uses for `maxPerPeriodBase` without `periodDays`, and no shipped pack
+   *   writes it. (PI-24 review.)
+   */
+  if (parsed.value.licenceRequired === true && parsed.value.licenceType === undefined) {
+    return fail('it requires a licence without saying which licence');
   }
   return parsed;
 }

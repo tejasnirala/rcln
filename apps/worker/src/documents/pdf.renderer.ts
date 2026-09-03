@@ -19,6 +19,7 @@
  */
 
 import type { Buffer } from 'node:buffer';
+import type { Page } from 'playwright-core';
 
 import { FOOTER_TEMPLATE_ID, HEADER_TEMPLATE_ID } from '@rcln/documents';
 
@@ -91,40 +92,7 @@ export async function renderPdf(html: string): Promise<Buffer> {
       return { header: read('${HEADER_TEMPLATE_ID}'), footer: read('${FOOTER_TEMPLATE_ID}') };
     })()`)) as { header: string; footer: string };
 
-    const hasChrome = chrome.header !== '' || chrome.footer !== '';
-
-    return await page.pdf({
-      ...(hasChrome
-        ? {
-            displayHeaderFooter: true,
-            /*
-             * Empty string rather than the missing one: a template Chromium is
-             * given as `undefined` falls back to its built-in, so a document
-             * with only a footer would print Chromium's URL header above it.
-             */
-            headerTemplate: chrome.header,
-            footerTemplate: chrome.footer,
-          }
-        : {}),
-      /*
-       * ⚠️ THE PAGE SIZE COMES FROM THE CSS, NOT FROM A `format` OPTION HERE.
-       *   The stylesheet already declares `@page { size: A4 }` because the
-       *   preview needs to know the geometry too. Stating it in both places is
-       *   two sources of truth for one measurement, and the failure — a
-       *   preview laid out for one paper size and a PDF printed on another — is
-       *   precisely the drift this design exists to prevent.
-       */
-      preferCSSPageSize: true,
-      /*
-       * The tinted table header and the total band are information, not
-       * decoration. Chromium drops backgrounds by default, which would leave
-       * the column labels and the grand total visually indistinguishable from
-       * body rows on the printed sheet.
-       */
-      printBackground: true,
-      // The margins are in the CSS `@page` rule, for the same reason as the size.
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    });
+    return await page.pdf(pdfOptionsFor(chrome));
   } finally {
     /*
      * The context, not the browser. A leaked context holds a renderer process
@@ -133,4 +101,57 @@ export async function renderPdf(html: string): Promise<Buffer> {
      */
     await context.close();
   }
+}
+
+/**
+ * The `page.pdf()` options for a document, decided by the chrome it carries.
+ *
+ * ⚠️ EXTRACTED SO IT CAN BE TESTED WITHOUT A BROWSER (PI-24, KNOWN_ISSUES #6).
+ *   Whether the header and footer REPEAT on every page is a property of
+ *   Chromium's printer, which no unit test can assert — but WHICH OPTIONS WE
+ *   HAND IT is entirely ours, and it was the untested half. The three cases
+ *   below each have a distinct failure, and the middle one is the nasty one.
+ *
+ * ⚠️ NEITHER TEMPLATE MEANS `displayHeaderFooter` IS NOT SET AT ALL. Turning it
+ *   on with two empty strings does NOT print nothing — Chromium prints its own
+ *   default chrome, which is the page URL and today's date. On an invoice that
+ *   is a `localhost` URL across the top of a tax document.
+ *
+ * ⚠️ ONE TEMPLATE MEANS THE OTHER IS AN EMPTY STRING, NOT `undefined`. A
+ *   template Chromium is handed as `undefined` falls back to that same built-in,
+ *   so a document with only a footer would print the URL header above it.
+ */
+export function pdfOptionsFor(chrome: {
+  header: string;
+  footer: string;
+}): Parameters<Page['pdf']>[0] {
+  const hasChrome = chrome.header !== '' || chrome.footer !== '';
+
+  return {
+    ...(hasChrome
+      ? {
+          displayHeaderFooter: true,
+          headerTemplate: chrome.header,
+          footerTemplate: chrome.footer,
+        }
+      : {}),
+    /*
+     * ⚠️ THE PAGE SIZE COMES FROM THE CSS, NOT FROM A `format` OPTION HERE.
+     *   The stylesheet already declares `@page { size: A4 }` because the preview
+     *   needs to know the geometry too. Stating it in both places is two sources
+     *   of truth for one measurement, and the failure — a preview laid out for
+     *   one paper size and a PDF printed on another — is precisely the drift
+     *   this design exists to prevent.
+     */
+    preferCSSPageSize: true,
+    /*
+     * The tinted table header and the total band are information, not
+     * decoration. Chromium drops backgrounds by default, which would leave the
+     * column labels and the grand total visually indistinguishable from body
+     * rows on the printed sheet.
+     */
+    printBackground: true,
+    /* The margins are in the CSS `@page` rule, for the same reason as the size. */
+    margin: { top: '0', right: '0', bottom: '0', left: '0' },
+  };
 }

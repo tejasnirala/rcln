@@ -478,6 +478,17 @@ describe('a controlled drug prescription runs for thirty days and not a day more
     expect(codes(third)).toContain('SG-SCHEDULE-CD3');
     expect(conditionKinds(third)).not.toContain('RECORD_IN_CONTROLLED_REGISTER');
     expect(third.outcome).not.toBe('REFUSED');
+    /*
+     * ⚠️ AND NOT UNDETERMINED EITHER, WHICH IS THE ASSERTION THAT WAS MISSING.
+     *   `SG-SCHEDULE-CD3` imposed nothing and did not say it was informational,
+     *   so the parser refused it and the rule resolved UNDETERMINED — a Third
+     *   Schedule supply was blocked by the rule meant only to label it. Every
+     *   assertion above passed throughout: an unreadable rule puts its code in
+     *   the reasons and raises no conditions, exactly like the permissive rule
+     *   this case is describing. UNDETERMINED is not REFUSED, so the line above
+     *   could not catch it. Fixed in PI-24.
+     */
+    expect(third.outcome).not.toBe('UNDETERMINED');
   });
 
   it('keeps controlled-drug papers for three years, against a POM’s two', async () => {

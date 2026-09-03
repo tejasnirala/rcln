@@ -819,30 +819,35 @@ describe('the register, the safe, and the two lists that are not the same list',
     expect(codes(decision)).toContain('IE-SCHEDULE-CD2');
   });
 
-  it('carries no schedule rule for Schedule 3 at all, which is a framework limit', async () => {
+  it('names Schedule 3 without inventing a register for it', async () => {
     /*
-     * ⚠️ THE FIRST DRAFT OF THIS PACK GAVE SCHEDULE 3 AND PART 1 OF SCHEDULE 4 A
-     *   `CONTROLLED_SCHEDULE` RULE CARRYING ONLY `scheduleName`, ON THE
-     *   AUSTRALIAN PACK'S PRECEDENT — AND IT REFUSED EVERY TRANSACTION.
-     *   `parseControlledSchedule` rejects a document that imposes no obligation,
-     *   so such a rule resolves `UNDETERMINED`, which refuses. Regulation 19(1)
-     *   reaches Schedules 1 and 2 and stops, so there was nothing honest for the
-     *   rule to carry.
+     * ⚠️ THIS CASE USED TO PIN THE ABSENCE, AND THE ABSENCE WAS A FRAMEWORK LIMIT
+     *   RATHER THAN A READING OF THE REGULATION. The first draft of this pack
+     *   gave Schedule 3 and Part 1 of Schedule 4 a `CONTROLLED_SCHEDULE` rule
+     *   carrying only `scheduleName`, on the Australian pack's precedent, and it
+     *   REFUSED EVERY TRANSACTION: `parseControlledSchedule` rejected a document
+     *   imposing no obligation, and an unreadable rule resolves `UNDETERMINED`,
+     *   which refuses. So the rules were dropped and the cost was recorded — a
+     *   Schedule 3 decision that does not say it is about a controlled drug.
      *
-     *   ⚠️ `AU-SCHEDULE-S8` STILL HAS EXACTLY THAT SHAPE, and its own behaviour
-     *   case asserts the rule code appears and no conditions were raised — which
-     *   is precisely what an unreadable rule produces. Recorded in KNOWN_ISSUES.
+     *   PI-24 paid it. `informationalOnly` is an EXPLICIT opt-out from that
+     *   refusal, so the schedule can be named without an obligation being
+     *   invented for it, and the same fix repaired `AU-SCHEDULE-S8` — which had
+     *   been refusing every Schedule 8 transaction in seven Australian
+     *   jurisdictions — and `SG-SCHEDULE-CD3`.
      *
-     *   The cost here is that a Schedule 3 decision does not name the schedule.
-     *   That is worth having and there is no way to get it without asserting an
-     *   obligation the Regulations do not impose.
+     *   What has NOT changed is the reading: Regulation 19(1) reaches Schedules
+     *   1 and 2 and stops. The register assertion below is the one that must
+     *   keep holding, and a `registerRequired` added here "for consistency" with
+     *   Schedule 2 would impose a bound book the Regulations do not ask for.
      */
     const decision = await evaluate('CD3', {
       prescription: { ...DOCTOR_RX, issuedOn: daysAgo(1) },
     });
 
     expect(decision.outcome).not.toBe('UNDETERMINED');
-    expect(codes(decision)).not.toContain('IE-SCHEDULE-CD3');
+    expect(decision.outcome).not.toBe('REFUSED');
+    expect(codes(decision)).toContain('IE-SCHEDULE-CD3');
     expect(conditionKinds(decision)).not.toContain('RECORD_IN_CONTROLLED_REGISTER');
   });
 

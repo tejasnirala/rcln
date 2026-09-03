@@ -63,7 +63,28 @@ export function registrationFor(
 
   const inCountry = registrations
     .filter((r) => r.countryCode.toUpperCase() === country)
-    .sort((a, b) => (b.effectiveFrom?.getTime() ?? 0) - (a.effectiveFrom?.getTime() ?? 0));
+    .sort(
+      (a, b) =>
+        (b.effectiveFrom?.getTime() ?? 0) - (a.effectiveFrom?.getTime() ?? 0) ||
+        /*
+         * ⚠️ AND THE DATE ALONE DOES NOT BREAK THE TIE IT CLAIMS TO. Two
+         *   registrations recorded with the SAME `effectiveFrom` compare equal,
+         *   the sort is stable, and the answer falls straight back through to
+         *   the order the rows arrived in — which is the planner's, unordered.
+         *   The paragraph above has always promised determinism here; until
+         *   this second key it only delivered it when the dates differed, and
+         *   two GSTINs for one state taken out on the same 1 April is the
+         *   ordinary case, not a contrived one (KNOWN_ISSUES #7).
+         *
+         *   `registrationNumber` is the key because it is required, stable, and
+         *   the thing that actually prints on the invoice. It is a TIEBREAK, not
+         *   a judgement: two live registrations covering one place is a question
+         *   only the clinic can answer, and it answers it by stating coverage.
+         *   This just guarantees the same wrong-shaped configuration produces
+         *   the same invoice twice, so it can be seen and corrected.
+         */
+        a.registrationNumber.localeCompare(b.registrationNumber)
+    );
   if (inCountry.length === 0) return null;
 
   const exact = region

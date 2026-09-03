@@ -571,7 +571,17 @@ export const AU_VIC_RULES: RuleSeed[] = [
       'keep it locked and secured against access by anyone not authorised.',
     sourceKey: 'VIC_DPCS_PART7',
     appliesToClassification: AU_CLASSIFICATIONS.schedule4,
-    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE'],
+    /*
+     * ⚠️ `ONLINE_DISPENSE` INCLUDED — WITHOUT IT THE COUNTER REFUSED WHAT THE
+     *   PARCEL PERMITTED. A controlled medicine supplied from an open shelf was
+     *   refused over the counter by `controlledAccessRequired` and not consulted
+     *   at all when the same medicine went out as an online order, because the
+     *   storage rules predate PI-12 making `ONLINE_DISPENSE` a live transaction.
+     *   The stock is on the same shelf either way — the packing counter is the
+     *   location the consult is given for. Eight rules across seven packs had
+     *   this gap. (PI-24 review.)
+     */
+    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE'],
     parameters: {
       detail:
         'A lockable storage facility, kept locked and secured at all times except when it is ' +
@@ -589,7 +599,17 @@ export const AU_VIC_RULES: RuleSeed[] = [
       'power tools for 5.',
     sourceKey: 'VIC_DPCS_PART7',
     appliesToClassification: AU_CLASSIFICATIONS.schedule8,
-    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE'],
+    /*
+     * ⚠️ `ONLINE_DISPENSE` INCLUDED — WITHOUT IT THE COUNTER REFUSED WHAT THE
+     *   PARCEL PERMITTED. A controlled medicine supplied from an open shelf was
+     *   refused over the counter by `controlledAccessRequired` and not consulted
+     *   at all when the same medicine went out as an online order, because the
+     *   storage rules predate PI-12 making `ONLINE_DISPENSE` a live transaction.
+     *   The stock is on the same shelf either way — the packing counter is the
+     *   location the consult is given for. Eight rules across seven packs had
+     *   this gap. (PI-24 review.)
+     */
+    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE'],
     parameters: {
       controlledAccessRequired: true,
       detail:

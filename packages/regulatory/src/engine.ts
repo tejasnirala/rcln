@@ -236,19 +236,30 @@ function evaluatePrescriptionRequired(
     );
   }
 
+  /*
+   * ⚠️ A PRESCRIPTION DATED IN THE FUTURE IS REFUSED, NOT TREATED AS FRESH.
+   *   `Math.abs` here would make a mistyped year the most valid prescription
+   *   in the system.
+   *
+   * ⚠️ AND IT IS CHECKED WHETHER OR NOT A VALIDITY IS CONFIGURED, WHICH IT WAS
+   *   NOT. This guard used to sit INSIDE the validity conditional below, so a
+   *   rule carrying no `validityDays`/`validityMonths` never ran it — and a
+   *   prescription dated 2099 was dispensed. That is not a hypothetical
+   *   configuration: every `IN-RX-*` and every `BD-RX-*` rule deliberately
+   *   carries no validity, because neither body of law states one, so India and
+   *   Bangladesh were both live. No jurisdiction permits dispensing against a
+   *   prescription that has not been written yet, which is exactly why
+   *   `evaluateRefillRule` ran the identical check unconditionally — two
+   *   handlers reading one fact two ways. (PI-24 review.)
+   */
+  if (daysBetween(prescription.issuedOn, request.occurredAt) < 0) {
+    return refused(
+      `${rule.statement} The prescription is dated after the day it is being dispensed.`
+    );
+  }
+
   const { validityDays, validityMonths } = parsed.value;
   if (validityDays !== undefined || validityMonths !== undefined) {
-    /*
-     * ⚠️ A PRESCRIPTION DATED IN THE FUTURE IS REFUSED, NOT TREATED AS FRESH.
-     *   `Math.abs` here would make a mistyped year the most valid prescription
-     *   in the system.
-     */
-    if (daysBetween(prescription.issuedOn, request.occurredAt) < 0) {
-      return refused(
-        `${rule.statement} The prescription is dated after the day it is being dispensed.`
-      );
-    }
-
     const expired = expiredAgainst(
       prescription.issuedOn,
       request.occurredAt,
@@ -400,7 +411,19 @@ function evaluateControlledSchedule(rule: RegulatoryRule, request: RegulatoryReq
   }
 
   const kinds = parsed.value.storageLocationKinds;
-  if (kinds !== undefined && kinds.length > 0 && request.transaction === 'STOCK') {
+  /*
+   * ⚠️ `TRANSFER` AS WELL AS `STOCK`, BECAUSE `evaluateStorageRequirement`
+   *   CHECKS BOTH AND THESE TWO ASK THE SAME QUESTION. Moving a controlled drug
+   *   onto an ordinary shelf via a transfer was checked by a
+   *   `STORAGE_REQUIREMENT` rule and NOT by a `CONTROLLED_SCHEDULE` one, so a
+   *   pack that writes only the controlled-schedule form had an open transfer
+   *   path. India ships both forms and was covered by accident. (PI-24 review.)
+   */
+  if (
+    kinds !== undefined &&
+    kinds.length > 0 &&
+    (request.transaction === 'STOCK' || request.transaction === 'TRANSFER')
+  ) {
     const kind = request.location?.kind;
     if (kind === undefined) {
       return undetermined(
@@ -410,6 +433,17 @@ function evaluateControlledSchedule(rule: RegulatoryRule, request: RegulatoryReq
     if (!kinds.includes(kind)) {
       return refused(`${rule.statement} It may only be kept in: ${kinds.join(', ')}.`);
     }
+  }
+
+  /*
+   * ⚠️ THE LABEL IS THE WHOLE VALUE OF AN INFORMATIONAL RULE, SO IT SAYS THE
+   *   SCHEDULE RATHER THAN "obligations apply" — there are none, and claiming
+   *   otherwise would send somebody looking for a register that the jurisdiction
+   *   never created. Without this line a Schedule 8 supply in Sydney comes back
+   *   indistinguishable from an ordinary one.
+   */
+  if (parsed.value.informationalOnly === true) {
+    return permitted(`${rule.code}: this is a ${parsed.value.scheduleName} substance.`, conditions);
   }
 
   return permitted(`${rule.code}: controlled-substance obligations apply.`, conditions);
@@ -975,10 +1009,14 @@ function evaluateImportRestriction(rule: RegulatoryRule, request: RegulatoryRequ
   if (parsed.value.permitted !== true) return refused(rule.statement);
 
   if (parsed.value.licenceRequired === true) {
+    /*
+     * `licenceType` is guaranteed present by `parseImportRestriction` whenever
+     * `licenceRequired` is true — the pair without it is refused as unreadable,
+     * because "any licence at all" is not a requirement anybody wrote.
+     */
     const licenceType = parsed.value.licenceType;
     const held = request.actor.licenceTypes ?? [];
-    const satisfied = licenceType === undefined ? held.length > 0 : held.includes(licenceType);
-    if (!satisfied) {
+    if (licenceType === undefined || !held.includes(licenceType)) {
       return refused(
         `${rule.statement} A ${licenceType ?? 'licence'} is required and none was presented.`
       );
@@ -991,6 +1029,64 @@ function evaluateImportRestriction(rule: RegulatoryRule, request: RegulatoryRequ
 // ---------------------------------------------------------------------------
 // The evaluator
 // ---------------------------------------------------------------------------
+
+/**
+ * Can this rule's parameters be read at all? (PI-24.)
+ *
+ * ⚠️ AN UNREADABLE RULE IS A REFUSING RULE, WHICH IS WHY THIS IS WORTH ASKING
+ *   BEFORE ANYBODY DISPENSES ANYTHING. `unreadable` resolves UNDETERMINED, and
+ *   nothing is permitted on the strength of a rule the platform cannot read —
+ *   the safe direction, but it means a mistyped parameter in a seed file blocks
+ *   a whole classification of lawful supply, silently, in production, and the
+ *   evaluation looks exactly like a rule that meant to refuse.
+ *
+ *   Two shipped that way and neither was found by a test: `AU-SCHEDULE-S8`
+ *   refused every Schedule 8 transaction in seven Australian jurisdictions, and
+ *   `SG-SCHEDULE-CD3` refused every Third Schedule one in Singapore. Both had
+ *   behaviour cases that PASSED, because asserting "the rule code appears in
+ *   the reasons and no conditions were raised" is exactly what an unreadable
+ *   rule produces.
+ *
+ *   So a pack cannot be checked by evaluating it — a request that reaches the
+ *   rule has to be constructed per rule, and the verdict it returns is
+ *   indistinguishable from a legitimate one. It has to be asked directly, and
+ *   the dispatch has to be the SAME dispatch, or the check drifts from the
+ *   engine it is meant to defend. That is what this shares with `evaluateRule`.
+ */
+export function readRuleParameters(rule: RegulatoryRule): Parsed<unknown> {
+  switch (rule.ruleType) {
+    case 'PRESCRIPTION_REQUIRED':
+      return parsePrescriptionRequired(rule.parameters);
+    case 'PRESCRIBER_AUTHORITY':
+    case 'PHARMACIST_AUTHORITY':
+      return parseAuthority(rule.parameters);
+    case 'CONTROLLED_SCHEDULE':
+      return parseControlledSchedule(rule.parameters);
+    case 'QUANTITY_LIMIT':
+      return parseQuantityLimit(rule.parameters);
+    case 'REFILL_RULE':
+      return parseRefillRule(rule.parameters);
+    case 'AGE_RESTRICTION':
+      return parseAgeRestriction(rule.parameters);
+    case 'SPECIES_RESTRICTION':
+      return parseSpeciesRestriction(rule.parameters);
+    case 'SUBSTITUTION':
+      return parseSubstitution(rule.parameters);
+    case 'ONLINE_DISPENSING':
+      return parseOnlineDispensing(rule.parameters);
+    case 'STORAGE_REQUIREMENT':
+      return parseStorageRequirement(rule.parameters);
+    case 'TRACEABILITY_REQUIREMENT':
+      return parseTraceability(rule.parameters);
+    case 'RECORD_RETENTION':
+    case 'LABELLING_REQUIREMENT':
+    case 'REPORTING_REQUIREMENT':
+    case 'DISPOSAL_REQUIREMENT':
+      return parseObligation(rule.parameters);
+    case 'IMPORT_RESTRICTION':
+      return parseImportRestriction(rule.parameters);
+  }
+}
 
 function evaluateRule(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict {
   switch (rule.ruleType) {
@@ -1163,11 +1259,21 @@ export function evaluate(request: RegulatoryRequest): RegulatoryDecision {
           packId: null,
           packVersion: null,
           outcome: 'UNDETERMINED',
-          message:
-            `${formatJurisdiction(request.jurisdiction)} decides what may be done with this ` +
-            'kind of product by its regulatory classification, and this product has none ' +
-            'recorded for this jurisdiction. Record its regulatory profile before supplying it — ' +
-            'nothing is permitted on the strength of an absence.',
+          /*
+           * Two cases, and the second is the one worth naming precisely: a
+           * classification that IS recorded but that this jurisdiction does not
+           * recognise. Telling that clinic to "record its regulatory profile"
+           * would send them to a screen that already has a value in it.
+           */
+          message: request.profile?.classification
+            ? `${formatJurisdiction(request.jurisdiction)} does not recognise the regulatory ` +
+              `classification "${request.profile.classification}" recorded for this product, ` +
+              'so no rule here speaks to it. Correct the classification on its regulatory ' +
+              'profile — nothing is permitted on the strength of one nobody can read.'
+            : `${formatJurisdiction(request.jurisdiction)} decides what may be done with this ` +
+              'kind of product by its regulatory classification, and this product has none ' +
+              'recorded for this jurisdiction. Record its regulatory profile before supplying ' +
+              'it — nothing is permitted on the strength of an absence.',
         },
       ],
       packVersionIds,

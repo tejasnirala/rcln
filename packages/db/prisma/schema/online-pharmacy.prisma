@@ -104,6 +104,19 @@ enum OnlineOrderStatus {
   /// The carrier could not deliver it. ⚠️ NOT a terminal accounting state: the
   ///   parcel is somewhere, and what comes back to the pharmacy comes back as a
   ///   `dispense_returns` row like any other return.
+  /// Confirmed, then the stock hold lapsed before anybody packed it (PI-24).
+  ///
+  /// ⚠️ NOT `DRAFT`, AND THE CHECK CONSTRAINT IS WHY. A draft has no
+  ///   `order_number` and no `confirmed_at`; rolling an abandoned order back to
+  ///   one would mean DESTROYING the number the patient was already told. And
+  ///   not `CANCELLED` either — nobody cancelled it, and a cancellation carries
+  ///   a reason somebody wrote. What happened is that the hold expired, which is
+  ///   its own fact and needs its own word: the order stands, the number stands,
+  ///   the stock went back, and it cannot be packed.
+  ///
+  ///   It leaves `confirmed_at` and `order_number` in place and adds nothing, so
+  ///   its CHECK branch is `CONFIRMED`'s exactly.
+  EXPIRED
   DELIVERY_FAILED
   CANCELLED
 }
@@ -330,7 +343,6 @@ model OnlineOrderLine {
   @@unique([organizationId, onlineOrderId, productId])
   @@unique([organizationId, id])
   @@unique([organizationId, branchId, id])
-  @@index([organizationId, onlineOrderId])
   @@index([organizationId, productId])
   @@index([organizationId, encounterPrescriptionId])
   @@map("online_order_lines")

@@ -344,8 +344,27 @@ const UAE_REGIONS: readonly Region[] = [
   { code: 'UQ', name: 'Umm al-Quwain' },
 ];
 
-/** US states that levy a sales tax, plus DC. The five that do not are omitted. */
+/**
+ * Every US state, plus DC.
+ *
+ * ⚠️ IT USED TO BE ONLY THE STATES THAT LEVY A SALES TAX, AND THAT IS THE THIRD
+ *   INSTANCE OF A CLASS THAT HAS ALREADY COST TWO PACKS. `regions` gates
+ *   `branches.region_code` through `isValidRegion`, so a branch in Alaska,
+ *   Delaware, Montana, New Hampshire or Oregon could hold no region — and could
+ *   therefore never be given a state rule pack, silently, whatever anybody
+ *   seeded. Australia was empty for the same reason (GST is federal) and the
+ *   Victorian pack would have matched nothing for ever; the UAE was empty for
+ *   the same reason again. The list was scoped to the question that first
+ *   needed it, tax, and then used to answer a different one.
+ *
+ *   `UAE_REGIONS` already argues that listing every subdivision rather than only
+ *   the ones with a pack is the right call. Applying that reasoning here closes
+ *   the hole, and `locale.test.ts` now asserts mechanically that every seeded
+ *   regional pack's region is present — which would have failed on AU before
+ *   PI-15 and on AE before PI-17. (PI-24 review.)
+ */
 const US_REGIONS: readonly Region[] = [
+  { code: 'AK', name: 'Alaska' },
   { code: 'AL', name: 'Alabama' },
   { code: 'AZ', name: 'Arizona' },
   { code: 'AR', name: 'Arkansas' },
@@ -392,6 +411,10 @@ const US_REGIONS: readonly Region[] = [
   { code: 'WV', name: 'West Virginia' },
   { code: 'WI', name: 'Wisconsin' },
   { code: 'WY', name: 'Wyoming' },
+  { code: 'DE', name: 'Delaware' },
+  { code: 'MT', name: 'Montana' },
+  { code: 'NH', name: 'New Hampshire' },
+  { code: 'OR', name: 'Oregon' },
 ];
 
 export const COUNTRIES: readonly CountryInfo[] = [

@@ -538,7 +538,6 @@ model ProductRegulatoryProfile {
   /// NULLS NOT DISTINCT in the migration — `organization_id` is nullable, so
   /// without it two platform profiles for one product do not collide.
   @@unique([organizationId, productId, jurisdictionId, effectiveFrom])
-  @@index([organizationId, productId])
   @@index([organizationId, jurisdictionId])
   @@map("product_regulatory_profiles")
 }

@@ -21,9 +21,10 @@ The seam every outbound message goes through. Real logic, no delivery.
 ## Source files
 
 - `apps/api/src/services/notification/sender.ts`
-- `apps/api/src/services/notification/smtp.sender.ts`
-- `apps/api/src/services/notification/templates.ts`
-- `apps/api/src/services/notification/types.ts`
+
+## Workspace dependencies
+
+`@rcln/notifications`
 
 ## Known limitations
 
@@ -34,13 +35,5 @@ The seam every outbound message goes through. Real logic, no delivery.
 
 | name | kind | at |
 | --- | --- | --- |
-| `EmailTemplate` | type | `apps/api/src/services/notification/types.ts:9` |
-| `loggingSender` | var | `apps/api/src/services/notification/sender.ts:42` |
-| `maskEmail` | fn | `apps/api/src/services/notification/types.ts:23` |
-| `maskPhone` | fn | `apps/api/src/services/notification/types.ts:17` |
-| `NotificationSender` | interface | `apps/api/src/services/notification/types.ts:11` |
-| `RenderedEmail` | interface | `apps/api/src/services/notification/templates.ts:16` |
-| `renderEmail` | fn | `apps/api/src/services/notification/templates.ts:69` |
-| `sender` | var | `apps/api/src/services/notification/sender.ts:86` |
-| `SmsTemplate` | type | `apps/api/src/services/notification/types.ts:8` |
-| `smtpSender` | var | `apps/api/src/services/notification/smtp.sender.ts:50` |
+| `sender` | var | `apps/api/src/services/notification/sender.ts:49` |
+| `senderOptions` | var | `apps/api/src/services/notification/sender.ts:32` |

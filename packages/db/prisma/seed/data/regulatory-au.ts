@@ -265,7 +265,18 @@ export const AU_RULES: RuleSeed[] = [
     sourceKey: 'AU_POISONS_STANDARD',
     appliesToClassification: AU_CLASSIFICATIONS.schedule8,
     appliesToTransactions: [...SUPPLY_TO_PATIENT, 'STOCK', 'TRANSFER', 'DISPOSE'],
-    parameters: { scheduleName: 'Schedule 8' },
+    /*
+     * ⚠️ AND THE FLAG IS WHAT MAKES THE PARAGRAPH ABOVE TRUE. It was not true
+     *   when it was written: a rule carrying only a `scheduleName` imposes no
+     *   obligation, the parser refused it as broken, and an unreadable rule
+     *   RESOLVES AS A REFUSAL — so this rule refused every Schedule 8 supply,
+     *   stock movement, transfer and disposal in the seven Australian
+     *   jurisdictions with no state pack, which is the opposite of permitting
+     *   with one reason line. `informationalOnly` is the deliberate opt-out;
+     *   a rule that omits it and imposes nothing still fails closed, because
+     *   that is what a mistyped parameter looks like. Fixed in PI-24.
+     */
+    parameters: { scheduleName: 'Schedule 8', informationalOnly: true },
     citation: 'Poisons Standard (June 2026), Schedule 8 description',
   },
 ];

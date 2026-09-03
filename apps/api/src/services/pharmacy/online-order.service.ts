@@ -44,8 +44,9 @@ import type {
   CancelOnlineOrderRequest,
   ConfirmOnlineOrderRequest,
   CreateOnlineOrderRequest,
-  EvaluateRegulatoryRequest,
   OnlineOrderDetail,
+  PatientConsultationsQuery,
+  PatientConsultationsResponse,
   OnlineOrderLineDetail,
   OnlineOrderListResponse,
   OnlineOrderQuery,
@@ -63,7 +64,10 @@ import { planStockAllocationWithin } from '../inventory/allocation.service.js';
 import { releaseReservationIn, reserveStockIn } from '../inventory/reservation.service.js';
 import { branchJurisdictionWithin, loadProfile } from '../regulatory/evaluation.service.js';
 import { startOfCalendarDay } from '../product/values.js';
-import { consultForSupply } from './consult.js';
+import { consultForSupply, presentedPrescriptionFor } from './consult.js';
+import { NOTIFICATION_JOB } from '@rcln/queue';
+
+import { notifyAboutOrder } from './notify.js';
 import {
   ageYearsOn,
   assertBranchInScope,
@@ -1031,38 +1035,12 @@ export async function confirmOnlineOrder(
         );
       }
 
-      const prescriptionFacts: EvaluateRegulatoryRequest['prescription'] | undefined =
-        subject.encounter
-          ? {
-              presented: true,
-              /* A FINALIZED consultation is a signed prescription — asserted above. */
-              signedByQualifiedPrescriber: true,
-              issuedOn: (subject.encounter.finalizedAt ?? subject.encounter.startedAt)
-                .toISOString()
-                .slice(0, 10),
-              /*
-               * ⚠️ DISPENSINGS, NOT ORDERS. A repeat rule counts how many times
-               *   this prescribed line has actually been SUPPLIED; counting
-               *   accepted orders would let three cancelled orders read as three
-               *   repeats, and counting nothing would let a repeat be ordered
-               *   after the counter had already refused one.
-               */
-              refillsUsed: prescriptionLine
-                ? await tx.dispenseLine.count({
-                    where: {
-                      organizationId: ctx.organizationId,
-                      encounterPrescriptionId: prescriptionLine.id,
-                    },
-                  })
-                : 0,
-              ...(prescriptionLine?.repeatsAuthorised != null
-                ? { repeatsAuthorised: prescriptionLine.repeatsAuthorised }
-                : {}),
-              ...(prescriptionLine?.repeatsAuthorisedLimit != null
-                ? { repeatsAuthorisedLimit: prescriptionLine.repeatsAuthorisedLimit }
-                : {}),
-            }
-          : undefined;
+      const prescriptionFacts = await presentedPrescriptionFor(
+        tx,
+        ctx,
+        subject.encounter,
+        prescriptionLine
+      );
 
       const ageYears = ageYearsOn(subject.dateOfBirth, now);
 
@@ -1189,7 +1167,10 @@ export async function confirmOnlineOrder(
     });
   });
 
-  return getOnlineOrder(ctx, id, options);
+  /* Accepted, and the stock is held. Tell the patient — after the commit. */
+  const confirmed = await getOnlineOrder(ctx, id, options);
+  await notifyAboutOrder(ctx, NOTIFICATION_JOB.ONLINE_ORDER_CONFIRMED, confirmed);
+  return confirmed;
 }
 
 // ---------------------------------------------------------------------------
@@ -1285,4 +1266,84 @@ export async function cancelOnlineOrder(
   });
 
   return getOnlineOrder(ctx, id, options);
+}
+
+/**
+ * A patient's recent consultations, for the order form's picker (PI-24).
+ *
+ * ⚠️ IT IS NOT `visit-history`, AND THE DIFFERENCE IS A PERMISSION. That endpoint
+ *   answers the same question and returns DIAGNOSES, gated on
+ *   `clinical.encounter.read` — right for a doctor reading a patient's clinical
+ *   past, wrong for a pharmacy assistant taking a delivery order over the phone.
+ *   Pointing the picker at it would have put a list of diagnoses in a dropdown
+ *   on the pharmacy counter. This returns when, who, and how many items were
+ *   prescribed, and nothing else. (KNOWN_ISSUES #33.)
+ *
+ * ⚠️ IT STILL WRITES A `data_access_logs` ROW. "Which consultations has this
+ *   person had" is a disclosure about a named patient even without the findings,
+ *   and it is read on the same screen that already logs the patient search.
+ *
+ * ⚠️ FINALIZED BY DEFAULT. An order is dispensed against a prescription a doctor
+ *   has signed. An open consultation has not been signed and its prescription
+ *   may still change, so it is offered only when the caller asks.
+ */
+export async function listPatientConsultations(
+  ctx: TenantContext,
+  patientId: string,
+  query: PatientConsultationsQuery,
+  options: PharmacyActionOptions = {}
+): Promise<PatientConsultationsResponse> {
+  return withTenant(ctx, async (tx) => {
+    const patient = await tx.patient.findFirst({
+      where: { id: patientId, organizationId: ctx.organizationId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!patient) throw new NotFoundError('Patient');
+
+    const rows = await tx.encounter.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        patientId,
+        deletedAt: null,
+        branchId: { in: ctx.branchIds },
+        ...(query.includeOpen ? {} : { status: 'FINALIZED' }),
+      },
+      orderBy: [{ finalizedAt: 'desc' }, { startedAt: 'desc' }],
+      take: query.limit,
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        finalizedAt: true,
+        branch: { select: { name: true } },
+        doctorProfile: { select: { user: { select: { fullName: true } } } },
+        _count: { select: { prescriptions: true } },
+      },
+    });
+
+    await recordDataAccess(tx, ctx, {
+      /* A list of somebody's consultations is a VIEW of their record, not a
+       * SEARCH across the register — the term-hashing branch is for the latter. */
+      accessType: 'VIEW',
+      resource: 'ENCOUNTER',
+      patientId,
+      resultCount: rows.length,
+      ...(options.ipAddress ? { ipAddress: options.ipAddress } : {}),
+      ...(options.userAgent ? { userAgent: options.userAgent } : {}),
+    });
+
+    return {
+      consultations: rows.map((row) => ({
+        id: row.id,
+        /* The moment the consultation is filed under — signed if it is signed,
+         * otherwise opened. UTC with a `Z`; the screen renders it in the
+         * branch's zone. */
+        occurredAt: (row.finalizedAt ?? row.startedAt).toISOString(),
+        status: row.status,
+        doctorName: row.doctorProfile.user.fullName,
+        branchName: row.branch.name,
+        prescribedItemCount: row._count.prescriptions,
+      })),
+    };
+  });
 }

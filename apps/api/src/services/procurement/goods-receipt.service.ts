@@ -1182,6 +1182,42 @@ async function findOrCreateBatch(
 ): Promise<string | null> {
   if (line.lotNumber === null) return null;
 
+  /*
+   * ⚠️ AN OPEN RECALL BLOCKS THE LOT NUMBER, NOT JUST THE ROW — AND THIS IS THE
+   *   HALF THAT WAS MISSING (KNOWN_ISSUES #22). The guard below refuses a
+   *   delivery into a batch row already marked RECALLED, which covers stock the
+   *   clinic was holding when the notice was raised. It does nothing about the
+   *   next delivery: lot uniqueness is (organization, branch, product, lot), so
+   *   the same printed lot number arriving at a branch that held none, or after
+   *   the recalled row was disposed of, is a BRAND NEW `batches` row with a
+   *   clean `AVAILABLE` status and no link to the recall at all.
+   *
+   *   That is the ordinary case rather than an edge one: a manufacturer recalls
+   *   a production run, and the clinic's outstanding purchase orders keep
+   *   delivering it for weeks. The recall screen shows the notice executed and
+   *   the shelf quietly re-stocks the recalled run.
+   *
+   *   So the question is asked of the NOTICE, by lot number, before the row is
+   *   found or created. `EXECUTED` only: a DRAFT recall is somebody still
+   *   deciding, and a CLOSED one is over.
+   */
+  const recalled = await tx.recallBatch.findFirst({
+    where: {
+      organizationId: ctx.organizationId,
+      lotNumber: line.lotNumber,
+      recall: { productId: line.productId, status: 'EXECUTED' },
+    },
+    select: { lotNumber: true, recall: { select: { reference: true, title: true } } },
+  });
+  if (recalled) {
+    throw new ValidationError(
+      `Lot ${recalled.lotNumber} is subject to an open recall (${recalled.recall.reference} — ` +
+        `${recalled.recall.title}), so it cannot be received. Quarantine the delivery and take ` +
+        `it up with the supplier: if they have sent replacement stock it carries a different ` +
+        `lot number.`
+    );
+  }
+
   const existing = await tx.batch.findFirst({
     where: { branchId, productId: line.productId, lotNumber: line.lotNumber },
     select: { id: true, status: true, lotNumber: true },

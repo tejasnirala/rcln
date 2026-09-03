@@ -54,6 +54,7 @@
  * name — never an address, a medicine or a patient.
  */
 import { withTenant, type Prisma, type TenantContext, type TxClient } from '@rcln/db';
+import { NOTIFICATION_JOB } from '@rcln/queue';
 import type {
   CreateDispenseRequest,
   DeliverOnlineOrderRequest,
@@ -72,6 +73,7 @@ import {
 import { getOnlineOrder } from './online-order.service.js';
 import { auditMeta, q } from './shared.js';
 import type { PharmacyActionOptions } from './queue.service.js';
+import { notifyAboutOrder } from './notify.js';
 
 /** The order, in the shape every act below needs it. */
 async function loadOrder(
@@ -154,7 +156,14 @@ export async function packOnlineOrder(
           ? 'This order has not been accepted yet, so no stock is held for it.'
           : order.status === 'CANCELLED'
             ? 'This order was stood down.'
-            : 'This order has already been packed.'
+            : order.status === 'EXPIRED'
+              ? /* ⚠️ NAMED SEPARATELY, BECAUSE "already packed" WOULD BE A LIE
+                 *   AND AN EXPENSIVE ONE. The hold ran out and the stock went
+                 *   back to the shelf; the order is still real and its number is
+                 *   still the patient's. What has to happen next is a new
+                 *   order, not a hunt for a parcel nobody made up. */
+                'The stock held for this order was released when the hold ran out, so there is nothing reserved to pack. Take the order again.'
+              : 'This order has already been packed.'
       );
     }
     if (order.lines.length === 0) {
@@ -183,7 +192,7 @@ export async function packOnlineOrder(
         batchId: true,
         serialId: true,
         quantityBase: true,
-        batch: { select: { lotNumber: true, expiresOn: true } },
+        batch: { select: { lotNumber: true, expiresOn: true, status: true } },
         serial: { select: { serialNumber: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -192,6 +201,33 @@ export async function packOnlineOrder(
     if (held.length === 0) {
       throw new ConflictError(
         'None of the stock held for this order is still held — the hold has expired or been released. Cancel the order and place it again.'
+      );
+    }
+
+    /*
+     * ⚠️ A LOT RECALLED SINCE THE ORDER WAS ACCEPTED MAY NOT BE PACKED
+     *   (KNOWN_ISSUES #24 — "the most consequential gap PI-12 leaves").
+     *
+     *   `executeRecall` moves the quantity out of every bucket holding physical
+     *   stock, `RESERVED` included, so the BALANCE is already gone by the time
+     *   anybody gets here. What survives is the reservation ROW: it is still
+     *   ACTIVE, it still names the batch, and the claim below would take it. The
+     *   dispense would then fail somewhere deeper on a balance that is no longer
+     *   there — or, worse, would not, and a recalled lot would go into a parcel
+     *   addressed to a patient.
+     *
+     *   Refused here rather than repaired, deliberately: which lot should
+     *   replace it is an allocation decision somebody has to make with the
+     *   recall in front of them, and silently re-picking would hide a recall
+     *   from the person best placed to act on it. The order stands, the holds
+     *   stay claimed by nobody, and the message names the lot.
+     */
+    const recalledHold = held.find((hold) => hold.batch?.status === 'RECALLED');
+    if (recalledHold) {
+      throw new ConflictError(
+        `Lot ${recalledHold.batch?.lotNumber ?? ''} was recalled after this order was accepted, ` +
+          `so this parcel cannot be made up from the stock held for it. Cancel the order, or ` +
+          `release the hold and pack it from stock that is not under recall.`
       );
     }
 
@@ -392,7 +428,10 @@ export async function shipOnlineOrder(
     });
   });
 
-  return getOnlineOrder(ctx, id, options);
+  /* It has left the building — after the commit, never inside it. */
+  const shipped = await getOnlineOrder(ctx, id, options);
+  await notifyAboutOrder(ctx, NOTIFICATION_JOB.ONLINE_ORDER_SHIPPED, shipped);
+  return shipped;
 }
 
 /**
@@ -524,5 +563,9 @@ export async function failOnlineOrderDelivery(
     });
   });
 
-  return getOnlineOrder(ctx, id, options);
+  /* The parcel came back. Say so, and keep the reason behind the sign-in — it is
+   * free text somebody wrote about a named person's address. */
+  const failed = await getOnlineOrder(ctx, id, options);
+  await notifyAboutOrder(ctx, NOTIFICATION_JOB.ONLINE_ORDER_DELIVERY_FAILED, failed);
+  return failed;
 }

@@ -9,6 +9,7 @@ import type {
   SupplierProductListResponse,
   SupplierSummary,
 } from '@rcln/contracts';
+import { formatMoney, money } from '@rcln/payments';
 import { Input, Select, Textarea } from '@/components/ui/field';
 import { ProductPicker } from '@/components/tenant/product-picker';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,17 @@ interface LineDraft {
   unitCost: string;
 }
 
+/*
+ * ⚠️ EVERY KEY COMES FROM HERE, INCLUDING THE PRE-FILLED ONES. It used to start
+ *   at 1 while lines pre-filled from a document were keyed by ARRAY INDEX —
+ *   0, 1, 2 … — so the first line the user added took key 1 and COLLIDED with
+ *   the second line off the order. `updateLine` matches on key and patches
+ *   every match, so typing a quantity into the new line wrote it into the
+ *   ordered line too, choosing a product overwrote that line's product while it
+ *   still posted the original `purchaseOrderLineId`, and "remove" deleted both.
+ *   The result was a received line pointing at the wrong product against a real
+ *   purchase-order line. Found in the PI-24 review.
+ */
 let nextKey = 1;
 
 export function PurchaseOrderForm({
@@ -82,8 +94,8 @@ export function PurchaseOrderForm({
   );
   const [lines, setLines] = useState<LineDraft[]>(
     requisition
-      ? requisition.lines.map((line, index) => ({
-          key: index,
+      ? requisition.lines.map((line) => ({
+          key: nextKey++,
           productId: line.productId,
           productName: line.productName,
           supplierProductId: '',
@@ -92,7 +104,7 @@ export function PurchaseOrderForm({
         }))
       : [
           {
-            key: 0,
+            key: nextKey++,
             productId: '',
             productName: '',
             supplierProductId: '',
@@ -240,13 +252,12 @@ export function PurchaseOrderForm({
               <li key={line.key} className="border-rule bg-card space-y-3 rounded-md border p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <ProductPicker
-                    key={line.productId}
                     slug={slug}
                     name={`lines.${index}.productId`}
                     label="Product"
                     required
                     filters={{ isStockItem: true, status: 'ACTIVE' }}
-                    initial={
+                    value={
                       line.productId === '' ? null : { id: line.productId, name: line.productName }
                     }
                     onChoose={(product) =>
@@ -278,7 +289,12 @@ export function PurchaseOrderForm({
                         { value: '', label: 'Not from the price book' },
                         ...priced.map((row) => ({
                           value: row.id,
-                          label: `${row.supplierSku} · ${row.currency} ${(row.pricePerPackMinor / 100).toFixed(2)} per ${row.packUnitSymbol} of ${row.quantityPerPack}`,
+                          /* ⚠️ `formatMoney`, never `/ 100` — dividing by a
+                           * hundred is right in India and wrong in Japan, and
+                           * this programme ships rule packs for six countries.
+                           * This is the figure a buyer reads before agreeing a
+                           * price. (PI-24 review.) */
+                          label: `${row.supplierSku} · ${formatMoney(money(row.pricePerPackMinor, row.currency))} per ${row.packUnitSymbol} of ${row.quantityPerPack}`,
                         })),
                       ]}
                       onChange={(event) =>

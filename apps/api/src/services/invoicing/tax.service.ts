@@ -100,29 +100,40 @@ export async function loadTaxContext(
    *   could be priced. It holds no tenant data — it is the published law of a
    *   country, identical for everyone in it.
    */
-  const [liveRegistrationRows, coverageRows, tenantRuleRows, defaultRuleRows] = await Promise.all([
-    tx.issuerTaxRegistration.findMany({
-      where: {
-        deletedAt: null,
-        effectiveFrom: { lte: at },
-        OR: [{ effectiveTo: null }, { effectiveTo: { gte: at } }],
-      },
-    }),
-    /*
-     * What THIS BRANCH has been stated to bill under. Read unfiltered by date —
-     * the link says which registration, the registration says when it applied,
-     * and asking the link to also know about dates would put the effective range
-     * in two places.
-     */
-    tx.issuerTaxRegistrationBranch.findMany({
-      where: { branchId, deletedAt: null },
-      select: { taxRegistrationId: true },
-    }),
-    tx.taxRule.findMany({ where: { deletedAt: null } }),
-    tx.taxRuleDefault.findMany({
-      where: { deletedAt: null, countryCode: branch.countryCode },
-    }),
-  ]);
+  const [liveRegistrationRows, coverageRows, statedRows, tenantRuleRows, defaultRuleRows] =
+    await Promise.all([
+      tx.issuerTaxRegistration.findMany({
+        where: {
+          deletedAt: null,
+          effectiveFrom: { lte: at },
+          OR: [{ effectiveTo: null }, { effectiveTo: { gte: at } }],
+        },
+      }),
+      /*
+       * What THIS BRANCH has been stated to bill under. Read unfiltered by date —
+       * the link says which registration, the registration says when it applied,
+       * and asking the link to also know about dates would put the effective range
+       * in two places.
+       */
+      tx.issuerTaxRegistrationBranch.findMany({
+        where: { branchId, deletedAt: null },
+        select: { taxRegistrationId: true },
+      }),
+      /*
+       * Which registrations ANY branch has been stated to bill under — read for
+       * the whole organization, not for this branch. It is what lets the fallback
+       * below tell "nobody has said anything about this registration" apart from
+       * "somebody said it, and did not say this branch".
+       */
+      tx.issuerTaxRegistrationBranch.findMany({
+        where: { deletedAt: null },
+        select: { taxRegistrationId: true },
+      }),
+      tx.taxRule.findMany({ where: { deletedAt: null } }),
+      tx.taxRuleDefault.findMany({
+        where: { deletedAt: null, countryCode: branch.countryCode },
+      }),
+    ]);
 
   /*
    * ⚠️ A STATEMENT BEATS THE INFERENCE, AND SILENCE KEEPS IT.
@@ -147,6 +158,7 @@ export async function loadTaxContext(
    *   bills NOT_REGISTERED — which is the true answer, not a bug.
    */
   const coveredIds = new Set(coverageRows.map((row) => row.taxRegistrationId));
+  const statedIds = new Set(statedRows.map((row) => row.taxRegistrationId));
   const registrationRows =
     coveredIds.size > 0
       ? liveRegistrationRows.filter((row) => coveredIds.has(row.id))
@@ -175,7 +187,26 @@ export async function loadTaxContext(
         liveRegistrationRows.filter(
           (row) =>
             row.countryCode === branch.countryCode &&
-            (row.regionCode === null || row.regionCode === branch.regionCode)
+            (row.regionCode === null || row.regionCode === branch.regionCode) &&
+            /*
+             * ⚠️ AND NOT ONE SOMEBODY ELSE HAS CLAIMED. A registration with any
+             *   stated coverage has had its branches named by the clinic; a
+             *   branch that is not among them was excluded ON PURPOSE, and
+             *   handing it over anyway by geography re-infers the intent the
+             *   paragraph above says a statement replaces.
+             *
+             *   Two Bihar branches, and India has permitted a second GSTIN per
+             *   state since 2019: assign the second to Gaya alone and Patna —
+             *   which stated nothing — was still offered BOTH. `registrationFor`
+             *   then chose between two rows with the same `effectiveFrom` by
+             *   whichever order Postgres returned them in, so Gaya's dedicated
+             *   number printed on roughly half of Patna's invoices, and the tax
+             *   was filed against a registration that does not cover the branch
+             *   that collected it. It surfaced as a test that failed half the
+             *   time (KNOWN_ISSUES #7) rather than as a wrong invoice, which is
+             *   the only reason it was found.
+             */
+            !statedIds.has(row.id)
         );
 
   const ruleRows = [

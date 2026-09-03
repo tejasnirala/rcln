@@ -2,7 +2,7 @@
 
 **The authority on task state.** Update it as you work, not at the end.
 
-**Last updated:** 2026-09-02 (PI-23 complete — identifier resolution and the GS1 decoder)
+**Last updated:** 2026-09-03 (PI-24 — review sweep, then the gaps it left)
 
 ## Status vocabulary
 
@@ -34,34 +34,45 @@ integration + isolation · `DOC` this directory updated · `REGRESS`
 
 ## Phase roll-up
 
-| Phase  | Title                                          | Status                    | Blocked by                               |
-| ------ | ---------------------------------------------- | ------------------------- | ---------------------------------------- |
-| PI-0   | Discovery & Architecture                       | **COMPLETE** (2026-08-11) | —                                        |
-| PI-1   | Product Platform Core                          | **COMPLETE** (2026-08-11) | —                                        |
-| PI-2   | Inventory Foundation                           | **COMPLETE** (2026-08-12) | —                                        |
-| PI-3   | Movements                                      | **COMPLETE** (2026-08-12) | —                                        |
-| PI-4   | Procurement                                    | **COMPLETE** (2026-08-13) | —                                        |
-| PI-5   | Global Regulatory Framework                    | **COMPLETE** (2026-08-13) | —                                        |
-| PI-6   | India Rule Pack                                | **COMPLETE** (2026-08-13) | —                                        |
-| PI-7   | Pharmacy Dispensing                            | **COMPLETE** (2026-08-16) | —                                        |
-| PI-8   | Billing & Tax Integration                      | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed |
-| PI-9   | Clinical Consumption                           | **COMPLETE** (2026-08-17) | —                                        |
-| PI-10  | Recall & Traceability                          | **COMPLETE** (2026-08-18) | —                                        |
-| PI-11  | Veterinary Enablement                          | **COMPLETE** (2026-08-19) | —                                        |
-| PI-12  | Online Pharmacy                                | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-13a | Rule-pack framework extensions (survey-sized)  | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-13  | United States Rule Pack (federal + California) | **COMPLETE** (2026-08-19) | — ⚠️ not reviewed                        |
-| PI-14  | United Kingdom Rule Pack                       | **BLOCKED**               | legislation.gov.uk returns 202           |
-| PI-15  | Australia Rule Pack (national + Victoria)      | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
-| PI-16  | Singapore Rule Pack                            | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
-| PI-17  | UAE Rule Packs (Abu Dhabi + Dubai)             | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed; no federal pack       |
-| PI-18  | Ireland Rule Pack                              | **COMPLETE** (2026-08-20) | — ⚠️ not reviewed                        |
-| PI-19  | Nepal Rule Pack                                | DEFERRED                  | skipped by request — see PI-21           |
-| PI-20  | Sri Lanka Rule Pack                            | DEFERRED                  | skipped by request — see PI-21           |
-| PI-21  | Bangladesh Rule Pack                           | **COMPLETE** (2026-08-24) | — ⚠️ not reviewed                        |
-| PI-22  | Reporting & Cost Accounting                    | **COMPLETE** (2026-08-25) | — ⚠️ not reviewed                        |
-| PI-23  | Identifier Resolution / Barcode                | **COMPLETE** (2026-09-02) | — ⚠️ not reviewed                        |
-| PI-24  | Global Hardening                               | NOT_STARTED               | everything                               |
+| Phase  | Title                                          | Status                    | Blocked by                                                         |
+| ------ | ---------------------------------------------- | ------------------------- | ------------------------------------------------------------------ |
+| PI-0   | Discovery & Architecture                       | **COMPLETE** (2026-08-11) | —                                                                  |
+| PI-1   | Product Platform Core                          | **COMPLETE** (2026-08-11) | —                                                                  |
+| PI-2   | Inventory Foundation                           | **COMPLETE** (2026-08-12) | —                                                                  |
+| PI-3   | Movements                                      | **COMPLETE** (2026-08-12) | —                                                                  |
+| PI-4   | Procurement                                    | **COMPLETE** (2026-08-13) | —                                                                  |
+| PI-5   | Global Regulatory Framework                    | **COMPLETE** (2026-08-13) | —                                                                  |
+| PI-6   | India Rule Pack                                | **COMPLETE** (2026-08-13) | —                                                                  |
+| PI-7   | Pharmacy Dispensing                            | **COMPLETE** (2026-08-16) | —                                                                  |
+| PI-8   | Billing & Tax Integration                      | **COMPLETE** (2026-08-17) | — reviews run 2026-08-17, findings fixed                           |
+| PI-9   | Clinical Consumption                           | **COMPLETE** (2026-08-17) | —                                                                  |
+| PI-10  | Recall & Traceability                          | **COMPLETE** (2026-08-18) | —                                                                  |
+| PI-11  | Veterinary Enablement                          | **COMPLETE** (2026-08-19) | —                                                                  |
+| PI-12  | Online Pharmacy                                | **COMPLETE** (2026-08-19) | — reviewed in PI-24, findings fixed                                |
+| PI-13a | Rule-pack framework extensions (survey-sized)  | **COMPLETE** (2026-08-19) | — reviewed in PI-24; engine fail-opens fixed                       |
+| PI-13  | United States Rule Pack (federal + California) | **COMPLETE** (2026-08-19) | — reviewed in PI-24, findings fixed                                |
+| PI-14  | United Kingdom Rule Pack                       | **BLOCKED**               | legislation.gov.uk returns 202                                     |
+| PI-15  | Australia Rule Pack (national + Victoria)      | **COMPLETE** (2026-08-20) | — reviewed in PI-24; `AU-SCHEDULE-S8` fixed                        |
+| PI-16  | Singapore Rule Pack                            | **COMPLETE** (2026-08-20) | — reviewed in PI-24; CD refill + label fixed                       |
+| PI-17  | UAE Rule Packs (Abu Dhabi + Dubai)             | **PARTIALLY_COMPLETE**    | reviewed in PI-24 — ⚠️ refill ladders unreachable; no federal pack |
+| PI-18  | Ireland Rule Pack                              | **COMPLETE** (2026-08-20) | — reviewed in PI-24; CD pharmacist gate fixed                      |
+| PI-19  | Nepal Rule Pack                                | DEFERRED                  | skipped by request — see PI-21                                     |
+| PI-20  | Sri Lanka Rule Pack                            | DEFERRED                  | skipped by request — see PI-21                                     |
+| PI-21  | Bangladesh Rule Pack                           | **COMPLETE** (2026-08-24) | — reviewed in PI-24; future-dating fixed                           |
+| PI-22  | Reporting & Cost Accounting                    | **COMPLETE** (2026-08-25) | — reviewed in PI-24, findings fixed                                |
+| PI-23  | Identifier Resolution / Barcode                | **COMPLETE** (2026-09-02) | — reviewed in PI-24, findings fixed                                |
+| PI-24  | Global Hardening                               | **PARTIALLY_COMPLETE**    | sweep done; E2E + readiness gates not                              |
+
+✅ **"reviewed in PI-24" means the code-review and security-review sweep ran over
+that phase's diff and its findings were fixed** — four reviewers over
+`git diff c0f3adc..HEAD`, 267 files, partitioned by concern rather than by phase.
+Before PI-24, ten of these rows read "⚠️ not reviewed"; the sweep is what changed
+them, and what it found is in KNOWN_ISSUES.
+
+⚠️ **IT DOES NOT MEAN THE READING OF THE LAW WAS REVIEWED.** For the rule packs it
+means the engine does what the pack configures. Whether the pack says the right
+thing is still `RulePackMaturity` and a named human, exactly as before — and PI-17
+is the row where that distinction has teeth.
 
 ---
 
@@ -1867,7 +1878,7 @@ past 24×24 (WCAG 2.5.8).
 
 ---
 
-# PI-13a — Rule-pack framework extensions · IN_PROGRESS
+# PI-13a — Rule-pack framework extensions · COMPLETE
 
 **Dependencies:** PI-5, PI-6. **Priority:** P0 — every remaining country pack
 waits on it. **Size:** S.
@@ -1976,8 +1987,7 @@ DISTINCT` index and per-rule-type supersession were all built in PI-5
 - **DOC** COUNTRY_SUPPORT_MATRIX (US column, 14 dimensions to `SUP`),
   KNOWN_ISSUES (5 entries), COUNTRY_RULE_PACK_SURVEY, CHANGELOG
 - **REGRESS** green — see PI-13a above
-- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
-  security reviewer has run over this diff
+- **Status** COMPLETE — reviewed in PI-24's sweep; findings fixed
 
 ---
 
@@ -2036,7 +2046,7 @@ sources are `UNVERIFIED` and no qualified person has read either pack.
 - **TEST** 20 behaviour cases, incl. the storage asymmetry and the Schedule 3
   case that proves the state pack did not repeal the national one
 - **DOC** COUNTRY_SUPPORT_MATRIX (AU column), KNOWN_ISSUES, CHANGELOG
-- **Status** COMPLETE ⚠️ **not reviewed**
+- **Status** COMPLETE — reviewed in PI-24's sweep; findings fixed
 
 # PI-16 — Singapore rule pack · COMPLETE
 
@@ -2095,8 +2105,7 @@ sources are `UNVERIFIED` and no qualified person has read the pack.
   missing register and missing witness
 - **DOC** COUNTRY_SUPPORT_MATRIX (SG column), KNOWN_ISSUES, CHANGELOG,
   COUNTRY_RULE_PACK_SURVEY, REGULATORY_RULE_PACKS
-- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
-  security reviewer has run over this diff
+- **Status** COMPLETE — reviewed in PI-24's sweep; findings fixed
 
 **Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
 `turbo typecheck --concurrency=1`, then the tests. ⚠️ `pnpm test` still OOMs the
@@ -2107,7 +2116,22 @@ other workspace package through `turbo run test`. `db:rls:check` 131 tables;
 
 ---
 
-# PI-17 — United Arab Emirates rule packs · COMPLETE
+# PI-17 — United Arab Emirates rule packs · PARTIALLY_COMPLETE
+
+⚠️ **DOWNGRADED FROM COMPLETE BY PI-24'S REVIEW.** Both packs configure an
+endorsed-refill ladder that **cannot be reached**: `AZ-REFILL-CD/SCD` and
+`DU-REFILL-CD/SCD` carry `maxEndorsedRepeats: 2`, and the lawful first refill at
+day 30 is refused by two rules at once, because `validityDays: 3` is measured from
+`issuedOn` and those three days are the window to PRESENT the prescription rather
+than to consume it. `maxEndorsedRepeats` and `repeatsAuthorisedLimit` are dead
+configuration in both emirates — "configured, visible and inert", the failure
+shape this programme keeps naming.
+
+**Left open deliberately.** The framework half is mechanical (`lastDispensedOn` on
+`PresentedPrescription`, a repeat-interval parameter on `RefillRuleParameters`);
+the pack half is a reading of DOH §5.4.4 and DHA 18.7.4(e) that cannot be verified
+without the instruments, and whose error direction is PERMITTING a controlled-drug
+supply. It fails CLOSED today, which is the safe direction. See KNOWN_ISSUES.
 
 **Dependencies:** PI-13a. **Size:** M. **Completion date:** 2026-08-20.
 
@@ -2166,8 +2190,7 @@ in the country. The ladder is in the rule statements instead.
   the emirates disagreeing about the unified platform, and Sharjah
 - **DOC** COUNTRY_SUPPORT_MATRIX (AE row + column), KNOWN_ISSUES, CHANGELOG,
   COUNTRY_RULE_PACK_SURVEY, REGULATORY_RULE_PACKS
-- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
-  security reviewer has run over this diff
+- **Status** COMPLETE — reviewed in PI-24's sweep; findings fixed
 
 **Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
 `turbo typecheck --concurrency=1`, then the tests. ⚠️ `pnpm test` still OOMs the
@@ -2184,7 +2207,8 @@ running — worth knowing for the next session that runs the suite in pieces.
 
 ## PI-18 — Ireland Rule Pack
 
-**Branch:** `feat/pi-18-ie-rule-pack` · **Result:** complete, ⚠️ **not reviewed**
+**Branch:** `feat/pi-18-ie-rule-pack` · **Result:** complete; reviewed in PI-24 — the
+missing controlled-drug pharmacist gate was found there and fixed
 
 `IE 1.0.0` — 50 rules, 7 sources, 3 authorities, no migration. The sixth
 rule-pack phase running with no schema change, and the first that needed a
@@ -2282,8 +2306,7 @@ validity). The rest were checked for whether they touch regulations 5, 6, 7, 9,
   same list
 - **DOC** COUNTRY_SUPPORT_MATRIX (IE row + header), KNOWN_ISSUES, CHANGELOG,
   COUNTRY_RULE_PACK_SURVEY, NEXT_SESSION, STATUS
-- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
-  security reviewer has run over this diff
+- **Status** COMPLETE — reviewed in PI-24's sweep; findings fixed
 
 ### ⚠️ Two defects PI-18 found in code it did not write
 
@@ -2333,7 +2356,8 @@ and nothing in either depends on PI-21 — the packs are siblings, not a chain.
 
 ## PI-21 — Bangladesh Rule Pack
 
-**Branch:** `feat/pi-21-bd-rule-pack` · **Result:** complete, ⚠️ **not reviewed**
+**Branch:** `feat/pi-21-bd-rule-pack` · **Result:** complete; reviewed in PI-24 — the
+future-dated-prescription fail-open was found there and fixed
 
 `BD 1.0.0` — 56 rules, 4 sources, 3 authorities, no migration. The seventh
 rule-pack phase running with no schema change, and the first that needed no
@@ -2492,8 +2516,7 @@ selected. ⚠️ **`US_REGIONS` IS STILL SHORT FIVE STATES.**
 - **AUTHZ / AUDIT / VAL** n/a — no new endpoint, service or contract
 - **DOC** COUNTRY_SUPPORT_MATRIX (BD row), KNOWN_ISSUES, CHANGELOG,
   COUNTRY_RULE_PACK_SURVEY, REGULATORY_RULE_PACKS, NEXT_SESSION, STATUS
-- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
-  security reviewer has run over this diff
+- **Status** COMPLETE — reviewed in PI-24's sweep; findings fixed
 
 **Validation:** ran once at the end, per CLAUDE.md — `turbo run lint typecheck`
 at `--concurrency=1`, `pnpm format`, then the tests. ⚠️ `pnpm test` still OOMs the
@@ -2633,8 +2656,7 @@ asserted per row.
   gating nothing
 - **DOC** this section, CHANGELOG, KNOWN_ISSUES (#27, #28), CURRENT_STATUS,
   NEXT_SESSION, README, STATUS
-- **Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the
-  security reviewer has run over this diff
+- **Status** COMPLETE — reviewed in PI-24's sweep; findings fixed
 
 **Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
 `turbo run typecheck --concurrency=1` (29/29 green), then the tests.
@@ -2733,8 +2755,7 @@ they now ask for one product at one branch, which is the index `batches` carries
 - **No dedicated rate limiter**, which `API_ARCHITECTURE.md` asks for on this
   endpoint. KNOWN_ISSUES #35.
 
-**Status** COMPLETE ⚠️ **not reviewed** — neither `/code-review` nor the security
-reviewer has run over this diff.
+**Status** COMPLETE — reviewed in PI-24's sweep; findings fixed.
 
 **Validation:** ran once at the end, per CLAUDE.md — `pnpm lint`, `pnpm format`,
 then `turbo run typecheck --concurrency=1` (29/29), then the tests.
@@ -2759,3 +2780,153 @@ the container's `mem_limit: 3g`**. What worked was **six shards at 1600**:
 and then did not exit: an open handle somewhere in those suites keeps the process
 alive after the run. `--forceExit` is a workaround, not a fix, and it hides
 whatever is holding the handle — worth a look before PI-24 calls the suite clean.
+
+---
+
+# PI-24 — Global Hardening · PARTIALLY_COMPLETE
+
+**Dependencies:** every phase. **Size:** L. **Started:** 2026-09-02.
+
+The phase that exists because eleven phases shipped unreviewed. **The review
+sweep has now run** — four reviewers over `git diff c0f3adc..HEAD` (267 files,
+~39k insertions), partitioned by concern rather than by phase. Every finding was
+fixed except one, named below.
+
+| Leg  | What landed                                                                      |
+| ---- | -------------------------------------------------------------------------------- |
+| TEST | `pnpm test` is ONE command again — 103 suites, 2,198 cases, ~75s, exit 0         |
+| REG  | Three fail-OPEN defects in the engine, plus two packs that gated nothing         |
+| BE   | Two report aggregates that answered the wrong question; two `NULLS FIRST` orders |
+| FE   | A line-key collision that wrote one line's edits into another                    |
+| DB   | 22 redundant indexes dropped; the seed directory typechecks for the first time   |
+| SEC  | Explicit tenant scoping on the scan reads, and the shipments isolation case      |
+
+## The fail-opens, which are the reason this phase mattered
+
+⚠️ **A CLASSIFICATION THE JURISDICTION DOES NOT RECOGNISE USED TO PERMIT.**
+`needsClassificationButHasNone` asked whether the product had _a_ classification,
+never whether it had one that means anything here — so one typo (`Schedule H` for
+`SCHEDULE_H`) dropped every classification-keyed rule on an exact-match miss while
+the pack's UNCLASSIFIED rules still applied and still permitted. The dispense came
+back `PERMITTED_WITH_CONDITIONS` with **no prescription rule in its reasons**, and
+looked fully reasoned. Live in **IN, SG, US and US-CA** on DISPENSE, and in IN, US
+and US-CA on COUNTER_SALE, STOCK, TRANSFER, CONSUME and DISPOSE. `regulatory-in.ts`
+warned about that exact typo and asserted it refused. It did not.
+
+⚠️ **AN EMPTY LIST DISABLED THE LIMB IT BELONGED TO, SEVEN WAYS.** Every guard
+tests `=== undefined`, so `[]` walked past as a present, well-formed value:
+traceability requiring no identifier, a controlled drug keepable anywhere, an
+online sale to anywhere, a label with no particulars. Two of them defeated the
+guard added to stop exactly this, reopening `AU-SCHEDULE-S8` through a side door.
+One line in `readStringArray` closes all seven.
+
+⚠️ **A PRESCRIPTION DATED IN THE FUTURE WAS DISPENSED** wherever a rule configured
+no validity — which India and Bangladesh both do deliberately, because neither
+body of law states one. The guard sat inside the validity conditional;
+`evaluateRefillRule` had always run it unconditionally. `bd-rule-pack.test.ts`
+**pinned the fail-open**: its title said "still refuses" and it asserted the
+opposite.
+
+⚠️ **IRELAND REFUSED AN UNLICENSED PERSON A POM AND PERMITTED THEM MORPHINE.**
+`IE-DISPENSER-*` was generated over the prescription tiers only, so the three
+controlled schedules had no `PHARMACIST_AUTHORITY` rule at all. Every other pack
+gates its controlled supply.
+
+⚠️ **SINGAPORE'S TWO-VOCABULARY MITIGATION HELD ON SIX AXES AND FAILED ON THE
+SEVENTH.** The controlled fan-out generated every rule except a refill one, so
+morphine filed as `MDA_SECOND_SCHEDULE` — the _more_ accurate spelling — could be
+dispensed an unlimited number of times, while the same drug filed as a POM was
+refused on the second supply.
+
+⚠️ **AND `licenceRequired` WITH NO `licenceType` WAS SATISFIED BY ANY LICENCE** —
+a pharmacist's dispensing registration met an import-licence requirement.
+
+## The fail-closed pair, and the mechanism that fixed them
+
+`AU-SCHEDULE-S8` refused **every Schedule 8 transaction in seven Australian
+jurisdictions**; `SG-SCHEDULE-CD3` refused every Third Schedule one in Singapore.
+An unreadable rule resolves `UNDETERMINED`, which refuses. **Both behaviour cases
+passed throughout** — "the code appears and no conditions were raised" describes
+an unreadable rule exactly as well as a permissive one.
+
+`informationalOnly: true` is an **explicit** opt-out: the deliberate label is
+accepted, a rule that imposes nothing without saying so still fails closed. That
+also let Ireland restore the Schedule 3 and Part 1 Schedule 4 labels it had
+recorded as a cost it could not pay.
+
+## The suite can be believed (KNOWN_ISSUES #2, #7)
+
+The open handle was the memoised BullMQ producer from `issueInvoice` —
+`maxRetriesPerRequest: null`, so it blocks on `BRPOPLPUSH` and never idles out —
+which only four suites closed. `--detectOpenHandles` reported **nothing**, because
+it is opened lazily inside a service. The memory ceiling was the CONTAINER'S, so
+the worker is recycled rather than given a bigger heap.
+
+⚠️ **#7 WAS NOT A FLAKY TEST — IT WAS THE WRONG GSTIN ON A TAX DOCUMENT.** A
+branch that stated no coverage was offered a registration the clinic had assigned
+to a **different branch**, and a same-date tie was broken by Postgres row order.
+
+## What PI-24 has NOT done
+
+- ⚠️ **THE ABU DHABI AND DUBAI REFILL LADDERS ARE UNREACHABLE, AND ARE LEFT SO
+  DELIBERATELY.** `AZ-REFILL-CD/SCD` and `DU-REFILL-CD/SCD` configure
+  `maxEndorsedRepeats: 2`, and the lawful first refill at day 30 is refused by two
+  rules at once, because `validityDays: 3` is measured from `issuedOn` and the
+  three days is the window to PRESENT the prescription. Fixing it means deciding
+  that the presentation window does not bind a repeat — a reading of DOH §5.4.4
+  and DHA 18.7.4(e) that nobody here can verify — and the error direction would be
+  permitting a controlled-drug supply. **It fails CLOSED, which is the safe
+  direction, and it needs a human with the source.** KNOWN_ISSUES.
+- No E2E; `apps/web` still has no test suite at all.
+- No data migration rehearsal, no production readiness gates.
+- #22 (recall check at receipt), #33 and #34 are feature work PI-23 scoped out,
+  not review findings, and remain open.
+
+**Validation:** ran once at the end, per CLAUDE.md — `prettier`, then
+`turbo run typecheck lint` (45/45, 0 errors), then the tests. `pnpm test` 103/103
+suites and **2,198/2,198 cases green in one unsharded command**; every other
+package green (25/25); `db:rls:check` 131 tables; `docs:validate` 448/448.
+
+## And then the gaps the sweep was not looking for
+
+The sweep found defects. A second pass closed the things the programme knew it
+was missing and had never got to — all verified, none partial:
+
+| What                           | Was                                                                 |
+| ------------------------------ | ------------------------------------------------------------------- |
+| Notifications (#26, KI-6)      | `QUEUE.NOTIFICATIONS` logged "processor not implemented yet"        |
+| Catalogue import (KI-9)        | A new clinic typed its whole formulary in, one product at a time    |
+| Recall vs. next delivery (#22) | A recalled lot re-entered stock on the following week's delivery    |
+| Recall vs. held stock (#24)    | A parcel could still be packed from a lot recalled since acceptance |
+| Abandoned orders (#23)         | Said CONFIRMED for ever while the stock had gone back to the shelf  |
+| Consultation picker (#33)      | Asked a receptionist to paste a uuid                                |
+| Procedure picker (#34)         | The last capped list in the application                             |
+| PDF chrome (#6)                | The printer options were the untested half                          |
+
+⚠️ **THE TWO THAT TAUGHT SOMETHING.** The notification work could not put a
+patient's name or medicine in an email — `templates.ts` has always said "NO PHI,
+EVER", these bodies sit in plain text on a relay and are read on lock screens —
+so the emails carry a reference, a status and a link, and the content stays
+behind the sign-in. And the expiry alert needed a `SECURITY DEFINER` function:
+`rcln_app` has `NOBYPASSRLS`, so the obvious cross-tenant query would have
+returned zero rows and the alert would never have fired, with no error anywhere.
+
+⚠️ **AND ONE THAT ONLY THE DATABASE COULD SETTLE.** #23 looked like a status
+update until the CHECK constraint proved otherwise: `DRAFT` requires
+`order_number IS NULL`, so rolling an abandoned order back would have destroyed
+the reference the patient was given. Hence `EXPIRED`, whose CHECK branch is
+`CONFIRMED`'s verbatim.
+
+**Deliberately not done, and not partially done either:** the GS1 identifier
+table is still the healthcare subset (#36). Expanding it from memory is precisely
+what `gs1.ts` says produces a silently wrong lot number, and the current
+behaviour — stop, warn, hand back the remainder unread — is the safe one. It
+needs the specification, not a guess.
+
+**Status** PARTIALLY_COMPLETE — the review sweep, every fix it produced, and the
+known gaps listed above. **What is left, and it is a short list:** no E2E and no
+test suite at all in `apps/web`; no data migration rehearsal; no production
+readiness gates. Plus two items held open on purpose — the Emirati refill ladders
+(needs the regulation) and the GS1 table (needs the specification) — and the two
+phase-sized ones the programme chose to defer: procedure pricing (#27) and
+`stock_ledger` partitioning (KI-7).

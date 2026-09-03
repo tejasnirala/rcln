@@ -49,6 +49,7 @@ import {
   deliverOnlineOrderRequest,
   failOnlineOrderDeliveryRequest,
   onlineOrderQuery,
+  patientConsultationsQuery,
   packOnlineOrderRequest,
   shipOnlineOrderRequest,
   updateOnlineOrderRequest,
@@ -58,6 +59,7 @@ import {
   type DeliverOnlineOrderRequest,
   type FailOnlineOrderDeliveryRequest,
   type OnlineOrderQuery,
+  type PatientConsultationsQuery,
   type PackOnlineOrderRequest,
   type ShipOnlineOrderRequest,
   type UpdateOnlineOrderRequest,
@@ -78,6 +80,7 @@ import {
   createOnlineOrder,
   getOnlineOrder,
   listOnlineOrders,
+  listPatientConsultations,
   updateOnlineOrder,
 } from '../../services/pharmacy/online-order.service.js';
 import {
@@ -98,6 +101,7 @@ const router: IRouter = Router();
 router.use(requireTenant, authenticate, requireAuth);
 
 const orderParams = z.object({ orderId: z.uuid() });
+const consultationParams = z.object({ patientId: z.uuid() });
 
 /**
  * Everything the services need about WHO is asking and from WHERE.
@@ -137,6 +141,43 @@ router.get(
     const query = req.query as unknown as OnlineOrderQuery;
     const options = await orderOptions(req, 'GET /v1/online-orders');
     sendSuccess(res, await listOnlineOrders(tenantContextFrom(req), query, options));
+  }
+);
+
+/**
+ * A patient's recent consultations, for the picker on the order form.
+ *
+ * ⚠️ IT IS DELIBERATELY NOT `GET /patients/:id/visit-history`, WHICH ANSWERS THE
+ *   SAME QUESTION AND CARRIES THE CHART. That endpoint returns DIAGNOSES and is
+ *   gated on `clinical.encounter.read`; this one returns when, who and how many
+ *   items were prescribed, and is gated on the order permission the person
+ *   taking the call already holds. Reusing the clinical endpoint would have put
+ *   a list of diagnoses in a dropdown on the pharmacy counter — the widening
+ *   that `patients.routes.ts` refuses in the other direction for the front desk.
+ *
+ * ⚠️ IT IS ON THIS ROUTER, NOT THE PATIENTS ONE, for the same reason: the
+ *   disclosure it makes is scoped to taking an order, and it should be read
+ *   beside the endpoints that do that rather than beside the clinical record.
+ *
+ * ⚠️ AND IT WRITES A `data_access_logs` ROW. Naming somebody's consultations is
+ *   a disclosure about a named patient even without the findings.
+ */
+router.get(
+  '/patients/:patientId/consultations',
+  authorize(ORDER_MANAGE),
+  validate(consultationParams, 'params'),
+  validate(patientConsultationsQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { patientId } = req.params as z.infer<typeof consultationParams>;
+    const query = req.query as unknown as PatientConsultationsQuery;
+    const options = await orderOptions(
+      req,
+      'GET /v1/online-orders/patients/{patientId}/consultations'
+    );
+    sendSuccess(
+      res,
+      await listPatientConsultations(tenantContextFrom(req), patientId, query, options)
+    );
   }
 );
 

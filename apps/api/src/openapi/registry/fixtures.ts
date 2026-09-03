@@ -514,6 +514,24 @@ export const STORAGE_PROFILE_ID = '2b5a9e84-7c01-4f36-9d58-0e3b6a1c4d79';
 export const UNIT_STRIP_ID = '8c30f4a5-1b67-4e29-9a84-3d5c7b0e2f16';
 export const UNIT_CONVERSION_ID = 'f16d8b03-4a52-4c97-8e61-2b9d0c5a7e38';
 export const PACKAGING_ID = '7e2c5f90-6d18-4b43-8a07-9c1b3e5d0a62';
+
+/*
+ * The CODES the same masters are known by in a spreadsheet.
+ *
+ * ⚠️ THE IMPORT NAMES THINGS BY CODE, NOT BY ID, so its examples need the other
+ *   half of the fixtures that already exist above. These are the same capsule,
+ *   the same category and the same manufacturer as `UNIT_CAPSULE_ID`,
+ *   `CATEGORY_ID` and `MANUFACTURER_ID` — one clinic described once, which is
+ *   what stops the reference telling 448 unrelated stories.
+ */
+/** The unit `UNIT_CAPSULE_ID` is known by on a catalogue sheet. */
+export const UNIT_CAPSULE_CODE = 'CAP';
+/** The category `CATEGORY_ID` is known by. */
+export const CATEGORY_CODE = 'ANTIBIOTIC';
+/** The manufacturer `MANUFACTURER_ID` is known by. */
+export const MANUFACTURER_CODE = 'MFR-CIPLA';
+/** A second product, so an import example can show more than one row. */
+export const SECOND_PRODUCT_CODE = 'MED-PARA-650';
 export const IDENTIFIER_ID = '5a9d1c48-0f36-4e72-9b85-4c7a2e6b1d03';
 
 /* ────────────────────────────── inventory ────────────────────────────── */

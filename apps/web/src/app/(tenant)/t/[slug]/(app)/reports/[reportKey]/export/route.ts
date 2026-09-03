@@ -39,7 +39,16 @@ export async function GET(
 ): Promise<NextResponse> {
   const { slug, reportKey } = await params;
 
-  const path = REPORT_PATHS[reportKey];
+  /*
+   * ⚠️ `Object.hasOwn` BECAUSE A BARE LOOKUP READS THROUGH THE PROTOTYPE.
+   *   `REPORT_PATHS` is an object literal, so `/reports/constructor/export`,
+   *   `/reports/__proto__/export` and `/reports/toString/export` all returned a
+   *   truthy `path` and walked past this 404 into a malformed upstream URL. No
+   *   data reached anyone — the API host is fixed, so there is no SSRF and the
+   *   result was a 502 — but a 404 is the honest answer and an inherited
+   *   property is never a report. (PI-24 review.)
+   */
+  const path = Object.hasOwn(REPORT_PATHS, reportKey) ? REPORT_PATHS[reportKey] : undefined;
   if (!path) {
     return new NextResponse('No such report.', {
       status: 404,

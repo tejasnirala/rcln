@@ -44,6 +44,8 @@ import { unsafeDbClient } from '@rcln/db/unsafe';
 import { withTenant, type TenantContext } from '@rcln/db';
 import { sweepExpiredStock as sweepBranch, type SweepResult } from '@rcln/inventory';
 import type { Logger } from 'pino';
+import { jobId, type StockExpiringNotificationJob } from '@rcln/queue';
+
 import { movementDeps } from './deps.js';
 
 /**
@@ -166,4 +168,98 @@ export async function sweepExpiredStock(logger: Logger): Promise<void> {
   }
 
   logger.info({ swept, failed, considered: due.length }, 'expiry sweep finished');
+}
+
+/**
+ * Tell each branch what is about to expire — BEFORE it does (PI-24).
+ *
+ * ⚠️ THIS IS THE OPPOSITE QUESTION TO THE SWEEP ABOVE, AND THAT IS WHY IT IS A
+ *   SECOND QUERY RATHER THAN A FLAG ON THE FIRST. The sweep finds stock that has
+ *   ALREADY expired and moves it out of the dispensable pool; by the time it
+ *   fires, the money is lost and the only decision left is disposal. This finds
+ *   stock that still has time on it, which is the only point at which anybody
+ *   can do something useful — use it first, move it to a busier branch, return
+ *   it to the supplier.
+ *
+ * ⚠️ ONE MAIL PER BRANCH PER DAY, ENFORCED BY THE JOB ID rather than by a
+ *   `last_alerted_at` column. The inventory tick is HOURLY, so without the
+ *   dedupe every branch holding a short-dated lot would be mailed twenty-four
+ *   times a day and the alert would be filtered to a folder within a week — the
+ *   failure mode of every monitoring system ever built. `jobId.expiryAlert`
+ *   keys on (branch, day); BullMQ resolves the second and later adds of the day
+ *   against the first.
+ *
+ * ⚠️ IT ENQUEUES AND DOES NOT SEND. Who to tell is a permission question best
+ *   answered inside a tenant context, and the sender lives on the notifications
+ *   queue where a relay being down retries without holding up the stock sweep.
+ */
+interface ExpiringBranch {
+  branch_id: string;
+  organization_id: string;
+  actor_user_id: string;
+  batch_count: number;
+}
+
+/**
+ * How far ahead to look.
+ *
+ * Thirty days is long enough that a branch can still move stock to another site
+ * or agree a return with the supplier, and short enough that the list is worth
+ * opening. It is deliberately NOT configurable per clinic yet: one number that
+ * everybody can reason about beats a setting nobody sets.
+ */
+const EXPIRY_ALERT_WINDOW_DAYS = 30;
+
+export async function alertOnExpiringStock(
+  logger: Logger,
+  enqueue: (job: StockExpiringNotificationJob, id: string) => Promise<void>
+): Promise<void> {
+  const prisma = unsafeDbClient();
+
+  /*
+   * ⚠️ A SECURITY DEFINER FUNCTION, NOT A QUERY, AND THE ALTERNATIVE FAILS
+   *   SILENTLY. `rcln_app` has NOBYPASSRLS, so a plain cross-tenant SELECT from
+   *   here matches zero rows and the alert never fires — no error, nothing in a
+   *   log. Same reasoning, same shape, same migration style as
+   *   `inventory_branches_with_expired_stock` above; read that function's header
+   *   for why the alternatives were rejected.
+   */
+  const due = await prisma.$queryRaw<ExpiringBranch[]>`
+    SELECT branch_id, organization_id, actor_user_id, batch_count
+      FROM inventory_branches_with_expiring_stock(
+             ${EXPIRY_ALERT_WINDOW_DAYS}, ${BRANCHES_PER_TICK}
+           )
+  `;
+
+  if (due.length === 0) {
+    logger.debug('expiry alert: nothing is due to expire soon');
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  let queued = 0;
+
+  for (const branch of due) {
+    try {
+      await enqueue(
+        {
+          organizationId: branch.organization_id,
+          branchId: branch.branch_id,
+          withinDays: EXPIRY_ALERT_WINDOW_DAYS,
+          batchCount: branch.batch_count,
+          actorUserId: branch.actor_user_id,
+        },
+        jobId.expiryAlert(branch.branch_id, today)
+      );
+      queued += 1;
+    } catch (err: unknown) {
+      /* One branch's alert must not stop the rest, exactly as above. */
+      logger.error(
+        { organizationId: branch.organization_id, branchId: branch.branch_id, err },
+        'expiry alert: could not enqueue'
+      );
+    }
+  }
+
+  logger.info({ branches: due.length, queued }, 'expiry alert finished');
 }

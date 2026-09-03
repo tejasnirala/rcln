@@ -8,27 +8,29 @@ Source: `apps/api/src/routes/v1/online-pharmacy.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:98` |
-| GET | `/` | `authorize(ORDER_READ)` → `validate(onlineOrderQuery)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:132` |
-| GET | `/:orderId` | `authorize(ORDER_READ)` → `validate(orderParams)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:143` |
-| POST | `/` | `authorize(ORDER_MANAGE)` → `validate(createOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:158` |
-| PATCH | `/:orderId` | `authorize(ORDER_MANAGE)` → `validate(orderParams)` → `validate(updateOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:174` |
-| POST | `/:orderId/confirm` | `authorize(ORDER_MANAGE)` → `validate(orderParams)` → `validate(confirmOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:196` |
-| POST | `/:orderId/cancel` | `authorize(ORDER_MANAGE)` → `validate(orderParams)` → `validate(cancelOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:213` |
-| POST | `/:orderId/pack` | `authorize(DISPENSE_CREATE)` → `validate(orderParams)` → `validate(packOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:238` |
-| POST | `/:orderId/ship` | `authorize(ORDER_DISPATCH)` → `validate(orderParams)` → `validate(shipOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:255` |
-| POST | `/:orderId/deliver` | `authorize(ORDER_DISPATCH)` → `validate(orderParams)` → `validate(deliverOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:272` |
-| POST | `/:orderId/delivery-failed` | `authorize(ORDER_DISPATCH)` → `validate(orderParams)` → `validate(failOnlineOrderDeliveryRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:295` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:101` |
+| GET | `/` | `authorize(ORDER_READ)` → `validate(onlineOrderQuery)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:136` |
+| GET | `/patients/:patientId/consultations` | `authorize(ORDER_MANAGE)` → `validate(consultationParams)` → `validate(patientConsultationsQuery)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:165` |
+| GET | `/:orderId` | `authorize(ORDER_READ)` → `validate(orderParams)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:184` |
+| POST | `/` | `authorize(ORDER_MANAGE)` → `validate(createOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:199` |
+| PATCH | `/:orderId` | `authorize(ORDER_MANAGE)` → `validate(orderParams)` → `validate(updateOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:215` |
+| POST | `/:orderId/confirm` | `authorize(ORDER_MANAGE)` → `validate(orderParams)` → `validate(confirmOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:237` |
+| POST | `/:orderId/cancel` | `authorize(ORDER_MANAGE)` → `validate(orderParams)` → `validate(cancelOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:254` |
+| POST | `/:orderId/pack` | `authorize(DISPENSE_CREATE)` → `validate(orderParams)` → `validate(packOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:279` |
+| POST | `/:orderId/ship` | `authorize(ORDER_DISPATCH)` → `validate(orderParams)` → `validate(shipOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:296` |
+| POST | `/:orderId/deliver` | `authorize(ORDER_DISPATCH)` → `validate(orderParams)` → `validate(deliverOnlineOrderRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:313` |
+| POST | `/:orderId/delivery-failed` | `authorize(ORDER_DISPATCH)` → `validate(orderParams)` → `validate(failOnlineOrderDeliveryRequest)` → `<inline>` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:336` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `orderParams` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:100` |
+| `orderParams` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:103` |
+| `consultationParams` | `apps/api/src/routes/v1/online-pharmacy.routes.ts:104` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`CancelOnlineOrderRequest` · `ConfirmOnlineOrderRequest` · `CreateOnlineOrderRequest` · `DeliverOnlineOrderRequest` · `FailOnlineOrderDeliveryRequest` · `OnlineOrderQuery` · `PackOnlineOrderRequest` · `ShipOnlineOrderRequest` · `UpdateOnlineOrderRequest` · `cancelOnlineOrderRequest` · `confirmOnlineOrderRequest` · `createOnlineOrderRequest` · `deliverOnlineOrderRequest` · `failOnlineOrderDeliveryRequest` · `onlineOrderQuery` · `packOnlineOrderRequest` · `shipOnlineOrderRequest` · `updateOnlineOrderRequest`
+`CancelOnlineOrderRequest` · `ConfirmOnlineOrderRequest` · `CreateOnlineOrderRequest` · `DeliverOnlineOrderRequest` · `FailOnlineOrderDeliveryRequest` · `OnlineOrderQuery` · `PackOnlineOrderRequest` · `PatientConsultationsQuery` · `ShipOnlineOrderRequest` · `UpdateOnlineOrderRequest` · `cancelOnlineOrderRequest` · `confirmOnlineOrderRequest` · `createOnlineOrderRequest` · `deliverOnlineOrderRequest` · `failOnlineOrderDeliveryRequest` · `onlineOrderQuery` · `packOnlineOrderRequest` · `patientConsultationsQuery` · `shipOnlineOrderRequest` · `updateOnlineOrderRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

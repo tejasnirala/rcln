@@ -18,37 +18,41 @@ Files: `packages/queue/jest.config.ts` · `packages/queue/src/index.ts` · `pack
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BILLING_SWEEP_CRON` | `'0 * * * *'` | `packages/queue/src/index.ts:164` |  |
-| `BILLING_SWEEP_JOB` | `'SWEEP'` | `packages/queue/src/index.ts:153` |  |
+| `BILLING_SWEEP_CRON` | `'0 * * * *'` | `packages/queue/src/index.ts:220` |  |
+| `BILLING_SWEEP_JOB` | `'SWEEP'` | `packages/queue/src/index.ts:209` |  |
 | `DEFAULT_JOB_OPTIONS` | `: JobsOptions` | `packages/queue/src/index.ts:47` |  |
-| `DOCUMENT_JOB` | `{ INVOICE_PDF: 'INVOICE_PDF', } as const` | `packages/queue/src/index.ts:93` |  |
-| `INVENTORY_SWEEP_CRON` | `'10 * * * *'` | `packages/queue/src/index.ts:198` |  |
-| `INVENTORY_SWEEP_JOB` | `'EXPIRY_SWEEP'` | `packages/queue/src/index.ts:183` |  |
+| `DOCUMENT_JOB` | `{ INVOICE_PDF: 'INVOICE_PDF', } as const` | `packages/queue/src/index.ts:149` |  |
+| `INVENTORY_SWEEP_CRON` | `'10 * * * *'` | `packages/queue/src/index.ts:254` |  |
+| `INVENTORY_SWEEP_JOB` | `'EXPIRY_SWEEP'` | `packages/queue/src/index.ts:239` |  |
+| `NOTIFICATION_JOB` | `{ ONLINE_ORDER_CONFIRMED: 'ONLINE_ORDER_CONFIRMED', ONLINE_ORDER_SHIPPED: 'ONLINE_ORDER_S…` | `packages/queue/src/index.ts:101` |  |
 | `QUEUE` | `{ NOTIFICATIONS: 'notifications', DOCUMENTS: 'documents', REPORTS: 'reports', BILLING: 'b…` | `packages/queue/src/index.ts:35` |  |
-| `RESERVATION_SWEEP_CRON` | `'30 * * * *'` | `packages/queue/src/index.ts:224` |  |
-| `RESERVATION_SWEEP_JOB` | `'RESERVATION_SWEEP'` | `packages/queue/src/index.ts:211` |  |
+| `RESERVATION_SWEEP_CRON` | `'30 * * * *'` | `packages/queue/src/index.ts:280` |  |
+| `RESERVATION_SWEEP_JOB` | `'RESERVATION_SWEEP'` | `packages/queue/src/index.ts:267` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `config` <sub>local</sub> | `: Config` | `packages/queue/jest.config.ts:3` |  |
-| `jobId` | `{ appointmentReminder: (appointmentId: string, hoursBefore: number): string => `reminder-…` | `packages/queue/src/index.ts:235` |  |
+| `jobId` | `{ appointmentReminder: (appointmentId: string, hoursBefore: number): string => `reminder-…` | `packages/queue/src/index.ts:291` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `BillingJob` | `{ organizationId, subscriptionId, action, attempt }` | `packages/queue/src/index.ts:139` |  |
+| `BillingJob` | `{ organizationId, subscriptionId, action, attempt }` | `packages/queue/src/index.ts:195` |  |
 | `EnqueueOptions` | `{ jobId }` | `packages/queue/src/producer.ts:22` |  |
-| `InventoryJob` | `{ organizationId, branchId, action }` | `packages/queue/src/index.ts:166` |  |
-| `InvoicePdfJob` | `{ organizationId, branchId, invoiceId, requestedBy }` | `packages/queue/src/index.ts:109` |  |
+| `InventoryJob` | `{ organizationId, branchId, action }` | `packages/queue/src/index.ts:222` |  |
+| `InvoicePdfJob` | `{ organizationId, branchId, invoiceId, requestedBy }` | `packages/queue/src/index.ts:165` |  |
 | `JobProducer` | `{ add, close }` | `packages/queue/src/producer.ts:33` |  |
 | `NotificationJob` | `{ organizationId, branchId, eventCode, recipientType, recipientId, channel, payload }` | `packages/queue/src/index.ts:75` |  |
+| `OnlineOrderNotificationJob` | `{ organizationId, branchId, onlineOrderId, actorUserId }` | `packages/queue/src/index.ts:119` |  |
+| `StockExpiringNotificationJob` | `{ organizationId, branchId, withinDays, batchCount, actorUserId }` | `packages/queue/src/index.ts:131` | A branch has stock expiring soon, and its staff should look at it. |
 
 ## type
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DocumentJobName` | `(typeof DOCUMENT_JOB)[keyof typeof DOCUMENT_JOB]` | `packages/queue/src/index.ts:97` |  |
+| `DocumentJobName` | `(typeof DOCUMENT_JOB)[keyof typeof DOCUMENT_JOB]` | `packages/queue/src/index.ts:153` |  |
+| `NotificationJobName` | `(typeof NOTIFICATION_JOB)[keyof typeof NOTIFICATION_JOB]` | `packages/queue/src/index.ts:108` |  |
 | `QueueName` | `(typeof QUEUE)[keyof typeof QUEUE]` | `packages/queue/src/index.ts:45` |  |

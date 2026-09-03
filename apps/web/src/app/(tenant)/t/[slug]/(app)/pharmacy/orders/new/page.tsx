@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import type { InventoryLocationListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
-import { branchesInScope, countryOf, getAccessToken } from '@/lib/session';
+import { branchesInScope, countryOf, getAccessToken, timezoneOf } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { OnlineOrderForm } from '@/components/tenant/online-order-form';
 import { pharmacyAccess } from '../../guard';
@@ -32,6 +32,9 @@ export default async function TakeOnlineOrderPage({
   }
 
   const accessToken = await getAccessToken();
+  /* For the consultation picker's dates — the clinic's day, never the
+   * container's (invariant 6). */
+  const timeZone = await timezoneOf(slug);
   /*
    * ⚠️ THE PRODUCT LIST IS GONE (PI-23). It was capped at 100 — the picker limit
    *   the whole programme carried — and the form searches now. So does the patient
@@ -64,6 +67,7 @@ export default async function TakeOnlineOrderPage({
       slug={slug}
       branches={branches}
       locations={dispensingPoints}
+      timeZone={timeZone}
       defaultCountryCode={country}
     />
   );

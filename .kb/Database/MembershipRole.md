@@ -37,7 +37,6 @@ Declared at `packages/db/prisma/schema/access-control.prisma:138`.
 
 - `@@unique([membershipId, roleId, branchId])`
 - `@@index([organizationId, branchId])`
-- `@@index([membershipId])`
 
 ## Neighbourhood
 

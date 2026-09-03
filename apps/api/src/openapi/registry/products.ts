@@ -33,20 +33,26 @@ import {
   medicineDetail,
   productDetail,
   productIdentifierDetail,
+  productImportResponse,
   productListResponse,
   resolveIdentifierResponse,
 } from '@rcln/contracts';
 import type { DocRegistry } from '../types.js';
 import {
+  CATEGORY_CODE,
   CATEGORY_ID,
   COMPOSITION_ID,
   IDENTIFIER_ID,
+  MANUFACTURER_CODE,
   MANUFACTURER_ID,
   PACKAGING_ID,
   PRODUCT,
+  PRODUCT_GTIN,
   PRODUCT_ID,
+  SECOND_PRODUCT_CODE,
   STORAGE_PROFILE_ID,
   SUBSTITUTE_PRODUCT_ID,
+  UNIT_CAPSULE_CODE,
   UNIT_CAPSULE_ID,
   UNIT_STRIP_ID,
 } from './fixtures.js';
@@ -400,6 +406,94 @@ own permissions.
     ],
     responseExamples: [
       { summary: 'Updated', value: { success: true, message: 'Success', data: PRODUCT_SUMMARY } },
+    ],
+  },
+
+  'POST /api/v1/products/import': {
+    summary: 'Import a catalogue from a spreadsheet',
+    description: `
+Create many products at once, naming units, categories and manufacturers by
+their **codes** rather than by id — a spreadsheet has no uuids in it.
+
+⚠️ **Run it with \`dryRun: true\` first.** The response is identical either way:
+every row gets an outcome and, where it failed, a sentence saying why. A file
+assembled by hand is wrong the first time, and the useful answer is the whole
+list rather than the first row that broke.
+
+⚠️ **It is all or nothing.** If any row fails, nothing is written — a partly
+imported catalogue is a state nobody can reason about, and re-running it buries
+the genuine failures under a page of "already exists".
+
+A code that already exists is **skipped, not updated**: a stale spreadsheet must
+not silently undo a correction somebody made on screen.
+
+Where a code matches both one of this clinic's masters and a platform one, the
+clinic's own wins.
+
+Prices and tax classifications are **not** part of this: a price is per branch
+and per currency, a tax classification is per country and per jurisdiction, and
+one spreadsheet column cannot honestly mean both.
+`.trim(),
+    response: productImportResponse,
+    requestExamples: [
+      {
+        summary: 'Two medicines, checked but not written',
+        value: {
+          dryRun: true,
+          rows: [
+            {
+              type: 'MEDICINE',
+              code: PRODUCT.code,
+              name: PRODUCT.name,
+              brandName: 'Amoxil',
+              genericName: 'Amoxicillin',
+              baseUnitCode: UNIT_CAPSULE_CODE,
+              categoryCode: CATEGORY_CODE,
+              manufacturerCode: MANUFACTURER_CODE,
+              barcode: PRODUCT_GTIN,
+              trackingMode: 'BATCH',
+              isExpiryControlled: true,
+              isStockItem: true,
+            },
+            {
+              type: 'MEDICINE',
+              code: SECOND_PRODUCT_CODE,
+              name: 'Paracetamol 650mg Tablet',
+              baseUnitCode: UNIT_CAPSULE_CODE,
+              trackingMode: 'BATCH',
+              isExpiryControlled: true,
+              isStockItem: true,
+            },
+          ],
+        },
+      },
+    ],
+    responseExamples: [
+      {
+        summary: 'One row would land, one names a unit that does not exist',
+        value: {
+          dryRun: true,
+          created: 0,
+          skipped: 0,
+          failed: 1,
+          results: [
+            {
+              row: 1,
+              code: PRODUCT.code,
+              outcome: 'CREATED',
+              productId: PRODUCT_ID,
+              message: null,
+            },
+            {
+              row: 2,
+              code: SECOND_PRODUCT_CODE,
+              outcome: 'FAILED',
+              productId: null,
+              message: 'No unit has the code "TABLET".',
+            },
+          ],
+        },
+      },
     ],
   },
 

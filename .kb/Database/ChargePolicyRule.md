@@ -42,7 +42,6 @@ Declared at `packages/db/prisma/schema/charging.prisma:146`.
 
 - `@@unique([organizationId, productId, productCategoryId, productType])`
 - `@@unique([organizationId, id])`
-- `@@index([organizationId, productId])`
 - `@@index([organizationId, productCategoryId])`
 - `@@index([organizationId, productType])`
 

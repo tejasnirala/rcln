@@ -55,7 +55,6 @@ Declared at `packages/db/prisma/schema/pharmacy.prisma:231`.
 - `@@unique([organizationId, dispenseId, lineNumber])`
 - `@@unique([organizationId, id])`
 - `@@unique([organizationId, branchId, id])`
-- `@@index([organizationId, dispenseId])`
 - `@@index([organizationId, productId])`
 - `@@index([organizationId, encounterPrescriptionId])`
 

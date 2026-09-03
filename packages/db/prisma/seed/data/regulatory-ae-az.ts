@@ -435,7 +435,17 @@ export const AE_AZ_RULES: RuleSeed[] = [
       'in a pharmacy or a DOH-approved medication room, with CCTV covering it.',
     sourceKey: 'AE_AZ_NARCOTICS_STANDARD',
     appliesToClassification: classification,
-    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE'],
+    /*
+     * ⚠️ `ONLINE_DISPENSE` INCLUDED — WITHOUT IT THE COUNTER REFUSED WHAT THE
+     *   PARCEL PERMITTED. A controlled medicine supplied from an open shelf was
+     *   refused over the counter by `controlledAccessRequired` and not consulted
+     *   at all when the same medicine went out as an online order, because the
+     *   storage rules predate PI-12 making `ONLINE_DISPENSE` a live transaction.
+     *   The stock is on the same shelf either way — the packing counter is the
+     *   location the consult is given for. Eight rules across seven packs had
+     *   this gap. (PI-24 review.)
+     */
+    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE'],
     parameters: {
       controlledAccessRequired: true,
       detail:

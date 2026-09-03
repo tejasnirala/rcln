@@ -50,7 +50,6 @@ Declared at `packages/db/prisma/schema/consumption.prisma:351`.
 - `@@unique([organizationId, consumptionId, lineNumber])`
 - `@@unique([organizationId, id])`
 - `@@unique([organizationId, branchId, id])`
-- `@@index([organizationId, consumptionId])`
 - `@@index([organizationId, productId])`
 - `@@index([organizationId, templateLineId])`
 

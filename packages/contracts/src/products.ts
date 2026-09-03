@@ -529,6 +529,99 @@ export const createProductRequest = expiryNeedsBatchTracking(
   })
 );
 
+/* ---------------------------------------------------------------------------
+ * Bulk import
+ * ------------------------------------------------------------------------- */
+
+/**
+ * One row of a catalogue spreadsheet.
+ *
+ * ⚠️ IT NAMES THINGS BY CODE, NOT BY UUID, AND THAT IS THE WHOLE POINT OF THE
+ *   IMPORT. `createProductRequest` takes `baseUnitId`, `categoryId` and
+ *   `manufacturerId` because a screen has just picked them; a spreadsheet has
+ *   none of them and nobody is going to paste four hundred uuids into Excel.
+ *   `units_of_measure`, `product_categories` and `manufacturers` all key on
+ *   `(organization_id, code)`, so a code resolves exactly — which a NAME would
+ *   not, and "Tablet" vs "Tablets" silently creating two units is the failure
+ *   this avoids.
+ *
+ * ⚠️ AND THE CLINIC'S OWN ROW WINS OVER THE PLATFORM'S when both carry the code.
+ *   `organization_id` is nullable on all three, NULL meaning a platform row —
+ *   the same shape that produced a live defect in PI-23's scanner, where a bare
+ *   `DESC` ordering put the platform row first because Postgres sorts NULLS
+ *   FIRST. The resolver states its ordering rather than relying on one.
+ *
+ * ⚠️ NO PRICE AND NO TAX CATEGORY HERE, DELIBERATELY. A price is per branch and
+ *   per currency and belongs to `product_prices`; a tax classification is per
+ *   country and per jurisdiction. Folding either into a product row would make
+ *   one spreadsheet column mean different things in two states, which is exactly
+ *   the confusion GST exists to punish. They are separate imports.
+ */
+export const productImportRow = expiryNeedsBatchTracking(
+  z.object({
+    type: productType,
+    code: catalogueCode,
+    name: z.string().trim().min(2).max(500),
+    brandName: z.string().trim().max(255).optional(),
+    genericName: z.string().trim().max(255).optional(),
+    /** The code of a unit — `TAB`, `ML`. Resolved against this clinic's units. */
+    baseUnitCode: z.string().trim().min(1).max(32),
+    categoryCode: z.string().trim().max(64).optional(),
+    manufacturerCode: z.string().trim().max(64).optional(),
+    /**
+     * The barcode on the box, written as a `GTIN` identifier.
+     *
+     * Optional, and worth filling in: it is what makes the product scannable at
+     * a goods receipt, and a catalogue imported without it means somebody
+     * typing names at a loading bay.
+     */
+    barcode: z.string().trim().max(128).optional(),
+    ...productInventoryConfig.shape,
+  })
+);
+export type ProductImportRow = z.infer<typeof productImportRow>;
+
+/**
+ * ⚠️ CAPPED, BECAUSE THE WHOLE IMPORT IS ONE TRANSACTION. A clinic's opening
+ *   catalogue is hundreds of rows, not hundreds of thousands, and a file that
+ *   large is a migration somebody should be talking to us about rather than
+ *   pasting into a browser. The cap is what stops one request holding a write
+ *   transaction open across every other clinic's traffic.
+ */
+export const productImportRequest = z.object({
+  rows: z.array(productImportRow).min(1).max(1000),
+  /**
+   * Check every row and write nothing.
+   *
+   * ⚠️ THE POINT OF THE IMPORT, NOT A CONVENIENCE. A spreadsheet assembled by
+   *   hand is wrong the first time — a unit code that does not exist, a
+   *   duplicate product code, an expiry flag on an untracked product — and the
+   *   useful thing is the whole list of what is wrong, not the first failure.
+   *   A dry run returns exactly what a real one would and commits nothing.
+   */
+  dryRun: z.boolean().default(false),
+});
+export type ProductImportRequest = z.infer<typeof productImportRequest>;
+
+export const productImportRowResult = z.object({
+  /** 1-based, matching the spreadsheet row the person is looking at. */
+  row: z.number().int(),
+  code: z.string(),
+  outcome: z.enum(['CREATED', 'SKIPPED_EXISTS', 'FAILED']),
+  productId: uuid.nullable(),
+  /** Why it failed or was skipped, in words the person can act on. */
+  message: z.string().nullable(),
+});
+
+export const productImportResponse = z.object({
+  dryRun: z.boolean(),
+  created: z.number().int(),
+  skipped: z.number().int(),
+  failed: z.number().int(),
+  results: z.array(productImportRowResult),
+});
+export type ProductImportResponse = z.infer<typeof productImportResponse>;
+
 export const updateProductRequest = expiryNeedsBatchTracking(
   z
     .object({
