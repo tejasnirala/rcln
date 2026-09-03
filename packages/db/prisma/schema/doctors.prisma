@@ -274,14 +274,30 @@ model DoctorProfile {
   /// was sent to.
   referralsTo    EncounterReferral[]       @relation("ReferralDoctor")
 
-  @@unique([organizationId, userId])
   /// Composite-FK target: schedules, appointments and queue tokens reference
   /// (organization_id, id) so a cross-tenant row is unrepresentable.
   @@unique([organizationId, id])
-  /// ⚠️ NULLS NOT DISTINCT in the migration — the column is nullable, and a
-  /// council number appearing twice in one clinic is a data-entry error worth
-  /// refusing.
-  @@unique([organizationId, registrationNumber])
+  /// ⚠️ TWO UNIQUES ARE MISSING FROM THIS BLOCK ON PURPOSE, AND PUTTING THEM
+  ///   BACK REINSTATES TWO BUGS. Both are PARTIAL indexes, which Prisma cannot
+  ///   express, written by hand in
+  ///   `20260914090000_doctor_profile_partial_uniques`:
+  ///
+  ///     doctor_profiles_council_number_unique
+  ///       (organization_id, registration_number)
+  ///       WHERE registration_number IS NOT NULL AND deleted_at IS NULL
+  ///
+  ///     doctor_profiles_live_user_unique
+  ///       (organization_id, user_id) WHERE deleted_at IS NULL
+  ///
+  ///   As `@@unique` they were TOTAL, and each refused an ordinary write with a
+  ///   bare P2002 naming no column: the second doctor whose council number was
+  ///   not yet to hand collided with the first on (org, NULL) under NULLS NOT
+  ///   DISTINCT, and an archived doctor could never be registered again because
+  ///   the soft-deleted row still occupied (org, user_id). The guarantees are
+  ///   unchanged — a council number is still unique within a clinic, and one
+  ///   person still holds at most one LIVE profile per clinic while remaining
+  ///   free to consult at another. `doctor_specialties_one_primary` below is the
+  ///   same arrangement.
   @@index([organizationId, status])
   @@map("doctor_profiles")
 }
