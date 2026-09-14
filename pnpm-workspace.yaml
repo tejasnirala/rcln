@@ -17,5 +17,5 @@ onlyBuiltDependencies:
 # Keep these versions identical across every workspace package.
 catalog:
   typescript: ^5.9.3
-  zod: ^4.3.5
+  zod: ^4.6.2
   '@types/node': ^25.0.8
