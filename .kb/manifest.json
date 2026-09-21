@@ -397,7 +397,7 @@
   "Symbols/apps.worker.billing.md": "9e2a9e0a3664",
   "Symbols/apps.worker.documents.md": "b57d0b36b875",
   "Symbols/apps.worker.inventory.md": "7004a4545b3d",
-  "Symbols/apps.worker.md": "321ccc014257",
+  "Symbols/apps.worker.md": "a09f07fe1170",
   "Symbols/apps.worker.notifications.md": "43ce6447644b",
   "Symbols/apps.worker.tests.md": "b0f40954d03d",
   "Symbols/packages.billing.engine.md": "d3b5d9432c69",
@@ -435,5 +435,5 @@
   "Symbols/packages.storage.tests.md": "c31a93895ee4",
   "Symbols/packages.tax.md": "cbc43c0bb035",
   "Symbols/packages.tax.tests.md": "660ddf75a449",
-  "symbols.tsv": "d89f70ea040a"
+  "symbols.tsv": "4ffbe2ae0891"
 }
