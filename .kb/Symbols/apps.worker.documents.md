@@ -13,8 +13,9 @@ Files: `apps/worker/src/documents/browser.ts` · `apps/worker/src/documents/invo
 | `closeBrowser` | `(): Promise<void>` | `apps/worker/src/documents/browser.ts:143` |  |
 | `createRenderContext` | `(): Promise<BrowserContext>` | `apps/worker/src/documents/browser.ts:114` | A context for one job. Always closed by the caller, in a finally. |
 | `getBrowser` | `(): Promise<Browser>` | `apps/worker/src/documents/browser.ts:86` |  |
+| `pdfOptionsFor` | `(chrome: { header: string; footer: string; }): Parameters<Page['pdf']>[0]` | `apps/worker/src/documents/pdf.renderer.ts:124` |  |
 | `renderInvoicePdf` | `(job: InvoicePdfJob, logger: JobLogger): Promise<void>` | `apps/worker/src/documents/invoice-pdf.job.ts:54` |  |
-| `renderPdf` | `(html: string): Promise<Buffer>` | `apps/worker/src/documents/pdf.renderer.ts:35` |  |
+| `renderPdf` | `(html: string): Promise<Buffer>` | `apps/worker/src/documents/pdf.renderer.ts:36` |  |
 | `scriptOf` <sub>local</sub> | `(character: string): string` | `apps/worker/src/documents/invoice-pdf.job.ts:245` |  |
 
 ## const

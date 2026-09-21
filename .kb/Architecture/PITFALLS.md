@@ -326,6 +326,41 @@ database".
 
 ## Node, pnpm and Prisma
 
+### A hand-dated migration folder sorts before the `migrate dev` one that follows it
+
+**Symptom:** the development database is perfectly healthy and `migrate status`
+says "up to date", but building any NEW database from the same folder dies part
+way through — `ERROR: index "consumption_lines_organization_id_consumption_id_idx"
+does not exist`, or an `ALTER TYPE` naming an enum nothing has created yet. CI's
+database job hits it too, because CI always starts from empty.
+
+**Cause:** Prisma applies migrations in **lexicographic folder order**, but
+`migrate dev` names a new folder from the **wall clock**. Several migrations here
+are hand-named with future dates (`20260911090500_pi_12_online_pharmacy`), so a
+folder generated today (`20260902172714_…`) sorts into the MIDDLE of history —
+before the migrations that create the objects it alters. The development database
+never notices: it applied them in the order they were written, which is recorded
+in `_prisma_migrations.started_at`, not in the name.
+
+Four migrations were in this state, and it went unseen for exactly as long as
+nobody built a database from scratch.
+
+**Fix:** rename the folder so it sorts last, leaving the file **byte-identical**
+so the checksum still matches, then correct the name recorded in the development
+database:
+
+```sql
+UPDATE _prisma_migrations SET migration_name = '<new>' WHERE migration_name = '<old>';
+```
+
+Renaming without the UPDATE is worse than leaving it: Prisma then sees a
+migration recorded in the database that no longer exists on disk.
+
+**Prevention:** after adding a migration, check that its folder sorts last —
+`ls packages/db/prisma/migrations | sort | tail -3`. `pnpm db:test:setup --fresh`
+replays the whole chain from empty in about a minute and fails loudly if it does
+not, which is the cheapest standing guard against this.
+
 ### Prisma 7 removed `url` from the datasource block
 
 **Symptom:** schema validation error pointing at `datasource db { url = … }`.

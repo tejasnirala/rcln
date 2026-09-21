@@ -592,6 +592,21 @@ export const appointmentStatusEvent = z.object({
  * Carries the patient's name — a front desk that cannot see who is arriving at
  * 10:20 cannot do its job — but deliberately NOT `reason`. Name plus reason on
  * a screen anybody can glance at is a diagnosis with extra steps.
+ *
+ * ⚠️ `cancellationReason` IS HERE AND `reason` IS NOT, AND THE LINE BETWEEN THEM
+ *   IS WORTH STATING. `reason` is why the patient is COMING — a chief complaint,
+ *   clinical content, the thing the paragraph above refuses to put on a shared
+ *   screen. `cancellationReason` is why the booking did not happen, and in
+ *   practice it is administrative: "patient rescheduled", "doctor called away",
+ *   "booked twice by mistake". A day board that shows a struck-through row with
+ *   no explanation sends the desk into the detail page — and THAT page discloses
+ *   the chief complaint, which is the more sensitive read of the two.
+ *
+ *   It is still free text somebody could type a clinical fact into, and the day
+ *   board — unlike `GET /{appointmentId}` — writes no `data_access_logs` row. So
+ *   this is a real, if narrow, widening: it is only ever non-null on a booking
+ *   that was called off, and it is the smallest thing that answers "why is this
+ *   one crossed out?" without a second disclosure.
  */
 export const appointmentSummary = z.object({
   id: uuid,
@@ -623,6 +638,8 @@ export const appointmentSummary = z.object({
   visitType: appointmentVisitType,
   source: appointmentSource,
   status: appointmentStatus,
+  /** Why it was called off. Null on every status but `CANCELLED`. */
+  cancellationReason: z.string().nullable(),
   checkedInAt: z.iso.datetime().nullable(),
   /**
    * Whether this visit is already billed, and on what.
@@ -646,9 +663,14 @@ export const appointmentSummary = z.object({
 });
 
 export const appointmentDetail = appointmentSummary.extend({
-  /** ⚠️ PHI. Behind the detail endpoint, which writes a data-access row. */
+  /**
+   * ⚠️ PHI. Behind the detail endpoint, which writes a data-access row.
+   *
+   * `cancellationReason` is NOT redeclared here — it moved onto the summary, so
+   * the detail inherits it. See the note there for why the two reasons sit on
+   * different sides of that boundary.
+   */
   reason: z.string().nullable(),
-  cancellationReason: z.string().nullable(),
   startedAt: z.iso.datetime().nullable(),
   completedAt: z.iso.datetime().nullable(),
   mrn: z.string(),
@@ -790,6 +812,51 @@ export const appointmentListResponse = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// One patient's bookings (the chart's Appointments tab)
+// ---------------------------------------------------------------------------
+
+/**
+ * Every booking this patient has, newest first.
+ *
+ * ⚠️ A DIFFERENT QUESTION FROM THE DAY BOARD, WHICH IS WHY IT IS NOT A FILTER ON
+ *   `appointmentListQuery`. That query is anchored on a branch and a date range
+ *   capped at `APPOINTMENT_RANGE_MAX_DAYS` — deliberately, because an unbounded
+ *   range there is every patient the clinic has ever seen. This one is anchored
+ *   on ONE patient, so the bound that makes the board safe is exactly the bound
+ *   that would make this useless: a history is unbounded in time by definition.
+ *   Paginating instead of ranging is what keeps the response finite.
+ *
+ * ⚠️ AND IT IS NOT THE VISIT HISTORY. That is `clinical.encounter.read` and
+ *   carries diagnoses; this is `appointment.read` and carries none — when
+ *   somebody came in, with whom, and whether they turned up. Same split as
+ *   `GET /clinical-episodes/:id` versus `/visit-history` (CD-14).
+ */
+export const patientAppointmentsQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(10),
+});
+
+/**
+ * ⚠️ THE ROWS ARE `appointmentSummary`, NAME AND UHID INCLUDED, AND THAT IS
+ *   REDUNDANT RATHER THAN WRONG. Every row is the patient the caller already
+ *   named in the path and is already reading the record of, so the fields
+ *   disclose nothing new — and reusing the board's row means the chip, the
+ *   words and the zone handling on screen are the ones already written for it.
+ *   A second, leaner shape would be a second thing to keep in step.
+ *
+ * `liveInvoice` is never populated here: whether a visit is billed is the
+ * Invoices tab's question, and answering it per row would be a second query on
+ * a panel that is one tab away from the ledger itself.
+ */
+export const patientAppointmentsResponse = z.object({
+  patientId: uuid,
+  appointments: z.array(appointmentSummary),
+  total: z.number().int(),
+  page: z.number().int(),
+  pageSize: z.number().int(),
+});
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -809,6 +876,8 @@ export type AppointmentSummary = z.infer<typeof appointmentSummary>;
 export type AppointmentDetail = z.infer<typeof appointmentDetail>;
 export type AppointmentListResponse = z.infer<typeof appointmentListResponse>;
 export type AppointmentListQuery = z.infer<typeof appointmentListQuery>;
+export type PatientAppointmentsQuery = z.infer<typeof patientAppointmentsQuery>;
+export type PatientAppointmentsResponse = z.infer<typeof patientAppointmentsResponse>;
 export type CreateAppointmentRequest = z.infer<typeof createAppointmentRequest>;
 export type RescheduleAppointmentRequest = z.infer<typeof rescheduleAppointmentRequest>;
 export type UpdateAppointmentRequest = z.infer<typeof updateAppointmentRequest>;

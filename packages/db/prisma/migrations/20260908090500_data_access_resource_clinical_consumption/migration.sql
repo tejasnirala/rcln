@@ -1,0 +1,28 @@
+-- ---------------------------------------------------------------------------
+-- What was USED on a named person during a procedure is a PHI read (PI-9).
+--
+-- A consumption record answers "which implant is in Mrs Rao" and, read the
+-- other way, "which patients received this lot of bone graft" — the first by
+-- primary key, the second by an index built for a recall. Both are disclosures
+-- about identifiable individuals, so every read of the record shapes writes a
+-- `data_access_logs` row.
+--
+-- ⚠️ ITS OWN RESOURCE RATHER THAN `INVENTORY_SERIAL` OR `ENCOUNTER`, and the
+--   distinction is the one a disclosure review actually asks about.
+--   `INVENTORY_SERIAL` is "who looked up device 7742" — a question asked from
+--   the STOCK side, by a storekeeper or a recall. This is "who read what was
+--   used during Mrs Rao's root canal", asked from the PATIENT side, and it
+--   returns a product list and a variance rather than one device. And it is not
+--   `ENCOUNTER`, because reading the consumption panel does not disclose the
+--   diagnosis, the prescription or the note — the same line `VITALS` draws.
+--
+-- ⚠️ ITS OWN MIGRATION, WHICH IS PI-2's HABIT AND NOT AN ACCIDENT.
+--   `ALTER TYPE ... ADD VALUE` could not run in the same transaction as tables
+--   that use it under older Postgres, and keeping enum additions separable is
+--   what stops that being discovered during a deploy rather than here. It sorts
+--   AFTER `..090000_clinical_consumption` because migrations replay in NAME
+--   order and that one is already applied; nothing in either statement depends
+--   on the other, because the value is used at runtime and never in DDL.
+-- ---------------------------------------------------------------------------
+-- AlterEnum
+ALTER TYPE "DataAccessResource" ADD VALUE 'CLINICAL_CONSUMPTION';

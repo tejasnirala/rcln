@@ -38,12 +38,13 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 - `apps/worker/src/inventory/deps.ts`
 - `apps/worker/src/inventory/expiry.processor.ts`
 - `apps/worker/src/inventory/reservation.processor.ts`
+- `apps/worker/src/notifications/notification.processor.ts`
 - `packages/queue/src/index.ts`
 - `packages/queue/src/producer.ts`
 
 ## Workspace dependencies
 
-`@rcln/billing` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/documents` · `@rcln/documents/data` · `@rcln/documents/store` · `@rcln/inventory` · `@rcln/payments` · `@rcln/queue`
+`@rcln/billing` · `@rcln/db` · `@rcln/db/unsafe` · `@rcln/documents` · `@rcln/documents/data` · `@rcln/documents/store` · `@rcln/inventory` · `@rcln/notifications` · `@rcln/payments` · `@rcln/queue`
 
 ## Known limitations
 
@@ -56,9 +57,10 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 
 | name | kind | at |
 | --- | --- | --- |
-| `BILLING_SWEEP_CRON` | const | `packages/queue/src/index.ts:164` |
-| `BILLING_SWEEP_JOB` | const | `packages/queue/src/index.ts:153` |
-| `BillingJob` | interface | `packages/queue/src/index.ts:139` |
+| `alertOnExpiringStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:213` |
+| `BILLING_SWEEP_CRON` | const | `packages/queue/src/index.ts:220` |
+| `BILLING_SWEEP_JOB` | const | `packages/queue/src/index.ts:209` |
+| `BillingJob` | interface | `packages/queue/src/index.ts:195` |
 | `BillingProcessorDeps` | interface | `apps/worker/src/billing/processor.ts:49` |
 | `closeBrowser` | fn | `apps/worker/src/documents/browser.ts:143` |
 | `createJobProducer` | fn | `packages/queue/src/producer.ts:50` |
@@ -67,28 +69,36 @@ Background jobs on BullMQ. Every queue is registered; the billing clock and invo
 | `createRenderContext` | fn | `apps/worker/src/documents/browser.ts:114` |
 | `DEFAULT_JOB_OPTIONS` | const | `packages/queue/src/index.ts:47` |
 | `disconnectPayments` | fn | `apps/worker/src/billing/runtime.ts:98` |
-| `DOCUMENT_JOB` | const | `packages/queue/src/index.ts:93` |
-| `DocumentJobName` | type | `packages/queue/src/index.ts:97` |
+| `DOCUMENT_JOB` | const | `packages/queue/src/index.ts:149` |
+| `DocumentJobName` | type | `packages/queue/src/index.ts:153` |
 | `EnqueueOptions` | interface | `packages/queue/src/producer.ts:22` |
+| `expireAbandonedOrders` | fn | `apps/worker/src/inventory/reservation.processor.ts:175` |
 | `getBrowser` | fn | `apps/worker/src/documents/browser.ts:86` |
 | `initialisePayments` | fn | `apps/worker/src/billing/runtime.ts:69` |
-| `INVENTORY_SWEEP_CRON` | const | `packages/queue/src/index.ts:198` |
-| `INVENTORY_SWEEP_JOB` | const | `packages/queue/src/index.ts:183` |
-| `InventoryJob` | interface | `packages/queue/src/index.ts:166` |
-| `InvoicePdfJob` | interface | `packages/queue/src/index.ts:109` |
-| `jobId` | var | `packages/queue/src/index.ts:235` |
+| `INVENTORY_SWEEP_CRON` | const | `packages/queue/src/index.ts:254` |
+| `INVENTORY_SWEEP_JOB` | const | `packages/queue/src/index.ts:239` |
+| `InventoryJob` | interface | `packages/queue/src/index.ts:222` |
+| `InvoicePdfJob` | interface | `packages/queue/src/index.ts:165` |
+| `jobId` | var | `packages/queue/src/index.ts:291` |
 | `JobProducer` | interface | `packages/queue/src/producer.ts:33` |
 | `movementDeps` | var | `apps/worker/src/inventory/deps.ts:26` |
+| `NOTIFICATION_JOB` | const | `packages/queue/src/index.ts:101` |
+| `NotificationDeps` | interface | `apps/worker/src/notifications/notification.processor.ts:45` |
 | `NotificationJob` | interface | `packages/queue/src/index.ts:75` |
+| `NotificationJobName` | type | `packages/queue/src/index.ts:108` |
+| `OnlineOrderNotificationJob` | interface | `packages/queue/src/index.ts:119` |
+| `pdfOptionsFor` | fn | `apps/worker/src/documents/pdf.renderer.ts:124` |
 | `processBillingJob` | fn | `apps/worker/src/billing/processor.ts:137` |
+| `processNotificationJob` | fn | `apps/worker/src/notifications/notification.processor.ts:225` |
 | `QUEUE` | const | `packages/queue/src/index.ts:35` |
 | `QueueName` | type | `packages/queue/src/index.ts:45` |
 | `renderInvoicePdf` | fn | `apps/worker/src/documents/invoice-pdf.job.ts:54` |
-| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:35` |
-| `RESERVATION_SWEEP_CRON` | const | `packages/queue/src/index.ts:224` |
-| `RESERVATION_SWEEP_JOB` | const | `packages/queue/src/index.ts:211` |
+| `renderPdf` | fn | `apps/worker/src/documents/pdf.renderer.ts:36` |
+| `RESERVATION_SWEEP_CRON` | const | `packages/queue/src/index.ts:280` |
+| `RESERVATION_SWEEP_JOB` | const | `packages/queue/src/index.ts:267` |
 | `runtimeFactory` | fn | `apps/worker/src/billing/runtime.ts:111` |
+| `StockExpiringNotificationJob` | interface | `packages/queue/src/index.ts:131` |
 | `sweepDueReservations` | fn | `apps/worker/src/inventory/reservation.processor.ts:68` |
 | `sweepDueSubscriptions` | fn | `apps/worker/src/billing/processor.ts:71` |
-| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:79` |
+| `sweepExpiredStock` | fn | `apps/worker/src/inventory/expiry.processor.ts:81` |
 | `WorkerPaymentsConfig` | interface | `apps/worker/src/billing/runtime.ts:28` |

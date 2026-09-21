@@ -5,6 +5,1380 @@ discussed.
 
 ---
 
+## 2026-09-02 — PI-23: one scan, three answers, and the end of the picker cap
+
+**Phase:** PI-23 · **Branch:** `feat/pi-23-identifier-resolution` ·
+**Result:** complete, **not reviewed** · **Tests:** +33 unit (the decoder),
++11 integration (the endpoint), +3 route-gate cases. **No migration**, no new
+table, no RLS policy, no tenant-isolation case, no new permission code.
+
+`decodeScan` in `@rcln/inventory` takes one scanned string apart; `resolveScan`
+in `apps/api` turns it into a product, a lot and a device in one round trip
+behind `GET /v1/stock/resolve`. On the web it is a scanner console at
+`/stock/scan`, a scan-to-fill field on the goods receipt, and two search pickers
+that replace every capped `<select>` in the application.
+
+### The decoder is in a package, and it refuses to guess
+
+It lives in `@rcln/inventory` beside `recordMovement` for the reason that file
+gives: the worker posts receipts, and a second barcode parser that disagrees
+about a century is exactly the defect the comments are about. Four refusals are
+load-bearing and each is pinned by a unit case:
+
+- **An unknown application identifier stops the parse.** Nothing knows how many
+  characters it consumes, so skipping it resumes reading in the MIDDLE of
+  somebody's data and produces a plausible lot number that is not the one on the
+  box. The remainder comes back in `unparsed` and the screen shows it.
+- **`DD = 00` is the last day of the month.** Most cartons encode `EXP 01/2027`
+  that way. Reading it as the 1st expires a month of controlled stock early.
+- **The century is the GS1 window, 49 back and 50 forward.** `2000 + yy` works
+  perfectly until 2050 and then dates every pack fifty years in the past.
+- **A variable-length field is read to the end, never cut at its maximum.** A lot
+  truncated at twenty characters is a plausible prefix that matches nothing and
+  looks correct; one that visibly swallowed a serial is wrong to whoever is
+  holding the box.
+
+### Every length of the GTIN is searched, and that is the whole endpoint
+
+A catalogue typed by hand holds the thirteen digits printed under the bars; the
+DataMatrix carries fourteen with a leading zero. Matching one form is a scanner
+that "does not work for this product", reported months later by somebody who
+cannot reproduce it. `gtinVariants` stops at the zeros — a real packaging
+indicator is a different trade item, a case of twelve rather than one box.
+
+### No patient field, and a test asserts the absence
+
+`serials.assigned_patient_id` answers "which patient has device 7742" and every
+read of it writes a `data_access_logs` row (PI-ADR-016). This is the hottest
+endpoint in the programme and it runs at a loading bay, so the serial comes back
+without it. Selecting it would be one word and would break no other test.
+
+### Two permission codes on one route, ANDed
+
+The only route in the codebase with two. It answers a catalogue question and a
+stock question together, so one code alone would hand half the answer to somebody
+entitled to neither half. `route-gates.test.ts` pins both.
+
+### The picker cap is gone from the whole application
+
+Eleven screens fetched the first 100 or 200 products at render; the order form
+and the goods receipt asked for raw UUIDs (KNOWN_ISSUES #25, #25b). `ProductPicker`
+and `PatientPicker` search on the server, and **no page now fetches a product list
+to populate a picker**. The lot pickers followed: the serial, adjustment and
+transfer forms asked for the first 100–200 lots across every branch and filtered
+them in the browser; they now ask for one product at one branch, which is the
+index `batches` already carries.
+
+⚠️ `react-hooks` refuses `setState` inside an effect, which is why all three lot
+loads happen in the branch and product handlers rather than in an effect over
+both. The handlers already know what changed.
+
+### What it did not do
+
+The procedure picker on `/usage/templates` reads `clinical-data` and is still
+capped (#34); "Consultation" on the order form is still an id box because nothing
+lists a patient's consultations (#33); there is no lot-number check against open
+recall notices at receipt, which #22 named this phase for (#32); and the endpoint
+has no rate limiter of its own (#35).
+
+### KNOWN_ISSUES #2 got worse, and PI-22's mitigation stopped working
+
+PI-22 ran the api suite as `jest --shard=n/3` with `--max-old-space-size=2400`. At
+that setting **shard 3/3 is now SIGKILLed against the container's `mem_limit: 3g`**.
+Six shards at 1600 is what worked: **102 suites, 2,180 tests, all green**
+(358 + 324 + 340 + 394 + 462 + 302). ⚠️ **Shards 4–6 also needed `--forceExit`** —
+each printed a complete green summary and then hung on an open handle. That is a
+workaround and it hides whatever is holding the handle; PI-24 should not call the
+suite clean without looking at it.
+
+---
+
+## 2026-08-25 — PI-22: nine reports, no new tables
+
+**Phase:** PI-22 · **Branch:** `feat/pi-22-reporting-cost-accounting` ·
+**Result:** complete, **not reviewed** · **Tests:** +18 integration, +16 unit,
++6 route-gate cases. **No migration**, no new table, no RLS policy, no
+tenant-isolation case.
+
+Valuation, aging, movement, dead stock, held stock, supplier performance,
+dispensing, consumption cost and procedure contribution — plus a menu that
+resolves availability server-side. All ten are GETs under `/api/v1/reports`,
+behind the five `report.*` codes that have existed since IAM and were gating
+nothing.
+
+### Not one new table, and that is the load-bearing decision
+
+A report that stored its answer would be a second source of truth for a figure
+`stock_ledger` already holds exactly. Every figure here is arithmetic over
+`stock_balances`, `stock_ledger`, `batches`, `product_cost_averages`,
+`consumption_lines`, `charge_requests`, `dispense_lines` and the procurement
+documents, computed at read, inside `withTenant` — so RLS applies to the raw SQL
+exactly as it applies to the client, and every predicate still names
+`organization_id` and `branch_id` anyway (ADR-0003, layer two).
+
+### `procedure-contribution` does not contain the procedure's fee
+
+And cannot. `fee_schedule_entries` prices a fee TYPE — `PROCEDURE` is one string
+for every procedure a clinic performs — a `PROCEDURE` invoice carries no
+reference back by the design PI-8 argued for, and `charge_requests.source_type`
+is CHECKed to `PHARMACY`/`INVENTORY`. So the revenue side is what was billed for
+the MATERIALS: every field says `consumable`, the response carries
+`procedureFeeIncluded: false`, the screen prints it above the table, and the
+registry entry leads with it. ⚠️ **The largest honest gap the phase leaves**
+(KNOWN_ISSUES #27), and it is a charging-model change rather than a reporting one.
+
+### Nothing is valued at zero to make the arithmetic work
+
+A lot with no cost under either basis comes back `unitCostMinor: null` with its
+quantity intact, and that quantity travels in `totals[].unvaluedQuantityBase`
+rather than vanishing. A `COALESCE(cost, 0)` anywhere in the fallback chain would
+pass every other assertion in the suite and silently report a clinic's uncosted
+stock as worth nothing — a number that goes straight into a total somebody signs.
+It is the case the integration suite exists for, and the screen renders it in
+`signal` beside the money because it is a thing to go and fix.
+
+### A MOVE is not a change in holding, and the test is the status pair
+
+PI-2's `stock_ledger_direction` CHECK gives ADDS `status_to` alone, REMOVES
+`status_from` alone, and MOVES **both** with a POSITIVE quantity — quarantine,
+recall, reservation, expiry and damage are all moves. `CHANGES_HOLDING` is
+therefore `(status_from IS NULL OR status_to IS NULL)` and never the sign, because
+reading the sign would report an expiry sweep as a delivery.
+`opening + received − issued ≡ closing` is asserted per row, and the fixture
+quarantines 30 units specifically so a sign-based implementation fails.
+
+### In-transit stock — and the mistake this phase made and caught
+
+INVENTORY_ARCHITECTURE.md carried a warning headed "⚠️ **THE COST, FOR PI-22**":
+in-transit stock is not in `stock_balances`. **The first draft of the valuation
+made exactly the predicted mistake** — it filtered `stock_balances` on
+`status = 'IN_TRANSIT'`, a status that exists in the enum and that **nothing in
+this codebase ever writes**. PI-3 put the quantity on the transfer DOCUMENT
+because a sender-owned bucket would make the receiver write a removal against a
+branch RLS hides from them. The draft honoured the flag, returned rows, and
+reported stock on a van as worth nothing; nothing raised.
+
+`includeInTransit` now sums `sent − received` over the lines of `DISPATCHED`
+**and** `PARTIALLY_RECEIVED` transfers — the second because a transfer of ten
+boxes with four received is four on a shelf and six on a van, and filtering to
+`DISPATCHED` would report the six as nowhere. It is attributed to the SENDING
+branch, which is what makes an org-wide valuation count it once.
+
+⚠️ **The transferable lesson is not about transfers.** The prediction was written
+down, in this directory, and was read after the code was written rather than
+before.
+
+### Exporting is a second permission, applied conditionally
+
+`report.export` is required ON TOP of the report's own read code, as a second
+`authorize()` that runs only when `?format=csv` is asked for — the format is a
+query parameter, so the conjunction is not otherwise expressible. The web side
+proxies the download through a route handler so the httpOnly token is never
+exposed, and forces `format=csv` so a hand-typed `format=json` cannot turn that
+route into an unaudited JSON proxy that skips the export code.
+
+⚠️ **And the CSV defuses formula injection.** A cell beginning `=`, `+`, `-` or
+`@` is a FORMULA to Excel, LibreOffice and Sheets, and every string in these
+files came out of a clinic's own text field — a lot number keyed at a goods
+receipt is validated against nothing of the sort. The leading apostrophe goes
+INSIDE the RFC 4180 quoting; outside, it does nothing.
+
+### Two reports read the most patient-bound table in the programme
+
+`clinical_consumptions.patient_id` is NOT NULL, and neither report returns one.
+`patient_id` appears in no SELECT list in `services/reports/`, no
+`data_access_logs` row is written, and `route-gates.test.ts` now asserts the
+router carries no `clinical.*` code and no `recall.trace.patients`. The obvious
+next request — "and show me which patients" — is one column away in the SQL and a
+completely different act; those cases are what makes it a failing test rather
+than a merged pull request.
+
+### Smaller things worth knowing
+
+- The cost lookup is two LATERAL joins rather than CTEs, so the `COUNT(*)` that
+  pages a report cannot be missing a `WITH` the page had. It hangs off the
+  BALANCE row, not the lot: `batch_id` is nullable on four of these tables and a
+  batch-keyed lookup silently drops every untracked product.
+- Every dated query compares `(x.occurred_at AT TIME ZONE b.timezone)::date`, so
+  a report over three branches in three zones gives each branch its own days.
+  The window is never turned into instants in Node.
+- `totals` is an ARRAY, one entry per currency. `product_cost_averages` is keyed
+  by currency, so adding them would produce a number in no currency at all.
+- Ordering happens in an outer SELECT over the projection: every money column is
+  cast `::text` on the way out, and `ORDER BY value_minor` on text sorts `9`
+  above `10000` — which puts the most valuable stock in the clinic at the bottom
+  of page one, silently.
+- `procedure-contribution` sorts in Node, alone among the nine, because
+  contribution is major-unit revenue minus minor-unit cost and that conversion
+  belongs to `toMoney` rather than to a hand-written `× 100` in an ORDER BY.
+
+⚠️ **`pnpm test` still OOMs the api container, and it is the CONTAINER'S 3 GB
+limit rather than V8's heap** — raising `--max-old-space-size` gets the process
+SIGKILLed instead of throwing. KNOWN_ISSUES #2, unchanged; the api suite ran as
+three `jest --shard=n/3` slices.
+
+---
+
+## 2026-08-24 — PI-21: the first pack read in a language other than English
+
+**Phase:** PI-21 · **Branch:** `feat/pi-21-bd-rule-pack` · **Result:** complete,
+**not reviewed** · **Tests:** +44 integration behaviour cases. No migration, and
+**no change to `@rcln/regulatory`** — the first pack since PI-6 that needed none.
+
+`BD 1.0.0` — 56 rules, 4 sources, 3 authorities. PI-19 (Nepal) and PI-20 (Sri
+Lanka) were skipped at the user's request; both are DEFERRED, neither is blocked.
+
+### Both statutes say the Bangla text prevails, and that is a finding
+
+Section 83(2) of the ঔষধ ও কসমেটিকস্ আইন, ২০২৩ and section 70(2) of the মাদকদ্রব্য
+নিয়ন্ত্রণ আইন, ২০১৮:
+
+```
+বাংলা ও ইংরেজি পাঠের মধ্যে বিরোধের ক্ষেত্রে এই বাংলা পাঠ প্রাধান্য পাইবে।
+(where the Bangla and English texts conflict, this Bangla text shall prevail)
+```
+
+Every rule was read off the Bangla on bdlaws.minlaw.gov.bd — the Ministry of
+Law's own publication of the Bangladesh Code. The English translations that
+circulate on commercial sites were refused for the reason PI-17 refused the UAE's
+federal decrees as restated: a secondary translation of a statute is not the
+statute. The English in a rule `statement` is this pack's rendering, and the file
+header says so.
+
+⚠️ **NOTHING IN THE FRAMEWORK HAD TO CHANGE FOR IT.** A `statement` is prose, a
+`citation` is a string, `appliesToClassification` is matched exactly and never
+parsed. Recorded as GAP 7 in COUNTRY_RULE_PACK_SURVEY — a gap in what
+`SOURCE_VERIFIED` means, not in the engine.
+
+### The survey was wrong about Bangladesh, twice
+
+COUNTRY_RULE_PACK_SURVEY rated it **at risk** — "the DGDA returned nothing at
+all" — and told this phase to expect a mostly-`RESEARCH_REQUIRED` pack.
+
+1. **`dgda.gov.bd` responds.** Only `www.dgda.gov.bd` fails to resolve. The apex
+   serves a laws page with eight instruments, an Online Pharmacy licence
+   guideline, and the Bengal Drugs Rules 1946 as a 98-page PDF with a text layer.
+2. **Bangladesh replaced its medicines Act in 2023.** Act 29 of 2023 repealed
+   **both** the Drugs Act, 1940 and the Drugs (Control) Ordinance, 1982 outright.
+   Every secondary description of Bangladeshi drug law older than September 2023
+   — this directory's included — describes repealed statutes.
+
+The lesson is about re-checking a source, not about Bangladesh.
+
+### The spine is section 40(ঘ), not a schedule
+
+⚠️ **SCHEDULE G IS A 1952 LIST OF FIVE SUBSTANCES** — amidopyrine, barbituric
+acid, dinitrocresols, sulphanilamide, phenylcinchoninic acid — and read alone it
+would leave every antibiotic sellable across a counter. Section 40(ঘ) is what
+decides it: no antibiotic or any other drug that is not an Over the Counter
+medicine, without the prescription of a registered physician.
+
+Schedule G survives as its own classification because it carries rule 24(11)'s
+no-repeat-unless-endorsed, and every rule section 40 gives `PRESCRIPTION_ONLY` is
+repeated onto it — `mostSpecific` selects per classification, so a schedule that
+inherited nothing would be a hole.
+
+### The rulebook is older than the country
+
+The Bengal Drugs Rules, 1946 supply the prescription register and its two years,
+Schedule D's poison cupboard and red label, Schedule C's storage and three-year
+wholesale trail. They survive by **section 82(2)(ক)**, which saves rules made
+under the repealed 1940 Act so far as consistent with the new one. Three things
+agree they are live: the savings clause, DGDA publishing them today, and DGDA's
+own Online Pharmacy checklist requiring "Form No.-7 (Rule-18) according to the
+Bengal Drug Rule, 1946".
+
+⚠️ **AND THE ONLY TEXT THE REGULATOR PUBLISHES STOPS AT DECEMBER 1952.** It still
+exempts drugs "sold for export to a place outside India". Bangladesh's
+**statutes** are consolidated on bdlaws with every amendment footnoted in place —
+the 2018 Act's run to 2026 — so the substitution risk that dominated PI-18 is
+under control for the Acts and entirely uncontrolled for the Rules.
+
+⚠️ **WHERE THE TWO DISAGREE, SECTION 3 SETTLES IT.** Rule 24(2) puts a
+prescription supply under a "qualified person" — including a member of the
+Pharmaceutical Society of **Great Britain**. Section 45(1) puts it under a
+Pharmacist, Diploma Pharmacist or Pharmacy Technician on the Bangladesh Pharmacy
+Council register. The Act prevails, and the dispenser rules cite it.
+
+### Three permissive gaps, all pinned
+
+Every other pack's recorded gaps refuse something lawful. Bangladesh's permit
+something, because Bangladeshi law does not legislate it:
+
+1. **No prescription validity anywhere.** A twenty-year-old prescription is
+   `PERMITTED`.
+2. **No repeat rule for an ordinary prescription medicine.** Rule 24(11) is
+   confined to Schedule G, so a fortieth supply on one prescription is permitted.
+3. **No general dispensing label.** Rule 53(2) disapplies rules 55–60 and
+   re-imposes four conditions for Schedule D alone.
+
+Taken together, one Bangladeshi prescription is — on this reading — good forever
+and for any number of supplies. `validityDays: 180` was the comfortable choice
+and would have been this pack inventing a rule for a sovereign state.
+
+### The inversion: a vet may prescribe a narcotic and not an antibiotic
+
+Section 2(12) of the 2018 Act defines চিকিৎসক to include a Registered Veterinary
+Practitioner and a recognised homeopath. The 2023 Act defines it nowhere.
+Importing one statute's definition into the other is a step no source authorises,
+so an ordinary medicine takes a medical or dental practitioner and stops — which
+**refuses** a veterinary prescription that is very probably lawful, in exactly
+the clinics PI-11 built for. Written in the refusing direction knowingly, pinned
+in both directions, recorded in KNOWN_ISSUES.
+
+### GAP 6's second outing, and no new key
+
+Regulation 19A(1) of Ireland's 2003 Regulations forced
+`requiresDistanceSellingAuthorisation` in PI-18. DGDA's Online Pharmacy licence
+is the same shape under a different name — a separate licence, valid two years,
+on top of the retail drug licence — and the key carried it with no change. The
+Criteria also narrow section 45's three Council grades to **Grade A alone**
+online, which is a licence condition lawfully stricter than the section it is
+granted under, written as its own rule row rather than as an edit to the counter
+rule.
+
+⚠️ **AND THE CRITERIA CARRY THE ONE FLAT PROHIBITION IN THE PACK:** clause 7(d),
+"Prescription for Controlled Drugs (CDs) should not be supplied." An undated,
+unnumbered PDF forbids something neither statute forbids, for every online
+pharmacy in Bangladesh. Configured because a licence condition binds the
+licensee, and flagged in KNOWN_ISSUES as the first row a reviewer should attack.
+
+### Four things researched and NOT written
+
+No narcotics register or safe (the বিধিমালা under section 68 are behind an
+unreachable dnc.gov.bd, and an obligation inferred from section 48's inspection
+power is one this pack would have written itself); no disposal rule (sections 27
+and 28 govern **seized** narcotics); no rule from section 40(ক)–(গ) (facts about
+a batch, which the platform already enforces, and an unclassified rule is the
+fail-open PI-18 found in four packs); no rule from section 72 or section 70.
+
+**Every rule in this pack names a classification**, and a behaviour case files a
+product as `SCHEDULE_H` — India's word, and exactly what a migrating clinic would
+type — to prove an unrecognised string resolves `UNDETERMINED`.
+
+### `CountryInfo.regions` — second clean run
+
+`BD` is `[]` and correctly so: both regulators and both statutes are national.
+The same loose end Ireland left is here — `labels.region` says 'District' and no
+district can be selected. ⚠️ **`US_REGIONS` IS STILL SHORT FIVE STATES.**
+
+### ⚠️ Two defects found in code this phase did not write
+
+- **Re-seeding a rule never updates its transactions, classification or type.**
+  `seedRegulatoryPacks`'s rule `update` branch writes `statement`, `parameters`
+  and `sourceId` only; everything that decides what a rule APPLIES TO is written
+  on create. Changing `appliesToTransactions` in a data file therefore leaves the
+  stored row alone while the seed prints the new rule count. The sibling of
+  PI-18's "the seed upserts and never deletes". Not fixed: the honest fix may be
+  for the seed to REFUSE on a divergence rather than to widen the update, because
+  PI-ADR-008 says a real rule change is a new row at `version + 1`.
+- **A Bangladeshi clinic cannot register: no plan is priced in BDT.**
+  `registerOrganization` answers `PLAN_UNAVAILABLE`, a 503. NPR and LKR are the
+  same, so PI-19 and PI-20 will both hit it. Pricing per currency is a business
+  decision and the seed says prices are never converted.
+
+**Validation:** ran once at the end, per CLAUDE.md — `turbo run lint typecheck`
+at `--concurrency=1`, `pnpm format`, then the tests. ⚠️ `pnpm test` still OOMs the
+api container (exit 137, KNOWN_ISSUES #2) and the `[a-f]` slice OOMs on its own,
+so the api suite ran in six narrower path slices: **299 unit + 1,791 integration,
+all green** — `[a-b]` 216, `[c-e]` 281, `[f-i]` 316, `[j-q]` 173, `[r-s]` 225,
+`[t-v]` 580 with tenant-isolation inside it and 470 again on its own — plus 24
+workspace packages through `turbo run test` and 120 in `@rcln/regulatory`.
+`db:rls:check` 131 tables; `docs:validate` 437/437. No migration, so nothing
+moved in the schema. The seed prints `BD 1.0.0: 4 sources, 56 rules`.
+
+⚠️ **THE SEED HAD TO BE FORCED TO NOTICE A CHANGED RULE.** `appliesToTransactions`
+is written on create only, so the `BD-RETAIN-*` fix reached the dev database only
+after the pack's rules were deleted by hand. See KNOWN_ISSUES.
+
+---
+
+## 2026-08-20 — PI-18: the first jurisdiction that says no
+
+**Phase:** PI-18 · **Branch:** `feat/pi-18-ie-rule-pack` · **Result:** complete,
+**not reviewed** · **Tests:** +52 integration behaviour cases. No migration.
+
+`IE 1.0.0` — 50 rules, 7 sources, 3 authorities, read from the electronic Irish
+Statute Book.
+
+### Ireland forbids remote supply, and no earlier pack could say that
+
+Every pack in this programme so far either said nothing about remote supply or
+conditioned it. Saying nothing is not neutral: a pack that regulates supply lists
+`ONLINE_DISPENSE` alongside `DISPENSE` on its prescription rules, so a pack
+silent about the channel PERMITS it on the strength of rules about a counter.
+That fail-open is what PI-12's second gate exists to close.
+
+Ireland is the first jurisdiction that closes it from the law's side:
+
+```
+19.(1)  A person shall not supply by mail order any medicinal product.
+19.(5)  The provisions of this Regulation shall also apply to the supply, by way
+        of information society service, of medicinal products which ... may only
+        be supplied on foot of a prescription.
+19A.(8) Nothing in this Regulation shall be construed as permitting ...
+        (b) the supply of a medicinal product subject to prescription control in
+        the State at a distance ... to a person in the State.
+```
+
+Six classifications carry `ONLINE_DISPENSING` with `permitted: false`, which
+`REFUSES` before the destination or the exclusions are even looked at.
+
+### One framework key, on PI-13a's precedent
+
+Regulation 19A(1) permits distance selling of a **non**-prescription medicine
+only by a supplier "entered on the ISS supply list" kept by the Pharmaceutical
+Society of Ireland. With the keys that existed, the closest expressible rule was
+a bare `permitted: true` — asserting the opposite of the regulation, exactly as
+`permitted: true` alone once asserted the opposite of 21 U.S.C. 829(e).
+
+`OnlineDispensingParameters.requiresDistanceSellingAuthorisation` and
+`distanceSellingAuthority` were added, and raise `VERIFY_PRIOR_AUTHORISATION` —
+the condition kind that already existed for a fact established before the
+transaction, by somebody else, which the dispenser can verify and never perform.
+It mirrors `ControlledScheduleParameters.priorAuthorisationRequired` key for key.
+
+### The six months that may lawfully be twelve
+
+S.I. No. 73 of 2024 substituted regulation 7(5)(a) from 1 March 2024: six months,
+**or** up to twelve where the prescriber wrote a period on the prescription or a
+pharmacist recorded a regulation 9A review — and never for a controlled drug.
+`PresentedPrescription` holds neither fact, so the pack states limb (i) alone.
+
+⚠️ **THAT REFUSES ON DAY 183 A DISPENSE THAT MAY BE LAWFUL — the refusing
+direction, which is the one nobody audits.** It is written that way because
+`validityMonths: 12` would permit, silently, the far larger set of prescriptions
+on which nobody specified anything. A behaviour case pins the refusal so the
+cheap fix fails the suite; the real fix is the field.
+
+### Three things researched and deliberately not written
+
+- **The Falsified Medicines unique identifier.** Directly applicable in Ireland,
+  and `eur-lex.europa.eu` answers `202` with a client-side challenge on every
+  path — by `curl` with a browser user agent and by the fetch tool alike. No
+  source, no rule. ⚠️ **And a lucky escape**: `evaluateTraceability` REFUSES on a
+  missing identifier and `createDispenseWithin` sends no GTIN, so the obvious
+  `requiredIdentifiers: ['GTIN', ...]` would have refused every Irish dispense.
+- **Controlled-drug container marking.** Regulation 17(1) requires it;
+  regulation 17(2)(d) disapplies the whole of it from supply on a practitioner's
+  prescription. A rule from 17(1) alone would impose what 17(2) lifts.
+- **A Part C classification.** Regulation 7(6) confines it to a hospital, and
+  rcln has no `branch.licence_type` — the **fourth** jurisdiction to ask for that
+  field. Defining the classification with ordinary rules would have handed a
+  community pharmacy a clean `PERMITTED` for a supply the regulation forbids;
+  defining nothing makes it `UNDETERMINED`, which refuses.
+
+### The regions check, finally clean
+
+Australia's empty `CountryInfo.regions` cost PI-15 a working pack and the UAE's
+cost PI-17 two. Ireland's is empty and correct — medicines law is national, so no
+sub-national pack can exist to be made inert. One loose end recorded rather than
+fixed blind: `labels.region` says 'County' and no county can be selected.
+
+### The research hazard worth carrying forward
+
+⚠️ **IRELAND PUBLISHES NO CONSOLIDATION OF A STATUTORY INSTRUMENT.** The 2003
+Regulations have been amended more than forty times and the eISB serves the 2003
+text and each amendment separately, so the principal instrument reads as though
+nothing has changed. Three amendments bearing on rules here were read in full and
+are their own source rows; the rest were checked for whether they touch the
+regulations in play. That is a check, not a guarantee, and it is this pack's
+largest exposure.
+
+---
+
+## 2026-08-20 — PI-17: a country regulated only from below
+
+**Phase:** PI-17 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,
+**not reviewed** · **Tests:** +22 integration behaviour cases. No migration.
+
+The survey scoped this phase as "federal plus at least one emirate". It shipped
+two emirates and no federal pack, and the reason is the phase's finding.
+
+### The federal half is behind the same wall as Great Britain
+
+`uaelegislation.gov.ae` returns `403` on every path attempted and
+`mohap.gov.ae` resets the connection outright. Both emirate regulators rest their
+controlled-medicines regime on federal Ministerial Decrees — 888 of 2016 for the
+three-day prescription validity and the prescriber ladder, 379 of 2019 for the
+unified platform, 253 of 2020 and 680 of 2017 for the refillable lists — and
+every one of those was readable only as those emirates restate them.
+
+That is a secondary source, and `regulatory-in.ts` already records what one
+costs: G.S.R. 588(E) is published by CDSCO only as a scanned image, so India's
+Schedule H1 rules cite the consolidated rules whose text was actually read, and
+that notification's commencement date is asserted nowhere in this programme.
+**No rule in either Emirati pack cites a decree.** Each cites its own regulator's
+standard, which each document says on its own cover applies to facilities that
+regulator licenses.
+
+⚠️ **The consequence is not Australia's and is worse.** A branch in Sydney with
+no state pack still gets the Poisons Standard as a floor. A branch in Sharjah,
+Ajman, Fujairah, Ras al-Khaimah or Umm al-Quwain gets nothing at all, so every
+evaluation there is `UNDETERMINED`, which refuses. A behaviour case pins it, so
+that nobody closes the gap by writing a federal pack from a restatement.
+
+### ⚠️ `CountryInfo.regions` was empty again — the second country in three phases
+
+`AE` had `regions: []`. UAE VAT is federal at a single rate, so — exactly as with
+Australia — the list was _correct about tax_ and fatal to a pack keyed on
+`branches.region_code`. No branch could have said `AZ` or `DU`, and both packs
+would have seeded, printed their rule counts and matched nothing forever.
+
+⚠️ **This one had a tell sitting in the same object: `labels.region` for `AE`
+already said `'Emirate'`.** The address form asked which emirate a branch was in
+while the list permitted none. PI-16 recorded "check this list first" and the
+check found a live defect on its first outing.
+
+`UAE_REGIONS` lists all seven emirates, not the two with a pack, because omitting
+a subdivision until it needs one is precisely the shape of the still-open
+`US_REGIONS` hole. Two countries in three phases makes this a class of defect
+rather than an accident, and the field's doc comment now says so.
+
+### One document commands, the other mostly recommends
+
+The DoH Abu Dhabi standard (DOH/HLME/DMP/1.0/2021, ten pages) is written in
+"must" throughout. The DHA Pharmacy Guidelines (HRS/HPSD/PG/01/2021, 100 pages)
+are mostly "should", "may" and "it is recommended" — except Guideline Fourteen,
+narcotics and controlled and semi controlled drugs, which is "shall", "must" and
+"is prohibited". **The Dubai pack is built from the mandatory register only.**
+
+That is why Dubai has no dispensing-label rule despite the guidelines carrying an
+eleven-field label at 13.3.2: a `LABEL_FIELDS` condition is an obligation, not
+advice, and turning one into the other would misrepresent the guideline to every
+pharmacist in the emirate.
+
+### The rule most likely to bite a real tenant
+
+Both emirates prohibit moving controlled stock between facilities — Abu Dhabi
+§ 11.1 "strictly prohibited", Dubai 18.12.1 "cannot be transferred" — and Dubai
+names the exception in rcln's own words: "within a group of health facilities
+**with the same owner**", on an approved Transfer Request Form, with HRS
+inspectors adjusting the register books. **A stock transfer between two branches
+of one organization is the most ordinary movement this platform has**, and
+nothing else in rcln would have stopped it.
+
+⚠️ Six rules carry it as `IMPORT_RESTRICTION` rows narrowed to `TRANSFER`, because
+that handler is the only one that refuses a transaction outright. Right outcome,
+wrong type name — the third occurrence after Singapore's `SG-SUPPLY-CD4`, and the
+framework's missing piece is a `permitted: false` transaction rule.
+
+### What was researched and not written
+
+- **No days'-supply ladder**, though both regulators set GP 3 / specialist 15 /
+  consultant 30. It is conditioned on the prescriber's grade, which is not a
+  property of a rule — three tied rules would let the GP limit govern every
+  consultant's prescription — and nothing populates `daysSupply`, so any
+  `maxDaysSupply` rule would refuse every controlled supply in the country. The
+  ladder is in the statements; a behaviour case asserts the outcome is not
+  `UNDETERMINED`.
+- **No pharmacist-authority rule** in either pack: both documents regulate who
+  may PRESCRIBE and leave dispensing to facility licensing.
+- **No self-prescribing rule.** "Physicians are not allowed to prescribe for
+  themselves or their relatives" is about a relationship rcln does not model.
+- **No price rules** from Dubai 12.1.5–12.1.6. Real, mandatory, and pricing's
+  business rather than a regulatory decision about a supply.
+
+### Seeded
+
+`AE-AZ 1.0.0` — 1 authority, 1 source, **25 rules**. `AE-DU 1.0.0` — 1 authority,
+1 source, **26 rules**. Both at `AUTOMATED_TESTED`; sources `UNVERIFIED`; no
+qualified person has read either; nothing enforces below `PRODUCTION_ENABLED`.
+
+---
+
+## 2026-08-20 — PI-16: one country, two vocabularies, and a gate that is not there
+
+**Phase:** PI-16 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,
+**not reviewed** · **Tests:** +23 integration behaviour cases. No migration.
+
+Singapore reads as the easy pack after Australia — one jurisdiction, no states,
+sources served in English by the Attorney-General's Chambers. It is not, and the
+two reasons are worth recording because both are shapes other packs will meet.
+
+### Two instruments, one classification column
+
+Singapore regulates a medicine twice. The Health Products (Therapeutic Products)
+Regulations 2016 classify it as prescription-only, pharmacy-only or general sale
+list; the Misuse of Drugs Regulations classify a controlled drug by which
+Schedule of those Regulations it sits in. **Morphine is both** — a
+prescription-only medicine to HSA and a Second Schedule drug to the Misuse of
+Drugs Regulations — and `product_regulatory_profiles.classification` is one
+string, so a clinic has to pick.
+
+The pack is therefore written so that neither half is thinner than the other:
+each Schedule carries its own prescription requirement, its own prescriber list
+and its own retention period rather than leaning on the therapeutic-products
+rules to supply them. `SG-RX-CODEINE-LIQUID` is the same problem in miniature —
+a codeine linctus filed under the quantity-limit spelling would otherwise be
+supplied with a 240 ml cap and no prescription rule at all.
+
+### ⚠️ The rule this pack does not have, and why writing it would be the bug
+
+Every other pack in this programme carries a pharmacist-only rule. Singapore's
+does not, and the omission took longer to establish than any rule in it.
+
+Regulation 11 permits retail supply of a prescription-only medicine by three
+routes, and the third is "a person acting in accordance with the oral or written
+instructions of a qualified practitioner". Regulation 3 of the Licensing of
+Retail Pharmacies Regulations does impose an in-store pharmaceutical officer —
+and its own paragraph (3) disapplies the whole of 3(1) and 3(2) to a healthcare
+service licensee or a practitioner supplying a patient under their care.
+
+**So the pharmacist gate turns on what the PREMISES are licensed as**, and rcln
+holds no fact that says whether a branch is a licensed retail pharmacy or a
+clinic. A `PHARMACIST_AUTHORITY` rule would have refused a clinic assistant
+handing a medicine over on the doctor's written instruction — lawful, and the
+ordinary shape of a Singapore GP practice. That is a wrong answer in the
+_refusing_ direction, which is the direction nobody audits, and it is the same
+class of mistake `validityDays: 180` would have been for the United States.
+
+The contrast is in the pack: regs 7(2) and 8(2) of the Misuse of Drugs
+Regulations name a closed list of who may supply a controlled drug with no
+"instructions" limb, so `SG-SUPPLY-CD2` and `SG-SUPPLY-CD3` exist and refuse the
+same assistant. Two behaviour cases pin the pair, side by side.
+
+### What else was researched and not written
+
+- **No prescription expiry for a prescription-only medicine.** Reg 2(2) says
+  what makes a prescription valid and sets no period. Controlled drugs get 30
+  days from reg 12(1) — a day count in the statute, so `validityDays` and not
+  survey GAP 1's `validityMonths`.
+- **No 355 mg contained-codeine limit.** Reg 14(1) caps codeine cough
+  preparations two ways: 240 ml of preparation per 7 days, and 355 mg of codeine
+  calculated as base. The first is written; the second is a quantity of a
+  contained substance measured against a product counted in tablets — survey
+  GAP 4, the US pseudoephedrine call made again.
+- **No container-marking rule.** Reg 13 of the Misuse of Drugs Regulations
+  requires a marked container and then, in paragraph (2), disapplies itself to
+  supply "by or on the prescription of a practitioner" — which is every dispense
+  this platform models.
+- **No addict-notification rule.** Reg 19 is real and attaches to attending a
+  patient, not to supplying a product.
+- **No general sale list rules.** The only provision found is reg 15, about
+  vending machines.
+
+### The `regions` check, run first this time
+
+PI-15's lesson was that `CountryInfo.regions` gates `branches.region_code` and
+therefore gates which pack the engine picks. `SG` has `regions: []` and
+`labels.region: null` — **correct here**, because a city-state has no
+subdivisions, and there is no sub-national pack for it to make inert. The check
+is recorded in `regulatory-packs.ts` so the next phase does not have to rediscover
+that an empty list is a fact to verify rather than a shape to trust.
+
+### Seeded
+
+`SG 1.0.0` — 2 authorities (HSA, Central Narcotics Bureau), 3 sources, **28
+rules**, at `AUTOMATED_TESTED`. Sources are `UNVERIFIED`; no qualified person has
+read the pack; nothing enforces below `PRODUCTION_ENABLED`.
+
+Half of the 23 behaviour cases pin rules that are deliberately ABSENT — the
+missing pharmacist gate, the missing expiry, the Third Schedule's missing
+register and missing witness. Those are the assertions that turn a future "fix"
+into a failing test rather than a silent tightening of the law at every
+Singaporean clinic.
+
+---
+
+## 2026-08-20 — PI-15: a national instrument that binds nobody
+
+**Phase:** PI-15 · **Branch:** `feat/pharmacy-inventory` · **Result:** complete,
+**not reviewed** · **Tests:** +20 integration behaviour cases. No migration.
+
+Australia is the jurisdiction the country survey called the hardest in the
+programme, and not for the reason the master plan assumed. The United States is
+hard because it is federal _plus_ state; Australia is hard because it is state
+**instead of** federal. The Poisons Standard is made under s. 52D of the
+Therapeutic Goods Act 1989 and it _recommends_ — Schedule 4 is defined as
+substances "the use or supply of which **should** be by or on the order of
+persons permitted by **State or Territory legislation** to prescribe". A pack
+seeded at national level and left there would have described an instrument with
+no legal effect. The survey's ruling was that PI-15 must ship a state pack or
+must not ship.
+
+### Victoria, and why not New South Wales
+
+NSW is larger and was the first choice. `legislation.nsw.gov.au` returned `403`
+on every path attempted — the same wall PI-14 is behind — and NSW carries a
+second complication: its Poisons and Therapeutic Goods Act 1966 is mid-
+replacement by the Medicines, Poisons and Therapeutic Goods Act 2022, so a NSW
+pack would need the commencement position established before a rule was written.
+Victoria's own site serves the Chief Parliamentary Counsel's authorised
+consolidation, 321 pages, Version 021 as at 1 July 2026. Read, not guessed at.
+
+### ⚠️ The defect that would have shipped this phase dead
+
+`locale.ts` gave Australia `regions: []`. The field was documented as "does tax
+register per subdivision", and Australian GST is national, so the empty list was
+_correct about tax_ and had been correct since the file was written.
+
+It is also the list `isValidRegion` checks before `branch.service.ts` writes
+`branches.region_code` — **and that column is what `@rcln/regulatory` reads to
+choose between a national and a sub-national pack.** No Victorian clinic could
+save `VIC`. `AU-VIC` would have seeded cleanly, printed `AU-VIC 1.0.0: 7
+sources, 18 rules` in the console, and matched nothing for the rest of time.
+Configured, visible, inert — this domain's signature failure, arrived at through
+a field that was right about the question it was written for.
+
+`AUSTRALIA_REGIONS` now exists; `CountryInfo.regions` is documented as the
+subdivisions a branch may be **in**. The United States has the identical hole for
+its five no-sales-tax states and it is recorded rather than fixed blind, because
+no pack exists for any of them and a phase that writes one will need the state
+added first.
+
+Nothing in the seed, the engine or the schema was wrong. The bug lived in a
+contracts file nobody touching a rule pack would think to open, which is the
+whole reason the Victorian behaviour cases exist.
+
+### What the two packs carry
+
+`AU 1.0.0` is four rules and says so loudly: a prescription for Schedule 4 and
+Schedule 8, a pharmacist for Schedule 3, and the Schedule 8 classification with
+**no** register, **no** safe and **no** retention period — because Australia has
+none, and every one of those is state law. Its thinness is a finding, not an
+unfinished job. It exists so that a branch in Sydney gets a floor instead of
+`UNDETERMINED` on every dispense.
+
+`AU-VIC 1.0.0` is eighteen rules quoted from offence provisions with penalties
+attached: twelve-month and six-month prescription validity, the two prescriber
+lists that differ by an authorised optometrist and an authorised podiatrist, the
+drugs register, the Schedule 8 treatment permit, a lockable cupboard for
+Schedule 4 and a welded 10 mm steel safe for Schedule 8, supplementary
+labelling, three-year retention, SafeScript at the time of supply, witnessed
+destruction, and brand substitution.
+
+**`VIC-PERMIT-S8` is the first `VERIFY_PRIOR_AUTHORISATION` any real pack has
+raised.** PI-13a built that condition kind with Australia's Schedule 8 permits
+named in the comment and nothing had ever exercised it.
+
+### Three decisions worth recording
+
+**The Schedule 8 permit is a second `CONTROLLED_SCHEDULE` rule, not a parameter
+on the first.** Folded together, the register obligation — which does reach a
+destruction and a stock receipt — would have dragged "check the Schedule 8
+permit" onto transactions no permit has anything to say about. Two rules of one
+type at equal specificity both apply; `mostSpecific()` keeps ties, and this is
+the first pack to lean on that deliberately.
+
+**Only the Schedule 8 storage rule sets `controlledAccessRequired`.** Reg 74(2)
+demands a safe and refusing a receipt into anything else is right. Reg 73(2)
+demands of a Schedule 4 poison only "a lockable storage facility", which every
+dispensary is — copying the key across "for consistency" would refuse routine,
+lawful goods receipt of ordinary prescription medicines.
+
+**Every Victorian rule names a classification.** A `PHARMACIST_AUTHORITY` rule
+here with no classification would cover a Schedule 3 product, and being regional
+would displace the national `AU-SUPPLY-S3` — silently repealing the
+pharmacist-only control in the one state with a pack. Pinned by a test.
+
+### What is deliberately absent
+
+No Appendix L, so **no national dispensing label**: the Federal Register's HTML
+truncates before the appendices. Victoria's reg 72 is expressly _supplementary_,
+so a screen driven by `LABEL_FIELDS` today prints a container missing the
+patient's name — which is why that matrix cell stays `RESEARCH_REQUIRED` even
+though a labelling rule exists and is tested. No import restriction (the Customs
+regulations could not be reached). No PBS rules — they govern subsidised supply
+only, and this platform holds no fact saying whether a given dispense is one.
+
+In Victoria: no Schedule 9, no chart instructions, and **no emergency-supply
+exceptions**, which makes the pack stricter than the law under reg 56. The
+framework expresses rules, not exceptions to them. Recorded rather than softened.
+
+---
+
+## 2026-08-19 — PI-12: the same medicine, leaving in a parcel
+
+**Phase:** PI-12 · **Branch:** `feat/pi-12-online-pharmacy` · **Result:**
+complete, **not reviewed** · **Tests:** +22 integration, +18 isolation, +9
+regulatory unit, +7 route-gate cases. Lint (0 errors, 3 pre-existing warnings),
+typecheck, `db:rls:check` (131 tables) and `docs:validate` (437/437) green.
+⚠️ `/code-review` and `security-reviewer` NOT run.
+
+Three tables and ten endpoints, and almost all of the argument is about the two
+things that were deliberately NOT copied.
+
+### What the phase had to decide, and what it decided
+
+**⚠️ No product is onlineable by default, and the fail-open it closes was real.**
+A pack that regulates supply lists `ONLINE_DISPENSE` alongside `DISPENSE` on its
+prescription rules — it has to, or the prescription requirement stops applying
+the moment a medicine goes in a parcel — so a pack that says NOTHING about remote
+supply PERMITS it, on the strength of rules written about a counter.
+`product_regulatory_profiles.online_sale_position` has existed since PI-5 and been
+read by nothing; it is now decisive for exactly one transaction, and an
+unrecognised value fails closed.
+
+**⚠️ And the same gate is enforced in the SERVICE, which is load-bearing rather
+than defensive.** A regulatory refusal stops nothing until a human signs a pack
+off, and no pack is `PRODUCTION_ENABLED` — so the engine alone would have made
+every product in every configured country sendable by post on day one.
+`confirmOnlineOrder` refuses on the clinic's own configuration, and shares the
+engine's wording so the two can never say it differently.
+
+**There is one function that dispenses, and packing calls it.** `createDispense`
+was split into `createDispenseWithin` so the pack can consume the holds, write
+the dispense and move the order in one transaction. A parallel posting function
+would have been a second door into the highest-risk write in the programme —
+PI-11's review already wrote down what that costs.
+
+**Accepting an order holds stock; packing supplies it.** Confirm plans FEFO and
+writes `RESERVATION` legs; pack claims the reservations CONSUMED _before_ any
+ledger leg — the claim-before-you-move discipline `releaseReservationIn`
+documents — then dispenses out of the `RESERVED` bucket. `CONSUMED`,
+`StockReferenceType.ONLINE_ORDER` and `NumberSequenceType.ONLINE_ORDER` were all
+added by earlier phases and left unreached; none needed a migration now.
+
+**⚠️ A hold cites the order LINE, not the order.** Reservations carry a product
+and a lot and no line, so an order naming one product twice would leave packing
+unable to say which lots belonged to which line. `online_order_lines` is unique
+on `(organization_id, online_order_id, product_id)` as well.
+
+**A failed delivery moves no stock.** The parcel is somewhere and the clinic does
+not have it back. What comes back comes back as a `dispense_returns` row, which
+asks the law where it may go and quarantines it by default — a sharper question
+for a parcel than for a counter return, because nobody can attest to how it was
+stored in a van.
+
+**Packing is gated on `pharmacy.dispense.create`, not on an online code.** It IS
+the supply. A fourth online-specific code would be a second door to that
+authority, grantable to somebody a clinic had deliberately kept away from the
+counter. `route-gates.test.ts` pins it, along with the router living at
+`/v1/online-orders` rather than under `/pharmacy` — where the existing audit
+requires every route to carry a `pharmacy.dispense.*` code.
+
+### Two defects found in code this phase did not write
+
+**⚠️ `dispenses_prescription_has_patient` would have refused every parcel.**
+PI-7 wrote it as a two-way choice between the counter's two kinds; an ONLINE
+dispense satisfies neither. Rewritten with a third arm tying ONLINE to a PATIENT
+and deliberately not to an encounter.
+
+**⚠️ A PI-11 assertion contradicted the fix its own review made.**
+`patients.test.ts` expected a capped `dailyDose` of `500.000` while
+`weightBasedDose` had been changed so the reported pair always multiplies — with
+`499.998` written into the code comment. The suite has been red since PI-11
+landed. Corrected, with the reasoning beside it.
+
+### Deliberately not built
+
+No patient portal, no click-and-collect, no partial shipment, no substitution on
+an order. Each is argued in the header of `online-pharmacy.prisma`; each would
+have added a nullable path through the phase's one irreversible write.
+
+---
+
+## 2026-08-18 — PI-10: getting it back off the shelf
+
+**Phase:** PI-10 · **Branch:** `feat/pi-10-recall-traceability` · **Result:**
+complete, **not reviewed** · **Tests:** +21 unit, +23 integration, +14 isolation,
++5 route-gate cases. Lint (0 errors, 3 pre-existing warnings), typecheck and
+`db:rls:check` (128 tables) green. ⚠️ `/code-review` and `security-reviewer` NOT
+run.
+
+Two tables, and the smallest phase in the programme to reach the furthest:
+executing one row makes a product un-dispensable and un-consumable at every
+branch at once, and its second half is a list of named people who already have
+it.
+
+### What the phase had to decide, and what it decided
+
+**A recall is a document, not two columns on a batch.** PI-2 shipped
+`batches.recalled_at` and `.recall_reference` and said the workflow was PI-10.
+Those answer "is this lot recalled" and cannot answer "which of the eleven lots
+have we found, which branch still has some, and how much did we pull". Both are
+now written in one transaction with the movement that makes them true — the
+discipline `setBatchHold` already applied to one lot.
+
+**⚠️ A branch-scoped executor pulls only their own lots.** `recall_batches` is in
+the branch RLS loop, so the rest are invisible to the statement that reads them.
+That is correct — they cannot reach another site's shelf physically either — and
+the consequences are written down rather than discovered: execution is idempotent
+over PENDING rows, `EXECUTED` means "somebody executed it", and `closeRecall`
+refuses while anything is still PENDING.
+
+**⚠️ The counts and the names are two routes and two permissions.**
+TRACEABILITY.md says the link always exists in the data and who may SEE it is an
+access-control question. `/forward` answers "37 supplies, 4 procedures, 29
+people" and names nobody; `/affected` answers with names under
+`recall.trace.patients` ON TOP OF the read code, and files one `RECALL_TRACE`
+row carrying the count. Both halves are asserted in `route-gates.test.ts`.
+
+**`RECALL_RELEASE` is its own movement type**, for the reason `PURCHASE_RETURN`
+is not a `TRANSFER_OUT`: the statuses would be right and the word would be wrong,
+and every report grouping by `movement_type` would file a withdrawn notice
+alongside a fridge that came back up to temperature.
+
+**The screen is "Product recalls".** `/recall` already means the front desk's
+patient follow-up list (CE-5).
+
+### ⚠️ The PI-2 defect it found
+
+**A serialised lot could not be held at all.** `recordMovementIn` refuses a
+movement of a serial-tracked product that names no serial, and `setBatchHold`
+read the balance rows without `serial_id`. So `POST /batches/:id/hold` — live
+since PI-2 — raised a validation error for every implant in the clinic and pulled
+nothing. Nothing in the inventory suite had ever held a serialised lot, so it
+shipped. Fixed on both paths; the serials now follow the lot, `ISSUED` ones
+excepted. **The regression test was verified to fail against the reverted code.**
+
+### What landed
+
+| Area        | What                                                                                                                               |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Schema      | `recalls` (org-only), `recall_batches` (org + branch); `RecallStatus`, `RecallClassification`, `RecallSource`, `RecallBatchStatus` |
+| Enums       | `StockMovementType.RECALL_RELEASE`, `NumberSequenceType.RECALL`, `DataAccessResource.RECALL_TRACE`                                 |
+| RLS         | `db:rls:check` green at **128** (was 126). One `product_visible`; `recall_batches.batch_id` needs none — it is composite           |
+| Permissions | `recall.notice.read` / `.create` / `.execute` and `recall.trace.patients`; a new `recall` module                                   |
+| Contracts   | `packages/contracts/src/recall.ts`                                                                                                 |
+| Services    | `services/recall/{shared,recall,trace}.service.ts`                                                                                 |
+| Routes      | `/v1/recalls` · `/v1/traceability/{forward,backward,affected}`                                                                     |
+| Web         | `/product-recalls` (notices, one notice, trace a lot) plus a "Product recalls" nav entry                                           |
+| Fixed       | `setBatchHold` on a serialised lot, and serial status following its lot                                                            |
+
+---
+
+## 2026-08-17 — PI-9: what the procedure used
+
+**Phase:** PI-9 · **Branch:** `feat/pi-9-clinical-consumption` · **Result:**
+complete, **not reviewed** · **Tests:** +24 unit, +24 integration, +19 isolation,
++4 route-gate cases. Lint (0 errors), typecheck and `db:rls:check` (126 tables)
+green. ⚠️ `/code-review` and `security-reviewer` NOT run.
+
+The other writer of the seam PI-8 built. A dispense is stock going into somebody's
+hand at a counter; this is stock going into somebody during a procedure, and the
+charge engine cannot tell the difference — which is the whole point of
+PI-ADR-005.
+
+### What the phase had to decide, and what it decided
+
+**The law is not asked.** This is the decision most likely to be questioned, so
+it is first. Every rule type in PI-5 is about SUPPLYING a product to a person —
+may this be dispensed, may it be substituted, was a prescription presented. A
+clinician using an anaesthetic on their own patient during a procedure they are
+performing is not a supply, no rule addresses it, and calling `evaluateWithin`
+would answer `UNDETERMINED` — which refuses — for every product on the platform.
+PI-6.7's enforcement gate would swallow that today, and that is precisely the
+argument against relying on it: the day a named human moves a pack to
+`PRODUCTION_ENABLED`, every procedure in the clinic stops. The call site is
+marked in the service header for whoever writes an administration rule type.
+
+**Two anchors are built and two are declared.** `ENCOUNTER` and
+`ENCOUNTER_PROCEDURE` carry columns; `LAB_ORDER` and `IMAGING_STUDY` are enum
+members with none, refused by `clinical_consumptions_anchor_is_resolvable`. A
+polymorphic `(subject_type, subject_id)` pair was refused for the reason the
+tracker predicted: it cannot carry a composite FK, so the database cannot
+tenant-check it.
+
+**A correction after the close is a second record; an amendment before it
+restates the first — and both write DELTA ledger legs**, because `stock_ledger`
+has no update path. What an amendment buys is that the record reads as one event
+rather than three, which is what a clinician correcting a typo thirty seconds
+later means. It is refused once the consultation is signed OR once anything on it
+has reached an invoice.
+
+**Four permission codes, not the two the plan named.** Reading needed its own
+because a doctor holds no `inventory.stock.read` and would otherwise be unable to
+see the panel on their own consultation. Writing templates needed one because
+deciding what a procedure is EXPECTED to use sets the baseline every variance is
+measured against — a configuration act, beside `inventory.reason_code.manage`.
+
+### The PI-8.11 lessons, applied rather than repeated
+
+- **There is no `isOverride` on the request contract at all.** Whether a line
+  departs from its template is arithmetic the server does over two numbers it
+  already holds. The contract suite asserts the field is DROPPED rather than
+  honoured if a client sends one — which is the case that fails the day somebody
+  adds it back, and the direct analogue of the dispensing CRITICAL where every
+  control hung off a client-set field.
+- **A line may not cite the glove's template line while consuming an implant.**
+  Same class, different column: it would record an expectation of 2 against an
+  implant and report a variance for something the template never listed.
+- **`amendConsumption` and `correctConsumption` both lock the record first.** The
+  reversal ceiling — what came off minus what has gone back — is
+  `alreadyCreditedByItem` in this domain.
+- **`assertNoOverlap` is a read-then-write that is NOT locked, and the reasoning
+  is written down** rather than left to be discovered: the loser writes an
+  overlapping window, not a corrupt one, and the resolver breaks the tie
+  deterministically. The failure mode is a wrong pre-fill in front of a human,
+  not a movement of stock.
+
+### Three things this phase found in earlier work
+
+1. **`encounter_procedures` had no `@@unique([organization_id, id])`**, so
+   ADR-0004's composite FK could not be drawn to it. Every other clinical parent
+   already carried one; this table was simply the first thing ever to reference
+   it. Added here.
+2. **`charge_requests_reference_matches_kind` permitted an `INVENTORY` request
+   citing nothing at all.** PI-8 wrote that branch deliberately — "audible rather
+   than silently legal" — while no caller existed. PI-9 is the caller, and the
+   constraint is REPLACED (not edited: Prisma checksums an applied migration) to
+   require the consumption line.
+3. **`raiseChargeRequestsWithin` hard-coded `sourceType: 'PHARMACY'`.** It now
+   takes it, required and undefaulted — a default would have made PI-9's first
+   write a PHARMACY request citing a consumption line.
+
+### An override is refused, never clamped
+
+Somebody without `consumption.override` gets an error telling them to ask a
+colleague who holds it. The alternative — silently recording the EXPECTED figure
+— would put a quantity in the ledger nobody used, which is the one outcome
+CLINICAL_CONSUMPTION.md rules out by name. The web panel keeps the field
+editable either way and warns before the round trip, because a screen that
+clamped the number would invite exactly that substitution.
+
+### PI-9.9, and the two defects the picker uncovered
+
+The panel offers the candidate lots — and, for a serialised product, the
+individual numbered devices — with FEFO's proposal pre-filled. Building it found
+two bugs that were ALSO live in PI-7's dispensing path, which had the identical
+code and no test that exercised either:
+
+1. **The candidate check was narrowed to what FEFO would take, so every override
+   was refused.** `planAllocation` stops once the requested quantity is covered,
+   and both services validated the caller's chosen lots against a plan for the
+   LINE's quantity — so any lot FEFO had not picked answered "that lot cannot be
+   supplied", which is precisely the act the override exists to permit. The
+   happy path was unaffected, which is why it shipped.
+2. **Assigning a serial to a patient violated `serials_assignment_dated`** —
+   `(assigned_patient_id IS NULL) = (assigned_at IS NULL)`, and both set the
+   patient without the date. Every supply of a serialised product to a patient
+   was a 500. Nothing in the pharmacy suite had ever dispensed one.
+
+Both fixed in both services, each with a regression test in `pharmacy.test.ts`
+**verified to fail against the reverted code** — a regression test that passes
+either way is worth nothing, and these guard the class of defect that survives
+precisely because the ordinary path still works.
+
+### What is open
+
+`/code-review` and `security-reviewer` — and a reviewer should look at the
+dispensing change specifically, because it is the highest-risk write in the
+programme and this phase touched it. Nothing has been clicked in a browser.
+
+---
+
+## 2026-08-17 — PI-8: the counter's takings
+
+**Phase:** PI-8 · **Branch:** `feat/pi-8-billing-tax-integration` · **Result:**
+complete, **not reviewed** · **Tests:** +16 unit, +25 integration, +13 isolation,
++1 route-gate case. Lint, typecheck (45 tasks) and `db:rls:check` (121 tables)
+green. ⚠️ `/code-review` and `security-reviewer` deferred to the owner.
+
+The seam between what leaves the shelf and what a patient owes. PI-7 shipped
+supplies that nobody billed; this bills them, and reverses them when they come
+back.
+
+### The three PI-7 leftovers were closed FIRST
+
+NEXT_SESSION.md said #5, #8 and #9 all had to land before any pack reaches
+`PRODUCTION_ENABLED`, because that is the day the regulatory engine starts
+refusing on what it was told. All three are closed:
+
+- **#9** — `membership_professional_registrations` hangs off `memberships`, and
+  `regulatory/actor.service.ts` reads it into `RegulatoryActor.licenceTypes` AS
+  AT THE MOMENT OF THE ACT. Status `ACTIVE` **and** an unexpired date, so a
+  lapsed licence stops counting on the day it lapsed rather than on the day
+  somebody updates the row.
+- **#5** — `CatalogueActionOptions` gained `roleCodes`, and the two endpoints
+  that actually consult the engine resolve them through an `actorMeta()` helper.
+  The other twenty-seven stay on the synchronous `auditMeta` and pay nothing.
+- **#8** — `encounter_prescriptions` gained a nullable `repeats_authorised` and
+  `repeats_authorised_limit`. ⚠️ NULL is deliberately not `false`: silence is not
+  a prescriber refusing a repeat, and a `true` with no limit still resolves
+  `UNDETERMINED`, which refuses.
+
+### The credit-note engine, which `voidInvoice` recorded as a deliberate gap
+
+Phase 5 wrote: "no table, no number series, no `CREDIT_NOTE` source type… it is
+also unreachable in a useful sense today". PI-8 gave it something to design
+against — a dispensing return is money coming off a bill that has already been
+handed over, at every pharmacy every day.
+
+⚠️ **A credit note is an `invoices` row with `kind: CREDIT_NOTE`, not a parallel
+set of tables.** The alternative duplicates the line arithmetic, the
+apportionment, the per-line tax snapshot, the document join and — the part that
+decides it — `invoices_lifecycle_guard`, which freezes an issued document's every
+money column against an allow-list. A credit note has exactly that requirement,
+so it gets exactly that trigger by being the same table. What the law actually
+requires is a separate consecutive SERIES, and that is a period key:
+`CRN-2026-PHA-MAIN-000001`. One table, two series.
+
+It refuses four things: crediting what was never issued, crediting more than was
+charged (summed across every LIVE note, not per note), crediting a line that is
+not on the invoice, and crediting a credit note. It moves no money — there is
+still no patient-payments table — which is `voidInvoice`'s honest boundary moved
+one step forward rather than papered over.
+
+### ⚠️ THE DESIGN DOCUMENT WAS WRONG ABOUT THE LINK BACK, AND THE DATABASE SAID SO
+
+BILLING_INTEGRATION.md: "`charge_requests.invoice_item_id` is the only link
+back". It cannot be. `finalizeInvoice` re-prices a draft from its stored inputs,
+and `repriceLoadedDraft` does that by DELETING every `invoice_items` row and
+writing them again — so an item id changes at least once between the draft being
+raised and the document being issued. Any FK onto it either blocks finalisation
+(`Restrict`) or silently detaches at the moment it matters.
+
+Measured, not reasoned about: the first version had the FK, and finalisation
+raised `charge_requests_organization_id_invoice_item_id_fkey`. The column is now
+`invoice_id`, which is stable for the life of the document and is what every
+question is actually about.
+
+### The two requirements in tension, and how they are reconciled
+
+A charge request must be written in the SAME transaction as its dispense — one
+that could commit independently will, on the day the dispense rolls back, and the
+clinic bills for medicine that never left the shelf. And it must NEVER be able to
+stop that dispense — a pharmacist handing somebody their medicine cannot be
+blocked because an accountant has not filled in a grid.
+
+Resolved in one direction: every configuration gap is a NULLABLE COLUMN rather
+than an error. No price → `unit_price IS NULL`. No tax classification →
+`tax_category IS NULL`. Both are shown on the charge-review screen; the invoice
+engine refuses to ISSUE an unrated line anyway, which is the right place for that
+refusal because by then nobody is standing at a counter.
+
+### Three gaps in earlier phases, found by this work and closed
+
+1. **`dispense_lines` had no `product_visible` or `unit_visible` policy** — KI-3,
+   on the most PHI-dense table in the programme. `encounter_prescriptions` has
+   carried one since CE-4 for the identical plain FK, which makes it an oversight
+   rather than a decision. A clinic could attach another clinic's private product
+   to its own dispense line and read the name back through the join.
+2. **`regulatory_decisions`' append-only REVOKE was undone by every reset.** The
+   migration revokes; `ALTER DEFAULT PRIVILEGES` re-grants on the next
+   `db:reset`, and the isolation case only fails AFTER one — which is why PI-7
+   shipped green. Now restated in `grant-app.sql`, where every other append-only
+   table already was.
+3. **PI-2's inventory isolation fixture was not idempotent against a crash**, so
+   any run that died early poisoned every later run with a `users_email_key`
+   violation that said nothing about the real failure.
+
+### The gap the phase had to be asked about twice
+
+⚠️ **THE FIRST PASS SHIPPED A COMMENT DESCRIBING CODE NOBODY HAD WRITTEN, AND
+CALLED THE PHASE COMPLETE.** `product-price-list.tsx` asserted that a price is
+set from the PRODUCT screen — "that is where somebody already has the item, its
+base unit and its packaging in front of them" — and no such control existed.
+`saveProductPriceAction` was written and wired to nothing. The consequence was
+not cosmetic: every charge request came out with a NULL `unit_price`, the charge
+queue's gap rail lit up on every row, and `createInvoiceFromCharges` refused with
+_"has no price. Set one on the price list"_ — pointing at a screen that could not
+do it. The whole phase was unusable end to end from a browser.
+
+The reasoning in the comment was right and is exactly what got built: a `Price`
+tab on the product panel, before `Tax`, with a unit picker the API validates
+against the product's own conversion graph. What was wrong was documenting an
+intention in the present tense.
+
+Three more went with it: per-line crediting reached the invoice screen (the API
+had taken a line set from the start, and a partial return is the ordinary case);
+KNOWN_ISSUES #1's nondeterministic transfer line order, taken because this
+session touched `transfer.service.ts`, which is what the entry asked for; and
+#12's UTC "today" on the pharmacy dashboard, now `date_trunc` over
+`branches.timezone` in SQL.
+
+And the linter caught the fix's own first version: `useEffect(() =>
+setAdding(false), [state.status])` is a cascading render, and
+`react-hooks/set-state-in-effect` is right about it. Comparing against the
+previous value DURING render is React's documented pattern and commits nothing in
+between.
+
+### #10 and #11, closed in a third pass
+
+**#10 — the quantity window travels BACKWARDS, from the rules to the caller.**
+The entry's mitigation said "one query" and understated it: `periodDays` lives on
+the RULE, so nobody can know the window before evaluating, and the engine is pure
+(PI-ADR-007) so it cannot look the history up itself.
+`EvaluationSupplements.priorQuantityInPeriod(windowDays)` inverts it —
+`evaluateWithin` selects the applicable rules with the engine's own
+`selectApplicableRules`, reads the window off them, and calls back into
+`consultForSupply`, which is the only party that knows who the supply is for. The
+engine still holds no Prisma client.
+
+⚠️ **Two windows still refuse, and that is the design rather than a shortfall.**
+`RegulatoryRequest` carries ONE scalar. The longer window over-counts for the
+shorter rule and refuses lawful supplies; the shorter UNDER-counts for the longer
+rule and PERMITS what the law forbids. Only one of those is survivable, so
+neither is chosen and the engine says `UNDETERMINED`. A sale with no patient
+refuses for the same reason: zero would let anyone take the limit again on every
+visit, which is the pattern the rule exists to stop.
+
+**#11 — the substitute swap, and the one line that makes it safe.** The workspace
+gained a "Hand over" picker fed by equivalents fetched on the SERVER with the
+plans, each option carrying what the engine said about substituting THAT product
+HERE — in the option text, because a badge beside a dropdown is a badge nobody
+reads.
+
+⚠️ **A SUBSTITUTED LINE SENDS NO ALLOCATIONS.** The lots on that screen were
+planned for the PRESCRIBED product and are meaningless for the substitute;
+omitting them is the contract's own "you plan it", so the server runs
+`planStockAllocationWithin` against the product actually being supplied. Sending
+the prescribed product's lots would take stock off the wrong shelf while
+recording the substitute's name — invisible from the screen that caused it, which
+is why it has a test rather than a comment. `substitutionCandidate` gained
+`baseUnitId` for the same class of reason: a quantity in the prescribed product's
+unit converts against the wrong graph.
+
+### What the reviews found, and what each turned out to be
+
+Both reviewers ran over the whole diff. Three CRITICALs, two HIGHs, and a dozen
+smaller. All fixed.
+
+⚠️ **THE ONE WORTH REMEMBERING: PI-8's OWN SUBSTITUTION UI WIDENED A HOLE PI-8
+HAD LEFT OPEN.** This phase went in specifically to close the KI-3 class on
+`dispense_lines` and closed `product_id` — while `substituted_for_product_id`,
+the column immediately below it, is a SECOND plain FK into `products`, is
+accepted straight from the client, is written with no validation, and is joined
+for its name onto the dispense detail screen. Then #11 added the picker that
+makes it reachable from a browser. The model comment even says "plain FK**s**",
+plural, describing a policy set that covered one of them. Closed, along with
+`regulatory_decisions.product_id`, both with isolation cases.
+
+**A credit note refunded GROSS where the patient had paid NET.**
+`ORIGINAL_SELECT` never read the discount columns, so crediting a discounted
+invoice in full issued a statutory document owing more than the clinic had ever
+taken. And the ceiling that was supposed to catch it compared three different
+bases in one subtraction — pre-tax gross against tax-inclusive `grand_total` —
+which refused legitimate credits where the discount exceeded the tax and let
+over-crediting through where it did not. The security review's exploit was two
+API calls, no race: credit a sliver, then credit everything, ~10.7% overshoot at
+12% GST. The ceiling now runs AFTER pricing, so both sides are `grand_total`.
+
+**`createCreditNote` skipped `loadVisible`.** A holder of
+`billing.credit_note.issue` could reverse any invoice in the organization,
+including sources and practitioners their read visibility excludes — the write
+committed and only the read-back on the way out 404'd.
+
+**`raiseChargeRequestsWithin` could throw and block a pharmacist mid-supply** —
+the one thing the file's header promises it cannot do. Deactivating a unit of
+measure that a live price row is denominated in made every subsequent dispense of
+that product throw inside the posting transaction. It degrades to the unpriced
+case instead.
+
+**A substituted line sent a quantity in the PRESCRIBED product's base unit
+paired with the SUBSTITUTE's unit id.** Thirty tablets became thirty millilitres,
+planned and posted, with nothing raising an error. Candidates are now filtered to
+matching base units — converting would be worse, because silently restating a
+dose is not something a dispensing screen may do.
+
+**And `needsAttention` clobbered an explicit `status` filter** via object-literal
+last-key-wins, directly underneath a comment arguing carefully for AND-ing over
+OR-ing. The same trap `resolveTaxCategory` documents at length about repeated
+`OR:` keys, one phase later and in the other direction.
+
+Plus: medicine names interpolated into error messages that `errorHandler` logs
+verbatim; the currency read fresh instead of frozen; a missing `canSeeSource`; a
+branch-scoped member able to delete the clinic-wide default price; orphaned
+REVERSAL charges; float money; `as number` casts standing in for `!`; an ungated
+2N+1 fan-out.
+
+### The two left open in the first pass, closed in a second
+
+**Per-line crediting is now cumulative.** `invoice_items.credited_invoice_item_id`
+links a note's line to the line it reverses, so the cap can sum across earlier
+notes. ⚠️ It is carried through `StagedLine` and rewritten on every reprice —
+finalisation always re-prices, and a column set once at creation is NULL by the
+time the note is a document. That is exactly what killed
+`charge_requests.invoice_item_id`, and a test asserts the link survives.
+
+**The charge loop is five queries regardless of line count.** It was five PER
+LINE, inside the transaction holding every batch and serial lock a supply takes.
+Each batch resolver is the SAME function the single-product path uses, with the
+singular delegating — a second copy of the tax precedence rule is how PI-1's
+`NULLS LAST` CRITICAL comes back.
+
+### The process trap worth writing down
+
+⚠️ **`prisma migrate reset` IS NOT `pnpm db:reset`.** The package script is
+`migrate reset && apply-grants && seed`; the raw command skips both. The symptom
+is every tenant-isolation suite failing with `relation "audit_logs" does not
+exist`, which reads as a broken migration and is actually `rcln_app` holding no
+grants at all.
+
+⚠️ **Prisma emits `@@unique` as a unique INDEX, not a table constraint**, so a
+`NULLS NOT DISTINCT` rewrite needs `DROP INDEX` + `CREATE UNIQUE INDEX` and not
+`ALTER TABLE … DROP CONSTRAINT`, which raises 42704.
+
+---
+
+## 2026-08-16 — PI-7: the counter opens
+
+**Phase:** PI-7 · **Branch:** `feat/pi-7-pharmacy-dispensing` · **Result:**
+complete · **Tests:** +12 unit (`@rcln/regulatory`), +24 integration, +13
+isolation, +4 route-gate cases. Lint, typecheck and `db:rls:check` (118 tables)
+green.
+
+The highest-risk workflow in the programme, and the phase that has been blocked
+since PI-0. CE-4 shipped `encounter_prescriptions`, which unblocked it.
+
+### The two framework gaps were closed FIRST, and neither rule was weakened
+
+KNOWN_ISSUES #3 and #4 said this had to happen before dispensing was wired, and
+it did. `PresentedPrescription` gained `repeatsAuthorised` and
+`repeatsAuthorisedLimit`; `RegulatoryActor` gained `isPrescriber`; the rule
+parameters gained `endorsedRepeatsPermitted`, `maxEndorsedRepeats` and
+`exemptWhenActorIsPrescriber`. India's pack opts into both clauses — rule
+65(11)(b)'s endorsed repeat and s. 42(1)'s own proviso for a practitioner
+dispensing to their own patients.
+
+⚠️ **The India rule parameters were edited in place rather than superseded, and
+that is defensible in exactly one window — this one.** PI-ADR-008 forbids
+restating a rule a past decision cites, and no decision had ever cited one:
+`regulatory_decisions` did not exist until this phase created it, and nothing
+could dispense. The next change to those rules is a new version.
+
+⚠️ **An endorsement stating no number resolves `UNDETERMINED`, which refuses.**
+"The prescriber allowed repeats" without saying how many is a reason to ring the
+prescriber, not a licence to keep dispensing.
+
+### `regulatory_decisions` exists, and PI-ADR-008 is now literal
+
+Branch-scoped tenant data, append-only in two layers — `rcln_app` holds no UPDATE
+or DELETE and a trigger refuses both anyway — with the reasons, the conditions
+and the pack versions frozen as documents. Every supplied line carries a NOT NULL
+`regulatory_decision_id`, so a code path that forgot to ask the engine cannot
+compile, and nothing ever re-evaluates a historical supply.
+
+### A dispense has no draft, and that shapes everything
+
+The medicine leaves the shelf once. So the workspace assembles a plan (which
+writes nothing and holds nothing), a human confirms it, and ONE transaction
+writes the record, its allocations, a `DISPENSING` leg per lot through
+`recordMovementIn`, the snapshot, the audit row and the queue state. The number
+is taken after every line has been consulted and planned — a refusal burns none.
+
+`planStockAllocationWithin(tx, …)` was split out of `planStockAllocation` for the
+reason `evaluateWithin` was split out of `evaluateFor`: a second transaction
+cannot see the first's uncommitted work and can deadlock against its locks.
+
+### A regulatory refusal is a 422, never a 403
+
+New `RegulatoryRefusalError`. A 403 says "you may not do this" and sends a
+pharmacist to an administrator to fix a permission that was never wrong; a 422
+says "this supply is not lawful here today" and carries the rule's own sentence
+to read to the patient. Enforcement is still gated at `PRODUCTION_ENABLED`, so
+today every decision is recorded and reported and stops nothing.
+
+### Invariant 7, enforced by a test rather than by good intentions
+
+`route-gates.test.ts` now audits the pharmacy router and asserts that no route on
+it carries a `clinical.*` code. Pharmacy writes `prescription_fulfilments` — its
+own state beside the consultation — and the "how much is still outstanding"
+arithmetic is DERIVED from `dispense_lines`, so there is no progress column on
+the clinical row for anybody to write to.
+
+### What is open
+
+An endorsed repeat still refuses, because the CLINICAL record has nowhere to
+record the endorsement (#8). `licenceTypes` is still empty (#9).
+`priorQuantityInPeriodBase` is still not supplied (#10). Supplying a substitute
+is API-only (#11). The dashboard's "today" is a UTC day (#12). And nothing has
+been clicked in a browser.
+
+---
+
 ## 2026-08-13 — PI-5 reviews, and the four CRITICALs they found
 
 **Phase:** PI-5 · **Result:** every finding fixed · **Tests:** +16 unit, +2
@@ -1058,3 +2432,61 @@ safe from `pnpm kb`.
 
 ### Next
 ```
+
+## 2026-08-19 — PI-13a + PI-13: rule-pack framework extensions and the US packs
+
+**A country survey ran before any code.** Nine jurisdictions were checked for
+rule shapes `@rcln/regulatory` could not express, and the answer reshaped the
+plan: see [COUNTRY_RULE_PACK_SURVEY.md](COUNTRY_RULE_PACK_SURVEY.md).
+
+### PI-13a — the framework, extended once for all nine
+
+- **`validityMonths`** on prescription and refill rules, with calendar-month
+  arithmetic. ⚠️ 21 U.S.C. 829(b)'s "six months" is 180, 181, 182 or 184 days
+  depending where in the year it starts — `validityDays: 180` would refuse a
+  lawful dispense on day 181 while citing the statute that permits it. Short
+  months clamp rather than roll over, because clamping shortens and rolling over
+  lengthens, and only one errs safely.
+- **`VERIFY_PRIOR_IN_PERSON_EVALUATION`** and **`VERIFY_PRIOR_AUTHORISATION`** —
+  the first conditions the person dispensing cannot discharge. ⚠️ Without the
+  first, an `ONLINE_DISPENSING` rule configured from 21 U.S.C. 829(e) returned a
+  bare `PERMITTED` and asserted the **opposite** of the section, whose entire
+  content is the proviso.
+- **`maxDaysSupply`** — limits denominated in treatment days. Absent
+  `daysSupply` → `UNDETERMINED`, which refuses. Nothing populates it yet, and
+  no pack uses it.
+- **`regionCode` on `PackSeed`** — sub-national packs can now be seeded.
+
+**No migration.** Five gaps, none in the database — PI-5's schema absorbed nine
+jurisdictions of survey without moving.
+
+### PI-13 — United States
+
+`US 1.0.0`: 2 authorities, 7 sources, **39 rules**, from eCFR's own XML of
+21 CFR 1301/1304/1306/201.105 and GPO's publication of 21 U.S.C. 353, 829, 830.
+`US-CA 1.0.0`: **the programme's first sub-national pack** — 3 rules from the
+California Legislature's own publication of the Business and Professions Code.
+
+**The supersession this phase exists to prove:** federal retention is two years
+(21 CFR 1304.04(a), keyed to a classification); California's is three
+(B&P § 4081(a), keyed to nothing). The state rule is **broader** and must still
+win — `mostSpecific()` filters to the regional level _before_ comparing
+specificity. Four tests pin it, including that federal rules of every _other_
+type keep applying in California. PI-5 built this and nothing had ever exercised
+it.
+
+**Deliberate omissions, each recorded with its reason:** no pseudoephedrine
+rules (the limit is on a chemical contained in the product; the base unit is
+tablets), no DSCSA traceability (no reachable primary source — no source, no
+rule), no federal substitution rule (substitution is state law), no Schedule V
+refill rule, no validity period for Schedule II or legend drugs.
+
+⚠️ **Two findings worth carrying forward.** Australia — not the US — is the
+hardest pack in the programme: the Poisons Standard has no legal force except
+through state legislation, so PI-15 must ship a state pack or not ship. And
+PI-14 is **blocked**: legislation.gov.uk returned `202` on every attempt.
+
+⚠️ **Neither pack is reviewed.** Sources are `UNVERIFIED`, no qualified person
+has read either, and enforcement is gated on `PRODUCTION_ENABLED`. Nothing here
+blocks anything. Five entries added to KNOWN_ISSUES, including a labelling
+supersession that silently drops the federal veterinary caution in California.

@@ -7,6 +7,7 @@ import type {
   EncounterDetail,
   EncounterSaveResponse,
   PreviousVisitResponse,
+  ProductListResponse,
   ReferralTargetResponse,
   SaveEncounterDraftRequest,
   SetFollowUpRecommendationRequest,
@@ -207,28 +208,74 @@ export async function cancelConsultation(
  *   because a word the clinic added this morning is not in the copy the tab
  *   loaded at nine.
  *
- * ⚠️ AND THE SCOPE RANKS RATHER THAN FILTERS (§34). `specialtyId` orders the
- *   scoped matches first and returns the rest underneath; a term nobody tagged
- *   is still findable, which is what stops a forgotten tag becoming an invisible
- *   diagnosis.
+ * ⚠️ SCOPED BY DEFAULT, AND NEVER A DEAD END (§34). The picker asks for the
+ *   doctor's own branch of the taxonomy, because a dentist browsing "Symptoms"
+ *   wants the dental ones and everything else is noise. What keeps §34's promise
+ *   is the two ways back out, both here:
+ *
+ *     · `allSpecialties` — the picker's own toggle, an explicit widening.
+ *     · the automatic retry below — a scoped search that matches NOTHING is
+ *       re-run across the whole catalogue and comes back flagged `widened`, so
+ *       the screen can say why it is showing more than was asked for.
+ *
+ *   ⚠️ THE RETRY IS WHAT MAKES NARROWING SAFE, AND REMOVING IT REINSTATES THE
+ *     EXACT FAILURE §34 EXISTS TO PREVENT: a term nobody remembered to tag would
+ *     be unreachable from the consultation, with no error and nothing on screen
+ *     to suggest the catalogue holds it. An empty scoped list is never shown as
+ *     an empty catalogue.
  */
+export interface ClinicalTermResults {
+  items: { id: string; name: string }[];
+  /** True when the scoped search came back empty and this is the wider one. */
+  widened: boolean;
+}
+
 export async function searchClinicalTerms(
   slug: string,
   kind: string,
   term: string,
-  specialtyId: string | undefined
-): Promise<{ id: string; name: string }[]> {
-  const query = new URLSearchParams({ kind, pageSize: '10' });
-  if (term.trim() !== '') query.set('search', term.trim());
-  if (specialtyId !== undefined) query.set('specialtyId', specialtyId);
+  scopeIds: readonly string[],
+  allSpecialties = false
+): Promise<ClinicalTermResults> {
+  /*
+   * ⚠️ 100, NOT 10, AND THE REASON IS THE EMPTY TERM. These selectors are now
+   *   BROWSABLE — the picker opens showing the catalogue rather than waiting for
+   *   somebody to guess a prefix — and a browse that shows ten of a clinic's
+   *   sixty procedures is worse than no browse at all, because the twenty it
+   *   omits look like they do not exist.
+   *
+   *   100 is the contract's ceiling (`clinicalMasterListQuery.pageSize.max`),
+   *   not a number picked here. Past it the search box is the answer, which is
+   *   why the box is always on screen and not behind a "filter" toggle.
+   */
+  const scoped = scopeIds.length > 0 && !allSpecialties;
 
-  const result = await api<ClinicalMasterListResponse>(
-    `/api/v1/clinical-data?${query.toString()}`,
-    { slug, accessToken: await getAccessToken() }
-  );
+  const run = async (onlyScoped: boolean): Promise<{ id: string; name: string }[] | null> => {
+    const query = new URLSearchParams({ kind, pageSize: '100' });
+    if (term.trim() !== '') query.set('search', term.trim());
+    if (scopeIds.length > 0) query.set('specialtyIds', scopeIds.join(','));
+    if (onlyScoped) query.set('onlyScoped', 'true');
 
-  if (!result.ok || !result.data) return [];
-  return result.data.items.map((item) => ({ id: item.id, name: item.name }));
+    const result = await api<ClinicalMasterListResponse>(
+      `/api/v1/clinical-data?${query.toString()}`,
+      { slug, accessToken: await getAccessToken() }
+    );
+
+    if (!result.ok || !result.data) return null;
+    return result.data.items.map((item) => ({ id: item.id, name: item.name }));
+  };
+
+  const first = await run(scoped);
+  if (first === null) return { items: [], widened: false };
+  /*
+   * ⚠️ A FAILED REQUEST IS NOT AN EMPTY SCOPE. The retry fires only on a
+   *   successful search that legitimately matched nothing; retrying a 403 would
+   *   make the same call twice and still show nothing.
+   */
+  if (!scoped || first.length > 0) return { items: first, widened: false };
+
+  const wider = await run(false);
+  return wider === null ? { items: [], widened: false } : { items: wider, widened: true };
 }
 
 // ---------------------------------------------------------------------------
@@ -368,15 +415,42 @@ export async function searchPrescribableProducts(
   slug: string,
   term: string
 ): Promise<{ id: string; name: string; code: string }[]> {
-  const query = new URLSearchParams({ pageSize: '10' });
-  if (term.trim() !== '') query.set('search', term.trim());
+  /*
+   * ⚠️ `q` AND `limit`, NOT `search` AND `pageSize`, AND THE RESPONSE IS
+   *   `products`, NOT `items`. This function was written by copying
+   *   `searchClinicalTerms` above, which is correct for ITS endpoint —
+   *   `clinicalMasterListResponse` really is `{ items, pageSize }` — and
+   *   `productListQuery`/`productListResponse` are neither. Every one of the
+   *   three mistakes was silent: Zod strips unknown query keys, so the wrong
+   *   parameter names did not 400, they just returned the first 25 products
+   *   unfiltered; and the response shape was a hand-written inline type, so
+   *   nothing checked it until `.items.map` threw at runtime.
+   *
+   *   Which is why this now names the CONTRACT type instead. `ProductListResponse`
+   *   is the same shape the API is compiled against, so the next rename breaks
+   *   the build here rather than the picker.
+   *
+   * ⚠️ `q` IS ONLY SENT AT TWO CHARACTERS, because the contract refuses fewer
+   *   (`z.string().trim().min(2)`) and a 400 on the first keystroke would empty
+   *   the list somebody is halfway through typing into. A short term therefore
+   *   shows the head of the catalogue, which is what an unfiltered picker should
+   *   show — not an error.
+   */
+  const trimmed = term.trim();
+  /*
+   * 50 rather than the vocabulary's 100: a formulary is the one list here that
+   * genuinely runs to thousands, so browsing it is a way in rather than a way to
+   * see all of it. The search box does the work past the first screenful.
+   */
+  const query = new URLSearchParams({ limit: '50' });
+  if (trimmed.length >= 2) query.set('q', trimmed);
 
-  const result = await api<{ items: { id: string; name: string; code: string }[] }>(
-    `/api/v1/products?${query.toString()}`,
-    { slug, accessToken: await getAccessToken() }
-  );
+  const result = await api<ProductListResponse>(`/api/v1/products?${query.toString()}`, {
+    slug,
+    accessToken: await getAccessToken(),
+  });
   if (!result.ok || !result.data) return [];
-  return result.data.items.map((item) => ({ id: item.id, name: item.name, code: item.code }));
+  return result.data.products.map((item) => ({ id: item.id, name: item.name, code: item.code }));
 }
 
 // ---------------------------------------------------------------------------

@@ -46,6 +46,7 @@
     "db:reset": "pnpm --filter @rcln/db run reset",
     "db:grants": "pnpm --filter @rcln/db run grants",
     "db:rls:check": "pnpm --filter @rcln/db run rls:check",
+    "db:test:setup": "pnpm --filter @rcln/db run test:db:setup",
     "clean": "turbo run clean && rm -rf node_modules",
     "prepare": "husky",
     "commit": "cz",
@@ -81,6 +82,6 @@
     "lint-staged": "^17.3.0",
     "prettier": "^3.8.0",
     "turbo": "^2.10.9",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }

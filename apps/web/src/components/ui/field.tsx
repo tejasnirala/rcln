@@ -433,6 +433,16 @@ function identify(id: string | undefined, name: string | undefined): string {
   return id ?? name ?? '';
 }
 
-type InputElementProps = React.ComponentPropsWithoutRef<'input'>;
+/*
+ * ⚠️ `WithRef` ON THE INPUT ALONE, AND ONLY BECAUSE ONE SCREEN GENUINELY NEEDS
+ *   THE ELEMENT. PI-23's scanner bench re-selects its own field after every read
+ *   so the next scan overwrites it without anybody touching the mouse — a
+ *   hardware reader is a keyboard that types fast and presses Enter, and the
+ *   operator has both hands on a carton. React 19 passes `ref` as an ordinary
+ *   prop, so it rides the existing `{...rest}` spread onto the native element
+ *   and nothing else in this file changes. Widening a prop type cannot break a
+ *   call site that never passed it.
+ */
+type InputElementProps = React.ComponentPropsWithRef<'input'>;
 type SelectElementProps = React.ComponentPropsWithoutRef<'select'>;
 type TextareaElementProps = React.ComponentPropsWithoutRef<'textarea'>;

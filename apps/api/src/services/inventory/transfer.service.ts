@@ -74,6 +74,7 @@ import { issueNumber } from '../numbering/number-sequence.service.js';
 import { movementDeps, recordMovementIn } from './movement.service.js';
 import { consultForStockMovement } from '../regulatory/consult.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 const detailInclude = Prisma.validator<Prisma.StockTransferInclude>()({
   fromBranch: { select: { name: true } },
@@ -89,7 +90,16 @@ const detailInclude = Prisma.validator<Prisma.StockTransferInclude>()({
       serial: { select: { serialNumber: true } },
       unit: { select: { symbol: true } },
     },
-    orderBy: { createdAt: 'asc' },
+    /*
+     * ⚠️ THE `id` TIE-BREAK IS LOAD-BEARING (KNOWN_ISSUES #1, closed in PI-8).
+     *   `createMany` gives every line of one document the SAME `created_at`, so
+     *   `createdAt` alone is not a total order and a transfer's lines could come
+     *   back arranged differently on each read. PI-4 hit the identical bug in the
+     *   four procurement document services, where it made a landed-cost assertion
+     *   fail; this file kept it because no PI-3 suite asserts line order. Fixed
+     *   here because PI-8 touched this file, which is what the entry asked for.
+     */
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
   },
 });
 
@@ -177,16 +187,6 @@ function toDetail(row: DetailRow): StockTransferDetail {
     cancelledByName: row.cancelledBy?.fullName ?? null,
     lines: row.lines.map(toLineDetail),
   };
-}
-
-/**
- * ⚠️ NOT FOUND, NOT FORBIDDEN — the rule the whole codebase follows. A branch
- *   outside the caller's scope is invisible to RLS anyway, so it is
- *   indistinguishable from one that does not exist, and a 403 confirms to
- *   somebody probing that the id is real.
- */
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 async function findTransferOrThrow(tx: TxClient, id: string): Promise<DetailRow> {
@@ -1199,6 +1199,8 @@ export async function receiveTransfer(
         occurredAt: new Date(),
         documentType: 'TRANSFER',
         documentId: existing.id,
+        /* The caller, as the rules judge them. See the goods-receipt note. */
+        roleCodes: options.roleCodes ?? [],
       });
 
       const destinationBatchId = await findOrCreateDestinationBatch(

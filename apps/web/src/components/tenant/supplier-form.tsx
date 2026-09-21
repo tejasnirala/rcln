@@ -9,9 +9,9 @@ import { Alert } from '@/components/ui/alert';
 import {
   createSupplierAction,
   updateSupplierAction,
-  IDLE_FORM,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * Adding or editing a supplier.

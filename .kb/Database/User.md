@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | tenant-scoped | no |
 | RLS | exempt — global identity — one login spans organizations |
 | columns | 20 |
-| relations | 55 |
+| relations | 78 |
 
 ## Columns
 
@@ -96,6 +96,29 @@ Declared at `packages/db/prisma/schema/identity.prisma:24`.
 | `purchaseReturnsSent` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsSent PurchaseReturn[] @relation("PurchaseReturnSentBy")` |
 | `purchaseReturnsCancelled` | [`PurchaseReturn`](PurchaseReturn.md) | `purchaseReturnsCancelled PurchaseReturn[] @relation("PurchaseReturnCancelledBy")` |
 | `rulePacksReviewed` | [`RegulatoryRulePack`](RegulatoryRulePack.md) | `rulePacksReviewed RegulatoryRulePack[] @relation("RulePackReviewer")` |
+| `prescriptionsVerified` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `prescriptionsVerified PrescriptionFulfilment[] @relation("PrescriptionFulfilmentVerifiedBy")` |
+| `prescriptionsCancelled` | [`PrescriptionFulfilment`](PrescriptionFulfilment.md) | `prescriptionsCancelled PrescriptionFulfilment[] @relation("PrescriptionFulfilmentCancelledBy")` |
+| `dispensesMade` | [`Dispense`](Dispense.md) | `dispensesMade Dispense[] @relation("DispenseDispensedBy")` |
+| `dispenseReturnsReceived` | [`DispenseReturn`](DispenseReturn.md) | `dispenseReturnsReceived DispenseReturn[] @relation("DispenseReturnReceivedBy")` |
+| `regulatoryDecisionsMade` | [`RegulatoryDecision`](RegulatoryDecision.md) | `regulatoryDecisionsMade RegulatoryDecision[] @relation("RegulatoryDecisionActor")` |
+| `chargeRequestsDecided` | [`ChargeRequest`](ChargeRequest.md) | `chargeRequestsDecided ChargeRequest[] @relation("ChargeRequestDecidedBy")` |
+| `chargePolicyRulesUpdated` | [`ChargePolicyRule`](ChargePolicyRule.md) | `chargePolicyRulesUpdated ChargePolicyRule[] @relation("ChargePolicyRuleUpdatedBy")` |
+| `productPricesUpdated` | [`ProductPrice`](ProductPrice.md) | `productPricesUpdated ProductPrice[] @relation("ProductPriceUpdatedBy")` |
+| `consumptionsRecorded` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptionsRecorded ClinicalConsumption[] @relation("ConsumptionRecordedBy")` |
+| `consumptionsAmended` | [`ClinicalConsumption`](ClinicalConsumption.md) | `consumptionsAmended ClinicalConsumption[] @relation("ConsumptionAmendedBy")` |
+| `consumptionTemplatesUpdated` | [`ConsumptionTemplate`](ConsumptionTemplate.md) | `consumptionTemplatesUpdated ConsumptionTemplate[] @relation("ConsumptionTemplateUpdatedBy")` |
+| `recallsRaised` | [`Recall`](Recall.md) | `recallsRaised Recall[] @relation("RecallRaisedBy")` |
+| `recallsExecuted` | [`Recall`](Recall.md) | `recallsExecuted Recall[] @relation("RecallExecutedBy")` |
+| `recallsClosed` | [`Recall`](Recall.md) | `recallsClosed Recall[] @relation("RecallClosedBy")` |
+| `onlineOrdersPlaced` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersPlaced OnlineOrder[] @relation("OnlineOrderPlacedBy")` |
+| `onlineOrdersConfirmed` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersConfirmed OnlineOrder[] @relation("OnlineOrderConfirmedBy")` |
+| `onlineOrdersPacked` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersPacked OnlineOrder[] @relation("OnlineOrderPackedBy")` |
+| `onlineOrdersCancelled` | [`OnlineOrder`](OnlineOrder.md) | `onlineOrdersCancelled OnlineOrder[] @relation("OnlineOrderCancelledBy")` |
+| `onlineShipmentsShipped` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsShipped OnlineOrderShipment[] @relation("OnlineOrderShipmentShippedBy")` |
+| `onlineShipmentsDelivered` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsDelivered OnlineOrderShipment[] @relation("OnlineOrderShipmentDeliveredBy")` |
+| `onlineShipmentsFailed` | [`OnlineOrderShipment`](OnlineOrderShipment.md) | `onlineShipmentsFailed OnlineOrderShipment[] @relation("OnlineOrderShipmentFailedBy")` |
+| `clinicProfilesCompleted` | [`ClinicProfile`](ClinicProfile.md) | `clinicProfilesCompleted ClinicProfile[] @relation("ClinicProfileCompletedBy")` |
+| `onboardingStepsCompleted` | [`ClinicOnboardingStep`](ClinicOnboardingStep.md) | `onboardingStepsCompleted ClinicOnboardingStep[] @relation("ClinicOnboardingStepCompletedBy")` |
 
 ## Indexes and constraints
 
@@ -139,4 +162,18 @@ erDiagram
     User }o--o{ GoodsReceiptLine : relates
     User }o--o{ PurchaseReturn : relates
     User }o--o{ RegulatoryRulePack : relates
+    User }o--o{ PrescriptionFulfilment : relates
+    User }o--o{ Dispense : relates
+    User }o--o{ DispenseReturn : relates
+    User }o--o{ RegulatoryDecision : relates
+    User }o--o{ ChargeRequest : relates
+    User }o--o{ ChargePolicyRule : relates
+    User }o--o{ ProductPrice : relates
+    User }o--o{ ClinicalConsumption : relates
+    User }o--o{ ConsumptionTemplate : relates
+    User }o--o{ Recall : relates
+    User }o--o{ OnlineOrder : relates
+    User }o--o{ OnlineOrderShipment : relates
+    User }o--o{ ClinicProfile : relates
+    User }o--o{ ClinicOnboardingStep : relates
 ```

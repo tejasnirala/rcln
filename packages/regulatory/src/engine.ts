@@ -36,6 +36,7 @@ import {
   parseQuantityLimit,
   parseRefillRule,
   parseStorageRequirement,
+  parseSpeciesRestriction,
   parseSubstitution,
   parseTraceability,
   type Parsed,
@@ -44,6 +45,8 @@ import {
 import {
   formatJurisdiction,
   needsClassificationButHasNone,
+  onlineSaleGap,
+  onlineSaleGapMessage,
   selectApplicableRules,
   startOfCalendarDay,
 } from './selection.js';
@@ -123,6 +126,73 @@ function daysBetween(from: Date, to: Date): number {
   return Math.round(millis / 86_400_000);
 }
 
+/**
+ * The day a validity stated in CALENDAR MONTHS expires, counted from `from`.
+ *
+ * ⚠️ CALENDAR MONTHS, NOT 30-DAY BLOCKS, AND THE DIFFERENCE IS THE WHOLE REASON
+ *   THIS FUNCTION EXISTS (PI-13a, survey GAP 1). 21 U.S.C. 829(b) gives a
+ *   Schedule III prescription "six months after the date thereof". From
+ *   1 January that is 1 July — 181 days. From 1 August it is 1 February —
+ *   184 days. Any fixed day count is wrong for most of the year, and wrong in
+ *   the refusing direction for the longer halves, which is the direction nobody
+ *   audits because a refusal looks like the system working.
+ *
+ * ⚠️ AND THE SHORT-MONTH CASE IS CLAMPED RATHER THAN ROLLED OVER. `Date` will
+ *   happily turn 31 January + 1 month into 3 March, which would EXTEND a
+ *   validity by two days — permitting a dispense the statute does not. So the
+ *   day is clamped back to the last day of the target month: 31 January + 1
+ *   month is 28 February, and 31 March + 1 month is 30 April. Clamping shortens
+ *   and rolling over lengthens, and only one of those errs the safe way.
+ */
+export function addCalendarMonths(from: Date, months: number): Date {
+  const start = startOfCalendarDay(from);
+  const year = start.getUTCFullYear();
+  const month = start.getUTCMonth();
+  const day = start.getUTCDate();
+
+  // Day 0 of the month after the target is the target month's last day.
+  const lastDayOfTargetMonth = new Date(Date.UTC(year, month + months + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month + months, Math.min(day, lastDayOfTargetMonth)));
+}
+
+/**
+ * Has a prescription outlived the validity a rule states, in either unit?
+ *
+ * Returns the sentence to refuse with, or `undefined` where it is still live.
+ * Both keys may be present, and the EARLIER expiry governs — a jurisdiction that
+ * writes both means both, and taking the later one would let the looser key
+ * quietly repeal the tighter.
+ */
+function expiredAgainst(
+  issuedOn: Date,
+  occurredAt: Date,
+  validityDays: number | undefined,
+  validityMonths: number | undefined
+): string | undefined {
+  const day = startOfCalendarDay(occurredAt).getTime();
+
+  if (validityDays !== undefined) {
+    const age = daysBetween(issuedOn, occurredAt);
+    if (age > validityDays) {
+      return `This prescription is ${String(age)} days old and expires after ${String(validityDays)}.`;
+    }
+  }
+
+  if (validityMonths !== undefined) {
+    const expiresAfter = addCalendarMonths(issuedOn, validityMonths);
+    if (day > expiresAfter.getTime()) {
+      const plural = validityMonths === 1 ? 'month' : 'months';
+      return (
+        `This prescription was written on ${issuedOn.toISOString().slice(0, 10)} and is valid ` +
+        `for ${String(validityMonths)} ${plural}, so it expired after ` +
+        `${expiresAfter.toISOString().slice(0, 10)}.`
+      );
+    }
+  }
+
+  return undefined;
+}
+
 /** Is this transaction one where a prescription is even a coherent question? */
 function isSupplyToPatient(request: RegulatoryRequest): boolean {
   return (
@@ -166,25 +236,37 @@ function evaluatePrescriptionRequired(
     );
   }
 
-  const validityDays = parsed.value.validityDays;
-  if (validityDays !== undefined) {
-    const age = daysBetween(prescription.issuedOn, request.occurredAt);
-    if (age < 0) {
-      /*
-       * ⚠️ A PRESCRIPTION DATED IN THE FUTURE IS REFUSED, NOT TREATED AS FRESH.
-       *   `Math.abs` here would make a mistyped year the most valid prescription
-       *   in the system.
-       */
-      return refused(
-        `${rule.statement} The prescription is dated after the day it is being dispensed.`
-      );
-    }
-    if (age > validityDays) {
-      return refused(
-        `${rule.statement} This prescription is ${String(age)} days old and expires after ` +
-          `${String(validityDays)}.`
-      );
-    }
+  /*
+   * ⚠️ A PRESCRIPTION DATED IN THE FUTURE IS REFUSED, NOT TREATED AS FRESH.
+   *   `Math.abs` here would make a mistyped year the most valid prescription
+   *   in the system.
+   *
+   * ⚠️ AND IT IS CHECKED WHETHER OR NOT A VALIDITY IS CONFIGURED, WHICH IT WAS
+   *   NOT. This guard used to sit INSIDE the validity conditional below, so a
+   *   rule carrying no `validityDays`/`validityMonths` never ran it — and a
+   *   prescription dated 2099 was dispensed. That is not a hypothetical
+   *   configuration: every `IN-RX-*` and every `BD-RX-*` rule deliberately
+   *   carries no validity, because neither body of law states one, so India and
+   *   Bangladesh were both live. No jurisdiction permits dispensing against a
+   *   prescription that has not been written yet, which is exactly why
+   *   `evaluateRefillRule` ran the identical check unconditionally — two
+   *   handlers reading one fact two ways. (PI-24 review.)
+   */
+  if (daysBetween(prescription.issuedOn, request.occurredAt) < 0) {
+    return refused(
+      `${rule.statement} The prescription is dated after the day it is being dispensed.`
+    );
+  }
+
+  const { validityDays, validityMonths } = parsed.value;
+  if (validityDays !== undefined || validityMonths !== undefined) {
+    const expired = expiredAgainst(
+      prescription.issuedOn,
+      request.occurredAt,
+      validityDays,
+      validityMonths
+    );
+    if (expired !== undefined) return refused(`${rule.statement} ${expired}`);
   }
 
   return permitted(`${rule.code}: a valid prescription was presented.`);
@@ -248,6 +330,22 @@ function evaluatePharmacistAuthority(
     });
   }
 
+  /*
+   * ⚠️ THE PROVISO IS TESTED BEFORE THE AUTHORITY, BECAUSE IT SAYS THE
+   *   PROHIBITION DOES NOT APPLY — not that this person satisfies it. India's
+   *   Pharmacy Act s. 42(1) excludes "the dispensing by a medical practitioner
+   *   of medicine for his own patients" from the section outright, and a clinic
+   *   where the doctor dispenses is the common shape in exactly the countries
+   *   that write such a proviso. Both halves must be true: the RULE has to opt
+   *   in, and the ACTOR has to actually be the prescriber of this prescription —
+   *   which the service derives from the encounter, never the client.
+   */
+  if (parsed.value.exemptWhenActorIsPrescriber === true && request.actor.isPrescriber === true) {
+    return permitted(
+      `${rule.code} does not apply to a prescriber dispensing to their own patient.`
+    );
+  }
+
   const roleOk = roles !== undefined && request.actor.roleCodes.some((r) => roles.includes(r));
   const licenceOk =
     licences !== undefined && (request.actor.licenceTypes ?? []).some((l) => licences.includes(l));
@@ -288,8 +386,44 @@ function evaluateControlledSchedule(rule: RegulatoryRule, request: RegulatoryReq
     );
   }
 
+  /*
+   * ⚠️ A PERMIT THIS PLATFORM CANNOT SEE, RAISED AS AN OBLIGATION (PI-13a, GAP 2).
+   *   Australia's Schedule 8 authorities are the case: a state health department
+   *   grants written authority to treat a NAMED patient with a NAMED drug, and
+   *   the authority lives in a state registry rcln does not talk to. Refusing
+   *   for want of a record we could never hold would block every lawful S8
+   *   supply in the country; permitting silently would drop the requirement
+   *   that makes the supply lawful. The condition says which, and names the
+   *   authority so the screen can say where to look.
+   */
+  if (parsed.value.priorAuthorisationRequired === true) {
+    const authority = parsed.value.authorisationAuthority;
+    conditions.push(
+      condition(
+        rule,
+        'VERIFY_PRIOR_AUTHORISATION',
+        `A ${parsed.value.scheduleName ?? 'controlled drug'} authorisation must already have ` +
+          `been granted for this patient${authority !== undefined ? ` by ${authority}` : ''}. ` +
+          'Check it is in force before supplying.',
+        authority !== undefined ? { authority } : undefined
+      )
+    );
+  }
+
   const kinds = parsed.value.storageLocationKinds;
-  if (kinds !== undefined && kinds.length > 0 && request.transaction === 'STOCK') {
+  /*
+   * ⚠️ `TRANSFER` AS WELL AS `STOCK`, BECAUSE `evaluateStorageRequirement`
+   *   CHECKS BOTH AND THESE TWO ASK THE SAME QUESTION. Moving a controlled drug
+   *   onto an ordinary shelf via a transfer was checked by a
+   *   `STORAGE_REQUIREMENT` rule and NOT by a `CONTROLLED_SCHEDULE` one, so a
+   *   pack that writes only the controlled-schedule form had an open transfer
+   *   path. India ships both forms and was covered by accident. (PI-24 review.)
+   */
+  if (
+    kinds !== undefined &&
+    kinds.length > 0 &&
+    (request.transaction === 'STOCK' || request.transaction === 'TRANSFER')
+  ) {
     const kind = request.location?.kind;
     if (kind === undefined) {
       return undetermined(
@@ -299,6 +433,17 @@ function evaluateControlledSchedule(rule: RegulatoryRule, request: RegulatoryReq
     if (!kinds.includes(kind)) {
       return refused(`${rule.statement} It may only be kept in: ${kinds.join(', ')}.`);
     }
+  }
+
+  /*
+   * ⚠️ THE LABEL IS THE WHOLE VALUE OF AN INFORMATIONAL RULE, SO IT SAYS THE
+   *   SCHEDULE RATHER THAN "obligations apply" — there are none, and claiming
+   *   otherwise would send somebody looking for a register that the jurisdiction
+   *   never created. Without this line a Schedule 8 supply in Sydney comes back
+   *   indistinguishable from an ordinary one.
+   */
+  if (parsed.value.informationalOnly === true) {
+    return permitted(`${rule.code}: this is a ${parsed.value.scheduleName} substance.`, conditions);
   }
 
   return permitted(`${rule.code}: controlled-substance obligations apply.`, conditions);
@@ -363,6 +508,38 @@ function applyQuantityLimit(
     }
   }
 
+  /*
+   * ⚠️ A LIMIT IN TREATMENT DAYS IS NOT A LIMIT IN BASE UNITS, AND NOTHING HERE
+   *   CONVERTS BETWEEN THEM (PI-13a, survey GAP 3). New York PHL § 3332 caps a
+   *   controlled-substance prescription at "a thirty day supply"; thirty days is
+   *   30 tablets at one a day and 120 at four a day, so `quantityBase` cannot
+   *   answer it. The figure has to come off the directions for use, which this
+   *   programme does not yet parse.
+   *
+   * ⚠️ SO A RULE USING THIS KEY REFUSES UNTIL A CALLER CAN SUPPLY IT, AND THAT
+   *   IS THE INTENDED COST RATHER THAN A DEFECT. `UNDETERMINED` is the same
+   *   answer a missing `priorQuantityInPeriodBase` gets above, for the same
+   *   reason: a platform that cannot compute the supply has not established
+   *   compliance, it has only failed to look — and those two must never resolve
+   *   alike.
+   */
+  const maxDaysSupply = parsed.value.maxDaysSupply;
+  if (maxDaysSupply !== undefined) {
+    const daysSupply = request.daysSupply;
+    if (daysSupply === undefined) {
+      return undetermined(
+        `${rule.code} limits this to ${String(maxDaysSupply)} days' supply, and how many days ` +
+          'this supply covers was not worked out from the directions for use.'
+      );
+    }
+    if (daysSupply > maxDaysSupply) {
+      return refused(
+        `${rule.statement} This is ${String(daysSupply)} days' supply and the limit is ` +
+          `${String(maxDaysSupply)}.`
+      );
+    }
+  }
+
   return permitted(`${rule.code}: within the permitted quantity.`);
 }
 
@@ -390,21 +567,62 @@ function evaluateRefillRule(rule: RegulatoryRule, request: RegulatoryRequest): R
 
   const allowed = parsed.value.refillsAllowed;
   if (allowed !== undefined && prescription.refillsUsed > allowed) {
-    return refused(
-      `${rule.statement} This prescription has already been dispensed ` +
-        `${String(prescription.refillsUsed)} times and allows ${String(allowed)} repeats.`
-    );
-  }
+    /*
+     * ⚠️ THE ENDORSEMENT IS AN EXCEPTION THE LAW ITSELF WRITES, AND IT IS READ
+     *   ONLY WHERE THE RULE OPTS IN (PI-7, KNOWN_ISSUES defect 3). India's rule
+     *   65(11) forbids a repeat "unless the prescriber has stated thereon that
+     *   it may be dispensed more than once", and then permits it as endorsed —
+     *   so `refillsAllowed: 0` was a correct reading that also refused the
+     *   legitimate case, because the framework could not carry the endorsement.
+     *
+     *   `repeatsAuthorised` is read off the PRESCRIPTION, not asserted by the
+     *   person dispensing. See `PresentedPrescription`.
+     */
+    const endorsed =
+      parsed.value.endorsedRepeatsPermitted === true && prescription.repeatsAuthorised === true;
 
-  const validityDays = parsed.value.validityDays;
-  if (validityDays !== undefined) {
-    const age = daysBetween(prescription.issuedOn, request.occurredAt);
-    if (age > validityDays) {
+    if (!endorsed) {
       return refused(
-        `${rule.statement} A repeat may not be dispensed more than ${String(validityDays)} days ` +
-          'after the prescription was written.'
+        `${rule.statement} This prescription has already been dispensed ` +
+          `${String(prescription.refillsUsed)} times and allows ${String(allowed)} repeats.`
       );
     }
+
+    /*
+     * ⚠️ AN ENDORSEMENT WITH NO NUMBER, UNDER A RULE WITH NO CEILING, IS
+     *   `UNDETERMINED` AND THEREFORE REFUSES. "The prescriber allowed repeats"
+     *   without saying how many is a reason to ring the prescriber, not a
+     *   licence to dispense indefinitely — and treating silence as unlimited is
+     *   precisely the permissive default this engine is shaped against.
+     */
+    const limits = [prescription.repeatsAuthorisedLimit, parsed.value.maxEndorsedRepeats].filter(
+      (value): value is number => value !== undefined
+    );
+    if (limits.length === 0) {
+      return undetermined(
+        `${rule.code}: the prescriber endorsed a repeat but did not state how many, and the ` +
+          'rules here set no limit of their own. Confirm the number of repeats with the prescriber.'
+      );
+    }
+
+    const endorsedLimit = Math.min(...limits);
+    if (prescription.refillsUsed > endorsedLimit) {
+      return refused(
+        `${rule.statement} This prescription has already been dispensed ` +
+          `${String(prescription.refillsUsed)} times and the prescriber endorsed ` +
+          `${String(endorsedLimit)} repeats.`
+      );
+    }
+  }
+
+  const expired = expiredAgainst(
+    prescription.issuedOn,
+    request.occurredAt,
+    parsed.value.validityDays,
+    parsed.value.validityMonths
+  );
+  if (expired !== undefined) {
+    return refused(`${rule.statement} A repeat may not be dispensed now: ${expired}`);
   }
 
   return permitted(`${rule.code}: repeats remain available.`);
@@ -445,6 +663,90 @@ function evaluateAgeRestriction(rule: RegulatoryRule, request: RegulatoryRequest
       : [];
 
   return permitted(`${rule.code}: the patient meets the minimum age.`, conditions);
+}
+
+/**
+ * WHO the product may be supplied FOR (PI-11).
+ *
+ * ⚠️ ITS OWN RULE TYPE, NOT A PARAMETER ON `AGE_RESTRICTION`, AND THE HANDLER
+ *   DIRECTLY ABOVE IS THE ARGUMENT. `evaluateAgeRestriction` stands aside
+ *   entirely when the subject is an animal — "a human age limit is not a
+ *   statement about a dog" — so a veterinary prohibition expressed as an age
+ *   parameter would sit behind a handler that exempts every animal from itself,
+ *   and would be inert in exactly the case it was written for.
+ *
+ * ⚠️ NO SUBJECT AT ALL IS `UNDETERMINED`, NOT `PERMITTED`, AND THIS IS THE ONE
+ *   DECISION IN THIS FUNCTION WORTH ARGUING WITH. A counter sale names nobody,
+ *   so a jurisdiction that prohibits supplying a veterinary medicine for human
+ *   use cannot be checked at a counter — and answering PERMITTED there would let
+ *   the anonymous path be the way around the rule, which is precisely the path
+ *   somebody buying it for themselves would take. Silence never permits.
+ *
+ *   The cost is bounded and visible: a pack whose species rule applies to
+ *   `COUNTER_SALE` makes every anonymous counter sale of that product
+ *   UNDETERMINED. That is a decision for the pack author to take deliberately by
+ *   listing the transaction, not one this engine takes on their behalf, and it
+ *   is why `appliesToTransactions` on a species rule is worth being explicit
+ *   about.
+ */
+function evaluateSpeciesRestriction(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict {
+  const parsed = parseSpeciesRestriction(rule.parameters);
+  if (!parsed.ok) return unreadable(rule, parsed);
+
+  const patient = request.patient;
+  if (patient === undefined) {
+    return undetermined(
+      `${rule.code} restricts who ${rule.appliesToProductType === null ? 'this' : 'this product'} ` +
+        'may be supplied for, and this transaction names no subject.'
+    );
+  }
+
+  const { prohibitedSubjectTypes, permittedSpecies, prohibitedSpecies } = parsed.value;
+
+  if (prohibitedSubjectTypes?.includes(patient.subjectType) === true) {
+    return refused(rule.statement);
+  }
+
+  /*
+   * The species lists speak about animals only. A human subject that survived
+   * the check above is not made unlawful by a rule listing which animals may
+   * have the product — and reading a human as "an animal not on the list" is how
+   * an allow-list of three species refuses every person in the country.
+   */
+  if (patient.subjectType !== 'ANIMAL') {
+    return permitted(`${rule.code}: the subject is not one this rule restricts.`);
+  }
+  if (permittedSpecies === undefined && prohibitedSpecies === undefined) {
+    return permitted(`${rule.code}: the subject is not one this rule restricts.`);
+  }
+
+  const species = patient.species?.trim();
+  if (species === undefined || species === '') {
+    return undetermined(
+      `${rule.code} restricts which species this may be supplied for, and no species is ` +
+        "recorded on the patient's record."
+    );
+  }
+
+  /*
+   * ⚠️ CASE-INSENSITIVE, AND THAT IS THE ONLY NORMALISATION APPLIED. `"dog"` and
+   *   `"Dog"` are one species; `"Canine"` and `"Dog"` are two, and this engine
+   *   deliberately does not own a synonym table — a species vocabulary
+   *   maintained in TypeScript is a clinical dictionary nobody signed off. See
+   *   the comment on `RegulatoryPatient.species`.
+   */
+  const folded = species.toLowerCase();
+  const matches = (list: readonly string[]): boolean =>
+    list.some((entry) => entry.trim().toLowerCase() === folded);
+
+  if (prohibitedSpecies !== undefined && matches(prohibitedSpecies)) {
+    return refused(rule.statement);
+  }
+  if (permittedSpecies !== undefined && !matches(permittedSpecies)) {
+    return refused(rule.statement);
+  }
+
+  return permitted(`${rule.code}: this may be supplied for a ${species}.`);
 }
 
 function evaluateSubstitution(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict {
@@ -521,6 +823,61 @@ function evaluateOnlineDispensing(rule: RegulatoryRule, request: RegulatoryReque
         `${rule.statement} It may not be supplied to ${formatJurisdiction(destination)}.`
       );
     }
+  }
+
+  /*
+   * ⚠️ THE PROVISO IS RAISED AS AN OBLIGATION, NOT CHECKED — AND WITHOUT IT THIS
+   *   HANDLER ASSERTED THE OPPOSITE OF THE STATUTE (PI-13a, survey GAP 2).
+   *   21 U.S.C. 829(e) does not authorise internet supply of a controlled
+   *   substance; it forbids it except on a prescription from a practitioner who
+   *   has conducted at least one in-person medical evaluation of the patient, or
+   *   from a covering practitioner. Before this key the closest expressible rule
+   *   was `permitted: true`, which fell straight through to the bare permission
+   *   below — a pack faithfully configured from the section, returning the
+   *   inverse of it.
+   *
+   * ⚠️ THE ENGINE CANNOT VERIFY IT AND MUST NOT PRETEND TO. Whether a
+   *   consultation happened in a room is not a fact this platform holds, so
+   *   answering `UNDETERMINED` would refuse every lawful online supply in the
+   *   United States, and answering `PERMITTED` silently would drop the section.
+   *   A condition is the honest third answer: the supply may proceed AND
+   *   somebody must establish this. Who that somebody is, and what the screen
+   *   may ask them to attest to, is an open decision — see `RegulatoryCondition`.
+   */
+  if (parsed.value.requiresPriorInPersonEvaluation === true) {
+    return permitted(`${rule.code}: remote supply is permitted, subject to a prior evaluation.`, [
+      condition(
+        rule,
+        'VERIFY_PRIOR_IN_PERSON_EVALUATION',
+        'Remote supply is lawful here only on a prescription from a practitioner who has ' +
+          'already examined this patient in person, or from a covering practitioner. Establish ' +
+          'that before sending this.'
+      ),
+    ]);
+  }
+
+  /*
+   * ⚠️ THE REGISTRATION IS RAISED AS AN OBLIGATION, NOT CHECKED, FOR THE SAME
+   *   REASON AS THE EVALUATION ABOVE (PI-18). Regulation 19A(1) of Ireland's
+   *   Medicinal Products (Prescription and Control of Supply) Regulations 2003
+   *   forbids distance selling of a non-prescription medicine unless the seller
+   *   is entered on the ISS supply list. Whether this pharmacy is on a list the
+   *   Pharmaceutical Society of Ireland keeps is not a fact this platform holds,
+   *   so `UNDETERMINED` would refuse every lawful Irish distance sale and a bare
+   *   `PERMITTED` would drop the condition the sale rests on.
+   */
+  if (parsed.value.requiresDistanceSellingAuthorisation === true) {
+    const authority = parsed.value.distanceSellingAuthority;
+    return permitted(`${rule.code}: remote supply is permitted, subject to a registration.`, [
+      condition(
+        rule,
+        'VERIFY_PRIOR_AUTHORISATION',
+        'Remote supply is lawful here only from a supplier already entered on the register of ' +
+          `distance sellers${authority !== undefined ? ` kept by ${authority}` : ''}. Confirm ` +
+          'this pharmacy is on it, and that the entry is current, before sending this.',
+        authority !== undefined ? { authority } : undefined
+      ),
+    ]);
   }
 
   return permitted(`${rule.code}: remote supply is permitted.`);
@@ -652,10 +1009,14 @@ function evaluateImportRestriction(rule: RegulatoryRule, request: RegulatoryRequ
   if (parsed.value.permitted !== true) return refused(rule.statement);
 
   if (parsed.value.licenceRequired === true) {
+    /*
+     * `licenceType` is guaranteed present by `parseImportRestriction` whenever
+     * `licenceRequired` is true — the pair without it is refused as unreadable,
+     * because "any licence at all" is not a requirement anybody wrote.
+     */
     const licenceType = parsed.value.licenceType;
     const held = request.actor.licenceTypes ?? [];
-    const satisfied = licenceType === undefined ? held.length > 0 : held.includes(licenceType);
-    if (!satisfied) {
+    if (licenceType === undefined || !held.includes(licenceType)) {
       return refused(
         `${rule.statement} A ${licenceType ?? 'licence'} is required and none was presented.`
       );
@@ -668,6 +1029,64 @@ function evaluateImportRestriction(rule: RegulatoryRule, request: RegulatoryRequ
 // ---------------------------------------------------------------------------
 // The evaluator
 // ---------------------------------------------------------------------------
+
+/**
+ * Can this rule's parameters be read at all? (PI-24.)
+ *
+ * ⚠️ AN UNREADABLE RULE IS A REFUSING RULE, WHICH IS WHY THIS IS WORTH ASKING
+ *   BEFORE ANYBODY DISPENSES ANYTHING. `unreadable` resolves UNDETERMINED, and
+ *   nothing is permitted on the strength of a rule the platform cannot read —
+ *   the safe direction, but it means a mistyped parameter in a seed file blocks
+ *   a whole classification of lawful supply, silently, in production, and the
+ *   evaluation looks exactly like a rule that meant to refuse.
+ *
+ *   Two shipped that way and neither was found by a test: `AU-SCHEDULE-S8`
+ *   refused every Schedule 8 transaction in seven Australian jurisdictions, and
+ *   `SG-SCHEDULE-CD3` refused every Third Schedule one in Singapore. Both had
+ *   behaviour cases that PASSED, because asserting "the rule code appears in
+ *   the reasons and no conditions were raised" is exactly what an unreadable
+ *   rule produces.
+ *
+ *   So a pack cannot be checked by evaluating it — a request that reaches the
+ *   rule has to be constructed per rule, and the verdict it returns is
+ *   indistinguishable from a legitimate one. It has to be asked directly, and
+ *   the dispatch has to be the SAME dispatch, or the check drifts from the
+ *   engine it is meant to defend. That is what this shares with `evaluateRule`.
+ */
+export function readRuleParameters(rule: RegulatoryRule): Parsed<unknown> {
+  switch (rule.ruleType) {
+    case 'PRESCRIPTION_REQUIRED':
+      return parsePrescriptionRequired(rule.parameters);
+    case 'PRESCRIBER_AUTHORITY':
+    case 'PHARMACIST_AUTHORITY':
+      return parseAuthority(rule.parameters);
+    case 'CONTROLLED_SCHEDULE':
+      return parseControlledSchedule(rule.parameters);
+    case 'QUANTITY_LIMIT':
+      return parseQuantityLimit(rule.parameters);
+    case 'REFILL_RULE':
+      return parseRefillRule(rule.parameters);
+    case 'AGE_RESTRICTION':
+      return parseAgeRestriction(rule.parameters);
+    case 'SPECIES_RESTRICTION':
+      return parseSpeciesRestriction(rule.parameters);
+    case 'SUBSTITUTION':
+      return parseSubstitution(rule.parameters);
+    case 'ONLINE_DISPENSING':
+      return parseOnlineDispensing(rule.parameters);
+    case 'STORAGE_REQUIREMENT':
+      return parseStorageRequirement(rule.parameters);
+    case 'TRACEABILITY_REQUIREMENT':
+      return parseTraceability(rule.parameters);
+    case 'RECORD_RETENTION':
+    case 'LABELLING_REQUIREMENT':
+    case 'REPORTING_REQUIREMENT':
+    case 'DISPOSAL_REQUIREMENT':
+      return parseObligation(rule.parameters);
+    case 'IMPORT_RESTRICTION':
+      return parseImportRestriction(rule.parameters);
+  }
+}
 
 function evaluateRule(rule: RegulatoryRule, request: RegulatoryRequest): RuleVerdict {
   switch (rule.ruleType) {
@@ -685,6 +1104,8 @@ function evaluateRule(rule: RegulatoryRule, request: RegulatoryRequest): RuleVer
       return evaluateRefillRule(rule, request);
     case 'AGE_RESTRICTION':
       return evaluateAgeRestriction(rule, request);
+    case 'SPECIES_RESTRICTION':
+      return evaluateSpeciesRestriction(rule, request);
     case 'SUBSTITUTION':
       return evaluateSubstitution(rule, request);
     case 'ONLINE_DISPENSING':
@@ -746,6 +1167,54 @@ export function evaluate(request: RegulatoryRequest): RegulatoryDecision {
       : lowest;
   }, null);
 
+  /*
+   * ⚠️ THE REMOTE-SUPPLY GATE, CHECKED BEFORE EVERYTHING INCLUDING THE "NO RULES"
+   *   BRANCH (PI-12). A remote supply is the one transaction in this package that
+   *   fails OPEN when a pack says nothing about it: a jurisdiction whose rules
+   *   list `ONLINE_DISPENSE` alongside `DISPENSE` — which every honest pack does,
+   *   so the prescription rules follow the medicine home — permits a remote
+   *   supply on the strength of rules written about a counter. No rule refused;
+   *   no rule was asked.
+   *
+   *   So a product is not onlineable until somebody has said so, per jurisdiction,
+   *   on its regulatory profile. See `onlineSaleGap` for why that field and not a
+   *   rule type.
+   *
+   * ⚠️ IT IS FIRST BECAUSE IT IS THE MOST ACTIONABLE ANSWER, not because it is the
+   *   most important. In an unconfigured country every one of these branches is
+   *   true at once, and the reasons list is what somebody reads to find out what
+   *   to do next — "record this product's position on remote supply" is a task,
+   *   "no rule covers this" is a project.
+   */
+  const remoteGap = onlineSaleGap(request.transaction, request.profile);
+  if (remoteGap !== null) {
+    const place = formatJurisdiction(request.jurisdiction);
+    return {
+      /*
+       * ⚠️ ONLY `PROHIBITED` IS A REFUSAL, AND THE DISTINCTION IS NOT COSMETIC.
+       *   A refusal says somebody looked and the answer is no; `UNDETERMINED`
+       *   says nobody has looked. Both stop the supply — `UNDETERMINED` refuses
+       *   everywhere in this package — and they send the clinic to two different
+       *   places: one to their regulator, the other to their own profile screen.
+       */
+      outcome: remoteGap === 'PROHIBITED' ? 'REFUSED' : 'UNDETERMINED',
+      conditions: [],
+      reasons: [
+        {
+          ruleId: null,
+          ruleCode: null,
+          ruleType: null,
+          packId: null,
+          packVersion: null,
+          outcome: remoteGap === 'PROHIBITED' ? 'REFUSED' : 'UNDETERMINED',
+          message: onlineSaleGapMessage(remoteGap, place),
+        },
+      ],
+      packVersionIds,
+      lowestPackMaturity,
+    };
+  }
+
   if (applicable.length === 0) {
     return {
       outcome: 'UNDETERMINED',
@@ -790,11 +1259,21 @@ export function evaluate(request: RegulatoryRequest): RegulatoryDecision {
           packId: null,
           packVersion: null,
           outcome: 'UNDETERMINED',
-          message:
-            `${formatJurisdiction(request.jurisdiction)} decides what may be done with this ` +
-            'kind of product by its regulatory classification, and this product has none ' +
-            'recorded for this jurisdiction. Record its regulatory profile before supplying it — ' +
-            'nothing is permitted on the strength of an absence.',
+          /*
+           * Two cases, and the second is the one worth naming precisely: a
+           * classification that IS recorded but that this jurisdiction does not
+           * recognise. Telling that clinic to "record its regulatory profile"
+           * would send them to a screen that already has a value in it.
+           */
+          message: request.profile?.classification
+            ? `${formatJurisdiction(request.jurisdiction)} does not recognise the regulatory ` +
+              `classification "${request.profile.classification}" recorded for this product, ` +
+              'so no rule here speaks to it. Correct the classification on its regulatory ' +
+              'profile — nothing is permitted on the strength of one nobody can read.'
+            : `${formatJurisdiction(request.jurisdiction)} decides what may be done with this ` +
+              'kind of product by its regulatory classification, and this product has none ' +
+              'recorded for this jurisdiction. Record its regulatory profile before supplying ' +
+              'it — nothing is permitted on the strength of an absence.',
         },
       ],
       packVersionIds,

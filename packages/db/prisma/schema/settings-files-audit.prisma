@@ -278,6 +278,46 @@ enum DataAccessResource {
   /// under ongoing treatment, and its title usually says what for — which is a
   /// diagnosis by another name, and is why this is not folded into `APPOINTMENT`.
   CLINICAL_EPISODE
+  /// What a named person is being billed for, before it reaches an invoice
+  /// (PI-8).
+  ///
+  /// ⚠️ NOT `INVOICE`, AND NOT `PRESCRIPTION`. A charge request names a patient
+  ///   beside a MEDICINE and a price, which `INVOICE` does not — an invoice line
+  ///   reads "Amoxicillin 500 mg" but the disclosure question about the billing
+  ///   ledger is a different one from "who is working the dispensary's charge
+  ///   queue". And it is not `PRESCRIPTION` because reading the queue discloses
+  ///   what was SUPPLIED and paid for rather than what was written, which is the
+  ///   same distinction `VITALS` and `ENCOUNTER` draw against `MEDICAL_HISTORY`.
+  CHARGE_REQUEST
+  /// What was USED on a named person during a procedure (PI-9).
+  ///
+  /// ⚠️ NOT `INVENTORY_SERIAL` AND NOT `ENCOUNTER`. `INVENTORY_SERIAL` is the
+  ///   same fact asked from the STOCK side — "who looked up device 7742" — by a
+  ///   storekeeper or a recall; this is asked from the PATIENT side and returns
+  ///   a product list and a variance. And reading the consumption panel
+  ///   discloses no diagnosis, prescription or note, which is the line `VITALS`
+  ///   draws against `ENCOUNTER`.
+  CLINICAL_CONSUMPTION
+  /// Turning a recalled lot into the NAMES of the people who received it
+  /// (PI-10).
+  ///
+  /// ⚠️ ITS OWN RESOURCE, AND IT IS THE BROADEST DISCLOSURE THE PLATFORM MAKES.
+  ///   Every other member here is one patient, or a search that named one.
+  ///   This is "give me everybody who got lot AB12" — dozens of identifiable
+  ///   people in one response, returned to a storekeeper rather than to a
+  ///   clinician. A disclosure review must be able to see those reads on their
+  ///   own, which folding them into `INVENTORY_SERIAL` or `PRESCRIPTION` would
+  ///   prevent.
+  RECALL_TRACE
+  /// An order to be DELIVERED to a named person's home (PI-12).
+  ///
+  /// ⚠️ ITS OWN RESOURCE, AND THE REASON IS AN ADDRESS. Every other member here
+  ///   discloses what a clinic knows about somebody's health. This one
+  ///   additionally discloses WHERE THEY LIVE, beside the medicines being sent
+  ///   there — which is a physical-safety fact as much as a clinical one, and is
+  ///   exactly the read a disclosure review would want to see on its own rather
+  ///   than buried among `PRESCRIPTION` rows.
+  ONLINE_ORDER
 }
 
 /// Who looked at whose record. The read-side counterpart to `audit_logs`.

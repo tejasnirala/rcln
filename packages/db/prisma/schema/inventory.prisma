@@ -208,6 +208,19 @@ enum StockMovementType {
   RELEASE
   QUARANTINE
   QUARANTINE_RELEASE
+  /// Coming BACK out of the RECALLED bucket, into AVAILABLE (PI-10).
+  ///
+  /// ⚠️ ITS OWN MEMBER RATHER THAN `QUARANTINE_RELEASE` WITH A DIFFERENT
+  ///   `status_from`, and the reasoning is the one `PURCHASE_RETURN` gives about
+  ///   `TRANSFER_OUT`. The statuses would be right and the WORD would be wrong:
+  ///   every report that groups by `movement_type` would file "the manufacturer
+  ///   withdrew the notice and we put the lot back on sale" under quarantine
+  ///   releases, alongside a fridge that came back up to temperature. Those are
+  ///   two different conversations with a regulator.
+  ///
+  /// ⚠️ AND IT IS THE ONE MOVEMENT THAT MAKES RECALLED STOCK SELLABLE AGAIN, so
+  ///   it is worth being able to count on its own.
+  RECALL_RELEASE
 }
 
 /// What a movement was FOR. Half of the traceability key.
@@ -293,6 +306,16 @@ model InventoryLocation {
   purchaseOrderDeliveries PurchaseOrder[]    @relation("PurchaseOrderDeliverTo")
   goodsReceipts           GoodsReceipt[]     @relation("GoodsReceiptLocation")
   purchaseReturns         PurchaseReturn[]   @relation("PurchaseReturnLocation")
+  // PI-7. The counter a supply went out of, the shelf each allocated lot came
+  // off, and where a return was put back.
+  dispenses               Dispense[]           @relation("DispenseLocation")
+  dispenseAllocations     DispenseAllocation[] @relation("DispenseAllocationLocation")
+  onlineOrders            OnlineOrder[]        @relation("OnlineOrderLocation")
+  dispenseReturns         DispenseReturn[]     @relation("DispenseReturnLocation")
+  // PI-9. The trolley, cabinet or treatment room a procedure's material came
+  // off. ⚠️ NOT required to be a dispensing point — see `ClinicalConsumption`.
+  consumptions            ClinicalConsumption[]   @relation("ConsumptionLocation")
+  consumptionAllocations  ConsumptionAllocation[] @relation("ConsumptionAllocationLocation")
 
   @@unique([organizationId, branchId, code])
   /// The composite-FK target every child below references.
@@ -458,6 +481,19 @@ model Batch {
   /// PI-4. The delivery that created this lot, and any of it that went back.
   goodsReceiptLines     GoodsReceiptLine[]   @relation("GoodsReceiptLineBatch")
   purchaseReturnLines   PurchaseReturnLine[] @relation("PurchaseReturnLineBatch")
+  /// PI-7. ⚠️ THE RECALL PATH. "Which supplies came out of this lot" is the
+  /// question a recall asks first, and this relation plus
+  /// `dispense_allocations(organization_id, batch_id)` is how it is answered.
+  dispenseAllocations   DispenseAllocation[] @relation("DispenseAllocationBatch")
+  /// PI-9. The other half of the same recall question: a lot consumed during a
+  /// procedure never went out of a counter, so a recall that walked only
+  /// `dispense_allocations` would miss every implant ever fitted.
+  consumptionAllocations ConsumptionAllocation[] @relation("ConsumptionAllocationBatch")
+  /// PI-10. Which recall notices name this lot. ⚠️ A LOT MAY APPEAR IN MORE THAN
+  /// ONE: a manufacturer's notice and a later regulator's notice covering the
+  /// same production run are two documents, and collapsing them would lose the
+  /// one the clinic has to report against.
+  recallBatches          RecallBatch[]           @relation("RecallBatchBatch")
 
   @@unique([organizationId, branchId, productId, lotNumber])
   @@unique([organizationId, id])
@@ -524,6 +560,12 @@ model Serial {
   /// PI-4. The delivery that first recorded this device, and its return.
   goodsReceiptLines   GoodsReceiptLine[]   @relation("GoodsReceiptLineSerial")
   purchaseReturnLines PurchaseReturnLine[] @relation("PurchaseReturnLineSerial")
+  /// PI-7. The supply that issued this device to somebody.
+  dispenseAllocations DispenseAllocation[] @relation("DispenseAllocationSerial")
+  /// PI-9. The procedure that FITTED this device. ⚠️ This is what makes a device
+  /// recall answerable at patient level, and it is why a consumed serial sets
+  /// `assigned_patient_id` in the same transaction.
+  consumptionAllocations ConsumptionAllocation[] @relation("ConsumptionAllocationSerial")
 
   /// Serial numbers repeat across manufacturers, so the key is product-qualified
   /// as well as tenant-qualified.
@@ -1098,7 +1140,6 @@ model StockTransferLine {
   /// twice on one document is a mistake with two plausible readings — did they
   /// mean the sum, or did they type it twice — and neither should be guessed.
   @@unique([organizationId, transferId, productId, batchId, serialId])
-  @@index([organizationId, transferId])
   @@index([organizationId, productId])
   @@index([organizationId, batchId])
   @@map("stock_transfer_lines")

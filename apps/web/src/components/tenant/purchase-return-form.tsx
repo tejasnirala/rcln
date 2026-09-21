@@ -6,17 +6,17 @@ import type {
   BranchSummary,
   GoodsReceiptDetail,
   InventoryLocationSummary,
-  ProductSummary,
   SupplierSummary,
 } from '@rcln/contracts';
 import { Input, Select, Textarea } from '@/components/ui/field';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import {
   createPurchaseReturnAction,
-  IDLE_FORM,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * Sending stock back.
@@ -45,33 +45,36 @@ interface Props {
   slug: string;
   branches: BranchSummary[];
   suppliers: SupplierSummary[];
-  products: ProductSummary[];
   locations: InventoryLocationSummary[];
   /** Pre-filled when the return is being raised from a delivery. */
   receipt: GoodsReceiptDetail | null;
-  moreProducts: boolean;
 }
 
 interface LineDraft {
   key: number;
   productId: string;
+  /** Carried so a line drafted from a receipt still shows its product. See PI-23. */
+  productName: string;
   goodsReceiptLineId: string;
   batchId: string;
   quantity: string;
   statusFrom: string;
 }
 
+/*
+ * ⚠️ EVERY KEY COMES FROM HERE, INCLUDING THE PRE-FILLED ONES. It used to start
+ *   at 1 while lines pre-filled from a document were keyed by ARRAY INDEX —
+ *   0, 1, 2 … — so the first line the user added took key 1 and COLLIDED with
+ *   the second line off the order. `updateLine` matches on key and patches
+ *   every match, so typing a quantity into the new line wrote it into the
+ *   ordered line too, choosing a product overwrote that line's product while it
+ *   still posted the original `purchaseOrderLineId`, and "remove" deleted both.
+ *   The result was a received line pointing at the wrong product against a real
+ *   purchase-order line. Found in the PI-24 review.
+ */
 let nextKey = 1;
 
-export function PurchaseReturnForm({
-  slug,
-  branches,
-  suppliers,
-  products,
-  locations,
-  receipt,
-  moreProducts,
-}: Props) {
+export function PurchaseReturnForm({ slug, branches, suppliers, locations, receipt }: Props) {
   const router = useRouter();
 
   const [state, action, pending] = useActionState<ProcurementFormState, FormData>(
@@ -82,9 +85,10 @@ export function PurchaseReturnForm({
   const [branchId, setBranchId] = useState(receipt?.branchId ?? branches[0]?.id ?? '');
   const [lines, setLines] = useState<LineDraft[]>(
     receipt
-      ? receipt.lines.map((line, index) => ({
-          key: index,
+      ? receipt.lines.map((line) => ({
+          key: nextKey++,
           productId: line.productId,
+          productName: line.productName,
           goodsReceiptLineId: line.id,
           batchId: line.batchId ?? '',
           quantity: '',
@@ -97,8 +101,9 @@ export function PurchaseReturnForm({
         }))
       : [
           {
-            key: 0,
+            key: nextKey++,
             productId: '',
+            productName: '',
             goodsReceiptLineId: '',
             batchId: '',
             quantity: '',
@@ -224,12 +229,6 @@ export function PurchaseReturnForm({
           What is going back
         </h2>
 
-        {moreProducts ? (
-          <p className="text-muted text-[0.8125rem]">
-            Showing the first {products.length} products.
-          </p>
-        ) : null}
-
         <ul className="space-y-4">
           {lines.map((line, index) => (
             <li key={line.key} className="border-rule bg-card space-y-3 rounded-md border p-4">
@@ -245,16 +244,22 @@ export function PurchaseReturnForm({
               ) : null}
 
               <div className="grid gap-3 sm:grid-cols-3">
-                <Select
+                <ProductPicker
+                  slug={slug}
                   name={`lines.${index}.productId`}
                   label="Product"
                   required
-                  value={line.productId}
-                  options={[
-                    { value: '', label: 'Choose a product' },
-                    ...products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-                  ]}
-                  onChange={(event) => updateLine(line.key, { productId: event.target.value })}
+                  filters={{ isStockItem: true, status: 'ACTIVE' }}
+                  value={
+                    line.productId === '' ? null : { id: line.productId, name: line.productName }
+                  }
+                  onChoose={(product) =>
+                    updateLine(line.key, {
+                      productId: product?.id ?? '',
+                      productName: product?.name ?? '',
+                    })
+                  }
+                  hint="Name, code, brand or barcode."
                 />
                 <Input
                   name={`lines.${index}.quantity`}
@@ -297,6 +302,7 @@ export function PurchaseReturnForm({
               {
                 key: nextKey++,
                 productId: '',
+                productName: '',
                 goodsReceiptLineId: '',
                 batchId: '',
                 quantity: '',

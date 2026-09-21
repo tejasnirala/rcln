@@ -463,13 +463,22 @@ export async function createComposition(
         ingredients: {
           create: input.ingredients.map((ci) => ({
             /*
-             * The child carries the SAME organizationId as its parent, which the
-             * composite FK (organization_id, composition_id) then enforces. It
-             * is set explicitly rather than left to a default because there is
-             * no default that could be right: NULL would mean "platform", and
-             * RLS refuses a tenant writing that.
+             * ⚠️ NO `organizationId` HERE, AND SETTING IT THROWS. The child
+             *   carries the same one as its parent — the composite FK
+             *   (organization_id, composition_id) and the RESTRICTIVE RLS policy
+             *   both depend on it — but in a NESTED create Prisma derives it from
+             *   the parent relation, and the scalar is not part of
+             *   `CompositionIngredientCreateWithoutCompositionInput` at all.
+             *   Passing it is `Unknown argument \`organizationId\``, which the
+             *   error middleware renders as a bare "Invalid data provided".
+             *
+             *   `updateComposition` DOES pass it, and is correct to: `createMany`
+             *   takes the unchecked input, where the scalar is the only way to
+             *   set it. Two shapes, two rules — do not make them match.
+             *
+             *   `createProduct` writes its `packagings` the same way, and that
+             *   pairing is the precedent this follows.
              */
-            organizationId: ctx.organizationId,
             ingredientId: ci.ingredientId,
             strength: ci.strength,
             strengthUnitId: ci.strengthUnitId,

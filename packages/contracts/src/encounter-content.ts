@@ -347,6 +347,31 @@ const prescriptionFields = {
   endDate: calendarDate.nullish(),
   /** ⚠️ "As needed" — NOT the same as a NULL frequency. See the model. */
   isPrn: z.boolean().optional(),
+  /**
+   * The prescriber's endorsement that this may be dispensed more than once
+   * (PI-8, closing KNOWN_ISSUES #8).
+   *
+   * ⚠️ THREE STATES, AND `null` IS NOT `false`. `null` — the default — is "the
+   *   prescriber did not address repeats", which the dispensing engine reads as
+   *   no endorsement. `false` is a positive instruction that this may NOT be
+   *   repeated. Collapsing them would make every prescription ever written an
+   *   explicit refusal, and would make the field unable to say the one thing it
+   *   exists to say.
+   *
+   * ⚠️ AND IT IS THE PRESCRIBER'S TO WRITE — invariant 7. It lives on the
+   *   clinical record behind `clinical.prescription.create`, and pharmacy READS
+   *   it. A pharmacist who thinks a repeat should be allowed asks the
+   *   prescriber; that is a workflow, not a permission.
+   */
+  repeatsAuthorised: z.boolean().nullish(),
+  /**
+   * How many repeats. ⚠️ A `repeatsAuthorised: true` WITH NO LIMIT RESOLVES
+   *   `UNDETERMINED` IN THE ENGINE, WHICH REFUSES — an endorsement stating no
+   *   number is not an unlimited one. Left expressible rather than required, so
+   *   nobody keying in a prescription has to invent a number the prescriber did
+   *   not write.
+   */
+  repeatsAuthorisedLimit: z.number().int().min(1).max(32767).nullish(),
   instructions: z.string().trim().max(4000).nullish(),
   notes: z.string().trim().max(4000).nullish(),
   displayOrder,
@@ -387,6 +412,9 @@ export const encounterPrescription = z.object({
   startDate: calendarDate.nullable(),
   endDate: calendarDate.nullable(),
   isPrn: z.boolean(),
+  /** See `prescriptionFields`. ⚠️ `null` is silence, `false` is a refusal. */
+  repeatsAuthorised: z.boolean().nullable(),
+  repeatsAuthorisedLimit: z.number().int().nullable(),
   instructions: z.string().nullable(),
   notes: z.string().nullable(),
   displayOrder: z.number().int(),

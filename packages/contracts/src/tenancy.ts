@@ -832,7 +832,15 @@ export const organizationProfile = z.object({
    */
   countryCode: z.string(),
   regionCode: z.string().nullable(),
-  onboardedAt: z.iso.datetime().nullable(),
+  /**
+   * When the clinic registered — NOT whether it has finished onboarding.
+   *
+   * ⚠️ RENAMED FROM `onboardedAt` IN CO-1, BECAUSE THAT IS WHAT IT ALWAYS HELD:
+   *   registration stamps it, so it was set before the clinic had configured
+   *   anything at all. Whether setup is done is `setupComplete` on the session,
+   *   backed by `clinic_profiles.completed_at`.
+   */
+  registeredAt: z.iso.datetime().nullable(),
 });
 
 /**

@@ -5,7 +5,7 @@ import { ZodError, type ZodIssue } from 'zod';
 const isPrismaKnownError = (e: Error): e is Error & { code: string } =>
   e.name === 'PrismaClientKnownRequestError' && typeof (e as { code?: unknown }).code === 'string';
 
-import { AppError, ValidationError } from '../utils/errors.js';
+import { AppError, RegulatoryRefusalError, ValidationError } from '../utils/errors.js';
 import { sendError } from '../utils/response.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
@@ -56,6 +56,16 @@ export const errorHandler = (
   // Handle custom validation errors
   if (err instanceof ValidationError) {
     return sendError(res, err.message, err.statusCode, err.errors);
+  }
+
+  /*
+   * A regulatory refusal carries its reasons with it (PI-7). It is an AppError
+   * and would otherwise fall through to the branch below, which sends no
+   * details — and the details ARE the message here: a pharmacist who is told
+   * only "refused" cannot tell the patient anything.
+   */
+  if (err instanceof RegulatoryRefusalError) {
+    return sendError(res, err.message, err.statusCode, err.details);
   }
 
   // Handle custom application errors

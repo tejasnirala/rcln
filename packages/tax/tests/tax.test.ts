@@ -295,6 +295,53 @@ describe('choosing the registration', () => {
     expect(chosen?.registrationNumber).toBe('IN-CENTRAL');
   });
 
+  /*
+   * ⚠️ THE CASE THE DATE SORT DID NOT ACTUALLY COVER. Two GSTINs for one state,
+   *   both taken out on 1 April — which is when Indian registrations start, so
+   *   this is the ordinary shape rather than a contrived one. `effectiveFrom`
+   *   compares equal, the sort is stable, and before the second key the answer
+   *   was whichever row the caller happened to pass first: the same branch
+   *   printed a different number depending on the order Postgres returned.
+   *   Asserted both ways round, because passing one order only would still pass
+   *   against the bug.
+   */
+  it('breaks a same-date tie on the number, not on the order it was handed', () => {
+    const first: IssuerRegistration = {
+      ...KARNATAKA,
+      registrationNumber: '29AAAAA0000A1Z0',
+      effectiveFrom: new Date('2025-04-01T00:00:00.000Z'),
+    };
+    const second: IssuerRegistration = {
+      ...KARNATAKA,
+      registrationNumber: '29ZZZZZ9999Z1ZZ',
+      effectiveFrom: new Date('2025-04-01T00:00:00.000Z'),
+    };
+
+    expect(
+      registrationFor([first, second], customer({ regionCode: 'KA' }))?.registrationNumber
+    ).toBe('29AAAAA0000A1Z0');
+    expect(
+      registrationFor([second, first], customer({ regionCode: 'KA' }))?.registrationNumber
+    ).toBe('29AAAAA0000A1Z0');
+  });
+
+  it('still prefers the later registration when the dates differ', () => {
+    const older: IssuerRegistration = {
+      ...KARNATAKA,
+      registrationNumber: '29AAAAA0000A1Z0',
+      effectiveFrom: new Date('2024-04-01T00:00:00.000Z'),
+    };
+    const newer: IssuerRegistration = {
+      ...KARNATAKA,
+      registrationNumber: '29ZZZZZ9999Z1ZZ',
+      effectiveFrom: new Date('2025-04-01T00:00:00.000Z'),
+    };
+
+    expect(
+      registrationFor([older, newer], customer({ regionCode: 'KA' }))?.registrationNumber
+    ).toBe('29ZZZZZ9999Z1ZZ');
+  });
+
   it('builds the place of supply from country and region', () => {
     expect(formatJurisdiction(customer({ regionCode: 'KA' }))).toBe('IN-KA');
     expect(formatJurisdiction(customer({ countryCode: 'IE', regionCode: null }))).toBe('IE');

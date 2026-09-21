@@ -21,6 +21,16 @@ export const MODULES = [
   'pharmacy',
   'inventory',
   'regulatory',
+  /*
+   * ⚠️ ITS OWN MODULE RATHER THAN `inventory.*` (PI-10), and the reason is the
+   *   one `consumption` gives. A recall is not a stock operation that happens to
+   *   be urgent: it reaches across every branch at once, it blocks dispensing,
+   *   and its second half is a list of NAMED PEOPLE who already received the
+   *   product. Filing it under `inventory` would mean the code that lets a
+   *   storekeeper count a shelf is adjacent to the code that answers "which of
+   *   our patients has this implant".
+   */
+  'recall',
   'billing',
   'report',
   'settings',
@@ -53,6 +63,23 @@ export const PERMISSIONS = {
   ORG_UPDATE: 'organization.update',
   ORG_BILLING_READ: 'organization.billing.read',
   ORG_BILLING_MANAGE: 'organization.billing.manage',
+  /*
+   * The onboarding wizard (CO-1).
+   *
+   * ⚠️ ORG-WIDE, NOT BRANCH-SCOPED, EVEN THOUGH THE WIZARD CAN WRITE A BRANCH
+   *   OVERRIDE. Deciding that the satellite runs a pharmacy is the
+   *   ORGANIZATION's decision about one of its sites, not a decision delegated
+   *   to whoever runs that site. The `branchId` travels in the request body and
+   *   is checked against the caller's own branches in the service.
+   *
+   * ⚠️ AND WRITE IS WHAT THE SHELL GATES ITS REDIRECT ON. A caller who holds it
+   *   is sent to the wizard until setup is finished; everyone else gets a
+   *   banner. Gating on the CODE rather than on ORG_OWNER is ADR-0002 — no role
+   *   is named anywhere — and it means a clinic that clones a role to delegate
+   *   setup gets the redirect too, which is what they asked for by cloning it.
+   */
+  ORG_ONBOARDING_READ: 'organization.onboarding.read',
+  ORG_ONBOARDING_WRITE: 'organization.onboarding.write',
 
   // -- branch ----------------------------------------------------------------
   BRANCH_READ: 'branch.read',
@@ -331,7 +358,55 @@ export const PERMISSIONS = {
   MEDICINE_MANAGE: 'pharmacy.medicine.manage',
   DISPENSE_READ: 'pharmacy.dispense.read',
   DISPENSE_CREATE: 'pharmacy.dispense.create',
+  /*
+   * Confirming that a prescription is fit to dispense, BEFORE anything leaves
+   * the shelf (PI-7). Separate from `.create` on purpose, and the split is a
+   * clinical-safety control rather than an administrative one:
+   *
+   *   `.verify`  a professional reads the prescription and says it is sound —
+   *              the drug, the dose, the interaction, the patient.
+   *   `.create`  somebody takes the boxes off the shelf and hands them over.
+   *
+   * ⚠️ A CLINIC MAY GRANT BOTH TO ONE PERSON, AND THE DEFAULTS DO — a dispensary
+   *   with one pharmacist has nobody else, and pretending otherwise would make
+   *   the system unusable at the shape of clinic this platform mostly serves.
+   *   What the split buys is that a clinic which DOES separate the two can, by
+   *   cloning a role, and that the record says which person did which act.
+   *   Compare the requisition create/approve split in PI-4, which additionally
+   *   refuses self-approval in the service — this one deliberately does not: a
+   *   pharmacist verifying and then dispensing is the normal, lawful workflow.
+   */
+  DISPENSE_VERIFY: 'pharmacy.dispense.verify',
   DISPENSE_RETURN: 'pharmacy.dispense.return',
+  /*
+   * Online pharmacy (PI-12). THREE codes for a workflow that ends in a dispense,
+   * and the split is where the risk changes rather than where the screens do.
+   *
+   *   `.read`      the order list, an order, where the parcel is. ⚠️ A BROADER
+   *                DISCLOSURE THAN `.dispense.read`: an order carries a named
+   *                person's HOME ADDRESS beside the medicines going to it, which
+   *                is why reading one writes its own `data_access_logs` resource.
+   *   `.manage`    taking the order, accepting it, standing it down. Accepting
+   *                one HOLDS STOCK — `RESERVATION` movements the shelf then
+   *                cannot sell — so this is a real inventory act and not data
+   *                entry, which is why it is not folded into `.read`.
+   *   `.dispatch`  handing the parcel to a carrier, closing out a delivery,
+   *                recording a failure. Logistics: it moves no stock and decides
+   *                no money, and it is routinely done by whoever is at the desk
+   *                rather than by a pharmacist.
+   *
+   * ⚠️ AND PACKING IS GATED ON `pharmacy.dispense.create`, WHICH IS NOT A NEW
+   *   CODE AND IS THE MOST IMPORTANT LINE IN THIS COMMENT. Making up the parcel
+   *   IS the supply — it writes the dispense, moves the ledger and raises the
+   *   charge request — so it is gated by the code that already means "this person
+   *   may hand medicine over", not by a fourth online-specific one. A separate
+   *   `.pack` code would be a second door to `pharmacy.dispense.create`'s
+   *   authority, grantable to somebody a clinic had deliberately kept away from
+   *   the counter.
+   */
+  ONLINE_ORDER_READ: 'pharmacy.online_order.read',
+  ONLINE_ORDER_MANAGE: 'pharmacy.online_order.manage',
+  ONLINE_ORDER_DISPATCH: 'pharmacy.online_order.dispatch',
   SUPPLIER_MANAGE: 'pharmacy.supplier.manage',
   PURCHASE_ORDER_READ: 'pharmacy.purchase_order.read',
   PURCHASE_ORDER_MANAGE: 'pharmacy.purchase_order.manage',
@@ -586,10 +661,155 @@ export const PERMISSIONS = {
    */
   FEE_SCHEDULE_READ: 'billing.fee_schedule.read',
   FEE_SCHEDULE_MANAGE: 'billing.fee_schedule.manage',
+  /*
+   * Charging — the hand-off between what was supplied and what is billed (PI-8).
+   *
+   * ⚠️ THE READ IS HELD WHEREVER SUPPLIES HAPPEN, THE MANAGE WHEREVER MONEY IS
+   *   DECIDED, AND THAT SPLIT IS THE WHOLE DESIGN. A pharmacist has to see that
+   *   the medicine they handed over reached the charge queue — a supply that
+   *   silently produced no charge request is invisible until the month-end
+   *   figures are wrong. They have no business deciding whether it is billed.
+   *
+   * ⚠️ THE MANAGE IS NOT `billing.invoice.create`, AND THE DISTINCTION IS THE
+   *   ONE `charge_requests` EXISTS FOR. Raising an invoice is assembling a
+   *   document from charges somebody already approved; this is the approval —
+   *   answering an `OPTIONAL` policy, or suppressing a charge so that nobody is
+   *   billed at all. Folding it into the invoice code would mean every cashier
+   *   who can raise a bill can also decide, unlogged as a separate act, that a
+   *   supply is free.
+   *
+   * ⚠️ NO SEPARATE PRICING CODE, DELIBERATELY. What a clinic charges for a
+   *   product is gated by `billing.fee_schedule.manage`, which already means
+   *   exactly "may set what this clinic charges" and already carries the
+   *   reasoning above about why that is not BRANCH_ADMIN's. A second pricing
+   *   permission beside it is how a screen quotes one number and the bill states
+   *   another.
+   */
+  CHARGE_REQUEST_READ: 'billing.charge_request.read',
+  CHARGE_REQUEST_MANAGE: 'billing.charge_request.manage',
+  /*
+   * The standing answer to "is this product billed at all?".
+   *
+   * ⚠️ ITS OWN CODE RATHER THAN `CHARGE_REQUEST_MANAGE`, because the blast radii
+   *   differ by orders of magnitude. Deciding one `OPTIONAL` charge affects one
+   *   patient; editing the policy decides every future supply of that product at
+   *   every branch, silently and with no row to review. Same argument
+   *   FEE_SCHEDULE_MANAGE makes against being an invoice code.
+   */
+  CHARGE_POLICY_MANAGE: 'billing.charge_policy.manage',
   PAYMENT_COLLECT: 'billing.payment.collect',
+  /*
+   * ⚠️ SEEDED SINCE PHASE 3 AND UNREACHABLE UNTIL PI-8. `voidInvoice`'s header
+   *   recorded the gap: a void that reduces a reported tax liability is
+   *   corrected with a credit note, and there was no table, no series and no
+   *   `CREDIT_NOTE` kind to put one in. PI-8 built all three, and this is the
+   *   code that gates issuing one.
+   */
   CREDIT_NOTE_ISSUE: 'billing.credit_note.issue',
   REFUND_PROCESS: 'billing.refund.process',
   DOCTOR_PAYOUT_MANAGE: 'billing.doctor_payout.manage',
+
+  // -- clinical consumption --------------------------------------------------
+  /*
+   * What a procedure actually used off the shelf (PI-9).
+   *
+   * ⚠️ A NEW MODULE PREFIX RATHER THAN `inventory.*` OR `clinical.*`, AND BOTH
+   *   ALTERNATIVES ARE WRONG IN OPPOSITE DIRECTIONS.
+   *
+   *   Not `inventory.stock.adjust`: a dentist recording three pairs of gloves is
+   *   not correcting a count, and gating consumption behind the adjustment code
+   *   would hand every clinician the permission where shrinkage hides. It is
+   *   also the weaker act — an adjustment changes what the clinic HOLDS with no
+   *   external event behind it, while a consumption records a physical event
+   *   somebody witnessed.
+   *
+   *   Not `clinical.*`: consumption writes NO clinical record (invariant 7). It
+   *   is a stock movement anchored to a consultation, the same relationship
+   *   `prescription_fulfilments` has to a prescription, and PI-7's route-gate
+   *   test asserts pharmacy carries no `clinical.*` code for exactly this
+   *   reason. A `clinical.consumption.record` code would additionally be
+   *   stripped from ORG_OWNER and ORG_ADMIN by the `CLINICAL_AUTHORING` list,
+   *   which would be wrong: an administrator reconciling a treatment room's
+   *   trolley is not authoring a chart.
+   */
+  CONSUMPTION_READ: 'consumption.record.read',
+  CONSUMPTION_RECORD: 'consumption.record',
+  /*
+   * Departing from what the template expected.
+   *
+   * ⚠️ ITS OWN CODE, AND THE SPLIT IS THE ONE CLINICAL_CONSUMPTION.md ASKS FOR
+   *   BY NAME: "recording what was used and overriding the expected quantity are
+   *   different acts, and the second is the one a variance report cares about".
+   *
+   * ⚠️ AND HOLDING IT NEVER BLOCKS A CLINICIAN — the whole design refuses to
+   *   obstruct. What the code buys is that a clinic which wants variances
+   *   approved by a named person can arrange it by NOT granting this to
+   *   everyone; the defaults grant it to whoever holds `.record`, because a
+   *   dentist who used three pairs of gloves used three pairs of gloves and a
+   *   system that argues gets an inventory that stops matching reality.
+   */
+  CONSUMPTION_OVERRIDE: 'consumption.override',
+  /*
+   * Writing the templates themselves.
+   *
+   * ⚠️ A CONFIGURATION CODE, BESIDE `inventory.reason_code.manage` AND FOR THE
+   *   SAME REASON. Recording a consumption is a daily operational act; deciding
+   *   what a root canal is EXPECTED to consume sets the baseline every future
+   *   variance is measured against, at every branch, and quietly restates what
+   *   "normal" means for a procedure the clinic bills for.
+   *
+   *   Reading a template needs only `consumption.record.read` — the pre-filled
+   *   panel is on the surface that code gates.
+   */
+  CONSUMPTION_TEMPLATE_MANAGE: 'consumption.template.manage',
+
+  // -- recall & traceability -------------------------------------------------
+  /*
+   * A manufacturer's or regulator's notice, and the work it starts (PI-10).
+   *
+   * ⚠️ READING A RECALL IS NOT READING WHO RECEIVED IT. `recall.read` opens the
+   *   notice, the lots it names and the COUNTS of supplies and procedures that
+   *   touched them. Resolving those counts to named patients is a second,
+   *   separately-gated, separately-logged act — see `RECALL_TRACE_PATIENTS`
+   *   below and TRACEABILITY.md § "Patient linkage and its limits". A recall
+   *   that handed a storekeeper a patient list because they can read a lot
+   *   number would be the largest single PHI disclosure this platform can make.
+   */
+  RECALL_READ: 'recall.notice.read',
+  /*
+   * Recording the notice and assembling its scope. ⚠️ WRITES NO MOVEMENT — a
+   *   DRAFT recall holds nothing, deliberately, so a half-built scope does not
+   *   stop a pharmacy mid-shift.
+   */
+  RECALL_CREATE: 'recall.notice.create',
+  /*
+   * Pulling the stock.
+   *
+   * ⚠️ ITS OWN CODE, AND THE SPLIT IS THE `requisition.create` / `.approve`
+   *   SHAPE APPLIED TO STOCK. Recording that a notice arrived is clerical;
+   *   executing it moves quantity at every branch in one transaction and makes
+   *   the product un-dispensable across the organization. A clinic that wants
+   *   the second decision taken by a named person arranges it by not granting
+   *   this to everyone who can raise the first.
+   *
+   * ⚠️ AND IT IS NOT A NARROWER `inventory.batch.manage`. That code already
+   *   quarantines ONE lot at ONE branch through `POST /batches/:id/hold`, which
+   *   is the storekeeper's daily act. This is the same movement applied to
+   *   every lot a notice names, wherever it sits, from one screen.
+   */
+  RECALL_EXECUTE: 'recall.notice.execute',
+  /*
+   * Turning the counts into names.
+   *
+   * ⚠️ THE ONE PHI CODE IN THIS MODULE, AND IT IS NOT IMPLIED BY ANY OF THE
+   *   THREE ABOVE. TRACEABILITY.md is explicit that the LINK always exists in
+   *   the data — a recall that cannot reach the people who took the product is
+   *   not a recall — while WHO MAY SEE IT is an access-control question. So the
+   *   trace report answers "37 supplies, 4 procedures" under `recall.read`, and
+   *   answers "these 37 people" only here, and every such read writes a
+   *   `data_access_logs` row.
+   */
+  RECALL_TRACE_PATIENTS: 'recall.trace.patients',
 
   // -- reports ---------------------------------------------------------------
   REPORT_DASHBOARD: 'report.dashboard.read',

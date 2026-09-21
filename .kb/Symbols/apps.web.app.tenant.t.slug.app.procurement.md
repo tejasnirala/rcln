@@ -4,41 +4,46 @@
 
 > A money field typed in major units, stored in minor ones.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/guard.ts`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/form-state.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/guard.ts`
 
 ## action
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addSupplierProductAction` | `(slug: string, supplierId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:292` |  |
-| `addTaxIdentifierAction` | `(slug: string, supplierId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:240` |  |
-| `createGoodsReceiptAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:535` |  |
-| `createPurchaseOrderAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:444` |  |
-| `createPurchaseReturnAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:710` |  |
-| `createRequisitionAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:357` |  |
-| `createSupplierAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:178` |  |
-| `decideQualityAction` | `(slug: string, goodsReceiptId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:662` |  |
-| `goodsReceiptTransitionAction` | `(slug: string, goodsReceiptId: string, verb: 'post' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:616` |  |
-| `IDLE_FORM` | `: ProcurementFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:65` |  |
-| `purchaseOrderTransitionAction` | `(slug: string, purchaseOrderId: string, verb: 'issue' \| 'close' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:495` |  |
-| `purchaseReturnTransitionAction` | `(slug: string, purchaseReturnId: string, verb: 'send' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:778` |  |
-| `removeSupplierProductAction` | `(slug: string, supplierProductId: string, supplierId: string): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:334` |  |
-| `removeTaxIdentifierAction` | `(slug: string, supplierId: string, identifierId: string): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:273` |  |
-| `requisitionTransitionAction` | `(slug: string, requisitionId: string, verb: 'submit' \| 'approve' \| 'reject' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:406` |  |
-| `updateSupplierAction` | `(slug: string, supplierId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:209` |  |
+| `addSupplierProductAction` | `(slug: string, supplierId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:290` |  |
+| `addTaxIdentifierAction` | `(slug: string, supplierId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:238` |  |
+| `createGoodsReceiptAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:533` |  |
+| `createPurchaseOrderAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:442` |  |
+| `createPurchaseReturnAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:708` |  |
+| `createRequisitionAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:355` |  |
+| `createSupplierAction` | `(slug: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:176` |  |
+| `decideQualityAction` | `(slug: string, goodsReceiptId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:660` |  |
+| `goodsReceiptTransitionAction` | `(slug: string, goodsReceiptId: string, verb: 'post' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:614` |  |
+| `purchaseOrderTransitionAction` | `(slug: string, purchaseOrderId: string, verb: 'issue' \| 'close' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:493` |  |
+| `purchaseReturnTransitionAction` | `(slug: string, purchaseReturnId: string, verb: 'send' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:776` |  |
+| `removeSupplierProductAction` | `(slug: string, supplierProductId: string, supplierId: string): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:332` |  |
+| `removeTaxIdentifierAction` | `(slug: string, supplierId: string, identifierId: string): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:271` |  |
+| `requisitionTransitionAction` | `(slug: string, requisitionId: string, verb: 'submit' \| 'approve' \| 'reject' \| 'cancel', form?: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:404` |  |
+| `updateSupplierAction` | `(slug: string, supplierId: string, _previous: ProcurementFormState, form: FormData): Promise<ProcurementFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:207` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `dateToInstant` <sub>local</sub> | `(value: FormDataEntryValue \| null): string \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:611` |  |
-| `lineIndices` <sub>local</sub> | `(form: FormData, marker: string): number[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:113` |  |
-| `majorToMinor` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:95` |  |
-| `numberOrNull` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:171` | A whole-number field. `NaN` for a typo, for the reason `majorToMinor` gives. |
+| `dateToInstant` <sub>local</sub> | `(value: FormDataEntryValue \| null): string \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:609` |  |
+| `lineIndices` <sub>local</sub> | `(form: FormData, marker: string): number[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:111` |  |
+| `majorToMinor` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:93` |  |
+| `numberOrNull` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:169` | A whole-number field. `NaN` for a typo, for the reason `majorToMinor` gives. |
 | `procurementAccess` | `(slug: string): Promise<ProcurementAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/guard.ts:26` |  |
-| `quantityBasis` <sub>local</sub> | `(form: FormData, index: number): { unitId?: string \| null; packagingLevel?: number \| null }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:124` |  |
-| `supplierPayload` <sub>local</sub> | `(form: FormData): Record<string, unknown>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:148` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProcurementFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:67` |  |
+| `quantityBasis` <sub>local</sub> | `(form: FormData, index: number): { unitId?: string \| null; packagingLevel?: number \| null }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:122` |  |
+| `supplierPayload` <sub>local</sub> | `(form: FormData): Record<string, unknown>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:146` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProcurementFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:65` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `IDLE_FORM` | `: ProcurementFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/form-state.ts:21` |  |
 
 ## interface
 

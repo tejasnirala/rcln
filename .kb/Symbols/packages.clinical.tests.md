@@ -4,7 +4,7 @@
 
 > The whole definition document.
 
-Files: `packages/clinical/tests/definition.test.ts` · `packages/clinical/tests/descriptors.test.ts` · `packages/clinical/tests/regions.test.ts` · `packages/clinical/tests/registry.test.ts` · `packages/clinical/tests/resolve.test.ts` · `packages/clinical/tests/validate.test.ts`
+Files: `packages/clinical/tests/definition.test.ts` · `packages/clinical/tests/descriptors.test.ts` · `packages/clinical/tests/dosing.test.ts` · `packages/clinical/tests/regions.test.ts` · `packages/clinical/tests/registry.test.ts` · `packages/clinical/tests/resolve.test.ts` · `packages/clinical/tests/validate.test.ts`
 
 ## fn
 
@@ -15,6 +15,8 @@ Files: `packages/clinical/tests/definition.test.ts` · `packages/clinical/tests/
 | `document` <sub>local</sub> | `(over: Record<string, unknown>): Record<string, unknown>` | `packages/clinical/tests/definition.test.ts:39` |  |
 | `examination` <sub>local</sub> | `(fields: readonly FieldDescriptor[], over: Partial<Section>): TemplateDefinition` | `packages/clinical/tests/validate.test.ts:20` |  |
 | `history` <sub>local</sub> | `(over: Record<string, unknown>): Record<string, unknown>` | `packages/clinical/tests/definition.test.ts:28` |  |
+| `ok` <sub>local</sub> | `(request: DoseRequest)` | `packages/clinical/tests/dosing.test.ts:15` |  |
+| `problem` <sub>local</sub> | `(request: DoseRequest): string` | `packages/clinical/tests/dosing.test.ts:21` |  |
 | `rect` <sub>local</sub> | `(x: number, y: number): Record<string, unknown>` | `packages/clinical/tests/regions.test.ts:24` |  |
 | `region` <sub>local</sub> | `(over: Partial<StoredRegion> & { code: string }): StoredRegion` | `packages/clinical/tests/regions.test.ts:28` |  |
 | `text` <sub>local</sub> | `(over: Record<string, unknown>): Record<string, unknown>` | `packages/clinical/tests/descriptors.test.ts:17` |  |

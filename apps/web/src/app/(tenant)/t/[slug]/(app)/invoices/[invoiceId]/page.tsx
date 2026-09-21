@@ -112,6 +112,14 @@ export default async function InvoicePage({
       canIssue={permissions.includes(PERMISSIONS.INVOICE_CREATE)}
       canCancel={permissions.includes(PERMISSIONS.INVOICE_CANCEL)}
       canReadHistory={permissions.includes(PERMISSIONS.AUDIT_READ)}
+      /*
+       * ⚠️ ITS OWN CODE, NOT `INVOICE_CANCEL`. Voiding reverses a document in
+       *   full and keeps its number; a credit note reverses part of one and
+       *   issues a new document with its own statutory serial. A clinic that
+       *   separates the two is exactly the clinic where assuming one implies the
+       *   other offers the wrong control.
+       */
+      canCredit={permissions.includes(PERMISSIONS.CREDIT_NOTE_ISSUE)}
     />
   );
 }

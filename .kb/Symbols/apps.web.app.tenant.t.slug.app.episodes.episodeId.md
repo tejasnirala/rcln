@@ -10,17 +10,16 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `EpisodePage` | `({ params, }: { params: Promise<{ slug: string; episodeId: s…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:38` |  |
+| `EpisodePage` | `({ params, }: { params: Promise<{ slug: string; episodeId: s…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:39` |  |
 
 ## const
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `STATUS_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:196` |  |
-| `VISIT_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:206` |  |
+| `VISIT_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:200` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:11` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/episodes/[episodeId]/page.tsx:12` |  |

@@ -125,6 +125,7 @@ const asOrg = (slug: string, token: string) => {
       auth(request(app).post(`/api/v1/doctors${path}`)).send(body),
     patients: (path: string, body: object) =>
       auth(request(app).post(`/api/v1/patients${path}`)).send(body),
+    patientsGet: (path: string) => auth(request(app).get(`/api/v1/patients${path}`)),
   };
 };
 
@@ -252,6 +253,114 @@ describe('the availability engine', () => {
   it("refuses a branch outside the caller's scope with a 404, never a 403", async () => {
     const res = await availability(A, orgB.branchId, doctorA, MONDAY);
     expect(res.status).toBe(404);
+  });
+});
+
+/**
+ * A doctor who consults whenever the clinic is open (DS-1).
+ *
+ * ⚠️ THESE ARE THE ASSERTIONS THE FEATURE ACTUALLY RESTS ON. Saving the flag and
+ *   reading it back proves nothing — if the engine ignores it, the result is a
+ *   doctor whose diary is empty for a reason nobody can see from any screen. So
+ *   every case here goes through the availability endpoint, which is what the
+ *   front desk experiences.
+ *
+ * ⚠️ AND THE LAST ONE IS WHY THE HOURS ARE DERIVED RATHER THAN COPIED. Changing
+ *   the branch's opening hours must change this doctor's availability, without
+ *   anybody re-saving the doctor. A copy taken at save time passes every other
+ *   case in this block and fails that one.
+ */
+describe('a doctor on the clinic’s own hours', () => {
+  /**
+   * The doctor from the fixture works Mondays 09:00-13:00 and nothing else.
+   * Turning the flag on should make Sunday bookable too, because the branch is
+   * open then — which is the observable difference between the two sources.
+   */
+  async function follow(value: boolean): Promise<void> {
+    await owner.query(
+      `INSERT INTO doctor_branch_settings
+         (id, organization_id, doctor_profile_id, branch_id, follows_branch_hours, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, now())
+       ON CONFLICT (organization_id, doctor_profile_id, branch_id)
+       DO UPDATE SET follows_branch_hours = EXCLUDED.follows_branch_hours`,
+      [orgA.organizationId, doctorA, orgA.branchId, value]
+    );
+  }
+
+  async function setBranchWeek(day: number, opens: string, closes: string): Promise<void> {
+    await owner.query(
+      `INSERT INTO branch_operating_hours
+         (id, branch_id, day_of_week, opens_at, closes_at, is_closed, slot_minutes)
+       VALUES (gen_random_uuid(), $1, $2, $3::time, $4::time, false, 30)
+       ON CONFLICT (branch_id, day_of_week)
+       DO UPDATE SET opens_at = EXCLUDED.opens_at,
+                     closes_at = EXCLUDED.closes_at,
+                     is_closed = false,
+                     slot_minutes = EXCLUDED.slot_minutes`,
+      [orgA.branchId, day, opens, closes]
+    );
+  }
+
+  afterAll(async () => {
+    await follow(false);
+    await owner.query('DELETE FROM branch_operating_hours WHERE branch_id = $1', [orgA.branchId]);
+  });
+
+  it('is not working on a day the doctor has no block and the flag is off', async () => {
+    await follow(false);
+    const res = await availability(A, orgA.branchId, doctorA, SUNDAY);
+    expect(res.body.data.notWorking).toBe(true);
+  });
+
+  it('consults on a day the CLINIC is open once the flag is on', async () => {
+    await setBranchWeek(0, '10:00', '12:00');
+    await follow(true);
+
+    const res = await availability(A, orgA.branchId, doctorA, SUNDAY);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.notWorking).toBe(false);
+    // 10:00-12:00 at the BRANCH's own 30-minute slots is four.
+    expect(res.body.data.slots).toHaveLength(4);
+  });
+
+  /**
+   * ⚠️ THE DOCTOR'S OWN BLOCKS MUST NOT ALSO APPLY. Reading both sources would
+   *   double the Monday morning — every slot offered twice, from two rows the
+   *   engine had no way to reconcile.
+   */
+  it('reads the clinic’s hours INSTEAD of the doctor’s own, not as well', async () => {
+    await setBranchWeek(1, '14:00', '16:00');
+    await follow(true);
+
+    const res = await availability(A, orgA.branchId, doctorA, MONDAY);
+
+    // The branch says 14:00-16:00 at 30 minutes: four slots. The doctor's own
+    // 09:00-13:00 block is still in the database and must contribute nothing.
+    expect(res.body.data.slots).toHaveLength(4);
+    expect(res.body.data.slots[0].startsAt).toBe('2027-03-01T08:30:00.000Z');
+  });
+
+  it('the day picker agrees with the slot list', async () => {
+    await follow(true);
+    const res = await A.get(
+      `/availability/days?branchId=${orgA.branchId}&doctorProfileId=${doctorA}&from=${SUNDAY}&to=${SUNDAY}`
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.days[0].bookable).toBe(true);
+  });
+
+  /** The whole reason this is derived and not copied. */
+  it('follows the clinic when the clinic changes its hours', async () => {
+    await follow(true);
+    await setBranchWeek(0, '10:00', '11:00');
+
+    const res = await availability(A, orgA.branchId, doctorA, SUNDAY);
+
+    // Nobody touched the doctor; the clinic shortened its Sunday and the
+    // doctor's day shortened with it.
+    expect(res.body.data.slots).toHaveLength(2);
   });
 });
 
@@ -442,6 +551,67 @@ describe('the day board', () => {
     // the next reads as a bug in the board.
     expect(res.body.data.counts.NO_SHOW).toBe(0);
     expect(res.body.data.counts.CANCELLED).toBe(1);
+  });
+
+  /**
+   * ⚠️ THE BOARD SAYS WHY A ROW IS STRUCK THROUGH, AND STILL NOT WHY THE PATIENT
+   *   WAS COMING. Those are two different disclosures and only one of them
+   *   belongs on a screen anybody at the desk can glance at.
+   *
+   *   Without `cancellationReason` here the only way to answer "why is this one
+   *   cancelled?" is to open the visit — and THAT page carries `reason`, the
+   *   chief complaint. The cheap question would force the expensive read, which
+   *   is the opposite of what the split is for. `reason` staying absent is the
+   *   half of this test that matters most.
+   */
+  it('carries the cancellation reason on the row, and never the chief complaint', async () => {
+    const res = await A.get(`/?branchId=${orgA.branchId}&date=${MONDAY}`);
+    expect(res.status).toBe(200);
+
+    const rows = res.body.data.appointments as {
+      status: string;
+      cancellationReason: string | null;
+      reason?: string;
+    }[];
+
+    const cancelled = rows.filter((row) => row.status === 'CANCELLED');
+    expect(cancelled).toHaveLength(1);
+    expect(cancelled[0]?.cancellationReason).toBe('Patient rang to postpone');
+
+    // Null on every other status — not absent, and not the empty string.
+    for (const row of rows.filter((r) => r.status !== 'CANCELLED')) {
+      expect(row.cancellationReason).toBeNull();
+    }
+
+    // The board never carries the chief complaint, on any row.
+    for (const row of rows) {
+      expect(row.reason).toBeUndefined();
+    }
+  });
+
+  /**
+   * ⚠️ A FOLLOW-UP CONTINUES A VISIT THAT HAPPENED, and a cancelled booking is
+   *   not one. It inherits the parent's episode, doctor and frozen fee because
+   *   it is the next chapter of that consultation — hung off a booking nobody
+   *   attended, it is a live appointment in a chain no screen can explain.
+   *
+   *   The same two statuses `POST /{id}/vitals` refuses on, and refused for the
+   *   same reason. This is checked BEFORE availability, so the 409 does not
+   *   depend on the slot being free.
+   */
+  it('refuses a follow-up booked off a visit that never went ahead', async () => {
+    const res = await A.get(`/?branchId=${orgA.branchId}&date=${MONDAY}`);
+    const cancelledId = (res.body.data.appointments as { id: string; status: string }[]).find(
+      (row) => row.status === 'CANCELLED'
+    )?.id;
+    expect(cancelledId).toBeDefined();
+
+    const followUp = await A.post(`/${cancelledId}/follow-up`, {
+      startsAt: '2027-03-08T03:30:00.000Z',
+    });
+
+    expect(followUp.status).toBe(409);
+    expect(String(followUp.body.message)).toMatch(/did not go ahead/i);
   });
 
   /*
@@ -999,5 +1169,79 @@ describe('the two trails', () => {
           AND privilege_type IN ('UPDATE', 'DELETE')`
     );
     expect(rows.rowCount).toBe(0);
+  });
+});
+
+/**
+ * One patient's own bookings — the Appointments tab on the chart.
+ *
+ * Three things are pinned here, and none of them is "the list works":
+ *
+ *   1. IT PAGES RATHER THAN RANGING. The day board is capped at 45 days because
+ *      an unbounded range there is every patient the clinic has seen. A history
+ *      is unbounded in time by definition, so the bound has to be the page.
+ *   2. IT STILL CARRIES NO CHIEF COMPLAINT. Same split as the board: this is
+ *      `appointment.read`, and `reason` stays behind the endpoint that logs its
+ *      disclosure.
+ *   3. IT LOGS, WHERE THE BOARD DOES NOT. The question was asked about ONE named
+ *      patient, which is the line `data_access_logs` is drawn on.
+ */
+describe("a patient's own bookings", () => {
+  it('lists them newest first, and never the chief complaint', async () => {
+    const res = await A.patientsGet(`/${patientA}/appointments?page=1&pageSize=50`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.patientId).toBe(patientA);
+
+    const rows = res.body.data.appointments as { scheduledStart: string; reason?: string }[];
+    expect(rows.length).toBeGreaterThan(1);
+
+    /* ISO-8601 with a `Z` sorts lexicographically as it sorts chronologically —
+       a property of the format, which is why this comparison is honest. */
+    const starts = rows.map((row) => row.scheduledStart);
+    expect(starts).toEqual([...starts].sort().reverse());
+
+    for (const row of rows) expect(row.reason).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain(REASON);
+  });
+
+  it('pages, and the second page is not the first', async () => {
+    const first = await A.patientsGet(`/${patientA}/appointments?page=1&pageSize=1`);
+    expect(first.body.data.appointments).toHaveLength(1);
+    expect(first.body.data.total).toBeGreaterThan(1);
+
+    const second = await A.patientsGet(`/${patientA}/appointments?page=2&pageSize=1`);
+    expect(second.body.data.appointments[0].id).not.toBe(first.body.data.appointments[0].id);
+  });
+
+  /*
+   * ⚠️ 404, NOT AN EMPTY LIST. "This patient has no bookings" and "this patient
+   *   is not yours" are different answers, and returning the first for the
+   *   second is how a tenancy bug goes unnoticed for a year.
+   */
+  it("answers another clinic 404 for this clinic's patient", async () => {
+    const res = await B.patientsGet(`/${patientA}/appointments`);
+    expect(res.status).toBe(404);
+  });
+
+  it('records the read against the patient, as a SEARCH', async () => {
+    await clearAccessDedupe();
+    await A.patientsGet(`/${patientA}/appointments`);
+
+    const rows = await owner.query(
+      `SELECT access_type, resource, patient_id, route
+         FROM data_access_logs
+        WHERE organization_id = $1 AND resource = 'APPOINTMENT'
+        ORDER BY occurred_at DESC LIMIT 1`,
+      [orgA.organizationId]
+    );
+
+    expect(rows.rowCount).toBe(1);
+    /* SEARCH, never VIEW — a SEARCH is not deduplicated, and somebody reading
+       one patient's history eleven times is itself the signal. */
+    expect(rows.rows[0].access_type).toBe('SEARCH');
+    expect(rows.rows[0].patient_id).toBe(patientA);
+    // ⚠️ The PATTERN, never the URL.
+    expect(rows.rows[0].route).toBe('GET /v1/patients/:patientId/appointments');
   });
 });
