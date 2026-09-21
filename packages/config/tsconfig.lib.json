@@ -3,6 +3,19 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2023"],
+    /*
+     * ⚠️ EXPLICIT SINCE TYPESCRIPT 7, AND IT WAS LOAD-BEARING BEFORE THAT TOO —
+     *   it was just implicit. TypeScript 5 swept `node_modules/@types` and
+     *   included everything it found, so every library package got Node's
+     *   globals without asking. TypeScript 7 does not, and the failure is
+     *   `Cannot find name 'Buffer'` in packages that had not changed a line.
+     *
+     *   `tsconfig.node.json` next door has always said this; only the library
+     *   config was relying on the sweep. This is that one line, and it also
+     *   carries `fetch`, `Response`, `AbortSignal` and `URL`, which @types/node
+     *   supplies and which the payment providers use.
+     */
+    "types": ["node"],
     "composite": true,
     "declaration": true,
     "declarationMap": true

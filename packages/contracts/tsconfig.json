@@ -1,5 +1,21 @@
 {
   "extends": "../config/tsconfig.lib.json",
-  "compilerOptions": { "rootDir": "./src", "outDir": "./dist" },
+  "compilerOptions": {
+    /*
+     * ⚠️ DELIBERATELY EMPTY, OVERRIDING `tsconfig.lib.json`. Contracts are Zod
+     *   schemas and the types inferred from them: they touch no Node global, and
+     *   `@types/node` is correctly absent from this package's dependencies. The
+     *   shared config asks for it because TypeScript 7 no longer sweeps
+     *   `node_modules/@types` on its own — see the note there — and asking for a
+     *   type package that is not installed is `TS2688`, not a silent no-op.
+     *
+     *   Adding the dependency instead would be a lie about what this package
+     *   needs, and would let a `Buffer` into the one package the web bundle
+     *   imports wholesale.
+     */
+    "types": [],
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
   "include": ["src/**/*.ts"]
 }
