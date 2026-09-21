@@ -62,8 +62,6 @@ export type ProcurementFormState = {
   createdId?: string;
 };
 
-export const IDLE_FORM: ProcurementFormState = { status: 'idle' };
-
 function toFormState(result: {
   ok: boolean;
   message?: string;

@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import type {
   GoodsReceiptDetail,
   InventoryLocationListResponse,
-  ProductListResponse,
   SupplierListResponse,
 } from '@rcln/contracts';
 import { api } from '@/lib/api';
@@ -13,8 +12,7 @@ import { procurementAccess } from '../../guard';
 
 export const metadata: Metadata = { title: 'Send stock back' };
 
-const PRODUCT_CAP = 100;
-
+/* The product list is not fetched: the line picker searches (PI-23). */
 export default async function NewReturnPage({
   params,
   searchParams,
@@ -35,13 +33,9 @@ export default async function NewReturnPage({
     ? query['goodsReceiptId'][0]
     : query['goodsReceiptId'];
 
-  const [branches, suppliers, products, locations, receipt] = await Promise.all([
+  const [branches, suppliers, locations, receipt] = await Promise.all([
     branchesInScope(slug),
     api<SupplierListResponse>('/api/v1/procurement/suppliers?limit=100', { slug, accessToken }),
-    api<ProductListResponse>(`/api/v1/products?limit=${String(PRODUCT_CAP)}&isStockItem=true`, {
-      slug,
-      accessToken,
-    }),
     api<InventoryLocationListResponse>('/api/v1/inventory-locations?limit=100', {
       slug,
       accessToken,
@@ -54,15 +48,24 @@ export default async function NewReturnPage({
         }),
   ]);
 
+  /* A failed pre-fill is not the same as no pre-fill — see the goods-receipt
+   * page for what the silent version cost. (PI-24 review.) */
+  if (goodsReceiptId !== undefined && !receipt?.data) {
+    return (
+      <Alert tone="error">
+        That delivery could not be loaded, so this return has not been pre-filled. Open it from the
+        delivery itself rather than keying it by hand.
+      </Alert>
+    );
+  }
+
   return (
     <PurchaseReturnForm
       slug={slug}
       branches={branches}
       suppliers={suppliers.data?.suppliers ?? []}
-      products={products.data?.products ?? []}
       locations={locations.data?.locations ?? []}
       receipt={receipt?.data ?? null}
-      moreProducts={(products.data?.meta.total ?? 0) > PRODUCT_CAP}
     />
   );
 }

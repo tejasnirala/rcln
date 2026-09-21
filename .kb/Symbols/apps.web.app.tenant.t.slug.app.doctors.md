@@ -16,25 +16,26 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addQualification` | `(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:420` |  |
-| `addSchedule` | `(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:342` |  |
-| `createDoctor` | `(slug: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:170` |  |
-| `removeQualification` | `(slug: string, doctorId: string, rowId: string): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:512` | `rowId` is the join row, not the qualification — a doctor can hold the same degree from two institutes, and the catalogue id would not tell them apart. |
-| `removeSchedule` | `(slug: string, doctorId: string, scheduleId: string): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:390` |  |
-| `retireDoctor` | `(slug: string, doctorId: string): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:534` |  |
-| `updateDoctor` | `(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:281` |  |
-| `updateQualification` | `(slug: string, doctorId: string, rowId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:470` |  |
+| `addQualification` | `(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:511` |  |
+| `addSchedule` | `(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:353` |  |
+| `createDoctor` | `(slug: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:171` |  |
+| `removeQualification` | `(slug: string, doctorId: string, rowId: string): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:603` | `rowId` is the join row, not the qualification — a doctor can hold the same degree from two institutes, and the catalogue id would not tell them apart. |
+| `removeSchedule` | `(slug: string, doctorId: string, scheduleId: string): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:481` |  |
+| `retireDoctor` | `(slug: string, doctorId: string): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:625` |  |
+| `saveDoctorWeek` | `(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:412` |  |
+| `updateDoctor` | `(slug: string, doctorId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:292` |  |
+| `updateQualification` | `(slug: string, doctorId: string, rowId: string, _previous: DoctorFormState, formData: FormData): Promise<DoctorFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:561` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `classificationsFrom` <sub>local</sub> | `(formData: FormData): { entries: PickedClassification[]; primaryId: string \| unde…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:82` |  |
-| `feesFrom` <sub>local</sub> | `(formData: FormData): { fees: { feeType: string; amountMinor: number }[]; bad: st…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:152` |  |
-| `number` <sub>local</sub> | `(formData: FormData, key: string): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:51` |  |
-| `revalidateDoctor` <sub>local</sub> | `(slug: string, doctorId?: string): void` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:34` |  |
-| `rowsFrom` <sub>local</sub> | `(formData: FormData, key: string): unknown[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:128` |  |
-| `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:46` | Empty strings from an untouched optional input mean "not provided". |
+| `classificationsFrom` <sub>local</sub> | `(formData: FormData): { entries: PickedClassification[]; primaryId: string \| unde…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:83` |  |
+| `feesFrom` <sub>local</sub> | `(formData: FormData): { fees: { feeType: string; amountMinor: number }[]; bad: st…` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:153` |  |
+| `number` <sub>local</sub> | `(formData: FormData, key: string): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:52` |  |
+| `revalidateDoctor` <sub>local</sub> | `(slug: string, doctorId?: string): void` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:35` |  |
+| `rowsFrom` <sub>local</sub> | `(formData: FormData, key: string): unknown[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:129` |  |
+| `text` <sub>local</sub> | `(formData: FormData, key: string): string \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:47` | Empty strings from an untouched optional input mean "not provided". |
 
 ## var
 
@@ -46,5 +47,5 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `DoctorFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:39` |  |
-| `PickedClassification` <sub>local</sub> | `{ specialtyId: string; isPrimary?: boolean; proficiency?: string \| null; effectiveFrom?: string \| null; effectiveTo?: string \| null; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:74` |  |
+| `DoctorFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:40` |  |
+| `PickedClassification` <sub>local</sub> | `{ specialtyId: string; isPrimary?: boolean; proficiency?: string \| null; effectiveFrom?: string \| null; effectiveTo?: string \| null; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/doctors/actions.ts:75` |  |

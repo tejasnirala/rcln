@@ -21,6 +21,7 @@ export type RegulatoryRuleType =
   | 'QUANTITY_LIMIT'
   | 'REFILL_RULE'
   | 'AGE_RESTRICTION'
+  | 'SPECIES_RESTRICTION'
   | 'SUBSTITUTION'
   | 'ONLINE_DISPENSING'
   | 'STORAGE_REQUIREMENT'
@@ -164,6 +165,33 @@ export interface PresentedPrescription {
   refillsUsed: number;
   /** What the prescriber is registered as — `DOCTOR`, `DENTIST`, `VET`. */
   prescriberClasses?: readonly string[];
+  /**
+   * Did the prescriber state ON THE PRESCRIPTION that it may be dispensed more
+   * than once? (PI-7, closing KNOWN_ISSUES defect 3.)
+   *
+   * ⚠️ THIS IS A FACT ABOUT THE PAPER, NOT A PERMISSION THE PHARMACIST GRANTS
+   *   THEMSELVES. India's rule 65(11)(a) forbids a repeat "unless the prescriber
+   *   has stated thereon that it may be dispensed more than once", and (b) then
+   *   permits it as endorsed. Without this field the correct default —
+   *   `refillsAllowed: 0` — also refused the legitimate endorsed case, so the
+   *   rule was right and the framework could not express the exception.
+   *
+   * ⚠️ AND IT IS DELIBERATELY NOT ON THE HTTP CONTRACT AS SOMETHING A CLIENT
+   *   ASSERTS ABOUT ITSELF. The caller reads it off the prescription record; a
+   *   screen where the person dispensing ticks "the prescriber allowed repeats"
+   *   without the prescription saying so is the endorsement requirement removed
+   *   rather than modelled.
+   */
+  repeatsAuthorised?: boolean;
+  /**
+   * How many repeats the endorsement states, where it states a number.
+   *
+   * ⚠️ ABSENT IS NOT "AS MANY AS YOU LIKE". An endorsement with no number and a
+   *   rule with no cap resolves `UNDETERMINED` in `evaluateRefillRule`, which
+   *   refuses — "the prescriber allowed repeats but nobody can say how many" is
+   *   a reason to ask, not a reason to keep dispensing.
+   */
+  repeatsAuthorisedLimit?: number;
 }
 
 /** Who is standing at the counter, on our side of it. */
@@ -192,11 +220,47 @@ export interface RegulatoryActor {
   roleCodes: readonly string[];
   /** Professional registration numbers the actor holds, by type. */
   licenceTypes?: readonly string[];
+  /**
+   * Is this person the prescriber of the prescription being dispensed?
+   * (PI-7, closing KNOWN_ISSUES defect 4.)
+   *
+   * ⚠️ A NARROW FACT WITH A NARROW USE: several jurisdictions exempt a medical
+   *   practitioner dispensing to their OWN patients from the "registered
+   *   pharmacist only" prohibition — India's Pharmacy Act s. 42(1) says so in
+   *   the section itself. Without this the engine had no way to be told, and a
+   *   doctor-run clinic, which is the common shape in exactly those countries,
+   *   was refused by a rule that does not apply to it.
+   *
+   * ⚠️ IT EXEMPTS NOTHING BY ITSELF. A rule opts in with
+   *   `exemptWhenActorIsPrescriber`; where no rule says so, this field changes
+   *   no outcome. And it is derived by the SERVICE from the encounter's
+   *   prescriber and the caller's user id — never sent by a client, which would
+   *   make the exemption self-asserted.
+   */
+  isPrescriber?: boolean;
 }
 
 export interface RegulatoryPatient {
   ageYears?: number;
   subjectType: 'HUMAN' | 'ANIMAL';
+  /**
+   * The animal's species, as the clinic recorded it (PI-11).
+   *
+   * ⚠️ FREE TEXT, COMPARED CASE-INSENSITIVELY, AND NEVER AN ENUM — the same call
+   *   `animal_profiles.species` makes. A veterinary clinic that treats a
+   *   tortoise must not need a migration, and a rule pack that names species
+   *   must be written in the same vocabulary the chart is.
+   *
+   *   The cost is real and is accepted: `"Canine"` and `"Dog"` are two species
+   *   to a `SPECIES_RESTRICTION` rule, so a pack naming one and a clinic typing
+   *   the other silently miss each other. That is why `evaluateSpeciesRestriction`
+   *   answers UNDETERMINED — not PERMITTED — when the subject is an animal whose
+   *   species nobody recorded, and why a pack that names species should say so in
+   *   its rule statement.
+   *
+   * Absent for a human, and absent for an animal with no profile row.
+   */
+  species?: string;
 }
 
 /** What the caller can prove about the physical stock in front of it. */
@@ -241,6 +305,24 @@ export interface RegulatoryRequest {
    * permitting, because "we did not check" is not "they have had none".
    */
   priorQuantityInPeriodBase?: string;
+  /**
+   * How many days of treatment this supply is, from the directions for use.
+   *
+   * ⚠️ A LIMIT DENOMINATED IN TREATMENT DAYS IS NOT ONE DENOMINATED IN BASE
+   *   UNITS, AND NO ARITHMETIC CONVERTS BETWEEN THEM (PI-13a, survey GAP 3).
+   *   New York PHL § 3332 caps a controlled-substance prescription at "a thirty
+   *   day supply", and 21 CFR 1306.12(b) lets multiple Schedule II prescriptions
+   *   total "up to a 90-day supply". Thirty days is 30 tablets at one a day and
+   *   120 at four a day; the quantity alone cannot answer either rule.
+   *
+   * ⚠️ ABSENT WHERE A RULE NEEDS IT IS `UNDETERMINED`, WHICH REFUSES — the same
+   *   treatment a missing destination gets in `evaluateOnlineDispensing`, and
+   *   for the same reason: "we could not work it out" must never resolve like
+   *   "we worked it out and it was fine". Most callers will not have this,
+   *   because it depends on parsing a dosage instruction, and a rule that uses
+   *   it will therefore refuse until one does. That is the intended cost.
+   */
+  daysSupply?: number;
   /** Set when this dispense substitutes something else for what was prescribed. */
   substitution?: {
     isSubstitution: boolean;
@@ -266,6 +348,18 @@ export type RegulatoryOutcome =
  *   proceed **and** the register entry must exist. A caller that renders these
  *   as advisory text and moves on has produced an unlawful dispense with a
  *   perfectly clean audit trail.
+ *
+ * ⚠️ TWO OF THESE CANNOT BE DISCHARGED BY THE PERSON DISPENSING, AND A SCREEN
+ *   THAT TREATS THEM LIKE THE REST IS ASKING FOR A FALSE ATTESTATION (PI-13a).
+ *   Every other kind names something the dispenser DOES — write the register,
+ *   check the age, print the label — so a tick-box is an honest control for it.
+ *   `VERIFY_PRIOR_IN_PERSON_EVALUATION` and `VERIFY_PRIOR_AUTHORISATION` name
+ *   facts about somebody else's consulting room or somebody else's filing
+ *   cabinet, established before this transaction existed. The pharmacist can
+ *   look them up, and cannot bring them into being. Rendering them as "I
+ *   confirm" makes a pharmacist attest to a record they may never have seen —
+ *   which is worse than not raising the condition, because it manufactures
+ *   evidence of a check nobody did. See OPEN_DECISIONS.md.
  */
 export interface RegulatoryCondition {
   kind:
@@ -278,7 +372,24 @@ export interface RegulatoryCondition {
     | 'REPORT_TO_AUTHORITY'
     | 'STORE_UNDER_CONDITIONS'
     | 'DISPOSE_BY_METHOD'
-    | 'REQUIRES_CONSENT';
+    | 'REQUIRES_CONSENT'
+    /**
+     * The prescriber must ALREADY have seen this patient face to face (PI-13a).
+     *
+     * 21 U.S.C. 829(e) makes remote supply of a controlled substance lawful only
+     * on a prescription from a practitioner who has conducted at least one
+     * in-person medical evaluation of the patient, or from a covering
+     * practitioner.
+     */
+    | 'VERIFY_PRIOR_IN_PERSON_EVALUATION'
+    /**
+     * An authorisation obtained from somebody else, BEFORE today (PI-13a).
+     *
+     * Australia's Schedule 8 permits — a state health department's written
+     * authority to treat a named patient with a named drug — and the UAE's
+     * approved narcotic prescription forms are both this shape.
+     */
+    | 'VERIFY_PRIOR_AUTHORISATION';
   /** The rule that imposed it, so a screen can cite the law beside the task. */
   ruleId: string;
   ruleCode: string;
@@ -313,6 +424,16 @@ export interface RegulatoryDecision {
    *   what that dispense says — the same discipline the invoice engine applies to
    *   tax, for the same reason: a record somebody has already answered to an
    *   inspector for must not silently restate itself.
+   *
+   * ⚠️ IT HOLDS PACK IDS, NOT PACK-VERSION IDS, AND THE NAME IS WRONG RATHER
+   *   THAN THE CONTENT. `evaluate` fills it from `rule.packId`; the version
+   *   travels separately on `RegulatoryRule.packVersion` and is snapshotted onto
+   *   each reason. The name is kept deliberately: this field is on the wire
+   *   contract, is written into `regulatory_decisions.pack_versions` on every
+   *   dispense, movement and disposal, and is read back by inspectors — so
+   *   renaming it changes an API response and the meaning of rows nobody may
+   *   rewrite, which is a real cost for a naming defect. Read it as "which packs
+   *   decided this", and take the version from the reasons. (PI-24 review.)
    */
   packVersionIds: readonly string[];
   /**

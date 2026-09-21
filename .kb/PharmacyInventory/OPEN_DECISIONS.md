@@ -68,7 +68,27 @@ in PI-1 — that is the choice that becomes hard to undo. Keep `name` as a plain
 column and add `product_translations` as a normal child table when i18n arrives
 platform-wide. This costs nothing now and forecloses nothing.
 
-Needs a decision before any non-English-script country pack ships (PI-19+).
+⚠️ **THE FIRST NON-LATIN-SCRIPT PACK HAS NOW SHIPPED, AND IT DID NOT NEED THIS
+DECISION — WHICH IS ITSELF THE ANSWER TO HALF OF IT.** `BD 1.0.0` (PI-21) was
+read entirely from Bangla statutes. A rule's `statement` is prose printed in a
+refusal, a `citation` is a string, and `appliesToClassification` is matched
+exactly and never parsed, so the rule pack layer is script-agnostic already. **No
+i18n framework is needed to configure a jurisdiction.** OD-3 is about PRODUCT
+NAMES a clinic types, which is a different problem and still open.
+
+⚠️ **BUT PI-21 FOUND A SECOND HALF OF THIS QUESTION THAT NOBODY HAD ASKED, AND IT
+IS NOT ABOUT PRODUCT NAMES AT ALL.** Section 83(2) of Bangladesh's ঔষধ ও
+কসমেটিকস্ আইন, ২০২৩ and section 70(2) of its মাদকদ্রব্য নিয়ন্ত্রণ আইন, ২০১৮ each
+provide that where the Bangla and English texts conflict, the **Bangla text
+prevails**. So `SOURCE_VERIFIED` for `BD` means "a qualified person re-read these
+citations **in Bangla**", and `regulatory_sources` has no column recording which
+language a reviewer actually read a source in — nor does the maturity ladder
+distinguish the two jobs.
+
+**Recommendation:** add a `source_language` (and, later, a reviewer-language
+note) to `regulatory_sources` before the second such pack. Nepal (PI-19) is very
+likely the same shape. Recorded as GAP 7 in COUNTRY_RULE_PACK_SURVEY and in
+KNOWN_ISSUES under PI-21.
 
 ---
 

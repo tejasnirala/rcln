@@ -1009,7 +1009,20 @@ function RuleForm({
            *   is compliant nowhere, and one country can need several names —
            *   Ontario prints HST, British Columbia prints GST and PST.
            */
-          hint="What the tax authority calls it. This is printed on the invoice exactly as typed."
+          /*
+           * ⚠️ AND THE SPLIT NARROWS IT TO A CODE, WHICH THE HINT HAS TO SAY
+           *   BEFORE THE SUBMIT. `INTRA_STATE_HALVES` derives CGST and SGST by
+           *   PREFIXING this value, so the service refuses anything but 2-8
+           *   uppercase letters — "GST 12%" is a rejection, and one that arrives
+           *   only after pressing Add. The constraint is a consequence of a
+           *   choice made two fields above, which is exactly the kind nobody
+           *   infers.
+           */
+          hint={
+            form.split === 'INTRA_STATE_HALVES'
+              ? 'The split prefixes this to make CGST and SGST, so it must be 2-8 uppercase letters and nothing else — GST, VAT, HST. No rate, no per cent sign.'
+              : 'What the tax authority calls it. This is printed on the invoice exactly as typed.'
+          }
           className="font-mono uppercase"
           value={form.lineName}
           onChange={(event) => setForm({ ...form, lineName: event.target.value })}

@@ -143,6 +143,12 @@ export const DIRECTION: Record<StockMovementType, Direction> = {
   RECALL: 'MOVE',
   QUARANTINE: 'MOVE',
   QUARANTINE_RELEASE: 'MOVE',
+  /*
+   * PI-10. Its own member rather than `QUARANTINE_RELEASE` with a different
+   * `statusFrom` — the statuses would be right and the WORD would be wrong. See
+   * the enum comment in inventory.prisma.
+   */
+  RECALL_RELEASE: 'MOVE',
   DAMAGE: 'MOVE',
 
   ADJUSTMENT: 'EITHER',
@@ -179,6 +185,7 @@ const DEFAULT_STATUS: Partial<Record<StockMovementType, { from?: StockStatus; to
     RECALL: { from: 'AVAILABLE', to: 'RECALLED' },
     QUARANTINE: { from: 'AVAILABLE', to: 'QUARANTINED' },
     QUARANTINE_RELEASE: { from: 'QUARANTINED', to: 'AVAILABLE' },
+    RECALL_RELEASE: { from: 'RECALLED', to: 'AVAILABLE' },
     DAMAGE: { from: 'AVAILABLE', to: 'DAMAGED' },
   };
 

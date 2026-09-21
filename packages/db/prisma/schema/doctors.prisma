@@ -187,6 +187,11 @@ model Specialty {
   /// "Send them to a cardiologist" (CE-4). A plain FK, so `encounter_referrals`
   /// needs `specialty_visible` — see that model.
   referrals            EncounterReferral[]    @relation("ReferralSpecialty")
+  /// Which clinics work in this care context (CO-1). ⚠️ In practice only
+  /// `CARE_CONTEXT` nodes are named here — the service enforces it, the FK
+  /// cannot. A plain FK, so `clinic_profile_care_contexts` carries the same
+  /// `specialty_visible` RESTRICTIVE policy `clinical_master_scopes` does.
+  clinicProfileContexts ClinicProfileCareContext[]
 
   /// ⚠️ Rewritten NULLS NOT DISTINCT in the migration — without it the platform
   /// rows (organization_id NULL) are not unique among themselves.
@@ -269,14 +274,30 @@ model DoctorProfile {
   /// was sent to.
   referralsTo    EncounterReferral[]       @relation("ReferralDoctor")
 
-  @@unique([organizationId, userId])
   /// Composite-FK target: schedules, appointments and queue tokens reference
   /// (organization_id, id) so a cross-tenant row is unrepresentable.
   @@unique([organizationId, id])
-  /// ⚠️ NULLS NOT DISTINCT in the migration — the column is nullable, and a
-  /// council number appearing twice in one clinic is a data-entry error worth
-  /// refusing.
-  @@unique([organizationId, registrationNumber])
+  /// ⚠️ TWO UNIQUES ARE MISSING FROM THIS BLOCK ON PURPOSE, AND PUTTING THEM
+  ///   BACK REINSTATES TWO BUGS. Both are PARTIAL indexes, which Prisma cannot
+  ///   express, written by hand in
+  ///   `20260914090000_doctor_profile_partial_uniques`:
+  ///
+  ///     doctor_profiles_council_number_unique
+  ///       (organization_id, registration_number)
+  ///       WHERE registration_number IS NOT NULL AND deleted_at IS NULL
+  ///
+  ///     doctor_profiles_live_user_unique
+  ///       (organization_id, user_id) WHERE deleted_at IS NULL
+  ///
+  ///   As `@@unique` they were TOTAL, and each refused an ordinary write with a
+  ///   bare P2002 naming no column: the second doctor whose council number was
+  ///   not yet to hand collided with the first on (org, NULL) under NULLS NOT
+  ///   DISTINCT, and an archived doctor could never be registered again because
+  ///   the soft-deleted row still occupied (org, user_id). The guarantees are
+  ///   unchanged — a council number is still unique within a clinic, and one
+  ///   person still holds at most one LIVE profile per clinic while remaining
+  ///   free to consult at another. `doctor_specialties_one_primary` below is the
+  ///   same arrangement.
   @@index([organizationId, status])
   @@map("doctor_profiles")
 }
@@ -368,6 +389,31 @@ model DoctorBranchSetting {
   /// window inside which a review is free, and it belongs to the relationship
   /// between a doctor and a branch rather than to a price list.
   followUpFreeDays Int?     @map("follow_up_free_days") @db.SmallInt
+  /// This doctor consults whenever the branch is open (DS-1).
+  ///
+  /// ⚠️ THE AVAILABILITY ENGINE READS IT AND DERIVES THE WEEK FROM
+  ///   `branch_operating_hours` — it does NOT copy those hours into
+  ///   `doctor_schedules`. That is the whole point: a full-time doctor and the
+  ///   clinic they work at are the same week BY DEFINITION, so a clinic that
+  ///   changes its opening hours must not leave every such doctor quietly on
+  ///   last month's rota. Copying looks equivalent and goes stale silently,
+  ///   which is the failure this column exists to prevent.
+  ///
+  /// ⚠️ IT IS THE OPPOSITE CALL FROM ADR-0018, DELIBERATELY, AND THE DIFFERENCE
+  ///   IS WORTH HOLDING ON TO. The clinic profile SEEDS settings because "who
+  ///   do you treat" is a one-time answer the clinic then owns. This is a
+  ///   standing RELATIONSHIP — "the same as the clinic" has to keep meaning
+  ///   that, or it means nothing.
+  ///
+  /// ⚠️ AND IT MAKES `doctor_schedules` ROWS INERT RATHER THAN DELETING THEM.
+  ///   A doctor switched to clinic hours keeps whatever week they had; switching
+  ///   back restores it. The engine consults one source or the other, never
+  ///   both, so there is no question of the two being merged.
+  ///
+  /// Defaults to false, so every doctor written before this column existed keeps
+  /// exactly the availability they had — a backfill would have silently made
+  /// every scheduleless doctor bookable.
+  followsBranchHours Boolean @default(false) @map("follows_branch_hours")
   isActive         Boolean  @default(true) @map("is_active")
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

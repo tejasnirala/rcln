@@ -10,10 +10,11 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/consultations/[encounterId]/pag
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ConsultationRecordPage` | `({ params, }: { params: Promise<{ slug: string; encounterId:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/consultations/[encounterId]/page.tsx:43` |  |
+| `ConsultationRecordPage` | `({ params, }: { params: Promise<{ slug: string; encounterId:…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/consultations/[encounterId]/page.tsx:50` |  |
+| `ConsumptionSection` <sub>local</sub> | `({ slug, encounterId, branchId, timeZone, canRecord, canOver…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/consultations/[encounterId]/page.tsx:204` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/consultations/[encounterId]/page.tsx:11` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/consultations/[encounterId]/page.tsx:18` |  |

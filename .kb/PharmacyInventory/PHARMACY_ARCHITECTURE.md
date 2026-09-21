@@ -1,8 +1,11 @@
 # Pharmacy Architecture
 
-**Phase PI-7 — hard-blocked on `prescriptions`, which does not exist.**
-Phase 3 (Core clinical) owns that model and has not built it. This document is
-the design, written now so PI-1..PI-5 build the seams it needs.
+**Phase PI-7 — BUILT (2026-08-16).** The design below is what shipped; where the
+implementation diverged, the divergence is marked ⚡ and says why.
+
+The blocker was `prescriptions`, which CE-4 delivered as
+`encounter_prescriptions` — a consultation's medication lines rather than a
+document of its own. Pharmacy reads those and writes its own rows beside them.
 
 Pharmacy is a **workflow over product + inventory + regulatory**. It owns no
 quantity, no rate and no clinical content.
@@ -106,8 +109,13 @@ sold without a prescription in this jurisdiction. That is the _entire_ OTC
 concept — there is no `is_otc` boolean on the product, because the same product
 is OTC in one country and prescription-only in another.
 
-**Counter sales are not blocked by `prescriptions`**, so this path can ship in
-PI-8 ahead of PI-7 if the counter is the more urgent need.
+⚡ **The counter sale shipped WITH PI-7 and through the same endpoint**, with
+`kind: COUNTER_SALE`, rather than as the separate `/sales` route
+API_ARCHITECTURE.md sketched. It is the same act — stock leaves a counter, the
+law is consulted, the ledger moves — differing only in whether a prescription was
+presented, which is a fact about the supply and is exactly what `kind` records.
+Two endpoints would be two code paths to keep in step, and the one with less
+traffic would be the one that quietly stopped asking the engine.
 
 ---
 
@@ -118,9 +126,17 @@ dispense. Whether returned stock goes back to `AVAILABLE` or to `QUARANTINED` is
 a **regulatory and clinic-policy decision**, not a default — many jurisdictions
 forbid restocking a dispensed medicine outright. The engine answers it.
 
+⚡ **The clinic must ASK for a restock and the engine must not object** — either
+alone quarantines. An engine answer of `PERMITTED` on its own is not a licence to
+resell: it may have come from rules that never spoke to the question, and "no
+rule objected" is a long way from "a regulator says a returned medicine may go to
+somebody else". The stock is accepted back either way; only its destination is
+in question.
+
 Financially, a return produces a credit note through the existing engine. It
 never edits the original invoice; that engine's lifecycle guard would refuse
-anyway, and correctly.
+anyway, and correctly. ⚡ Not built: pharmacy owns no money, and the charge
+request is PI-8.
 
 ---
 
@@ -164,3 +180,76 @@ The framework, not a country's rules:
 | Write `stock_balances`                                     | PI-ADR-004                      |
 | Hold an `is_otc` or `is_controlled` boolean on the product | Both are per-jurisdiction facts |
 | Default to permitting anything the engine did not rule on  | PI-ADR-007                      |
+
+---
+
+## Remote supply (PI-12)
+
+The same medicine, leaving in a parcel instead of into a hand. It reuses this
+document's whole flow and adds exactly one question in front of it.
+
+### The extra question, and why it is asked twice
+
+⚠️ **A PACK THAT SAYS NOTHING ABOUT REMOTE SUPPLY PERMITS IT.** Every honest pack
+lists `ONLINE_DISPENSE` alongside `DISPENSE` on its prescription rules — it has to,
+or the prescription requirement stops applying the moment a medicine goes in a
+parcel — and the side effect is that rules written about a counter decide a supply
+nobody is standing at. India's pack is exactly that shape: PI-6 recorded the
+e-pharmacy position as `UNKNOWN` and deliberately wrote no rule.
+
+So `product_regulatory_profiles.online_sale_position` — present since PI-5, read
+by nothing until now — became decisive for that one transaction:
+
+| Position                           | Answer                                            |
+| ---------------------------------- | ------------------------------------------------- |
+| `PERMITTED` / `RESTRICTED`         | the question goes to the rules, as normal         |
+| `PROHIBITED`                       | `REFUSED` — somebody looked, and the answer is no |
+| `UNKNOWN`, absent, or unrecognised | `UNDETERMINED` — nobody has looked                |
+
+⚠️ **AND THE ORDER SERVICE REFUSES ON IT DIRECTLY AS WELL.** That is not
+duplication. A `REFUSED` decision stops nothing until a named human sets a pack
+to `PRODUCTION_ENABLED` (`enforcement.ts`), and no pack is — so the engine alone
+would have made every product in every configured country sendable by post on day
+one. What the service refuses is the CLINIC's own configuration, which is the same
+class of check as `is_dispensing_point`. `onlineSaleGapMessage` is shared between
+the two so the wordings cannot drift.
+
+### The flow, and where it differs from the counter
+
+```text
+DRAFT ──► CONFIRMED ──► PACKED ──► SHIPPED ──► DELIVERED
+   │           │                                   ▲
+   │           │                          DELIVERY_FAILED
+   └──► CANCELLED ◄──┘
+```
+
+- **DRAFT** writes rows and nothing else. No number, no hold, no evaluation.
+- **CONFIRMED** is the expensive act: the gate, then the engine (transaction
+  `ONLINE_DISPENSE`, with the DESTINATION), then a FEFO plan, then one
+  `RESERVATION` leg per lot. The number is issued last, so a refusal burns none.
+- **PACKED** is a dispense. It claims the reservations `CONSUMED` **before** any
+  ledger leg, then calls the same `createDispenseWithin` the counter calls with
+  `statusFrom: RESERVED`. One `dispenses` row of kind `ONLINE`.
+- **SHIPPED / DELIVERED / DELIVERY_FAILED** move no stock at all.
+
+⚠️ **CANCELLATION IS ONLY POSSIBLE BEFORE PACKING**, and the CHECK constraint says
+so. After it the medicine has physically left; the correction is a
+`dispense_returns` row through the path this document already describes — which
+asks the law where the stock may go and quarantines it by default, a sharper
+question for a parcel than for a counter return because nobody can attest to how
+it was stored in a van.
+
+⚠️ **A FAILED DELIVERY MOVES NO STOCK.** The parcel is somewhere and the clinic
+does not have it back. Putting the quantity on a shelf on the strength of a
+courier's status update would make the balance say the clinic holds medicine it
+cannot find.
+
+### What remote supply must never do, on top of the table above
+
+|                                                    | Why                                                                        |
+| -------------------------------------------------- | -------------------------------------------------------------------------- |
+| Take an allocation from a client at packing time   | The lots were chosen and held at confirmation; this would be a second FEFO |
+| Take a destination jurisdiction from a client      | It is derived from the address the order froze                             |
+| Dispense from `AVAILABLE`                          | The quantity already moved to `RESERVED`; it would leave twice             |
+| Reach a `CANCELLED` status after a dispense exists | A cancellation the stock ledger has never heard of                         |
+| Put a second consignment on one order              | Two rows free to disagree about where the parcel is                        |

@@ -74,6 +74,34 @@ function readDecimal(source: Record<string, unknown>, key: string): Parsed<strin
   return { ok: true, value: raw };
 }
 
+/**
+ * A list of strings, and an EMPTY one is refused.
+ *
+ * ⚠️ `[]` IS NOT "NO OPINION", IT IS A LIMB THAT SILENTLY STOPS CHECKING.
+ *   Every "did the author say anything?" guard in this file tests
+ *   `=== undefined`, so an empty array slips past the guard as a present,
+ *   well-formed value and then disables the very check it belongs to. PI-24
+ *   found seven of these, all permitting:
+ *
+ *     `{requiredIdentifiers: []}`      — traceability imposes nothing
+ *     `{storageLocationKinds: []}`     — a controlled drug may be kept anywhere
+ *     `{prohibitedSubjectTypes: []}`   — a species prohibition prohibits nobody
+ *     `{destinationCountryCodes: []}`  — an online sale may go anywhere
+ *     `{excludedClassifications: []}`  — no classification is excluded
+ *     `{fields: []}`                   — a label with no particulars on it
+ *     `{locationKinds: []}`            — a storage rule that checks no location
+ *
+ *   Two of them defeat a guard added specifically to stop this class:
+ *   `{scheduleName, storageLocationKinds: []}` reads as "imposes an obligation",
+ *   skips the informational branch, and then imposes nothing — which is the
+ *   `AU-SCHEDULE-S8` defect coming back through a side door.
+ *
+ *   The reasoning was already written down for two keys, at `parseSpeciesRestriction`:
+ *   an empty list is "far more likely to be a truncated edit than an intention".
+ *   That is true of all of them, so it belongs here rather than in one parser.
+ *   No shipped pack writes an empty parameter array, so refusing costs nothing
+ *   today and closes the class permanently.
+ */
 function readStringArray(
   source: Record<string, unknown>,
   key: string
@@ -82,6 +110,9 @@ function readStringArray(
   if (raw === undefined || raw === null) return { ok: true, value: undefined };
   if (!Array.isArray(raw) || raw.some((entry) => typeof entry !== 'string')) {
     return fail(`"${key}" is not a list of strings`);
+  }
+  if (raw.length === 0) {
+    return fail(`"${key}" is an empty list — say nothing, or say what belongs in it`);
   }
   return { ok: true, value: raw as string[] };
 }
@@ -111,6 +142,25 @@ function all<T extends Record<string, Parsed<unknown>>>(
 export interface PrescriptionRequiredParameters {
   required: boolean | undefined;
   validityDays: number | undefined;
+  /**
+   * Validity stated in CALENDAR MONTHS, where the statute states months.
+   *
+   * ⚠️ NOT A CONVENIENCE ALIAS FOR `validityDays`, AND CONVERTING BETWEEN THEM
+   *   IS THE BUG THIS KEY EXISTS TO PREVENT (PI-13a, survey GAP 1). 21 U.S.C.
+   *   829(b) says a Schedule III or IV prescription may not be filled "more than
+   *   six months after the date thereof"; a script written 1 January is lawful
+   *   on 1 July, which is 181 days. `validityDays: 180` would refuse it while
+   *   citing the section that permits it — a wrong answer in the REFUSING
+   *   direction, which is the direction nobody goes back to audit. Six months is
+   *   180, 181, 182 or 184 days depending on where in the year it starts.
+   *
+   *   Great Britain, Australia and Ireland all state medicine validity in months
+   *   too, so this is not a US quirk. Their CONTROLLED drug validities are in
+   *   days (28, and Ireland's 14) and use `validityDays` unchanged.
+   *
+   * Both keys may be present. The EARLIER expiry governs — see the engine.
+   */
+  validityMonths: number | undefined;
   prescriberClasses: readonly string[] | undefined;
 }
 
@@ -118,11 +168,41 @@ export interface QuantityLimitParameters {
   maxPerTransactionBase: string | undefined;
   maxPerPeriodBase: string | undefined;
   periodDays: number | undefined;
+  /**
+   * A ceiling in TREATMENT DAYS rather than in base units (PI-13a, GAP 3).
+   *
+   * ⚠️ THE CALLER USUALLY CANNOT ANSWER THIS, AND THE RULE THEREFORE REFUSES
+   *   UNTIL ONE CAN. `daysSupply` comes off the directions for use, which
+   *   nothing in this programme parses yet. A rule carrying this key resolves
+   *   `UNDETERMINED` — which refuses — for every caller that omits it. That is
+   *   deliberate and is the honest reading: New York caps a prescription at "a
+   *   thirty day supply", and a platform that cannot compute the supply has not
+   *   established compliance, it has merely not looked.
+   */
+  maxDaysSupply: number | undefined;
 }
 
 export interface RefillRuleParameters {
   refillsAllowed: number | undefined;
   validityDays: number | undefined;
+  /**
+   * Does an endorsement BY THE PRESCRIBER lift `refillsAllowed`? (PI-7.)
+   *
+   * ⚠️ OPT-IN, AND ABSENT MEANS NO. A jurisdiction that says "not more than
+   *   once, full stop" and one that says "not more than once unless the
+   *   prescriber endorses it" are different laws, and defaulting to the second
+   *   would rewrite the first at every clinic in it.
+   */
+  endorsedRepeatsPermitted: boolean | undefined;
+  /** The jurisdiction's own ceiling on an endorsed repeat, where it states one. */
+  maxEndorsedRepeats: number | undefined;
+  /**
+   * The repeat window in CALENDAR MONTHS. See `PrescriptionRequiredParameters`
+   * for why this is not `validityDays` with arithmetic — 21 U.S.C. 829(b) puts
+   * the five-refill cap and the six-month window in the same sentence, so a US
+   * refill rule needs both keys at once.
+   */
+  validityMonths: number | undefined;
 }
 
 export interface AgeRestrictionParameters {
@@ -130,11 +210,78 @@ export interface AgeRestrictionParameters {
   verificationRequired: boolean | undefined;
 }
 
+/**
+ * WHO the product may be supplied FOR (PI-11).
+ *
+ * ⚠️ THE TWO LISTS ARE NOT SYMMETRIC AND THE ASYMMETRY IS THE DESIGN.
+ *   `prohibitedSubjectTypes` is a closed vocabulary of two — a jurisdiction
+ *   saying "not for human use" or "not for animals" — and it is checkable
+ *   against every request, because every request either has a subject or does
+ *   not name one at all.
+ *
+ *   `permittedSpecies` and `prohibitedSpecies` are FREE TEXT compared
+ *   case-insensitively, matching `animal_profiles.species`, which is free text
+ *   for the reason `patients.national_id_type` is. A pack that names species is
+ *   accepting that it has to spell them the way the clinic's charts do, and
+ *   `evaluateSpeciesRestriction` answers UNDETERMINED rather than PERMITTED when
+ *   it cannot tell — which refuses.
+ */
+export interface SpeciesRestrictionParameters {
+  /**
+   * `HUMAN`, `ANIMAL`, or both. Compared exactly, and NOT case-folded.
+   *
+   * ⚠️ THE COMMENT USED TO SAY "upper-cased", WHICH NOTHING DID (PI-11 review).
+   *   A pack author trusting it would write `"human"` and get a parse failure —
+   *   `UNDETERMINED`, which refuses — rather than the coercion promised. The
+   *   strict behaviour is the right one for a closed two-member vocabulary; it
+   *   is the sentence that was wrong.
+   */
+  prohibitedSubjectTypes: readonly string[] | undefined;
+  /** An allow-list. Anything not on it is refused. */
+  permittedSpecies: readonly string[] | undefined;
+  /** A deny-list. Everything else is permitted. */
+  prohibitedSpecies: readonly string[] | undefined;
+}
+
 export interface ControlledScheduleParameters {
   scheduleName: string | undefined;
   registerRequired: boolean | undefined;
   witnessRequired: boolean | undefined;
   storageLocationKinds: readonly string[] | undefined;
+  /**
+   * Must an authorisation from somebody else already exist? (PI-13a, GAP 2.)
+   *
+   * Australia's Schedule 8 permits are the case this was written for: a state
+   * health department's written authority to treat a NAMED patient with a NAMED
+   * drug, obtained before the prescription is written. The engine raises a
+   * `VERIFY_PRIOR_AUTHORISATION` condition; it cannot check the permit, because
+   * the permit lives in a state registry this platform does not talk to.
+   */
+  priorAuthorisationRequired: boolean | undefined;
+  /** Who issues it — named in the condition so the screen can say where to look. */
+  authorisationAuthority: string | undefined;
+  /**
+   * This rule exists to NAME the schedule, and imposes nothing. (PI-24.)
+   *
+   * ⚠️ IT MUST BE SAID OUT LOUD, AND THAT IS THE ENTIRE POINT OF THE FLAG.
+   *   A rule carrying only a `scheduleName` is indistinguishable from one whose
+   *   author meant to write `registerRequired` and mistyped it — and in a
+   *   controlled-drugs engine those two must not resolve the same way. Without
+   *   the flag the parser refuses both, which is why `AU-SCHEDULE-S8` refused
+   *   every Schedule 8 transaction in seven Australian jurisdictions; with it,
+   *   the deliberate case says so and the mistyped one still fails closed.
+   *
+   *   So it is not a relaxation of the "imposes no obligation" refusal below.
+   *   It is the one documented way to opt out of it, and setting it beside a
+   *   real obligation is refused as a contradiction.
+   *
+   * Some jurisdictions genuinely impose nothing beyond the label: the Poisons
+   * Standard creates no national register, safe or retention requirement, and
+   * Ireland's Regulation 19(1) stops after Schedules 1 and 2. The decision still
+   * has to be able to say "this is a controlled drug", or a Schedule 8 supply in
+   * Sydney comes back indistinguishable from an ordinary one.
+   */
+  informationalOnly: boolean | undefined;
 }
 
 export interface SubstitutionParameters {
@@ -148,12 +295,62 @@ export interface OnlineDispensingParameters {
   permitted: boolean | undefined;
   excludedClassifications: readonly string[] | undefined;
   destinationCountryCodes: readonly string[] | undefined;
+  /**
+   * Is remote supply lawful only where the prescriber already saw the patient in
+   * person? (PI-13a, GAP 2.)
+   *
+   * ⚠️ WITHOUT THIS KEY, THE US POSITION INVERTS ITSELF. 21 U.S.C. 829(e) does
+   *   not AUTHORISE internet supply of a controlled substance; it forbids it
+   *   except on a prescription from a practitioner who has conducted at least
+   *   one in-person medical evaluation. Expressed with the keys that existed
+   *   before this one, the closest available rule was `permitted: true` — which
+   *   returned a bare `PERMITTED` and asserted the opposite of the section. The
+   *   proviso IS the section.
+   */
+  requiresPriorInPersonEvaluation: boolean | undefined;
+  /**
+   * Is remote supply lawful only for a supplier already on a public register of
+   * distance sellers? (PI-18.)
+   *
+   * ⚠️ THE SAME SHAPE AS `ControlledScheduleParameters.priorAuthorisationRequired`
+   *   AND DELIBERATELY NOT A SECOND IDEA — a fact established before the
+   *   transaction, by somebody else, which the dispenser can verify and never
+   *   perform. It raises `VERIFY_PRIOR_AUTHORISATION`, the condition kind that
+   *   already exists for exactly this.
+   *
+   * ⚠️ WITHOUT IT, IRELAND'S POSITION INVERTS ITSELF THE WAY THE UNITED STATES'
+   *   DID BEFORE `requiresPriorInPersonEvaluation`. Regulation 19A(1) of the
+   *   Medicinal Products (Prescription and Control of Supply) Regulations 2003
+   *   does not authorise distance selling of a non-prescription medicine; it
+   *   forbids it unless the seller "has been entered on the ISS supply list"
+   *   kept by the Pharmaceutical Society of Ireland. Expressed with the keys
+   *   that existed before this one, the closest available rule was
+   *   `permitted: true` — a bare permission, with the registration that makes
+   *   the supply lawful silently dropped.
+   *
+   *   The alternative was to write no rule at all, which resolves `UNDETERMINED`
+   *   and refuses every lawful Irish over-the-counter distance sale while
+   *   reporting that nobody has legislated — and Ireland plainly has.
+   */
+  requiresDistanceSellingAuthorisation: boolean | undefined;
+  /** Who keeps the register — named in the condition so a screen can say where to look. */
+  distanceSellingAuthority: string | undefined;
 }
 
 export interface AuthorityParameters {
   permittedRoleCodes: readonly string[] | undefined;
   permittedLicenceTypes: readonly string[] | undefined;
   permittedPrescriberClasses: readonly string[] | undefined;
+  /**
+   * Does this authority rule stand aside when the person dispensing IS the
+   * prescriber? (PI-7, and only `PHARMACIST_AUTHORITY` reads it.)
+   *
+   * ⚠️ OPT-IN PER RULE, BECAUSE IT IS A PROVISO IN SOMEBODY'S STATUTE RATHER
+   *   THAN A GENERAL PRINCIPLE. India's Pharmacy Act s. 42(1) excludes "the
+   *   dispensing by a medical practitioner of medicine for his own patients";
+   *   a jurisdiction without such a proviso must keep refusing, so absent is no.
+   */
+  exemptWhenActorIsPrescriber: boolean | undefined;
 }
 
 export interface StorageRequirementParameters {
@@ -213,6 +410,7 @@ export function parsePrescriptionRequired(
   const parsed = all({
     required: readBoolean(source.value, 'required'),
     validityDays: readInteger(source.value, 'validityDays'),
+    validityMonths: readInteger(source.value, 'validityMonths'),
     prescriberClasses: readStringArray(source.value, 'prescriberClasses'),
   });
   if (!parsed.ok) return parsed;
@@ -229,6 +427,7 @@ export function parseQuantityLimit(parameters: unknown): Parsed<QuantityLimitPar
     maxPerTransactionBase: readDecimal(source.value, 'maxPerTransactionBase'),
     maxPerPeriodBase: readDecimal(source.value, 'maxPerPeriodBase'),
     periodDays: readInteger(source.value, 'periodDays'),
+    maxDaysSupply: readInteger(source.value, 'maxDaysSupply'),
   });
   if (!parsed.ok) return parsed;
 
@@ -243,7 +442,8 @@ export function parseQuantityLimit(parameters: unknown): Parsed<QuantityLimitPar
   }
   if (
     parsed.value.maxPerTransactionBase === undefined &&
-    parsed.value.maxPerPeriodBase === undefined
+    parsed.value.maxPerPeriodBase === undefined &&
+    parsed.value.maxDaysSupply === undefined
   ) {
     return fail('it is a quantity limit that sets no quantity');
   }
@@ -256,9 +456,16 @@ export function parseRefillRule(parameters: unknown): Parsed<RefillRuleParameter
   const parsed = all({
     refillsAllowed: readInteger(source.value, 'refillsAllowed'),
     validityDays: readInteger(source.value, 'validityDays'),
+    endorsedRepeatsPermitted: readBoolean(source.value, 'endorsedRepeatsPermitted'),
+    maxEndorsedRepeats: readInteger(source.value, 'maxEndorsedRepeats'),
+    validityMonths: readInteger(source.value, 'validityMonths'),
   });
   if (!parsed.ok) return parsed;
-  if (parsed.value.refillsAllowed === undefined && parsed.value.validityDays === undefined) {
+  if (
+    parsed.value.refillsAllowed === undefined &&
+    parsed.value.validityDays === undefined &&
+    parsed.value.validityMonths === undefined
+  ) {
     return fail('it is a refill rule that states neither a number of repeats nor a validity');
   }
   return parsed;
@@ -278,6 +485,49 @@ export function parseAgeRestriction(parameters: unknown): Parsed<AgeRestrictionP
   return parsed;
 }
 
+/**
+ * ⚠️ A SPECIES RULE THAT NAMES NOBODY IS A BROKEN RULE, NOT A PERMISSIVE ONE —
+ *   the discipline the header paragraph above sets out, applied here. `{}` would
+ *   otherwise be a rule that permits every supply to every subject while sitting
+ *   in the pack looking perfectly configured, which is the "visible and inert"
+ *   failure this programme keeps finding.
+ *
+ * ⚠️ AND AN ALLOW-LIST AND A DENY-LIST TOGETHER ARE REFUSED. They can be made to
+ *   contradict each other — `permittedSpecies: ["Dog"]` beside
+ *   `prohibitedSpecies: ["Dog"]` — and there is no reading of that pair that is
+ *   obviously right. A jurisdiction states one or the other.
+ */
+export function parseSpeciesRestriction(parameters: unknown): Parsed<SpeciesRestrictionParameters> {
+  const source = asRecord(parameters);
+  if (!source.ok) return fail(source.problem);
+  const parsed = all({
+    prohibitedSubjectTypes: readStringArray(source.value, 'prohibitedSubjectTypes'),
+    permittedSpecies: readStringArray(source.value, 'permittedSpecies'),
+    prohibitedSpecies: readStringArray(source.value, 'prohibitedSpecies'),
+  });
+  if (!parsed.ok) return parsed;
+
+  const { prohibitedSubjectTypes, permittedSpecies, prohibitedSpecies } = parsed.value;
+  if (
+    prohibitedSubjectTypes === undefined &&
+    permittedSpecies === undefined &&
+    prohibitedSpecies === undefined
+  ) {
+    return sayNothing('prohibitedSubjectTypes', 'who the product may not be supplied for');
+  }
+  if (permittedSpecies !== undefined && prohibitedSpecies !== undefined) {
+    return fail(
+      'it states both a permitted and a prohibited species list, and the two can contradict each other'
+    );
+  }
+  if (prohibitedSubjectTypes?.some((entry) => entry !== 'HUMAN' && entry !== 'ANIMAL')) {
+    return fail('"prohibitedSubjectTypes" may only contain "HUMAN" and "ANIMAL"');
+  }
+  /* The empty-list refusal that used to live here now covers every list key —
+   * see `readStringArray`, which is where this reasoning was generalised. */
+  return parsed;
+}
+
 export function parseControlledSchedule(parameters: unknown): Parsed<ControlledScheduleParameters> {
   const source = asRecord(parameters);
   if (!source.ok) return fail(source.problem);
@@ -286,20 +536,50 @@ export function parseControlledSchedule(parameters: unknown): Parsed<ControlledS
     registerRequired: readBoolean(source.value, 'registerRequired'),
     witnessRequired: readBoolean(source.value, 'witnessRequired'),
     storageLocationKinds: readStringArray(source.value, 'storageLocationKinds'),
+    priorAuthorisationRequired: readBoolean(source.value, 'priorAuthorisationRequired'),
+    authorisationAuthority: readString(source.value, 'authorisationAuthority'),
+    informationalOnly: readBoolean(source.value, 'informationalOnly'),
   });
   if (!parsed.ok) return parsed;
+
+  const imposesNothing =
+    parsed.value.registerRequired === undefined &&
+    parsed.value.witnessRequired === undefined &&
+    parsed.value.storageLocationKinds === undefined &&
+    parsed.value.priorAuthorisationRequired === undefined;
+
+  if (parsed.value.informationalOnly === true) {
+    /*
+     * ⚠️ INFORMATIONAL AND OBLIGATORY AT ONCE HAS NO HONEST READING. Either the
+     *   flag is stale and the obligation is real, or the obligation was pasted
+     *   in from a neighbouring rule — and guessing which would either drop a
+     *   register entry or invent one. The pack says one thing or the other.
+     */
+    if (!imposesNothing) {
+      return fail(
+        'it is marked informational and also imposes an obligation, and only one of those can be true'
+      );
+    }
+    /* Nothing to label with is not informational, it is empty. */
+    if (parsed.value.scheduleName === undefined) {
+      return sayNothing('scheduleName', 'which schedule the decision should name');
+    }
+    return parsed;
+  }
 
   /*
    * ⚠️ A CONTROLLED-SCHEDULE RULE THAT IMPOSES NOTHING IS A BROKEN RULE, NOT A
    *   PERMISSIVE ONE. `{}` previously returned PERMITTED with no register entry
    *   and no witness — the exact obligations the rule type exists to carry.
+   *
+   *   A pack that genuinely imposes nothing says `informationalOnly: true` above
+   *   and is let through. Reaching here means the rule neither imposes anything
+   *   nor claims to be a label, which is what a mistyped parameter looks like.
    */
-  if (
-    parsed.value.registerRequired === undefined &&
-    parsed.value.witnessRequired === undefined &&
-    parsed.value.storageLocationKinds === undefined
-  ) {
-    return fail('it is a controlled-schedule rule that imposes no obligation');
+  if (imposesNothing) {
+    return fail(
+      'it is a controlled-schedule rule that imposes no obligation and does not say it is informational'
+    );
   }
   return parsed;
 }
@@ -327,6 +607,12 @@ export function parseOnlineDispensing(parameters: unknown): Parsed<OnlineDispens
     permitted: readBoolean(source.value, 'permitted'),
     excludedClassifications: readStringArray(source.value, 'excludedClassifications'),
     destinationCountryCodes: readStringArray(source.value, 'destinationCountryCodes'),
+    requiresPriorInPersonEvaluation: readBoolean(source.value, 'requiresPriorInPersonEvaluation'),
+    requiresDistanceSellingAuthorisation: readBoolean(
+      source.value,
+      'requiresDistanceSellingAuthorisation'
+    ),
+    distanceSellingAuthority: readString(source.value, 'distanceSellingAuthority'),
   });
   if (!parsed.ok) return parsed;
   if (parsed.value.permitted === undefined) {
@@ -342,6 +628,7 @@ export function parseAuthority(parameters: unknown): Parsed<AuthorityParameters>
     permittedRoleCodes: readStringArray(source.value, 'permittedRoleCodes'),
     permittedLicenceTypes: readStringArray(source.value, 'permittedLicenceTypes'),
     permittedPrescriberClasses: readStringArray(source.value, 'permittedPrescriberClasses'),
+    exemptWhenActorIsPrescriber: readBoolean(source.value, 'exemptWhenActorIsPrescriber'),
   });
   if (!parsed.ok) return parsed;
   if (
@@ -442,6 +729,19 @@ export function parseImportRestriction(parameters: unknown): Parsed<ImportRestri
   if (!parsed.ok) return parsed;
   if (parsed.value.permitted === undefined) {
     return sayNothing('permitted', 'whether import is allowed');
+  }
+  /*
+   * ⚠️ "A LICENCE IS REQUIRED" WITHOUT SAYING WHICH ONE WAS SATISFIED BY ANY
+   *   LICENCE AT ALL. `evaluateImportRestriction` fell back to `held.length > 0`,
+   *   so a pharmacist's dispensing registration satisfied an import-licence
+   *   requirement — "we could not name what is needed" resolving as "anything
+   *   will do", which is the same shape as the empty-list class above.
+   *   Refusing the pair at the parser is the fix `parseQuantityLimit` already
+   *   uses for `maxPerPeriodBase` without `periodDays`, and no shipped pack
+   *   writes it. (PI-24 review.)
+   */
+  if (parsed.value.licenceRequired === true && parsed.value.licenceType === undefined) {
+    return fail('it requires a licence without saying which licence');
   }
   return parsed;
 }

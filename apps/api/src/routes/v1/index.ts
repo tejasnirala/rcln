@@ -11,6 +11,9 @@ import visualMapRoutes from './visual-maps.routes.js';
 import encounterRoutes from './encounters.routes.js';
 import feeRoutes from './fees.routes.js';
 import healthRoutes from './health.routes.js';
+import chargingRoutes from './charging.routes.js';
+import consumptionRoutes from './consumption.routes.js';
+import { recallRoutes, traceabilityRoutes } from './recalls.routes.js';
 import invoiceRoutes from './invoices.routes.js';
 import taxRoutes from './tax.routes.js';
 import invitationRoutes from './invitations.routes.js';
@@ -18,6 +21,7 @@ import doctorRoutes from './doctors.routes.js';
 import designationRoutes from './designations.routes.js';
 import memberRoutes from './members.routes.js';
 import organizationRoutes from './organization.routes.js';
+import onboardingRoutes from './onboarding.routes.js';
 import patientRoutes from './patients.routes.js';
 import productRoutes from './products.routes.js';
 import {
@@ -45,6 +49,9 @@ import {
   unitRoutes,
 } from './product-catalogue.routes.js';
 import regulatoryRoutes from './regulatory.routes.js';
+import reportRoutes from './reports.routes.js';
+import pharmacyRoutes from './pharmacy.routes.js';
+import onlineOrderRoutes from './online-pharmacy.routes.js';
 import platformRoutes from './platform.routes.js';
 import publicRoutes from './public.routes.js';
 import roleRoutes from './roles.routes.js';
@@ -242,9 +249,66 @@ router.use('/procurement/cost-averages', costAverageRoutes);
 // patient id.
 router.use('/regulatory', regulatoryRoutes);
 
+// THE COUNTER (PI-7) — the queue, the supply, returns, and the dashboard over
+// them. A workflow over product + inventory + regulatory that owns no quantity,
+// no rate and no clinical content.
+//
+// ⚠️ THE MOST PHI-DENSE SURFACE IN THE PRODUCT. Every read on it writes a
+//    `data_access_logs` row, one per request; the dashboard is the deliberate
+//    exception and returns counts that single out nobody.
+//
+// ⚠️ IT READS THE CLINICAL RECORD AND NEVER WRITES IT (invariant 7). What
+//    pharmacy writes is `prescription_fulfilments` — its own state beside a
+//    consultation — plus the dispensing records and their ledger legs.
+//
+// ⚠️ A REGULATORY REFUSAL IS A 422 WITH THE RULE'S OWN SENTENCE, NEVER A 403.
+router.use('/pharmacy', pharmacyRoutes);
+
+// The same medicine, leaving in a parcel instead of into a hand (PI-12).
+//
+// ⚠️ MOUNTED AT `/online-orders` AND **NOT** UNDER `/pharmacy`, WHICH IS A
+//    DELIBERATE DEPARTURE FROM THE OBVIOUS. Everything under `/pharmacy` is
+//    gated by one of the four `pharmacy.dispense.*` codes and a unit test
+//    asserts exactly that, route by route; an order surface nested there would
+//    either break that assertion or be forced behind the dispensing codes —
+//    which would mean the person who takes orders over the telephone has to be
+//    somebody a clinic trusts to hand controlled drugs across a counter. The
+//    codes are still `pharmacy.online_order.*`: it is a pharmacy concern, and
+//    the URL is not what decides that.
+//
+// ⚠️ PACKING IS THE EXCEPTION AND IS GATED ON `pharmacy.dispense.create`,
+//    because making the parcel up IS the supply — the ledger moves, the charge
+//    request is raised, and the only difference from the counter is that the
+//    person receiving it is not in the room.
+//
+// ⚠️ EVERY READ DISCLOSES A HOME ADDRESS BESIDE A MEDICINE, which is why these
+//    reads log under their own `ONLINE_ORDER` data-access resource rather than
+//    under `PRESCRIPTION`.
+router.use('/online-orders', onlineOrderRoutes);
+
 // Custom roles, and who holds what. Both act on rows that carry a RESTRICTIVE
 // branch_isolation policy, where an out-of-scope write is a silent no-op rather
 // than an error — see services/iam/guards.ts.
+/*
+ * WHAT ALL OF THAT ADDS UP TO (PI-22). Nine reads over the tables the eight
+ * phases above wrote, and not one new table — a report that stored its own
+ * answer would be a second source of truth for a number `stock_ledger` already
+ * holds exactly.
+ *
+ * ⚠️ NOT PHI, AND THAT IS A DESIGN CONSTRAINT RATHER THAN AN OBSERVATION. Two of
+ *    the nine read `clinical_consumptions`, whose `patient_id` is NOT NULL, and
+ *    both group it away: the grain is the product or the procedure TYPE. Nothing
+ *    here writes a `data_access_logs` row because nothing here discloses a
+ *    person — the same line `/traceability/forward` draws against
+ *    `/traceability/affected`, with no "names" half on this side of it.
+ *
+ * ⚠️ EXPORTING NEEDS `report.export` ON TOP OF THE REPORT'S OWN READ CODE. It is
+ *    applied as a second `authorize()` when `?format=csv` is asked for, because
+ *    walking out of the building with the whole table is not the same act as
+ *    reading a figure on a screen.
+ */
+router.use('/reports', reportRoutes);
+
 router.use('/roles', roleRoutes);
 router.use('/members', memberRoutes);
 
@@ -253,6 +317,12 @@ router.use('/members', memberRoutes);
 // behind it are RLS-EXEMPT, so the scoping is entirely in the service — read the
 // headers of organization.service.ts and setting.service.ts before touching it.
 router.use('/organization', organizationRoutes);
+
+// The setup wizard a new clinic walks once (CO-1). Singular and id-less for the
+// reason `/organization` is; a BRANCH id travels in three of the step bodies and
+// is checked against the caller's own branches in the service. Nothing it writes
+// is an authorization input — see ADR-0018.
+router.use('/onboarding', onboardingRoutes);
 
 // What the clinic pays and how. Reading and changing it are separate
 // permissions, because downloading last month's invoice and cancelling the
@@ -284,6 +354,66 @@ router.use('/tax', taxRoutes);
 // which is a bill that already exists. This is what every future bill will say,
 // and it is quoted at the front desk before a patient has agreed to anything.
 router.use('/fee-schedule', feeRoutes);
+
+// The seam between what was SUPPLIED and what is BILLED (PI-8). A charge request
+// is the structured hand-off a dispense writes in its own transaction; the charge
+// POLICY is the clinic's standing answer to "is this billed at all?"; the price
+// list is what a product sells for.
+//
+// ⚠️ NOT UNDER /invoices AND NOT UNDER /pharmacy, DELIBERATELY. It is not
+//    /invoices because nothing here is a document — a charge request has no
+//    number, no tax figure and no lifecycle a patient ever sees, and raising the
+//    invoice FROM these charges lives on the invoice router where the invoice
+//    permissions gate it. It is not /pharmacy because PI-ADR-005 says the charge
+//    seam is shared: PI-9's clinical consumption writes the same table from the
+//    other side, and a pharmacist should not hold a pharmacy code to see what a
+//    procedure consumed.
+//
+// PHI: the queue names a patient beside a medicine, so its read logs. The policy
+// and price routes name a catalogue row and nobody, so they do not. See the
+// header of charging.routes.ts.
+router.use('/charging', chargingRoutes);
+
+// What a procedure actually consumed (PI-9), and the templates that say what it
+// normally would. The other caller of the charge seam above.
+//
+// ⚠️ NOT UNDER /clinical AND NOT UNDER /inventory, AND BOTH ALTERNATIVES ARE
+//    WRONG IN OPPOSITE DIRECTIONS. It is not /clinical because nothing here
+//    writes the chart — a consumption is a stock movement anchored to a
+//    consultation, the relationship `prescription_fulfilments` has to a
+//    prescription, and invariant 7 holds because the arrow points one way. It is
+//    not /inventory because the act belongs to whoever was standing in the room:
+//    a dentist recording three pairs of gloves is not correcting a count, and
+//    gating it behind `inventory.stock.adjust` would hand every clinician the
+//    permission where shrinkage hides.
+//
+// PHI: the record names a patient beside an implant's serial, so every read of
+// it — including the GET that only PLANS — files a disclosure row. The template
+// routes name a procedure and nobody, so they do not.
+router.use('/consumption', consumptionRoutes);
+
+// A manufacturer's or regulator's notice, and the piece of work it starts
+// (PI-10).
+//
+// ⚠️ NOT UNDER /inventory, AND THE REASON IS THE ONE /consumption GIVES ABOUT
+//    /clinical. A recall is not a stock operation that happens to be urgent: it
+//    reaches every branch at once, it makes a product un-dispensable
+//    organization-wide, and its second half is a list of NAMED PEOPLE who
+//    already received the product. Filing it under `inventory.*` would put the
+//    code that lets a storekeeper count a shelf beside the code that answers
+//    "which of our patients has this implant".
+//
+// PHI: exactly one route on the pair discloses anybody —
+// `GET /v1/traceability/affected`, which carries `recall.trace.patients` ON TOP
+// OF the read code and files one `RECALL_TRACE` row per read. Everything else
+// answers in lot numbers and counts.
+router.use('/recalls', recallRoutes);
+
+// The same questions asked WITHOUT a notice behind them, which is how a recall
+// usually starts: "where did this lot come from" about a suspicious delivery,
+// "who got this device" after one failed. Its own mount rather than
+// /recalls/:id/trace for exactly that reason.
+router.use('/traceability', traceabilityRoutes);
 
 // A record's own history, for any record in this clinic. Read-only, and the only
 // way rows leave `audit_logs` — which is append-only at the database, not merely

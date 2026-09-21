@@ -10,10 +10,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `PatientPage` | `({ params, }: { params: Promise<{ slug: string; patientId: s…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:34` |  |
+| `PatientPage` | `({ params, }: { params: Promise<{ slug: string; patientId: s…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:42` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:17` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/patients/[patientId]/page.tsx:25` |  |

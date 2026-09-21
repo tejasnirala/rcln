@@ -2,24 +2,21 @@
 
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
-import type {
-  ProductSummary,
-  SupplierDetail,
-  SupplierProductListResponse,
-  UnitSummary,
-} from '@rcln/contracts';
+import type { SupplierDetail, SupplierProductListResponse, UnitSummary } from '@rcln/contracts';
+import { formatMoney, money } from '@rcln/payments';
 import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { ProcurementNav } from '@/components/tenant/procurement-nav';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import {
   addSupplierProductAction,
   addTaxIdentifierAction,
-  IDLE_FORM,
   removeSupplierProductAction,
   removeTaxIdentifierAction,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * One supplier: who they are, their tax numbers, and what they sell us for how much.
@@ -45,22 +42,12 @@ interface Props {
   slug: string;
   supplier: SupplierDetail;
   priceBook: SupplierProductListResponse['supplierProducts'];
-  products: ProductSummary[];
   units: UnitSummary[];
   canManage: boolean;
   /** True when the product list was capped. Drives the honest hint. */
-  moreProducts: boolean;
 }
 
-export function SupplierPanel({
-  slug,
-  supplier,
-  priceBook,
-  products,
-  units,
-  canManage,
-  moreProducts,
-}: Props) {
+export function SupplierPanel({ slug, supplier, priceBook, units, canManage }: Props) {
   const [taxState, taxAction, taxPending] = useActionState<ProcurementFormState, FormData>(
     addTaxIdentifierAction.bind(null, slug, supplier.id),
     IDLE_FORM
@@ -310,10 +297,12 @@ export function SupplierPanel({
                   ) : null}
                 </div>
                 <p className="text-muted mt-1 text-[0.8125rem]">
-                  {row.currency} {(row.pricePerPackMinor / 100).toFixed(2)} per {row.packUnitSymbol}{' '}
+                  {/* ⚠️ `formatMoney`, never `/ 100` — see the purchase-order
+                   * form for why. (PI-24 review.) */}
+                  {formatMoney(money(row.pricePerPackMinor, row.currency))} per {row.packUnitSymbol}{' '}
                   of {row.quantityPerPack} {row.baseUnitSymbol}
                   {' · '}
-                  {row.currency} {(row.unitCostBase / 100).toFixed(2)} per {row.baseUnitSymbol}
+                  {formatMoney(money(row.unitCostBase, row.currency))} per {row.baseUnitSymbol}
                   {row.leadTimeDays === null ? '' : ` · ${row.leadTimeDays} day lead time`}
                 </p>
                 <p className="text-muted mt-0.5 text-[0.75rem]">
@@ -334,22 +323,15 @@ export function SupplierPanel({
               action={priceAction}
               className="border-rule bg-card space-y-3 rounded-md border p-4"
             >
-              {moreProducts ? (
-                <p className="text-muted text-[0.8125rem]">
-                  Showing the first {products.length} products. Searching the whole catalogue from
-                  here comes with the barcode scanner.
-                </p>
-              ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
-                <Select
+                <ProductPicker
+                  slug={slug}
                   label="Product"
                   name="productId"
                   required
-                  options={[
-                    { value: '', label: 'Choose a product' },
-                    ...products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-                  ]}
+                  filters={{ isStockItem: true, status: 'ACTIVE' }}
                   errors={priceErr('productId')}
+                  hint="Name, code, brand or barcode."
                 />
                 <Input
                   label="Their code"

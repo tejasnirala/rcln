@@ -27,7 +27,9 @@ import type {
   SpecialtyListResponse,
   UpdateDoctorQualificationRequest,
   UpdateDoctorRequest,
+  DoctorCandidateListResponse,
 } from '@rcln/contracts';
+import { PERMISSIONS } from '@rcln/permissions';
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import { descendantRows } from './clinical-taxonomy.service.js';
@@ -89,6 +91,7 @@ const DOCTOR_SELECT = {
       id: true,
       branchId: true,
       followUpFreeDays: true,
+      followsBranchHours: true,
       isActive: true,
       branch: { select: { name: true } },
     },
@@ -209,6 +212,7 @@ function toDetail(
       branchId: b.branchId,
       branchName: b.branch.name,
       followUpFreeDays: b.followUpFreeDays,
+      followsBranchHours: b.followsBranchHours,
       isActive: b.isActive,
     })),
   };
@@ -689,6 +693,13 @@ export async function createDoctor(
   for (const block of schedules) {
     if (!ctx.branchIds.includes(block.branchId)) throw new NotFoundError('Branch');
   }
+  /*
+   * Checked before the transaction for the reason the blocks are: a branch this
+   * caller cannot see is a 404, not a policy error raised deep inside a write.
+   */
+  for (const branchId of input.followsBranchHours ?? []) {
+    if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
+  }
   assertNoInternalOverlap(schedules);
 
   const row = await createDoctorRecord(ctx, input, schedules, options);
@@ -779,6 +790,37 @@ async function createDoctorRecord(
 
       for (const block of schedules) {
         await createScheduleRow(tx, ctx, created.id, block, options);
+      }
+
+      /*
+       * Branches where this doctor consults on the CLINIC's own hours (DS-1).
+       *
+       * ⚠️ A `doctor_branch_settings` ROW IS WHAT MAKES THE AVAILABILITY ENGINE
+       *   READ `branch_operating_hours` FOR THEM. Without it a doctor registered
+       *   as "same as the clinic" would have no schedule rows either, and would
+       *   be silently unbookable — which is the exact shape of the bug the
+       *   registration form's own note warns about.
+       */
+      for (const branchId of input.followsBranchHours ?? []) {
+        const existing = await tx.doctorBranchSetting.findFirst({
+          where: { doctorProfileId: created.id, branchId },
+          select: { id: true },
+        });
+        if (existing) {
+          await tx.doctorBranchSetting.update({
+            where: { id: existing.id },
+            data: { followsBranchHours: true },
+          });
+        } else {
+          await tx.doctorBranchSetting.create({
+            data: {
+              organizationId: ctx.organizationId,
+              doctorProfileId: created.id,
+              branchId,
+              followsBranchHours: true,
+            },
+          });
+        }
       }
 
       if (input.fees !== undefined && input.fees.length > 0) {
@@ -1203,5 +1245,117 @@ export async function searchReferralTargets(
       name: profile.user.fullName,
       specialtyName: profile.specialties[0]?.specialty.name ?? null,
     }));
+  });
+}
+
+/**
+ * Who could be given a doctor profile.
+ *
+ * ⚠️ IT FILTERS ON A PERMISSION, NOT ON A ROLE NAMED `DOCTOR`, AND THAT IS THE
+ *   WHOLE POINT OF THE FUNCTION. ADR-0002 puts roles on `membership_roles` and
+ *   nothing in this codebase names one — a clinic that clones DOCTOR into
+ *   "Senior Consultant" or "Visiting Physician" is doing the supported thing,
+ *   and a `roleCode === 'DOCTOR'` filter would quietly hide every one of those
+ *   people from the only screen that can register them. The failure would look
+ *   like a missing person rather than like a bug.
+ *
+ *   `clinical.encounter.create` IS the definition. Invariant 7 says authoring
+ *   the clinical record belongs to DOCTOR alone among the system roles, and it
+ *   is stripped from ORG_OWNER and ORG_ADMIN by name in `roles.ts` precisely so
+ *   that "can author" and "is an administrator" stay different questions. So the
+ *   people this returns are exactly the people who could conduct a consultation
+ *   — which is what a doctor profile is FOR.
+ *
+ * ⚠️ RESOLUTION IS DENY > GRANT > ROLE GRANT, the same order `effectivePermissions`
+ *   applies, because a clinic widens this by granting the code to one membership
+ *   and narrows it by denying it. Reading only `role_permissions` would miss the
+ *   locum granted authoring directly, and would offer somebody the clinic has
+ *   explicitly denied.
+ *
+ * ⚠️ AND IT DELIBERATELY DOES NOT CALL `loadUserAccess` PER MEMBER. That is
+ *   Redis-cached per user, so it would look cheap and would still be an N+1
+ *   against a clinic with fifty staff on a page that renders a form. Four
+ *   queries, whatever the size of the clinic.
+ *
+ * Excludes anybody who already has a profile — the screen's "add" button is
+ * hidden when this comes back empty, and an empty picker is a dead end with no
+ * explanation.
+ */
+export async function listDoctorCandidates(
+  ctx: TenantContext
+): Promise<DoctorCandidateListResponse> {
+  return withTenant(ctx, async (tx) => {
+    /*
+     * `permissions` is a PLATFORM catalogue with no organization_id, so this is
+     * one row shared by every clinic. A missing row means the seed and
+     * `codes.ts` disagree, and answering "nobody" is the honest response —
+     * offering everybody would be the fail-open.
+     */
+    const permission = await tx.permission.findFirst({
+      where: { code: PERMISSIONS.ENCOUNTER_CREATE },
+      select: { id: true },
+    });
+    if (!permission) return { candidates: [] };
+
+    const now = new Date();
+
+    const memberships = await tx.membership.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        status: 'ACTIVE',
+        deletedAt: null,
+        user: { deletedAt: null },
+      },
+      select: {
+        userId: true,
+        user: { select: { fullName: true, email: true } },
+        /*
+         * Only assignments that are in force. `valid_from`/`valid_to` are how a
+         * clinic books a visiting consultant for a fortnight, and an expired one
+         * confers nothing — counting it would offer somebody who stopped being a
+         * doctor here last month.
+         */
+        roles: {
+          where: {
+            AND: [
+              { OR: [{ validFrom: null }, { validFrom: { lte: now } }] },
+              { OR: [{ validTo: null }, { validTo: { gte: now } }] },
+            ],
+            role: { permissions: { some: { permissionId: permission.id } } },
+          },
+          select: { id: true },
+        },
+        overrides: {
+          where: { permissionId: permission.id },
+          select: { effect: true },
+        },
+      },
+      orderBy: { user: { fullName: 'asc' } },
+    });
+
+    const taken = new Set(
+      (
+        await tx.doctorProfile.findMany({
+          where: { organizationId: ctx.organizationId, deletedAt: null },
+          select: { userId: true },
+        })
+      ).map((row) => row.userId)
+    );
+
+    return {
+      candidates: memberships
+        .filter((m) => !taken.has(m.userId))
+        .filter((m) => {
+          // DENY anywhere wins outright, whatever a role says.
+          if (m.overrides.some((o) => o.effect === 'DENY')) return false;
+          if (m.overrides.some((o) => o.effect === 'GRANT')) return true;
+          return m.roles.length > 0;
+        })
+        .map((m) => ({
+          userId: m.userId,
+          fullName: m.user.fullName,
+          email: m.user.email,
+        })),
+    };
   });
 }

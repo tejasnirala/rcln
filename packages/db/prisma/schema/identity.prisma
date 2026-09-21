@@ -143,6 +143,62 @@ model User {
    */
   rulePacksReviewed         RegulatoryRulePack[]              @relation("RulePackReviewer")
 
+  // -- Pharmacy dispensing (PI-7) --------------------------------------------
+  prescriptionsVerified     PrescriptionFulfilment[]          @relation("PrescriptionFulfilmentVerifiedBy")
+  prescriptionsCancelled    PrescriptionFulfilment[]          @relation("PrescriptionFulfilmentCancelledBy")
+  /// ⚠️ THE PERSON WHO HANDED IT OVER, AND THE RECORD OF WHO THAT WAS IS THE
+  ///   POINT. Several jurisdictions require the supply to be made BY a named
+  ///   registered pharmacist; a dispense attributed to nobody is one no
+  ///   inspection can follow.
+  dispensesMade             Dispense[]                        @relation("DispenseDispensedBy")
+  dispenseReturnsReceived   DispenseReturn[]                  @relation("DispenseReturnReceivedBy")
+  regulatoryDecisionsMade   RegulatoryDecision[]              @relation("RegulatoryDecisionActor")
+
+  // -- Charging (PI-8) --------------------------------------------------------
+  /// ⚠️ WHO DECIDED TO BILL, OR NOT TO. An `OPTIONAL` charge policy hands the
+  ///   question to a human, and "somebody chose not to charge for this" with no
+  ///   name against it is indistinguishable from the system having missed it.
+  chargeRequestsDecided     ChargeRequest[]                   @relation("ChargeRequestDecidedBy")
+  chargePolicyRulesUpdated  ChargePolicyRule[]                @relation("ChargePolicyRuleUpdatedBy")
+  productPricesUpdated      ProductPrice[]                    @relation("ProductPriceUpdatedBy")
+
+  // -- Clinical consumption (PI-9) --------------------------------------------
+  /// ⚠️ WHO SAYS THIS WAS USED. A consumption attributed to nobody is a stock
+  ///   movement with no author, and the variance report exists precisely to be
+  ///   read alongside a name.
+  consumptionsRecorded      ClinicalConsumption[]             @relation("ConsumptionRecordedBy")
+  consumptionsAmended       ClinicalConsumption[]             @relation("ConsumptionAmendedBy")
+  consumptionTemplatesUpdated ConsumptionTemplate[]           @relation("ConsumptionTemplateUpdatedBy")
+
+  // -- Recall & traceability (PI-10) ------------------------------------------
+  /// ⚠️ THREE ACTS, THREE NAMES. Raising a notice, pulling the stock and
+  ///   declaring the work finished are decisions taken at different moments by
+  ///   different people, and a single `updated_by` would erase the one a
+  ///   regulator asks about: who authorised the hold.
+  recallsRaised             Recall[]                          @relation("RecallRaisedBy")
+  recallsExecuted           Recall[]                          @relation("RecallExecutedBy")
+  recallsClosed             Recall[]                          @relation("RecallClosedBy")
+
+  // -- Online pharmacy (PI-12) ------------------------------------------------
+  /// ⚠️ SIX NAMES FOR SIX ACTS, and the reasoning is the one immediately above.
+  ///   Taking the order, accepting it, making up the parcel, standing it down,
+  ///   handing it to a carrier and closing the delivery out are decisions taken
+  ///   at different moments by different people; one `updated_by` would erase
+  ///   whichever one somebody later asks about.
+  onlineOrdersPlaced        OnlineOrder[]                     @relation("OnlineOrderPlacedBy")
+  onlineOrdersConfirmed     OnlineOrder[]                     @relation("OnlineOrderConfirmedBy")
+  onlineOrdersPacked        OnlineOrder[]                     @relation("OnlineOrderPackedBy")
+  onlineOrdersCancelled     OnlineOrder[]                     @relation("OnlineOrderCancelledBy")
+  onlineShipmentsShipped    OnlineOrderShipment[]             @relation("OnlineOrderShipmentShippedBy")
+  onlineShipmentsDelivered  OnlineOrderShipment[]             @relation("OnlineOrderShipmentDeliveredBy")
+  onlineShipmentsFailed     OnlineOrderShipment[]             @relation("OnlineOrderShipmentFailedBy")
+
+  // -- Onboarding (CO-1) ------------------------------------------------------
+  /// Who finished setup, and who completed each step. SetNull on both — the
+  /// person who configured the clinic may leave, and the configuration stays.
+  clinicProfilesCompleted   ClinicProfile[]                   @relation("ClinicProfileCompletedBy")
+  onboardingStepsCompleted  ClinicOnboardingStep[]            @relation("ClinicOnboardingStepCompletedBy")
+
   @@index([status])
   @@index([isPlatformAdmin])
   @@map("users")

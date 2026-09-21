@@ -7,6 +7,7 @@ import type {
   DoctorQualificationDetail,
   QualificationSummary,
   SpecialtySummary,
+  DoctorWeekResponse,
 } from '@rcln/contracts';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -15,9 +16,8 @@ import { ClassificationPicker } from '@/components/tenant/classification-picker'
 import { DoctorPanel, PanelEmpty } from '@/components/tenant/doctor-panel';
 import {
   addQualification,
-  addSchedule,
+  saveDoctorWeek,
   removeQualification,
-  removeSchedule,
   retireDoctor,
   updateDoctor,
   updateQualification,
@@ -69,17 +69,7 @@ const DAYS = [
   'Saturday',
 ] as const;
 
-const DAY_OPTIONS: SelectOption[] = DAYS.map((day, index) => ({
-  value: String(index),
-  label: day,
-}));
-
 /** Blank inherits the clinic's setting rather than pinning a number (ADR-0015). */
-const SLOT_LENGTHS: SelectOption[] = [10, 15, 20, 30, 45, 60].map((minutes) => ({
-  value: String(minutes),
-  label: `${String(minutes)} min`,
-}));
-
 const STATUS_WORDS: Record<DoctorDetail['status'], string> = {
   ACTIVE: 'Practising here',
   INACTIVE: 'Not currently practising',
@@ -723,199 +713,380 @@ function AddQualificationForm({
 // ---------------------------------------------------------------------------
 
 /**
- * What the front desk books against.
+ * What the front desk books against — a doctor's week, as a week (DS-1).
  *
- * Blocks are added and removed one at a time rather than the week being replaced
- * wholesale, which is the opposite of the branch hours editor — and deliberately
- * so. A branch has exactly one span per day, so replacing the set is unambiguous.
- * A doctor's week is a variable number of blocks across branches, and a
- * replace-everything form would make removing one block require re-entering all
- * the others.
+ * ⚠️ TWO ANSWERS, AND THE FIRST ONE IS NOT A SHORTCUT FOR THE SECOND. A doctor
+ *   who works whenever the clinic is open is recorded as exactly that, and the
+ *   availability engine reads the branch's opening hours for them, live. It does
+ *   NOT copy those hours onto the doctor: a clinic that later opens an hour
+ *   earlier must not leave every full-time doctor quietly on the old rota, and a
+ *   copy would do precisely that with nothing on any screen to show it.
  *
- * ⚠️ THERE IS NO EDIT-IN-PLACE FOR A BLOCK, AND THAT IS THE API'S SHAPE, NOT AN
- *   OVERSIGHT. `doctor_schedules` is guarded by a GiST exclusion constraint
- *   against overlaps, so changing a block's times is a delete and an insert
- *   whichever way it is expressed; the endpoints are POST and DELETE only.
- *   Pretending otherwise here would mean a "Save" that silently did both and
- *   could half-fail.
+ * ⚠️ AND THE TABLE REPLACED AN "ADD A BLOCK" FORM, WHICH IS WHY IT HAS SEVEN
+ *   FIXED ROWS. The old form asked for a day, a start, an end, a slot length, a
+ *   cap and a start date, and let somebody add three overlapping Tuesdays with
+ *   no view of the week at all — the overlap was refused by a database
+ *   constraint, at submit, one block too late. Seven rows cannot express the
+ *   overlap in the first place, and the week is legible at a glance.
+ *
+ * ⚠️ TWO PERIODS PER DAY, NOT ONE. Morning-and-evening OPD is the normal shape
+ *   of a consulting week here — 9 to 1, then 5 to 8 — and a single from/to per
+ *   day would have made the commonest arrangement in the product inexpressible.
+ *   Three or more blocks on one day is no longer creatable; a doctor who already
+ *   has them reads back as the outer span, and saving normalises to two.
  */
 export function DoctorHoursPanel({
   slug,
   doctor,
   branches,
+  weeks,
   canEdit,
 }: {
   slug: string;
   doctor: DoctorDetail;
   branches: BranchDetail[];
+  /** One per branch this caller can see. Fetched server-side; see the page. */
+  weeks: DoctorWeekResponse[];
   canEdit: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [state, action, pending] = useActionState(addSchedule.bind(null, slug, doctor.id), IDLE);
+  const [branchId, setBranchId] = useState(weeks[0]?.branchId ?? branches[0]?.id ?? '');
+  const week = weeks.find((w) => w.branchId === branchId) ?? weeks[0];
+
+  const [state, action, pending] = useActionState(saveDoctorWeek.bind(null, slug, doctor.id), IDLE);
   const formRef = useRef<HTMLFormElement>(null);
   useOutcomeFocus(state.status, formRef);
 
   /*
-   * Today, read once at mount rather than in the render body — a clock read
-   * during render differs between the server pass and hydration, which the React
-   * Compiler rejects. It is only the default for a date the user can change.
+   * The radio is local state rather than a form value read back, because the
+   * table has to disappear the moment "same as the clinic" is chosen — a table
+   * still on screen under a radio that says it is being ignored is a screen
+   * arguing with itself.
    */
-  const [today] = useState(() => new Date().toISOString().slice(0, 10));
+  const [mode, setMode] = useState<'BRANCH' | 'OWN'>(week?.followsBranchHours ? 'BRANCH' : 'OWN');
 
-  const ordered = doctor.schedules
-    .slice()
-    .sort((a, b) =>
-      a.dayOfWeek === b.dayOfWeek
-        ? a.startTime.localeCompare(b.startTime)
-        : a.dayOfWeek - b.dayOfWeek
+  if (!week) {
+    return (
+      <DoctorPanel title="Working hours" note="What the front desk books against.">
+        <Alert tone="info">
+          This doctor is not attached to a site you can see, so their hours cannot be set here.
+        </Alert>
+      </DoctorPanel>
     );
+  }
+
+  const branchDay = (day: number) => week.branchHours.find((h) => h.dayOfWeek === day);
+  const err = (name: string) => state.fieldErrors?.[name];
 
   return (
-    <DoctorPanel
-      title="Working hours"
-      note="What the front desk books against."
-      action={
-        canEdit ? (
-          <EditToggle
-            editing={editing}
-            onToggle={() => setEditing((open) => !open)}
-            label="the working hours"
+    <DoctorPanel title="Working hours" note="What the front desk books against.">
+      {state.status !== 'idle' && state.message ? (
+        <Alert tone={state.status === 'error' ? 'error' : 'success'} className="mb-4">
+          {state.message}
+        </Alert>
+      ) : null}
+
+      <form ref={formRef} action={action} className="space-y-5">
+        <input type="hidden" name="branchId" value={week.branchId} />
+
+        {weeks.length > 1 ? (
+          <Select
+            name="branchSelector"
+            label="Which site"
+            hint="Each site has its own hours. Save one before switching."
+            value={branchId}
+            onChange={(event) => {
+              setBranchId(event.target.value);
+              const next = weeks.find((w) => w.branchId === event.target.value);
+              setMode(next?.followsBranchHours ? 'BRANCH' : 'OWN');
+            }}
+            options={weeks.map((w) => ({ value: w.branchId, label: w.branchName }))}
+            disabled={!canEdit}
           />
-        ) : undefined
-      }
-    >
-      {ordered.length === 0 && !editing ? <PanelEmpty>No working hours set.</PanelEmpty> : null}
+        ) : null}
 
-      {ordered.length > 0 ? (
-        <ul className={editing && canEdit ? 'mt-3 grid gap-2' : 'mt-3 space-y-2'}>
-          {ordered.map((schedule) =>
-            editing && canEdit ? (
-              <li
-                key={schedule.id}
-                className="border-rule bg-paper flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <p className="text-ink text-[0.875rem]">
-                    {DAYS[schedule.dayOfWeek]}{' '}
-                    <span className="font-mono text-[0.8125rem]">
-                      {clockTime(schedule.startTime)}–{clockTime(schedule.endTime)}
+        <fieldset className="space-y-2" disabled={!canEdit}>
+          <legend className="text-ink text-[0.9375rem] font-medium">When do they consult?</legend>
+
+          <label className="border-rule hover:bg-drape-tint/30 flex cursor-pointer items-start gap-3 rounded-md border p-4">
+            <input
+              type="radio"
+              name="followsBranchHours"
+              value="BRANCH"
+              checked={mode === 'BRANCH'}
+              onChange={() => {
+                setMode('BRANCH');
+              }}
+              className="accent-drape mt-0.5 size-4 shrink-0"
+            />
+            <span>
+              <span className="text-ink block text-[0.9375rem]">
+                Whenever {week.branchName} is open
+              </span>
+              <span className="text-muted block text-[0.8125rem]">
+                For a doctor who works here full time. If the clinic changes its opening hours,
+                theirs change with it.
+              </span>
+            </span>
+          </label>
+
+          <label className="border-rule hover:bg-drape-tint/30 flex cursor-pointer items-start gap-3 rounded-md border p-4">
+            <input
+              type="radio"
+              name="followsBranchHours"
+              value="OWN"
+              checked={mode === 'OWN'}
+              onChange={() => {
+                setMode('OWN');
+              }}
+              className="accent-drape mt-0.5 size-4 shrink-0"
+            />
+            <span>
+              <span className="text-ink block text-[0.9375rem]">Their own hours</span>
+              <span className="text-muted block text-[0.8125rem]">
+                For a visiting consultant, or anyone who keeps different hours from the clinic.
+              </span>
+            </span>
+          </label>
+        </fieldset>
+
+        {mode === 'BRANCH' ? (
+          /*
+           * ⚠️ THE CLINIC'S WEEK IS SHOWN, NOT JUST NAMED. "Same as the clinic"
+           *   is a promise about hours somebody would otherwise have to go and
+           *   look up in another screen to check.
+           */
+          <div className="border-rule bg-drape-tint/30 rounded-md border p-4">
+            <p className="text-drape-deep text-[0.875rem] font-medium">{week.branchName} is open</p>
+            <ul className="text-drape mt-2 space-y-1 text-[0.875rem]">
+              {DAY_ORDER.map((day) => {
+                const hours = branchDay(day);
+                return (
+                  <li key={day} className="flex gap-3">
+                    <span className="w-24 shrink-0">{DAYS[day]}</span>
+                    <span>
+                      {!hours || hours.isClosed
+                        ? 'Closed'
+                        : `${clockTime(hours.opensAt)} – ${clockTime(hours.closesAt)}`}
                     </span>
-                  </p>
-                  <p className="text-muted mt-0.5 text-[0.75rem]">
-                    {schedule.branchName} ·{' '}
-                    {/*
-                      Inheritance is a real concept here (ADR-0015), so the row
-                      says which of the two it is rather than showing a number
-                      whose origin the reader has to guess.
-                    */}
-                    {schedule.slotMinutes === null
-                      ? `${String(schedule.effectiveSlotMinutes)} min slots, from clinic settings`
-                      : `${String(schedule.slotMinutes)} min slots, set here`}
-                    {schedule.maxPatients !== null
-                      ? ` · up to ${String(schedule.maxPatients)} patients`
-                      : ''}
-                    {!schedule.isActive ? ' · not in use' : ''}
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    void removeSchedule(slug, doctor.id, schedule.id);
-                  }}
-                >
-                  Remove
-                  <span className="sr-only">
-                    {' '}
-                    {DAYS[schedule.dayOfWeek]} {clockTime(schedule.startTime)} to{' '}
-                    {clockTime(schedule.endTime)}
-                  </span>
-                </Button>
-              </li>
-            ) : (
-              <li key={schedule.id} className="text-[0.9375rem]">
-                <span className="inline-block w-24">{DAYS[schedule.dayOfWeek] ?? 'Unknown'}</span>
-                <span className="font-mono text-[0.8125rem]">
-                  {clockTime(schedule.startTime)}–{clockTime(schedule.endTime)}
-                </span>
-                <span className="text-muted text-[0.75rem]">
-                  {' · '}
-                  {schedule.branchName}
-                  {/* `effectiveSlotMinutes`, not `slotMinutes` — the latter is
-                      null when the block inherits from the settings ladder, and
-                      "null min slots" is what a raw read renders (ADR-0015). */}
-                  {' · '}
-                  {schedule.effectiveSlotMinutes} min slots
-                  {!schedule.isActive ? ' · not in use' : ''}
-                </span>
-              </li>
-            )
-          )}
-        </ul>
-      ) : null}
-
-      {editing && canEdit ? (
-        <div className="border-rule mt-4 border-t pt-4">
-          <form ref={formRef} action={action} className="grid gap-4">
-            {state.status !== 'idle' && state.message ? (
-              <Alert tone={state.status === 'error' ? 'error' : 'info'}>{state.message}</Alert>
+                  </li>
+                );
+              })}
+            </ul>
+            {week.branchHours.length === 0 ? (
+              <p className="text-signal mt-3 text-[0.8125rem]">
+                This site has no opening hours set yet, so nothing can be booked. Set them in
+                Branches first.
+              </p>
             ) : null}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {err('days') ? <Alert tone="error">{err('days')?.join(' ')}</Alert> : null}
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Select
-                name="branchId"
-                label="Branch"
-                required
-                options={branches.map((b) => ({ value: b.id, label: b.name }))}
-                {...fieldErrors(state, 'branchId')}
-              />
-              <Select name="dayOfWeek" label="Day" required options={DAY_OPTIONS} />
-              <Select
-                name="slotMinutes"
-                label="Slot length"
-                placeholder="Use clinic setting"
-                options={SLOT_LENGTHS}
-                hint="Leave as-is to follow the clinic's default."
-              />
-              <Input
-                name="startTime"
-                label="From"
-                type="time"
-                required
-                {...fieldErrors(state, 'startTime')}
-              />
-              <Input
-                name="endTime"
-                label="To"
-                type="time"
-                required
-                {...fieldErrors(state, 'endTime')}
-              />
-              <Input
-                name="maxPatients"
-                label="Patient cap"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                placeholder="No cap"
-              />
-              <Input
-                name="validFrom"
-                label="Starting from"
-                type="date"
-                required
-                defaultValue={today}
-              />
+            {/* p-1.5: a focus ring is drawn OUTSIDE the control, and an
+                  `overflow-x-auto` box clips it — most visibly on the last
+                  column, where the ring meets the table edge. The padding is
+                  inside the scroll area, so it gives the ring room without
+                  moving the table. */}
+            <div className="overflow-x-auto p-1.5">
+              <table className="w-full min-w-[49rem] border-separate border-spacing-0 text-[0.875rem]">
+                <colgroup>
+                  {/*
+                   * ⚠️ FIVE COLUMNS, NOT SEVEN. Each session is ONE cell holding its
+                   *   own "from" and "to" — the words are in the row rather than
+                   *   in a header, so a row reads as a sentence rather than as
+                   *   four identical boxes whose meaning lives two rows above.
+                   *
+                   * ⚠️ A ONE-LINE SESSION CELL HOLDS "from", a time field, "to" and a
+                   *   second time field, and the fields are `flex-1` — the column
+                   *   width minus the gutter is what they share. 10.5rem of
+                   *   content is the floor, and it is reachable at all only
+                   *   because the browser's picker glyph is hidden (see
+                   *   `TIME_INPUT`). Below it the fields clip the value they are
+                   *   showing, which is worse than a wide column.
+                   *
+                   * ⚠️ 12.25rem, AND THE `pr-7` ON THE SESSION CELLS IS PART OF IT.
+                   *   The fields are `flex-1`, so the column width minus that
+                   *   gutter is what they share — widening the gap without
+                   *   widening the column would just shrink the fields back into
+                   *   clipping. Day and Slot carry `pr-6` for the same reason at
+                   *   a smaller scale: with no gutters the row reads as one
+                   *   continuous run of boxes rather than five columns.
+                   */}
+                  <col className="w-[7rem]" />
+                  <col className="w-[12.25rem]" />
+                  <col className="w-[12.25rem]" />
+                  <col className="w-[7rem]" />
+                  <col className="w-[7rem]" />
+                </colgroup>
+                <thead>
+                  <tr className="text-muted text-left text-[0.8125rem]">
+                    <th scope="col" className="border-rule border-b py-2 pr-6 font-normal">
+                      Day
+                    </th>
+                    <th scope="col" className="border-rule border-b py-2 pr-7 font-normal">
+                      First session
+                    </th>
+                    <th scope="col" className="border-rule border-b py-2 pr-7 font-normal">
+                      Second session
+                    </th>
+                    <th scope="col" className="border-rule border-b py-2 pr-6 font-normal">
+                      Slot
+                    </th>
+                    <th scope="col" className="border-rule border-b py-2 font-normal">
+                      Cap
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {DAY_ORDER.map((day) => {
+                    const row = week.days.find((d) => d.dayOfWeek === day);
+                    return (
+                      <tr key={day}>
+                        <td className="border-rule text-ink border-b py-2 pr-6">{DAYS[day]}</td>
+                        <SessionCell
+                          day={DAYS[day] ?? ''}
+                          session="First"
+                          fromName={`am-from-${String(day)}`}
+                          toName={`am-to-${String(day)}`}
+                          from={row?.morning?.startTime}
+                          to={row?.morning?.endTime}
+                        />
+                        <SessionCell
+                          day={DAYS[day] ?? ''}
+                          session="Second"
+                          fromName={`pm-from-${String(day)}`}
+                          toName={`pm-to-${String(day)}`}
+                          from={row?.evening?.startTime}
+                          to={row?.evening?.endTime}
+                        />
+                        <td className="border-rule border-b py-2 pr-6">
+                          <input
+                            type="number"
+                            name={`slot-${String(day)}`}
+                            min={5}
+                            max={240}
+                            defaultValue={row?.slotMinutes ?? ''}
+                            placeholder="Clinic"
+                            aria-label={`${DAYS[day]} slot length in minutes`}
+                            className="border-rule bg-card text-ink w-full rounded border px-2 py-1"
+                          />
+                        </td>
+                        <td className="border-rule border-b py-2">
+                          <input
+                            type="number"
+                            name={`cap-${String(day)}`}
+                            min={1}
+                            max={500}
+                            defaultValue={row?.maxPatients ?? ''}
+                            placeholder="No cap"
+                            aria-label={`${DAYS[day]} patient cap`}
+                            className="border-rule bg-card text-ink w-full rounded border px-2 py-1"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
 
-            <div>
-              <Button type="submit" disabled={pending}>
-                {pending ? 'Adding…' : 'Add these hours'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      ) : null}
+            <p className="text-muted text-[0.8125rem]">
+              Leave a day blank for a day off. The second session is for a doctor who consults
+              morning and evening — leave it blank if they do not. Slot length falls back to{' '}
+              {week.effectiveSlotMinutes} minutes from the clinic&rsquo;s settings, and a blank cap
+              means no limit.
+            </p>
+          </div>
+        )}
+
+        {canEdit ? (
+          <div>
+            <Button type="submit" disabled={pending}>
+              {pending ? 'Saving…' : 'Save working hours'}
+            </Button>
+          </div>
+        ) : null}
+      </form>
     </DoctorPanel>
+  );
+}
+
+/** Sunday last, because a working week starts on Monday for the person reading it. */
+const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
+
+/**
+ * The time control in the week table. See the note in `SessionCell`.
+ *
+ * ⚠️ EXPORTED SO THE REGISTRATION FORM'S TABLE USES THE SAME ONE. The two
+ *   tables are separate components for good reasons — one is controlled, the
+ *   other is not — but a doctor's hours must not look or behave differently
+ *   depending on which screen they were typed on, and the picker-glyph rule is
+ *   exactly the sort of detail that gets fixed in one and forgotten in the other.
+ */
+export const TIME_INPUT =
+  'border-rule bg-card text-ink min-w-0 flex-1 rounded border px-1.5 py-1 [&::-webkit-calendar-picker-indicator]:hidden';
+
+/**
+ * One session in the week table — "from [ ] to [ ]" in a single cell.
+ *
+ * ⚠️ THE WORDS ARE IN THE ROW, NOT IN A COLUMN HEADING. Four bare time boxes
+ *   under a heading that says "First session" leave the reader counting
+ *   positions to work out which one is the start; a row that reads "from 09:00
+ *   to 13:00" does not. It also survives the table being scrolled sideways,
+ *   where a header two rows up has gone off screen.
+ *
+ * Bare `<input>`s rather than `Field`: the visible words are the label, and
+ * `Field` would wrap each in its own block. `aria-label` carries the full name —
+ * day, session and end — which the two-word visible text cannot.
+ */
+function SessionCell({
+  day,
+  session,
+  fromName,
+  toName,
+  from,
+  to,
+}: {
+  day: string;
+  session: 'First' | 'Second';
+  fromName: string;
+  toName: string;
+  from: string | undefined;
+  to: string | undefined;
+}) {
+  return (
+    <td className="border-rule border-b py-2 pr-7">
+      {/*
+       * ⚠️ ONE LINE, AND THE PICKER GLYPH IS HIDDEN TO PAY FOR IT. A
+       *   `type="time"` field draws a clock button roughly 1.5rem wide; with two
+       *   fields and the words on one line that button was most of the reason
+       *   the column could not go below about 14rem. Hiding it is the only
+       *   lever left that does not cost the words or the single line.
+       *
+       *   THE COST, STATED: mouse users lose the dropdown. Typing still works,
+       *   arrow keys still step the fields, and a touch device still opens its
+       *   native picker on tap — so nothing is unreachable, but a desktop user
+       *   who expected to click a clock will not find one.
+       */}
+      <div className="flex items-center gap-1">
+        <span className="text-muted shrink-0 text-[0.8125rem]">from</span>
+        <input
+          type="time"
+          name={fromName}
+          defaultValue={from ?? ''}
+          aria-label={`${day} ${session.toLowerCase()} session starts at`}
+          className={TIME_INPUT}
+        />
+        <span className="text-muted shrink-0 text-[0.8125rem]">to</span>
+        <input
+          type="time"
+          name={toName}
+          defaultValue={to ?? ''}
+          aria-label={`${day} ${session.toLowerCase()} session ends at`}
+          className={TIME_INPUT}
+        />
+      </div>
+    </td>
   );
 }

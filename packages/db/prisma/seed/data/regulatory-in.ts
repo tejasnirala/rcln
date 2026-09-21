@@ -52,6 +52,24 @@
  *   because the customer was on a website would be a reading of the rule that
  *   the rule does not support.
  *
+ * ⚠️ NO `SPECIES_RESTRICTION` RULE, ADDED DELIBERATELY AS A NON-ADDITION BY
+ *   PI-11. That phase introduced the rule type — "who may this be supplied FOR"
+ *   — and then did not write one here, which is worth stating explicitly because
+ *   the obvious move was to write one.
+ *
+ *   Rules 65(20) and 97(3) require a veterinary medicine to be LABELLED "Not for
+ *   human use" and stored apart. `IN-LABEL-VETERINARY` below carries exactly
+ *   that, and it is a labelling obligation. Neither rule prohibits the SALE of a
+ *   veterinary medicine for a human, and the step from "the box must say so" to
+ *   "the sale is unlawful" is an inference, not a published rule. Writing it as
+ *   one would be inventing law — the same call the paragraphs above make about
+ *   quantity limits and about e-pharmacy.
+ *
+ *   The rule type is exercised by `packages/regulatory/tests/engine.test.ts`
+ *   against synthetic packs, which is where every rule type in this framework is
+ *   tested. A jurisdiction that DOES prohibit the supply gets the rule when its
+ *   pack is written, and the framework is ready for it today.
+ *
  * ⚠️ NO SUB-NATIONAL PACK. India's state drugs controllers license and inspect,
  *   and whether any of them varies these particular obligations is
  *   `RESEARCH_REQUIRED`. The framework is ready for one — a pack on `(IN, KA)`
@@ -241,17 +259,28 @@ const prescriptionRules: RuleSeed[] = scheduled.map((classification) => ({
  * Rule 65(11)(a) — "the prescription must not be dispensed more than once unless
  * the prescriber has stated thereon that it may be dispensed more than once."
  *
- * ⚠️ THIS ENCODES THE DEFAULT AND CANNOT YET ENCODE THE EXCEPTION, WHICH IS A
- *   FRAMEWORK GAP AND NOT A READING OF THE LAW. `refillsAllowed: 0` is the
- *   position where the prescriber has said nothing. Where the prescriber HAS
- *   endorsed a repeat, rule 65(11)(b) says it may be dispensed as endorsed — and
- *   `PresentedPrescription` has no field in which a caller could tell the engine
- *   that endorsement exists. So a legitimately endorsed repeat would be refused.
+ * `refillsAllowed: 0` is the position where the prescriber has said nothing.
+ * `endorsedRepeatsPermitted: true` is clause (b): where the prescriber HAS
+ * endorsed a repeat, it may be dispensed as endorsed.
  *
- *   Nothing dispenses today (PI-7 is blocked on `prescriptions`), so this is
- *   latent rather than live. It is recorded in KNOWN_ISSUES.md and must be
- *   closed in the FRAMEWORK — a field on the prescription — before PI-7 wires
- *   dispensing, never by weakening this rule.
+ * ⚠️ THE SECOND KEY WAS ADDED IN PI-7 AND THE RULE WAS NOT WEAKENED TO ADD IT.
+ *   PI-6 shipped this rule with the default alone, because
+ *   `PresentedPrescription` had no field in which a caller could state that an
+ *   endorsement exists — so the correct default also refused the legitimate
+ *   endorsed case (KNOWN_ISSUES defect 3). The gap was closed in the FRAMEWORK,
+ *   as that entry required: `repeatsAuthorised` is read off the prescription and
+ *   the engine reads this key only where the rule opts in.
+ *
+ * ⚠️ AND THE PARAMETERS WERE EDITED IN PLACE RATHER THAN SUPERSEDED, WHICH IS
+ *   ONLY DEFENSIBLE IN THIS ONE WINDOW. PI-ADR-008 forbids restating a rule a
+ *   past decision cites — and no decision has ever cited one, because
+ *   `regulatory_decisions` did not exist until this phase created it and nothing
+ *   could dispense. The next change to this rule is a new version.
+ *
+ * ⚠️ NO `maxEndorsedRepeats`. The Drugs Rules state no ceiling on an endorsed
+ *   repeat, and inventing one would be inventing law. An endorsement that does
+ *   not itself state a number therefore resolves `UNDETERMINED` — which refuses,
+ *   and tells the pharmacist to confirm the number with the prescriber.
  */
 const refillRules: RuleSeed[] = scheduled.map((classification) => ({
   code: `IN-REPEAT-${classification.replace('SCHEDULE_', 'SCH-')}`,
@@ -262,7 +291,7 @@ const refillRules: RuleSeed[] = scheduled.map((classification) => ({
   sourceKey: 'IN_DRUGS_RULES_1945',
   appliesToClassification: classification,
   appliesToTransactions: SUPPLY_TO_PATIENT,
-  parameters: { refillsAllowed: 0 },
+  parameters: { refillsAllowed: 0, endorsedRepeatsPermitted: true },
   citation: 'Drugs Rules, 1945, rule 65(11)(a)–(b)',
 }));
 
@@ -409,7 +438,17 @@ export const IN_RULES: RuleSeed[] = [
       'in a separated part of the premises only responsible persons can reach.',
     sourceKey: 'IN_DRUGS_RULES_1945',
     appliesToClassification: IN_CLASSIFICATIONS.scheduleX,
-    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE'],
+    /*
+     * ⚠️ `ONLINE_DISPENSE` INCLUDED — WITHOUT IT THE COUNTER REFUSED WHAT THE
+     *   PARCEL PERMITTED. A controlled medicine supplied from an open shelf was
+     *   refused over the counter by `controlledAccessRequired` and not consulted
+     *   at all when the same medicine went out as an online order, because the
+     *   storage rules predate PI-12 making `ONLINE_DISPENSE` a live transaction.
+     *   The stock is on the same shelf either way — the packing counter is the
+     *   location the consult is given for. Eight rules across seven packs had
+     *   this gap. (PI-24 review.)
+     */
+    appliesToTransactions: ['STOCK', 'TRANSFER', 'DISPENSE', 'COUNTER_SALE', 'ONLINE_DISPENSE'],
     parameters: {
       locationKinds: ['CONTROLLED_CABINET'],
       controlledAccessRequired: true,
@@ -461,11 +500,15 @@ export const IN_RULES: RuleSeed[] = [
    *   that refuses an actual registered pharmacist for not holding one of our
    *   role codes, which is a statement about our software rather than the law.
    *
-   * ⚠️ THE SECTION 42 PROVISO IS NOT MODELLED — a medical practitioner
-   *   dispensing to their OWN patients is outside the prohibition, and the
-   *   engine has no way to be told that the actor is the prescriber. A clinic
-   *   where the doctor dispenses would see a refusal this rule should not
-   *   produce. Recorded in KNOWN_ISSUES.md as a framework gap for PI-7.
+   * ⚠️ THE SECTION 42 PROVISO IS MODELLED, AS OF PI-7, AND IT IS PART OF THE
+   *   SECTION RATHER THAN AN EXCEPTION TO IT: s. 42(1) does not apply to "the
+   *   dispensing by a medical practitioner of medicine for his own patients".
+   *   `exemptWhenActorIsPrescriber: true` is that clause, and it fires only when
+   *   the person dispensing IS the prescriber of the prescription in hand —
+   *   derived by the service from the encounter, never asserted by a client.
+   *   Without it, a doctor-run clinic (the common shape in India) was refused by
+   *   a rule that does not reach it. KNOWN_ISSUES defect 4, closed in the
+   *   framework as that entry required.
    */
   {
     code: 'IN-DISPENSER-REGISTERED-PHARMACIST',
@@ -474,8 +517,21 @@ export const IN_RULES: RuleSeed[] = [
       'Only a registered pharmacist may compound, prepare, mix or dispense a medicine on a ' +
       'prescription. Hand this to a registered pharmacist.',
     sourceKey: 'IN_PHARMACY_ACT_1948',
-    appliesToTransactions: ['DISPENSE'],
-    parameters: { permittedLicenceTypes: ['REGISTERED_PHARMACIST'] },
+    /*
+     * ⚠️ `SUPPLY_TO_PATIENT`, NOT `['DISPENSE']` — AND THE LITERAL LEFT INDIA'S
+     *   ONLINE SUPPLY WITH NO PHARMACIST GATE AT ALL. This was the only
+     *   hand-written transaction list among the pack's supply rules, so when
+     *   PI-12 made `ONLINE_DISPENSE` a live transaction the rule stopped
+     *   selecting for it: packing a Schedule H medicine into a parcel was
+     *   permitted with no registered pharmacist, while handing the identical
+     *   medicine across the counter was refused. Section 42(1) draws no such
+     *   distinction. (PI-24 review.)
+     */
+    appliesToTransactions: SUPPLY_TO_PATIENT,
+    parameters: {
+      permittedLicenceTypes: ['REGISTERED_PHARMACIST'],
+      exemptWhenActorIsPrescriber: true,
+    },
     citation: 'Pharmacy Act, 1948, s. 42(1) read with s. 2(i)',
   },
 

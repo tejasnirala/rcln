@@ -78,16 +78,16 @@ Rules that are not optional here:
 
 ### PI-2 / PI-3 — Inventory
 
-| Screen                       | Notes                                                                                                                      |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Inventory dashboard          | Low stock, near expiry, expired, quarantined, recalled, pending transfers. Counts, not lists.                              |
-| Stock overview / by location | The location tree on the left, balances on the right.                                                                      |
-| Batch view                   | Lot, expiry, quantity, status, cost, supplier, origin GRN.                                                                 |
-| Serial view                  | Device history, including patient assignment where permitted.                                                              |
-| Expiry view                  | Buckets driven by the configured thresholds, never hard-coded windows.                                                     |
-| Quarantine / recall          | Read-only in PI-2; actions land in PI-10.                                                                                  |
-| Ledger                       | Paginated, filterable by product, batch, location, movement type, date. Append-only, so no edit affordance anywhere on it. |
-| Transfers / adjustments      | Adjustment requires a reason code before submit is enabled.                                                                |
+| Screen                       | Notes                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inventory dashboard          | Low stock, near expiry, expired, quarantined, recalled, pending transfers. Counts, not lists.                                                                          |
+| Stock overview / by location | The location tree on the left, balances on the right.                                                                                                                  |
+| Batch view                   | Lot, expiry, quantity, status, cost, supplier, origin GRN.                                                                                                             |
+| Serial view                  | Device history, including patient assignment where permitted.                                                                                                          |
+| Expiry view                  | Buckets driven by the configured thresholds, never hard-coded windows.                                                                                                 |
+| Quarantine / recall          | Read-only in PI-2. ⚠️ The workflow landed in PI-10 under **`/product-recalls`**, NOT `/recalls` — `/recall` is already the front desk's patient follow-up list (CE-5). |
+| Ledger                       | Paginated, filterable by product, batch, location, movement type, date. Append-only, so no edit affordance anywhere on it.                                             |
+| Transfers / adjustments      | Adjustment requires a reason code before submit is enabled.                                                                                                            |
 
 ### PI-4 — Procurement
 
@@ -101,7 +101,7 @@ Jurisdiction configuration · product regulatory profile editor · rule status a
 version viewer · source references. **Every screen carries the maturity banner**
 (PI-ADR-009): anything below `PRODUCTION_ENABLED` says so, plainly.
 
-### PI-7 — Pharmacy
+### PI-7 — Pharmacy · BUILT
 
 | Screen                   | Notes                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------ |
@@ -110,7 +110,22 @@ version viewer · source references. **Every screen carries the maturity banner*
 | Prescription detail      | Read-only clinical content. Pharmacy never edits a prescription.               |
 | **Dispensing workspace** | The most important screen in the programme. See below.                         |
 | Substitution             | Equivalent compositions in stock, with the regulatory answer attached to each. |
-| Returns / sales          |                                                                                |
+| Returns / sales          | The return lives on the dispense detail; the sale is its own screen.           |
+
+⚡ **What shipped, against that list:** the dashboard, the queue ("Waiting"), the
+prescription (read-only, with the two dispensary acts), the workspace, the
+equivalents screen, the dispensed list, the dispense detail with the return form,
+and the counter sale. The equivalents screen is READ-ONLY — supplying a
+substitute is supported by the API and is not wired into the workspace
+(KNOWN_ISSUES #11).
+
+⚡ **The signature of the workspace is the counter strip.** One strip per
+medicine, read left to right the way the job is done: what the prescriber wrote ·
+what is on the shelf, oldest lot first · how much is going out · what the law
+says. The expiry LEADS every lot row, which is FEFO made visible — the plan is
+either self-evidently right or visibly wrong, and the second case is the one that
+matters. A warning is never a dialog: it sits inside the strip it belongs to, so
+it cannot be dismissed without being read.
 
 The dispensing workspace shows, and only shows:
 
@@ -140,8 +155,14 @@ One list, one detail pattern, exports through the existing export permission.
 - Every destructive or irreversible action (adjustment, quarantine, dispense,
   recall execution) confirms with what will happen, in the clinic's units.
 - Scanner input is a focused text field that accepts a full GS1 payload and
-  resolves product + batch + serial in one round trip (PI-23). Never assume a
-  scan is only a product code.
+  resolves product + batch + serial in one round trip. Shipped in PI-23 as
+  `/stock/scan` and as the scan-to-fill field on the goods receipt; both send the
+  payload **verbatim**, because the decoder is the only thing that knows which
+  characters are data. Never assume a scan is only a product code.
+- Every product picker searches the server (`ProductPicker`), and so does the
+  patient picker on the order form (`PatientPicker`). ⚠️ **No screen fetches a
+  page of the catalogue to populate a dropdown any more** — the caps that used to
+  do that were KNOWN_ISSUES #25 and #25b.
 - Quantities are entered in whatever unit the user thinks in; the base-unit
   conversion is shown, never hidden.
 - Errors from the regulatory engine render its `reason` verbatim — that string

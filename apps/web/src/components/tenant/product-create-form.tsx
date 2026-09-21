@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useActionState, useEffect, useState } from 'react';
 import type {
+  CompositionSummary,
   ManufacturerSummary,
   ProductCategory,
   StorageProfileSummary,
@@ -14,9 +15,9 @@ import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import {
   createProductAction,
-  IDLE_FORM,
   type ProductFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/products/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/products/form-state';
 
 /**
  * Adding a product.
@@ -65,6 +66,7 @@ interface Props {
   units: UnitSummary[];
   categories: ProductCategory[];
   manufacturers: ManufacturerSummary[];
+  compositions: CompositionSummary[];
   storageProfiles: StorageProfileSummary[];
 }
 
@@ -73,6 +75,7 @@ export function ProductCreateForm({
   units,
   categories,
   manufacturers,
+  compositions,
   storageProfiles,
 }: Props) {
   const router = useRouter();
@@ -113,6 +116,25 @@ export function ProductCreateForm({
   const manufacturerOptions = [
     { value: '', label: 'Not recorded' },
     ...manufacturers.map((m) => ({ value: m.id, label: m.name })),
+  ];
+
+  /*
+   * ⚠️ THE COMPOSITION PICKER IS WHAT MAKES SUBSTITUTION POSSIBLE, AND IT IS THE
+   *   ONLY FIELD ON THIS FORM WITH A CONSEQUENCE AT THE COUNTER. Two products are
+   *   equivalent when they share this id and never because their names look
+   *   alike; a medicine saved without one can never be offered as an alternative
+   *   to anything, and nothing later in the flow says so. Hence the hint, and
+   *   hence "Not a medicine" rather than a bare blank as the empty label — the
+   *   blank is a real answer for a box of gloves and a mistake for an antibiotic.
+   *
+   * Retired compositions are filtered out: this is a picker, and offering one
+   * would attach a product to a formula the clinic has stopped using.
+   */
+  const compositionOptions = [
+    { value: '', label: 'Not a medicine' },
+    ...compositions
+      .filter((composition) => composition.isActive)
+      .map((composition) => ({ value: composition.id, label: composition.name })),
   ];
 
   const storageOptions = [
@@ -184,6 +206,13 @@ export function ProductCreateForm({
             label="Manufacturer"
             options={manufacturerOptions}
             errors={err('manufacturerId')}
+          />
+          <Select
+            name="compositionId"
+            label="Composition"
+            options={compositionOptions}
+            errors={err('compositionId')}
+            hint="What it is made of. This is what lets the counter offer an equivalent — leave it blank only for something that is not a medicine."
           />
           <Select
             name="storageProfileId"

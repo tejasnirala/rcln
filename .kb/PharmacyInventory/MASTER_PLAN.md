@@ -38,7 +38,7 @@ dispensing is PI-7.
 Two reasons. First, dispensing must call `evaluateDispense(...)` — prescription
 requirement, controlled-substance handling, quantity limits, substitution
 permission — and those calls are the _shape_ of the dispensing transaction, not
-a decoration on it. Second, PI-7 is hard-blocked on `prescriptions` anyway, so
+a decoration on it. Second, PI-7 was hard-blocked on `prescriptions` at the time, so
 the slot is free. This is recorded as **PI-ADR-002**.
 
 The brief's other ordering guidance is followed: the framework precedes country
@@ -150,7 +150,7 @@ human with the authority to set it.
 
 ---
 
-### PI-7 — Pharmacy Dispensing ⛔ BLOCKED on `prescriptions`
+### PI-7 — Pharmacy Dispensing ✅ COMPLETE (2026-08-16)
 
 - Prescription queue, pharmacist verification
 - Regulatory validation via PI-5
@@ -175,7 +175,9 @@ human with the authority to set it.
 - Tests: a consumed glove produces no invoice line; an implant does; tax
   resolves through the existing engine and nowhere else
 
-May partly precede PI-7 for the counter-sale (non-prescription) path.
+⚡ It did not: the counter-sale path shipped WITH PI-7, through the same
+endpoint, because the two differ only in whether a prescription was presented.
+PI-8 now has both paths waiting for it.
 
 ---
 
@@ -235,11 +237,15 @@ recall and quarantine reports.
 
 ---
 
-### PI-23 — Identifier Resolution & Barcode/GS1
+### PI-23 — Identifier Resolution & Barcode/GS1 · shipped 2026-09-02
 
 A generic decode → resolve → act layer. A scan may carry GTIN + lot + expiry +
 serial in one string; the resolver returns a product _and_ a batch _and_ a
 serial, not just a product.
+
+Shipped as `decodeScan` in `@rcln/inventory`, `GET /v1/stock/resolve`, a scanner
+console at `/stock/scan` and scan-to-fill on the goods receipt — plus the search
+pickers that removed every capped `<select>` in `apps/web`. No migration.
 
 ---
 
@@ -261,7 +267,7 @@ PI-1 ─┬─▶ PI-2 ─┬─▶ PI-3 ─┬─▶ PI-4
       │
       └─▶ PI-5 ─▶ PI-6 ─▶ PI-13..PI-21
 
-PI-3 + PI-5 + [prescriptions]  ─▶ PI-7 ─▶ PI-8 ─▶ PI-12
+PI-3 + PI-5 + encounter_prescriptions ─▶ PI-7 ─▶ PI-8 ─▶ PI-12
 PI-3 + [encounters/procedures] ─▶ PI-9 ─▶ PI-8
 
 PI-11, PI-23 independent once PI-1/PI-2 land.
@@ -280,7 +286,7 @@ Not commitments. Relative effort only.
 | PI-4      | L      |                                                                           |
 | PI-5      | L      | Design-heavy, low table count                                             |
 | PI-6      | M      | Research-heavy, code-light                                                |
-| PI-7      | XL     | Blocked; also the highest-risk workflow in the programme                  |
+| PI-7      | XL     | Done. Still the highest-risk workflow in the programme                    |
 | PI-8      | M      | Mostly wiring, because the engines exist                                  |
 | PI-9      | L      | Blocked                                                                   |
 | PI-10     | M      |                                                                           |

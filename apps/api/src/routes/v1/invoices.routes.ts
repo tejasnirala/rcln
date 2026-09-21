@@ -2,12 +2,16 @@ import { Router, type IRouter, type Request, type Response } from 'express';
 import { z } from 'zod';
 import {
   cancelInvoiceRequest,
+  createCreditNoteRequest,
+  createInvoiceFromChargesRequest,
   createInvoiceRequest,
   issueInvoiceRequest,
   listInvoicesQuery,
   updateInvoiceRequest,
   voidInvoiceRequest,
   type CancelInvoiceRequest,
+  type CreateCreditNoteRequest,
+  type CreateInvoiceFromChargesRequest,
   type CreateInvoiceRequest,
   type DiscountInputRequest,
   type InvoiceLineRequest,
@@ -45,6 +49,8 @@ import {
   type InvoiceActionOptions,
 } from '../../services/invoicing/invoice.service.js';
 import type { DraftLineInput } from '../../services/invoicing/invoice-lifecycle.service.js';
+import { createInvoiceFromCharges } from '../../services/invoicing/charge-billing.service.js';
+import { createCreditNote } from '../../services/invoicing/credit-note.service.js';
 import {
   practitionerProfileFor,
   resolveInvoiceVisibility,
@@ -577,6 +583,76 @@ router.post(
     );
 
     sendSuccess(res, invoice);
+  }
+);
+
+/**
+ * Raise one invoice from a set of pending charges (PI-8).
+ *
+ * ⚠️ `billing.invoice.create` AND NOT A NEW CODE, because this confers nothing
+ *   the generic create does not: it assembles a document from charges somebody
+ *   already approved. Deciding whether a supply is billed AT ALL is a different
+ *   act and is gated by `billing.charge_request.manage` on the charging router.
+ *
+ * ⚠️ MOUNTED HERE RATHER THAN UNDER `/v1/charging`, because what it returns is an
+ *   invoice and what it enforces is the invoice engine's rules — the branch, the
+ *   patient, the currency and the source must all agree. A create endpoint that
+ *   returned an invoice from a router the invoice permissions do not gate is how
+ *   a second door into billing gets written.
+ */
+router.post(
+  '/from-charges',
+  authorize(PERMISSIONS.INVOICE_CREATE),
+  validate(createInvoiceFromChargesRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as CreateInvoiceFromChargesRequest;
+
+    const invoice = await createInvoiceFromCharges(
+      tenantContextFrom(req),
+      body,
+      await visibilityOf(req),
+      meta(req, '/from-charges')
+    );
+
+    sendCreated(res, invoice);
+  }
+);
+
+/**
+ * Reverse an issued invoice with a credit note (PI-8).
+ *
+ * ⚠️ `billing.credit_note.issue`, WHICH HAS BEEN SEEDED SINCE PHASE 3 AND HAD
+ *   NOTHING BEHIND IT. `voidInvoice`'s header recorded why: there was no table,
+ *   no series and no `CREDIT_NOTE` kind to put one in. This is the route that
+ *   makes the code reachable.
+ *
+ * ⚠️ NOT `billing.invoice.cancel`, AND THE SPLIT IS REAL. Voiding reverses a
+ *   document in full and keeps its number; a credit note reverses part of one,
+ *   several times over as stock comes back, and issues a NEW document with its
+ *   own statutory serial. A clinic separating who may reverse a bill from who
+ *   may void one is a control the seeded code already anticipated.
+ *
+ * ⚠️ AND IT MOVES NO MONEY. A credit note is the DOCUMENT saying the clinic owes
+ *   the patient; the refund is a payment, and there is no patient-payments table
+ *   yet. See the service header.
+ */
+router.post(
+  '/:invoiceId/credit-notes',
+  authorize(PERMISSIONS.CREDIT_NOTE_ISSUE),
+  validate(invoiceParams, 'params'),
+  validate(createCreditNoteRequest),
+  async (req: Request, res: Response): Promise<void> => {
+    const body = req.body as CreateCreditNoteRequest;
+
+    const note = await createCreditNote(
+      tenantContextFrom(req),
+      req.params.invoiceId as string,
+      body,
+      await visibilityOf(req),
+      meta(req, '/:invoiceId/credit-notes')
+    );
+
+    sendCreated(res, note);
   }
 );
 

@@ -1,11 +1,6 @@
 import type { Metadata } from 'next';
 import { PERMISSIONS } from '@rcln/permissions';
-import type {
-  BatchListResponse,
-  InventoryLocationListResponse,
-  ProductListResponse,
-  StockReasonCodeListResponse,
-} from '@rcln/contracts';
+import type { InventoryLocationListResponse, StockReasonCodeListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { branchesInScope, getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -14,9 +9,6 @@ import { AdjustmentForm } from '@/components/tenant/adjustment-form';
 export const metadata: Metadata = {
   title: 'Record an adjustment',
 };
-
-/** How many products the picker offers before it admits it is showing a page. */
-const PICKER_LIMIT = 100;
 
 /**
  * <slug>.rcln.com/stock/adjustments/new
@@ -27,6 +19,12 @@ const PICKER_LIMIT = 100;
  *   and two tabs showing overlapping sets of the same rows is how a person loses
  *   track of which one is complete. Recording one is an action, and it lives at
  *   the end of a button on Movements.
+ *
+ * ⚠️ NEITHER THE PRODUCTS NOR THE LOTS ARE FETCHED HERE ANY MORE (PI-23). Both
+ *   pickers ask the server once they have something to ask about. The old page
+ *   pulled the first 100 products and the first 200 lots ACROSS EVERY BRANCH, so
+ *   a clinic past either figure had stock it could not adjust and nothing on
+ *   screen said why.
  *
  * ⚠️ THE REASON CODES ARE FETCHED, NOT HARD-CODED. Thirteen ship with the
  *   platform and a clinic adds its own; a list baked into the form would be a
@@ -47,14 +45,9 @@ export default async function NewAdjustmentPage({ params }: { params: Promise<{ 
 
   const accessToken = await getAccessToken();
 
-  const [branches, locations, products, batches, reasonCodes] = await Promise.all([
+  const [branches, locations, reasonCodes] = await Promise.all([
     branchesInScope(slug),
     api<InventoryLocationListResponse>('/api/v1/inventory-locations', { slug, accessToken }),
-    api<ProductListResponse>(
-      `/api/v1/products?isStockItem=true&status=ACTIVE&limit=${String(PICKER_LIMIT)}`,
-      { slug, accessToken }
-    ),
-    api<BatchListResponse>('/api/v1/batches?status=ACTIVE&limit=200', { slug, accessToken }),
     api<StockReasonCodeListResponse>('/api/v1/stock/reason-codes', { slug, accessToken }),
   ]);
 
@@ -67,10 +60,7 @@ export default async function NewAdjustmentPage({ params }: { params: Promise<{ 
       slug={slug}
       branches={branches}
       locations={locations.data?.locations ?? []}
-      products={products.data?.products ?? []}
-      batches={batches.data?.batches ?? []}
       reasonCodes={reasonCodes.data?.reasonCodes ?? []}
-      moreProducts={(products.data?.meta.total ?? 0) > (products.data?.products.length ?? 0)}
     />
   );
 }

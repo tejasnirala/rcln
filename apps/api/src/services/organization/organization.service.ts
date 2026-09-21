@@ -54,7 +54,7 @@ const ORGANIZATION_SELECT = {
   currency: true,
   countryCode: true,
   regionCode: true,
-  onboardedAt: true,
+  registeredAt: true,
 } as const;
 
 interface OrganizationRow {
@@ -69,7 +69,7 @@ interface OrganizationRow {
   currency: string;
   countryCode: string;
   regionCode: string | null;
-  onboardedAt: Date | null;
+  registeredAt: Date | null;
 }
 
 function toProfile(
@@ -79,7 +79,7 @@ function toProfile(
   return {
     ...row,
     taxRegistrations,
-    onboardedAt: row.onboardedAt?.toISOString() ?? null,
+    registeredAt: row.registeredAt?.toISOString() ?? null,
   };
 }
 
