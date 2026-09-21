@@ -11,8 +11,8 @@ Files: `apps/worker/jest.config.ts` · `apps/worker/src/index.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `optional` <sub>local</sub> | `(value: string \| undefined): string \| undefined` | `apps/worker/src/index.ts:41` | An optional variable, where blank means unset. Mirrors the API's config. |
-| `scheduleRecurring` <sub>local</sub> | `(): Promise<void>` | `apps/worker/src/index.ts:321` | Schedule the billing sweep. Repeatable jobs are keyed by name and pattern, so re-registering on every boot is safe and idempotent — a redeploy does not accumul… |
-| `shutdown` <sub>local</sub> | `(signal: string): Promise<void>` | `apps/worker/src/index.ts:372` |  |
+| `scheduleRecurring` <sub>local</sub> | `(): Promise<void>` | `apps/worker/src/index.ts:342` |  |
+| `shutdown` <sub>local</sub> | `(signal: string): Promise<void>` | `apps/worker/src/index.ts:399` |  |
 
 ## const
 
