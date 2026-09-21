@@ -330,12 +330,34 @@ The existing `REDACTED_KEYS` backstop gains the new PHI-adjacent field names.
 
 ## PI-ADR-017 — Veterinary is a subject type on `patients`, not a parallel model
 
-**Status:** Accepted · Scheduled PI-11
+**Status:** Accepted · **Implemented in PI-11 (2026-08-19)**
 
 `patients` gains a subject discriminator; an `animal_profiles` extension row
 carries species, breed, weight and sex, and the owner is an existing contact.
 The product and inventory engines do not change at all — only regulatory
 profiles and dosing rules differ, and both are already per-jurisdiction data.
+
+**As built, with three notes the ADR did not anticipate:**
+
+- **The discriminator and the table arrived early, in CE-1**, because §4 asked
+  that the architecture stop assuming humans while §42.7 forbade building
+  veterinary features. They then sat empty and unreachable for the whole
+  intervening programme. PI-11 is the enablement layer, and it added no table.
+- **"The owner is an existing contact" was not what CD-4 shipped** — it wrote
+  two free-text columns. PI-11 added `guardian_contact_id`, composite-FK'd to
+  `patient_contacts`, and kept the free text for the walk-in whose owner is not
+  a contact row yet. A CHECK makes the two mutually exclusive. ⚠️ The composite
+  FK constrains the TENANT, not the parent: naming a DIFFERENT animal's owner at
+  the same clinic is representable, and the service checks it.
+- **"Sex" is `patients.gender`**, not a column on the profile. An animal is a
+  `patients` row and the human fields still mean something.
+
+⚠️ **"Only regulatory profiles and dosing differ" understated the regulatory
+half.** Differing profiles needed no code — a profile is per product per
+jurisdiction already. What was missing was a way for a jurisdiction to say WHO a
+product may be supplied for, so PI-11 added the `SPECIES_RESTRICTION` rule type.
+**It added no India rule**: rules 65(20) and 97(3) require the LABEL and do not
+prohibit the sale, and the step between the two is an inference. See the tracker.
 
 ---
 

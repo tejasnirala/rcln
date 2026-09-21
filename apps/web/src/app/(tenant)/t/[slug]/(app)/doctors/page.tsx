@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type {
   BranchListResponse,
   DoctorListResponse,
-  MemberListResponse,
+  DoctorCandidateListResponse,
   SpecialtyListResponse,
 } from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
@@ -39,11 +39,25 @@ export default async function DoctorsPage({ params }: { params: Promise<{ slug: 
    * what a blank box will actually charge. Null when the caller may not read
    * fees, which removes that section of the form.
    */
-  const [doctors, branches, masters, members, fees, session] = await Promise.all([
+  const [doctors, branches, masters, candidates, fees, session] = await Promise.all([
     api<DoctorListResponse>('/api/v1/doctors', { slug, accessToken }),
     api<BranchListResponse>('/api/v1/branches', { slug, accessToken }),
     api<SpecialtyListResponse>('/api/v1/doctors/masters', { slug, accessToken }),
-    api<MemberListResponse>('/api/v1/members', { slug, accessToken }),
+    /*
+     * ⚠️ NOT `GET /api/v1/members`, WHICH IS WHAT THIS USED TO BE. That returned
+     *   every member of the clinic — the pharmacist, the receptionist, the
+     *   administrator — and the picker offered all of them as doctors, because
+     *   the only filtering was "is ACTIVE and has no profile yet". It also
+     *   shipped every member's phone number, roles and permission overrides to
+     *   a form that needed a name.
+     *
+     *   The API now answers the question directly: who holds
+     *   `clinical.encounter.create`. Filtered there rather than here because
+     *   permissions are resolved server-side — the member rows carry role CODES
+     *   and a clinic that cloned DOCTOR into "Senior Consultant" cannot be
+     *   recognised from a code without naming a role, which ADR-0002 forbids.
+     */
+    api<DoctorCandidateListResponse>('/api/v1/doctors/candidates', { slug, accessToken }),
     loadFeeSchedule(slug, {}),
     getSession(slug),
   ]);
@@ -78,19 +92,16 @@ export default async function DoctorsPage({ params }: { params: Promise<{ slug: 
       qualifications={masters.ok && masters.data ? masters.data.qualifications : []}
       fees={fees}
       /*
-       * Who can be made a doctor: an ACTIVE member who does not already have a
-       * profile. Filtered here rather than in the picker so the "add" button can
-       * be hidden when there is nobody left to add — an empty picker is a dead
-       * end with no explanation.
+       * Who can be made a doctor, answered by the API: an ACTIVE member who
+       * holds `clinical.encounter.create` and does not already have a profile.
+       * An empty list hides the "add" button rather than opening a picker with
+       * nothing in it, which is a dead end with no explanation.
+       *
+       * A failed call yields an empty list and therefore no button — the same
+       * outcome as "nobody left to add". That is the safe direction: offering a
+       * form whose submit is going to 403 is worse than not offering it.
        */
-      candidates={
-        members.ok && members.data
-          ? members.data.members
-              .filter((m) => m.status === 'ACTIVE')
-              .filter((m) => !doctors.data!.doctors.some((d) => d.userId === m.userId))
-              .map((m) => ({ userId: m.userId, fullName: m.fullName }))
-          : []
-      }
+      candidates={candidates.ok && candidates.data ? candidates.data.candidates : []}
       canReadSchedules={permissions.includes(PERMISSIONS.DOCTOR_SCHEDULE_READ)}
       /*
        * These four gate SECTIONS OF THE REGISTRATION FORM, not row actions —

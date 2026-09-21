@@ -120,6 +120,10 @@ export async function sweepDueReservations(logger: Logger): Promise<void> {
       );
       swept += 1;
 
+      /* After the releases for this branch, so a hold released on this tick is
+       * already gone when the orders are checked. */
+      await expireAbandonedOrders(ctx, branch.branch_id, logger);
+
       if (result.released > 0 || result.failed > 0) {
         logger.info(
           {
@@ -147,4 +151,103 @@ export async function sweepDueReservations(logger: Logger): Promise<void> {
   }
 
   logger.info({ swept, failed, considered: due.length }, 'reservation sweep finished');
+}
+
+/**
+ * An order whose hold lapsed stops claiming to be confirmed (PI-24).
+ *
+ * ⚠️ THE SWEEP ABOVE RELEASES A HOLD AND KNOWS NOTHING ABOUT WHAT PLACED IT, and
+ *   that is correct — `@rcln/inventory` is the movement engine and has no
+ *   business knowing what an online order is. The consequence was that an order
+ *   nobody packed kept saying CONFIRMED for ever while its stock had gone back
+ *   to the shelf: the screen said a parcel was coming, and the shelf disagreed.
+ *   KNOWN_ISSUES #23.
+ *
+ * ⚠️ SO IT IS A SECOND PASS HERE, IN THE WORKER, WHERE THE PHARMACY DOMAIN IS
+ *   ALLOWED TO BE KNOWN. It runs after the releases for the same branch, so a
+ *   hold released this tick is already gone by the time the orders are checked.
+ *
+ * ⚠️ `EXPIRED`, NOT `DRAFT` AND NOT `CANCELLED`. A draft carries no order number
+ *   — the CHECK constraint says so — and rolling back would destroy the
+ *   reference the patient was given. A cancellation carries a reason somebody
+ *   wrote, and nobody wrote one. The hold expired; that is its own fact.
+ */
+export async function expireAbandonedOrders(
+  ctx: TenantContext,
+  branchId: string,
+  logger: Logger
+): Promise<number> {
+  return withTenant(ctx, async (tx) => {
+    const confirmed = await tx.onlineOrder.findMany({
+      where: { organizationId: ctx.organizationId, branchId, status: 'CONFIRMED' },
+      select: { id: true, lines: { select: { id: true } } },
+    });
+    if (confirmed.length === 0) return 0;
+
+    /*
+     * ⚠️ THE HOLDS ARE KEYED ON THE LINE, NOT THE ORDER. `stock_reservations`
+     *   carries `reference_type = 'ONLINE_ORDER'` with the LINE's id in
+     *   `reference_id` — one hold per line per lot — so asking about the order
+     *   id would match nothing and expire every confirmed order on the platform.
+     */
+    const lineIds = confirmed.flatMap((order) => order.lines.map((line) => line.id));
+    if (lineIds.length === 0) return 0;
+
+    const stillHeld = new Set(
+      (
+        await tx.stockReservation.findMany({
+          where: {
+            organizationId: ctx.organizationId,
+            referenceType: 'ONLINE_ORDER',
+            referenceId: { in: lineIds },
+            status: 'ACTIVE',
+          },
+          select: { referenceId: true },
+        })
+      ).map((row) => row.referenceId)
+    );
+
+    const abandoned = confirmed.filter(
+      (order) => !order.lines.some((line) => stillHeld.has(line.id))
+    );
+    if (abandoned.length === 0) return 0;
+
+    await tx.onlineOrder.updateMany({
+      where: {
+        organizationId: ctx.organizationId,
+        id: { in: abandoned.map((order) => order.id) },
+        /* Re-asserted, because somebody may have packed one between the read
+         * and here — and packing is exactly what must not be overwritten. */
+        status: 'CONFIRMED',
+      },
+      data: { status: 'EXPIRED' },
+    });
+
+    /*
+     * ⚠️ WRITTEN DIRECTLY RATHER THAN THROUGH `movementDeps.recordAudit`, which
+     *   is typed to the one action the movement engine ever takes (`CREATE`).
+     *   Widening that interface so a status change could borrow it would make
+     *   the engine's contract answer a question it does not ask.
+     */
+    for (const order of abandoned) {
+      await tx.auditLog.create({
+        data: {
+          organizationId: ctx.organizationId,
+          actorUserId: ctx.userId,
+          action: 'UPDATE',
+          entityType: 'online_order',
+          entityId: order.id,
+          branchId,
+          beforeData: { status: 'CONFIRMED' },
+          afterData: { status: 'EXPIRED', reason: 'stock hold expired' },
+        },
+      });
+    }
+
+    logger.info(
+      { organizationId: ctx.organizationId, branchId, expired: abandoned.length },
+      'reservation sweep: abandoned orders expired'
+    );
+    return abandoned.length;
+  });
 }

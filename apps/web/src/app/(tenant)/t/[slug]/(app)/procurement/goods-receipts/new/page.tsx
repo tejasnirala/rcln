@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import type {
   InventoryLocationListResponse,
   ManufacturerSummary,
-  ProductListResponse,
   PurchaseOrderDetail,
   SupplierListResponse,
 } from '@rcln/contracts';
@@ -14,12 +13,16 @@ import { procurementAccess } from '../../guard';
 
 export const metadata: Metadata = { title: 'Record a delivery' };
 
-const PRODUCT_CAP = 100;
-
 /**
- * The scanner-heavy screen. Everything it fetches is a picker; the one thing that
- * matters is that the LOT, EXPIRY and SERIAL boxes are typed off the pack rather than
- * looked up, because at this moment the pack is the only authority on them.
+ * The scanner-heavy screen, and since PI-23 it actually has a scanner. The one thing
+ * that matters is that the LOT, EXPIRY and SERIAL boxes come off the PACK rather than
+ * from a lookup, because at this moment the pack is the only authority on them — the
+ * scan field fills them from the DataMatrix for exactly that reason, and reports it
+ * when the pack and the lot on file disagree.
+ *
+ * ⚠️ THE PRODUCT LIST IS NO LONGER FETCHED. It was the first hundred stocked products,
+ *   which on a real catalogue is a picker that cannot reach the thing being delivered.
+ *   The form searches, and a scan skips the search entirely.
  */
 export default async function NewGoodsReceiptPage({
   params,
@@ -41,13 +44,9 @@ export default async function NewGoodsReceiptPage({
     ? query['purchaseOrderId'][0]
     : query['purchaseOrderId'];
 
-  const [branches, suppliers, products, locations, manufacturers, order] = await Promise.all([
+  const [branches, suppliers, locations, manufacturers, order] = await Promise.all([
     branchesInScope(slug),
     api<SupplierListResponse>('/api/v1/procurement/suppliers?limit=100&status=ACTIVE', {
-      slug,
-      accessToken,
-    }),
-    api<ProductListResponse>(`/api/v1/products?limit=${String(PRODUCT_CAP)}&isStockItem=true`, {
       slug,
       accessToken,
     }),
@@ -67,16 +66,35 @@ export default async function NewGoodsReceiptPage({
         }),
   ]);
 
+  /*
+   * ⚠️ A FAILED PRE-FILL IS NOT THE SAME AS NO PRE-FILL, AND IT USED TO RENDER
+   *   IDENTICALLY. `order?.data ?? null` collapsed a 403, a 404 and a 502 into
+   *   the "nobody asked for an order" case: the buyer clicked Receive on a real
+   *   purchase order, got a completely empty delivery form, assumed the feature
+   *   did not exist and keyed forty lines by hand — and because the
+   *   `purchaseOrderId` hidden input only renders when `order` is non-null, the
+   *   receipt was never linked and the order stayed outstanding for ever. Every
+   *   other fetch on this page has an error path; this one did not.
+   *   (PI-24 review.)
+   */
+  if (purchaseOrderId !== undefined && !order?.data) {
+    return (
+      <Alert tone="error">
+        That purchase order could not be loaded, so this delivery has not been pre-filled. Open it
+        from the order itself rather than keying it by hand — a receipt recorded here would not be
+        linked to it.
+      </Alert>
+    );
+  }
+
   return (
     <GoodsReceiptForm
       slug={slug}
       branches={branches}
       suppliers={suppliers.data?.suppliers ?? []}
-      products={products.data?.products ?? []}
       locations={locations.data?.locations ?? []}
       manufacturers={manufacturers.data?.manufacturers ?? []}
       order={order?.data ?? null}
-      moreProducts={(products.data?.meta.total ?? 0) > PRODUCT_CAP}
     />
   );
 }

@@ -8,6 +8,8 @@ import { api } from '@/lib/api';
 import { formatClinicDateTime } from '@/lib/format';
 import { countryOf, getAccessToken, getSession, timeFormatOf } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
+import { didNotHappen, isFinished } from '@/lib/appointment-words';
+import { AppointmentStatusChip, CancellationReason } from '@/components/tenant/appointment-status';
 import { VitalsPanel } from '@/components/tenant/vitals-panel';
 import { AppointmentBillingPanel } from '@/components/tenant/appointment-billing-panel';
 import { ConsultationEngine } from '@/components/tenant/consultation-engine';
@@ -162,9 +164,23 @@ export default async function ConsultationPage({
    *   or missed booking is not cancellable, and the API refuses it. This mirrors
    *   the board's own `finished` check rather than inventing a second rule.
    */
-  const visitFinished =
-    visit.status === 'COMPLETED' || visit.status === 'CANCELLED' || visit.status === 'NO_SHOW';
+  const visitFinished = isFinished(visit.status);
   const canCancelVisit = permissions.includes(PERMISSIONS.APPOINTMENT_CANCEL) && !visitFinished;
+
+  /*
+   * ⚠️ THE VISIT NEVER TOOK PLACE, SO NOTHING MAY BE HUNG OFF IT. `CANCELLED` and
+   *   `NO_SHOW` are the two statuses the API itself refuses on: `recordVitals`
+   *   answers 409 ("that booking did not go ahead, so vitals cannot be recorded
+   *   on it") and `createFollowUp` now does the same. This page was still
+   *   drawing both controls, so the desk got a cuff form and a booking form that
+   *   could only ever fail — and a control that always fails teaches people to
+   *   distrust the screen rather than the booking.
+   *
+   *   ⚠️ IT IS NOT `visitFinished`. A COMPLETED visit is finished and DID happen:
+   *     its vitals stay readable and a follow-up off it is the ordinary case —
+   *     it is most of why the follow-up form exists.
+   */
+  const neverHappened = didNotHappen(visit.status);
 
   const canReadBilling = permissions.includes(PERMISSIONS.INVOICE_READ);
   const billing = canReadBilling ? await loadAppointmentBilling(slug, appointmentId) : null;
@@ -229,9 +245,11 @@ export default async function ConsultationPage({
           <p className="text-muted mt-1 text-[0.75rem]">
             Times at {visit.timezone.replace('_', ' ')}
           </p>
-          {/* Status in words. Never colour alone (WCAG 1.4.1). */}
-          <p className="text-muted mt-1 text-[0.8125rem]">
-            {STATUS_WORDS[visit.status] ?? visit.status} · {VISIT_WORDS[visit.visitType]}
+          {/* The chip prints the word; the tint is the second signal, never the
+              only one (WCAG 1.4.1). Same ramp as the day board's rails. */}
+          <p className="text-muted mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.8125rem]">
+            <AppointmentStatusChip status={visit.status} />
+            <span>{VISIT_WORDS[visit.visitType]}</span>
           </p>
         </div>
 
@@ -267,7 +285,10 @@ export default async function ConsultationPage({
           {visit.followUps.length > 0 ? (
             <ul className="mt-3 space-y-1">
               {visit.followUps.map((followUp) => (
-                <li key={followUp.id} className="text-[0.9375rem]">
+                <li
+                  key={followUp.id}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.9375rem]"
+                >
                   <Link
                     href={`/appointments/${followUp.id}`}
                     className="underline underline-offset-2"
@@ -275,11 +296,12 @@ export default async function ConsultationPage({
                     <span className="font-mono">{followUp.appointmentNumber}</span>
                   </Link>
                   <span className="text-muted text-[0.8125rem]">
-                    {' · '}
                     {formatClinicDateTime(followUp.scheduledStart, visit.timezone, timeFormat)}
-                    {' · '}
-                    {STATUS_WORDS[followUp.status] ?? followUp.status}
                   </span>
+                  {/* The chain gets the same colour code as the day board — a
+                      cancelled review in a list of three is the one thing
+                      somebody scanning this section is looking for. */}
+                  <AppointmentStatusChip status={followUp.status} />
                 </li>
               ))}
             </ul>
@@ -291,6 +313,35 @@ export default async function ConsultationPage({
         <PreviousVisitSummary previous={previous} timeFormat={timeFormat} />
       )}
 
+      {/*
+        ⚠️ ABOVE "REASON GIVEN", NOT BELOW IT, AND THAT ORDER IS THE POINT. On a
+          booking that was called off, "why did this not happen" is the first
+          question anybody opening the page has — and the chief complaint below
+          is about a visit that never took place. Reading them the other way
+          round is how somebody starts acting on a consultation that was
+          cancelled a week ago.
+
+        `CancellationReason` renders nothing on any other status, so this section
+        only exists on a cancelled visit — see the component.
+      */}
+      {visit.status === 'CANCELLED' ? (
+        <section className="border-danger/30 bg-danger-tint/40 mt-4 rounded-lg border p-5">
+          <h2 className="eyebrow text-danger">This visit was cancelled</h2>
+          {visit.cancellationReason === null || visit.cancellationReason.trim() === '' ? (
+            /* The cancel form makes a reason required, so this is a booking
+               cancelled before it did — stated rather than left blank, because a
+               blank reads as "nobody has looked at this yet". */
+            <p className="text-muted mt-3 text-[0.9375rem]">No reason was recorded.</p>
+          ) : (
+            <CancellationReason
+              status={visit.status}
+              reason={visit.cancellationReason}
+              className="mt-3 text-[0.9375rem] whitespace-pre-line"
+            />
+          )}
+        </section>
+      ) : null}
+
       {visit.reason !== null ? (
         <section className="border-rule bg-card mt-4 rounded-lg border p-5">
           <h2 className="eyebrow text-drape">Reason given</h2>
@@ -298,12 +349,23 @@ export default async function ConsultationPage({
         </section>
       ) : null}
 
-      {canReadVitals && vitals !== null ? (
+      {/*
+        ⚠️ HIDDEN OUTRIGHT ON A CANCELLED VISIT WITH NOTHING RECORDED, AND
+          READ-ONLY WHEN THERE IS. Those are two different facts and the screen
+          must not collapse them. A booking called off before anybody took a
+          blood pressure has no observations and never will, so an empty panel
+          offering a form is a control the API answers 409 to. A booking
+          cancelled AFTER the nurse had already worked through the cuff has real
+          readings on it — deleting them from the screen would erase a
+          measurement that was genuinely taken, so they stay, and only the way to
+          add more goes away.
+      */}
+      {canReadVitals && vitals !== null && !(neverHappened && vitals.length === 0) ? (
         <VitalsPanel
           slug={slug}
           appointmentId={appointmentId}
           vitals={vitals}
-          canRecord={canRecordVitals}
+          canRecord={canRecordVitals && !neverHappened}
           timezone={visit.timezone}
           timeFormat={timeFormat}
           /*
@@ -388,7 +450,15 @@ export default async function ConsultationPage({
       */}
       {canCancelVisit ? <VisitCancel slug={slug} appointmentId={appointmentId} /> : null}
 
-      {canBook ? (
+      {/*
+        ⚠️ NOT OFFERED ON A VISIT THAT NEVER HAPPENED, and `createFollowUp`
+          refuses it too (409). A follow-up inherits the parent's episode, doctor
+          and frozen fee because it CONTINUES that consultation — and a booking
+          that was called off produced no consultation to continue. What the desk
+          actually wants when a patient rings back after cancelling is a new
+          booking, which is the day board, so nothing here is lost.
+      */}
+      {canBook && !neverHappened ? (
         <section className="border-rule bg-card mt-4 rounded-lg border p-5">
           <h2 className="eyebrow text-drape">Book a follow-up</h2>
           <FollowUpForm
@@ -407,16 +477,6 @@ export default async function ConsultationPage({
     </div>
   );
 }
-
-const STATUS_WORDS: Record<string, string> = {
-  BOOKED: 'Booked',
-  CONFIRMED: 'Confirmed',
-  CHECKED_IN: 'Checked in',
-  IN_PROGRESS: 'With the doctor',
-  COMPLETED: 'Seen',
-  CANCELLED: 'Cancelled',
-  NO_SHOW: 'Did not attend',
-};
 
 const VISIT_WORDS: Record<string, string> = {
   NEW: 'First visit',

@@ -38,11 +38,21 @@ import { recordAudit } from '../audit/audit.service.js';
 import { toCalendarDate, toDateColumn } from '../product/values.js';
 import { recordMovementIn } from './movement.service.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 const summaryInclude = Prisma.validator<Prisma.BatchInclude>()({
   product: { select: { code: true, name: true, baseUnit: { select: { symbol: true } } } },
   manufacturer: { select: { name: true } },
-  balances: { select: { status: true, quantity: true, locationId: true } },
+  /*
+   * ⚠️ `serialId` IS SELECTED FOR `setBatchHold`, NOT FOR THE SUMMARY. Balance
+   *   rows are keyed per serial for a serial-tracked product, and
+   *   `recordMovementIn` REFUSES a movement of one that names no serial. Without
+   *   it, holding a lot of implants raised "this product is serial-tracked, so
+   *   every movement of it must name a serial number" and pulled nothing —
+   *   which is a device recall failing at the one product class it matters most
+   *   for. See PI-10.
+   */
+  balances: { select: { status: true, quantity: true, locationId: true, serialId: true } },
 });
 
 const detailInclude = Prisma.validator<Prisma.BatchInclude>()({
@@ -52,6 +62,7 @@ const detailInclude = Prisma.validator<Prisma.BatchInclude>()({
       status: true,
       quantity: true,
       locationId: true,
+      serialId: true,
       location: { select: { name: true } },
     },
   },
@@ -119,10 +130,6 @@ function toDetail(row: DetailRow): BatchDetail {
       quantity: b.quantity.toString(),
     })),
   };
-}
-
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 async function findBatchOrThrow(tx: TxClient, id: string): Promise<DetailRow> {
@@ -393,13 +400,66 @@ export async function setBatchHold(
   return withTenant(ctx, async (tx) => {
     const existing = await findBatchOrThrow(tx, id);
 
-    const fromStatus = action === 'QUARANTINE_RELEASE' ? 'QUARANTINED' : 'AVAILABLE';
+    /*
+     * ⚠️ A RECALLED LOT IS NOT RELEASED HERE, AND THIS GUARD IS THE ONLY THING
+     *   THAT SAYS SO (PI-11 review, HIGH).
+     *
+     *   `QUARANTINE_RELEASE` and a recall release are two different decisions
+     *   wearing one verb. Releasing a QUARANTINE is one storekeeper deciding the
+     *   fridge came back up to temperature. Releasing a RECALL is
+     *   `resolveRecallBatch`, and it does four things this path cannot:
+     *
+     *     1. refuses while any OTHER live notice still names the lot — two
+     *        notices over one production run is ordinary;
+     *     2. clears `recalled_at` and `recall_reference` with the status, so the
+     *        row does not end up ACTIVE while still carrying a recall reference;
+     *     3. writes a `RECALL_RELEASE` ledger leg out of the RECALLED bucket —
+     *        this path's `fromStatus` is QUARANTINED, so it moves NOTHING and
+     *        leaves no trace that the lot went back on sale;
+     *     4. moves `recall_batches.status` off HELD, so the recall screen stops
+     *        saying the lot is still pulled.
+     *
+     *   And it sits behind `recall.execute`, which `inventory.batch.manage` does
+     *   not imply. Without this guard a storekeeper holding only the latter could
+     *   put every implant in a recalled lot back on the shelf — the serial rows
+     *   flipped to `IN_STOCK` below, with no ledger leg and no recall row
+     *   touched. The theatre nurse's screen would have said yes.
+     */
+    if (action === 'QUARANTINE_RELEASE' && existing.status === 'RECALLED') {
+      throw new ConflictError(
+        'That lot is under a recall, so it cannot be released from here. Release it on the recall notice — that checks no other notice still names it, and records what went back on the shelf.'
+      );
+    }
+
+    /*
+     * ⚠️ A RECALL PULLS EVERY BUCKET HOLDING PHYSICAL STOCK; A QUARANTINE PULLS
+     *   ONLY `AVAILABLE` (PI-11 review, CRITICAL — the same defect as
+     *   `holdBatchWithin`, on the manual path).
+     *
+     *   Quarantining is a decision about stock that is currently sellable, so
+     *   `AVAILABLE` is the right and only source. A RECALL is a decision about
+     *   the LOT: leaving its reserved, quarantined, blocked, damaged or expired
+     *   quantity behind understates what was pulled — and the reserved slice is
+     *   released back to `AVAILABLE` later by a path that never consults the
+     *   recall, at which point the allocator, which reads the balance and not the
+     *   flag, will dispense it. See the long note in `recall.service.ts`.
+     */
+    const RECALL_SOURCES: readonly string[] = [
+      'AVAILABLE',
+      'RESERVED',
+      'QUARANTINED',
+      'BLOCKED',
+      'DAMAGED',
+      'EXPIRED',
+    ];
     const toStatus =
       action === 'QUARANTINE' ? 'QUARANTINED' : action === 'RECALL' ? 'RECALLED' : 'AVAILABLE';
 
-    const movable = existing.balances.filter(
-      (b) => b.status === fromStatus && b.quantity.greaterThan(0)
-    );
+    const movable = existing.balances.filter((b) => {
+      if (!b.quantity.greaterThan(0)) return false;
+      if (action === 'RECALL') return RECALL_SOURCES.includes(b.status);
+      return b.status === (action === 'QUARANTINE_RELEASE' ? 'QUARANTINED' : 'AVAILABLE');
+    });
 
     /*
      * A lot with nothing in the source bucket is not an error. A recall of a lot
@@ -415,10 +475,15 @@ export async function setBatchHold(
           branchId: existing.branchId,
           productId: existing.productId,
           batchId: existing.id,
+          // ⚠️ See the note on `summaryInclude`. A serial-tracked lot has one
+          //   balance row per device, and the engine refuses a movement of one
+          //   that does not name it.
+          serialId: balance.serialId,
           movementType: action,
           quantity: balance.quantity.toString(),
           locationId: balance.locationId,
-          statusFrom: fromStatus,
+          /* Where it actually came from — a recall spans several buckets. */
+          statusFrom: balance.status,
           statusTo: toStatus,
           reasonCode: action,
           reasonNote: input.reason,
@@ -427,6 +492,54 @@ export async function setBatchHold(
         options
       );
     }
+
+    /*
+     * The devices in the lot follow the lot (PI-10).
+     *
+     * ⚠️ WITHOUT THIS A HELD IMPLANT READS `IN_STOCK` ON THE SERIAL SCREEN while
+     *   its quantity sits in the QUARANTINED or RECALLED bucket — two answers to
+     *   "may this be fitted", and the screen a theatre nurse looks at is the one
+     *   that says yes. `ISSUED` serials are deliberately untouched: that device
+     *   is already in a patient, which is the recall trace's business and not a
+     *   status change.
+     */
+    /*
+     * ⚠️ `RECALLED` IS DELIBERATELY NOT A SOURCE HERE (PI-11 review, HIGH).
+     *   PI-10 added it, which made a quarantine release quietly un-recall every
+     *   device in the lot — the guard above now refuses that case outright, and
+     *   this keeps the serial sweep honest even if a future caller reaches this
+     *   line another way. A recalled serial goes back to `IN_STOCK` in exactly
+     *   one place: `resolveRecallBatch`, and only once no other live notice
+     *   names the lot.
+     */
+    /* A recalled lot is spoken for by nobody — see `holdBatchWithin`. */
+    if (action === 'RECALL') {
+      await tx.stockReservation.updateMany({
+        where: { batchId: id, status: 'ACTIVE' },
+        data: { status: 'RELEASED', releasedAt: new Date() },
+      });
+    }
+
+    /*
+     * A RECALL takes the quarantined devices too, matching the buckets it just
+     * pulled and matching `holdBatchWithin`. A QUARANTINE takes only `IN_STOCK`,
+     * because that is the only bucket it moved.
+     */
+    const serialFrom =
+      action === 'RECALL'
+        ? ['IN_STOCK', 'QUARANTINED']
+        : action === 'QUARANTINE_RELEASE'
+          ? ['QUARANTINED']
+          : ['IN_STOCK'];
+    const serialTo =
+      action === 'QUARANTINE' ? 'QUARANTINED' : action === 'RECALL' ? 'RECALLED' : 'IN_STOCK';
+    await tx.serial.updateMany({
+      where: {
+        batchId: id,
+        status: { in: serialFrom as ('IN_STOCK' | 'QUARANTINED' | 'RECALLED')[] },
+      },
+      data: { status: serialTo },
+    });
 
     const now = new Date();
     const updated = await tx.batch.update({

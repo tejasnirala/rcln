@@ -8,6 +8,7 @@ import {
   doctorQualificationRequest,
   doctorScheduleExceptionRequest,
   doctorScheduleRequest,
+  setDoctorWeekRequest,
   feeScheduleQuery,
   referralTargetQuery,
   setDoctorCompensationRequest,
@@ -24,6 +25,7 @@ import {
   type DoctorQualificationRequest,
   type DoctorScheduleExceptionRequest,
   type DoctorScheduleRequest,
+  type SetDoctorWeekRequest,
   type ReferralTargetQuery,
   type UpdateDoctorQualificationRequest,
   type UpdateDoctorRequest,
@@ -45,6 +47,7 @@ import {
   getDoctor,
   getOwnDoctor,
   listDoctors,
+  listDoctorCandidates,
   listMasters,
   removeQualification,
   searchReferralTargets,
@@ -59,6 +62,8 @@ import {
   listSchedules,
   removeSchedule,
   requestException,
+  getDoctorWeek,
+  setDoctorWeek,
 } from '../../services/doctor/doctor-schedule.service.js';
 import {
   getDoctorCompensation,
@@ -98,6 +103,8 @@ router.use(requireTenant, authenticate, requireAuth);
 
 const doctorParams = z.object({ doctorId: z.uuid() });
 const scheduleParams = doctorParams.extend({ scheduleId: z.uuid() });
+/** Which site's week. Required — a doctor at two branches has two. */
+const doctorWeekQuery = z.object({ branchId: z.uuid() });
 const exceptionParams = doctorParams.extend({ exceptionId: z.uuid() });
 const qualificationParams = doctorParams.extend({ rowId: z.uuid() });
 
@@ -120,6 +127,28 @@ router.get(
   authorize(PERMISSIONS.DOCTOR_READ),
   async (req: Request, res: Response): Promise<void> => {
     sendSuccess(res, await listMasters(tenantContextFrom(req)));
+  }
+);
+
+/**
+ * Who could be made a doctor.
+ *
+ * ⚠️ REGISTERED ABOVE `/:doctorId`, OR EXPRESS CAPTURES "candidates" AS AN ID
+ *   and the screen gets a 400 about a malformed uuid.
+ *
+ * ⚠️ AND IT IS GATED ON `doctor.create`, NOT ON `iam.user.read`. The screen used
+ *   to build this list client-side out of `GET /api/v1/members`, which meant it
+ *   showed every member of the clinic — the pharmacist, the receptionist, the
+ *   administrator — and shipped their phone numbers and permission overrides to
+ *   a form that needed a name. Whoever is registering a doctor already holds
+ *   `doctor.create`; requiring the staff-directory permission as well was a
+ *   second gate on a page that had already passed one.
+ */
+router.get(
+  '/candidates',
+  authorize(PERMISSIONS.DOCTOR_CREATE),
+  async (req: Request, res: Response): Promise<void> => {
+    sendSuccess(res, await listDoctorCandidates(tenantContextFrom(req)));
   }
 );
 
@@ -523,6 +552,51 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     const { doctorId } = req.params as z.infer<typeof doctorParams>;
     sendSuccess(res, { schedules: await listSchedules(tenantContextFrom(req), doctorId) });
+  }
+);
+
+/**
+ * A doctor's whole week at one branch (DS-1).
+ *
+ * ⚠️ THE SCREEN USES THIS; `POST /schedules` IS THE OLDER, BLOCK-AT-A-TIME
+ *   PATH AND IS KEPT. The two write the same rows, so a clinic that scripted
+ *   against the block endpoint keeps working — but the block form let somebody
+ *   create three overlapping Tuesdays, and this cannot: a week is replaced as a
+ *   set, with at most a morning and an evening period per day.
+ *
+ * `?branchId=` is required rather than defaulted: a doctor consulting at two
+ * sites has two weeks, and guessing which one is being edited is how the wrong
+ * rota gets overwritten.
+ */
+router.get(
+  '/:doctorId/week',
+  authorize(PERMISSIONS.DOCTOR_SCHEDULE_READ),
+  validate(doctorParams, 'params'),
+  validate(doctorWeekQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { doctorId } = req.params as z.infer<typeof doctorParams>;
+    const { branchId } = req.query as unknown as z.infer<typeof doctorWeekQuery>;
+    sendSuccess(res, await getDoctorWeek(tenantContextFrom(req), doctorId, branchId));
+  }
+);
+
+router.put(
+  '/:doctorId/week',
+  authorize(PERMISSIONS.DOCTOR_SCHEDULE_MANAGE),
+  validate(doctorParams, 'params'),
+  validate(setDoctorWeekRequest, 'body'),
+  async (req: Request, res: Response): Promise<void> => {
+    const { doctorId } = req.params as z.infer<typeof doctorParams>;
+    sendSuccess(
+      res,
+      await setDoctorWeek(
+        tenantContextFrom(req),
+        doctorId,
+        req.body as SetDoctorWeekRequest,
+        auditMeta(req)
+      ),
+      'Working hours saved'
+    );
   }
 );
 

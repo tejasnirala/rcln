@@ -9,10 +9,10 @@ import { StockNav } from '@/components/tenant/stock-nav';
 import { readable } from '@/components/tenant/stock-status';
 import { formatClinicDateTime } from '@/lib/format';
 import {
-  IDLE_FORM,
   releaseReservationAction,
   type StockFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/stock/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/stock/form-state';
 
 /**
  * Stock that is spoken for.

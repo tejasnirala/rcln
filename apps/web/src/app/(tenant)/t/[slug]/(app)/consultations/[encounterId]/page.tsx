@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import type { EncounterDetail } from '@rcln/contracts';
+import type {
+  ConsumptionListResponse,
+  ConsumptionPlanResponse,
+  EncounterDetail,
+  InventoryLocationListResponse,
+} from '@rcln/contracts';
 import { PERMISSIONS } from '@rcln/permissions';
 import { api } from '@/lib/api';
 import { getAccessToken, getSession, timezoneOfBranch } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
 import { ConsultationEngine } from '@/components/tenant/consultation-engine';
+import { ConsumptionPanel } from '@/components/tenant/consumption-panel';
+import { usageAccess } from '../../usage/guard';
 
 export const metadata: Metadata = {
   /** ⚠️ NEVER THE PATIENT'S NAME. Same rule as every clinical screen. */
@@ -77,6 +84,24 @@ export default async function ConsultationRecordPage({
   }
 
   const record = encounter.data;
+  const timeZone = await timezoneOfBranch(slug, record.branchId);
+
+  /*
+   * ⚠️ WHAT THIS CONSULTATION CONSUMED (PI-9), FETCHED BESIDE THE RECORD RATHER
+   *   THAN INSIDE THE ENGINE. It is not clinical content — the consultation
+   *   engine renders the chart through the encounter's own frozen snapshot, and
+   *   a stock movement has no place in that snapshot (invariant 7). It is
+   *   rendered here, beside the record, which is exactly the relationship the
+   *   two things have.
+   *
+   * ⚠️ AND IT IS WRITABLE ON A SCREEN THAT IS OTHERWISE READ-ONLY, WHICH IS NOT
+   *   AN INCONSISTENCY. The clinical record of a signed consultation is
+   *   immutable and there is no endpoint that edits one; what came off the
+   *   trolley is a different fact with a different lifecycle, and it can be
+   *   recorded late — a nurse reconciling a tray after the doctor has signed is
+   *   the ordinary case rather than an exception.
+   */
+  const consumption = await usageAccess(slug);
 
   return (
     <div>
@@ -137,7 +162,7 @@ export default async function ConsultationRecordPage({
            consultation written at another site must see the times where it
            happened. The appointments page passes the BOOKING's zone for the
            same reason; the two screens show one record and must agree. */
-        timeZone={await timezoneOfBranch(slug, record.branchId)}
+        timeZone={timeZone}
         /* Reached by encounter id, not through a booking — see the page note. */
         appointmentId={null}
         encounter={record}
@@ -145,6 +170,86 @@ export default async function ConsultationRecordPage({
         canFinalize={false}
         canAmend={false}
       />
+
+      {consumption.canRead ? (
+        <ConsumptionSection
+          slug={slug}
+          encounterId={encounterId}
+          branchId={record.branchId}
+          timeZone={timeZone}
+          canRecord={consumption.canRecord}
+          canOverride={consumption.canOverride}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * The consumption panel's own data, fetched separately.
+ *
+ * ⚠️ THREE REQUESTS RATHER THAN ONE, AND THEY ARE PARALLEL. The plan, what has
+ *   already been recorded and the places stock can come from are three different
+ *   endpoints owned by three different services; awaiting them in sequence would
+ *   be the waterfall `vercel-react-best-practices` names first.
+ *
+ * ⚠️ THE PLAN IS FOR THE CONSULTATION ITSELF, NOT FOR A PROCEDURE. Anchoring to
+ *   a named procedure is what the API prefers and what a dental workflow wants,
+ *   but this screen is reached by encounter id from the visit history and has no
+ *   procedure selected. Recording against the visit is the honest anchor for
+ *   what it knows; a procedure-anchored panel belongs on the procedure, which is
+ *   inside the consultation engine and is a screen PI-9 deliberately did not
+ *   reshape.
+ */
+async function ConsumptionSection({
+  slug,
+  encounterId,
+  branchId,
+  timeZone,
+  canRecord,
+  canOverride,
+}: {
+  slug: string;
+  encounterId: string;
+  branchId: string;
+  timeZone: string;
+  canRecord: boolean;
+  canOverride: boolean;
+}) {
+  const accessToken = await getAccessToken();
+
+  const [plan, records, locations] = await Promise.all([
+    api<ConsumptionPlanResponse>(
+      `/api/v1/consumption/plan?encounterId=${encounterId}&branchId=${branchId}`,
+      { slug, accessToken }
+    ),
+    api<ConsumptionListResponse>(
+      `/api/v1/consumption/records?encounterId=${encounterId}&limit=50`,
+      { slug, accessToken }
+    ),
+    api<InventoryLocationListResponse>(`/api/v1/inventory-locations?branchId=${branchId}`, {
+      slug,
+      accessToken,
+    }),
+  ]);
+
+  if (!plan.ok || !plan.data) {
+    return (
+      <Alert tone="info" className="mt-4">
+        What this consultation used could not be loaded. The clinical record above is unaffected.
+      </Alert>
+    );
+  }
+
+  return (
+    <ConsumptionPanel
+      slug={slug}
+      plan={plan.data}
+      records={records.data?.items ?? []}
+      locations={(locations.data?.locations ?? []).filter((location) => location.isActive)}
+      timeZone={timeZone}
+      canRecord={canRecord}
+      canOverride={canOverride}
+    />
   );
 }

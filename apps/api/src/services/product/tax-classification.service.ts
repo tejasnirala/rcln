@@ -204,6 +204,40 @@ export async function resolveTaxCategory(
   on: Date
 ): Promise<ResolvedTaxCategoryResponse> {
   /*
+   * ⚠️ ONE PRODUCT IS THE BATCH OF ONE. The precedence rule below is the thing
+   *   that shipped a CRITICAL in PI-1 — a `NULLS LAST` that Postgres does not
+   *   default to, which made every regional override silently inert — so it
+   *   exists exactly once and both callers go through it. A second copy for the
+   *   batch path is how the two start disagreeing about which row wins.
+   */
+  const byProduct = await resolveTaxCategories(tx, [productId], jurisdiction, on);
+  return byProduct.get(productId) ?? { taxCategory: null, itemCode: null };
+}
+
+/**
+ * The same question for many products, in one query (PI-8).
+ *
+ * ⚠️ IT EXISTS BECAUSE THE SUPPLY PATH ASKS IT PER LINE, INSIDE THE POSTING
+ *   TRANSACTION, WHILE THAT TRANSACTION HOLDS STOCK LOCKS. A twelve-line
+ *   dispense was twelve round trips for this alone; the classifications for a
+ *   whole supply are a handful of rows.
+ *
+ * ⚠️ AND THE PRECEDENCE IS RANKED IN MEMORY RATHER THAN BY `take: 1`, because
+ *   `take: 1` cannot mean "one per product". The ORDER BY is the same one the
+ *   singular always used — region first, then most recently effective — and the
+ *   first row seen per product is therefore the same row `take: 1` would have
+ *   returned.
+ */
+export async function resolveTaxCategories(
+  tx: TxClient,
+  productIds: readonly string[],
+  jurisdiction: { countryCode: string; regionCode?: string | null },
+  on: Date
+): Promise<Map<string, ResolvedTaxCategoryResponse>> {
+  const resolved = new Map<string, ResolvedTaxCategoryResponse>();
+  if (productIds.length === 0) return resolved;
+
+  /*
    * ⚠️ TWO `OR` GROUPS, SO THEY GO IN `AND`. THEY CANNOT BOTH BE `OR:` KEYS.
    *   An object literal takes the LAST value for a repeated key, and a spread
    *   counts — `{ ...(cond ? { OR: a } : {}), OR: b }` is just `{ OR: b }`. It
@@ -227,7 +261,7 @@ export async function resolveTaxCategory(
 
   const rows = await tx.productTaxClassification.findMany({
     where: {
-      productId,
+      productId: { in: [...new Set(productIds)] },
       countryCode: jurisdiction.countryCode,
       effectiveFrom: { lte: day },
       AND: [
@@ -257,13 +291,14 @@ export async function resolveTaxCategory(
       // Then the most recently effective, so a rate change supersedes cleanly.
       { effectiveFrom: 'desc' },
     ],
-    take: 1,
   });
 
-  const match = rows[0];
-  if (!match) return { taxCategory: null, itemCode: null };
-
-  return { taxCategory: match.taxCategory, itemCode: match.itemCode };
+  /* First row seen per product wins — the ORDER BY above is the precedence. */
+  for (const row of rows) {
+    if (resolved.has(row.productId)) continue;
+    resolved.set(row.productId, { taxCategory: row.taxCategory, itemCode: row.itemCode });
+  }
+  return resolved;
 }
 
 /** The HTTP-facing wrapper. Opens its own transaction. */

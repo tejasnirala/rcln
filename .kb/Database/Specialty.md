@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/doctors.prisma:137`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `platform_extensible` policy |
 | columns | 13 |
-| relations | 12 |
+| relations | 13 |
 
 ## Columns
 
@@ -46,6 +46,7 @@ Declared at `packages/db/prisma/schema/doctors.prisma:137`.
 | `visualMapContexts` | [`VisualMap`](VisualMap.md) | `visualMapContexts VisualMap[] @relation("VisualMapCareContext")` |
 | `visualMapSpecialties` | [`VisualMap`](VisualMap.md) | `visualMapSpecialties VisualMap[] @relation("VisualMapSpecialty")` |
 | `referrals` | [`EncounterReferral`](EncounterReferral.md) | `referrals EncounterReferral[] @relation("ReferralSpecialty")` |
+| `clinicProfileContexts` | [`ClinicProfileCareContext`](ClinicProfileCareContext.md) | `clinicProfileContexts ClinicProfileCareContext[]` |
 
 ## Indexes and constraints
 
@@ -67,4 +68,5 @@ erDiagram
     Specialty }o--o{ ConsultationTemplate : relates
     Specialty }o--o{ VisualMap : relates
     Specialty }o--o{ EncounterReferral : relates
+    Specialty }o--o{ ClinicProfileCareContext : relates
 ```

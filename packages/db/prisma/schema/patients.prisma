@@ -215,6 +215,21 @@ model Patient {
   followUpRecommendations EncounterFollowUpRecommendation[]
   /// This person's clinical record (CE-3). ⚠️ PHI.
   encounters              Encounter[]
+  /// What this person has been given at the counter (PI-7). ⚠️ PHI, and
+  /// `onDelete: Restrict` on the other side: a dispensing record is a retention
+  /// obligation in most jurisdictions and outlives their being a current patient.
+  dispenses               Dispense[]
+  /// Online pharmacy (PI-12). ⚠️ NOT NULLABLE on the order, unlike a dispense:
+  /// somebody has to receive a parcel. See the model comment.
+  onlineOrders            OnlineOrder[]             @relation("OnlineOrderPatient")
+  /// What this person is being billed for (PI-8). ⚠️ PHI, and `Restrict` on the
+  /// other side for the reason `dispenses` is: a billing record is a retention
+  /// obligation too.
+  chargeRequests          ChargeRequest[]
+  /// What was used ON this person during a procedure (PI-9). ⚠️ PHI, and
+  /// `Restrict` on the other side for the reason the two above are — "which
+  /// implant was fitted" is the question a device recall asks years later.
+  clinicalConsumptions    ClinicalConsumption[]
 
   @@unique([organizationId, uhid])
   /// Composite-FK target. Registrations, appointments, encounters, invoices and
@@ -332,7 +347,14 @@ model PatientContact {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   patient      Patient      @relation(fields: [organizationId, patientId], references: [organizationId, id], onDelete: Cascade)
+  /// The animals this person brings in (PI-11). Almost always none, and never
+  /// more than a handful — a household with three dogs is three rows.
+  animalProfiles AnimalProfile[]
 
+  /// Composite-FK target. `animal_profiles.guardian_contact_id` points at
+  /// (organization_id, id) so an animal can never name another tenant's owner
+  /// (ADR-0004). Added by PI-11.
+  @@unique([organizationId, id])
   @@index([organizationId, patientId])
   @@map("patient_contacts")
 }

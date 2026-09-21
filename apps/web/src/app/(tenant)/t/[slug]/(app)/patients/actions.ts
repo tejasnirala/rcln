@@ -2,12 +2,18 @@
 
 import { revalidatePath } from 'next/cache';
 import {
+  animalProfileRequest,
   createPatientRequest,
+  doseCalculationRequest,
   patientAllergyRequest,
   patientConditionRequest,
   patientContactRequest,
   patientMedicationRequest,
   updatePatientRequest,
+  type AppointmentSummary,
+  type DoseCalculationResponse,
+  type InvoiceListItem,
+  type PatientAppointmentsResponse,
   type PatientDetail,
   type PatientDuplicateMatch,
   type PatientDuplicateResponse,
@@ -192,9 +198,32 @@ export async function registerPatient(
   const line1 = text(formData, 'line1');
   const contactName = text(formData, 'contactName');
 
+  const isAnimal = text(formData, 'subjectType') === 'ANIMAL';
+  const species = text(formData, 'species');
+  const breed = text(formData, 'breed');
+
   const parsed = createPatientRequest.safeParse({
     firstName: String(formData.get('firstName') ?? ''),
     branchId: String(formData.get('branchId') ?? ''),
+    subjectType: isAnimal ? 'ANIMAL' : 'HUMAN',
+    /*
+     * ⚠️ ONLY SENT FOR AN ANIMAL, AND ONLY WHEN SOMETHING WAS TYPED. The
+     *   contract refuses an animal profile on a human record — a stray empty
+     *   object from a hidden fieldset would turn "the desk registered a person"
+     *   into a validation error about a field nobody could see.
+     *
+     * The WEIGHT is deliberately not on this form. It needs the date it was
+     * taken alongside it, and a registration desk with a queue is not where an
+     * animal gets put on the scales — that is the animal panel on the chart.
+     */
+    ...(isAnimal && (species !== undefined || breed !== undefined)
+      ? {
+          animalProfile: {
+            ...(species !== undefined ? { species } : {}),
+            ...(breed !== undefined ? { breed } : {}),
+          },
+        }
+      : {}),
     ...(text(formData, 'lastName') ? { lastName: text(formData, 'lastName') } : {}),
     ...(text(formData, 'dateOfBirth') ? { dateOfBirth: text(formData, 'dateOfBirth') } : {}),
     ...(number(formData, 'approxAgeYears') !== undefined
@@ -289,15 +318,43 @@ export async function updatePatient(
   _previous: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
+  /*
+   * ⚠️ AN EMPTY BOX IS "UNCHANGED", NOT "CLEAR IT" — `text()` returns undefined
+   *   for one and the key is then omitted, so the stored value stands. That is
+   *   the only thing `updatePatientRequest` can express: it is `.partial()` over
+   *   optional strings with no nulls anywhere in it. Sending `''` instead would
+   *   be refused by the field's own rule (`contactPhone`, `z.email()`) and
+   *   surface as a validation error about a field somebody had just emptied on
+   *   purpose. Erasing a recorded number needs a contract that accepts null;
+   *   there is no way to fake it from this side.
+   *
+   * The AGE PAIR is the exception, and it is handled by the API rather than
+   * here: setting a date of birth nulls `approx_age_years` and vice versa,
+   * mirroring the `patients_age_single_source` CHECK. The form unmounts
+   * whichever of the two is not in play, so only one ever arrives.
+   */
   const parsed = updatePatientRequest.safeParse({
     ...(text(formData, 'firstName') ? { firstName: text(formData, 'firstName') } : {}),
     ...(text(formData, 'lastName') ? { lastName: text(formData, 'lastName') } : {}),
     ...(text(formData, 'dateOfBirth') ? { dateOfBirth: text(formData, 'dateOfBirth') } : {}),
+    ...(number(formData, 'approxAgeYears') !== undefined
+      ? { approxAgeYears: number(formData, 'approxAgeYears') }
+      : {}),
     ...(text(formData, 'gender') ? { gender: text(formData, 'gender') } : {}),
     ...(text(formData, 'bloodGroup') ? { bloodGroup: text(formData, 'bloodGroup') } : {}),
     ...(text(formData, 'phone') ? { phone: text(formData, 'phone') } : {}),
     ...(text(formData, 'email') ? { email: text(formData, 'email') } : {}),
     ...(text(formData, 'maritalStatus') ? { maritalStatus: text(formData, 'maritalStatus') } : {}),
+    ...(text(formData, 'abhaNumber') ? { abhaNumber: text(formData, 'abhaNumber') } : {}),
+    ...(text(formData, 'nationalId') ? { nationalId: text(formData, 'nationalId') } : {}),
+    /*
+     * Only alongside a value, exactly as registration sends it: `refineNationalId`
+     * refuses a type with an empty number, and a record whose number was left
+     * untouched would otherwise fail on a type nobody had edited.
+     */
+    ...(text(formData, 'nationalId') && text(formData, 'nationalIdType')
+      ? { nationalIdType: text(formData, 'nationalIdType') }
+      : {}),
   });
 
   if (!parsed.success) {
@@ -316,7 +373,17 @@ export async function updatePatient(
   });
 
   if (!result.ok) {
-    return { status: 'error', message: result.message ?? 'The record could not be updated.' };
+    /*
+     * The field errors matter more here than on most updates: `national_id` and
+     * `abha_number` are uniquely indexed per organization, so a clash comes back
+     * as a 409 naming the field — and "already on another record" has to land on
+     * the box that caused it, not in a banner above eleven of them.
+     */
+    return {
+      status: 'error',
+      message: result.message ?? 'The record could not be updated.',
+      ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}),
+    };
   }
 
   revalidatePath(`/t/${slug}/patients/${patientId}`);
@@ -543,9 +610,260 @@ export async function stopMedication(
  * `null` (no data for that country, a timeout, a 404) is an ordinary answer that
  * simply leaves the fields to be typed.
  */
+// ---------------------------------------------------------------------------
+// The animal behind an ANIMAL record (PI-11)
+// ---------------------------------------------------------------------------
+
+/**
+ * Species, breed, weight and owner.
+ *
+ * ⚠️ A REPLACE, NOT A PATCH, AND THE FORM HAS TO SEND EVERY FIELD. `PUT` clears
+ *   what it is not sent — which is the behaviour that makes clearing a weight
+ *   actually clear it, and the reason the panel renders every field as an input
+ *   pre-filled from the record rather than as a set of optional additions.
+ */
+export async function saveAnimalProfile(
+  slug: string,
+  patientId: string,
+  _previous: PatientFormState,
+  formData: FormData
+): Promise<PatientFormState> {
+  const guardianContactId = text(formData, 'guardianContactId');
+
+  const parsed = animalProfileRequest.safeParse({
+    ...(text(formData, 'species') ? { species: text(formData, 'species') } : {}),
+    ...(text(formData, 'breed') ? { breed: text(formData, 'breed') } : {}),
+    ...(text(formData, 'weightKg') ? { weightKg: text(formData, 'weightKg') } : {}),
+    ...(text(formData, 'weightRecordedOn')
+      ? { weightRecordedOn: text(formData, 'weightRecordedOn') }
+      : {}),
+    /*
+     * The owner is one form or the other, never both — the contract refuses the
+     * pair. The select wins when it has a value, so the free-text inputs are not
+     * even read: sending both would surface as a field error on a control the
+     * person did not touch.
+     */
+    ...(guardianContactId !== undefined
+      ? { guardianContactId }
+      : {
+          ...(text(formData, 'guardianName')
+            ? { guardianName: text(formData, 'guardianName') }
+            : {}),
+          ...(text(formData, 'guardianPhone')
+            ? { guardianPhone: text(formData, 'guardianPhone') }
+            : {}),
+        }),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Check the highlighted fields.',
+      fieldErrors: fieldErrorsFrom(parsed.error.issues),
+    };
+  }
+
+  const result = await api<PatientDetail>(`/api/v1/patients/${patientId}/animal-profile`, {
+    method: 'PUT',
+    slug,
+    accessToken: await getAccessToken(),
+    body: parsed.data,
+  });
+
+  if (!result.ok) {
+    return {
+      status: 'error',
+      message: result.message ?? 'The animal details could not be saved.',
+      ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}),
+    };
+  }
+
+  revalidatePath(`/t/${slug}/patients/${patientId}`);
+  return { status: 'saved', message: 'Animal details saved' };
+}
+
+export type DoseState = {
+  status: 'idle' | 'error' | 'done';
+  message?: string;
+  fieldErrors?: Record<string, string[]>;
+  dose?: DoseCalculationResponse;
+};
+
+/**
+ * "How much do I give?"
+ *
+ * ⚠️ THE ANSWER IS RETURNED INTO COMPONENT STATE AND NEVER INTO A URL, for the
+ *   reason the search is an action rather than a navigation — see the header.
+ *   A link that reproduces "276 mg for patient 6d1e…" is an artefact we do not
+ *   want to exist, and this one would additionally be a therapeutic quantity
+ *   attached to an identifiable record.
+ *
+ * ⚠️ AND THE WEIGHT IS NOT ON THIS FORM. It comes off the record on the server.
+ *   A field here would let somebody retype it, and the whole value of the
+ *   calculator is that they cannot.
+ */
+export async function calculateDose(
+  slug: string,
+  patientId: string,
+  _previous: DoseState,
+  formData: FormData
+): Promise<DoseState> {
+  const parsed = doseCalculationRequest.safeParse({
+    dosePerKg: String(formData.get('dosePerKg') ?? ''),
+    unit: String(formData.get('unit') ?? ''),
+    ...(number(formData, 'dosesPerDay') !== undefined
+      ? { dosesPerDay: number(formData, 'dosesPerDay') }
+      : {}),
+    ...(text(formData, 'maxSingleDose') ? { maxSingleDose: text(formData, 'maxSingleDose') } : {}),
+    ...(text(formData, 'maxDailyDose') ? { maxDailyDose: text(formData, 'maxDailyDose') } : {}),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Check the highlighted fields.',
+      fieldErrors: fieldErrorsFrom(parsed.error.issues),
+    };
+  }
+
+  const result = await api<DoseCalculationResponse>(
+    `/api/v1/patients/${patientId}/dose-calculations`,
+    { method: 'POST', slug, accessToken: await getAccessToken(), body: parsed.data }
+  );
+
+  if (!result.ok || !result.data) {
+    return {
+      status: 'error',
+      message: result.message ?? 'The dose could not be calculated.',
+      ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}),
+    };
+  }
+
+  return { status: 'done', dose: result.data };
+}
+
 export async function lookupPostalCode(
   countryCode: string,
   postalCode: string
 ): Promise<PostalLookup | null> {
   return lookupPostalCodeImpl(countryCode, postalCode);
+}
+
+// ---------------------------------------------------------------------------
+// The record tabs: bookings and bills
+// ---------------------------------------------------------------------------
+
+/**
+ * ⚠️ ACTIONS RATHER THAN A NAVIGATION, AND THE REASON IS NOT THE SEARCH TERM
+ *   THIS TIME. Nothing paged here is a name — the patient is already in the
+ *   path — so a query parameter would cost no disclosure. It would cost the
+ *   SCREEN: paging the bookings through the URL re-renders the whole chart,
+ *   collapsing whichever edit panel is open and scrolling a doctor away from the
+ *   thing they were reading. The tabs sit at the bottom of a long record, and a
+ *   page-two click that moves the page is a page-two click nobody makes twice.
+ *
+ * ⚠️ ONLY THE FIRST PAGE OF THE BOOKINGS IS FETCHED BY THE PAGE ITSELF. The
+ *   bills are fetched the first time somebody opens that tab, so a chart opened
+ *   to check a telephone number reads no invoices — see `patient-record-tabs.tsx`.
+ */
+export type PatientAppointmentsState = {
+  status: 'idle' | 'error' | 'done';
+  message?: string;
+  appointments: AppointmentSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+/** Rows per tab. Ten fills the panel without turning the chart into a ledger. */
+const TAB_PAGE_SIZE = 10;
+
+export async function loadPatientAppointments(
+  slug: string,
+  patientId: string,
+  page: number
+): Promise<PatientAppointmentsState> {
+  const query = new URLSearchParams({ page: String(page), pageSize: String(TAB_PAGE_SIZE) });
+  const result = await api<PatientAppointmentsResponse>(
+    `/api/v1/patients/${patientId}/appointments?${query.toString()}`,
+    { slug, accessToken: await getAccessToken() }
+  );
+
+  if (!result.ok || !result.data) {
+    return {
+      status: 'error',
+      message:
+        result.status === 403
+          ? 'You do not have access to appointments here.'
+          : (result.message ?? 'These appointments could not be loaded.'),
+      appointments: [],
+      total: 0,
+      page,
+      pageSize: TAB_PAGE_SIZE,
+    };
+  }
+
+  return { status: 'done', ...result.data };
+}
+
+export type PatientInvoicesState = {
+  status: 'idle' | 'error' | 'done';
+  message?: string;
+  invoices: InvoiceListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+/**
+ * The patient's bills.
+ *
+ * ⚠️ THE LEDGER'S OWN ENDPOINT WITH `patientId` SET, NOT A SECOND ONE. `GET
+ *   /api/v1/invoices` already filters by patient, pages, and is gated on
+ *   `billing.invoice.read` — the contract even says a person's bills are found
+ *   from their record, which is this screen. A patient-nested duplicate would be
+ *   a second surface to keep in step for no new fact.
+ *
+ * ⚠️ EVERY KIND, SO A CREDIT NOTE IS VISIBLE. Omitting `kind` returns invoices
+ *   and reversals both. A tab that showed only charges would tell somebody a
+ *   refunded bill is still owed.
+ */
+export async function loadPatientInvoices(
+  slug: string,
+  patientId: string,
+  page: number
+): Promise<PatientInvoicesState> {
+  const query = new URLSearchParams({
+    patientId,
+    page: String(page),
+    limit: String(TAB_PAGE_SIZE),
+  });
+  const result = await api<InvoiceListItem[]>(`/api/v1/invoices?${query.toString()}`, {
+    slug,
+    accessToken: await getAccessToken(),
+  });
+
+  if (!result.ok || !result.data) {
+    return {
+      status: 'error',
+      message:
+        result.status === 403
+          ? 'You do not have access to invoices here.'
+          : (result.message ?? 'These invoices could not be loaded.'),
+      invoices: [],
+      total: 0,
+      page,
+      pageSize: TAB_PAGE_SIZE,
+    };
+  }
+
+  /* `sendPaginated` puts the rows in `data` and the counts in `meta` — a caller
+     that reads only `data` gets the rows and silently loses the page count. */
+  return {
+    status: 'done',
+    invoices: result.data,
+    total: result.meta?.total ?? result.data.length,
+    page: result.meta?.page ?? page,
+    pageSize: result.meta?.limit ?? TAB_PAGE_SIZE,
+  };
 }

@@ -17,16 +17,16 @@ Files: `packages/tax/jest.config.ts` · `packages/tax/src/arithmetic.ts` · `pac
 | `netOf` | `(gross: Money, rateBps: number): Money` | `packages/tax/src/arithmetic.ts:27` |  |
 | `placeOfSupplyFor` | `(supply: { customer: Jurisdiction; placeOfSupply?: Jurisdict…): Jurisdiction` | `packages/tax/src/selection.ts:27` |  |
 | `priceLines` <sub>local</sub> | `(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction, rate: ResolvedRate): Quote` | `packages/tax/src/engine.ts:262` |  |
-| `rateFor` | `(supply: TaxableSupply, registration: IssuerRegistration): ResolvedRate` | `packages/tax/src/selection.ts:242` |  |
+| `rateFor` | `(supply: TaxableSupply, registration: IssuerRegistration): ResolvedRate` | `packages/tax/src/selection.ts:263` |  |
 | `registrationFor` | `(registrations: readonly IssuerRegistration[], place: Jurisdiction): IssuerRegistration \| null` | `packages/tax/src/selection.ts:57` |  |
 | `resolve` <sub>local</sub> | `(supply: TaxableSupply): Quote` | `packages/tax/src/engine.ts:145` |  |
 | `resolveGst` <sub>local</sub> | `(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction): Quote` | `packages/tax/src/engine.ts:388` |  |
 | `resolveTax` | `(supply: TaxableSupply): TaxQuote` | `packages/tax/src/engine.ts:75` |  |
 | `resolveVat` <sub>local</sub> | `(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction): Quote` | `packages/tax/src/engine.ts:430` |  |
 | `resolveViaProvider` <sub>local</sub> | `(supply: TaxableSupply, registration: IssuerRegistration, place: Jurisdiction, missing: string): Quote` | `packages/tax/src/engine.ts:475` |  |
-| `ruleFor` | `(rules: readonly TaxRule[], registration: IssuerRegistration, taxCategory: string, at: Date): TaxRule \| null` | `packages/tax/src/selection.ts:101` |  |
-| `rulesFor` | `(rules: readonly TaxRule[], registration: IssuerRegistration, taxCategory: string, at: Date): TaxRule[]` | `packages/tax/src/selection.ts:144` |  |
-| `syntheticRule` <sub>local</sub> | `(registration: IssuerRegistration, rateBps: number): TaxRule` | `packages/tax/src/selection.ts:218` | The rule a one-product issuer implies, so every path below prices a rule. |
+| `ruleFor` | `(rules: readonly TaxRule[], registration: IssuerRegistration, taxCategory: string, at: Date): TaxRule \| null` | `packages/tax/src/selection.ts:122` |  |
+| `rulesFor` | `(rules: readonly TaxRule[], registration: IssuerRegistration, taxCategory: string, at: Date): TaxRule[]` | `packages/tax/src/selection.ts:165` |  |
+| `syntheticRule` <sub>local</sub> | `(registration: IssuerRegistration, rateBps: number): TaxRule` | `packages/tax/src/selection.ts:239` | The rule a one-product issuer implies, so every path below prices a rule. |
 | `taxOn` | `(net: Money, rateBps: number): Money` | `packages/tax/src/arithmetic.ts:15` | Tax on a net amount, rounded half-up at the currency's own scale. `scaleMoney` multiplies before dividing, so the intermediate never becomes a float — the same… |
 | `untaxedWith` <sub>local</sub> | `(supply: TaxableSupply, place: Jurisdiction)` | `packages/tax/src/engine.ts:83` | A quote that charges nothing. Every zero-tax exit in this file goes through it. |
 
@@ -48,7 +48,7 @@ Files: `packages/tax/jest.config.ts` · `packages/tax/src/arithmetic.ts` · `pac
 | --- | --- | --- | --- |
 | `IssuerRegistration` | `{ id, legalName, scheme, registrationNumber, effectiveFrom, standardRateBps }` | `packages/tax/src/types.ts:78` |  |
 | `Jurisdiction` | `{ countryCode, regionCode }` | `packages/tax/src/types.ts:63` |  |
-| `ResolvedRate` | `{ rules, rateBps, treatment, taxCategory }` | `packages/tax/src/selection.ts:207` |  |
+| `ResolvedRate` | `{ rules, rateBps, treatment, taxCategory }` | `packages/tax/src/selection.ts:228` |  |
 | `TaxableCustomer` | `{ taxId, taxIdStatus }` | `packages/tax/src/types.ts:212` | Who is being supplied, and what we know about them. |
 | `TaxableSupply` | `{ net, customer, registrations, suppliedAt, placeOfSupply, taxCategory, rules, providerQuote }` | `packages/tax/src/types.ts:218` |  |
 | `TaxLine` | `{ name, rateBps, amount, jurisdiction, ruleId, ruleSource }` | `packages/tax/src/types.ts:263` |  |

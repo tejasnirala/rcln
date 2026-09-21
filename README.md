@@ -176,7 +176,16 @@ pnpm db:generate    # Prisma client
 pnpm db:migrate     # schema + RLS policies
 pnpm db:seed        # permissions, system roles, settings, plans, super admin
 pnpm db:rls:check   # fails if any tenant table lacks a policy
+pnpm db:test:setup  # builds `rcl_testing`, the database the test suite writes to
 ```
+
+The tests never touch `rcln`. `pnpm test` rewrites `DATABASE_URL` and
+`DIRECT_DATABASE_URL` to `rcl_testing` — same server, same roles, different
+database — so a run cannot bury the records you created in the browser. Re-run
+`pnpm db:test:setup` after any migration; on Path A the `migrate` service does it
+for you on every `docker compose up`. Add `--fresh` to drop and rebuild it — the
+right move after a setup that failed halfway, because Prisma refuses to apply
+anything to a database holding a failed migration record.
 
 **Step 6 — Run**
 
@@ -399,6 +408,7 @@ The same workspace scripts exist on every path. On Path A prefix them with
 | Prisma Studio             | `docker compose exec api pnpm db:studio`               | `pnpm db:studio`               |
 | Tenant-isolation suite    | `docker compose exec api pnpm --filter @rcln/api test` | `pnpm --filter @rcln/api test` |
 | Re-seed                   | `docker compose exec api pnpm db:seed`                 | `pnpm db:seed`                 |
+| Build the test database   | `docker compose exec api pnpm db:test:setup`           | `pnpm db:test:setup`           |
 | Restore `rcln_app` grants | `docker compose exec api pnpm db:grants`               | `pnpm db:grants`               |
 
 Convenience aliases exist for the Docker verbs: `pnpm up`, `pnpm down`,

@@ -238,11 +238,42 @@ describe('a scheduled medicine is not supplied without a prescription', () => {
     expect(decision.outcome).toBe('REFUSED');
   });
 
-  it('applies to a remote supply exactly as it does over a counter', async () => {
+  /**
+   * ⚠️ THIS PAIR REPLACES ONE CASE THAT PASSED FOR THE WRONG REASON UNTIL PI-12.
+   *   It asserted only that the Schedule H rule refuses a remote supply — true,
+   *   and it would have kept passing with the pack's `ONLINE_DISPENSE` listing
+   *   deleted, because nothing else spoke. What actually decides a remote supply
+   *   FIRST is whether anybody has recorded that the product may be sent out at
+   *   all, and India's pack deliberately carries no rule saying so (see the note
+   *   in `seed/data/regulatory-in.ts` about the e-pharmacy position).
+   */
+  it('will not consider a remote supply nobody has cleared the product for', async () => {
     const decision = await evaluateProduct('H', { transaction: 'ONLINE_DISPENSE' });
 
-    expect(decision.outcome).toBe('REFUSED');
-    expect(codes(decision)).toContain('IN-RX-SCH-H');
+    /* The engine raised it, so no rule is cited. */
+    expect(decision.outcome).toBe('UNDETERMINED');
+    expect(codes(decision)).toEqual([]);
+  });
+
+  it('applies to a remote supply exactly as it does over a counter, once it is cleared', async () => {
+    await owner.query(
+      `UPDATE product_regulatory_profiles SET online_sale_position = 'PERMITTED'
+        WHERE organization_id = $1 AND product_id = $2`,
+      [org.organizationId, products['H']]
+    );
+
+    try {
+      const decision = await evaluateProduct('H', { transaction: 'ONLINE_DISPENSE' });
+
+      expect(decision.outcome).toBe('REFUSED');
+      expect(codes(decision)).toContain('IN-RX-SCH-H');
+    } finally {
+      await owner.query(
+        `UPDATE product_regulatory_profiles SET online_sale_position = 'UNKNOWN'
+          WHERE organization_id = $1 AND product_id = $2`,
+        [org.organizationId, products['H']]
+      );
+    }
   });
 
   it('does not expire a prescription, because no rule sets a validity period', async () => {

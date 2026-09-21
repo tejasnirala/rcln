@@ -33,7 +33,15 @@ export function PasswordControl({
   className,
   disabled,
   ...rest
-}: React.ComponentPropsWithoutRef<'input'>) {
+}: /*
+ * ⚠️ `WithRef`, TO MATCH `Input`. `Input` advertises a `ref` on every input it
+ *   renders, and `type="password"` routes through here — so the narrower type
+ *   was writing a cheque this path did not knowingly honour. It happened to
+ *   work, because `ref` fell into `...rest` and landed on the `<input>` below,
+ *   but nothing declared it and nothing tested it. State the guarantee where it
+ *   is kept. (PI-24 review.)
+ */
+React.ComponentPropsWithRef<'input'>) {
   const [visible, setVisible] = useState(false);
 
   return (

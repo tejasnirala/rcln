@@ -1,0 +1,26 @@
+{
+  /*
+   * Type-checks the code that `tsconfig.json` cannot: the seed data and the
+   * scripts.
+   *
+   * ⚠️ TEN COUNTRY RULE PACKS LIVED HERE UNCHECKED. `tsconfig.json` excludes
+   *   `prisma` and `scripts` because its `rootDir` is `./src` and its `outDir`
+   *   is `./dist` — including them would emit `dist/prisma/...` beside the
+   *   package's real entry points. So the exclusion is right for the BUILD and
+   *   was silently doing duty as the typecheck too, and
+   *   `prisma/seed/data/regulatory-*.ts` — the rules that decide whether a
+   *   controlled drug may lawfully be supplied — were never type-checked at all.
+   *   The gap surfaced in PI-24 only because a test in `apps/api` imported the
+   *   packs and immediately found a latent error in `regulatory-ie.ts`.
+   *
+   *   Hence a second project rather than a widened `include`: `noEmit`, so it
+   *   answers the typecheck question without touching what the build produces.
+   */
+  "extends": "../config/tsconfig.lib.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["prisma/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["node_modules", "dist", "generated"]
+}

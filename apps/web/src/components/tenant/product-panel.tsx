@@ -2,21 +2,26 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import type {
+  BranchSummary,
+  CompositionSummary,
   CreateProductIdentifierRequest,
   JurisdictionSummary,
   MedicineDetail,
   ProductDetail,
   ProductIdentifierType,
+  ProductPriceDetail,
   ProductRegulatoryProfileDetail,
   ProductSummary,
   UnitSummary,
 } from '@rcln/contracts';
+import { formatMoney, money } from '@rcln/payments/money';
 import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { cn } from '@/lib/cn';
+import { asOptions, humanise } from '@/lib/enum-words';
 import {
   addIdentifierAction,
   cloneProductAction,
@@ -27,6 +32,12 @@ import {
   saveMedicineDetailAction,
   updateProductAction,
 } from '@/app/(tenant)/t/[slug]/(app)/products/actions';
+import {
+  deleteProductPriceAction,
+  saveProductPriceAction,
+  type ChargeFormState,
+} from '@/app/(tenant)/t/[slug]/(app)/charges/actions';
+import { IDLE_CHARGE_FORM } from '@/app/(tenant)/t/[slug]/(app)/charges/form-state';
 
 /**
  * One product, and the five facets hanging off it.
@@ -54,7 +65,14 @@ import {
  */
 
 type Tab =
-  'details' | 'packaging' | 'identifiers' | 'tax' | 'regulatory' | 'medicine' | 'equivalents';
+  | 'details'
+  | 'packaging'
+  | 'identifiers'
+  | 'price'
+  | 'tax'
+  | 'regulatory'
+  | 'medicine'
+  | 'equivalents';
 
 const IDENTIFIER_TYPES = [
   { value: 'GTIN', label: 'GTIN' },
@@ -122,22 +140,14 @@ const ROUTES = [
   'OTHER',
 ];
 
-/** `MODIFIED_RELEASE` reads badly in a menu; sentence case with the underscore
- *  removed is what a pharmacist calls it. */
-function humanise(value: string): string {
-  if (value === '') return 'Not recorded';
-  const lower = value.toLowerCase().replace(/_/g, ' ');
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
-}
-
-const asOptions = (values: string[]) => values.map((v) => ({ value: v, label: humanise(v) }));
-
 interface Props {
   slug: string;
   product: ProductDetail;
   equivalents: ProductSummary[];
   medicine: MedicineDetail | null;
   units: UnitSummary[];
+  /** The formulas a medicine can be, for the Details tab's picker. */
+  compositions: CompositionSummary[];
   canManage: boolean;
   canManageIdentifiers: boolean;
   canManageTax: boolean;
@@ -147,6 +157,21 @@ interface Props {
   jurisdictions: JurisdictionSummary[];
   canReadRegulatory: boolean;
   canManageRegulatory: boolean;
+  /**
+   * What this product currently sells for, and where a price may be set (PI-8).
+   *
+   * ⚠️ THE PRICE IS SET HERE AND ONLY LISTED UNDER /charges, NOT THE OTHER WAY
+   *   ROUND. A price is meaningless without the unit it is PER — "₹45" only
+   *   means something as "₹45 a strip" — and this is the one screen where the
+   *   item, its base unit and its packaging ladder are already in front of
+   *   whoever is deciding. A create form on the price list would need its own
+   *   product picker and its own unit picker, and would happily let somebody
+   *   price a strip of something measured in millilitres.
+   */
+  prices: ProductPriceDetail[];
+  branches: BranchSummary[];
+  canReadPrices: boolean;
+  canManagePrices: boolean;
   /** Today where the clinic is standing, resolved on the server. */
   clinicToday: string;
 }
@@ -157,6 +182,7 @@ export function ProductPanel({
   equivalents,
   medicine,
   units,
+  compositions,
   canManage,
   canManageIdentifiers,
   canManageTax,
@@ -166,6 +192,10 @@ export function ProductPanel({
   jurisdictions,
   canReadRegulatory,
   canManageRegulatory,
+  prices,
+  branches,
+  canReadPrices,
+  canManagePrices,
   clinicToday,
 }: Props) {
   const router = useRouter();
@@ -192,6 +222,13 @@ export function ProductPanel({
     { id: 'details', label: 'Details', show: true },
     { id: 'packaging', label: 'Packaging', show: true },
     { id: 'identifiers', label: 'Barcodes', show: true },
+    /*
+     * ⚠️ "PRICE", AND IT SITS BEFORE "TAX" ON PURPOSE. A price is what the clinic
+     *   charges; tax is what the government takes off it. Reading them in that
+     *   order is how anybody thinks about a bill, and it puts the two commercial
+     *   tabs beside each other rather than either side of the barcodes.
+     */
+    { id: 'price', label: 'Price', show: canReadPrices },
     { id: 'tax', label: 'Tax', show: true },
     { id: 'regulatory', label: 'Regulatory', show: canReadRegulatory },
     { id: 'medicine', label: 'Medicine', show: canReadMedicine },
@@ -292,6 +329,7 @@ export function ProductPanel({
       {tab === 'details' ? (
         <DetailsTab
           product={product}
+          compositions={compositions}
           editable={editable}
           pending={pending}
           onSave={(patch) =>
@@ -323,6 +361,17 @@ export function ProductPanel({
           onExpire={(id) =>
             run(() => expireIdentifierAction(slug, product.id, id), 'Identifier expired')
           }
+        />
+      ) : null}
+
+      {tab === 'price' ? (
+        <PriceTab
+          slug={slug}
+          product={product}
+          units={units}
+          prices={prices}
+          branches={branches}
+          editable={canManagePrices}
         />
       ) : null}
 
@@ -377,11 +426,13 @@ export function ProductPanel({
 
 function DetailsTab({
   product,
+  compositions,
   editable,
   pending,
   onSave,
 }: {
   product: ProductDetail;
+  compositions: CompositionSummary[];
   editable: boolean;
   pending: boolean;
   onSave: (patch: Record<string, unknown>) => void;
@@ -390,6 +441,25 @@ function DetailsTab({
   const [status, setStatus] = useState(product.status);
   const [brandName, setBrandName] = useState(product.brandName ?? '');
   const [genericName, setGenericName] = useState(product.genericName ?? '');
+  const [compositionId, setCompositionId] = useState(product.compositionId ?? '');
+
+  /*
+   * ⚠️ THE ONE EDITABLE FIELD HERE WITH A CONSEQUENCE AT THE COUNTER. Substitution
+   *   is answered on a shared `compositionId` and on nothing else, so this select
+   *   is what turns an existing medicine into one the dispensary can offer an
+   *   alternative to — and, changed carelessly, what makes two unrelated products
+   *   equivalent. It is offered because the alternative was an API call: no screen
+   *   in this product could set it.
+   *
+   * The composition the product already has stays in the list even if it has been
+   * retired, so opening this form cannot silently clear it.
+   */
+  const compositionOptions = [
+    { value: '', label: 'Not a medicine' },
+    ...compositions
+      .filter((composition) => composition.isActive || composition.id === product.compositionId)
+      .map((composition) => ({ value: composition.id, label: composition.name })),
+  ];
 
   return (
     <section className="max-w-2xl space-y-6">
@@ -414,6 +484,7 @@ function DetailsTab({
               status,
               brandName: brandName.trim() === '' ? null : brandName.trim(),
               genericName: genericName.trim() === '' ? null : genericName.trim(),
+              compositionId: compositionId === '' ? null : compositionId,
             });
           }}
         >
@@ -444,6 +515,14 @@ function DetailsTab({
               label="Generic name"
               value={genericName}
               onChange={(e) => setGenericName(e.target.value)}
+            />
+            <Select
+              name="compositionId"
+              label="Composition"
+              value={compositionId}
+              options={compositionOptions}
+              onChange={(e) => setCompositionId(e.target.value)}
+              hint="What it is made of. Products that share one are offered as equivalents when a prescription is dispensed."
             />
           </div>
           <Button type="submit" disabled={pending}>
@@ -993,8 +1072,21 @@ function EquivalentsTab({ products }: { products: ProductSummary[] }) {
       </p>
 
       {products.length === 0 ? (
-        <p className="text-muted text-[0.875rem]">
-          Nothing else in the catalogue shares this composition.
+        /*
+         * ⚠️ THE DRAFT CAVEAT IS PART OF THE EMPTY STATE, BECAUSE THE COMMONEST
+         *   REASON THIS LIST IS EMPTY IS NOT THAT NOTHING MATCHES.
+         *   `listEquivalentProducts` returns ACTIVE and DISCONTINUED only — a
+         *   draft is not in the catalogue yet, and offering one as an equivalent
+         *   would point a dispensary at something that is not live. Correct, and
+         *   invisible: somebody who has just built two products on one
+         *   composition sees "nothing shares this" and reasonably concludes the
+         *   composition did not save. Naming the filter costs a line and answers
+         *   the question before it is asked.
+         */
+        <p className="text-muted max-w-prose text-[0.875rem]">
+          Nothing else in the catalogue shares this composition. Products still in{' '}
+          <strong className="text-ink font-medium">Draft</strong> are not listed here — set one
+          active on its Details tab and it will appear.
         </p>
       ) : (
         <ul className="border-rule divide-rule divide-y rounded-md border">
@@ -1280,5 +1372,220 @@ function RegulatoryTab({
         </div>
       ) : null}
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Price
+// ---------------------------------------------------------------------------
+
+/**
+ * What this product sells for (PI-8).
+ *
+ * ⚠️ THE UNIT IS PART OF THE PRICE AND THE PICKER IS NOT OPTIONAL. "₹45" means
+ *   nothing without "per strip", and a price whose unit was implied would be
+ *   applied to a base quantity in tablets the first time somebody dispensed by
+ *   the box. The API refuses a unit that cannot be converted to the product's
+ *   base unit through the same graph the ledger uses, so a nonsense pairing is
+ *   rejected while somebody is looking at the screen that caused it rather than
+ *   discovered weeks later as an unpriced charge.
+ *
+ * ⚠️ A ROW WITH NO BRANCH IS THE CLINIC-WIDE DEFAULT, AND IT SAYS SO IN WORDS.
+ *   An empty cell would read as missing data rather than as "this applies
+ *   everywhere", which is the one thing somebody scanning the column needs to
+ *   know. A branch row beats it, and `resolveProductPriceWithin` ranks the two
+ *   explicitly rather than leaving the NULL ordering to SQL — which is the bug
+ *   PI-1 shipped in `resolveTaxCategory`.
+ *
+ * ⚠️ AND AN UNPRICED PRODUCT IS CALLED OUT, because the consequence is otherwise
+ *   invisible until month end: it still dispenses — a missing price never stops
+ *   a supply — the charge request is written with a NULL price, and the bill
+ *   simply never happens.
+ */
+function PriceTab({
+  slug,
+  product,
+  units,
+  prices,
+  branches,
+  editable,
+}: {
+  slug: string;
+  product: ProductDetail;
+  units: UnitSummary[];
+  prices: ProductPriceDetail[];
+  branches: BranchSummary[];
+  editable: boolean;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [state, save, saving] = useActionState<ChargeFormState, FormData>(
+    saveProductPriceAction.bind(null, slug),
+    IDLE_CHARGE_FORM
+  );
+
+  /*
+   * Close the form once the save lands, so the new row is what is on screen.
+   *
+   * ⚠️ ADJUSTED DURING RENDER, NOT IN AN EFFECT, AND THE LINTER IS RIGHT TO
+   *   INSIST. `useEffect(() => setAdding(false), [state.status])` renders the
+   *   open form, commits it, then immediately renders again — a cascading render
+   *   the user can see as a flash, and `react-hooks/set-state-in-effect` is the
+   *   rule that catches it. Comparing against the previous value during render is
+   *   React's own documented pattern for "adjust state when something changes":
+   *   the re-render happens before anything is committed, so nothing flashes.
+   */
+  const [lastStatus, setLastStatus] = useState(state.status);
+  if (state.status !== lastStatus) {
+    setLastStatus(state.status);
+    if (state.status === 'saved') setAdding(false);
+  }
+
+  return (
+    <section className="max-w-3xl space-y-6">
+      <p className="text-muted max-w-prose text-[0.875rem]">
+        What this clinic charges for {product.name}. A price with no branch applies everywhere; a
+        branch price beats it. Tax is added on top, from the Tax tab.
+      </p>
+
+      {state.status === 'error' ? <Alert tone="error">{state.message}</Alert> : null}
+
+      {prices.length === 0 ? (
+        <Alert tone="warning">
+          This product has no price, so anything dispensed reaches the charge queue with nothing to
+          bill. It will still be handed over — a missing price never stops a supply — and it will
+          never reach an invoice until one is set.
+          {/*
+           * ⚠️ WHO CAN FIX IT, FOR SOMEBODY WHO CANNOT. `fee_schedule.read` is
+           *   held by the whole counter — a pharmacist, the front desk, a doctor
+           *   quoting a price — and `fee_schedule.manage` by the organization
+           *   alone. So the reader of this warning is USUALLY not the person who
+           *   can act on it, and a warning that names a consequence without
+           *   naming a next step is read as a fault in the software. Everywhere
+           *   else a refusal in this product ends with the same sentence.
+           */}
+          {editable ? null : ' Ask an administrator at this clinic to set one.'}
+        </Alert>
+      ) : (
+        <table className="w-full text-left text-[0.875rem]">
+          <thead className="text-muted border-rule border-b text-[0.75rem]">
+            <tr>
+              <th className="py-2 font-normal">Where</th>
+              <th className="py-2 font-normal">Per</th>
+              <th className="py-2 text-right font-normal">Price</th>
+              {editable ? (
+                <th className="py-2">
+                  <span className="sr-only">Actions</span>
+                </th>
+              ) : null}
+            </tr>
+          </thead>
+          <tbody>
+            {prices.map((price) => (
+              <PriceRow
+                key={price.id}
+                slug={slug}
+                productId={product.id}
+                price={price}
+                editable={editable}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {editable ? (
+        adding ? (
+          <form action={save} className="border-rule space-y-4 rounded-md border p-4">
+            <input type="hidden" name="productId" value={product.id} />
+            <Select
+              label="Where it applies"
+              name="branchId"
+              options={[
+                { value: '', label: 'Everywhere — the clinic default' },
+                ...branches.map((branch) => ({ value: branch.id, label: `Only ${branch.name}` })),
+              ]}
+              hint="A branch price beats the clinic default."
+            />
+            <Select
+              label="Price is per"
+              name="unitId"
+              defaultValue={product.baseUnitId}
+              options={units.map((unit) => ({
+                value: unit.id,
+                label: `${unit.name} (${unit.symbol})`,
+              }))}
+              hint="Must be convertible to this product’s base unit."
+              errors={state.fieldErrors?.['unitId']}
+            />
+            <Input
+              label="Price"
+              name="amountMinor"
+              type="number"
+              min={0}
+              step={1}
+              inputMode="numeric"
+              hint="In the smallest unit of the currency — 4500 is ₹45.00."
+              errors={state.fieldErrors?.['amountMinor']}
+            />
+            <div className="flex gap-3">
+              <Button type="submit" size="sm" disabled={saving}>
+                {saving ? 'Saving…' : 'Save price'}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setAdding(false)}
+                className="text-muted hover:text-ink text-[0.875rem]"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <Button size="sm" onClick={() => setAdding(true)}>
+            {prices.length === 0 ? 'Set a price' : 'Add a branch price'}
+          </Button>
+        )
+      ) : null}
+    </section>
+  );
+}
+
+function PriceRow({
+  slug,
+  productId,
+  price,
+  editable,
+}: {
+  slug: string;
+  productId: string;
+  price: ProductPriceDetail;
+  editable: boolean;
+}) {
+  const [, remove, removing] = useActionState<ChargeFormState, FormData>(async () => {
+    await deleteProductPriceAction(slug, price.id, productId);
+    return IDLE_CHARGE_FORM;
+  }, IDLE_CHARGE_FORM);
+
+  return (
+    <tr className="border-rule border-b last:border-0">
+      <td className="py-2">{price.branchName ?? 'Everywhere'}</td>
+      <td className="py-2">{price.unitSymbol}</td>
+      <td className="py-2 text-right tabular-nums">
+        {formatMoney(money(price.amountMinor, price.currency))}
+      </td>
+      {editable ? (
+        <td className="py-2 text-right">
+          <form action={remove}>
+            <button
+              type="submit"
+              disabled={removing}
+              className="text-muted hover:text-danger text-[0.875rem] disabled:opacity-40"
+            >
+              {removing ? 'Removing…' : 'Remove'}
+            </button>
+          </form>
+        </td>
+      ) : null}
+    </tr>
   );
 }

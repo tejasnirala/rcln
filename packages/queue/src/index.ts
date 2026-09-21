@@ -83,6 +83,62 @@ export interface NotificationJob {
 }
 
 /**
+ * The job names on `QUEUE.NOTIFICATIONS` (PI-24).
+ *
+ * ⚠️ EVERY PAYLOAD BELOW CARRIES IDS AND NOTHING ELSE, AND THIS IS THE RULE THAT
+ *   MATTERS MOST ON THIS QUEUE. A BullMQ job IS A REDIS KEY — the payload sits
+ *   in Redis until the job is cleaned up, and shows in every dashboard that can
+ *   read the queue. CLAUDE.md: never cache PHI in Redis, ids only. So a
+ *   patient's name, address, phone and the medicine they ordered are NOT here;
+ *   the worker opens `withTenant` and reads them from Postgres, where RLS
+ *   applies and the read is audited.
+ *
+ *   `NotificationJob` above predates this and carries a free
+ *   `payload: Record<string, unknown>`, which is exactly the hole this closes:
+ *   anything typed against it can put a name in Redis and nothing objects. New
+ *   producers use the shapes below.
+ */
+export const NOTIFICATION_JOB = {
+  ONLINE_ORDER_CONFIRMED: 'ONLINE_ORDER_CONFIRMED',
+  ONLINE_ORDER_SHIPPED: 'ONLINE_ORDER_SHIPPED',
+  ONLINE_ORDER_DELIVERY_FAILED: 'ONLINE_ORDER_DELIVERY_FAILED',
+  STOCK_EXPIRING: 'STOCK_EXPIRING',
+} as const;
+
+export type NotificationJobName = (typeof NOTIFICATION_JOB)[keyof typeof NOTIFICATION_JOB];
+
+/**
+ * Something happened to a patient's order and they should be told.
+ *
+ * ⚠️ NO RECIPIENT ADDRESS HERE EITHER, DELIBERATELY. The email is looked up from
+ *   the order at send time rather than captured at enqueue time, so a patient
+ *   who corrects their address between the dispatch and the send gets the
+ *   message — and a queue that backs up for an hour cannot deliver to an address
+ *   the clinic has since removed.
+ */
+export interface OnlineOrderNotificationJob {
+  organizationId: string;
+  branchId: string;
+  onlineOrderId: string;
+  /**
+   * Whose action triggered it — the `userId` of the tenant context the consumer
+   * opens, because `app.current_user` is what the audit triggers read.
+   */
+  actorUserId: string;
+}
+
+/** A branch has stock expiring soon, and its staff should look at it. */
+export interface StockExpiringNotificationJob {
+  organizationId: string;
+  branchId: string;
+  /** How far ahead the sweep looked, so the message can say so. */
+  withinDays: number;
+  /** How many batches matched. The list stays on the screen that can act on it. */
+  batchCount: number;
+  actorUserId: string;
+}
+
+/**
  * The job names on `QUEUE.DOCUMENTS`.
  *
  * A name per document kind rather than a `documentType` field on one payload,
@@ -249,6 +305,20 @@ export const jobId = {
    */
   invoicePdf: (invoiceId: string, attempt = 1): string =>
     attempt <= 1 ? `invoice-pdf-${invoiceId}` : `invoice-pdf-${invoiceId}-r${String(attempt)}`,
+
+  /**
+   * One notification per order per transition (PI-24).
+   *
+   * ⚠️ THE STATUS IS IN THE ID SO A RETRIED DISPATCH DOES NOT MAIL TWICE, and so
+   *   that two DIFFERENT transitions on one order still both send. Keying on the
+   *   order alone would make "shipped" de-duplicate against "confirmed" and the
+   *   patient would never hear that their parcel left.
+   */
+  orderNotification: (onlineOrderId: string, event: string): string =>
+    `notify-order-${onlineOrderId}-${event.toLowerCase()}`,
+
+  /** One expiry alert per branch per day, whatever the sweep finds. */
+  expiryAlert: (branchId: string, date: string): string => `notify-expiry-${branchId}-${date}`,
 
   subscriptionRenewal: (subscriptionId: string, periodEnd: string): string =>
     `renew-${subscriptionId}-${periodEnd}`,

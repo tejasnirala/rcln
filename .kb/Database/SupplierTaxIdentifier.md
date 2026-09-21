@@ -40,7 +40,6 @@ Declared at `packages/db/prisma/schema/procurement.prisma:281`.
 
 - `@@unique([organizationId, supplierId, countryCode, scheme, registrationNumber])`
 - `@@unique([organizationId, id])`
-- `@@index([organizationId, supplierId])`
 
 ## Neighbourhood
 

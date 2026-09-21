@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import {
+  createCreditNoteRequest,
   updateInvoiceRequest,
   type InvoiceDetail,
   type InvoiceListItem,
@@ -268,5 +269,82 @@ export async function voidInvoice(
   revalidatePath(`/t/${slug}/invoices/${invoiceId}`);
   revalidatePath(`/t/${slug}/invoices`);
   revalidatePath(`/t/${slug}/appointments`);
+  return { status: 'done' };
+}
+
+/**
+ * Raise a credit note against an issued invoice (PI-8).
+ *
+ * ⚠️ THE LINES COME FROM THE SCREEN AND ARE CITED BY ID, NEVER FREE-TYPED. A
+ *   credit note whose lines the caller composed could reverse a description and
+ *   a price that never appeared on the document it credits — which is how a
+ *   correction becomes an unexplainable second document rather than a reversal
+ *   of the first. The server re-checks every id against the invoice and refuses
+ *   a quantity larger than the line was billed at.
+ *
+ * ⚠️ AN EMPTY LIST IS THE CONTRACT'S "CREDIT THE WHOLE THING", not an omission —
+ *   see `createCreditNoteRequest`. The screen always sends explicit lines, so
+ *   this only reaches the empty path from a caller that wants everything.
+ *
+ * ⚠️ AND IT EDITS NOTHING. The original invoice stands exactly as the patient
+ *   received it; the note is a new document with its own number. That is the
+ *   whole reason the lifecycle guard exists and the reason a credit note is not
+ *   a status change.
+ */
+export async function creditInvoice(
+  slug: string,
+  invoiceId: string,
+  reason: string,
+  lines: { invoiceItemId: string; quantity?: string | undefined }[] = []
+): Promise<InvoiceFormState> {
+  if (reason.trim().length === 0) {
+    return {
+      status: 'error',
+      message: 'Say why this invoice is being credited.',
+      fieldErrors: { reason: ['Say why this invoice is being credited.'] },
+    };
+  }
+
+  /*
+   * Parsed against the contract here rather than trusted, because the quantity
+   * arrives as whatever somebody typed into a text box. A blank one means "all
+   * of this line" and is dropped rather than sent as an empty string, which the
+   * decimal pattern would reject with a message about a regular expression.
+   */
+  const parsed = createCreditNoteRequest.safeParse({
+    reason: reason.trim(),
+    lines: lines.map((line) => ({
+      invoiceItemId: line.invoiceItemId,
+      ...(line.quantity !== undefined && line.quantity.trim() !== ''
+        ? { quantity: line.quantity.trim() }
+        : {}),
+    })),
+  });
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Check the quantities — each must be a positive number with at most 3 decimals.',
+      fieldErrors: fieldErrorsFrom(parsed.error.issues),
+    };
+  }
+
+  const result = await api<InvoiceDetail>(`/api/v1/invoices/${invoiceId}/credit-notes`, {
+    method: 'POST',
+    slug,
+    accessToken: await getAccessToken(),
+    body: parsed.data,
+  });
+
+  if (!result.ok) {
+    return {
+      status: 'error',
+      message: result.message ?? 'The credit note could not be raised.',
+      ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}),
+    };
+  }
+
+  revalidatePath(`/t/${slug}/invoices/${invoiceId}`);
+  revalidatePath(`/t/${slug}/invoices`);
+  revalidatePath(`/t/${slug}/charges`);
   return { status: 'done' };
 }

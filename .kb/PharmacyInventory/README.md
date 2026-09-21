@@ -4,18 +4,22 @@ The single source of truth for the **Product Platform** work stream. Everything
 about this programme lives in this directory. Start here.
 
 ```text
-CURRENT PHASE:        PI-0 — Discovery & Architecture
-CURRENT STATUS:       COMPLETE (planning only; no production code written)
-LAST COMPLETED PHASE: PI-0
-CURRENT WORK:         none — awaiting approval of the plan
-NEXT PHASE:           PI-1 — Product Platform Core
-BLOCKERS:             none for PI-1..PI-6.
-                      PI-7 (Pharmacy dispensing) is HARD-BLOCKED on the
-                      `prescriptions` model, which does not exist yet and is
-                      owned by Phase 3 (Core clinical).
-                      PI-9 (Clinical consumption) is HARD-BLOCKED on
-                      `encounters` / `procedures`, which do not exist yet.
-LAST UPDATED:         2026-08-11
+CURRENT PHASE:        none in flight
+CURRENT STATUS:       PI-0..PI-13, PI-15..PI-18, PI-21..PI-23 COMPLETE
+LAST COMPLETED PHASE: PI-23 — Identifier Resolution / Barcode
+CURRENT WORK:         none
+NEXT PHASE:           PI-24 (Global Hardening) — the last one, and the only
+                      unstarted phase left. PI-19 (NP) and PI-20 (LK) are
+                      DEFERRED by request, not blocked.
+                      ⚠️ PI-14 (GB) is BLOCKED — legislation.gov.uk returned
+                      202 on every attempt in the country survey. An access
+                      route is needed before that phase opens.
+BLOCKERS:             PI-14 (see above).
+                      ⚠️ PI-12, PI-13a, PI-13, PI-15, PI-16, PI-17, PI-18,
+                      PI-21, PI-22 AND PI-23 ARE NOT REVIEWED — neither
+                      /code-review nor the security reviewer has run over
+                      those diffs. PI-22 is the one carrying raw SQL; PI-23
+                      is the one that touched every picker in apps/web.
 ```
 
 ---
@@ -153,19 +157,20 @@ Per-domain deep dives:
 
 Integration and cross-cutting:
 
-| File                                                   | Contents                                                   |
-| ------------------------------------------------------ | ---------------------------------------------------------- |
-| [BILLING_INTEGRATION.md](BILLING_INTEGRATION.md)       | Charge requests → the existing invoice engine.             |
-| [TAX_INTEGRATION.md](TAX_INTEGRATION.md)               | Product → `tax_category` → `@rcln/tax`. No new tax code.   |
-| [SECURITY_AND_AUDIT.md](SECURITY_AND_AUDIT.md)         | RLS classes, RBAC codes, audit and PHI-read logging.       |
-| [COUNTRY_SUPPORT_MATRIX.md](COUNTRY_SUPPORT_MATRIX.md) | The living per-country matrix. Mostly `RESEARCH_REQUIRED`. |
-| [REGULATORY_RULE_PACKS.md](REGULATORY_RULE_PACKS.md)   | Rule-pack format, source registry, maturity states.        |
-| [UI_UX_PLAN.md](UI_UX_PLAN.md)                         | Screens per role, and what must stay hidden.               |
-| [TESTING_STRATEGY.md](TESTING_STRATEGY.md)             | What each phase must prove before it is COMPLETE.          |
-| [MIGRATION_PLAN.md](MIGRATION_PLAN.md)                 | Migration sequencing and backward compatibility.           |
-| [OPEN_DECISIONS.md](OPEN_DECISIONS.md)                 | Undecided things, with recommendations.                    |
-| [KNOWN_ISSUES.md](KNOWN_ISSUES.md)                     | Defects, gaps and debts as they accrue.                    |
-| [CHANGELOG.md](CHANGELOG.md)                           | What each session changed.                                 |
+| File                                                       | Contents                                                                     |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [BILLING_INTEGRATION.md](BILLING_INTEGRATION.md)           | Charge requests → the existing invoice engine.                               |
+| [TAX_INTEGRATION.md](TAX_INTEGRATION.md)                   | Product → `tax_category` → `@rcln/tax`. No new tax code.                     |
+| [SECURITY_AND_AUDIT.md](SECURITY_AND_AUDIT.md)             | RLS classes, RBAC codes, audit and PHI-read logging.                         |
+| [COUNTRY_SUPPORT_MATRIX.md](COUNTRY_SUPPORT_MATRIX.md)     | The living per-country matrix. Mostly `RESEARCH_REQUIRED`.                   |
+| [REGULATORY_RULE_PACKS.md](REGULATORY_RULE_PACKS.md)       | Rule-pack format, source registry, maturity states.                          |
+| [COUNTRY_RULE_PACK_SURVEY.md](COUNTRY_RULE_PACK_SURVEY.md) | Framework-gap survey across the nine remaining jurisdictions. Drives PI-13a. |
+| [UI_UX_PLAN.md](UI_UX_PLAN.md)                             | Screens per role, and what must stay hidden.                                 |
+| [TESTING_STRATEGY.md](TESTING_STRATEGY.md)                 | What each phase must prove before it is COMPLETE.                            |
+| [MIGRATION_PLAN.md](MIGRATION_PLAN.md)                     | Migration sequencing and backward compatibility.                             |
+| [OPEN_DECISIONS.md](OPEN_DECISIONS.md)                     | Undecided things, with recommendations.                                      |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md)                         | Defects, gaps and debts as they accrue.                                      |
+| [CHANGELOG.md](CHANGELOG.md)                               | What each session changed.                                                   |
 
 ---
 

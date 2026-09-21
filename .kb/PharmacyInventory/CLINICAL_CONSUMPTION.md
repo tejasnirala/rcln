@@ -1,8 +1,28 @@
 # Clinical Consumption
 
-**Phase PI-9 — hard-blocked on `encounters` / `procedures`, which do not exist.**
-Phase 3 owns them; the consultation page is currently a route with a deliberate
-placeholder. This is the design, written now so PI-1..PI-3 build the seams.
+**Phase PI-9 — BUILT (2026-08-17).** This document is the design and it was
+followed; where the build refined it, IMPLEMENTATION_TRACKER.md § PI-9 records
+what was decided and why.
+
+⚠️ **THE HEADER THIS REPLACES SAID THE PHASE WAS HARD-BLOCKED ON `encounters` /
+`procedures`, WHICH DO NOT EXIST.** They have existed since the consultation
+engine merged, and the sentence stayed here long after it stopped being true —
+which is the failure mode PI-7 wrote up in reverse: a document describing an
+intention as though it were the state of the world.
+
+Three refinements the build made, recorded here so this document does not
+mislead the next reader:
+
+- **The anchor set is two columns, not six.** `ENCOUNTER` and
+  `ENCOUNTER_PROCEDURE` are built. `LAB_ORDER` and `IMAGING_STUDY` are enum
+  members with no column and are refused by CHECK, because neither table exists.
+  The table below is still the intent.
+- **The law is NOT asked at a consumption**, deliberately — no rule type in PI-5
+  addresses administering a product, and asking would refuse everything. See the
+  service header.
+- **"Amended before the encounter closes" still writes ledger legs.** The RECORD
+  is restated; the LEDGER is append-only and gets the delta. The distinction
+  below is about the record, not about the movement.
 
 ---
 

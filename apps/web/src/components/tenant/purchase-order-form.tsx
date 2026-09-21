@@ -5,19 +5,20 @@ import { useActionState, useEffect, useMemo, useState } from 'react';
 import type {
   BranchSummary,
   InventoryLocationSummary,
-  ProductSummary,
   PurchaseRequisitionDetail,
   SupplierProductListResponse,
   SupplierSummary,
 } from '@rcln/contracts';
+import { formatMoney, money } from '@rcln/payments';
 import { Input, Select, Textarea } from '@/components/ui/field';
+import { ProductPicker } from '@/components/tenant/product-picker';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import {
   createPurchaseOrderAction,
-  IDLE_FORM,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * Raising an order.
@@ -36,33 +37,47 @@ interface Props {
   slug: string;
   branches: BranchSummary[];
   suppliers: SupplierSummary[];
-  products: ProductSummary[];
   locations: InventoryLocationSummary[];
   priceBook: SupplierProductListResponse['supplierProducts'];
   /** Pre-filled when the order is being raised from an approved requisition. */
   requisition: PurchaseRequisitionDetail | null;
-  moreProducts: boolean;
 }
 
 interface LineDraft {
   key: number;
   productId: string;
+  /**
+   * ⚠️ CARRIED SO A PRE-FILLED LINE STILL SHOWS ITS PRODUCT (PI-23). The picker
+   *   is a search box that owns its own choice, not a `<select>` over a list this
+   *   component holds — so a line drafted from a requisition has to hand it the
+   *   name, or the order would post the right product and display nothing.
+   */
+  productName: string;
   supplierProductId: string;
   quantity: string;
   unitCost: string;
 }
 
+/*
+ * ⚠️ EVERY KEY COMES FROM HERE, INCLUDING THE PRE-FILLED ONES. It used to start
+ *   at 1 while lines pre-filled from a document were keyed by ARRAY INDEX —
+ *   0, 1, 2 … — so the first line the user added took key 1 and COLLIDED with
+ *   the second line off the order. `updateLine` matches on key and patches
+ *   every match, so typing a quantity into the new line wrote it into the
+ *   ordered line too, choosing a product overwrote that line's product while it
+ *   still posted the original `purchaseOrderLineId`, and "remove" deleted both.
+ *   The result was a received line pointing at the wrong product against a real
+ *   purchase-order line. Found in the PI-24 review.
+ */
 let nextKey = 1;
 
 export function PurchaseOrderForm({
   slug,
   branches,
   suppliers,
-  products,
   locations,
   priceBook,
   requisition,
-  moreProducts,
 }: Props) {
   const router = useRouter();
 
@@ -79,14 +94,24 @@ export function PurchaseOrderForm({
   );
   const [lines, setLines] = useState<LineDraft[]>(
     requisition
-      ? requisition.lines.map((line, index) => ({
-          key: index,
+      ? requisition.lines.map((line) => ({
+          key: nextKey++,
           productId: line.productId,
+          productName: line.productName,
           supplierProductId: '',
           quantity: line.quantityBase,
           unitCost: '',
         }))
-      : [{ key: 0, productId: '', supplierProductId: '', quantity: '', unitCost: '' }]
+      : [
+          {
+            key: nextKey++,
+            productId: '',
+            productName: '',
+            supplierProductId: '',
+            quantity: '',
+            unitCost: '',
+          },
+        ]
   );
 
   useEffect(() => {
@@ -219,13 +244,6 @@ export function PurchaseOrderForm({
           </span>
         </div>
 
-        {moreProducts ? (
-          <p className="text-muted text-[0.8125rem]">
-            Showing the first {products.length} products. Searching the whole catalogue from here
-            comes with the barcode scanner.
-          </p>
-        ) : null}
-
         <ul className="space-y-4">
           {lines.map((line, index) => {
             const priced = pricedFor(line.productId);
@@ -233,20 +251,25 @@ export function PurchaseOrderForm({
             return (
               <li key={line.key} className="border-rule bg-card space-y-3 rounded-md border p-4">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Select
+                  <ProductPicker
+                    slug={slug}
                     name={`lines.${index}.productId`}
                     label="Product"
                     required
-                    value={line.productId}
-                    options={[
-                      { value: '', label: 'Choose a product' },
-                      ...products.map((p) => ({ value: p.id, label: `${p.name} (${p.code})` })),
-                    ]}
-                    onChange={(event) =>
+                    filters={{ isStockItem: true, status: 'ACTIVE' }}
+                    value={
+                      line.productId === '' ? null : { id: line.productId, name: line.productName }
+                    }
+                    onChoose={(product) =>
                       // The priced row belongs to the old product, so it clears
                       // with it — keeping it would draft a line the API refuses.
-                      updateLine(line.key, { productId: event.target.value, supplierProductId: '' })
+                      updateLine(line.key, {
+                        productId: product?.id ?? '',
+                        productName: product?.name ?? '',
+                        supplierProductId: '',
+                      })
                     }
+                    hint="Name, code, brand or barcode."
                   />
                   <Input
                     name={`lines.${index}.quantity`}
@@ -266,7 +289,12 @@ export function PurchaseOrderForm({
                         { value: '', label: 'Not from the price book' },
                         ...priced.map((row) => ({
                           value: row.id,
-                          label: `${row.supplierSku} · ${row.currency} ${(row.pricePerPackMinor / 100).toFixed(2)} per ${row.packUnitSymbol} of ${row.quantityPerPack}`,
+                          /* ⚠️ `formatMoney`, never `/ 100` — dividing by a
+                           * hundred is right in India and wrong in Japan, and
+                           * this programme ships rule packs for six countries.
+                           * This is the figure a buyer reads before agreeing a
+                           * price. (PI-24 review.) */
+                          label: `${row.supplierSku} · ${formatMoney(money(row.pricePerPackMinor, row.currency))} per ${row.packUnitSymbol} of ${row.quantityPerPack}`,
                         })),
                       ]}
                       onChange={(event) =>
@@ -316,7 +344,14 @@ export function PurchaseOrderForm({
           onClick={() =>
             setLines((c) => [
               ...c,
-              { key: nextKey++, productId: '', supplierProductId: '', quantity: '', unitCost: '' },
+              {
+                key: nextKey++,
+                productId: '',
+                productName: '',
+                supplierProductId: '',
+                quantity: '',
+                unitCost: '',
+              },
             ])
           }
         >

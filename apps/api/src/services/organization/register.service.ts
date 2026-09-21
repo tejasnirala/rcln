@@ -209,7 +209,7 @@ export async function registerOrganization(
         countryCode: org.countryCode,
         ...(org.regionCode ? { regionCode: org.regionCode } : {}),
         ownerUserId: null, // set below; the user row does not exist yet
-        onboardedAt: now,
+        registeredAt: now,
         ...(org.taxId !== undefined ? { taxId: org.taxId } : {}),
       },
     });

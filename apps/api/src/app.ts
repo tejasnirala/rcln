@@ -12,6 +12,7 @@ import { errorHandler, notFoundHandler } from './middleware/error.middleware.js'
 import { generalLimiter } from './middleware/rateLimiter.middleware.js';
 import { resolveTenant } from './middleware/tenant.middleware.js';
 import routes from './routes/index.js';
+import docsRoutes from './routes/docs.routes.js';
 import webhookRoutes from './routes/v1/webhooks.routes.js';
 
 /**
@@ -131,6 +132,16 @@ export const createApp = (): Express => {
   );
 
   app.use(generalLimiter);
+
+  /*
+   * ⚠️ AHEAD OF `resolveTenant`, ON PURPOSE. The reference describes the API and
+   *   belongs to no clinic, so requiring a resolvable tenant host would answer
+   *   404 on the apex — the host somebody evaluating the product is most likely
+   *   to be reading it from. It touches no database and is gated by
+   *   `config.docsEnabled`, which is false in production unless set.
+   */
+  app.use('/docs', docsRoutes);
+
   app.use(resolveTenant);
 
   app.use('/api', routes);

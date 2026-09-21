@@ -58,14 +58,43 @@ import {
  * `components/ui/field.tsx` and no colour is written by hand.
  */
 
+/**
+ * What a picker hands back.
+ *
+ * ⚠️ `widened` IS NOT A DETAIL THE SCREEN MAY DROP. It is the difference between
+ *   "the dental list is these four" and "no dental term matched, so this is the
+ *   whole catalogue" — and a clinician who cannot tell them apart will read a
+ *   general term as one their specialty endorses.
+ */
+export interface PickerResults {
+  items: { id: string; name: string }[];
+  widened: boolean;
+}
+
+/** `allSpecialties` is the picker's own toggle, not the caller's decision. */
+export type PickerSearch = (term: string, allSpecialties: boolean) => Promise<PickerResults>;
+
+/*
+ * ⚠️ THREE SEARCHES HERE HAVE NO TAXONOMY SCOPE AND SO NEVER WIDEN: medicines
+ *   (§42.8 — a dermatologist and a dentist prescribe the same amoxicillin), the
+ *   referral specialty picker (it searches the taxonomy itself) and the
+ *   colleague picker (it searches people). Each returns `widened: false` inline
+ *   rather than through a helper, because `useCallback` wants a function
+ *   EXPRESSION and the lint rule that says so is enforcing a real React
+ *   Compiler constraint.
+ */
+
 /** What every section needs to talk to the server. */
 export interface ContentSectionProps {
   slug: string;
   encounterId: string;
   content: EncounterContent;
   readOnly: boolean;
-  /** The section's vocabulary scope. RANKS the selector's results (§34). */
-  scopeId?: string | undefined;
+  /**
+   * The section's vocabulary scopes — every node the template names, not the
+   * first one. Scoped by default in the picker, with a toggle to widen (§34).
+   */
+  scopeIds?: readonly string[] | undefined;
   add: (collection: ContentCollection, body: Record<string, unknown>) => Promise<ContentResult>;
   edit: (
     collection: ContentCollection,
@@ -144,20 +173,43 @@ export function Empty({ what }: { what: string }) {
  *   DISCARDED. Without both, a fast typist queues one request per keystroke and
  *   the list ends up showing the results for a prefix of what is in the box —
  *   the bug `ServerSelect` in `field-renderer.tsx` records.
+ *
+ * ⚠️ THE SINGLE-PICK VARIANT, AND IT IS NOT THE DEFAULT ANY MORE. Every section
+ *   that adds a LIST of rows uses `TermMultiPicker` below, which can be browsed
+ *   and ticked. This one survives for the two places that set ONE value and
+ *   would be actively worse as a multi-select: a referral's destination, and a
+ *   finding on a single tooth in `visual-mapping.tsx`.
  */
 export function TermPicker({
   label,
   hint,
   placeholder,
   disabled,
+  alreadyAdded,
   search,
+  canWiden,
   onPick,
 }: {
   label: string;
   hint?: string | undefined;
   placeholder?: string | undefined;
   disabled: boolean;
-  search: (term: string) => Promise<{ id: string; name: string }[]>;
+  /**
+   * Ids this list already holds. Picking one again is refused with a sentence
+   * rather than silently ignored.
+   *
+   * ⚠️ REFUSED AT COMMIT, NOT FILTERED OUT OF THE SUGGESTIONS. A `<datalist>`
+   *   cannot disable an option, so the only way to pre-empt the choice is to
+   *   drop it — and a dropped option is indistinguishable from one the
+   *   catalogue does not have. Worse, the clinician could then type the name in
+   *   full, fall through to the free-text branch, and have the referral handler
+   *   discard it with nothing on screen. Refusing after the fact is the only
+   *   version that says what happened.
+   */
+  alreadyAdded?: ReadonlySet<string> | undefined;
+  search: PickerSearch;
+  /** True where a scope exists to widen out of — draws the toggle. */
+  canWiden?: boolean | undefined;
   /** `id` when a listed term was chosen, otherwise the words that were typed. */
   onPick: (picked: { id: string } | { text: string }) => void;
 }) {
@@ -165,6 +217,9 @@ export function TermPicker({
   const name = useId();
   const [term, setTerm] = useState('');
   const [options, setOptions] = useState<{ id: string; name: string }[]>([]);
+  const [refused, setRefused] = useState<string | null>(null);
+  const [allSpecialties, setAllSpecialties] = useState(false);
+  const [widened, setWidened] = useState(false);
   const latest = useRef(0);
 
   const searching = term.trim().length >= 2;
@@ -173,12 +228,14 @@ export function TermPicker({
     if (!searching) return;
     const query = ++latest.current;
     const timer = setTimeout(() => {
-      void search(term).then((results) => {
-        if (query === latest.current) setOptions(results);
+      void search(term, allSpecialties).then((results) => {
+        if (query !== latest.current) return;
+        setOptions(results.items);
+        setWidened(results.widened);
       });
     }, 250);
     return () => clearTimeout(timer);
-  }, [term, searching, search]);
+  }, [term, searching, search, allSpecialties]);
 
   const commit = () => {
     const typed = term.trim();
@@ -190,6 +247,11 @@ export function TermPicker({
      *   half — see the model note on `custom_text`.
      */
     const matched = options.find((option) => option.name.toLowerCase() === typed.toLowerCase());
+    if (matched !== undefined && alreadyAdded?.has(matched.id) === true) {
+      setRefused(`${matched.name} is already on this list.`);
+      return;
+    }
+    setRefused(null);
     onPick(matched === undefined ? { text: typed } : { id: matched.id });
     setTerm('');
     setOptions([]);
@@ -200,7 +262,7 @@ export function TermPicker({
       <Field
         name={name}
         label={label}
-        {...(hint !== undefined ? { hint } : {})}
+        {...(refused !== null ? { errors: [refused] } : hint !== undefined ? { hint } : {})}
         className="min-w-[16rem] flex-1"
       >
         <input
@@ -211,7 +273,12 @@ export function TermPicker({
           disabled={disabled}
           autoComplete="off"
           placeholder={placeholder ?? 'Start typing to search'}
-          onChange={(event) => setTerm(event.target.value)}
+          onChange={(event) => {
+            setTerm(event.target.value);
+            /* The refusal is about the last thing pressed, not the field —
+               editing it is the clinician answering, so it goes. */
+            if (refused !== null) setRefused(null);
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
@@ -230,11 +297,479 @@ export function TermPicker({
             <option key={option.id} value={option.name} />
           ))}
         </datalist>
+        <ScopeNote
+          canWiden={canWiden === true}
+          allSpecialties={allSpecialties}
+          widened={widened}
+          disabled={disabled}
+          onToggle={setAllSpecialties}
+        />
       </Field>
       <Button variant="secondary" onClick={commit} disabled={disabled || term.trim() === ''}>
         Add
       </Button>
     </div>
+  );
+}
+
+/**
+ * "Showing this specialty" and the way out of it.
+ *
+ * ⚠️ ONE COMPONENT FOR BOTH PICKERS, so the wording and the behaviour cannot
+ *   drift. A clinician who learns the toggle in Symptoms must find the same one
+ *   in Treatment.
+ *
+ * ⚠️ THE AUTOMATIC WIDENING ANNOUNCES ITSELF. `widened` means the scoped search
+ *   matched nothing and this list is the whole catalogue — said in words,
+ *   because a list that quietly changed what it was showing is how a general
+ *   term gets read as one the specialty endorses.
+ *
+ * ⚠️ AND IT IS A CHECKBOX, NOT A FILTER CHIP. The state is binary and sticky for
+ *   the life of the picker; the clinician who wants the wide list usually wants
+ *   it for the next search too.
+ */
+function ScopeNote({
+  canWiden,
+  allSpecialties,
+  widened,
+  disabled,
+  onToggle,
+}: {
+  canWiden: boolean;
+  allSpecialties: boolean;
+  widened: boolean;
+  disabled: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  if (!canWiden) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <label className="text-muted flex cursor-pointer items-center gap-2 text-[0.8125rem]">
+        <input
+          type="checkbox"
+          checked={allSpecialties}
+          disabled={disabled}
+          onChange={(event) => onToggle(event.target.checked)}
+        />
+        Show all specialties
+      </label>
+      {widened && !allSpecialties ? (
+        <span className="text-muted text-[0.8125rem]">
+          Nothing in this specialty matched — showing all.
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A section as two boxes side by side: what has been recorded, and how to add.
+ *
+ * ⚠️ THE RECORD IS ON THE LEFT AND THE CONTROLS ARE ON THE RIGHT, WHICH IS THE
+ *   OPPOSITE OF HOW THESE SECTIONS USED TO READ. Stacked, the picker sat
+ *   underneath a list that grows — so by the fourth symptom the way to add a
+ *   fifth had walked off the bottom of the card, and the clinician scrolled to
+ *   find a control that had not moved relative to anything except the thing they
+ *   had just done. Side by side, the picker stays put and the record grows next
+ *   to it.
+ *
+ * ⚠️ IT STACKS BELOW `lg`, AND THE RECORD COMES FIRST WHEN IT DOES. That is the
+ *   reading order in the markup, so it is also the order a screen reader and a
+ *   phone get: what is true about this patient, then the means to change it.
+ *
+ * ⚠️ `lg:items-start` IS LOAD-BEARING. Grid items stretch to the tallest row by
+ *   default, which would pull the picker's border down the full height of a
+ *   twelve-row prescription list and leave it framing empty space.
+ *
+ * ⚠️ AND THE COUNT IS IN THE HEADING, NOT INFERRED FROM THE LIST. "Medicines
+ *   prescribed · 3" is checkable at a glance against what is on screen; a
+ *   clinician scrolling a boxed list has no other way to know whether they are
+ *   looking at all of it.
+ */
+/**
+ * The catalogue ids a section is already holding.
+ *
+ * ⚠️ CODED ROWS ONLY, AND THE `null` IS NOT AN OVERSIGHT. A row recorded in the
+ *   clinician's own words has no id to compare against, so it can never make a
+ *   list option "already added" — two people typing similar sentences are two
+ *   observations, not one duplicated, and the machine has no business deciding
+ *   they are the same. The duplicate this guards is the exact one: the same
+ *   catalogue entry added twice.
+ *
+ * Rebuilt on every render rather than memoised: it is a Set over a list that is
+ * a handful of rows long, and a stale one here is a duplicate written to a
+ * patient's record.
+ */
+function recordedIds(
+  rows: { item?: { id: string } | null; product?: { id: string } | null }[]
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const row of rows) {
+    const id = row.item?.id ?? row.product?.id;
+    if (id !== undefined && id !== null) ids.add(id);
+  }
+  return ids;
+}
+
+function SplitSection({
+  recordedLabel,
+  count,
+  picker,
+  children,
+}: {
+  recordedLabel: string;
+  count: number;
+  /** `null` in a finalized consultation — the left box then takes the width. */
+  picker: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  if (picker === null) {
+    return (
+      <div className="border-rule rounded-lg border p-4">
+        <p className="text-ink text-[0.8125rem] font-medium">
+          {recordedLabel}
+          {count === 0 ? '' : ` · ${String(count)}`}
+        </p>
+        <div className="mt-3">{children}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      <div className="border-rule rounded-lg border p-4">
+        <p className="text-ink text-[0.8125rem] font-medium">
+          {recordedLabel}
+          {count === 0 ? '' : ` · ${String(count)}`}
+        </p>
+        {/*
+          ⚠️ CAPPED AND SCROLLABLE, LIKE THE OPTION LIST OPPOSITE IT. A visit
+            with fourteen prescriptions would otherwise make this column six
+            times the height of the picker beside it, and the two-column layout
+            would read as one column with something stranded at the top right.
+        */}
+        <div className="mt-3 max-h-[32rem] overflow-y-auto">{children}</div>
+      </div>
+      {picker}
+    </div>
+  );
+}
+
+/**
+ * The same vocabulary, BROWSABLE, and several at a time.
+ *
+ * ⚠️ THIS EXISTS BECAUSE `TermPicker` ABOVE CANNOT BE BROWSED, AND THAT WAS THE
+ *   WHOLE COMPLAINT. A `<datalist>` shows nothing until two characters are
+ *   typed, so a clinician who does not already know what the clinic put in its
+ *   catalogue sees an empty box and no way to find out. "I do not understand
+ *   what to enter" is the correct reaction to that control, not a
+ *   misunderstanding of it.
+ *
+ *   So this one opens showing the list. Searching NARROWS it rather than being
+ *   the only way in.
+ *
+ * ⚠️ AND IT ADDS SEVERAL, BECAUSE A CONSULTATION IS SEVERAL. Four symptoms and
+ *   two diagnoses is an ordinary visit; six round trips through a single-value
+ *   box, each one re-rendering the section underneath, is not how anybody wants
+ *   to spend a consultation with a patient in the room.
+ *
+ * ⚠️ SELECTION SURVIVES A SEARCH. Ticking "Amoxicillin", searching "para",
+ *   ticking "Paracetamol" and pressing Add records BOTH — the chosen rows are
+ *   held by id and name, not by position in whatever the box last returned. A
+ *   picker that silently dropped the first one would be worse than no
+ *   multi-select, because the loss is invisible until somebody reads the
+ *   prescription.
+ *
+ * ⚠️ THE FREE-TEXT ESCAPE IS STILL HERE, and it is not decoration. §6 wants a
+ *   symptom the vocabulary has not learned yet to be recordable, and the CHECK
+ *   behind these rows accepts an id XOR the clinician's own words. Sections
+ *   whose contract has no `customText` column pass `allowCustom={false}` and get
+ *   the list alone.
+ *
+ * ⚠️ WHAT IS ALREADY ON THE RECORD CANNOT BE ADDED AGAIN. `alreadyAdded` carries
+ *   the ids the section is already holding, and those options are rendered
+ *   TICKED AND DISABLED with "already added" beside them.
+ *
+ *   ⚠️ DISABLED RATHER THAN HIDDEN, WHICH IS THE WHOLE POINT. An option that
+ *     vanishes once it is used reads as a catalogue that has lost something —
+ *     the clinician searches for "Fever", does not find it, and concludes the
+ *     list is broken or that they never added it. Shown as already-added, the
+ *     list answers the question instead of raising one.
+ *
+ *   ⚠️ AND `commit()` FILTERS AGAIN ON THE WAY OUT. The disabled checkbox is a
+ *     courtesy, not the guarantee: the selection is held across searches and the
+ *     content underneath refreshes on every add, so a row can arrive between
+ *     ticking something and pressing Add — from this doctor in another tab, or
+ *     from the same click landing twice. Checking once, at the point of writing,
+ *     is what actually stops the duplicate.
+ *
+ * ⚠️ ADDS ARE SEQUENTIAL, NOT `Promise.all`. Each one is a row insert whose
+ *   response replaces the section's content, and the server assigns
+ *   `displayOrder` from what it already holds. Fired in parallel they race, and
+ *   the recorded order comes back shuffled — which for a diagnosis list, where
+ *   the first row is the one the rest of the screen treats as primary, is a
+ *   clinical difference and not a cosmetic one.
+ */
+export function TermMultiPicker({
+  label,
+  hint,
+  emptyNote,
+  disabled,
+  allowCustom = true,
+  alreadyAdded,
+  search,
+  canWiden,
+  onAdd,
+}: {
+  label: string;
+  hint?: string | undefined;
+  /** Shown when the catalogue itself is empty — see the note in the body. */
+  emptyNote?: string | undefined;
+  disabled: boolean;
+  /** `true` where the row accepts the clinician's own words as well as an id. */
+  allowCustom?: boolean;
+  /** Ids this section already holds. Offered as already-added, never twice. */
+  alreadyAdded: ReadonlySet<string>;
+  search: PickerSearch;
+  /** True where a scope exists to widen out of — draws the toggle. */
+  canWiden?: boolean | undefined;
+  onAdd: (picked: ({ id: string } | { text: string })[]) => Promise<void> | void;
+}) {
+  const searchName = useId();
+  const customName = useId();
+
+  const [term, setTerm] = useState('');
+  const [options, setOptions] = useState<{ id: string; name: string }[]>([]);
+  /*
+   * ⚠️ WHICH TERM THE VISIBLE LIST ANSWERS, NOT AN `isLoading` FLAG. Setting one
+   *   synchronously inside the effect is what the React Compiler's
+   *   "cascading renders" rule refuses, and rightly — the fact being tracked is
+   *   derived, not owned. `null` means nothing has come back yet.
+   */
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [allSpecialties, setAllSpecialties] = useState(false);
+  const [widened, setWidened] = useState(false);
+  /** id -> name, so a chosen row can still be named after the list moves on. */
+  const [chosen, setChosen] = useState<Map<string, string>>(new Map());
+  const [custom, setCustom] = useState('');
+  const [saving, setSaving] = useState(false);
+  const latest = useRef(0);
+
+  /*
+   * Runs on mount with an empty term — which is what makes this browsable — and
+   * again, debounced, on every change. The same guarded-latest arrangement
+   * `TermPicker` documents: without it a fast typist ends up looking at the
+   * results for a prefix of what is in the box.
+   */
+  useEffect(() => {
+    const query = ++latest.current;
+    const timer = setTimeout(
+      () => {
+        void search(term, allSpecialties).then((results) => {
+          if (query !== latest.current) return;
+          setOptions(results.items);
+          setWidened(results.widened);
+          setLoadedFor(term);
+        });
+      },
+      /* No debounce on the first, empty query — that one IS the browse, and a
+         quarter-second of "Loading…" before a list nobody asked to filter is a
+         quarter-second of the panel looking broken. */
+      term === '' ? 0 : 250
+    );
+    return () => clearTimeout(timer);
+  }, [term, search, allSpecialties]);
+
+  const toggle = (option: { id: string; name: string }): void => {
+    if (alreadyAdded.has(option.id)) return;
+    setChosen((current) => {
+      const next = new Map(current);
+      if (next.has(option.id)) next.delete(option.id);
+      else next.set(option.id, option.name);
+      return next;
+    });
+  };
+
+  const commit = async (): Promise<void> => {
+    const typed = custom.trim();
+    const picked: ({ id: string } | { text: string })[] = [
+      /* Filtered again here, not only at the checkbox — see the note above. */
+      ...[...chosen.keys()].filter((id) => !alreadyAdded.has(id)).map((id) => ({ id })),
+      ...(allowCustom && typed !== '' ? [{ text: typed }] : []),
+    ];
+    if (picked.length === 0) return;
+
+    setSaving(true);
+    try {
+      await onAdd(picked);
+      setChosen(new Map());
+      setCustom('');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /*
+   * Counts what would ACTUALLY be written. A selection that went stale — the row
+   * arrived from somewhere else after it was ticked — must not be promised on
+   * the button, or "Add 2" writes one and nothing explains the difference.
+   */
+  const addable = [...chosen.keys()].filter((id) => !alreadyAdded.has(id)).length;
+  const count = addable + (allowCustom && custom.trim() !== '' ? 1 : 0);
+  const busy = disabled || saving;
+
+  return (
+    <fieldset className="border-rule rounded-lg border p-4">
+      <legend className="text-ink px-1 text-[0.8125rem] font-medium">{label}</legend>
+      {hint === undefined ? null : <p className="text-muted text-[0.8125rem]">{hint}</p>}
+
+      <div className="mt-3">
+        <Input
+          name={searchName}
+          label="Search the list"
+          value={term}
+          disabled={busy}
+          autoComplete="off"
+          placeholder="Type to narrow it down"
+          onChange={(event) => setTerm(event.target.value)}
+        />
+        <ScopeNote
+          canWiden={canWiden === true}
+          allSpecialties={allSpecialties}
+          widened={widened}
+          disabled={busy}
+          onToggle={setAllSpecialties}
+        />
+      </div>
+
+      {/*
+        ⚠️ A SCROLLING BOX WITH A FIXED CEILING, NOT AN UNBOUNDED LIST. The
+          section below it is the record being written; a catalogue of sixty
+          procedures pushing it off the screen would make the picker the page.
+      */}
+      <div
+        className="border-rule mt-3 max-h-56 overflow-y-auto rounded-md border"
+        role="group"
+        aria-label={label}
+      >
+        {loadedFor === null ? (
+          <p className="text-muted p-3 text-[0.8125rem]">Loading…</p>
+        ) : options.length === 0 ? (
+          /*
+            ⚠️ TWO DIFFERENT EMPTINESSES, SAID DIFFERENTLY. "Your search matched
+              nothing" is a dead end the clinician can back out of; "this clinic
+              has not put anything in this list yet" is a fact about the SETUP,
+              and it names the screen that fixes it. Rendering the same shrug for
+              both is how a clinic concludes the software is broken when what it
+              actually needs is half an hour at /clinical-terms.
+          */
+          <p className="text-muted p-3 text-[0.8125rem]">
+            {/* `loadedFor`, not `term` — it names what was actually searched,
+                so the message cannot describe a query still being typed. */}
+            {(loadedFor ?? '').trim() === ''
+              ? (emptyNote ?? 'Nothing in this list yet.')
+              : `Nothing matches “${(loadedFor ?? '').trim()}”.`}
+          </p>
+        ) : (
+          <ul>
+            {options.map((option) => (
+              <li key={option.id} className="border-rule border-t first:border-t-0">
+                {/*
+                  The label WRAPS the box, which is the one place
+                  apps/web/AGENTS.md says not to reach for `Field` — and the whole
+                  row is the target, so it clears 24×24 (WCAG 2.5.8) by a margin
+                  rather than being a 16px box somebody has to hit exactly.
+                */}
+                <label
+                  className={cn(
+                    'flex items-center gap-2.5 px-3 py-2 text-[0.875rem]',
+                    alreadyAdded.has(option.id)
+                      ? 'text-muted cursor-default'
+                      : 'hover:bg-drape-tint/40 cursor-pointer'
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="size-4 shrink-0"
+                    checked={chosen.has(option.id) || alreadyAdded.has(option.id)}
+                    disabled={busy || alreadyAdded.has(option.id)}
+                    onChange={() => toggle(option)}
+                  />
+                  {option.name}
+                  {/*
+                    ⚠️ THE WORDS, NOT JUST THE GREY AND THE TICK (WCAG 1.4.1).
+                      A disabled checkbox that is already ticked reads as "you
+                      selected this a moment ago" to anybody who did not; it has
+                      to say which.
+                  */}
+                  {alreadyAdded.has(option.id) ? (
+                    <span className="text-muted ml-auto text-[0.75rem]">already added</span>
+                  ) : null}
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/*
+        ⚠️ THE CHOSEN ROWS ARE LISTED, NOT JUST COUNTED. They are the half of the
+          selection that may no longer be visible in the box above — see the note
+          on surviving a search — so "3 selected" alone would be asking the
+          clinician to trust a number about rows they cannot see.
+      */}
+      {chosen.size === 0 ? null : (
+        <ul className="mt-3 flex flex-wrap gap-2" aria-label="Selected">
+          {[...chosen].map(([id, name]) => (
+            <li key={id}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => toggle({ id, name })}
+                className="border-drape/30 bg-drape-tint/60 text-drape-deep hover:border-drape inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.75rem]"
+              >
+                {name}
+                <span aria-hidden="true">×</span>
+                <span className="sr-only">Remove from the selection</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!allowCustom ? null : (
+        <div className="mt-3">
+          <Input
+            name={customName}
+            label="Not in the list?"
+            hint="Type it in your own words. Recorded exactly as written."
+            value={custom}
+            disabled={busy}
+            autoComplete="off"
+            onChange={(event) => setCustom(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                void commit();
+              }
+            }}
+          />
+        </div>
+      )}
+
+      <div className="mt-4">
+        <Button variant="secondary" disabled={busy || count === 0} onClick={() => void commit()}>
+          {saving
+            ? 'Adding…'
+            : count === 0
+              ? 'Add'
+              : count === 1
+                ? 'Add 1'
+                : `Add ${String(count)}`}
+        </Button>
+      </div>
+    </fieldset>
   );
 }
 
@@ -390,23 +925,52 @@ const SEVERITIES = [
   { value: 'SEVERE', label: 'Severe' },
 ];
 
-const GRID = 'grid gap-3 sm:grid-cols-3';
+/*
+ * ⚠️ TWO COLUMNS BEFORE THREE, BECAUSE THE ROW IS IN HALF THE WIDTH IT USED TO
+ *   BE. These controls sit inside `SplitSection`'s left box now, so `sm:` — a
+ *   640px viewport — is nothing like 640px of row. Three columns there put a
+ *   "Dose unit" label on two lines above a box four characters wide. The third
+ *   column comes back at `2xl`, where the half really is wide enough for it.
+ */
+const GRID = 'grid gap-3 sm:grid-cols-2 2xl:grid-cols-3';
 
 // ---------------------------------------------------------------------------
 // Symptoms
 // ---------------------------------------------------------------------------
 
 export function SymptomsSection(props: ContentSectionProps) {
-  const { slug, content, readOnly, scopeId, add, edit, remove } = props;
+  const { slug, content, readOnly, scopeIds, add, edit, remove } = props;
   const rows: EncounterSymptom[] = content.symptoms;
 
   const search = useCallback(
-    (term: string) => searchClinicalTerms(slug, 'SYMPTOM', term, scopeId),
-    [slug, scopeId]
+    (term: string, allSpecialties: boolean) =>
+      searchClinicalTerms(slug, 'SYMPTOM', term, scopeIds ?? [], allSpecialties),
+    [slug, scopeIds]
   );
 
   return (
-    <div>
+    <SplitSection
+      recordedLabel="Symptoms recorded"
+      count={rows.length}
+      picker={
+        readOnly ? null : (
+          <TermMultiPicker
+            label="Add symptoms"
+            hint="Tick as many as apply, or type your own words for something the list does not have."
+            emptyNote="This clinic has not added any symptoms yet. An administrator sets them up under Clinical terms."
+            disabled={readOnly}
+            alreadyAdded={recordedIds(rows)}
+            search={search}
+            canWiden={(scopeIds?.length ?? 0) > 0}
+            onAdd={async (picked) => {
+              for (const one of picked) {
+                await add('symptoms', 'id' in one ? { itemId: one.id } : { customText: one.text });
+              }
+            }}
+          />
+        )
+      }
+    >
       {rows.length === 0 ? (
         <Empty what="symptoms" />
       ) : (
@@ -475,24 +1039,7 @@ export function SymptomsSection(props: ContentSectionProps) {
           ))}
         </ul>
       )}
-
-      {readOnly ? null : (
-        <div className="mt-4">
-          <TermPicker
-            label="Add a symptom"
-            hint="Pick one from the list, or type your own words for something it does not have."
-            disabled={readOnly}
-            search={search}
-            onPick={(picked) =>
-              void add(
-                'symptoms',
-                'id' in picked ? { itemId: picked.id } : { customText: picked.text }
-              )
-            }
-          />
-        </div>
-      )}
-    </div>
+    </SplitSection>
   );
 }
 
@@ -514,16 +1061,40 @@ const CERTAINTIES = [
 ];
 
 export function DiagnosisSection(props: ContentSectionProps) {
-  const { slug, content, readOnly, scopeId, add, edit, remove } = props;
+  const { slug, content, readOnly, scopeIds, add, edit, remove } = props;
   const rows: EncounterDiagnosis[] = content.diagnoses;
 
   const search = useCallback(
-    (term: string) => searchClinicalTerms(slug, 'DIAGNOSIS', term, scopeId),
-    [slug, scopeId]
+    (term: string, allSpecialties: boolean) =>
+      searchClinicalTerms(slug, 'DIAGNOSIS', term, scopeIds ?? [], allSpecialties),
+    [slug, scopeIds]
   );
 
   return (
-    <div>
+    <SplitSection
+      recordedLabel="Diagnoses recorded"
+      count={rows.length}
+      picker={
+        readOnly ? null : (
+          <TermMultiPicker
+            label="Add diagnoses"
+            hint="Tick as many as apply, or type your own words. None is primary until you say so — set it explicitly on the row."
+            emptyNote="This clinic has not added any diagnoses yet. An administrator sets them up under Clinical terms."
+            disabled={readOnly}
+            alreadyAdded={recordedIds(rows)}
+            search={search}
+            canWiden={(scopeIds?.length ?? 0) > 0}
+            onAdd={async (picked) => {
+              /* One at a time, in the order they were chosen — see the note on
+                 `TermMultiPicker`. `displayOrder` is assigned server-side. */
+              for (const one of picked) {
+                await add('diagnoses', 'id' in one ? { itemId: one.id } : { customText: one.text });
+              }
+            }}
+          />
+        )
+      }
+    >
       {rows.length === 0 ? (
         <Empty what="diagnoses" />
       ) : (
@@ -568,24 +1139,7 @@ export function DiagnosisSection(props: ContentSectionProps) {
           ))}
         </ul>
       )}
-
-      {readOnly ? null : (
-        <div className="mt-4">
-          <TermPicker
-            label="Add a diagnosis"
-            hint="Pick one from the list, or type your own words. The first one you add is recorded as secondary — set the primary explicitly."
-            disabled={readOnly}
-            search={search}
-            onPick={(picked) =>
-              void add(
-                'diagnoses',
-                'id' in picked ? { itemId: picked.id } : { customText: picked.text }
-              )
-            }
-          />
-        </div>
-      )}
-    </div>
+    </SplitSection>
   );
 }
 
@@ -609,12 +1163,13 @@ export function ProcedureSection(
     chartRegions: readonly { value: string; label: string }[];
   }
 ) {
-  const { slug, content, readOnly, scopeId, chartRegions, add, edit, remove } = props;
+  const { slug, content, readOnly, scopeIds, chartRegions, add, edit, remove } = props;
   const rows: EncounterProcedure[] = content.procedures;
 
   const search = useCallback(
-    (term: string) => searchClinicalTerms(slug, 'PROCEDURE', term, scopeId),
-    [slug, scopeId]
+    (term: string, allSpecialties: boolean) =>
+      searchClinicalTerms(slug, 'PROCEDURE', term, scopeIds ?? [], allSpecialties),
+    [slug, scopeIds]
   );
 
   /*
@@ -636,7 +1191,35 @@ export function ProcedureSection(
   ];
 
   return (
-    <div>
+    <SplitSection
+      recordedLabel="Procedures recorded"
+      count={rows.length}
+      picker={
+        readOnly ? null : (
+          <TermMultiPicker
+            label="Add procedures"
+            /*
+             * ⚠️ `allowCustom={false}` AND THE HINT SAYS WHY. A procedure is
+             *   billed, consumed from stock and reported on, so a typed one is a
+             *   line nothing downstream can price or count. The picker enforces
+             *   it; the sentence explains it.
+             */
+            hint="Tick as many as apply. Procedures come from the clinic's own list, because they are billed and consumed from stock."
+            emptyNote="This clinic has not added any procedures yet. An administrator sets them up under Clinical terms."
+            allowCustom={false}
+            disabled={readOnly}
+            alreadyAdded={recordedIds(rows)}
+            search={search}
+            canWiden={(scopeIds?.length ?? 0) > 0}
+            onAdd={async (picked) => {
+              for (const one of picked) {
+                if ('id' in one) await add('procedures', { itemId: one.id });
+              }
+            }}
+          />
+        )
+      }
+    >
       {rows.length === 0 ? (
         <Empty what="procedures" />
       ) : (
@@ -702,27 +1285,7 @@ export function ProcedureSection(
           ))}
         </ul>
       )}
-
-      {readOnly ? null : (
-        <div className="mt-4">
-          <TermPicker
-            label="Add a procedure"
-            /*
-             * ⚠️ THE HINT SAYS WHY THERE IS NO FREE-TEXT OPTION HERE. A
-             *   procedure is billed, consumed from stock and reported on, so a
-             *   typed one is a line nothing downstream can price or count.
-             */
-            hint="Procedures come from the clinic's own list, because they are billed and consumed from stock. Add a missing one under Clinical terms."
-            disabled={readOnly}
-            search={search}
-            onPick={(picked) => {
-              if (!('id' in picked)) return;
-              void add('procedures', { itemId: picked.id });
-            }}
-          />
-        </div>
-      )}
-    </div>
+    </SplitSection>
   );
 }
 
@@ -796,10 +1359,51 @@ export function PrescriptionSection(props: ContentSectionProps) {
    *   stocked, batched, taxed thing — which is why the PRESCRIPTION section's
    *   registry entry carries no vocabulary at all.
    */
-  const search = useCallback((term: string) => searchPrescribableProducts(slug, term), [slug]);
+  const search = useCallback<PickerSearch>(
+    async (term) => ({ items: await searchPrescribableProducts(slug, term), widened: false }),
+    [slug]
+  );
 
   return (
-    <div>
+    <SplitSection
+      recordedLabel="Medicines prescribed"
+      count={rows.length}
+      picker={
+        readOnly ? null : (
+          <TermMultiPicker
+            label="Prescribe medicines"
+            /*
+             * ⚠️ THE DOSE IS NOT ASKED FOR HERE, AND THAT IS THE DELIBERATE
+             *   TRADE. Tick the medicines, add them all, then fill the dose,
+             *   frequency, course and food relation on each line — every one of
+             *   those controls already exists on the row above. Asking for them
+             *   in this panel would mean one medicine at a time, which is the
+             *   thing being fixed.
+             *
+             *   ⚠️ WHICH MEANS AN ADDED MEDICINE STARTS WITH NO DOSE. That is a
+             *     real state and the hint says so, because a prescription signed
+             *     with a blank dose is a prescription a pharmacist cannot fill.
+             */
+            hint="Tick as many as you are prescribing. Set the dose and course on each line afterwards — a medicine is added with none."
+            emptyNote="This clinic has no medicines in its catalogue yet. An administrator adds them under Products."
+            allowCustom={false}
+            disabled={readOnly}
+            alreadyAdded={recordedIds(rows)}
+            /* ⚠️ NO `canWiden` HERE, AND ITS ABSENCE IS THE POINT. §42.8 — a
+               medicine belongs to no single specialty; a dermatologist and a
+               dentist prescribe the same amoxicillin. There is nothing to widen
+               out of, so offering the toggle would be a control that changes
+               nothing, which teaches people to distrust the ones that do. */
+            search={search}
+            onAdd={async (picked) => {
+              for (const one of picked) {
+                if ('id' in one) await add('prescriptions', { productId: one.id });
+              }
+            }}
+          />
+        )
+      }
+    >
       {rows.length === 0 ? (
         <Empty what="medicines" />
       ) : (
@@ -964,23 +1568,7 @@ export function PrescriptionSection(props: ContentSectionProps) {
           ))}
         </ul>
       )}
-
-      {readOnly ? null : (
-        <div className="mt-4">
-          <TermPicker
-            label="Prescribe a medicine"
-            hint="Searches the clinic's catalogue. Fill in the dose and course on the line it adds."
-            placeholder="Start typing a medicine"
-            disabled={readOnly}
-            search={search}
-            onPick={(picked) => {
-              if (!('id' in picked)) return;
-              void add('prescriptions', { productId: picked.id });
-            }}
-          />
-        </div>
-      )}
-    </div>
+    </SplitSection>
   );
 }
 
@@ -1002,16 +1590,39 @@ const INVESTIGATION_STATUSES = [
 ];
 
 export function InvestigationSection(props: ContentSectionProps) {
-  const { slug, content, readOnly, scopeId, add, edit, remove } = props;
+  const { slug, content, readOnly, scopeIds, add, edit, remove } = props;
   const rows: EncounterInvestigation[] = content.investigations;
 
   const search = useCallback(
-    (term: string) => searchClinicalTerms(slug, 'INVESTIGATION', term, scopeId),
-    [slug, scopeId]
+    (term: string, allSpecialties: boolean) =>
+      searchClinicalTerms(slug, 'INVESTIGATION', term, scopeIds ?? [], allSpecialties),
+    [slug, scopeIds]
   );
 
   return (
-    <div>
+    <SplitSection
+      recordedLabel="Investigations ordered"
+      count={rows.length}
+      picker={
+        readOnly ? null : (
+          <TermMultiPicker
+            label="Order investigations"
+            hint="Tick everything you are ordering. Comes from the clinic's own list."
+            emptyNote="This clinic has not added any investigations yet. An administrator sets them up under Clinical terms."
+            allowCustom={false}
+            disabled={readOnly}
+            alreadyAdded={recordedIds(rows)}
+            search={search}
+            canWiden={(scopeIds?.length ?? 0) > 0}
+            onAdd={async (picked) => {
+              for (const one of picked) {
+                if ('id' in one) await add('investigations', { itemId: one.id });
+              }
+            }}
+          />
+        )
+      }
+    >
       {rows.length === 0 ? (
         <Empty what="investigations" />
       ) : (
@@ -1055,22 +1666,7 @@ export function InvestigationSection(props: ContentSectionProps) {
           ))}
         </ul>
       )}
-
-      {readOnly ? null : (
-        <div className="mt-4">
-          <TermPicker
-            label="Order an investigation"
-            hint="Comes from the clinic's own list. Add a missing one under Clinical terms."
-            disabled={readOnly}
-            search={search}
-            onPick={(picked) => {
-              if (!('id' in picked)) return;
-              void add('investigations', { itemId: picked.id });
-            }}
-          />
-        </div>
-      )}
-    </div>
+    </SplitSection>
   );
 }
 
@@ -1078,17 +1674,57 @@ export function InvestigationSection(props: ContentSectionProps) {
 // Advice
 // ---------------------------------------------------------------------------
 
+/**
+ * ⚠️ THE ROW IS THE ADVICE AND NOTHING ELSE — NO "What the patient was told" BOX.
+ *   It used to carry one, seeded with `customText ?? item.name`, which on a row
+ *   picked from the library meant a textarea repeating the title directly above
+ *   it. Read as a form field that is what it looks like: a duplicate somebody
+ *   forgot to remove.
+ *
+ *   ⚠️ WHAT IT ACTUALLY WAS, AND WHAT REMOVING IT COSTS: it was the TAILORING
+ *     control — `updateEncounterAdviceRequest`, the one update in
+ *     `encounter-content.ts` that touches the text, which turns "Brushing
+ *     technique" into "brushing technique, and stop using the hard brush" and
+ *     sets `isEdited`. That endpoint still exists and still works; there is now
+ *     no way to reach it from this screen, so advice is given exactly as the
+ *     library words it or typed in full through "Not in the list?".
+ *
+ *     `isEdited` is still rendered as a subtitle, because rows tailored before
+ *     this change are still on the record and still say so.
+ */
 export function AdviceSection(props: ContentSectionProps) {
-  const { slug, content, readOnly, scopeId, add, edit, remove } = props;
+  const { slug, content, readOnly, scopeIds, add, remove } = props;
   const rows: EncounterAdvice[] = content.advice;
 
   const search = useCallback(
-    (term: string) => searchClinicalTerms(slug, 'ADVICE', term, scopeId),
-    [slug, scopeId]
+    (term: string, allSpecialties: boolean) =>
+      searchClinicalTerms(slug, 'ADVICE', term, scopeIds ?? [], allSpecialties),
+    [slug, scopeIds]
   );
 
   return (
-    <div>
+    <SplitSection
+      recordedLabel="Advice given"
+      count={rows.length}
+      picker={
+        readOnly ? null : (
+          <TermMultiPicker
+            label="Add advice"
+            hint="Tick as many as apply, or type your own words for anything the library does not cover."
+            emptyNote="This clinic has not added any advice to its library yet. An administrator sets it up under Clinical terms."
+            disabled={readOnly}
+            alreadyAdded={recordedIds(rows)}
+            search={search}
+            canWiden={(scopeIds?.length ?? 0) > 0}
+            onAdd={async (picked) => {
+              for (const one of picked) {
+                await add('advice', 'id' in one ? { itemId: one.id } : { customText: one.text });
+              }
+            }}
+          />
+        )
+      }
+    >
       {rows.length === 0 ? (
         <Empty what="advice" />
       ) : (
@@ -1100,46 +1736,11 @@ export function AdviceSection(props: ContentSectionProps) {
               subtitle={row.isEdited ? 'Tailored from the clinic’s standard advice' : undefined}
               readOnly={readOnly}
               onRemove={() => void remove('advice', row.id)}
-            >
-              {/*
-                ⚠️ EDITING THE TEXT MOVES THE ROW FROM CODED TO TYPED, which the
-                CHECK constraint requires and the server does. Which library
-                entry it started from is on the audit trail, and `isEdited` is
-                what tells the clinic which of its standard advice reaches
-                patients unchanged.
-              */}
-              <RowText
-                label="What the patient was told"
-                value={row.customText ?? row.item?.name ?? ''}
-                rows={2}
-                disabled={readOnly}
-                onCommit={(value) => {
-                  if (value === null) return;
-                  void edit('advice', row.id, { customText: value });
-                }}
-              />
-            </Row>
+            />
           ))}
         </ul>
       )}
-
-      {readOnly ? null : (
-        <div className="mt-4">
-          <TermPicker
-            label="Add advice"
-            hint="Pick from the clinic's library, or type your own. Either can be tailored afterwards."
-            disabled={readOnly}
-            search={search}
-            onPick={(picked) =>
-              void add(
-                'advice',
-                'id' in picked ? { itemId: picked.id } : { customText: picked.text }
-              )
-            }
-          />
-        </div>
-      )}
-    </div>
+    </SplitSection>
   );
 }
 
@@ -1159,11 +1760,30 @@ export function ReferralSection(props: ContentSectionProps) {
   const [to, setTo] = useState('');
   const name = useId();
 
-  const searchSpecialty = useCallback(
-    (term: string) => searchReferralSpecialties(slug, term),
+  /* Neither of these reads the clinical vocabulary, so neither is scoped: one
+     searches the taxonomy itself and the other searches people. */
+  const searchSpecialty = useCallback<PickerSearch>(
+    async (term) => ({ items: await searchReferralSpecialties(slug, term), widened: false }),
     [slug]
   );
-  const searchColleague = useCallback((term: string) => searchReferralDoctors(slug, term), [slug]);
+  const searchColleague = useCallback<PickerSearch>(
+    async (term) => ({ items: await searchReferralDoctors(slug, term), widened: false }),
+    [slug]
+  );
+
+  /*
+   * Two lists, not one, because a referral names EITHER a specialty or a
+   * colleague and the ids come from different tables — a specialty id colliding
+   * with a doctor profile id would be a coincidence, but relying on it not
+   * happening is not a guarantee worth taking. An external referral is a typed
+   * name with no id, so it is not deduped; see `recordedIds`.
+   */
+  const referredSpecialties = new Set(
+    rows.map((row) => row.specialtyId).filter((id): id is string => id !== null)
+  );
+  const referredColleagues = new Set(
+    rows.map((row) => row.doctorProfileId).filter((id): id is string => id !== null)
+  );
 
   return (
     <div>
@@ -1222,6 +1842,7 @@ export function ReferralSection(props: ContentSectionProps) {
           */}
           <TermPicker
             label="Refer to a specialty"
+            alreadyAdded={referredSpecialties}
             hint="A classification, when the patient needs a kind of clinician rather than a named one."
             placeholder="Start typing a specialty"
             disabled={readOnly}
@@ -1237,6 +1858,7 @@ export function ReferralSection(props: ContentSectionProps) {
 
           <TermPicker
             label="Refer to a colleague"
+            alreadyAdded={referredColleagues}
             hint="Somebody at this organization. Type at least two letters of their name."
             placeholder="Start typing a name"
             disabled={readOnly}

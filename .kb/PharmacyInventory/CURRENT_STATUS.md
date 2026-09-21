@@ -3,7 +3,7 @@
 The honest ledger for the Product Platform programme. Nothing is marked built
 until it is built, migrated, tested and wired to a screen.
 
-**Last updated:** 2026-08-13 · **Phase:** PI-0 through PI-5 complete
+**Last updated:** 2026-08-20 · **Phase:** PI-0 through PI-13 and PI-15 complete
 
 ⚠️ **THE REST OF THIS FILE DESCRIBES THE PRE-CODE STATE AND IS KEPT FOR THE AUDIT
 IT RECORDS, NOT AS A STATUS.** Its table of reusable infrastructure is still
@@ -37,6 +37,13 @@ transfer DOCUMENT holds it, because a sender-owned `IN_TRANSIT` bucket would
 force the receiver to write against a branch RLS hides from them. PI-22's
 valuation must add the outstanding lines of `DISPATCHED` transfers. See
 [NEXT_SESSION.md](NEXT_SESSION.md) decision 1.
+
+✅ **PI-22 DID THAT — AFTER FIRST GETTING IT WRONG, WHICH IS WORTH KEEPING.** The
+first draft of `inventory-valuation` filtered `stock_balances` on
+`status = 'IN_TRANSIT'`, a status nothing in the codebase writes. It honoured the
+flag, returned rows, and reported stock on a van as worth nothing. The paragraph
+above predicted it. `includeInTransit` now sums `sent − received` over
+`DISPATCHED` and `PARTIALLY_RECEIVED` transfer lines at the sending branch.
 
 PI-4 shipped procurement — twelve tables, the supplier/document tenancy seam, and
 seven screens. PI-5 shipped the regulatory FRAMEWORK: six tables, the pure
@@ -109,15 +116,15 @@ the proposed additions and PI-ADR-011 for the `pharmacy.medicine.*` question.
 
 ## What does not exist
 
-| Missing                                                                                                  | Consequence for this programme                                                                                                                                            |
-| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Every table in this programme** — products, inventory, batches, suppliers, POs, dispensing, regulatory | This is greenfield. Nothing to migrate, nothing to break.                                                                                                                 |
-| **`prescriptions`**                                                                                      | ⛔ **Hard-blocks PI-7 (pharmacy dispensing).** Owned by Phase 3 (Core clinical), which is mid-flight — station 1 stage 5 of 5 is pending and prescriptions come after it. |
-| **`encounters` / `procedures`**                                                                          | ⛔ **Hard-blocks PI-9 (clinical consumption).** Same owner. The consultation page is a route with a placeholder.                                                          |
-| Veterinary patient support                                                                               | `patients` is human-shaped. PI-11 adds it additively. Blocks nothing before then.                                                                                         |
-| Worker processors                                                                                        | Every BullMQ queue is registered; only stubs consume them. Expiry sweeps and reorder alerts need a real processor (PI-2 / PI-22).                                         |
-| Notification delivery                                                                                    | Logging stub only. Expiry and recall alerts will queue but not deliver until Phase 7 cross-cutting lands.                                                                 |
-| Any regulatory concept anywhere                                                                          | `country_code` / `region_code` exist **only for tax**. There is no jurisdiction, authority or rule concept in the codebase.                                               |
+| Missing                                                                                                  | Consequence for this programme                                                                                                                                                                                             |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Every table in this programme** — products, inventory, batches, suppliers, POs, dispensing, regulatory | This is greenfield. Nothing to migrate, nothing to break.                                                                                                                                                                  |
+| **`prescriptions`**                                                                                      | ✅ **Resolved (CE-4).** It arrived as `encounter_prescriptions` — a consultation's medication lines rather than a document of its own — and PI-7 dispenses against those.                                                  |
+| **`encounters` / `procedures`**                                                                          | ⛔ **Hard-blocks PI-9 (clinical consumption).** Same owner. The consultation page is a route with a placeholder.                                                                                                           |
+| Veterinary patient support                                                                               | ✅ **Resolved (PI-11).** `patients.subject_type` + `animal_profiles` existed from CE-1 and were unreachable; PI-11 wired them end to end, added the `SPECIES_RESTRICTION` rule type and weight-based dosing. No new table. |
+| Worker processors                                                                                        | Every BullMQ queue is registered; only stubs consume them. Expiry sweeps and reorder alerts need a real processor (PI-2 / PI-22).                                                                                          |
+| Notification delivery                                                                                    | Logging stub only. Expiry and recall alerts will queue but not deliver until Phase 7 cross-cutting lands.                                                                                                                  |
+| Any regulatory concept anywhere                                                                          | `country_code` / `region_code` exist **only for tax**. There is no jurisdiction, authority or rule concept in the codebase.                                                                                                |
 
 ---
 

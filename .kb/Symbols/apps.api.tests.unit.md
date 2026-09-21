@@ -4,14 +4,17 @@
 
 > The audit diff.
 
-Files: `apps/api/tests/unit/audit-diff.test.ts` · `apps/api/tests/unit/inventory-allocation.test.ts` · `apps/api/tests/unit/inventory-movement.test.ts` · `apps/api/tests/unit/procurement-costing.test.ts` · `apps/api/tests/unit/product-units.test.ts` · `apps/api/tests/unit/product-values.test.ts` · `apps/api/tests/unit/regulatory-enforcement.test.ts` · `apps/api/tests/unit/route-gates.test.ts` · `apps/api/tests/unit/storage-path.test.ts` · `apps/api/tests/unit/temperature.test.ts` · `apps/api/tests/unit/vital-ranges.test.ts`
+Files: `apps/api/tests/unit/audit-diff.test.ts` · `apps/api/tests/unit/charge-policy.test.ts` · `apps/api/tests/unit/consumption-contract.test.ts` · `apps/api/tests/unit/credit-note-contract.test.ts` · `apps/api/tests/unit/gs1.test.ts` · `apps/api/tests/unit/inventory-allocation.test.ts` · `apps/api/tests/unit/inventory-movement.test.ts` · `apps/api/tests/unit/openapi.test.ts` · `apps/api/tests/unit/procurement-costing.test.ts` · `apps/api/tests/unit/product-units.test.ts` · `apps/api/tests/unit/product-values.test.ts` · `apps/api/tests/unit/recall-contract.test.ts` · `apps/api/tests/unit/regulatory-enforcement.test.ts` · `apps/api/tests/unit/report-csv.test.ts` · `apps/api/tests/unit/route-gates.test.ts` · `apps/api/tests/unit/rule-pack-readable.test.ts` · `apps/api/tests/unit/storage-path.test.ts` · `apps/api/tests/unit/temperature.test.ts` · `apps/api/tests/unit/vital-ranges.test.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `chainOf` <sub>local</sub> | `(router: IRouter): string[]` | `apps/api/tests/unit/route-gates.test.ts:187` |  |
+| `asRule` <sub>local</sub> | `(seed: Seed): RegulatoryRule` | `apps/api/tests/unit/rule-pack-readable.test.ts:66` |  |
+| `chainOf` <sub>local</sub> | `(router: IRouter): string[]` | `apps/api/tests/unit/route-gates.test.ts:264` |  |
 | `decision` <sub>local</sub> | `(over: Partial<RegulatoryDecisionResponse>): RegulatoryDecisionResponse` | `apps/api/tests/unit/regulatory-enforcement.test.ts:25` |  |
+| `declaredEndpointKeys` <sub>local</sub> | `(): Set<string>` | `apps/api/tests/unit/openapi.test.ts:37` | Every `METHOD /full/path` the mount table can reach. |
 | `ids` <sub>local</sub> | `(candidates: AllocationCandidate[]): (string \| null)[]` | `apps/api/tests/unit/inventory-allocation.test.ts:28` |  |
 | `lot` <sub>local</sub> | `(partial: Partial<AllocationCandidate> & { batchId: string }): AllocationCandidate` | `apps/api/tests/unit/inventory-allocation.test.ts:17` | A candidate with sensible defaults, so each test states only what it means. |
-| `routesOf` <sub>local</sub> | `(router: IRouter): Route[]` | `apps/api/tests/unit/route-gates.test.ts:62` |  |
+| `routesOf` <sub>local</sub> | `(router: IRouter): Route[]` | `apps/api/tests/unit/route-gates.test.ts:68` |  |
+| `toOpenApiPath` <sub>local</sub> | `(path: string): string` | `apps/api/tests/unit/openapi.test.ts:34` |  |
