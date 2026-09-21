@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import {
   createRequisitionAction,
-  IDLE_FORM,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * Asking for stock.

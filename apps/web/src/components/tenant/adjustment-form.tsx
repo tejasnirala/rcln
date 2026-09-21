@@ -14,10 +14,10 @@ import { Alert } from '@/components/ui/alert';
 import { ProductPicker } from '@/components/tenant/product-picker';
 import { lotsForProduct, type LotListState } from '@/app/(tenant)/t/[slug]/(app)/lookup-actions';
 import {
-  IDLE_FORM,
   recordAdjustmentAction,
   type StockFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/stock/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/stock/form-state';
 
 /**
  * Correcting a count (PI-3.1).

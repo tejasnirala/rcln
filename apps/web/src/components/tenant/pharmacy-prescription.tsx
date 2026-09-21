@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/field';
 import {
   cancelFulfilmentAction,
-  IDLE_FORM,
   verifyPrescriptionAction,
   type PharmacyFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/form-state';
 
 /**
  * One prescription, read-only, with the two things a dispensary may do about it.

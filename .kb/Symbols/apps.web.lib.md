@@ -4,7 +4,7 @@
 
 > Analytics seam.
 
-Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/appointment-words.ts` · `apps/web/src/lib/calendar-range.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/invoice-filters.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/patient-words.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/postal.ts` · `apps/web/src/lib/report-specs.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts` · `apps/web/src/lib/theme.ts`
+Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/appointment-words.ts` · `apps/web/src/lib/calendar-range.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/enum-words.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/invoice-filters.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/patient-words.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/postal.ts` · `apps/web/src/lib/report-specs.ts` · `apps/web/src/lib/row-key.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts` · `apps/web/src/lib/theme.ts`
 
 ## fn
 
@@ -17,6 +17,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `apiBinary` | `(path: string, request: ApiRequest): Promise<ApiFile>` | `apps/web/src/lib/api.ts:221` |  |
 | `apiHeaders` <sub>local</sub> | `(request: ApiRequest, accept: string): Promise<Record<string, string>>` | `apps/web/src/lib/api.ts:133` |  |
 | `applyTheme` | `(element: { dataset: DOMStringMap }, preference: ThemePreference, prefersDark: boolean): void` | `apps/web/src/lib/theme.ts:182` |  |
+| `asOptions` | `(values: readonly string[]): { value: string; label: string }[]` | `apps/web/src/lib/enum-words.ts:25` | The same, as `<Select options>`. |
 | `branchesInScope` | `(slug: string): Promise<BranchSummary[]>` | `apps/web/src/lib/session.ts:134` |  |
 | `buildTree` | `(nodes: SpecialtySummary[]): TaxonomyTree` | `apps/web/src/lib/taxonomy.ts:41` |  |
 | `byOrderThenName` <sub>local</sub> | `(a: SpecialtySummary, b: SpecialtySummary): number` | `apps/web/src/lib/taxonomy.ts:38` |  |
@@ -44,6 +45,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `getAccessToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:86` |  |
 | `getRefreshToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:90` |  |
 | `hardNavigate` | `(path: string): void` | `apps/web/src/lib/hard-navigate.ts:32` |  |
+| `humanise` | `(value: string): string` | `apps/web/src/lib/enum-words.ts:18` |  |
 | `isCalendarDate` | `(value: string \| undefined): value is string` | `apps/web/src/lib/calendar-range.ts:35` |  |
 | `isFinished` | `(status: AppointmentStatusValue): boolean` | `apps/web/src/lib/appointment-words.ts:157` |  |
 | `isWithin` | `(range: DateRange, date: string): boolean` | `apps/web/src/lib/calendar-range.ts:159` |  |
@@ -55,6 +57,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:44` |  |
 | `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:40` |  |
 | `monthLabel` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:242` | "August 2026" — the heading over a month grid. |
+| `nextRowKey` | `(): string` | `apps/web/src/lib/row-key.ts:26` |  |
 | `offsetMsAt` <sub>local</sub> | `(instant: Date, timeZone: string): number` | `apps/web/src/lib/format.ts:158` | How far the zone is from UTC AT THAT INSTANT — DST included, by construction. |
 | `parse` <sub>local</sub> | `(date: string): Date` | `apps/web/src/lib/calendar-range.ts:44` |  |
 | `pathTo` | `(tree: TaxonomyTree, id: string): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:76` |  |
@@ -148,6 +151,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `baseCookie` | `{ httpOnly: true, // Lax, not Strict: Strict would drop the cookie on the cross-host redi…` | `apps/web/src/lib/session-cookie.ts:21` |  |
+| `counter` <sub>local</sub> | `0` | `apps/web/src/lib/row-key.ts:24` |  |
 | `getPlatformSession` | `cache(…)` | `apps/web/src/lib/session.ts:273` |  |
 | `getSession` | `cache(…)` | `apps/web/src/lib/session.ts:108` |  |
 | `listPlatformOrganizations` | `cache(…)` | `apps/web/src/lib/platform.ts:26` |  |

@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import type { ManufacturerSummary, ProductCategory, ProductSummary } from '@rcln/contracts';
 import { Input, Select } from '@/components/ui/field';
+import { CatalogueNav } from '@/components/tenant/catalogue-nav';
 import { Button } from '@/components/ui/button';
 
 /**
@@ -194,6 +195,8 @@ export function ProductList({ products, meta, categories, manufacturers, canMana
           </div>
         ) : null}
       </header>
+
+      <CatalogueNav />
 
       {/* Filters. A form so Enter submits the search from the keyboard. */}
       <form

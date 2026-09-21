@@ -16,9 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Input, Select, inputClass } from '@/components/ui/field';
 import {
   dispenseAction,
-  IDLE_FORM,
   type PharmacyFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/form-state';
 
 /**
  * The dispensing workspace — the most important screen in the programme.

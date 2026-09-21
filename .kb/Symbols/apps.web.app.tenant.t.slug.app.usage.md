@@ -4,7 +4,7 @@
 
 > One line as the panel serialises it.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/form-state.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/page.tsx`
 
 ## component
 
@@ -16,21 +16,26 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `correctConsumptionAction` | `(slug: string, consumptionId: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:165` |  |
-| `createConsumptionTemplateAction` | `(slug: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:233` |  |
-| `IDLE_USAGE_FORM` | `: UsageFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:45` |  |
-| `recordConsumptionAction` | `(slug: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:109` |  |
-| `retireConsumptionTemplateAction` | `(slug: string, templateId: string): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:322` |  |
-| `updateConsumptionTemplateAction` | `(slug: string, templateId: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:274` |  |
+| `correctConsumptionAction` | `(slug: string, consumptionId: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:163` |  |
+| `createConsumptionTemplateAction` | `(slug: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:231` |  |
+| `recordConsumptionAction` | `(slug: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:107` |  |
+| `retireConsumptionTemplateAction` | `(slug: string, templateId: string): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:320` |  |
+| `updateConsumptionTemplateAction` | `(slug: string, templateId: string, _previous: UsageFormState, form: FormData): Promise<UsageFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:272` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `parseLines` <sub>local</sub> | `(form: FormData): SerialisedLine[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:98` |  |
-| `parseTemplateLines` <sub>local</sub> | `(form: FormData): SerialisedTemplateLine[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:217` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): UsageFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:47` |  |
+| `parseLines` <sub>local</sub> | `(form: FormData): SerialisedLine[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:96` |  |
+| `parseTemplateLines` <sub>local</sub> | `(form: FormData): SerialisedTemplateLine[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:215` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): UsageFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:45` |  |
 | `usageAccess` | `(slug: string): Promise<UsageAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/guard.ts:35` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `IDLE_USAGE_FORM` | `: UsageFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/form-state.ts:21` |  |
 
 ## var
 
@@ -42,9 +47,9 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `SerialisedAllocation` <sub>local</sub> | `{ locationId, batchId, serialId, quantityBase, overrideReason }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:74` |  |
-| `SerialisedLine` <sub>local</sub> | `{ templateLineId, productId, quantity, unitId, overrideReason, allocations }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:82` |  |
-| `SerialisedTemplateLine` <sub>local</sub> | `{ productId, quantity, unitId, isOptional, displayOrder, note }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:208` |  |
+| `SerialisedAllocation` <sub>local</sub> | `{ locationId, batchId, serialId, quantityBase, overrideReason }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:72` |  |
+| `SerialisedLine` <sub>local</sub> | `{ templateLineId, productId, quantity, unitId, overrideReason, allocations }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:80` |  |
+| `SerialisedTemplateLine` <sub>local</sub> | `{ productId, quantity, unitId, isOptional, displayOrder, note }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/actions.ts:206` |  |
 | `UsageAccess` | `{ canRead, canRecord, canOverride, canManageTemplates, any }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/usage/guard.ts:26` |  |
 
 ## type

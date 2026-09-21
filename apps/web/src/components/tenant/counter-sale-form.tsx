@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/field';
 import { PharmacyNav } from '@/components/tenant/pharmacy-nav';
 import { ProductPicker } from '@/components/tenant/product-picker';
+import { nextRowKey } from '@/lib/row-key';
 import {
   dispenseAction,
-  IDLE_FORM,
   type PharmacyFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/form-state';
 
 /**
  * A sale with no prescription behind it.
@@ -58,7 +59,7 @@ export function CounterSaleForm({ slug, branches, locations }: Props) {
   const [branchId, setBranchId] = useState(branches[0]?.id ?? '');
   const [locationId, setLocationId] = useState(locations[0]?.id ?? '');
   const [lines, setLines] = useState<SaleLine[]>([
-    { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
+    { key: nextRowKey(), productId: '', baseUnitId: '', quantity: '' },
   ]);
 
   const [state, formAction, pending] = useActionState<PharmacyFormState, FormData>(
@@ -205,7 +206,7 @@ export function CounterSaleForm({ slug, branches, locations }: Props) {
             onClick={() =>
               setLines((current) => [
                 ...current,
-                { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
+                { key: nextRowKey(), productId: '', baseUnitId: '', quantity: '' },
               ])
             }
           >

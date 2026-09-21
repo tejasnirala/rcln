@@ -51,8 +51,6 @@ export type PharmacyFormState = {
   ruleMessages?: string[];
 };
 
-export const IDLE_FORM: PharmacyFormState = { status: 'idle' };
-
 function toFormState(result: {
   ok: boolean;
   message?: string;

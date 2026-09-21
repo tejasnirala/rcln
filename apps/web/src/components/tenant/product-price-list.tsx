@@ -9,9 +9,9 @@ import { Alert } from '@/components/ui/alert';
 import { ChargesNav } from '@/components/tenant/charges-nav';
 import {
   deleteProductPriceAction,
-  IDLE_CHARGE_FORM,
   type ChargeFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/charges/actions';
+import { IDLE_CHARGE_FORM } from '@/app/(tenant)/t/[slug]/(app)/charges/form-state';
 
 /**
  * What this clinic sells things for.

@@ -11,7 +11,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `addIdentifier` | `(ctx: TenantContext, productId: string, input: CreateProductIdentifierRequest, options: CatalogueActionOptions): Promise<ProductIdentifierDetail>` | `apps/api/src/services/product/identifier.service.ts:83` |  |
-| `assertDistinctIngredients` <sub>local</sub> | `(ingredients: { ingredientId: string }[]): void` | `apps/api/src/services/product/catalogue.service.ts:577` |  |
+| `assertDistinctIngredients` <sub>local</sub> | `(ingredients: { ingredientId: string }[]): void` | `apps/api/src/services/product/catalogue.service.ts:586` |  |
 | `assertExpiryTrackable` <sub>local</sub> | `(input: { isExpiryControlled?: boolean \| undefined; tracking…): void` | `apps/api/src/services/product/product.service.ts:381` |  |
 | `assertMutable` <sub>local</sub> | `(organizationId: string \| null, noun: string): void` | `apps/api/src/services/product/catalogue.service.ts:54` |  |
 | `assertMutable` <sub>local</sub> | `(row: CategoryRow): void` | `apps/api/src/services/product/category.service.ts:107` |  |
@@ -27,7 +27,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `createComposition` | `(ctx: TenantContext, input: CreateCompositionRequest, options: CatalogueActionOptions): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:443` |  |
 | `createManufacturer` | `(ctx: TenantContext, input: CreateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>` | `apps/api/src/services/product/catalogue.service.ts:88` |  |
 | `createProduct` | `(ctx: TenantContext, input: CreateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:396` |  |
-| `createStorageProfile` | `(ctx: TenantContext, input: CreateStorageProfileRequest, options: CatalogueActionOptions): Promise<StorageProfileSummary>` | `apps/api/src/services/product/catalogue.service.ts:620` |  |
+| `createStorageProfile` | `(ctx: TenantContext, input: CreateStorageProfileRequest, options: CatalogueActionOptions): Promise<StorageProfileSummary>` | `apps/api/src/services/product/catalogue.service.ts:629` |  |
 | `createUnit` | `(ctx: TenantContext, input: CreateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:210` |  |
 | `createUnitConversion` | `(ctx: TenantContext, input: CreateUnitConversionRequest, options: CatalogueActionOptions): Promise<UnitConversionSummary>` | `apps/api/src/services/product/unit.service.ts:334` |  |
 | `currentIdentifierWhere` | `(input: { values: readonly string[]; type?: ProductIdentifie…): Prisma.ProductIdentifierWhereInput` | `apps/api/src/services/product/identifier.service.ts:297` |  |
@@ -41,7 +41,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `getComposition` | `(ctx: TenantContext, compositionId: string): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:434` |  |
 | `getMedicineDetail` | `(ctx: TenantContext, productId: string): Promise<MedicineDetail \| null>` | `apps/api/src/services/product/medicine.service.ts:59` |  |
 | `getProduct` | `(ctx: TenantContext, productId: string): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:327` |  |
-| `importProducts` | `(ctx: TenantContext, input: ProductImportRequest, options: CatalogueActionOptions): Promise<ProductImportResponse>` | `apps/api/src/services/product/import.service.ts:109` |  |
+| `importProducts` | `(ctx: TenantContext, input: ProductImportRequest, options: CatalogueActionOptions): Promise<ProductImportResponse>` | `apps/api/src/services/product/import.service.ts:122` |  |
 | `isCurrentOn` | `(effectiveTo: Date \| null, on: Date): boolean` | `apps/api/src/services/product/values.ts:72` |  |
 | `listActiveIngredients` | `(ctx: TenantContext, query: { q?: string \| undefined; includeInactive: boolean; …): Promise<ActiveIngredientSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:203` |  |
 | `listCategories` | `(ctx: TenantContext, includeInactive: boolean): Promise<ProductCategory[]>` | `apps/api/src/services/product/category.service.ts:193` |  |
@@ -51,7 +51,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `listManufacturers` | `(ctx: TenantContext, includeInactive: boolean): Promise<ManufacturerSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:66` |  |
 | `listPackagings` | `(ctx: TenantContext, productId: string): Promise<ProductPackagingDetail[]>` | `apps/api/src/services/product/packaging.service.ts:78` |  |
 | `listProducts` | `(ctx: TenantContext, query: ProductListQuery): Promise<ProductListResponse>` | `apps/api/src/services/product/product.service.ts:235` |  |
-| `listStorageProfiles` | `(ctx: TenantContext, includeInactive: boolean): Promise<StorageProfileSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:593` |  |
+| `listStorageProfiles` | `(ctx: TenantContext, includeInactive: boolean): Promise<StorageProfileSummary[]>` | `apps/api/src/services/product/catalogue.service.ts:602` |  |
 | `listTaxClassifications` | `(ctx: TenantContext, productId: string): Promise<ProductTaxClassificationDetail[]>` | `apps/api/src/services/product/tax-classification.service.ts:76` |  |
 | `listUnits` | `(ctx: TenantContext, query: UnitQuery): Promise<UnitListResponse>` | `apps/api/src/services/product/unit.service.ts:156` |  |
 | `loadCategory` <sub>local</sub> | `(tx: TxClient, id: string): Promise<CategoryRow>` | `apps/api/src/services/product/category.service.ts:82` |  |
@@ -80,7 +80,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 | `toUnit` <sub>local</sub> | `(row: UnitRow): UnitSummary` | `apps/api/src/services/product/unit.service.ts:84` |  |
 | `updateActiveIngredient` | `(ctx: TenantContext, ingredientId: string, input: UpdateActiveIngredientRequest, options: CatalogueActionOptions): Promise<ActiveIngredientSummary>` | `apps/api/src/services/product/catalogue.service.ts:283` |  |
 | `updateCategory` | `(ctx: TenantContext, id: string, input: UpdateProductCategoryRequest, options: CatalogueActionOptions): Promise<ProductCategory>` | `apps/api/src/services/product/category.service.ts:286` |  |
-| `updateComposition` | `(ctx: TenantContext, compositionId: string, input: UpdateCompositionRequest, options: CatalogueActionOptions): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:500` |  |
+| `updateComposition` | `(ctx: TenantContext, compositionId: string, input: UpdateCompositionRequest, options: CatalogueActionOptions): Promise<CompositionSummary>` | `apps/api/src/services/product/catalogue.service.ts:509` |  |
 | `updateManufacturer` | `(ctx: TenantContext, manufacturerId: string, input: UpdateManufacturerRequest, options: CatalogueActionOptions): Promise<ManufacturerSummary>` | `apps/api/src/services/product/catalogue.service.ts:132` |  |
 | `updateProduct` | `(ctx: TenantContext, productId: string, input: UpdateProductRequest, options: CatalogueActionOptions): Promise<ProductDetail>` | `apps/api/src/services/product/product.service.ts:482` |  |
 | `updateUnit` | `(ctx: TenantContext, unitId: string, input: UpdateUnitRequest, options: CatalogueActionOptions): Promise<UnitSummary>` | `apps/api/src/services/product/unit.service.ts:269` |  |
@@ -91,7 +91,7 @@ Files: `apps/api/src/services/product/catalogue.service.ts` · `apps/api/src/ser
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ImportRolledBack` <sub>local</sub> | `{ }` | `apps/api/src/services/product/import.service.ts:289` |  |
+| `ImportRolledBack` <sub>local</sub> | `{ }` | `apps/api/src/services/product/import.service.ts:314` |  |
 
 ## var
 

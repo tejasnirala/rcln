@@ -42,8 +42,6 @@ export type ChargeFormState = {
   createdId?: string;
 };
 
-export const IDLE_CHARGE_FORM: ChargeFormState = { status: 'idle' };
-
 function toFormState(result: {
   ok: boolean;
   message?: string;

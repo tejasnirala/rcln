@@ -7,6 +7,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea } from '@/components/ui/field';
 import { calendarDateIn } from '@/lib/calendar-range';
+import { nextRowKey } from '@/lib/row-key';
 import { saveDraft, type InvoiceFormState } from '@/app/(tenant)/t/[slug]/(app)/invoices/actions';
 
 /**
@@ -111,7 +112,7 @@ export function InvoiceDraftEditor({
         // Not the array index: removing the middle row would renumber the rest
         // and React would reuse the wrong input's DOM node, carrying a typed
         // value onto a different line.
-        key: `new-${crypto.randomUUID()}`,
+        key: `new-${nextRowKey()}`,
         description: '',
         /*
          * The tax category is required and there is no sensible default the

@@ -16,9 +16,9 @@ import { ProductPicker } from '@/components/tenant/product-picker';
 import { resolveScan } from '@/app/(tenant)/t/[slug]/(app)/lookup-actions';
 import {
   createGoodsReceiptAction,
-  IDLE_FORM,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * Recording a delivery. The most consequential screen in this phase.

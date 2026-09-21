@@ -4,7 +4,7 @@
 
 > ⚠️ THE LOTS ARRIVE AS REPEATED CHECKBOX KEYS, WHICH IS SAFE HERE AND WOULD NOT BE ON A LINE EDITOR.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/form-state.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/page.tsx`
 
 ## component
 
@@ -16,22 +16,27 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts` · 
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addRecallBatchesAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:110` |  |
-| `cancelRecallAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:250` |  |
-| `closeRecallAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:219` |  |
-| `createRecallAction` | `(slug: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:67` |  |
-| `executeRecallAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:161` |  |
-| `IDLE_RECALL_FORM` | `: RecallFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:44` |  |
-| `removeRecallBatchAction` | `(slug: string, recallId: string, recallBatchId: string, _previous: RecallFormState, _form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:136` |  |
-| `resolveRecallBatchAction` | `(slug: string, recallId: string, recallBatchId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:189` |  |
+| `addRecallBatchesAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:108` |  |
+| `cancelRecallAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:248` |  |
+| `closeRecallAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:217` |  |
+| `createRecallAction` | `(slug: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:65` |  |
+| `executeRecallAction` | `(slug: string, recallId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:159` |  |
+| `removeRecallBatchAction` | `(slug: string, recallId: string, recallBatchId: string, _previous: RecallFormState, _form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:134` |  |
+| `resolveRecallBatchAction` | `(slug: string, recallId: string, recallBatchId: string, _previous: RecallFormState, form: FormData): Promise<RecallFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:187` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `recallAccess` | `(slug: string): Promise<RecallAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts:30` |  |
-| `revalidate` <sub>local</sub> | `(slug: string, recallId?: string): void` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:59` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): RecallFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:46` |  |
+| `revalidate` <sub>local</sub> | `(slug: string, recallId?: string): void` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:57` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): RecallFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/actions.ts:44` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `IDLE_RECALL_FORM` | `: RecallFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/form-state.ts:21` |  |
 
 ## var
 

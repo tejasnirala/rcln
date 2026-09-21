@@ -42,8 +42,6 @@ export type UsageFormState = {
   createdId?: string;
 };
 
-export const IDLE_USAGE_FORM: UsageFormState = { status: 'idle' };
-
 function toFormState(result: {
   ok: boolean;
   message?: string;

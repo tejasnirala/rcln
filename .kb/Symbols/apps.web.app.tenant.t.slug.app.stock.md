@@ -4,7 +4,7 @@
 
 > One place where an API refusal becomes a form state.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/form-state.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/page.tsx`
 
 ## component
 
@@ -16,26 +16,31 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts` · `apps/web/
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `cancelTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:581` |  |
-| `createLocationAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:115` |  |
-| `createLotAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:223` |  |
-| `createSerialAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:281` |  |
-| `createTransferAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:427` |  |
-| `dispatchTransferAction` | `(slug: string, transferId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:473` |  |
-| `IDLE_FORM` | `: StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:61` |  |
-| `receiveTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:504` |  |
-| `recordAdjustmentAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:337` |  |
-| `releaseReservationAction` | `(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:678` |  |
-| `reserveStockAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:618` |  |
-| `updateLocationAction` | `(slug: string, locationId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:159` |  |
+| `cancelTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:579` |  |
+| `createLocationAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:113` |  |
+| `createLotAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:221` |  |
+| `createSerialAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:279` |  |
+| `createTransferAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:425` |  |
+| `dispatchTransferAction` | `(slug: string, transferId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:471` |  |
+| `receiveTransferAction` | `(slug: string, transferId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:502` |  |
+| `recordAdjustmentAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:335` |  |
+| `releaseReservationAction` | `(slug: string, reservationId: string, _prev: StockFormState): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:676` |  |
+| `reserveStockAction` | `(slug: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:616` |  |
+| `updateLocationAction` | `(slug: string, locationId: string, _prev: StockFormState, formData: FormData): Promise<StockFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:157` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `majorToMinor` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:103` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:70` |  |
-| `transferLinesFrom` <sub>local</sub> | `(formData: FormData): StockTransferLineRequest[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:402` |  |
+| `majorToMinor` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:101` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:68` |  |
+| `transferLinesFrom` <sub>local</sub> | `(formData: FormData): StockTransferLineRequest[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:400` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `IDLE_FORM` | `: StockFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/stock/form-state.ts:21` |  |
 
 ## var
 

@@ -4,7 +4,7 @@ import { useActionState, useRef } from 'react';
 import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import type { PharmacyFormState } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
-import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/form-state';
 
 /**
  * One thing that can happen to an order next, as a form.

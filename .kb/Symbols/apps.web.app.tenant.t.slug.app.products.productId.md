@@ -10,10 +10,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/[productId]/page.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `ProductPage` | `({ params, }: { params: Promise<{ slug: string; productId: s…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/[productId]/page.tsx:37` |  |
+| `ProductPage` | `({ params, }: { params: Promise<{ slug: string; productId: s…)` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/[productId]/page.tsx:38` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/[productId]/page.tsx:19` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/[productId]/page.tsx:20` |  |

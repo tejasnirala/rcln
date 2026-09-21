@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input, inputClass } from '@/components/ui/field';
 import { cn } from '@/lib/cn';
 import {
-  IDLE_FORM,
   returnDispenseAction,
   type PharmacyFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/form-state';
 import { formatClinicDateTime } from '@/lib/format';
 
 /**

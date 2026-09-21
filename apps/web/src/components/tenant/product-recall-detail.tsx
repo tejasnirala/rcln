@@ -15,10 +15,10 @@ import {
   cancelRecallAction,
   closeRecallAction,
   executeRecallAction,
-  IDLE_RECALL_FORM,
   resolveRecallBatchAction,
   type RecallFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/product-recalls/actions';
+import { IDLE_RECALL_FORM } from '@/app/(tenant)/t/[slug]/(app)/product-recalls/form-state';
 
 /**
  * One notice: what it covers, what has been pulled, and who already has it.

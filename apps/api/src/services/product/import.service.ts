@@ -56,11 +56,17 @@ interface RowResult {
  */
 async function resolveMasters(
   tx: TxClient,
-  codes: { units: string[]; categories: string[]; manufacturers: string[] }
+  codes: {
+    units: string[];
+    categories: string[];
+    manufacturers: string[];
+    compositions: string[];
+  }
 ): Promise<{
   units: Map<string, string>;
   categories: Map<string, string>;
   manufacturers: Map<string, string>;
+  compositions: Map<string, string>;
   inactiveUnits: Set<string>;
 }> {
   const preferOwn = <T extends { code: string; organizationId: string | null; id: string }>(
@@ -76,7 +82,7 @@ async function resolveMasters(
     return new Map([...byCode].map(([code, row]) => [code, row.id]));
   };
 
-  const [units, categories, manufacturers] = await Promise.all([
+  const [units, categories, manufacturers, compositions] = await Promise.all([
     codes.units.length === 0
       ? []
       : tx.unitOfMeasure.findMany({
@@ -95,12 +101,19 @@ async function resolveMasters(
           where: { code: { in: codes.manufacturers } },
           select: { id: true, code: true, organizationId: true },
         }),
+    codes.compositions.length === 0
+      ? []
+      : tx.composition.findMany({
+          where: { code: { in: codes.compositions } },
+          select: { id: true, code: true, organizationId: true },
+        }),
   ]);
 
   return {
     units: preferOwn(units),
     categories: preferOwn(categories),
     manufacturers: preferOwn(manufacturers),
+    compositions: preferOwn(compositions),
     /* An inactive unit is a different message from a missing one. */
     inactiveUnits: new Set(units.filter((u) => !u.isActive).map((u) => u.code)),
   };
@@ -119,6 +132,9 @@ export async function importProducts(
       categories: [...new Set(input.rows.flatMap((r) => (r.categoryCode ? [r.categoryCode] : [])))],
       manufacturers: [
         ...new Set(input.rows.flatMap((r) => (r.manufacturerCode ? [r.manufacturerCode] : []))),
+      ],
+      compositions: [
+        ...new Set(input.rows.flatMap((r) => (r.compositionCode ? [r.compositionCode] : []))),
       ],
     });
 
@@ -195,6 +211,14 @@ export async function importProducts(
         continue;
       }
 
+      const compositionId = row.compositionCode
+        ? masters.compositions.get(row.compositionCode)
+        : undefined;
+      if (row.compositionCode && !compositionId) {
+        fail(`No composition has the code "${row.compositionCode}".`);
+        continue;
+      }
+
       const created = await tx.product.create({
         data: {
           organizationId: ctx.organizationId,
@@ -205,6 +229,7 @@ export async function importProducts(
           genericName: row.genericName ?? null,
           categoryId: categoryId ?? null,
           manufacturerId: manufacturerId ?? null,
+          compositionId: compositionId ?? null,
           baseUnitId,
           trackingMode: row.trackingMode,
           isExpiryControlled: row.isExpiryControlled,

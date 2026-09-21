@@ -41,8 +41,6 @@ export type RecallFormState = {
   createdId?: string;
 };
 
-export const IDLE_RECALL_FORM: RecallFormState = { status: 'idle' };
-
 function toFormState(result: {
   ok: boolean;
   message?: string;

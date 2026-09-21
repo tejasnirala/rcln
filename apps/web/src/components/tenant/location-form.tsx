@@ -13,9 +13,9 @@ import { Alert } from '@/components/ui/alert';
 import {
   createLocationAction,
   updateLocationAction,
-  IDLE_FORM,
   type StockFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/stock/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/stock/form-state';
 
 /**
  * Adding or editing a place stock is kept.

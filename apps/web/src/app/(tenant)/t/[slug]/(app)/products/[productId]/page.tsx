@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PERMISSIONS } from '@rcln/permissions';
 import type {
+  CompositionSummary,
   EquivalentProductsResponse,
   JurisdictionListResponse,
   MedicineDetail,
@@ -81,6 +82,7 @@ export default async function ProductPage({
     jurisdictions,
     prices,
     branches,
+    compositions,
   ] = await Promise.all([
     api<ProductDetail>(`/api/v1/products/${productId}`, { slug, accessToken }),
     api<EquivalentProductsResponse>(`/api/v1/products/${productId}/equivalents`, {
@@ -125,6 +127,12 @@ export default async function ProductPage({
       : Promise.resolve({ ok: false, status: 403 } as const),
     /* The branches a price may be scoped to. Only the ones this caller works at. */
     canReadPrices ? branchesInScope(slug) : Promise.resolve([]),
+    /*
+     * The formulas the Details tab's composition picker offers. Behind the same
+     * `product.definition.read` this page already required, so it does not need
+     * the swallow-a-403 treatment the medicine and regulatory tabs get.
+     */
+    api<{ compositions: CompositionSummary[] }>('/api/v1/compositions', { slug, accessToken }),
   ]);
 
   // A product in another tenant is filtered out by RLS before the service sees
@@ -147,6 +155,7 @@ export default async function ProductPage({
       equivalents={equivalents.data?.products ?? []}
       medicine={medicine.ok ? (medicine.data ?? null) : null}
       units={units.data?.units ?? []}
+      compositions={compositions.data?.compositions ?? []}
       canManage={permissions.includes(PERMISSIONS.PRODUCT_DEFINITION_MANAGE)}
       canManageIdentifiers={permissions.includes(PERMISSIONS.PRODUCT_IDENTIFIER_MANAGE)}
       canManageTax={permissions.includes(PERMISSIONS.BILLING_TAX_MANAGE)}

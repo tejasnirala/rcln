@@ -22,7 +22,7 @@ a tenant clones one into an org-scoped role instead.
 | `RECEPTIONIST` | Receptionist / Front Desk | BRANCH | 24 / 139 | Registers patients, books appointments, collects payment. No clinical access. |
 | `LAB_ASSISTANT` | Lab Assistant | BRANCH | 6 / 139 | Collects samples and enters results. Cannot verify or release a report. |
 | `LAB_MANAGER` | Lab Manager | BRANCH | 18 / 139 | Verifies results and releases reports. Separation of duty from the assistant. |
-| `PHARMACIST` | Pharmacist | BRANCH | 41 / 139 | Dispenses against prescriptions and manages stock. |
+| `PHARMACIST` | Pharmacist | BRANCH | 42 / 139 | Dispenses against prescriptions and manages stock. |
 | `ACCOUNTANT` | Accountant | ORGANIZATION | 25 / 139 | Billing and revenue. Reads patient identity only, never clinical notes. |
 | `PATIENT` | Patient | ORGANIZATION | 11 / 139 | Portal access to their own records only. Row filtering is by patient_id, not by this role. |
 
@@ -59,7 +59,7 @@ a tenant clones one into an org-scoped role instead.
 | `billing.credit_note.issue` | Y | Y | Y | Y |  |  |  |  |  |  | Y |  |
 | `billing.doctor_payout.manage` | Y | Y | Y | Y |  |  |  |  |  |  | Y |  |
 | `billing.fee_schedule.manage` | Y | Y | Y |  |  |  |  |  |  |  |  |  |
-| `billing.fee_schedule.read` | Y | Y | Y | Y | Y |  | Y |  |  |  | Y |  |
+| `billing.fee_schedule.read` | Y | Y | Y | Y | Y |  | Y |  |  | Y | Y |  |
 | `billing.invoice.cancel` | Y | Y | Y | Y |  |  |  |  |  |  | Y |  |
 | `billing.invoice.create` | Y | Y | Y | Y |  |  | Y |  |  | Y | Y |  |
 | `billing.invoice.read` | Y | Y | Y | Y | Y |  | Y |  | Y | Y | Y | Y |

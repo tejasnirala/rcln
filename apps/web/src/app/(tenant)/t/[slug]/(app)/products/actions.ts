@@ -67,8 +67,6 @@ export type ProductFormState = {
   productId?: string;
 };
 
-export const IDLE_FORM: ProductFormState = { status: 'idle' };
-
 /**
  * One place where an API refusal becomes a form state.
  *

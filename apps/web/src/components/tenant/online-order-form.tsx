@@ -14,8 +14,10 @@ import { PharmacyNav } from '@/components/tenant/pharmacy-nav';
 import { PatientPicker } from '@/components/tenant/patient-picker';
 import { ConsultationPicker } from '@/components/tenant/consultation-picker';
 import { ProductPicker } from '@/components/tenant/product-picker';
+import { nextRowKey } from '@/lib/row-key';
 import { createOnlineOrderAction } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/orders/actions';
-import { IDLE_FORM, type PharmacyFormState } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
+import { type PharmacyFormState } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/pharmacy/form-state';
 
 /**
  * Taking an order over the telephone, or off a form somebody filled in.
@@ -97,7 +99,7 @@ export function OnlineOrderForm({
   const [patientId, setPatientId] = useState('');
   const [locationId, setLocationId] = useState('');
   const [lines, setLines] = useState<OrderLine[]>([
-    { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
+    { key: nextRowKey(), productId: '', baseUnitId: '', quantity: '' },
   ]);
 
   const [state, formAction, pending] = useActionState<PharmacyFormState, FormData>(
@@ -370,7 +372,7 @@ export function OnlineOrderForm({
             onClick={() =>
               setLines((current) => [
                 ...current,
-                { key: crypto.randomUUID(), productId: '', baseUnitId: '', quantity: '' },
+                { key: nextRowKey(), productId: '', baseUnitId: '', quantity: '' },
               ])
             }
           >

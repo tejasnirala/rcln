@@ -9,9 +9,9 @@ import { Alert } from '@/components/ui/alert';
 import { UsageNav } from '@/components/tenant/usage-nav';
 import {
   createConsumptionTemplateAction,
-  IDLE_USAGE_FORM,
   type UsageFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/usage/actions';
+import { IDLE_USAGE_FORM } from '@/app/(tenant)/t/[slug]/(app)/usage/form-state';
 
 /**
  * What each procedure normally uses.

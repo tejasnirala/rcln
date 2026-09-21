@@ -548,6 +548,8 @@ export const UNIT_CAPSULE_CODE = 'CAP';
 export const CATEGORY_CODE = 'ANTIBIOTIC';
 /** The manufacturer `MANUFACTURER_ID` is known by. */
 export const MANUFACTURER_CODE = 'MFR-CIPLA';
+/** The composition `COMPOSITION_ID` is known by — what the medicine IS. */
+export const COMPOSITION_CODE = 'AMOXICILLIN-500';
 /** A second product, so an import example can show more than one row. */
 export const SECOND_PRODUCT_CODE = 'MED-PARA-650';
 export const IDENTIFIER_ID = '5a9d1c48-0f36-4e72-9b85-4c7a2e6b1d03';

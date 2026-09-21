@@ -855,6 +855,25 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        *   Recorded in KNOWN_ISSUES for a clinic to narrow with a cloned role.
        */
       P.REQUISITION_CREATE,
+      /*
+       * ⚠️ READ, AND NOT MANAGE — and it was MISSING ENTIRELY until somebody
+       *   opened a product and found no Price tab. This role raises invoices and
+       *   takes money at the counter (the two codes immediately below), and the
+       *   charge queue already shows it what a supply is worth — so a pharmacist
+       *   who could bill but could not look up a price was being asked to quote
+       *   a number the software refused to show them. `/charges` compounds it:
+       *   "no price" is one of the three reasons it gives for a charge being
+       *   stuck, and the Prices screen it points at answered 403.
+       *
+       *   Every other counter-facing role — RECEPTIONIST, DOCTOR, BRANCH_ADMIN,
+       *   ACCOUNTANT — already held it, which is what makes the omission an
+       *   oversight rather than a position. MANAGE stays off: setting a price is
+       *   a commercial decision the organization takes, exactly as it is for the
+       *   fee grid (see FEE_SCHEDULE_MANAGE), and a dispensary that could price
+       *   its own stock is a dispensary that can discount without a second pair
+       *   of eyes.
+       */
+      P.FEE_SCHEDULE_READ,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
       P.PAYMENT_COLLECT,

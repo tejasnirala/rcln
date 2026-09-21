@@ -10,9 +10,9 @@ import { ProductPicker } from '@/components/tenant/product-picker';
 import { formatClinicDate } from '@/lib/format';
 import {
   createRecallAction,
-  IDLE_RECALL_FORM,
   type RecallFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/product-recalls/actions';
+import { IDLE_RECALL_FORM } from '@/app/(tenant)/t/[slug]/(app)/product-recalls/form-state';
 
 /**
  * Every product recall this clinic has raised, newest first.

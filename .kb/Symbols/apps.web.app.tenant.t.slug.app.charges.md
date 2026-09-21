@@ -4,7 +4,7 @@
 
 > Answer one charge the policy would not decide.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/form-state.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/page.tsx`
 
 ## component
 
@@ -16,20 +16,25 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts` · `apps/we
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `billChargesAction` | `(slug: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:120` |  |
-| `decideChargeAction` | `(slug: string, chargeRequestId: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:73` |  |
-| `deleteChargePolicyAction` | `(slug: string, ruleId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:261` |  |
-| `deleteProductPriceAction` | `(slug: string, priceId: string, productId?: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:198` |  |
-| `IDLE_CHARGE_FORM` | `: ChargeFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:45` |  |
-| `saveChargePolicyAction` | `(slug: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:222` |  |
-| `saveProductPriceAction` | `(slug: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:155` |  |
+| `billChargesAction` | `(slug: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:118` |  |
+| `decideChargeAction` | `(slug: string, chargeRequestId: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:71` |  |
+| `deleteChargePolicyAction` | `(slug: string, ruleId: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:259` |  |
+| `deleteProductPriceAction` | `(slug: string, priceId: string, productId?: string): Promise<void>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:196` |  |
+| `saveChargePolicyAction` | `(slug: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:220` |  |
+| `saveProductPriceAction` | `(slug: string, _previous: ChargeFormState, form: FormData): Promise<ChargeFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:153` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `chargesAccess` | `(slug: string): Promise<ChargesAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/guard.ts:31` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ChargeFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:47` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ChargeFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/actions.ts:45` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `IDLE_CHARGE_FORM` | `: ChargeFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/charges/form-state.ts:21` |  |
 
 ## var
 

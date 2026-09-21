@@ -7,11 +7,8 @@ import { Input, Select, Textarea } from '@/components/ui/field';
 import { ProductPicker } from '@/components/tenant/product-picker';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
-import {
-  createLotAction,
-  IDLE_FORM,
-  type StockFormState,
-} from '@/app/(tenant)/t/[slug]/(app)/stock/actions';
+import { createLotAction, type StockFormState } from '@/app/(tenant)/t/[slug]/(app)/stock/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/stock/form-state';
 
 /**
  * Recording a lot.

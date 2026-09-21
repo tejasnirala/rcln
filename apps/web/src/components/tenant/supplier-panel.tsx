@@ -12,11 +12,11 @@ import { ProductPicker } from '@/components/tenant/product-picker';
 import {
   addSupplierProductAction,
   addTaxIdentifierAction,
-  IDLE_FORM,
   removeSupplierProductAction,
   removeTaxIdentifierAction,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * One supplier: who they are, their tax numbers, and what they sell us for how much.

@@ -19,6 +19,10 @@ import { redis } from '../../src/utils/redis.js';
 import { productImportRequest } from '@rcln/contracts';
 
 import { importProducts } from '../../src/services/product/import.service.js';
+import {
+  createActiveIngredient,
+  createComposition,
+} from '../../src/services/product/catalogue.service.js';
 
 const SUFFIX = `i${Date.now().toString(36)}`;
 const SLUG = `imp-${SUFFIX}`;
@@ -118,6 +122,59 @@ describe('a dry run reports everything and writes nothing', () => {
      *   here would be the screen telling somebody their catalogue had landed. */
     expect(result.created).toBe(0);
     expect(await productCount()).toBe(before);
+  });
+});
+
+describe('naming a composition by its code', () => {
+  /**
+   * ⚠️ THE COLUMN THAT DECIDES WHETHER SUBSTITUTION CAN EVER WORK. A product
+   *   imported without a composition can never be offered as an alternative to
+   *   another one, and nothing on any screen says so — the substitutions list is
+   *   simply empty for ever. Worth a test of its own for that reason.
+   */
+  it('links the product to it, and refuses a code that does not exist', async () => {
+    const ingredient = await createActiveIngredient(ctx(), {
+      code: `ING-${SUFFIX}`,
+      name: 'Paracetamol',
+    });
+    const unit = await owner.query<{ id: string }>(
+      `SELECT id FROM units_of_measure WHERE organization_id IS NULL AND code = 'MG'`
+    );
+    const mg = unit.rows[0]?.id;
+    if (!mg) throw new Error('the seed is missing the MG unit');
+
+    const composition = await createComposition(ctx(), {
+      code: `COMP-${SUFFIX}`,
+      name: 'Paracetamol 500 mg',
+      dosageForm: 'TABLET',
+      ingredients: [
+        { ingredientId: ingredient.id, strength: '500', strengthUnitId: mg, displayOrder: 0 },
+      ],
+    });
+
+    const good = row({ compositionCode: composition.code });
+    const before = await productCount();
+    const result = await importProducts(ctx(), {
+      rows: [good, row({ compositionCode: 'NO-SUCH-COMPOSITION' })],
+      dryRun: false,
+    });
+
+    expect(result.failed).toBe(1);
+    expect(result.results[1]?.message).toBe('No composition has the code "NO-SUCH-COMPOSITION".');
+    /* All or nothing. The good row is REPORTED as it would have landed — the
+       count says what the file would do — and the catalogue is untouched, which
+       is the assertion that matters and the one the sibling cases make. */
+    expect(result.results[0]?.outcome).toBe('CREATED');
+    expect(await productCount()).toBe(before);
+
+    const landed = await importProducts(ctx(), { rows: [good], dryRun: false });
+    expect(landed.created).toBe(1);
+
+    const { rows } = await owner.query<{ composition_id: string | null }>(
+      'SELECT composition_id FROM products WHERE organization_id = $1 AND code = $2',
+      [org.organizationId, good.code]
+    );
+    expect(rows[0]?.composition_id).toBe(composition.id);
   });
 });
 

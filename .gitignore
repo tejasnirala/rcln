@@ -65,3 +65,11 @@ Thumbs.db
 # A development tool for LOOKING at the template; its output is a build
 # artefact, and the ones that matter are written outside the repo anyway.
 /packages/documents/preview/
+
+# Local working material, not project documentation.
+#
+# The medicine catalogue CSV is a scratch import sample used while building the
+# importer, and PHARMACY_FLOW.md is a personal set of flow notes. Both live at
+# the root because that is where they were dropped; neither belongs in a clone.
+/pmch-medicine-catalogue.csv
+/PHARMACY_FLOW.md

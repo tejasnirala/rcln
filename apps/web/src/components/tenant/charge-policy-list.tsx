@@ -4,13 +4,14 @@ import { useActionState, useState } from 'react';
 import type { ChargePolicyRuleListResponse } from '@rcln/contracts';
 import { Input, Select } from '@/components/ui/field';
 import { Alert } from '@/components/ui/alert';
+import { humanise } from '@/lib/enum-words';
 import { ChargesNav } from '@/components/tenant/charges-nav';
 import {
   deleteChargePolicyAction,
   saveChargePolicyAction,
-  IDLE_CHARGE_FORM,
   type ChargeFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/charges/actions';
+import { IDLE_CHARGE_FORM } from '@/app/(tenant)/t/[slug]/(app)/charges/form-state';
 
 /**
  * What this clinic bills for at all.
@@ -55,12 +56,6 @@ const PRODUCT_TYPES = [
   'VETERINARY_CONSUMABLE',
   'GENERAL_CLINICAL_SUPPLY',
 ];
-
-/** Sentence case from an enum member — `SURGICAL_SUPPLY` → `Surgical supply`. */
-function humanise(value: string): string {
-  const words = value.toLowerCase().replaceAll('_', ' ');
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
 
 const TIERS = [
   {

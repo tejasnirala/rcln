@@ -4,7 +4,7 @@
 
 > One place where an API refusal becomes a form state.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/products/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/products/form-state.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/products/page.tsx`
 
 ## component
 
@@ -16,25 +16,45 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `addIdentifierAction` | `(slug: string, productId: string, body: CreateProductIdentifierRequest): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:247` |  |
-| `cloneProductAction` | `(slug: string, productId: string, code?: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:182` |  |
-| `createProductAction` | `(slug: string, _prev: ProductFormState, formData: FormData): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:96` |  |
-| `expireIdentifierAction` | `(slug: string, productId: string, identifierId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:267` | Expires the identifier rather than removing it — stock received under it must keep resolving. The button says "Expire" for the same reason. |
-| `IDLE_FORM` | `: ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:70` |  |
-| `importProductsAction` | `(slug: string, rows: unknown[], dryRun: boolean): Promise<ProductImportState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:420` |  |
-| `replacePackagingAction` | `(slug: string, productId: string, levels: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:222` |  |
-| `replaceRegulatoryProfilesAction` | `(slug: string, productId: string, profiles: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:325` |  |
-| `replaceTaxClassificationsAction` | `(slug: string, productId: string, classifications: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:290` |  |
-| `saveMedicineDetailAction` | `(slug: string, productId: string, body: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:350` |  |
-| `updateProductAction` | `(slug: string, productId: string, patch: Record<string, unknown>): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:154` |  |
-| `withdrawProductAction` | `(slug: string, productId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:202` |  |
+| `addIdentifierAction` | `(slug: string, productId: string, body: CreateProductIdentifierRequest): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:245` |  |
+| `cloneProductAction` | `(slug: string, productId: string, code?: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:180` |  |
+| `createProductAction` | `(slug: string, _prev: ProductFormState, formData: FormData): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:94` |  |
+| `expireIdentifierAction` | `(slug: string, productId: string, identifierId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:265` | Expires the identifier rather than removing it — stock received under it must keep resolving. The button says "Expire" for the same reason. |
+| `importProductsAction` | `(slug: string, rows: unknown[], dryRun: boolean): Promise<ProductImportState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:418` |  |
+| `replacePackagingAction` | `(slug: string, productId: string, levels: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:220` |  |
+| `replaceRegulatoryProfilesAction` | `(slug: string, productId: string, profiles: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:323` |  |
+| `replaceTaxClassificationsAction` | `(slug: string, productId: string, classifications: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:288` |  |
+| `saveMedicineDetailAction` | `(slug: string, productId: string, body: unknown): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:348` |  |
+| `updateProductAction` | `(slug: string, productId: string, patch: Record<string, unknown>): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:152` |  |
+| `withdrawProductAction` | `(slug: string, productId: string): Promise<ProductFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:200` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `numberOrUndefined` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:389` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:79` |  |
+| `checked` <sub>local</sub> | `(form: FormData, name: string): boolean` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:108` | A checkbox that is absent from `FormData` when cleared. |
+| `createCategoryAction` | `(slug: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:323` |  |
+| `createCompositionAction` | `(slug: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:273` |  |
+| `createIngredientAction` | `(slug: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:190` |  |
+| `createManufacturerAction` | `(slug: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:121` |  |
+| `createStorageProfileAction` | `(slug: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:370` |  |
+| `ingredientRows` <sub>local</sub> | `(form: FormData): unknown[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:247` |  |
+| `numberOrNull` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| null` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:110` |  |
+| `numberOrUndefined` <sub>local</sub> | `(value: FormDataEntryValue \| null): number \| undefined` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:387` |  |
+| `submit` <sub>local</sub> | `(options: { schema: ZodType; raw: unknown; path: string; met…): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:70` |  |
+| `synonymsFrom` <sub>local</sub> | `(value: FormDataEntryValue \| null): string[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:177` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:77` |  |
+| `updateCategoryAction` | `(slug: string, categoryId: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:344` |  |
+| `updateCompositionAction` | `(slug: string, compositionId: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:293` |  |
+| `updateIngredientAction` | `(slug: string, ingredientId: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:211` |  |
+| `updateManufacturerAction` | `(slug: string, manufacturerId: string, _prev: MasterFormState, form: FormData): Promise<MasterFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:142` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `IDLE_FORM` | `: ProductFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/form-state.ts:22` |  |
+| `IDLE_MASTER_FORM` | `: MasterFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/form-state.ts:25` | The same, for the five catalogue master screens. See `masters-actions.ts`. |
 
 ## var
 
@@ -46,5 +66,6 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `MasterFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/masters-actions.ts:57` |  |
 | `ProductFormState` | `{ status: 'idle' \| 'error' \| 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set when a product was just created, so the form can offer …` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:62` |  |
-| `ProductImportState` | `\| { status: 'idle' } \| { status: 'error'; message: string } \| { status: 'done'; result: ProductImportResponse }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:400` |  |
+| `ProductImportState` | `\| { status: 'idle' } \| { status: 'error'; message: string } \| { status: 'done'; result: ProductImportResponse }` | `apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:398` |  |

@@ -10,10 +10,10 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(setup)/layout.tsx`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `TenantSetupLayout` | `({ children, params, }: { children: React.ReactNode; params:…)` | `apps/web/src/app/(tenant)/t/[slug]/(setup)/layout.tsx:27` |  |
+| `TenantSetupLayout` | `({ children, params, }: { children: React.ReactNode; params:…)` | `apps/web/src/app/(tenant)/t/[slug]/(setup)/layout.tsx:36` |  |
 
 ## var
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(setup)/layout.tsx:7` |  |
+| `metadata` | `: Metadata` | `apps/web/src/app/(tenant)/t/[slug]/(setup)/layout.tsx:8` |  |

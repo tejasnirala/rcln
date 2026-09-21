@@ -11,10 +11,10 @@ import { formatClinicDateTime } from '@/lib/format';
 import {
   cancelTransferAction,
   dispatchTransferAction,
-  IDLE_FORM,
   receiveTransferAction,
   type StockFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/stock/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/stock/form-state';
 
 /**
  * One transfer, and whatever it is this person's turn to do with it.

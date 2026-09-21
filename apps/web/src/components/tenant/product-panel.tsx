@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useActionState, useState, useTransition } from 'react';
 import type {
   BranchSummary,
+  CompositionSummary,
   CreateProductIdentifierRequest,
   JurisdictionSummary,
   MedicineDetail,
@@ -20,6 +21,7 @@ import { Input, Select } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { cn } from '@/lib/cn';
+import { asOptions, humanise } from '@/lib/enum-words';
 import {
   addIdentifierAction,
   cloneProductAction,
@@ -33,9 +35,9 @@ import {
 import {
   deleteProductPriceAction,
   saveProductPriceAction,
-  IDLE_CHARGE_FORM,
   type ChargeFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/charges/actions';
+import { IDLE_CHARGE_FORM } from '@/app/(tenant)/t/[slug]/(app)/charges/form-state';
 
 /**
  * One product, and the five facets hanging off it.
@@ -138,22 +140,14 @@ const ROUTES = [
   'OTHER',
 ];
 
-/** `MODIFIED_RELEASE` reads badly in a menu; sentence case with the underscore
- *  removed is what a pharmacist calls it. */
-function humanise(value: string): string {
-  if (value === '') return 'Not recorded';
-  const lower = value.toLowerCase().replace(/_/g, ' ');
-  return lower.charAt(0).toUpperCase() + lower.slice(1);
-}
-
-const asOptions = (values: string[]) => values.map((v) => ({ value: v, label: humanise(v) }));
-
 interface Props {
   slug: string;
   product: ProductDetail;
   equivalents: ProductSummary[];
   medicine: MedicineDetail | null;
   units: UnitSummary[];
+  /** The formulas a medicine can be, for the Details tab's picker. */
+  compositions: CompositionSummary[];
   canManage: boolean;
   canManageIdentifiers: boolean;
   canManageTax: boolean;
@@ -188,6 +182,7 @@ export function ProductPanel({
   equivalents,
   medicine,
   units,
+  compositions,
   canManage,
   canManageIdentifiers,
   canManageTax,
@@ -334,6 +329,7 @@ export function ProductPanel({
       {tab === 'details' ? (
         <DetailsTab
           product={product}
+          compositions={compositions}
           editable={editable}
           pending={pending}
           onSave={(patch) =>
@@ -430,11 +426,13 @@ export function ProductPanel({
 
 function DetailsTab({
   product,
+  compositions,
   editable,
   pending,
   onSave,
 }: {
   product: ProductDetail;
+  compositions: CompositionSummary[];
   editable: boolean;
   pending: boolean;
   onSave: (patch: Record<string, unknown>) => void;
@@ -443,6 +441,25 @@ function DetailsTab({
   const [status, setStatus] = useState(product.status);
   const [brandName, setBrandName] = useState(product.brandName ?? '');
   const [genericName, setGenericName] = useState(product.genericName ?? '');
+  const [compositionId, setCompositionId] = useState(product.compositionId ?? '');
+
+  /*
+   * ⚠️ THE ONE EDITABLE FIELD HERE WITH A CONSEQUENCE AT THE COUNTER. Substitution
+   *   is answered on a shared `compositionId` and on nothing else, so this select
+   *   is what turns an existing medicine into one the dispensary can offer an
+   *   alternative to — and, changed carelessly, what makes two unrelated products
+   *   equivalent. It is offered because the alternative was an API call: no screen
+   *   in this product could set it.
+   *
+   * The composition the product already has stays in the list even if it has been
+   * retired, so opening this form cannot silently clear it.
+   */
+  const compositionOptions = [
+    { value: '', label: 'Not a medicine' },
+    ...compositions
+      .filter((composition) => composition.isActive || composition.id === product.compositionId)
+      .map((composition) => ({ value: composition.id, label: composition.name })),
+  ];
 
   return (
     <section className="max-w-2xl space-y-6">
@@ -467,6 +484,7 @@ function DetailsTab({
               status,
               brandName: brandName.trim() === '' ? null : brandName.trim(),
               genericName: genericName.trim() === '' ? null : genericName.trim(),
+              compositionId: compositionId === '' ? null : compositionId,
             });
           }}
         >
@@ -497,6 +515,14 @@ function DetailsTab({
               label="Generic name"
               value={genericName}
               onChange={(e) => setGenericName(e.target.value)}
+            />
+            <Select
+              name="compositionId"
+              label="Composition"
+              value={compositionId}
+              options={compositionOptions}
+              onChange={(e) => setCompositionId(e.target.value)}
+              hint="What it is made of. Products that share one are offered as equivalents when a prescription is dispensed."
             />
           </div>
           <Button type="submit" disabled={pending}>
@@ -1046,8 +1072,21 @@ function EquivalentsTab({ products }: { products: ProductSummary[] }) {
       </p>
 
       {products.length === 0 ? (
-        <p className="text-muted text-[0.875rem]">
-          Nothing else in the catalogue shares this composition.
+        /*
+         * ⚠️ THE DRAFT CAVEAT IS PART OF THE EMPTY STATE, BECAUSE THE COMMONEST
+         *   REASON THIS LIST IS EMPTY IS NOT THAT NOTHING MATCHES.
+         *   `listEquivalentProducts` returns ACTIVE and DISCONTINUED only — a
+         *   draft is not in the catalogue yet, and offering one as an equivalent
+         *   would point a dispensary at something that is not live. Correct, and
+         *   invisible: somebody who has just built two products on one
+         *   composition sees "nothing shares this" and reasonably concludes the
+         *   composition did not save. Naming the filter costs a line and answers
+         *   the question before it is asked.
+         */
+        <p className="text-muted max-w-prose text-[0.875rem]">
+          Nothing else in the catalogue shares this composition. Products still in{' '}
+          <strong className="text-ink font-medium">Draft</strong> are not listed here — set one
+          active on its Details tab and it will appear.
         </p>
       ) : (
         <ul className="border-rule divide-rule divide-y rounded-md border">
@@ -1415,6 +1454,16 @@ function PriceTab({
           This product has no price, so anything dispensed reaches the charge queue with nothing to
           bill. It will still be handed over — a missing price never stops a supply — and it will
           never reach an invoice until one is set.
+          {/*
+           * ⚠️ WHO CAN FIX IT, FOR SOMEBODY WHO CANNOT. `fee_schedule.read` is
+           *   held by the whole counter — a pharmacist, the front desk, a doctor
+           *   quoting a price — and `fee_schedule.manage` by the organization
+           *   alone. So the reader of this warning is USUALLY not the person who
+           *   can act on it, and a warning that names a consequence without
+           *   naming a next step is read as a fault in the software. Everywhere
+           *   else a refusal in this product ends with the same sentence.
+           */}
+          {editable ? null : ' Ask an administrator at this clinic to set one.'}
         </Alert>
       ) : (
         <table className="w-full text-left text-[0.875rem]">

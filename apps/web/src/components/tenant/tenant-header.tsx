@@ -435,6 +435,23 @@ function clinicNav(permissions: string[], modules: ClinicModule[]): NavLink[] {
       label: 'Clinic',
       permission: [P.ORG_READ, P.SETTINGS_ORG_READ],
     },
+    /*
+     * ⚠️ THE WIZARD IS NOT A ONE-TIME SCREEN, AND WITHOUT THIS ENTRY IT WAS
+     *   UNREACHABLE. `/setup` stayed open after onboarding finished — its layout
+     *   only asks for the permission — but nothing linked to it: `SetupBanner`
+     *   returns null the moment `setupComplete` is true, and no other link
+     *   existed. So the one screen that changes what a clinic RUNS could only be
+     *   reached by knowing the URL and typing it.
+     *
+     *   "What we run" changes on every plan change: a clinic upgrades and wants
+     *   Pharmacy, or decides it is not ready for it yet. That is administration,
+     *   not a first-run formality.
+     *
+     * ⚠️ NO `module` GATE, DELIBERATELY. This is the screen that FIXES the module
+     *   list, so hiding it behind one of its own answers is how a clinic that
+     *   turned something off loses the ability to turn it back on.
+     */
+    { href: '/setup', label: 'Setup', permission: [P.ORG_ONBOARDING_WRITE] },
     // Reading the plan and the invoices is a different permission from changing
     // them; either one makes the screen worth opening, and the screen itself
     // renders only the controls the caller may use.

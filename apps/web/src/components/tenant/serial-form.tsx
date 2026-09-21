@@ -10,9 +10,9 @@ import { ProductPicker } from '@/components/tenant/product-picker';
 import { lotsForProduct, type LotListState } from '@/app/(tenant)/t/[slug]/(app)/lookup-actions';
 import {
   createSerialAction,
-  IDLE_FORM,
   type StockFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/stock/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/stock/form-state';
 
 /**
  * Recording one physically identifiable unit.

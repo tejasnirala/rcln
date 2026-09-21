@@ -10,9 +10,9 @@ import { Alert } from '@/components/ui/alert';
 import { formatClinicDateTime } from '@/lib/format';
 import {
   recordConsumptionAction,
-  IDLE_USAGE_FORM,
   type UsageFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/usage/actions';
+import { IDLE_USAGE_FORM } from '@/app/(tenant)/t/[slug]/(app)/usage/form-state';
 
 /**
  * What this consultation used, and the form for recording it.

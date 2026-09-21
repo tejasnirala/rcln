@@ -43,6 +43,7 @@ import {
   CATEGORY_ID,
   COMPOSITION_ID,
   IDENTIFIER_ID,
+  COMPOSITION_CODE,
   MANUFACTURER_CODE,
   MANUFACTURER_ID,
   PACKAGING_ID,
@@ -412,8 +413,9 @@ own permissions.
   'POST /api/v1/products/import': {
     summary: 'Import a catalogue from a spreadsheet',
     description: `
-Create many products at once, naming units, categories and manufacturers by
-their **codes** rather than by id — a spreadsheet has no uuids in it.
+Create many products at once, naming units, categories, manufacturers and
+compositions by their **codes** rather than by id — a spreadsheet has no uuids in
+it.
 
 ⚠️ **Run it with \`dryRun: true\` first.** The response is identical either way:
 every row gets an outcome and, where it failed, a sentence saying why. A file
@@ -429,6 +431,11 @@ not silently undo a correction somebody made on screen.
 
 Where a code matches both one of this clinic's masters and a platform one, the
 clinic's own wins.
+
+\`compositionCode\` **is** part of this, and is worth filling in: what a medicine
+is made of is the same fact in every country, and it is what substitution is
+answered on. A catalogue imported without it is one where no medicine can be
+offered as an alternative to another.
 
 Prices and tax classifications are **not** part of this: a price is per branch
 and per currency, a tax classification is per country and per jurisdiction, and
@@ -450,6 +457,7 @@ one spreadsheet column cannot honestly mean both.
               baseUnitCode: UNIT_CAPSULE_CODE,
               categoryCode: CATEGORY_CODE,
               manufacturerCode: MANUFACTURER_CODE,
+              compositionCode: COMPOSITION_CODE,
               barcode: PRODUCT_GTIN,
               trackingMode: 'BATCH',
               isExpiryControlled: true,

@@ -4,7 +4,7 @@
 
 > One line per medicine the counter is handing over.
 
-Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/page.tsx`
+Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/form-state.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts` · `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/page.tsx`
 
 ## component
 
@@ -16,19 +16,24 @@ Files: `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts` · `apps/w
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `cancelFulfilmentAction` | `(slug: string, encounterId: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:126` | ⚠️ THIS STANDS THE DISPENSARY DOWN. It does not withdraw the prescription — that is the prescriber's act, in the clinical record, and there is no path to it fr… |
-| `dispenseAction` | `(slug: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:183` |  |
-| `IDLE_FORM` | `: PharmacyFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:54` |  |
-| `returnDispenseAction` | `(slug: string, dispenseId: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:222` |  |
-| `verifyPrescriptionAction` | `(slug: string, encounterId: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:91` |  |
+| `cancelFulfilmentAction` | `(slug: string, encounterId: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:124` | ⚠️ THIS STANDS THE DISPENSARY DOWN. It does not withdraw the prescription — that is the prescriber's act, in the clinical record, and there is no path to it fr… |
+| `dispenseAction` | `(slug: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:181` |  |
+| `returnDispenseAction` | `(slug: string, dispenseId: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:220` |  |
+| `verifyPrescriptionAction` | `(slug: string, encounterId: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:89` |  |
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `linesFrom` <sub>local</sub> | `(form: FormData): DispenseLineRequest[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:173` |  |
+| `linesFrom` <sub>local</sub> | `(form: FormData): DispenseLineRequest[]` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:171` |  |
 | `pharmacyAccess` | `(slug: string): Promise<PharmacyAccess>` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/guard.ts:38` |  |
-| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): PharmacyFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:56` |  |
+| `toFormState` <sub>local</sub> | `(result: { ok: boolean; message?: string; fieldErrors?: Reco…): PharmacyFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:54` |  |
+
+## const
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `IDLE_FORM` | `: PharmacyFormState` | `apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/form-state.ts:21` |  |
 
 ## var
 

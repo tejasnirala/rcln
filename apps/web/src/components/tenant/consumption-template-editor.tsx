@@ -8,9 +8,9 @@ import { UsageNav } from '@/components/tenant/usage-nav';
 import { ProductPicker } from '@/components/tenant/product-picker';
 import {
   updateConsumptionTemplateAction,
-  IDLE_USAGE_FORM,
   type UsageFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/usage/actions';
+import { IDLE_USAGE_FORM } from '@/app/(tenant)/t/[slug]/(app)/usage/form-state';
 
 /**
  * One version of a template, and what it lists.

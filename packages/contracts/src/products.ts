@@ -569,6 +569,23 @@ export const productImportRow = expiryNeedsBatchTracking(
     categoryCode: z.string().trim().max(64).optional(),
     manufacturerCode: z.string().trim().max(64).optional(),
     /**
+     * The code of a composition — what the medicine IS.
+     *
+     * ⚠️ THE ONE IMPORTED FIELD WITH A CONSEQUENCE AT THE COUNTER, and the
+     *   reason it belongs here when price and tax deliberately do not (see the
+     *   header above). Those two vary per currency and per jurisdiction, so one
+     *   spreadsheet column would mean different things in two states. A
+     *   composition does not vary: it is what the substance IS, it is the same
+     *   fact everywhere, and it is what substitution is answered on. A catalogue
+     *   imported without it is a catalogue where no medicine can ever be offered
+     *   as an alternative to another — silently, with nothing on any screen
+     *   saying so.
+     *
+     * Resolved against this clinic's compositions, exactly as `categoryCode` and
+     * `manufacturerCode` are. Optional, because a consumable has none.
+     */
+    compositionCode: z.string().trim().max(64).optional(),
+    /**
      * The barcode on the box, written as a `GTIN` identifier.
      *
      * Optional, and worth filling in: it is what makes the product scannable at
