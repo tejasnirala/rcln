@@ -130,6 +130,34 @@ async function scheduleBlocks(
   doctorProfileId: string,
   date: string
 ): Promise<BlockRow[]> {
+  /*
+   * ⚠️ TWO SOURCES, AND EXACTLY ONE OF THEM ANSWERS FOR A GIVEN DOCTOR (DS-1).
+   *   `doctor_branch_settings.follows_branch_hours` decides which. A doctor who
+   *   consults on the clinic's own hours is READ FROM `branch_operating_hours`
+   *   every time this runs — not from a copy taken when somebody filled in a
+   *   form — so a clinic that changes its opening hours changes theirs too.
+   *   Copying would look identical on the day it was set up and would be wrong
+   *   from the first time the clinic opened an hour earlier.
+   *
+   *   The two halves are mutually exclusive by construction: each carries the
+   *   flag in its own WHERE, so the UNION can never return both. A doctor
+   *   switched onto clinic hours keeps their old `doctor_schedules` rows and
+   *   they simply stop being consulted — switching back restores the week.
+   *
+   * ⚠️ `branch_operating_hours` CARRIES ITS OWN `slot_minutes`, which is why the
+   *   second half is not `NULL::smallint`. The clinic's block length is the
+   *   right default for somebody working the clinic's block; NULL would fall
+   *   through to the resolved setting and quietly ignore what the branch was
+   *   configured with.
+   *
+   * ⚠️ AND IT HAS NO `max_patients`, WHICH IS CORRECT RATHER THAN MISSING. A cap
+   *   is a statement about one doctor's session, not about the building being
+   *   open. NULL means uncapped, which is what "I work whenever the clinic is
+   *   open" says.
+   *
+   * `is_closed` days are excluded rather than returned empty: a closed Sunday
+   * must produce no block at all, not a zero-length one.
+   */
   return tx.$queryRaw<BlockRow[]>`
     SELECT (${date}::date + s.start_time) AT TIME ZONE b.timezone AS starts_at,
            (${date}::date + s.end_time)   AT TIME ZONE b.timezone AS ends_at,
@@ -143,7 +171,32 @@ async function scheduleBlocks(
        AND s.day_of_week = EXTRACT(dow FROM ${date}::date)
        AND s.valid_from <= ${date}::date
        AND (s.valid_to IS NULL OR s.valid_to >= ${date}::date)
-     ORDER BY s.start_time
+       AND NOT COALESCE((
+             SELECT d.follows_branch_hours FROM doctor_branch_settings d
+              WHERE d.doctor_profile_id = ${doctorProfileId}::uuid
+                AND d.branch_id = ${branchId}::uuid
+                AND d.is_active
+           ), false)
+
+     UNION ALL
+
+    SELECT (${date}::date + h.opens_at)  AT TIME ZONE b.timezone AS starts_at,
+           (${date}::date + h.closes_at) AT TIME ZONE b.timezone AS ends_at,
+           h.slot_minutes,
+           NULL::smallint AS max_patients
+      FROM branch_operating_hours h
+      JOIN branches b ON b.id = h.branch_id
+     WHERE h.branch_id = ${branchId}::uuid
+       AND NOT h.is_closed
+       AND h.day_of_week = EXTRACT(dow FROM ${date}::date)
+       AND COALESCE((
+             SELECT d.follows_branch_hours FROM doctor_branch_settings d
+              WHERE d.doctor_profile_id = ${doctorProfileId}::uuid
+                AND d.branch_id = ${branchId}::uuid
+                AND d.is_active
+           ), false)
+
+     ORDER BY starts_at
   `;
 }
 
@@ -427,14 +480,40 @@ export async function computeWorkingDays(
     )
     SELECT to_char(span.day, 'YYYY-MM-DD') AS date,
            span.day < (now() AT TIME ZONE b.timezone)::date AS is_past,
-           EXISTS (
-             SELECT 1 FROM doctor_schedules s
-              WHERE s.branch_id         = b.id
-                AND s.doctor_profile_id = ${input.doctorProfileId}::uuid
-                AND s.is_active
-                AND s.day_of_week = EXTRACT(dow FROM span.day)
-                AND s.valid_from <= span.day
-                AND (s.valid_to IS NULL OR s.valid_to >= span.day)
+           /*
+            * The same two sources scheduleBlocks reads, and they MUST agree
+            * (DS-1). This decides whether the day picker offers a date at all;
+            * the block query decides what is behind it. A day marked bookable
+            * here and empty there is the phantom-availability bug the header of
+            * this file is about, so both consult
+            * doctor_branch_settings.follows_branch_hours and neither guesses.
+            *
+            * NOTE: no backticks in this comment. It lives inside a template
+            * literal, where a backtick ends the string.
+            */
+           (
+             CASE WHEN COALESCE((
+                    SELECT d.follows_branch_hours FROM doctor_branch_settings d
+                     WHERE d.doctor_profile_id = ${input.doctorProfileId}::uuid
+                       AND d.branch_id = b.id
+                       AND d.is_active
+                  ), false)
+             THEN EXISTS (
+               SELECT 1 FROM branch_operating_hours h
+                WHERE h.branch_id = b.id
+                  AND NOT h.is_closed
+                  AND h.day_of_week = EXTRACT(dow FROM span.day)
+             )
+             ELSE EXISTS (
+               SELECT 1 FROM doctor_schedules s
+                WHERE s.branch_id         = b.id
+                  AND s.doctor_profile_id = ${input.doctorProfileId}::uuid
+                  AND s.is_active
+                  AND s.day_of_week = EXTRACT(dow FROM span.day)
+                  AND s.valid_from <= span.day
+                  AND (s.valid_to IS NULL OR s.valid_to >= span.day)
+             )
+             END
            ) AS scheduled,
            EXISTS (
              SELECT 1 FROM doctor_schedule_exceptions e

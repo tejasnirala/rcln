@@ -5,6 +5,7 @@ import {
   createDoctorRequest,
   doctorQualificationRequest,
   doctorScheduleRequest,
+  setDoctorWeekRequest,
   updateDoctorQualificationRequest,
   updateDoctorRequest,
   type DoctorDetail,
@@ -209,6 +210,9 @@ export async function createDoctor(
 
   const qualifications = rowsFrom(formData, 'qualifications');
   const schedules = rowsFrom(formData, 'schedules');
+  const followsBranchHours = rowsFrom(formData, 'followsBranchHours').filter(
+    (value): value is string => typeof value === 'string'
+  );
 
   const parsed = createDoctorRequest.safeParse({
     userId: String(formData.get('userId') ?? ''),
@@ -247,6 +251,13 @@ export async function createDoctor(
      */
     ...(qualifications.length > 0 ? { qualifications } : {}),
     ...(schedules.length > 0 ? { schedules } : {}),
+    /*
+     * Branches the form marked as "same as the clinic" (DS-1). Sent as a list
+     * because the answer is per site, and omitted when empty for the reason the
+     * sections above are: an empty array would trip the per-section permission
+     * gate on a form that simply said nothing about hours.
+     */
+    ...(followsBranchHours.length > 0 ? { followsBranchHours } : {}),
     ...(fees.length > 0 ? { fees } : {}),
     ...(compensation !== undefined ? { compensation } : {}),
   });
@@ -385,6 +396,86 @@ export async function addSchedule(
 
   revalidateDoctor(slug, doctorId);
   return { status: 'saved', message: 'Working hours added.' };
+}
+
+/**
+ * Save a doctor's whole week at one branch (DS-1).
+ *
+ * ⚠️ ONE SUBMISSION FOR THE WHOLE WEEK, replacing the block-at-a-time form. The
+ *   old one could produce three overlapping Tuesdays and gave no view of the
+ *   week; this posts seven rows and the API replaces the set.
+ *
+ * A day whose "from" is blank is a day off. An evening period is optional, and
+ * `null` for both is the same as leaving the row empty — which is how a six-day
+ * week is expressed, with no separate "closed" box to disagree with it.
+ */
+export async function saveDoctorWeek(
+  slug: string,
+  doctorId: string,
+  _previous: DoctorFormState,
+  formData: FormData
+): Promise<DoctorFormState> {
+  const followsBranchHours = formData.get('followsBranchHours') === 'BRANCH';
+
+  const period = (day: number, which: 'am' | 'pm') => {
+    const from = String(formData.get(`${which}-from-${String(day)}`) ?? '').trim();
+    const to = String(formData.get(`${which}-to-${String(day)}`) ?? '').trim();
+    // Both or neither. A half-filled period is a typo, not a half-day, and
+    // sending it would fail the contract with a message about the missing half.
+    return from && to ? { startTime: from, endTime: to } : null;
+  };
+
+  const parsed = setDoctorWeekRequest.safeParse({
+    branchId: String(formData.get('branchId') ?? ''),
+    followsBranchHours,
+    days: followsBranchHours
+      ? []
+      : [0, 1, 2, 3, 4, 5, 6]
+          .map((day) => ({
+            dayOfWeek: day,
+            morning: period(day, 'am'),
+            evening: period(day, 'pm'),
+            slotMinutes: number(formData, `slot-${String(day)}`) ?? null,
+            maxPatients: number(formData, `cap-${String(day)}`) ?? null,
+          }))
+          // A day with no morning is a day off, and the API treats an absent day
+          // as one — so they are dropped rather than sent as empty rows.
+          .filter((d) => d.morning !== null),
+    ...(String(formData.get('validFrom') ?? '').trim()
+      ? { validFrom: String(formData.get('validFrom')) }
+      : {}),
+  });
+
+  if (!parsed.success) {
+    return {
+      status: 'error',
+      message: 'Check the highlighted times.',
+      fieldErrors: fieldErrorsFrom(parsed.error.issues),
+    };
+  }
+
+  const result = await api(`/api/v1/doctors/${doctorId}/week`, {
+    method: 'PUT',
+    slug,
+    accessToken: await getAccessToken(),
+    body: parsed.data,
+  });
+
+  if (!result.ok) {
+    return {
+      status: 'error',
+      ...(result.message !== undefined ? { message: result.message } : {}),
+      ...(result.fieldErrors !== undefined ? { fieldErrors: result.fieldErrors } : {}),
+    };
+  }
+
+  revalidateDoctor(slug, doctorId);
+  return {
+    status: 'saved',
+    message: followsBranchHours
+      ? 'This doctor now follows the clinic’s hours.'
+      : 'Working hours saved.',
+  };
 }
 
 export async function removeSchedule(

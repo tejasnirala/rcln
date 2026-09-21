@@ -30,6 +30,9 @@ const store = (prefix: string): RedisStore =>
  */
 const budget = (max: number): number => max * config.rateLimit.relaxedFactor;
 
+/** 40 scans a minute across the configured window. */
+const getScanBudget = (): number => Math.round((config.rateLimit.windowMs / 60_000) * 40);
+
 export const generalLimiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: budget(config.rateLimit.maxRequests),
@@ -38,6 +41,37 @@ export const generalLimiter = rateLimit({
   store: store('rl:general:'),
   handler: (_req, res) => {
     sendError(res, 'Too many requests, please try again later', 429);
+  },
+});
+
+/**
+ * The scanner, which needs a BIGGER budget than the general one, not a smaller.
+ *
+ * ⚠️ THE GENERAL LIMITER IS THE WRONG SHAPE FOR THIS ENDPOINT IN BOTH
+ *   DIRECTIONS, WHICH IS WHY `API_ARCHITECTURE.md` ASKED FOR A DEDICATED ONE
+ *   (KNOWN_ISSUES #35). `GET /v1/stock/resolve` is fired once per carton at a
+ *   loading bay: 100 requests per fifteen minutes is a couple of minutes of
+ *   honest work, so the shared budget would refuse a delivery halfway through
+ *   unpacking it — and the storekeeper would read that as the scanner being
+ *   broken. In the other direction, scan traffic running through the general
+ *   bucket exhausts the budget every other screen in the application shares.
+ *
+ *   Its own bucket answers both: a generous sustained rate for the one workflow
+ *   that legitimately produces it, and no borrowing from anybody else's. It is
+ *   still bounded, because the endpoint reads the catalogue and the stock ledger
+ *   and is the cheapest thing in the programme to enumerate with.
+ *
+ *   40 a minute sustained is about four times the fastest a person unpacks and
+ *   scans, and it costs nothing to a human clicking through a screen.
+ */
+export const scanLimiter = rateLimit({
+  windowMs: config.rateLimit.windowMs,
+  max: budget(getScanBudget()),
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: store('rl:scan:'),
+  handler: (_req, res) => {
+    sendError(res, 'Too many scans, please slow down and try again shortly', 429);
   },
 });
 

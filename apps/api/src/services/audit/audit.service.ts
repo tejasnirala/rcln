@@ -177,6 +177,29 @@ const REDACTED_KEYS = new Set([
   'customText',
   'instructions',
   'caption',
+
+  /*
+   * The animal's owner (PI-11). `animal_profiles.guardian_name` and
+   * `guardian_phone` name a PERSON — the human who brings the animal in and is
+   * billed — and they meet this list's own test exactly: they exist on one table
+   * and every row that carries them is a patient's owner. Unlike `email` and
+   * `phone` above, there is no second entity whose trail a key-name deny-list
+   * would gut.
+   *
+   * ⚠️ `species` AND `breed` ARE DELIBERATELY NOT HERE. They are facts about the
+   *   PATIENT rather than about a person, and the same call this codebase makes
+   *   about `gender` and `bloodGroup` on the patient snapshot applies: "somebody
+   *   corrected this record from Dog to Cat" is exactly the change an audit trail
+   *   exists to show, and neither word discloses who anybody is once the owner's
+   *   name and number are redacted.
+   *
+   * The first layer is still the allow-list snapshot: `snapshot()` in
+   * `patient/animal-profile.service.ts` emits `guardianForm: CONTACT | TEXT |
+   * NONE` and never the name. This is the backstop for the next service that
+   * reaches for a convenient `{...profile}`.
+   */
+  'guardianName',
+  'guardianPhone',
 ]);
 
 const REDACTED = '[redacted]';

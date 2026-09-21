@@ -494,9 +494,21 @@ describe('the other rule types', () => {
       parameters: { permitted: true, destinationCountryCodes: ['TL'] },
     });
 
+    /*
+     * ⚠️ THE PROFILE HAS TO OPEN REMOTE SUPPLY BEFORE THE RULE IS EVEN ASKED
+     *   (PI-12). The default fixture's `onlineSalePosition` is `UNKNOWN`, which
+     *   is now `UNDETERMINED` for an `ONLINE_DISPENSE` — no product is onlineable
+     *   by default, and this case is about what the RULE says once it is. Without
+     *   this the case passed for the wrong reason and would have kept passing
+     *   with the rule deleted; see `online-sale-gap.test.ts`.
+     */
     const decision = evaluate(
       request({
         transaction: 'ONLINE_DISPENSE',
+        profile: {
+          ...(request().profile as NonNullable<RegulatoryRequest['profile']>),
+          onlineSalePosition: 'PERMITTED',
+        },
         rules: [online],
         destination: { countryCode: 'ZZ', regionCode: null },
       })
@@ -703,5 +715,646 @@ describe('a rule that says nothing checkable', () => {
     );
 
     expect(decision.outcome).toBe('REFUSED');
+  });
+});
+
+/**
+ * The two framework gaps PI-6 recorded and PI-7 had to close before dispensing
+ * could be wired (KNOWN_ISSUES defects 3 and 4).
+ *
+ * ⚠️ BOTH ARE EXCEPTIONS THE LAW ITSELF WRITES, AND NEITHER IS A WEAKENING OF A
+ *   RULE. The default in each case stays exactly where it was — no repeat, and
+ *   pharmacists only — and what was added is the ability to EXPRESS the clause
+ *   that sits beside it. A pack that does not opt in sees no change at all, which
+ *   is what the first case in each block asserts.
+ */
+describe('an endorsed repeat', () => {
+  const refill = (over: Record<string, unknown> = {}): RegulatoryRule =>
+    rule({
+      ruleType: 'REFILL_RULE',
+      code: 'TL_REPEAT',
+      statement: 'This prescription may not be dispensed more than once unless it is endorsed.',
+      parameters: { refillsAllowed: 0, ...over },
+    });
+
+  it('is still refused where the rule does not offer the exception', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill()],
+        prescription: { ...validPrescription, refillsUsed: 1, repeatsAuthorised: true },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  it('is refused where the rule offers it and the prescriber did not endorse one', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: { ...validPrescription, refillsUsed: 1 },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  /**
+   * ⚠️ `UNDETERMINED`, WHICH REFUSES — AND NOT "AS MANY AS YOU LIKE". An
+   *   endorsement with no number, under a rule with no ceiling, is a reason to
+   *   ring the prescriber. Treating silence as unlimited is the permissive
+   *   default the whole engine is shaped against.
+   */
+  it('cannot be relied on where neither the endorsement nor the rule states a number', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: { ...validPrescription, refillsUsed: 1, repeatsAuthorised: true },
+      })
+    );
+
+    expect(decision.outcome).toBe('UNDETERMINED');
+  });
+
+  it('is permitted within the number the prescriber endorsed', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: {
+          ...validPrescription,
+          refillsUsed: 1,
+          repeatsAuthorised: true,
+          repeatsAuthorisedLimit: 2,
+        },
+      })
+    );
+
+    expect(decision.outcome).toBe('PERMITTED');
+  });
+
+  it('is refused once the endorsed number is used up', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true })],
+        prescription: {
+          ...validPrescription,
+          refillsUsed: 3,
+          repeatsAuthorised: true,
+          repeatsAuthorisedLimit: 2,
+        },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  /** The jurisdiction's own ceiling wins over a more generous endorsement. */
+  it('is capped by the rule where the rule states a lower ceiling', () => {
+    const decision = evaluate(
+      request({
+        rules: [refill({ endorsedRepeatsPermitted: true, maxEndorsedRepeats: 1 })],
+        prescription: {
+          ...validPrescription,
+          refillsUsed: 2,
+          repeatsAuthorised: true,
+          repeatsAuthorisedLimit: 5,
+        },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+});
+
+describe('a prescriber dispensing to their own patient', () => {
+  const authority = (over: Record<string, unknown> = {}): RegulatoryRule =>
+    rule({
+      ruleType: 'PHARMACIST_AUTHORITY',
+      code: 'TL_DISPENSER',
+      statement: 'Only a registered pharmacist may dispense a medicine on a prescription.',
+      parameters: { permittedLicenceTypes: ['REGISTERED_PHARMACIST'], ...over },
+    });
+
+  it('is still refused where the rule writes no proviso', () => {
+    const decision = evaluate(
+      request({
+        rules: [authority()],
+        actor: { roleCodes: [], licenceTypes: [], isPrescriber: true },
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+
+  it('is permitted where the rule writes one and the actor is the prescriber', () => {
+    const decision = evaluate(
+      request({
+        rules: [authority({ exemptWhenActorIsPrescriber: true })],
+        actor: { roleCodes: [], licenceTypes: [], isPrescriber: true },
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('PERMITTED');
+  });
+
+  /**
+   * ⚠️ THE PROVISO DOES NOTHING FOR ANYBODY ELSE, WHICH IS THE HALF THAT KEEPS IT
+   *   FROM BEING A HOLE. A receptionist holding no licence, under a rule that
+   *   exempts prescribers, is still refused.
+   */
+  it('does nothing for somebody who is not the prescriber', () => {
+    const decision = evaluate(
+      request({
+        rules: [authority({ exemptWhenActorIsPrescriber: true })],
+        actor: { roleCodes: [], licenceTypes: [], isPrescriber: false },
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+  });
+});
+
+/**
+ * `SPECIES_RESTRICTION` — WHO the product may be supplied FOR (PI-11).
+ *
+ * ⚠️ NO COUNTRY'S RULES APPEAR HERE EITHER, AND THAT IS LOAD-BEARING FOR THIS
+ *   RULE TYPE IN PARTICULAR. India's pack deliberately carries no species rule —
+ *   rules 65(20) and 97(3) require a veterinary medicine to be LABELLED "Not for
+ *   human use" and do not prohibit the sale, and inventing the prohibition would
+ *   be inventing law. So this type is exercised entirely against TESTLAND, which
+ *   is where every rule type in this framework is proved.
+ */
+describe('species restriction', () => {
+  const speciesRule = (parameters: unknown, over: Partial<RegulatoryRule> = {}): RegulatoryRule =>
+    rule({
+      ruleType: 'SPECIES_RESTRICTION',
+      code: 'TL_SPECIES',
+      statement: 'This is not for human use — for the treatment of animals only.',
+      parameters,
+      ...over,
+    });
+
+  it('refuses a veterinary product supplied for a person', () => {
+    const decision = evaluate(
+      request({
+        rules: [speciesRule({ prohibitedSubjectTypes: ['HUMAN'] })],
+        patient: { subjectType: 'HUMAN', ageYears: 40 },
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+    expect(decision.reasons.some((r) => r.ruleCode === 'TL_SPECIES')).toBe(true);
+  });
+
+  it('permits the same product for an animal', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule({ prohibitedSubjectTypes: ['HUMAN'] })],
+          patient: { subjectType: 'ANIMAL', species: 'Dog' },
+        })
+      ).outcome
+    ).toBe('PERMITTED');
+  });
+
+  /**
+   * ⚠️ THE ONE CASE WORTH ARGUING WITH, PINNED SO NOBODY QUIETLY CHANGES IT. A
+   *   counter sale names nobody, so a rule about who a product may be supplied
+   *   for cannot be checked — and PERMITTED there would make the anonymous path
+   *   the way around the rule, which is the path somebody buying a veterinary
+   *   drug for themselves would take. Silence never permits.
+   */
+  it('is UNDETERMINED when the transaction names no subject', () => {
+    expect(
+      evaluate(
+        request({
+          transaction: 'COUNTER_SALE',
+          rules: [speciesRule({ prohibitedSubjectTypes: ['HUMAN'] })],
+        })
+      ).outcome
+    ).toBe('UNDETERMINED');
+  });
+
+  it('refuses a species that is not on an allow-list, and permits one that is', () => {
+    const allow = speciesRule({ permittedSpecies: ['Dog', 'Cat'] });
+
+    expect(
+      evaluate(request({ rules: [allow], patient: { subjectType: 'ANIMAL', species: 'Horse' } }))
+        .outcome
+    ).toBe('REFUSED');
+
+    /* Case-folded: `"dog"` off a chart and `"Dog"` in a pack are one species. */
+    expect(
+      evaluate(request({ rules: [allow], patient: { subjectType: 'ANIMAL', species: 'dog' } }))
+        .outcome
+    ).toBe('PERMITTED');
+  });
+
+  it('refuses a species on a deny-list and permits everything else', () => {
+    const deny = speciesRule({ prohibitedSpecies: ['Cat'] });
+
+    expect(
+      evaluate(request({ rules: [deny], patient: { subjectType: 'ANIMAL', species: 'Cat' } }))
+        .outcome
+    ).toBe('REFUSED');
+    expect(
+      evaluate(request({ rules: [deny], patient: { subjectType: 'ANIMAL', species: 'Dog' } }))
+        .outcome
+    ).toBe('PERMITTED');
+  });
+
+  /**
+   * ⚠️ AN ALLOW-LIST DOES NOT MAKE A HUMAN "AN ANIMAL NOT ON THE LIST". Reading
+   *   it that way is how a rule naming three species refuses every person in the
+   *   country — a rule that says which animals may have something says nothing
+   *   about people, and the subject-type list is where a human prohibition goes.
+   */
+  it('does not refuse a person on the strength of a species allow-list', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule({ permittedSpecies: ['Dog'] })],
+          patient: { subjectType: 'HUMAN', ageYears: 40 },
+        })
+      ).outcome
+    ).toBe('PERMITTED');
+  });
+
+  it('is UNDETERMINED for an animal whose species nobody recorded', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule({ permittedSpecies: ['Dog'] })],
+          patient: { subjectType: 'ANIMAL' },
+        })
+      ).outcome
+    ).toBe('UNDETERMINED');
+  });
+
+  /**
+   * The discipline `parameters.ts`'s header sets out, on this rule type: a rule
+   * that says nothing checkable is BROKEN, not permissive.
+   */
+  it.each([
+    ['names nobody', {}],
+    [
+      'states both an allow-list and a deny-list',
+      { permittedSpecies: ['Dog'], prohibitedSpecies: ['Cat'] },
+    ],
+    ['names a subject type that does not exist', { prohibitedSubjectTypes: ['PLANT'] }],
+    ['states an empty list', { permittedSpecies: [] }],
+    ['is not an object', 'not for humans'],
+  ])('is UNDETERMINED when the rule %s', (_label, parameters) => {
+    expect(
+      evaluate(
+        request({
+          rules: [speciesRule(parameters)],
+          patient: { subjectType: 'ANIMAL', species: 'Dog' },
+        })
+      ).outcome
+    ).toBe('UNDETERMINED');
+  });
+
+  /**
+   * ⚠️ THE REASON THIS IS ITS OWN RULE TYPE, ASSERTED RATHER THAN ARGUED IN A
+   *   COMMENT. `evaluateAgeRestriction` stands aside entirely for an animal, so a
+   *   veterinary prohibition written as an age parameter would be inert in
+   *   exactly the case it was written for.
+   */
+  it('an age restriction still says nothing about an animal', () => {
+    expect(
+      evaluate(
+        request({
+          rules: [
+            rule({
+              ruleType: 'AGE_RESTRICTION',
+              code: 'TL_AGE',
+              parameters: { minimumAgeYears: 18 },
+            }),
+          ],
+          patient: { subjectType: 'ANIMAL', species: 'Dog' },
+        })
+      ).outcome
+    ).toBe('PERMITTED');
+  });
+});
+
+// ===========================================================================
+// PI-13a — the shapes the survey of nine jurisdictions found missing
+// ===========================================================================
+
+describe('validity stated in calendar months', () => {
+  /*
+   * ⚠️ EVERY CASE HERE IS A DAY-COUNT APPROXIMATION FAILING. The reason
+   *   `validityMonths` exists is that no fixed number of days is six months, so
+   *   the tests that matter are the ones where 180 and "six months" disagree.
+   */
+  const sixMonths = rule({
+    ruleType: 'PRESCRIPTION_REQUIRED',
+    code: 'TL_SIX_MONTHS',
+    parameters: { required: true, validityMonths: 6 },
+  });
+
+  it('permits on the last day of the sixth month, which is day 181', () => {
+    const issuedOn = new Date('2026-01-01T00:00:00Z');
+    const decision = evaluate(
+      request({
+        rules: [sixMonths],
+        prescription: { ...validPrescription, issuedOn },
+        occurredAt: new Date('2026-07-01T09:00:00Z'),
+      })
+    );
+
+    // 1 January to 1 July is 181 days. A `validityDays: 180` rule would refuse.
+    expect(decision.outcome).toBe('PERMITTED');
+  });
+
+  it('refuses the day after the sixth month ends', () => {
+    const decision = evaluate(
+      request({
+        rules: [sixMonths],
+        prescription: { ...validPrescription, issuedOn: new Date('2026-01-01T00:00:00Z') },
+        occurredAt: new Date('2026-07-02T09:00:00Z'),
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+    expect(decision.reasons.some((r) => r.message.includes('expired after 2026-07-01'))).toBe(true);
+  });
+
+  it('clamps rather than rolling over when the target month is shorter', () => {
+    /*
+     * 31 January + 1 month must be 28 February, not 3 March. Rolling over would
+     * EXTEND the validity by two days and permit a supply the rule does not.
+     */
+    const oneMonth = rule({
+      code: 'TL_ONE_MONTH',
+      parameters: { required: true, validityMonths: 1 },
+    });
+    const issuedOn = new Date('2026-01-31T00:00:00Z');
+
+    const onLastDay = evaluate(
+      request({
+        rules: [oneMonth],
+        prescription: { ...validPrescription, issuedOn },
+        occurredAt: new Date('2026-02-28T09:00:00Z'),
+      })
+    );
+    expect(onLastDay.outcome).toBe('PERMITTED');
+
+    const dayAfter = evaluate(
+      request({
+        rules: [oneMonth],
+        prescription: { ...validPrescription, issuedOn },
+        occurredAt: new Date('2026-03-01T09:00:00Z'),
+      })
+    );
+    expect(dayAfter.outcome).toBe('REFUSED');
+  });
+
+  it('takes the earlier expiry when a rule states both days and months', () => {
+    const both = rule({
+      code: 'TL_BOTH',
+      parameters: { required: true, validityDays: 10, validityMonths: 6 },
+    });
+    const decision = evaluate(
+      request({
+        rules: [both],
+        prescription: { ...validPrescription, issuedOn: new Date('2026-06-01T00:00:00Z') },
+        occurredAt: new Date('2026-06-20T09:00:00Z'),
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+    expect(decision.reasons.some((r) => r.message.includes('expires after 10'))).toBe(true);
+  });
+
+  it('applies months to a refill window as well', () => {
+    const refill = rule({
+      ruleType: 'REFILL_RULE',
+      code: 'TL_REFILL_MONTHS',
+      parameters: { refillsAllowed: 5, validityMonths: 6 },
+    });
+    const decision = evaluate(
+      request({
+        rules: [refill],
+        prescription: {
+          ...validPrescription,
+          issuedOn: new Date('2026-01-01T00:00:00Z'),
+          refillsUsed: 1,
+        },
+        occurredAt: new Date('2026-07-02T09:00:00Z'),
+      })
+    );
+
+    expect(decision.outcome).toBe('REFUSED');
+    expect(decision.reasons.some((r) => r.message.includes('A repeat may not be dispensed'))).toBe(
+      true
+    );
+  });
+});
+
+describe('preconditions established outside the transaction', () => {
+  /*
+   * ⚠️ `onlineSalePosition: 'PERMITTED'` IS LOAD-BEARING, NOT TIDINESS. PI-12's
+   *   remote-supply gate runs BEFORE any rule is evaluated and answers
+   *   UNDETERMINED for a product whose profile has not said where it stands on
+   *   remote supply. Without it these cases never reach the handler under test.
+   */
+  const onlineable = {
+    profile: { ...request().profile!, onlineSalePosition: 'PERMITTED' },
+  } as const;
+
+  it('raises a condition rather than permitting silently for remote supply', () => {
+    /*
+     * ⚠️ THE REGRESSION THIS PINS: before PI-13a the same rule returned a bare
+     *   PERMITTED with no condition, which asserted the opposite of 21 U.S.C.
+     *   829(e) — a section whose entire content is the proviso.
+     */
+    const online = rule({
+      ruleType: 'ONLINE_DISPENSING',
+      code: 'TL_ONLINE',
+      appliesToTransactions: ['ONLINE_DISPENSE'],
+      parameters: { permitted: true, requiresPriorInPersonEvaluation: true },
+    });
+
+    const decision = evaluate(
+      request({
+        ...onlineable,
+        rules: [online],
+        transaction: 'ONLINE_DISPENSE',
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('PERMITTED_WITH_CONDITIONS');
+    expect(decision.conditions.map((c) => c.kind)).toContain('VERIFY_PRIOR_IN_PERSON_EVALUATION');
+  });
+
+  it('raises no such condition when the rule does not ask for one', () => {
+    const online = rule({
+      ruleType: 'ONLINE_DISPENSING',
+      code: 'TL_ONLINE_PLAIN',
+      appliesToTransactions: ['ONLINE_DISPENSE'],
+      parameters: { permitted: true },
+    });
+
+    const decision = evaluate(
+      request({
+        ...onlineable,
+        rules: [online],
+        transaction: 'ONLINE_DISPENSE',
+        prescription: validPrescription,
+      })
+    );
+
+    expect(decision.outcome).toBe('PERMITTED');
+    expect(decision.conditions).toEqual([]);
+  });
+
+  it('names the authority in a prior-authorisation condition', () => {
+    const permit = rule({
+      ruleType: 'CONTROLLED_SCHEDULE',
+      code: 'TL_S8',
+      parameters: {
+        scheduleName: 'Schedule 8',
+        priorAuthorisationRequired: true,
+        authorisationAuthority: 'the state health department',
+      },
+    });
+
+    const decision = evaluate(request({ rules: [permit], prescription: validPrescription }));
+
+    const condition = decision.conditions.find((c) => c.kind === 'VERIFY_PRIOR_AUTHORISATION');
+    expect(condition).toBeDefined();
+    expect(condition?.detail).toContain('the state health department');
+    expect(condition?.parameters).toEqual({ authority: 'the state health department' });
+  });
+});
+
+describe("quantity limits stated in days' supply", () => {
+  const thirtyDays = rule({
+    ruleType: 'QUANTITY_LIMIT',
+    code: 'TL_DAYS_SUPPLY',
+    parameters: { maxDaysSupply: 30 },
+  });
+
+  it('refuses UNDETERMINED when the caller cannot say how many days this covers', () => {
+    /*
+     * ⚠️ "WE COULD NOT WORK IT OUT" MUST NEVER RESOLVE LIKE "WE WORKED IT OUT
+     *   AND IT WAS FINE". Most callers cannot supply this, so most callers get
+     *   refused — which is the intended cost, not a defect.
+     */
+    const decision = evaluate(request({ rules: [thirtyDays], prescription: validPrescription }));
+
+    expect(decision.outcome).toBe('UNDETERMINED');
+    expect(decision.reasons.some((r) => r.message.includes("30 days' supply"))).toBe(true);
+  });
+
+  it('permits at the limit and refuses past it', () => {
+    const atLimit = evaluate(
+      request({ rules: [thirtyDays], prescription: validPrescription, daysSupply: 30 })
+    );
+    expect(atLimit.outcome).toBe('PERMITTED');
+
+    const over = evaluate(
+      request({ rules: [thirtyDays], prescription: validPrescription, daysSupply: 31 })
+    );
+    expect(over.outcome).toBe('REFUSED');
+    expect(over.reasons.some((r) => r.message.includes("31 days' supply"))).toBe(true);
+  });
+
+  it('is unaffected by the quantity in base units', () => {
+    // 400 tablets of a once-daily medicine is still a 30-day supply if the
+    // directions say so. The two denominations do not convert.
+    const decision = evaluate(
+      request({
+        rules: [thirtyDays],
+        prescription: validPrescription,
+        quantityBase: '400',
+        daysSupply: 30,
+      })
+    );
+    expect(decision.outcome).toBe('PERMITTED');
+  });
+});
+
+describe('a regional pack supersedes a national one, per rule type', () => {
+  const nationalRetention = rule({
+    ruleType: 'RECORD_RETENTION',
+    code: 'TL_RETAIN_NATIONAL',
+    jurisdiction: { countryCode: 'TL', regionCode: null },
+    appliesToClassification: 'POM',
+    appliesToTransactions: [],
+    parameters: { years: 2, detail: 'Two years nationally.' },
+  });
+
+  const regionalRetention = rule({
+    ruleType: 'RECORD_RETENTION',
+    code: 'TL_RETAIN_REGIONAL',
+    jurisdiction: { countryCode: 'TL', regionCode: 'XR' },
+    appliesToTransactions: [],
+    parameters: { years: 3, detail: 'Three years in this region.' },
+  });
+
+  const nationalLabelling = rule({
+    ruleType: 'LABELLING_REQUIREMENT',
+    code: 'TL_LABEL_NATIONAL',
+    jurisdiction: { countryCode: 'TL', regionCode: null },
+    appliesToTransactions: [],
+    parameters: { fields: ['DRUG_NAME'], detail: 'Name the drug.' },
+  });
+
+  it('lets the broader REGIONAL rule beat the narrower NATIONAL one', () => {
+    /*
+     * ⚠️ THE SPECIFICITY INVERSION, PINNED. The national rule names a
+     *   classification (specificity 4) and the regional one names nothing
+     *   (specificity 0). A naive "most specific wins" keeps the national rule
+     *   and the region's law never applies — the exact "configured and inert"
+     *   failure `selection.ts` warns about. Region is filtered FIRST.
+     */
+    const decision = evaluate(
+      request({
+        jurisdiction: { countryCode: 'TL', regionCode: 'XR' },
+        rules: [nationalRetention, regionalRetention],
+        prescription: validPrescription,
+      })
+    );
+
+    const retention = decision.conditions.filter((c) => c.kind === 'RETAIN_RECORD');
+    expect(retention).toHaveLength(1);
+    expect(retention[0]?.ruleCode).toBe('TL_RETAIN_REGIONAL');
+  });
+
+  it('leaves the national rules of every OTHER type standing', () => {
+    const decision = evaluate(
+      request({
+        jurisdiction: { countryCode: 'TL', regionCode: 'XR' },
+        rules: [nationalRetention, regionalRetention, nationalLabelling],
+        prescription: validPrescription,
+      })
+    );
+
+    const codes = decision.conditions.map((c) => c.ruleCode);
+    expect(codes).toContain('TL_RETAIN_REGIONAL');
+    expect(codes).toContain('TL_LABEL_NATIONAL');
+    expect(codes).not.toContain('TL_RETAIN_NATIONAL');
+  });
+
+  it('applies the national rule outside the region', () => {
+    const decision = evaluate(
+      request({
+        jurisdiction: { countryCode: 'TL', regionCode: null },
+        rules: [nationalRetention, regionalRetention],
+        prescription: validPrescription,
+      })
+    );
+
+    const retention = decision.conditions.filter((c) => c.kind === 'RETAIN_RECORD');
+    expect(retention).toHaveLength(1);
+    expect(retention[0]?.ruleCode).toBe('TL_RETAIN_NATIONAL');
   });
 });

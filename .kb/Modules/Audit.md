@@ -50,11 +50,11 @@ An append-only record of who changed what. Ids and permission codes only — nev
 
 | name | kind | at |
 | --- | --- | --- |
-| `AuditEntry` | interface | `apps/api/src/services/audit/audit.service.ts:187` |
+| `AuditEntry` | interface | `apps/api/src/services/audit/audit.service.ts:210` |
 | `AuditHistoryInput` | interface | `apps/api/src/services/audit/history.service.ts:60` |
-| `AuditSnapshot` | type | `apps/api/src/services/audit/audit.service.ts:185` |
+| `AuditSnapshot` | type | `apps/api/src/services/audit/audit.service.ts:208` |
 | `DataAccessEntry` | interface | `apps/api/src/services/audit/data-access.service.ts:43` |
-| `diffSnapshots` | fn | `apps/api/src/services/audit/audit.service.ts:239` |
+| `diffSnapshots` | fn | `apps/api/src/services/audit/audit.service.ts:262` |
 | `readHistory` | fn | `apps/api/src/services/audit/history.service.ts:66` |
-| `recordAudit` | fn | `apps/api/src/services/audit/audit.service.ts:278` |
+| `recordAudit` | fn | `apps/api/src/services/audit/audit.service.ts:301` |
 | `recordDataAccess` | fn | `apps/api/src/services/audit/data-access.service.ts:124` |

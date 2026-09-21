@@ -25,6 +25,11 @@ import { usePathname } from 'next/navigation';
  */
 const TABS = [
   { href: '/stock', label: 'Overview' },
+  /*
+   * PI-23. Second, not last, because it is the fastest way into every other tab
+   * on this row: a storekeeper holding a box knows the box, not the product id.
+   */
+  { href: '/stock/scan', label: 'Scan' },
   { href: '/stock/lots', label: 'Lots' },
   { href: '/stock/serials', label: 'Serials' },
   { href: '/stock/locations', label: 'Locations' },
@@ -37,7 +42,7 @@ export function StockNav() {
   const pathname = usePathname();
 
   return (
-    // ⚠️ SCROLLS RATHER THAN WRAPPING. Seven tabs do not fit a phone, and a
+    // ⚠️ SCROLLS RATHER THAN WRAPPING. Eight tabs do not fit a phone, and a
     //   wrapped second row of tabs reads as a second navigation. Horizontal
     //   scroll keeps one row and one meaning.
     <nav aria-label="Stock" className="border-rule flex gap-1 overflow-x-auto border-b">

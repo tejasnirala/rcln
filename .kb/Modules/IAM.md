@@ -98,7 +98,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | --- | --- | --- |
 | `AccessContext` | interface | `packages/permissions/src/resolver.ts:37` |
 | `accessibleBranchIds` | fn | `packages/permissions/src/resolver.ts:141` |
-| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:624` |
+| `ALL_PERMISSIONS` | const | `packages/permissions/src/codes.ts:844` |
 | `assertBranchAssignable` | fn | `apps/api/src/services/iam/guards.ts:127` |
 | `assertGrantable` | fn | `apps/api/src/services/iam/guards.ts:90` |
 | `assignRole` | fn | `apps/api/src/services/iam/member.service.ts:323` |
@@ -122,13 +122,13 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | `listRoles` | fn | `apps/api/src/services/iam/role.service.ts:198` |
 | `MemberActionOptions` | interface | `apps/api/src/services/iam/member.service.ts:67` |
 | `MemberList` | component | `apps/web/src/components/tenant/member-list.tsx:153` |
-| `Module` | type | `packages/permissions/src/codes.ts:30` |
-| `moduleOf` | fn | `packages/permissions/src/codes.ts:627` |
+| `Module` | type | `packages/permissions/src/codes.ts:40` |
+| `moduleOf` | fn | `packages/permissions/src/codes.ts:847` |
 | `MODULES` | const | `packages/permissions/src/codes.ts:10` |
 | `OverrideEffect` | type | `packages/permissions/src/resolver.ts:18` |
-| `PermissionCode` | type | `packages/permissions/src/codes.ts:622` |
+| `PermissionCode` | type | `packages/permissions/src/codes.ts:842` |
 | `PermissionOverride` | interface | `packages/permissions/src/resolver.ts:30` |
-| `PERMISSIONS` | const | `packages/permissions/src/codes.ts:32` |
+| `PERMISSIONS` | const | `packages/permissions/src/codes.ts:42` |
 | `revokeRole` | fn | `apps/api/src/services/iam/member.service.ts:426` |
 | `RoleActionOptions` | interface | `apps/api/src/services/iam/role.service.ts:45` |
 | `RoleAssignment` | interface | `packages/permissions/src/resolver.ts:20` |
@@ -137,7 +137,7 @@ Who may do what, where. Roles cloned from the system set, granted per branch or 
 | `setMemberStatus` | fn | `apps/api/src/services/iam/member.service.ts:718` |
 | `setOverride` | fn | `apps/api/src/services/iam/member.service.ts:494` |
 | `setRolePairings` | fn | `apps/api/src/services/iam/designation.service.ts:347` |
-| `SYSTEM_ROLE_DEFINITIONS` | const | `packages/permissions/src/roles.ts:112` |
+| `SYSTEM_ROLE_DEFINITIONS` | const | `packages/permissions/src/roles.ts:147` |
 | `SYSTEM_ROLES` | const | `packages/permissions/src/roles.ts:8` |
 | `SystemRoleCode` | type | `packages/permissions/src/roles.ts:23` |
 | `SystemRoleDefinition` | interface | `packages/permissions/src/roles.ts:27` |

@@ -85,6 +85,35 @@ describe('diffSnapshots', () => {
    *   and a deny-list nobody has ever seen fire is a deny-list that quietly
    *   stopped containing the key it was written for.
    */
+  /**
+   * ⚠️ THE SAME BACKSTOP, FOR THE ANIMAL'S OWNER (PI-11 review, MEDIUM). Nothing
+   *   in the product passes these either — `snapshot()` in
+   *   `animal-profile.service.ts` emits `guardianForm` and never the name — so
+   *   this unit test is the only place the layer can be seen to fire. A
+   *   deny-list nobody has watched work is a deny-list that quietly stopped
+   *   containing the key it was written for.
+   */
+  it('redacts an animal’s owner, who is a person', () => {
+    const { after } = diffSnapshots(undefined, {
+      guardianName: 'Padmanabhan Iyengar',
+      guardianPhone: '+919812345690',
+      species: 'Dog',
+      breed: 'Indie',
+      weightKg: '18.4',
+    });
+
+    expect(after).toEqual({
+      guardianName: '[redacted]',
+      guardianPhone: '[redacted]',
+      /* Facts about the PATIENT, not about a person. "Somebody corrected this
+         record from Dog to Cat" is what the trail is for, and a weight
+         identifies nobody — see the note beside these keys in audit.service.ts. */
+      species: 'Dog',
+      breed: 'Indie',
+      weightKg: '18.4',
+    });
+  });
+
   it('redacts an invoice’s customer block, which is the patient', () => {
     const { after } = diffSnapshots(undefined, {
       customerName: 'Meenakshi Varadarajan',

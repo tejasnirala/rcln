@@ -61,6 +61,18 @@ import { loadTaxContext } from './tax.service.js';
 
 export interface DraftLineInput {
   description: string;
+  /**
+   * The ORIGINAL invoice line this one reverses. Credit notes only (PI-8).
+   *
+   * ⚠️ IT IS CARRIED THROUGH `StagedLine` AND RE-WRITTEN ON EVERY REPRICE, which
+   *   is the whole reason it appears on this interface rather than being set
+   *   once by the credit-note service. `repriceLoadedDraft` DELETES and
+   *   re-inserts every line, and finalisation always re-prices — a column set at
+   *   creation and not carried here is a column that exists until the document
+   *   becomes a document. That is exactly what made
+   *   `charge_requests.invoice_item_id` unusable and got it removed.
+   */
+  creditedInvoiceItemId?: string | null;
   /** Matched exactly against `tax_rules.tax_category`. Not the printed HSN code. */
   taxCategory: string;
   /** The HSN/SAC string printed on the line. Presentation only. */
@@ -75,6 +87,17 @@ export interface DraftLineInput {
 export interface CreateDraftInvoiceInput {
   branchId: string;
   sourceType: InvoiceSourceType;
+  /**
+   * A charge, or a reversal of one (PI-8). Defaults to `INVOICE`.
+   *
+   * ⚠️ A `CREDIT_NOTE` MUST CARRY `creditedInvoiceId` AND AN `INVOICE` MUST NOT.
+   *   `invoices_credit_note_cites_its_invoice` says the same thing as a 23514 at
+   *   COMMIT; it is checked here as well so the caller is told which field is
+   *   wrong, exactly as the source-reference check below is.
+   */
+  kind?: 'INVOICE' | 'CREDIT_NOTE';
+  /** The issued invoice this note reverses. Required iff `kind` is CREDIT_NOTE. */
+  creditedInvoiceId?: string | null;
   /** Required iff `sourceType` is APPOINTMENT — `invoices_source_reference_matches_type`. */
   appointmentId?: string | null;
   patientId?: string | null;
@@ -167,6 +190,22 @@ export async function createDraftInvoice(
     );
   }
 
+  /*
+   * The database says the same thing in `invoices_credit_note_cites_its_invoice`
+   * and would say it as a 23514 at COMMIT. Said here too, for the same reason
+   * the source check above is: the caller can still be told which field is
+   * wrong.
+   */
+  const kind = input.kind ?? 'INVOICE';
+  const isCreditNote = kind === 'CREDIT_NOTE';
+  if (isCreditNote !== Boolean(input.creditedInvoiceId)) {
+    throw new ValidationError(
+      isCreditNote
+        ? 'A credit note must cite the invoice it reverses.'
+        : 'An invoice credits nothing. Raise a credit note if you mean to reverse one.'
+    );
+  }
+
   const currency = (input.currency ?? (await organizationCurrency(tx, ctx))).toUpperCase();
 
   const invoice = await tx.invoice.create({
@@ -174,6 +213,8 @@ export async function createDraftInvoice(
       organizationId: ctx.organizationId,
       branchId: input.branchId,
       sourceType: input.sourceType,
+      kind,
+      creditedInvoiceId: input.creditedInvoiceId ?? null,
       appointmentId: input.appointmentId ?? null,
       patientId: input.patientId ?? null,
       customerName: input.customer.name,
@@ -220,6 +261,7 @@ export async function createDraftInvoice(
     lines: input.lines.map((line, index) => ({
       lineNumber: index + 1,
       itemCode: line.itemCode ?? null,
+      creditedInvoiceItemId: line.creditedInvoiceItemId ?? null,
       input: {
         description: line.description,
         taxCategory: line.taxCategory,
@@ -323,6 +365,7 @@ export async function updateDraftInvoice(
     lines: input.lines.map((line, index) => ({
       lineNumber: index + 1,
       itemCode: line.itemCode ?? null,
+      creditedInvoiceItemId: line.creditedInvoiceItemId ?? null,
       input: {
         description: line.description,
         taxCategory: line.taxCategory,
@@ -375,6 +418,7 @@ async function repriceLoadedDraft(
     lines: invoice.items.map((item) => ({
       lineNumber: item.lineNumber,
       itemCode: item.itemCode,
+      creditedInvoiceItemId: item.creditedInvoiceItemId,
       input: {
         description: item.description,
         taxCategory: item.taxCategory,
@@ -489,6 +533,8 @@ export async function finalizeInvoice(
   const issued = await issueInvoiceNumber(tx, ctx, {
     branchId: draft.branchId,
     sourceType: draft.sourceType,
+    /* PI-8: a credit note draws from its own series. See `KIND_PREFIXES`. */
+    kind: draft.kind,
     issuedAt: input.issuedAt,
   });
 
@@ -902,6 +948,8 @@ async function assertRegistrationCoversBranch(
 interface StagedLine {
   lineNumber: number;
   itemCode: string | null;
+  /** Carried across a reprice — see `DraftLineInput`. */
+  creditedInvoiceItemId: string | null;
   input: InvoiceLineInput;
 }
 
@@ -958,6 +1006,7 @@ async function priceAndPersist(
         lineNumber: line.lineNumber,
         description: line.description,
         itemCode: staged?.itemCode ?? null,
+        creditedInvoiceItemId: staged?.creditedInvoiceItemId ?? null,
         taxCategory: line.taxCategory,
         quantity: new Prisma.Decimal(formatQuantity(line.quantityMilli)),
         unitPrice: toDecimal(line.unitPrice),
@@ -1050,6 +1099,8 @@ const DRAFT_SELECT = {
   branchId: true,
   status: true,
   sourceType: true,
+  /* PI-8: it decides which SERIES the number comes out of. See the number service. */
+  kind: true,
   currency: true,
   suppliedAt: true,
   customerTaxId: true,
@@ -1062,6 +1113,7 @@ const DRAFT_SELECT = {
       lineNumber: true,
       description: true,
       itemCode: true,
+      creditedInvoiceItemId: true,
       taxCategory: true,
       quantity: true,
       unitPrice: true,

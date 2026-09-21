@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { email, password, phone, uuid } from './common.js';
 import { TIME_FORMATS } from './locale.js';
+import { clinicModule, clinicProfileSummary } from './onboarding.js';
 
 /**
  * Login is identifier-based: everyone — super admin, doctor, receptionist,
@@ -219,6 +220,30 @@ export const branchSummary = z.object({
    * a 24-hour clock and its walk-in clinic on a 12-hour one.
    */
   timeFormat: z.enum(TIME_FORMATS),
+  /**
+   * What this branch said it is — care contexts and modules, RESOLVED, with the
+   * branch's own answer taking precedence over the organization's (CO-1).
+   *
+   * ⚠️ IT RIDES HERE FOR THE THIRD TIME FOR THE REASON `timezone` AND
+   *   `timeFormat` DO, AND THE ARGUMENT IS NOW LOAD-BEARING FOR THE TWO SCREENS
+   *   THAT MATTER MOST. The patient registration form needs to know whether to
+   *   ask "person or animal?", and the shell needs to know which tabs to draw.
+   *   Both are opened by the front desk, who hold neither `settings.branch.read`
+   *   nor `organization.read` — fetching this from `GET /settings` would put the
+   *   registration form behind a permission a receptionist must not need.
+   *
+   * ⚠️ AND IT IS NOT AN AUTHORIZATION INPUT. A module absent from this list must
+   *   never be why a request is refused; `authorize()` is. This decides what is
+   *   DRAWN, and a caller who reaches a hidden route by typing its URL is
+   *   stopped by the permission gate exactly as before.
+   *
+   * ⚠️ NOT CACHED, DELIBERATELY. `loadUserAccess` holds a 60-second Redis cache;
+   *   this is resolved beside the branch list instead, in the same uncached
+   *   transaction. Folding it into that cache would mean every onboarding write
+   *   had to invalidate it, and a clinic that finished setup would watch the old
+   *   nav for a minute wondering whether it saved.
+   */
+  profile: clinicProfileSummary,
 });
 
 export const membershipSummary = z.object({
@@ -240,6 +265,27 @@ export const membershipSummary = z.object({
   roles: z.array(z.string()),
   /** Exactly what the UI branch switcher renders. */
   branches: z.array(branchSummary),
+  /**
+   * Whether this clinic has finished the onboarding wizard (CO-1).
+   *
+   * ⚠️ NOT `registeredAt`, WHICH IS A DIFFERENT FACT AND USED TO BE CALLED
+   *   `onboardedAt`. Registration stamps that one; this is
+   *   `clinic_profiles.completed_at`, set by the review step.
+   *
+   * The shell reads it twice: it redirects a caller who holds
+   * `organization.onboarding.write` to the wizard, and it renders a banner for
+   * everyone else. It is on the session rather than fetched because a banner
+   * that can be missing from one screen is a banner nobody trusts — the same
+   * argument `VerifyPrompt` makes by living in the layout.
+   */
+  setupComplete: z.boolean(),
+  /**
+   * The ORGANIZATION-level module answer, for the branch-less screens.
+   *
+   * Every branch carries its own resolved copy on `branchSummary.profile`; this
+   * is what the shell falls back to before a branch is chosen.
+   */
+  modules: z.array(clinicModule),
 });
 
 export const authSession = z.object({

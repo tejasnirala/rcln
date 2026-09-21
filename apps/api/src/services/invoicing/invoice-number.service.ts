@@ -66,6 +66,27 @@ const SOURCE_CODES = {
 export type InvoiceSourceType = keyof typeof SOURCE_CODES;
 
 /**
+ * The document prefix, per kind (PI-8).
+ *
+ * ⚠️ A CREDIT NOTE IS ITS OWN SERIES AND THAT IS THE PART THE LAW REQUIRES. One
+ *   table holds both documents — see `InvoiceKind` for why — but under GST a
+ *   credit note is a distinct document with its own consecutive, unique number,
+ *   and the same is true in every other jurisdiction on this platform's roadmap.
+ *   Sharing a counter would interleave the two series and make neither
+ *   contiguous, which is the one thing a statutory series may not be.
+ *
+ * ⚠️ THESE STRINGS ARE PERMANENT, for the reason `SOURCE_CODES` are: they are
+ *   printed on documents a clinic files returns against, and renaming one splits
+ *   a live series in two.
+ */
+const KIND_PREFIXES = {
+  INVOICE: 'INV',
+  CREDIT_NOTE: 'CRN',
+} as const;
+
+export type InvoiceKind = keyof typeof KIND_PREFIXES;
+
+/**
  * Countries whose statutory reporting year is not the calendar year.
  *
  * Deliberately a narrow list rather than a general calendar library: every entry
@@ -79,6 +100,11 @@ const FINANCIAL_YEAR_COUNTRIES = new Set(['IN']);
 export interface InvoiceNumberSpec {
   branchId: string;
   sourceType: InvoiceSourceType;
+  /**
+   * A charge or a reversal. Defaults to `INVOICE`, which is what every caller
+   * written before PI-8 means and is why they did not have to change.
+   */
+  kind?: InvoiceKind;
   /**
    * The instant the invoice is being issued at. Converted to the BRANCH's local
    * date before the period is derived — an invoice raised at 23:40 IST on 31
@@ -104,6 +130,8 @@ export async function issueInvoiceNumber(
 
   const period = periodFor(branch.countryCode, localDate);
   const sourceCode = SOURCE_CODES[spec.sourceType];
+  const kind = spec.kind ?? 'INVOICE';
+  const kindPrefix = KIND_PREFIXES[kind];
 
   return issueNumber(tx, ctx, {
     type: 'INVOICE',
@@ -113,9 +141,17 @@ export async function issueInvoiceNumber(
      * because `number_sequences` is keyed by (org, branch, type, period) and
      * that is the whole counter identity. One key per (period, source) is one
      * counter per series, which is exactly what is wanted.
+     *
+     * ⚠️ A CREDIT NOTE ADDS A SEGMENT RATHER THAN REPLACING ONE, AND AN INVOICE
+     *   ADDS NOTHING. `'2026-27:PHA'` stays exactly the string it has always
+     *   been, so no existing counter is re-keyed and no live series restarts at
+     *   1 — which is what would happen if this became `'2026-27:INVOICE:PHA'`
+     *   for everybody. The credit note takes the new key `'2026-27:CN:PHA'`,
+     *   which no row has ever held, so its series starts at 1 correctly.
      */
-    periodKey: `${period.key}:${sourceCode}`,
-    prefix: `INV-${period.startYear}-${sourceCode}-${branch.code}-`,
+    periodKey:
+      kind === 'INVOICE' ? `${period.key}:${sourceCode}` : `${period.key}:CN:${sourceCode}`,
+    prefix: `${kindPrefix}-${period.startYear}-${sourceCode}-${branch.code}-`,
   });
 }
 

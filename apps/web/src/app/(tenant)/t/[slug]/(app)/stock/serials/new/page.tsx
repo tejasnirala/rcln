@@ -1,10 +1,6 @@
 import type { Metadata } from 'next';
 import { PERMISSIONS } from '@rcln/permissions';
-import type {
-  BatchListResponse,
-  InventoryLocationListResponse,
-  ProductListResponse,
-} from '@rcln/contracts';
+import type { InventoryLocationListResponse } from '@rcln/contracts';
 import { api } from '@/lib/api';
 import { branchesInScope, getAccessToken, getSession } from '@/lib/session';
 import { Alert } from '@/components/ui/alert';
@@ -14,20 +10,18 @@ export const metadata: Metadata = {
   title: 'Record a serial',
 };
 
-const PICKER_LIMIT = 100;
-
 /**
  * <slug>.rcln.com/stock/serials/new
  *
- * ⚠️ FOUR PARALLEL READS, NOT A WATERFALL. The product picker, the lot picker
- *   and the location picker have nothing to say to each other, and a form the
- *   user watches assemble itself is worse than one that arrives.
+ * ⚠️ TWO READS NOW, NOT FIVE (PI-23). The product picker and the lot picker both
+ *   ask the server once they have something to ask about, so neither list is
+ *   fetched here any more. The old page pulled the first hundred serial-tracked
+ *   products AND the first hundred lots at any branch, and narrowed both in the
+ *   browser — which meant the lot somebody was holding was simply missing from a
+ *   clinic with more than a hundred open lots.
  *
- * The lot list is fetched whole and narrowed in the browser to the chosen
- * product and branch, because both are chosen after the page loads. It is capped
- * like the product picker, and `moreLots` carries that fact into the form —
- * a picker that silently omits the lot somebody is holding is worse than one
- * that says it is showing a page. A searchable picker is PI-23.
+ * Locations stay pre-loaded: one branch has a handful of them, they change
+ * rarely, and the field is optional.
  */
 export default async function NewSerialPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -42,44 +36,17 @@ export default async function NewSerialPage({ params }: { params: Promise<{ slug
     );
   }
 
-  const accessToken = await getAccessToken();
-  const query = `isStockItem=true&status=ACTIVE&limit=${String(PICKER_LIMIT)}`;
-
-  const [branches, serialTracked, both, batches, locations] = await Promise.all([
+  const [branches, locations] = await Promise.all([
     branchesInScope(slug),
-    api<ProductListResponse>(`/api/v1/products?${query}&trackingMode=SERIAL`, {
+    api<InventoryLocationListResponse>('/api/v1/inventory-locations', {
       slug,
-      accessToken,
+      accessToken: await getAccessToken(),
     }),
-    api<ProductListResponse>(`/api/v1/products?${query}&trackingMode=LOT_AND_SERIAL`, {
-      slug,
-      accessToken,
-    }),
-    api<BatchListResponse>(`/api/v1/batches?status=ACTIVE&limit=${String(PICKER_LIMIT)}`, {
-      slug,
-      accessToken,
-    }),
-    api<InventoryLocationListResponse>('/api/v1/inventory-locations', { slug, accessToken }),
   ]);
 
   if (branches.length === 0) {
     return <Alert tone="error">You have no branches in scope at this clinic.</Alert>;
   }
 
-  const products = [...(serialTracked.data?.products ?? []), ...(both.data?.products ?? [])].sort(
-    (a, b) => a.name.localeCompare(b.name)
-  );
-
-  const lots = batches.data?.batches ?? [];
-
-  return (
-    <SerialForm
-      slug={slug}
-      branches={branches}
-      products={products}
-      batches={lots}
-      locations={locations.data?.locations ?? []}
-      moreLots={(batches.data?.meta.total ?? 0) > lots.length}
-    />
-  );
+  return <SerialForm slug={slug} branches={branches} locations={locations.data?.locations ?? []} />;
 }

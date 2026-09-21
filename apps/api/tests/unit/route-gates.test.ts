@@ -31,6 +31,12 @@ import encounterRoutes from '../../src/routes/v1/encounters.routes.js';
 import clinicalRoutes from '../../src/routes/v1/clinical.routes.js';
 import consultationTemplateRoutes from '../../src/routes/v1/consultation-templates.routes.js';
 import visualMapRoutes from '../../src/routes/v1/visual-maps.routes.js';
+import pharmacyRoutes from '../../src/routes/v1/pharmacy.routes.js';
+import onlineOrderRoutes from '../../src/routes/v1/online-pharmacy.routes.js';
+import consumptionRoutes from '../../src/routes/v1/consumption.routes.js';
+import { recallRoutes, traceabilityRoutes } from '../../src/routes/v1/recalls.routes.js';
+import reportRoutes from '../../src/routes/v1/reports.routes.js';
+import { stockRoutes } from '../../src/routes/v1/inventory.routes.js';
 
 /**
  * ⚠️ THIS SUITE TOUCHES NO DATABASE AND STILL HAS TO HANG UP.
@@ -106,6 +112,55 @@ const ROUTERS: { name: string; router: IRouter }[] = [
   { name: 'clinical', router: clinicalRoutes },
   { name: 'consultation-templates', router: consultationTemplateRoutes },
   { name: 'visual-maps', router: visualMapRoutes },
+  /*
+   * ⚠️ PHARMACY IS AUDITED HERE EVEN THOUGH IT AUTHORS NOTHING (PI-7), AND THAT
+   *   IS THE POINT. It READS the clinical record — the queue, a prescription, a
+   *   dispensing history — so it discloses exactly what the four above write, and
+   *   an ungated route on it would be the same disclosure with none of the
+   *   scrutiny. The case below it asserts the other half: that no route on this
+   *   router carries an AUTHORING code (invariant 7).
+   */
+  { name: 'pharmacy', router: pharmacyRoutes },
+  /*
+   * ⚠️ ONLINE ORDERS ARE AUDITED FOR THE REASON PHARMACY IS, PLUS ONE OF THEIR
+   *   OWN (PI-12). Every read discloses a named person's HOME ADDRESS beside the
+   *   medicine going to it — a broader disclosure than the counter makes — and
+   *   one route on this router IS a dispense. The case below asserts the split
+   *   that matters: packing carries `pharmacy.dispense.create` and every other
+   *   write carries an `online_order` code, so a clinic cannot hand somebody the
+   *   authority to supply by giving them the desk that takes telephone orders.
+   */
+  { name: 'online-orders', router: onlineOrderRoutes },
+  /*
+   * ⚠️ CONSUMPTION IS AUDITED FOR THE REASON PHARMACY IS (PI-9), AND IT IS THE
+   *   CLOSER CALL OF THE TWO. It is anchored to a consultation, it is reached
+   *   from the consultation's own screen, and it names a patient beside a device
+   *   serial — so it discloses what the four clinical routers write, while
+   *   authoring none of it. The case below asserts the other half: no route on
+   *   this router carries a `clinical.*` code.
+   */
+  { name: 'consumption', router: consumptionRoutes },
+  /*
+   * ⚠️ RECALL IS AUDITED HERE BECAUSE OF ONE ROUTE (PI-10). Most of this pair
+   *   answers in lot numbers and counts and discloses nobody — but
+   *   `GET /v1/traceability/affected` returns a page of NAMED PATIENTS with
+   *   phone numbers, which is the broadest disclosure the platform serves and is
+   *   served to a storekeeper. The cases below assert the other half: that the
+   *   pair carries no `clinical.*` code, and that the one PHI route carries the
+   *   patient code ON TOP OF the read code rather than instead of it.
+   */
+  { name: 'recalls', router: recallRoutes },
+  { name: 'traceability', router: traceabilityRoutes },
+  /*
+   * ⚠️ REPORTS ARE AUDITED FOR THE REASON CONSUMPTION IS, AND IT IS THE CLOSEST
+   *   CALL OF ALL OF THEM (PI-22). Two of the nine reports READ
+   *   `clinical_consumptions`, whose `patient_id` is NOT NULL — so they open the
+   *   most patient-bound table in the programme, and they are the one surface in
+   *   it that returns nobody. The whole design rests on that grouping holding,
+   *   and the case below is where "no report names a patient" stops being a
+   *   sentence in a header and becomes an assertion.
+   */
+  { name: 'reports', router: reportRoutes },
 ];
 
 /**
@@ -134,6 +189,15 @@ const NOT_CLINICAL: string[] = [
   'audit.routes.ts',
   'billing.routes.ts',
   'branches.routes.ts',
+  /*
+   * ⚠️ CHARGING TOUCHES THE CLINICAL RECORD ONLY THROUGH A PRICE (PI-8), WHICH IS
+   *   WHY IT IS HERE AND NOT IN `AUDITED_FILES`. A charge request names a patient
+   *   and a medicine, so its READ is a disclosure and logs like one — but the
+   *   router authors nothing clinical and carries no `clinical.*` code, which is
+   *   the property that list exists to police. It is audited by
+   *   `tests/integration/charging.test.ts` and by the charging isolation suite.
+   */
+  'charging.routes.ts',
   'clinical-taxonomy.routes.ts',
   'designations.routes.ts',
   'doctors.routes.ts',
@@ -143,6 +207,14 @@ const NOT_CLINICAL: string[] = [
   'invitations.routes.ts',
   'invoices.routes.ts',
   'members.routes.ts',
+  /*
+   * ⚠️ THE SETUP WIZARD AUTHORS NOTHING CLINICAL AND CARRIES NO `clinical.*`
+   *   CODE, which is the property `AUDITED_FILES` exists to police. It names no
+   *   patient and reads none: the closest it comes is deciding what a patient
+   *   RECORD defaults to, which is a setting. Audited by
+   *   `tests/integration/onboarding.test.ts` and the onboarding isolation suite.
+   */
+  'onboarding.routes.ts',
   'organization.routes.ts',
   'patients.routes.ts',
   'procurement.routes.ts',
@@ -154,6 +226,11 @@ const NOT_CLINICAL: string[] = [
 ];
 
 const AUDITED_FILES: string[] = [
+  'reports.routes.ts',
+  'recalls.routes.ts',
+  'pharmacy.routes.ts',
+  'online-pharmacy.routes.ts',
+  'consumption.routes.ts',
   'encounters.routes.ts',
   'clinical.routes.ts',
   'consultation-templates.routes.ts',
@@ -301,6 +378,366 @@ describe('configuring is not conducting', () => {
       for (const code of route.permissions ?? []) {
         expect(encounterCodes).not.toContain(code);
       }
+    }
+  });
+});
+
+/**
+ * ⚠️ INVARIANT 7 FROM THE OTHER SIDE (PI-7). The consultation surface is audited
+ *   above for authoring behind an authoring code; the dispensary is audited here
+ *   for authoring NOTHING. Pharmacy reads a prescription and writes only its own
+ *   rows beside it — a route on this router carrying
+ *   `clinical.encounter.create`, `.close`, `.amend` or `clinical.prescription.*`
+ *   would be the dispensary inside the clinical record, and it would look
+ *   entirely reasonable in a diff.
+ */
+describe('the dispensary reads the clinical record and never writes it', () => {
+  const routes = routesOf(pharmacyRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical authoring code on any route', () => {
+    const authoring = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(authoring).toEqual([]);
+  });
+
+  it('gates every write behind a pharmacy code', () => {
+    const writes = routes.filter((route) => route.method !== 'GET');
+    expect(writes.length).toBeGreaterThan(0);
+    for (const route of writes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^pharmacy\.dispense\./);
+    }
+  });
+
+  /** Reading is one code, so a clinic grants "may see the counter" once. */
+  it('reads behind the dispense read code, and nothing else', () => {
+    const reads = routes.filter((route) => route.method === 'GET');
+    expect(reads.length).toBeGreaterThan(0);
+    for (const route of reads) {
+      expect(route.permissions).toEqual([PERMISSIONS.DISPENSE_READ]);
+    }
+  });
+});
+
+/**
+ * ⚠️ THE ONE ROUTER WHERE ONE ROUTE IS A DISPENSE AND THE REST ARE NOT (PI-12).
+ *   Packing a parcel writes the `dispenses` row, moves the ledger and raises the
+ *   charge requests, so it is gated on `pharmacy.dispense.create` — the code that
+ *   already means "this person may hand medicine over". Everything else on the
+ *   router is order-taking and logistics behind `pharmacy.online_order.*`.
+ *
+ *   The failure this catches is the tidy one: somebody noticing the odd code out
+ *   and "fixing" it to `pharmacy.online_order.manage`, which would hand the
+ *   authority to supply to whoever answers the telephone.
+ */
+describe('taking an order is not supplying against it', () => {
+  const routes = routesOf(onlineOrderRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical code on any route', () => {
+    const clinical = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(clinical).toEqual([]);
+  });
+
+  it('reads behind an online-order code, and nothing else', () => {
+    /*
+     * ⚠️ TWO CODES ARE ALLOWED HERE AND THE LIST IS EXHAUSTIVE, WHICH IS THE
+     *   PART THAT MATTERS. This asserted `[ONLINE_ORDER_READ]` exactly until
+     *   PI-24 added `GET /patients/{patientId}/consultations` — a read that
+     *   exists to fill in the CREATE form, and is gated on
+     *   `pharmacy.online_order.manage` because taking an order is what it is
+     *   for. Gating it on the read code instead would let anybody who can merely
+     *   LOOK at deliveries enumerate a named patient's consultations, which is a
+     *   wider disclosure than the screen needs.
+     *
+     *   The failure this case was written for is untouched: a `clinical.*` code
+     *   is caught by the case above, and anything outside these two — a
+     *   dispensing code, a patient code, a stock code — still fails here. What
+     *   it no longer does is force a PHI read to be wider than its use.
+     */
+    const allowed: string[] = [PERMISSIONS.ONLINE_ORDER_READ, PERMISSIONS.ONLINE_ORDER_MANAGE];
+    const reads = routes.filter((route) => route.method === 'GET');
+    expect(reads.length).toBeGreaterThan(0);
+    for (const route of reads) {
+      expect(route.permissions?.length).toBe(1);
+      expect(allowed).toContain(route.permissions?.[0]);
+    }
+  });
+
+  it('gates packing on the code that means "may hand medicine over"', () => {
+    const pack = routes.find((route) => route.path.endsWith('/pack'));
+    expect(pack?.permissions).toEqual([PERMISSIONS.DISPENSE_CREATE]);
+  });
+
+  it('gates every other write behind an online-order code', () => {
+    const writes = routes.filter(
+      (route) => route.method !== 'GET' && !route.path.endsWith('/pack')
+    );
+    expect(writes.length).toBeGreaterThan(0);
+    for (const route of writes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^pharmacy\.online_order\./);
+    }
+  });
+
+  /**
+   * ⚠️ ACCEPTING AN ORDER HOLDS STOCK, SO IT IS NOT A READ. `confirm` writes
+   *   `RESERVATION` movements that take quantity out of `AVAILABLE`; gated on
+   *   `.read` it would let anybody who can see the queue empty the shelf.
+   */
+  it('keeps accepting and standing down on the manage code', () => {
+    for (const suffix of ['/confirm', '/cancel']) {
+      const route = routes.find((entry) => entry.path.endsWith(suffix));
+      expect(route?.permissions).toEqual([PERMISSIONS.ONLINE_ORDER_MANAGE]);
+    }
+  });
+
+  it('keeps the courier half on the dispatch code', () => {
+    for (const suffix of ['/ship', '/deliver', '/delivery-failed']) {
+      const route = routes.find((entry) => entry.path.endsWith(suffix));
+      expect(route?.permissions).toEqual([PERMISSIONS.ONLINE_ORDER_DISPATCH]);
+    }
+  });
+});
+
+/**
+ * ⚠️ INVARIANT 7 A THIRD TIME (PI-9), AND THIS ROUTER IS THE ONE MOST LIKELY TO
+ *   ACQUIRE A CLINICAL CODE BY MISTAKE. It is anchored to an encounter, it is
+ *   rendered on the consultation page, and "recording what a procedure used"
+ *   sounds like writing in the chart until you notice the row it writes is a
+ *   stock movement. A `clinical.encounter.*` code here would read as tidy in a
+ *   diff and would put the treatment room inside the clinical record.
+ */
+describe('consumption reads the consultation and never writes it', () => {
+  const routes = routesOf(consumptionRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical authoring code on any route', () => {
+    const authoring = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(authoring).toEqual([]);
+  });
+
+  it('gates every route behind a consumption code', () => {
+    for (const route of routes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^consumption\./);
+    }
+  });
+
+  /**
+   * ⚠️ AND THE TEMPLATE WRITES ARE BEHIND THE NARROWER CODE. Deciding what a
+   *   procedure is EXPECTED to use sets the baseline every variance is measured
+   *   against, at every branch; recording what one actually used is a daily act
+   *   by whoever was in the room. A template write behind `consumption.record`
+   *   would let anyone who can record also move the line they are measured
+   *   against.
+   */
+  it('gates template writes behind the template code', () => {
+    const templateWrites = routes.filter(
+      (route) => route.method !== 'GET' && route.path.startsWith('/templates')
+    );
+    expect(templateWrites.length).toBeGreaterThan(0);
+    for (const route of templateWrites) {
+      expect(route.permissions).toEqual([PERMISSIONS.CONSUMPTION_TEMPLATE_MANAGE]);
+    }
+  });
+
+  /** And every read is one code, so a clinic grants "may see this" once. */
+  it('reads behind the consumption read code, and nothing else', () => {
+    const reads = routes.filter((route) => route.method === 'GET');
+    expect(reads.length).toBeGreaterThan(0);
+    for (const route of reads) {
+      expect(route.permissions).toEqual([PERMISSIONS.CONSUMPTION_READ]);
+    }
+  });
+});
+
+/**
+ * ⚠️ THE PHI SPLIT PI-10 IS BUILT AROUND, ASSERTED RATHER THAN DESCRIBED.
+ *   TRACEABILITY.md says the patient link ALWAYS exists in the data and that who
+ *   may SEE it is an access-control question. If `recall.trace.patients` ever
+ *   stops being required on `/affected` — or starts being required on
+ *   `/forward` — the design has silently inverted, and neither change would fail
+ *   any other test in this repository.
+ */
+describe('recall separates the counts from the names', () => {
+  const routes = [...routesOf(recallRoutes), ...routesOf(traceabilityRoutes)];
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBeGreaterThan(0);
+  });
+
+  it('carries no clinical authoring code on any route', () => {
+    const authoring = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(authoring).toEqual([]);
+  });
+
+  it('gates every route behind a recall code', () => {
+    for (const route of routes) {
+      expect(route.permissions?.length ?? 0).toBeGreaterThan(0);
+      for (const code of route.permissions ?? []) expect(code).toMatch(/^recall\./);
+    }
+  });
+
+  it('requires the patient code on the affected-party route, and only there', () => {
+    const trace = routesOf(traceabilityRoutes);
+    const affected = trace.find((route) => route.path === '/affected');
+    expect(affected?.permissions).toEqual([
+      PERMISSIONS.RECALL_READ,
+      PERMISSIONS.RECALL_TRACE_PATIENTS,
+    ]);
+
+    const others = [...routesOf(recallRoutes), ...trace].filter(
+      (route) => route.path !== '/affected'
+    );
+    expect(others.length).toBeGreaterThan(0);
+    for (const route of others) {
+      expect(route.permissions).not.toContain(PERMISSIONS.RECALL_TRACE_PATIENTS);
+    }
+  });
+
+  /**
+   * ⚠️ EXECUTING AND RESOLVING ARE THE STOCK-MOVING ACTS, and they are the ones
+   *   a clinic may want to withhold from whoever records the notice. A route
+   *   that moved quantity behind `recall.notice.create` would collapse the split
+   *   without changing a single permission name.
+   */
+  it('gates the stock-moving acts behind the execute code', () => {
+    const moving = routesOf(recallRoutes).filter(
+      (route) =>
+        route.path.endsWith('/execute') ||
+        route.path.endsWith('/resolve') ||
+        route.path.endsWith('/close') ||
+        route.path.endsWith('/cancel')
+    );
+    expect(moving.length).toBe(4);
+    for (const route of moving) {
+      expect(route.permissions).toEqual([PERMISSIONS.RECALL_EXECUTE]);
+    }
+  });
+});
+
+/**
+ * ⚠️ INVARIANT 7 FROM A THIRD SIDE, AND THE ONE MOST LIKELY TO BE BROKEN BY
+ *   SOMEBODY BEING HELPFUL (PI-22). Every report here answers in products, lots,
+ *   suppliers and procedure TYPES. Two of them read the clinical consumption
+ *   register to do it, and the obvious next feature request — "and show me which
+ *   patients" — is one column away in the SQL and a completely different act:
+ *   `recall.trace.patients` territory, with its own permission and a
+ *   `data_access_logs` row per read. These cases are what makes that column a
+ *   failing test rather than a merged pull request.
+ */
+describe('reports read the clinical record, name nobody, and write nothing', () => {
+  const routes = routesOf(reportRoutes);
+
+  it('has routes to audit', () => {
+    expect(routes.length).toBe(10);
+  });
+
+  /**
+   * ⚠️ A REPORT THAT ACCEPTED A `POST` WOULD BE A REPORT THAT CHANGED SOMETHING.
+   *   Nothing in this domain has a write: a stored report answer is a second
+   *   source of truth for a figure `stock_ledger` already holds exactly.
+   */
+  it('serves nothing but GET', () => {
+    for (const route of routes) expect(route.method).toBe('GET');
+  });
+
+  it('carries no clinical code on any route', () => {
+    const clinical = routes.filter((route) =>
+      (route.permissions ?? []).some((code) => code.startsWith('clinical.'))
+    );
+    expect(clinical).toEqual([]);
+  });
+
+  /**
+   * ⚠️ AND NO `recall.trace.patients` EITHER. That code buys a page of named
+   *   people, and a report gated on it would be a bulk PHI disclosure wearing a
+   *   management report's name.
+   */
+  it('carries no patient-tracing code on any route', () => {
+    for (const route of routes) {
+      expect(route.permissions ?? []).not.toContain(PERMISSIONS.RECALL_TRACE_PATIENTS);
+    }
+  });
+
+  it('gates every route on exactly one report code', () => {
+    for (const route of routes) {
+      expect(route.permissions).toHaveLength(1);
+      expect(route.permissions?.[0]).toMatch(/^report\./);
+    }
+  });
+
+  /**
+   * ⚠️ `report.export` IS NEVER A ROUTE'S OWN GATE, WHICH IS THE HALF OF THE
+   *   EXPORT RULE A STACK AUDIT CAN SEE. It is applied CONDITIONALLY, inside the
+   *   chain, when `?format=csv` is asked for — so it is always ON TOP of the
+   *   report's own read code and never instead of it. A route that carried it as
+   *   its `authorize` would be a report readable by anybody holding the export
+   *   verb and nothing else.
+   */
+  it('never uses the export code as a route’s own gate', () => {
+    for (const route of routes) {
+      expect(route.permissions ?? []).not.toContain(PERMISSIONS.REPORT_EXPORT);
+    }
+  });
+});
+
+/**
+ * ⚠️ THE ONLY ROUTE IN THE CODEBASE BEHIND TWO PERMISSION CODES (PI-23), AND THE
+ *   CONJUNCTION IS THE SECURITY PROPERTY. `GET /stock/resolve` answers a
+ *   CATALOGUE question and a STOCK question in one round trip: what product these
+ *   digits name, and what lot and device of it this clinic holds. Gated on one
+ *   code alone it would hand half the answer to somebody entitled to neither
+ *   half — a caller with `product.definition.read` and no stock access would
+ *   learn lot numbers and quantities, and one with stock access alone would get
+ *   catalogue rows it may not browse.
+ *
+ *   `authorize()` ANDs its arguments, so the assertion is that BOTH are on the
+ *   route. Dropping either is a one-word change that returns 200 to more people
+ *   and breaks nothing else in the suite.
+ */
+describe('the scan resolver is gated on both reads', () => {
+  const resolveRoute = routesOf(stockRoutes).find((route) => route.path === '/resolve');
+
+  it('exists', () => {
+    expect(resolveRoute).toBeDefined();
+    expect(resolveRoute?.method).toBe('GET');
+  });
+
+  it('requires the stock read AND the catalogue read', () => {
+    expect(resolveRoute?.permissions).toEqual([
+      PERMISSIONS.STOCK_READ,
+      PERMISSIONS.PRODUCT_DEFINITION_READ,
+    ]);
+  });
+
+  /*
+   * ⚠️ AND IT CARRIES NO CLINICAL OR PATIENT-TRACING CODE, because it returns no
+   *   patient field — see `scan-resolve.test.ts`. A code appearing here would be
+   *   the signal that somebody has widened the response.
+   */
+  it('carries no clinical or patient-tracing code', () => {
+    for (const code of resolveRoute?.permissions ?? []) {
+      expect(code.startsWith('clinical.')).toBe(false);
+      expect(code).not.toBe(PERMISSIONS.RECALL_TRACE_PATIENTS);
     }
   });
 });

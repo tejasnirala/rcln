@@ -4,14 +4,18 @@
 
 > Re-establish what `rcln_app` may do, and verify it took.
 
-Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.ts`
+Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.ts` · `packages/db/scripts/setup-test-db.ts` · `packages/db/scripts/test-database.ts`
 
 ## fn
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/apply-grants.ts:77` |  |
+| `assertSafeName` <sub>local</sub> | `(name: string): void` | `packages/db/scripts/setup-test-db.ts:57` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/apply-grants.ts:94` |  |
 | `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/check-rls.ts:108` |  |
+| `main` <sub>local</sub> | `(): Promise<void>` | `packages/db/scripts/setup-test-db.ts:74` |  |
+| `run` <sub>local</sub> | `(label: string, args: string[], env: NodeJS.ProcessEnv): void` | `packages/db/scripts/setup-test-db.ts:66` | Run a workspace command with the test URLs pinned over whatever .env says. |
+| `toTestDatabaseUrl` | `(url: string, name: string): string` | `packages/db/scripts/test-database.ts:36` |  |
 
 ## const
 
@@ -19,13 +23,20 @@ Files: `packages/db/scripts/apply-grants.ts` · `packages/db/scripts/check-rls.t
 | --- | --- | --- | --- |
 | `APPEND_ONLY` <sub>local</sub> | `[ 'audit_logs', 'data_access_logs', 'appointment_status_history', // The stock ledger (PI…` | `packages/db/scripts/apply-grants.ts:35` | Tables that must never be UPDATE-able or DELETE-able by the app role. |
 | `EXEMPT` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:29` | Tables intentionally not tenant-scoped. Keep in sync with prisma/rls/enable-rls.sql. |
-| `NO_EXECUTE` <sub>local</sub> | `[ 'stock_balances_apply_delta(uuid, uuid, uuid, uuid, uuid, uuid, "StockStatus", numeric)…` | `packages/db/scripts/apply-grants.ts:67` |  |
-| `NO_INSERT` <sub>local</sub> | `['stock_balances']` | `packages/db/scripts/apply-grants.ts:55` |  |
+| `NO_EXECUTE` <sub>local</sub> | `[ 'stock_balances_apply_delta(uuid, uuid, uuid, uuid, uuid, uuid, "StockStatus", numeric)…` | `packages/db/scripts/apply-grants.ts:84` |  |
+| `NO_INSERT` <sub>local</sub> | `['stock_balances']` | `packages/db/scripts/apply-grants.ts:72` |  |
 | `PARENT_SCOPED` <sub>local</sub> | `: Record<string, string>` | `packages/db/scripts/check-rls.ts:91` |  |
+| `TEST_DATABASE_NAME` | `process.env['TEST_DATABASE_NAME'] ?? 'rcl_testing'` | `packages/db/scripts/test-database.ts:27` | Override with `TEST_DATABASE_NAME` if `rcl_testing` collides with something on a shared server. It is read once, here, and never re-read. |
+
+## var
+
+| name | signature | at | notes |
+| --- | --- | --- | --- |
+| `packageRoot` <sub>local</sub> | `fileURLToPath(…)` | `packages/db/scripts/setup-test-db.ts:50` |  |
 
 ## interface
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
-| `GrantRow` <sub>local</sub> | `{ table_name, privilege_type }` | `packages/db/scripts/apply-grants.ts:72` |  |
+| `GrantRow` <sub>local</sub> | `{ table_name, privilege_type }` | `packages/db/scripts/apply-grants.ts:89` |  |
 | `TableRow` <sub>local</sub> | `{ table_name, rls_enabled, policy_count, has_org_column }` | `packages/db/scripts/check-rls.ts:101` |  |

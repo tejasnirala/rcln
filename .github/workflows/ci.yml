@@ -135,5 +135,9 @@ jobs:
       # application role could bypass RLS.
       - run: pnpm db:rls:check
 
+      # The API suites write to `rcl_testing`, never to the database the
+      # migration steps above just built. Create, migrate, grant and seed it.
+      - run: pnpm db:test:setup
+
       - name: Tests
         run: pnpm --filter @rcln/api run test

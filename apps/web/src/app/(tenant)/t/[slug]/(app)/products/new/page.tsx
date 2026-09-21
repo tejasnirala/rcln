@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { PERMISSIONS } from '@rcln/permissions';
 import type {
+  CompositionSummary,
   ManufacturerSummary,
   ProductCategory,
   StorageProfileSummary,
@@ -18,10 +19,10 @@ export const metadata: Metadata = {
 /**
  * <slug>.rcln.com/products/new
  *
- * The four master lists are fetched in PARALLEL on the server and handed to the
- * form as props. Fetching them from the client on mount would give the user four
+ * The five master lists are fetched in PARALLEL on the server and handed to the
+ * form as props. Fetching them from the client on mount would give the user five
  * empty selects and a request waterfall to watch; they are small and the form
- * cannot be used without any of them.
+ * cannot be used without the units among them.
  */
 export default async function NewProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -38,10 +39,18 @@ export default async function NewProductPage({ params }: { params: Promise<{ slu
 
   const accessToken = await getAccessToken();
 
-  const [units, categories, manufacturers, storageProfiles] = await Promise.all([
+  const [units, categories, manufacturers, compositions, storageProfiles] = await Promise.all([
     api<UnitListResponse>('/api/v1/units', { slug, accessToken }),
     api<{ categories: ProductCategory[] }>('/api/v1/product-categories', { slug, accessToken }),
     api<{ manufacturers: ManufacturerSummary[] }>('/api/v1/manufacturers', { slug, accessToken }),
+    /*
+     * The formulas a medicine can be. Fetched with the rest rather than on demand
+     * for the reason the comment above gives — an empty select and a waterfall to
+     * watch is the alternative — and NOT blocking: a clinic that stocks only
+     * consumables has none, and that is a correct empty list rather than a broken
+     * screen.
+     */
+    api<{ compositions: CompositionSummary[] }>('/api/v1/compositions', { slug, accessToken }),
     api<{ profiles: StorageProfileSummary[] }>('/api/v1/storage-profiles', { slug, accessToken }),
   ]);
 
@@ -66,6 +75,7 @@ export default async function NewProductPage({ params }: { params: Promise<{ slu
       units={units.data?.units ?? []}
       categories={categories.data?.categories ?? []}
       manufacturers={manufacturers.data?.manufacturers ?? []}
+      compositions={compositions.data?.compositions ?? []}
       storageProfiles={storageProfiles.data?.profiles ?? []}
     />
   );

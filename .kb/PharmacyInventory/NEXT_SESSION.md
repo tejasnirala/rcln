@@ -2,7 +2,550 @@
 
 **Read this first.** Updated at the end of every session.
 
-**Written:** 2026-08-13 · **By:** session PI-5 (Global Regulatory Framework)
+**Written:** 2026-09-02 · **By:** session PI-24 (global hardening, part one).
+
+## PI-24's review sweep has RUN, and everything it found is fixed but one
+
+**Written:** 2026-09-03 · **By:** session PI-24 (global hardening).
+
+✅ Four reviewers over `git diff c0f3adc..HEAD` — 267 files, ~39k insertions,
+partitioned by concern (tenancy/PHI/authz · api+services · `apps/web` ·
+regulatory packs). **PI-12 through PI-23 are no longer unreviewed.**
+
+⚠️ **THE REGULATORY REVIEW WAS THE ONE THAT MATTERED, AND IT FOUND THINGS BY
+RUNNING THE ENGINE RATHER THAN READING THE RULES.** Three fail-OPEN defects in the
+framework and four in the packs — a classification typo that permitted a
+controlled dispense in four countries with no prescription rule in its reasons; an
+empty list that disabled its own limb seven ways; a future-dated prescription
+dispensed in India and Bangladesh; Ireland refusing an unlicensed person a POM and
+permitting them morphine. **Every one produced a well-formed, plausible, fully
+reasoned decision.** None had a test. All are fixed, with 23 regression cases in
+`packages/regulatory/tests/fail-open.test.ts` — and one of those fixes was
+verified by temporarily reverting it and watching the guard fail.
+
+⚠️ **ONE FINDING IS DELIBERATELY UNFIXED: the Abu Dhabi and Dubai refill ladders.**
+The lawful day-30 refill is refused by two rules at once because `validityDays: 3`
+runs from `issuedOn` and those three days are the window to PRESENT the
+prescription. The framework half is mechanical; the pack half is a reading of DOH
+§5.4.4 / DHA 18.7.4(e) that cannot be verified from here, and its error direction
+is PERMITTING a controlled-drug supply. It fails CLOSED. **Give this to somebody
+with the instruments — do not guess it.**
+
+✅ **`pnpm test` IS ONE COMMAND — 103 suites, 2,198 cases, ~75s, exit 0.** No
+sharding, no `--forceExit`. If an older note told you to run six shards by hand,
+it is out of date.
+
+- ⚠️ `tests/setup-after-env.ts` imports the producer INSIDE the hook on purpose —
+  a top-level import there freezes `config` before `storage-path.test.ts` can set
+  its variable, which broke four cases the first time and will again.
+- The memory ceiling is the CONTAINER'S. `--max-old-space-size` has now failed
+  three times; the worker is recycled instead.
+
+⚠️ **TWO TESTS PINNED THE BUG THEY WERE NAMED FOR**, which is the most useful
+thing in this note. `bd-rule-pack.test.ts` was titled "still refuses a prescription
+dated after the day it is dispensed" and asserted `not.toBe('REFUSED')`. The AU and
+SG controlled-schedule cases asserted "the code appears and no conditions were
+raised" — which is exactly what an UNREADABLE rule produces, so they passed while
+the rule refused every Schedule 8 transaction in seven jurisdictions. **When a case
+asserts an absence, ask what else produces that absence.**
+
+## Where to start
+
+- `packages/regulatory/tests/fail-open.test.ts` — every case is a regression guard
+  for something that was live. Read it before touching `selection.ts` or
+  `parameters.ts`.
+- `.kb/PharmacyInventory/KNOWN_ISSUES.md`, the PI-24 sweep section — the full list.
+
+## What PI-24 still owes
+
+- **No E2E, and `apps/web` still has no test suite at all.** It is the largest
+  remaining hole: 49 files reviewed statically and nothing else.
+- No data migration rehearsal, no production readiness gates.
+- #22 (recall check at receipt), #33, #34 — feature work PI-23 scoped out.
+
+---
+
+**Written:** 2026-09-02 · **By:** session PI-23 (identifier resolution).
+
+## PI-23 first, because it is the freshest and it is unreviewed
+
+**Written:** 2026-09-02 · **By:** session PI-23 (identifier resolution).
+
+✅ **PI-23 SHIPPED:** a GS1/DataMatrix decoder in `@rcln/inventory`, one endpoint
+(`GET /v1/stock/resolve`), a scanner console at `/stock/scan`, scan-to-fill on the
+goods receipt, and two search pickers that replace **every capped `<select>` in
+the application**. On branch `feat/pi-23-identifier-resolution`. 33 unit cases, 11
+integration, 3 route-gate. **No migration, no new table, no RLS policy, no new
+permission code.** ⚠️ **NOT REVIEWED.**
+
+⚠️ **THE DECODER IS WHERE THE RISK IS, AND IT IS RISK NO INTEGRATION TEST REACHES.**
+Every defect it could carry returns a well-formed, plausible, WRONG answer — a lot
+number that is a prefix of the real one, an expiry a month early, a century
+inverted. A seeded clinic has no collisions and all its dates are in the 2020s, so
+`tests/unit/gs1.test.ts` is the only thing standing under it. **Attack that file
+first**, and read `packages/inventory/src/gs1.ts`'s header before arguing with any
+of its four refusals.
+
+⚠️ **THE ONE PERMISSION DECISION WORTH A SECOND OPINION.** `GET /stock/resolve` is
+the only route in the codebase behind TWO codes — `inventory.stock.read` AND
+`product.definition.read`, ANDed. The argument is that it answers a catalogue
+question and a stock question together, so one code alone hands half the answer to
+somebody entitled to neither half. Both roles that scan hold both today, so the
+conjunction costs nothing now; it is a decision about what happens when a clinic
+clones a narrower role.
+
+⚠️ **AND THE ONE PHI DECISION.** The resolver returns serials WITHOUT
+`assigned_patient_id`, deliberately, so no scan writes a `data_access_logs` row.
+The alternative — return it and log — would put one disclosure row per scan at a
+loading bay for a question nobody there asked. `scan-resolve.test.ts` asserts the
+field's absence, including in the serialised body.
+
+⚠️ **PI-23 CHANGED A SHARED UI PRIMITIVE.** `Input` in `components/ui/field.tsx`
+now takes a `ref` (`ComponentPropsWithRef` rather than `WithoutRef`), for the one
+screen that re-selects its own field after every scan. It is a widening and cannot
+break a call site that never passed one, but it is the only file outside this
+phase's own surface that moved.
+
+⚠️ **ELEVEN SCREENS LOST THEIR SERVER-SIDE PRODUCT FETCH.** Every `PRODUCT_CAP`
+and `PICKER_LIMIT` over the product catalogue is gone, along with the two capped
+lot fetches. That is a lot of forms touched for one phase, and none of it is
+covered by a test — `apps/web` has no test suite (`pnpm test` there prints "no web
+tests yet"). **The forms need a human at a keyboard**, particularly the ones that
+pre-fill from a document: goods receipt from an order, purchase order from a
+requisition, return from a receipt. Each of those now carries a `productName` on
+its line draft so the picker can show what was pre-filled.
+
+### Where to start on PI-23, if you are reviewing it
+
+- `packages/inventory/src/gs1.ts` — the header argues all four refusals. The AI
+  table is a healthcare subset on purpose; adding to it by guessing a length is
+  the one change that reintroduces the silent-wrong-lot failure.
+- `apps/api/src/services/inventory/resolve.service.ts` — four numbered decisions
+  in the header, and the `identifierCandidates` function is the one that decides
+  what a scan is allowed to match.
+- `apps/api/src/services/product/identifier.service.ts` — `currentIdentifierWhere`
+  was extracted so the scanner could not write a second copy of "valid here,
+  today". Three of its four conditions have each been a bug once.
+- `apps/web/src/app/(tenant)/t/[slug]/(app)/lookup-actions.ts` — the four lookups,
+  and the only one that touches PHI is marked at its own definition.
+- `apps/web/src/components/tenant/scan-console.tsx` — the element strip, which
+  shows WHERE the reader thought each field ended. That is the screen a wrong scan
+  is diagnosed from.
+
+### What PI-23 left, in one list
+
+#22 (no lot check against open recall notices at receipt — the phase #22 named),
+#33 ("Consultation" is still an id box), #34 (the procedure picker is still
+capped), #35 (no dedicated rate limiter), #36 (the AI table is a subset), #37 (the
+picker remounts on a scan).
+
+⚠️ **THE TEST SUITE NEEDS ATTENTION BEFORE PI-24, AND PI-22'S MITIGATION HAS
+STOPPED WORKING.** `jest --shard=n/3` at `--max-old-space-size=2400` — what PI-22
+recorded — now gets shard 3/3 SIGKILLed against `mem_limit: 3g`. **Six shards at
+1600 works: 102 suites, 2,180 tests, all green.** ⚠️ And shards 4–6 needed
+`--forceExit`: each printed a complete green summary and then hung on an open
+handle. That is a workaround that hides whatever is holding it, and "the suite is
+green" is a weaker claim while it is in place. KNOWN_ISSUES #2.
+
+⚠️ **PI-24 (GLOBAL HARDENING) IS NOW THE ONLY UNSTARTED PHASE.** Nine phases are
+unreviewed going into it, which is the thing PI-24 exists to fix.
+
+---
+
+## PI-22, still unreviewed
+
+✅ **PI-22 SHIPPED:** nine reports plus a menu, on branch
+`feat/pi-22-reporting-cost-accounting`. **No migration, no new table, no RLS
+policy, no tenant-isolation case** — every figure is arithmetic over tables nine
+earlier phases wrote, computed at read inside `withTenant`. 18 integration cases,
+16 unit cases, 6 new route-gate cases. ⚠️ **NOT REVIEWED** — and neither are
+PI-21, PI-18, PI-17, PI-16, PI-15, PI-13a, PI-13 and PI-12.
+
+⚠️ **THIS IS THE FIRST PHASE IN THE PROGRAMME WHOSE CORE IS RAW SQL, AND IT IS
+THE ONE THING A REVIEWER SHOULD LOOK AT FIRST.** Nine `$queryRaw` aggregates in
+`services/reports/`, every value parameterised, no `Prisma.raw` anywhere, and the
+two table aliases the cost helpers depend on (`src` and `bt`) are FIXED BY
+CONVENTION rather than passed as arguments — specifically so there is no
+identifier-shaped hole for somebody to interpolate into later. Read
+`services/reports/shared.ts` before the two service files; it argues every one of
+those choices.
+
+⚠️ **`procedure-contribution` DOES NOT CONTAIN THE PROCEDURE'S FEE, AND CANNOT.**
+Nothing in this schema prices one procedure differently from another:
+`fee_schedule_entries` prices a fee TYPE, a `PROCEDURE` invoice carries no
+reference back, and `charge_requests` is CHECKed to `PHARMACY`/`INVENTORY`. So
+"contribution" is the margin on MATERIALS. Every field says `consumable`, the
+response carries `procedureFeeIncluded: false`, the screen prints it above the
+table. **KNOWN_ISSUES #27, and the largest honest gap the phase leaves.** Closing
+it is a charging-model change — a per-procedure rate card plus a `PROCEDURE`
+charge-request source — and whoever does it should add the `PROCEDURE` invoice
+reference column PI-8 deliberately left out at the same time.
+
+⚠️ **THE TWO CASES MOST LIKELY TO BE BROKEN BY SOMEBODY TIDYING UP.** Both are
+pinned, and both look like improvements:
+
+1. **A `COALESCE(cost, 0)` in the fallback chain.** It passes every other
+   assertion and silently reports uncosted stock as worth nothing. The contract,
+   the service, the screen and one integration case all insist on `null` plus a
+   quantity in `totals[].unvaluedQuantityBase`.
+2. **Reading the ledger's SIGN instead of its status pair.** `CHANGES_HOLDING` is
+   `(status_from IS NULL OR status_to IS NULL)` because a MOVE carries BOTH
+   statuses and a POSITIVE quantity — quarantine, recall, expiry, damage. Using
+   the sign reports an expiry sweep as a delivery. The fixture quarantines 30
+   units so that implementation fails.
+
+⚠️ **AND THIS PHASE MADE THE MISTAKE ITS OWN DOCUMENTATION PREDICTED, WHICH IS
+THE MOST USEFUL THING IN THIS NOTE.** INVENTORY_ARCHITECTURE.md carries a warning
+headed "⚠️ THE COST, FOR PI-22": in-transit stock is not in `stock_balances`. The
+first draft of the valuation filtered `stock_balances` on
+`status = 'IN_TRANSIT'` — a status that exists in the enum and that **nothing in
+this codebase ever writes**, because PI-3 put the quantity on the transfer
+DOCUMENT. It honoured the flag, returned rows, and valued stock on a van at
+nothing. Nothing raised, nothing failed, and the total looked plausible. **The
+prediction had been written down in this directory and was read after the code
+was written.** Read the warnings in the architecture docs for the area you are
+touching BEFORE the code, not while validating it.
+
+⚠️ **AND `pnpm test` OOMS THE CONTAINER, NOT V8.** KNOWN_ISSUES #2 said "raise
+the heap"; raising `--max-old-space-size` to 4096 gets the process **SIGKILLed**
+against `mem_limit: 3g` instead of throwing. The api suite ran as
+`jest --shard=n/3`. Somebody should either raise the limit in
+`docker-compose.yml` or add `workerIdleMemoryLimit` to `apps/api/jest.config.ts`
+— it is now masking failures in a suite of ~2,100 cases.
+
+### Where to start on PI-22, if you are reviewing it
+
+- `services/reports/shared.ts` — the cost fallback chain, the fixed aliases, the
+  per-currency fold, and why the joins are LATERAL rather than CTEs.
+- `packages/contracts/src/reports.ts` — the header states the four things these
+  numbers are NOT. Read it before reading a figure off any of them.
+- `routes/v1/reports.routes.ts` — the conditional `authorize(EXPORT)`. It is the
+  one departure from the standard chain in the codebase, and the header argues it.
+- `services/reports/csv.ts` — the formula-injection guard. Every string in these
+  files came out of a clinic's own text field.
+- `apps/web/.../reports/[reportKey]/export/route.ts` — forces `format=csv` so a
+  hand-typed `format=json` cannot turn the proxy into an unaudited JSON route
+  that skips the export permission.
+
+⚠️ **NOTHING ELSE CHANGED.** No schema, no permission code, no rule pack, no
+`@rcln/regulatory`. Every open item from PI-21 is still open: `AU-SCHEDULE-S8` is
+still broken, the unclassified-rule fail-open in `IN`/`US`/`SG`/`US-CA` is still
+unrun, re-seeding a rule still never updates its transactions, and no plan is
+priced in BDT/NPR/LKR.
+
+The next unstarted phases are PI-23 (Identifier Resolution / Barcode) and PI-24
+(Global Hardening). PI-23 has the most callers waiting on it — KNOWN_ISSUES #25,
+#25b and #31 are all the same debt.
+
+---
+
+**Written:** 2026-08-24 · **By:** session PI-21 (the Bangladesh rule pack).
+
+## PI-21, still unreviewed
+
+✅ **PI-21 SHIPPED:** `BD 1.0.0` — 56 rules, 4 sources, 3 authorities, on branch
+`feat/pi-21-bd-rule-pack`. 44 behaviour cases, no migration, and **no change to
+`@rcln/regulatory`** — the first pack since PI-6 that needed none.
+⚠️ **NOT REVIEWED** — and neither are PI-18, PI-17, PI-16, PI-15, PI-13a and PI-13.
+
+⚠️ **PI-19 (NEPAL) AND PI-20 (SRI LANKA) WERE SKIPPED AT THE USER'S REQUEST**, not
+blocked. Both are DEFERRED in the tracker. Nepal's sources are rated good.
+
+⚠️ **THE FIRST PACK IN THIS PROGRAMME WHOSE AUTHENTIC TEXT IS NOT ENGLISH, AND
+BOTH STATUTES SAY SO IN TERMS.** Section 83(2) of the ঔষধ ও কসমেটিকস্ আইন, ২০২৩
+and section 70(2) of the মাদকদ্রব্য নিয়ন্ত্রণ আইন, ২০১৮ each provide that where
+the Bangla and English texts conflict, the **Bangla prevails**. Every rule was
+read off the Bangla; the commercial English translations were refused for the
+reason PI-17 refused the UAE's federal decrees as restated. ⚠️ **NOTHING IN THE
+FRAMEWORK NEEDED TO CHANGE FOR IT** — a `statement` is prose and a
+`classification` is matched exactly. What changes is what `SOURCE_VERIFIED`
+means: for `BD` it cannot be closed by anybody who does not read Bangla, and
+`regulatory_sources` has nowhere to record which language a reviewer read in.
+Survey GAP 7. **Nepal is very likely the same shape.**
+
+⚠️ **THE SURVEY WAS WRONG ABOUT BANGLADESH TWICE, AND THAT IS THE TRANSFERABLE
+LESSON.** It rated the country "at risk — the DGDA returned nothing at all" and
+predicted a thin pack. `dgda.gov.bd` responds today (only the `www.` host fails
+to resolve) and serves eight instruments plus the Bengal Drugs Rules 1946 as a
+98-page text-layer PDF. And **Bangladesh replaced its medicines Act in 2023** —
+Act 29 of 2023 repealed both the Drugs Act, 1940 and the Drugs (Control)
+Ordinance, 1982 outright, so every secondary description of Bangladeshi drug law
+older than September 2023 describes repealed statutes. **Re-check a source before
+believing a survey about it.**
+
+⚠️ **THREE PERMISSIVE GAPS IN ONE PACK — MORE THAN ANY OTHER PACK HAS — AND ALL
+THREE ARE THE LAW.** No prescription validity anywhere (a twenty-year-old
+prescription is `PERMITTED`); no repeat rule for an ordinary prescription
+medicine (rule 24(11) is confined to Schedule G, so a fortieth supply passes);
+and no general dispensing label (rule 53(2) **disapplies** rules 55–60 and
+re-imposes four conditions for Schedule D alone). **Together the first two mean
+one Bangladeshi prescription is good forever and for any number of supplies.**
+Each is pinned by a behaviour case so the cheap fix fails the suite. This is the
+single most important thing for a qualified reviewer to attack.
+
+⚠️ **AND ONE REFUSING GAP THAT WILL COST A REAL CLINIC TIME: a vet may prescribe a
+narcotic here and not an antibiotic.** The 2018 Act defines চিকিৎসক to include a
+Registered Veterinary Practitioner; the 2023 Act defines it nowhere. Importing
+one statute's definition into the other is a step no source authorises. Both
+directions are asserted, because the inversion looks so much like a bug that
+somebody will "fix" it.
+
+⚠️ **THE OPERATIVE RULEBOOK IS OLDER THAN THE COUNTRY AND THE REGULATOR'S COPY
+STOPS IN 1952.** The Bengal Drugs Rules, 1946 supply twelve of the pack's 56
+rules and survive by section 82(2)(ক). DGDA publishes them and its own Online
+Pharmacy checklist cites Form 7 of them — but the PDF says "as amended … up to
+December 1952" and still exempts drugs "sold for export to a place outside
+India". ⚠️ **THIS IS A WORSE VERSION OF PI-18's IRISH EXPOSURE**: Ireland
+publishes each amendment separately so a reader can walk the chain; here there is
+nothing to walk. Bangladesh's **statutes**, by contrast, are consolidated on
+bdlaws with every amendment footnoted in place — better than Ireland manages.
+
+### Where to start on PI-21, if you are reviewing it
+
+- `packages/db/prisma/seed/data/regulatory-bd.ts` — the header argues all three
+  permissive gaps, the veterinary inversion, and the four things researched and
+  not written. Read it before adding any of them.
+- `BD-ONLINE-CD-KA/-KHA/-GA` — **the weakest rows in the pack.** An undated,
+  unnumbered DGDA PDF forbids remote supply of a controlled drug, which neither
+  statute forbids, for every online pharmacy in Bangladesh. Attack this first.
+- `BD-DISPENSER-*` versus `BD-DISPENSER-ONLINE-*` — section 45(1) admits three
+  Council grades at the counter; the Online Pharmacy Criteria admit Grade A
+  alone. A licence condition may be stricter than its section; this one is.
+- `BD-CD-*` — carries `priorAuthorisationRequired` and nothing else. No register,
+  no safe, because dnc.gov.bd did not respond and the বিধিমালা could not be read.
+  ⚠️ **Its behaviour case asserts the OUTCOME, which is what `AU-SCHEDULE-S8`'s
+  fails to do.**
+- `apps/api/tests/integration/bd-rule-pack.test.ts` — the twenty-year-old
+  prescription, the fortieth repeat, the `SCHEDULE_H` product, and both halves of
+  the veterinary inversion.
+
+⚠️ **`AU-SCHEDULE-S8` IS STILL BROKEN.** PI-18 found it, PI-21 did not fix it:
+it carries only `scheduleName`, `parseControlledSchedule` rejects a rule that
+imposes no obligation, and it therefore refuses every Schedule 8 transaction in
+the seven Australian jurisdictions with no state pack. Two options are written
+out in KNOWN_ISSUES. ⚠️ **`US-CD-*`, `SG-CD*` and both Emirati packs still have
+not been checked for the same shape.**
+
+⚠️ **AND THE UNCLASSIFIED-RULE FAIL-OPEN IS STILL OPEN IN `IN`, `US`, `SG` AND
+`US-CA`.** `BD` has no unclassified rule and a behaviour case proves it, but the
+four packs PI-18 listed were read off the rule rows and never run.
+
+⚠️ **TWO DEFECTS PI-21 FOUND IN CODE IT DID NOT WRITE, BOTH RECORDED AND NEITHER
+FIXED HERE.**
+
+1. **Re-seeding a rule never updates its transactions, classification or type.**
+   `seedRegulatoryPacks`'s rule `update` branch writes `statement`, `parameters`
+   and `sourceId` and nothing else, so changing `appliesToTransactions` in a data
+   file leaves the stored row untouched while the console prints the new rule
+   count. It cost this session half an hour. ⚠️ **It is the sibling of PI-18's
+   "the seed upserts and never deletes"** — together, a data file and a seeded
+   database can disagree in two directions and neither shows in the output.
+2. **A Bangladeshi clinic cannot register: no plan is priced in BDT.**
+   `registerOrganization` answers `PLAN_UNAVAILABLE` (503). The behaviour suite
+   omits the currency and falls through to USD. ⚠️ **NPR and LKR are the same**,
+   so PI-19 and PI-20 will both hit it.
+
+⚠️ **PI-14 (GB) STAYS BLOCKED** on legislation.gov.uk. The next unstarted phases
+are PI-19 (NP), PI-20 (LK), PI-22 (Reporting & Cost Accounting), PI-23
+(Identifier Resolution / Barcode) and PI-24 (Global Hardening).
+
+---
+
+## PI-18, still unreviewed
+
+**Written:** 2026-08-20 · **By:** session PI-18 (the Ireland rule pack).
+
+## PI-18 first, because it is the freshest and it is unreviewed
+
+✅ **PI-18 SHIPPED:** `IE 1.0.0` — 50 rules, 7 sources, 3 authorities, on branch
+`feat/pi-18-ie-rule-pack`. 52 behaviour cases, no migration.
+⚠️ **NOT REVIEWED** — and neither are PI-17, PI-16, PI-15, PI-13a and PI-13.
+
+⚠️ **THE FIRST JURISDICTION IN THIS PROGRAMME THAT FORBIDS REMOTE SUPPLY.**
+Regulation 19(1) of S.I. No. 540 of 2003 prohibits mail order of any medicinal
+product; regulation 19(5) extends it to information society services; regulation
+19A(8)(b) shuts the door on a prescription medicine sent to a person in the
+State. Six classifications carry `ONLINE_DISPENSING` with `permitted: false`,
+which REFUSES before the destination is even looked at. **Read PI-12 decision 1
+next to it** — Ireland is where the engine's gate and `confirmOnlineOrder`'s gate
+finally agree about the same product, and only one of them cites the law.
+
+⚠️ **IT NEEDED ONE FRAMEWORK KEY, AND THE REASON IS A LESSON ABOUT PI-13a.**
+Regulation 19A(1) permits NON-prescription distance selling only from a supplier
+on the PSI's ISS supply list — GAP 2's shape, arriving on the `ONLINE_DISPENSING`
+rule type rather than on `CONTROLLED_SCHEDULE` where PI-13a put it. PI-13a
+generalised the CONDITION (`VERIFY_PRIOR_AUTHORISATION`) and left the PARAMETER
+tied to one rule type. `requiresDistanceSellingAuthorisation` closes it; recorded
+as GAP 6 in the survey. **Great Britain's GPhC internet pharmacy list will land
+here again.**
+
+⚠️ **THE PATTERN PI-17 ASKED THE NEXT PHASE TO CARRY SHOWED UP TWICE IN ONE
+PACK.** `branch.licence_type` is now the fourth jurisdiction's ask — regulation
+7(6) confines a First Schedule Part C prescription to a hospital, so **no Part C
+classification is defined at all** and such a product refuses as `UNDETERMINED`.
+And regulation 7(5)(a)(ii), from 1 March 2024, permits a twelve-month validity on
+a period written on the prescription or a pharmacist's recorded review — neither
+of which `PresentedPrescription` holds — **so the pack refuses on day 183 a
+dispense that may be lawful.** That is the refusing direction, written knowingly,
+and a behaviour case pins it so the cheap fix (`validityMonths: 12`) fails.
+
+⚠️ **`CountryInfo.regions` FOR `IE` IS EMPTY AND CORRECT — THE FIRST CLEAN RUN OF
+THAT CHECK.** Irish medicines law is national, so no sub-national pack can exist
+to be made inert. One loose end recorded rather than fixed blind: `labels.region`
+says 'County' and no county can be selected. ⚠️ **`US_REGIONS` IS STILL SHORT
+FIVE STATES.**
+
+⚠️ **THE RESEARCH HAZARD TO CARRY INTO PI-19: IRELAND PUBLISHES NO CONSOLIDATION
+OF A STATUTORY INSTRUMENT.** The 2003 Regulations have been amended more than
+forty times and the eISB serves the 2003 text and each amendment separately, so
+the principal instrument reads as though nothing has changed. Three amendments
+were read in full and are their own source rows; the rest were checked for
+whether they touch the regulations in play. **A substitution nobody noticed reads
+exactly like a rule nobody amended** — that is this pack's largest exposure and
+the thing a `SOURCE_VERIFIED` reviewer must actually walk.
+
+⚠️ **PI-18 FOUND A LIVE DEFECT IN PI-15, AND IT IS THE MOST IMPORTANT THING IN
+THIS FILE.** `AU-SCHEDULE-S8` carries `{ scheduleName: 'Schedule 8' }` and
+nothing else. `parseControlledSchedule` REJECTS a document that imposes no
+obligation, so the rule resolves `UNDETERMINED` — **which refuses every Schedule
+8 supply, stock movement, transfer and disposal in the seven Australian
+jurisdictions with no state pack.** Its own comment asserts the opposite, and its
+behaviour case asserts the rule code appears and no conditions were raised, which
+is exactly what an unreadable rule produces. **It never asserts the outcome.**
+PI-12's lesson verbatim. Not fixed in PI-18 — the fix changes Australia's
+behaviour in seven jurisdictions and belongs to whoever owns that pack. Two
+options are written out in KNOWN_ISSUES. ⚠️ **Check `US-CD-*`, `SG-CD*` and both
+Emirati packs for the same shape.**
+
+⚠️ **AND A CLASS OF FAIL-OPEN NOBODY HAS LOOKED FOR: AN UNCLASSIFIED RULE.**
+`coversProduct` matches a rule with no classification against ANY product, and
+`needsClassificationButHasNone` does not fire when a product HAS a classification
+the pack simply does not define. So in a pack whose refusing rules are all
+classified, a product filed under an unrecognised string matches only obligations
+— and an obligation never refuses. PI-18's own first draft shipped that bug for
+an hour; `IN`, `US`, `SG` and `US-CA` have the same shape today, read off the
+rule rows rather than run. KNOWN_ISSUES has the table.
+
+### Where to start on PI-18, if you are reviewing it
+
+- `packages/db/prisma/seed/data/regulatory-ie.ts` — the header argues the missing
+  Part C classification, the missing traceability rule and the six-versus-twelve
+  months. Read it before adding any of the three.
+- `IE-ONLINE-*` — the six `permitted: false` rules and the one `permitted: true`.
+  ⚠️ **The `PHARMACY_ONLY` permission has a known hole**: regulation 19(4) keeps
+  the mail-order prohibition over Eighth Schedule products, so a
+  pharmacy-administered influenza vaccine filed as `PHARMACY_ONLY` gets a
+  permission it should not. KNOWN_ISSUES has it.
+- `IE-DISPENSER-*` — `exemptWhenActorIsPrescriber` is set on regulation 20(3)(c),
+  which names a practitioner and a dentist and **not a nurse**. `isPrescriber`
+  carries no class, so the pack's exemption is wider than the regulation's.
+- The two schedule lists that are not the same list — regulation 19 (register)
+  reaches Schedules 1 and 2; Safe Custody article 5 reaches Schedules 1, 2 and 3.
+  Widening either would be wrong in a different direction.
+- `IE-DISPOSE-*` — the weakest reading in the pack. Regulation 25(5) disapplies
+  the witness from a pharmacy keeping records only by virtue of regulation
+  23(4)(a), and the rule raises it for all three schedules anyway.
+- `apps/api/tests/integration/ie-rule-pack.test.ts` — the day-183 refusal, the
+  Part C `UNDETERMINED`, the instalment with no number, and the Part 1 Schedule 4
+  product that may sit on an open shelf.
+
+⚠️ **PI-19 (Nepal) is next.** PI-14 (GB) stays blocked on legislation.gov.uk.
+
+---
+
+## PI-17, still unreviewed
+
+✅ **PI-17 SHIPPED:** `AE-AZ 1.0.0` (25 rules, DoH Abu Dhabi) and `AE-DU 1.0.0`
+(26 rules, DHA Dubai). 22 behaviour cases, no migration.
+⚠️ **NOT REVIEWED** — and neither are PI-16, PI-15, PI-13a and PI-13.
+
+⚠️ **THE FIRST COUNTRY IN THIS PROGRAMME CONFIGURED ONLY FROM BELOW.** There is
+no `AE` pack. `uaelegislation.gov.ae` returns `403` on every path and
+`mohap.gov.ae` resets the connection, so the federal Ministerial Decrees both
+emirates rest on — 888/2016, 379/2019, 253/2020, 680/2017 — were readable only as
+those emirates restate them. **That is a secondary source and no rule cites one.**
+Every rule is cited to the emirate standard that each regulator says applies to
+the facilities it licenses.
+
+⚠️ **SO SHARJAH, AJMAN, FUJAIRAH, RAS AL-KHAIMAH AND UMM AL-QUWAIN HAVE NOTHING.**
+Not a thin pack — no pack, and no national floor beneath them, so every
+evaluation answers `UNDETERMINED`, which refuses. Australia's seven state-less
+jurisdictions at least get the Poisons Standard. A behaviour case pins this so
+nobody closes it by writing a federal pack from a restatement.
+
+⚠️ **`CountryInfo.regions` WAS EMPTY FOR `AE` TOO. THIS IS NOW A CLASS OF DEFECT,
+NOT AN ACCIDENT.** Australia in PI-15, the UAE in PI-17 — both populated from
+"does tax register per subdivision", both taxing federally at one rate, both
+regulating medicines sub-nationally. PI-16 recorded "check this list first"; the
+check found a live defect on its first outing. ⚠️ **THIS ONE HAD A TELL IN THE
+SAME OBJECT: `labels.region` for `AE` already said `'Emirate'`** — the address
+form asked which emirate a branch was in while the list permitted none.
+`UAE_REGIONS` lists all seven. ⚠️ **`US_REGIONS` IS STILL SHORT FIVE STATES.**
+
+⚠️ **THE PATTERN TO CARRY INTO PI-18: A GATE CONDITIONAL ON A FACT THE PLATFORM
+DOES NOT MODEL CANNOT BE A RULE — AND THREE JURISDICTIONS HAVE NOW ASKED FOR THE
+SAME MISSING FACT.** Singapore's pharmacist gate turns on whether the premises are
+a retail pharmacy or a clinic; Dubai confines narcotic prescribing to hospital
+inpatient and emergency units; Abu Dhabi requires a facility to be licensed as a
+hospital, day surgery centre, pharmacy or drug store. rcln has no
+`branch.licence_type`. **That field, not a bolder reading, is the fix.**
+
+### Where to start on PI-17, if you are reviewing it
+
+- `packages/db/prisma/seed/data/regulatory-ae-az.ts` — the header argues the
+  missing federal pack and the missing days'-supply ladder. Read it before adding
+  either.
+- The six `*-TRANSFER-*` rules — `IMPORT_RESTRICTION` rows narrowed to
+  `TRANSFER`, because that handler is the only one that refuses a transaction
+  outright. ⚠️ **The narrowing is load-bearing and has no guard**: widen
+  `appliesToTransactions` on one of them and every Emirati clinic stops being
+  able to receive controlled stock. Third occurrence of "the framework has no
+  `permitted: false` transaction rule" after Singapore's `SG-SUPPLY-CD4`.
+- `DU-RX-POM` — three months, drawn from a clause that reads "e.g." inside a
+  recommendation. The weakest reading in either pack, and written because
+  omitting a validity fails OPEN.
+- `AZ-REFILL-CD` / `DU-REFILL-CD` — wider than their regulators wrote, because
+  the lists of refillable products are in decrees nobody could retrieve.
+- `apps/api/tests/integration/ae-rule-pack.test.ts` — the Sharjah case, the two
+  emirates disagreeing about the unified platform, and the assertion that the
+  outcome is not `UNDETERMINED` for want of a days' supply.
+
+✅ **PI-18 (Ireland) shipped.** irishstatutebook.ie was rated "Good" and was —
+it serves full text over `curl` with a browser user agent, and `403`s the default
+one. PI-14 (GB) stays blocked on legislation.gov.uk.
+
+---
+
+## PI-12, still worth reading before touching pharmacy or online supply
+
+✅ **`security-reviewer` HAS RUN OVER PI-12. 2 CRITICAL, 1 HIGH, 3 MEDIUM, 4 LOW
+— all acted on**, both CRITICALs with a regression test verified to FAIL against
+the reverted code. Full write-up in IMPLEMENTATION_TRACKER.md under **PI-12.5**.
+
+✅ **`/code-review` HAS ALSO RUN** (on the second attempt — the first died on a
+session limit). **No CRITICAL, no HIGH. 8 WARNING, 7 INFO — all acted on.** It
+confirmed the five things the phase was most exposed on, and found that THREE OF
+THEM WERE ARGUED FROM COMMENTS THAT SAID THE WRONG THING. Write-up under
+**PI-12.6**.
+
+⚠️ **THE LESSON WORTH CARRYING: EVERY DEFECT THIS PHASE SHIPPED WAS FIRST WRITTEN
+DOWN AS A JUSTIFICATION.** The missing RLS policies came with a comment citing
+two precedents that said the opposite; the `held` map's correctness was credited
+to an index that has nothing to do with it; the oversell safety was credited to a
+sort that only prevents deadlock; and the contract header claimed a destination
+was derived when it is typed. A confident comment is the easiest thing in this
+codebase to review past.
+
+⚠️ **BOTH CRITICALS ARE WORTH READING BEFORE TOUCHING ANY OF THIS.** One is KI-3
+for the fifth time, on a comment that cited two precedents which said the
+opposite of what it claimed. The other is the phase opening its own second door
+by widening a shared enum — `DispenseKind` gained `ONLINE` for the column's sake
+and silently widened `createDispenseRequest` with it, so the entire remote-supply
+gate could be walked round by posting to the counter endpoint.
+
+⚠️ **THE ONE THING TO UNDERSTAND BEFORE TOUCHING ANY OF IT:** a remote supply now
+has TWO gates, deliberately, and one of them is not the rule engine. Read
+"The gate" below before you decide either is redundant.
 
 ---
 
@@ -21,297 +564,186 @@ Full orientation: [README.md](README.md).
 
 **PI-0** Discovery. **PI-1** Product platform core (PR #30). **PI-2** Inventory
 foundation (PR #31). **PI-3** Movements (PR #32). **PI-4** Procurement (PR #33).
-**PI-5** Global regulatory framework — this session, on
-`feat/pi-5-regulatory-framework`. Not pushed. **Both reviewers have run and every
-finding is fixed** — four CRITICALs, one MEDIUM, and nine smaller. See the
-CHANGELOG; the two worth carrying forward are decisions 5 and 6 below.
+**PI-5** Regulatory framework (PR #34). **PI-6** India rule pack (PR #35).
+**PI-7** Pharmacy dispensing. **PI-8** Billing & tax integration. **PI-8.11** the
+review gate over PI-7 + PI-8. **PI-9** Clinical consumption. **PI-10** Recall &
+traceability. **PI-11** Veterinary enablement, plus the review gate over PI-9,
+PI-10 and PI-11 together. **PI-12** Online pharmacy. **PI-13a** rule-pack
+framework extensions. **PI-13** United States (federal + California). **PI-15**
+Australia (national + Victoria). **PI-16** Singapore. **PI-17** Abu Dhabi and
+Dubai. **PI-18** Ireland — ⚠️ the last six are **not reviewed**.
+
+⚠️ **PI-14 (Great Britain) is BLOCKED** on access to legislation.gov.uk, and the
+UAE's FEDERAL sources are in the same state.
 
 ---
 
 ## What was changed in this session
 
-| Area        | What landed                                                                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Schema      | 6 tables, 8 enums. **Five are PLATFORM (no `organization_id`)**; only `product_regulatory_profiles` is tenant data                           |
-| Migration   | 1 — `20260818090000_regulatory_framework`. NULLS NOT DISTINCT ×2, 5 CHECKs, 2 trigger functions, grants                                      |
-| RLS         | `db:rls:check` green at **89** (was 88). The five platform tables are EXEMPT, with the `tax_rule_defaults` reasoning, and trigger-guarded    |
-| Package     | **`@rcln/regulatory`** — `evaluate()`. No Prisma, no clock, no country. 43 unit tests                                                        |
-| Permissions | `regulatory.rule.read` / `.manage`, `regulatory.pack.approve`, `product.regulatory.read` / `.manage`                                         |
-| Routes      | `/v1/regulatory/*` (read + evaluate) · `/v1/platform/regulatory/*` (the console) · `/v1/products/:id/regulatory-profiles`                    |
-| Web         | `/regulatory` — Places, Regulators, Rule packs (+ detail), Sources — the maturity rail, a Regulatory tab on the product, a "Rules" nav entry |
-| Tests       | 43 package · 16 integration · 13 isolation. **Isolation suite at 307 across 15 files**; unit 176; every integration slice green              |
+**PI-17 — the Emirati rule packs.** Two data files, two `PACKS` entries, one
+contracts fix, one test suite, no migration.
+
+| Area      | What landed                                                                                                                                                                                                                                                                             |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Contracts | `UAE_REGIONS` — all seven emirates — and the second entry in the `CountryInfo.regions` warning, which now says this is a class of defect                                                                                                                                                |
+| Seed      | `data/regulatory-ae-az.ts` (25 rules) and `data/regulatory-ae-du.ts` (26 rules); two `PACKS` entries, both sub-national                                                                                                                                                                 |
+| Rules     | Three-day prescriptions across three tiers, prescriber grades for narcotics, refill ceilings, the registers, the unified platform as a prior authorisation, locked steel storage, 5/5/2-year retention, monthly and quarterly returns, witnessed disposal, and the transfer prohibition |
+| Tests     | `apps/api/tests/integration/ae-rule-pack.test.ts` — 22 cases, three branches in one organization, one of them in Sharjah                                                                                                                                                                |
+| DB        | none. The fifth rule-pack phase running with no migration                                                                                                                                                                                                                               |
+| Docs      | COUNTRY_SUPPORT_MATRIX (AE row, column, and why the rest did not move), KNOWN_ISSUES, IMPLEMENTATION_TRACKER, CHANGELOG, survey, STATUS                                                                                                                                                 |
 
 ---
 
-## The six decisions worth knowing before you touch this
+## Decisions taken in PI-12 that a later phase must not undo
 
-### 1. THE LAW HAS NO RLS POLICY, AND A TRIGGER IS WHAT PROTECTS IT
+**1. ⚠️ THE GATE IS IN TWO PLACES AND BOTH ARE LOAD-BEARING.**
+`@rcln/regulatory` raises the remote-supply gap as a decision reason, snapshotted
+onto the order line. `confirmOnlineOrder` ALSO refuses, directly, before the
+engine's answer is consulted for enforcement. That is not belt-and-braces: a
+`REFUSED` decision stops nothing until a named human sets a pack to
+`PRODUCTION_ENABLED`, and no pack is. With the engine alone, every product in
+every configured country would have been sendable by post the day this shipped.
 
-```
-jurisdictions · regulatory_authorities · regulatory_sources ·
-regulatory_rule_packs · regulatory_rules          PLATFORM, no organization_id
-product_regulatory_profiles                       TENANT, platform-extensible
-```
+What the service refuses is not a jurisdiction's law — it is the CLINIC's own
+record of what the product is here (`product_regulatory_profiles
+.online_sale_position`), which is the same class of check as `is_dispensing_point`
+and `products.status`. `onlineSaleGapMessage` is shared so the two wordings can
+never drift.
 
-A policy on the first five would return zero rows for **everyone**: every tenant
-reads them inside its own transaction, so no rule would ever match and every
-decision would come back `UNDETERMINED` — which refuses. Nobody could dispense
-anything anywhere. Same argument as `tax_rule_defaults`.
+**2. ⚠️ THE FAIL-OPEN THIS CLOSES WAS REAL AND SURVIVED SEVEN PHASES.** A pack
+that regulates supply lists `ONLINE_DISPENSE` alongside `DISPENSE` on its
+prescription rules — it has to — so a pack that says NOTHING about remote supply
+PERMITS it, on the strength of rules about a counter. India's pack is exactly
+that shape. Anyone tempted to "simplify" the gate away should read
+`packages/regulatory/tests/online-sale-gap.test.ts`, whose last case is that
+exact request.
 
-⚠️ **`@rcln/db/unsafe` IS NOT AN OWNER CONNECTION.** It is the same `rcln_app`
-role with no session variables, so a SELECT-only grant would lock the platform
-console out of its own tables. What distinguishes a clinic from the console is
-that the clinic's transaction CLAIMS A TENANT, so
-`platform_law_not_tenant_writable` refuses a write whenever `app_current_org()`
-is not null. Four isolation cases pin it, including the DELETE — which no policy
-would have caught anyway, because Postgres applies no WITH CHECK to DELETE.
+**3. THERE IS ONE FUNCTION THAT DISPENSES.** `createDispenseWithin` is called by
+the counter and by packing. A parallel posting function was the alternative, and
+PI-11's review already recorded what it costs: _a second door into a status
+change is a second door into the hazard._ The seam is `RemoteSupply` — three
+fields a client must never be able to state, each with the reason on it.
 
-### 2. `UNDETERMINED` REFUSES, AND THAT IS WHY NOTHING IS WIRED UP YET
+**4. ACCEPTING HOLDS; PACKING SUPPLIES. THE CLAIM COMES FIRST.** Pack marks the
+reservations CONSUMED **before** any ledger leg — the discipline
+`releaseReservationIn` documents at length — then dispenses with
+`statusFrom: RESERVED`. Reversing the two lets the sweep release a hold between
+the leg and the claim, putting quantity back on a shelf it has already left.
 
-No applicable rule, an unreadable parameters document, or a fact the rule needed
-that nobody supplied — all `UNDETERMINED`, and every caller treats it as _refuse
-and say so_.
+**5. ⚠️ A HOLD CITES THE ORDER _LINE_, NOT THE ORDER.** Reservations carry a
+product and a lot and no line. `online_order_lines` is unique on
+`(organization_id, online_order_id, product_id)` for the same reason, and the
+service refuses a duplicate with a sentence before the index does.
 
-⚠️ **SO PI-5 ENFORCES NOTHING.** With no pack configured anywhere, EVERY
-evaluation is `UNDETERMINED` today; calling `evaluateFor` from the goods-receipt
-or transfer path would stop every clinic on the platform from receiving stock.
-PI-6 wires the call sites as it reaches `RULES_IMPLEMENTED`, jurisdiction by
-jurisdiction. Until then the engine is reachable at
-`POST /v1/regulatory/evaluate`, where a clinic can SEE the answer without
-anything depending on it.
+**6. A FAILED DELIVERY MOVES NO STOCK.** The parcel is somewhere and the clinic
+does not have it back. What returns returns as a `dispense_returns` row.
 
-⚠️ **A MALFORMED RULE MUST NOT PERMIT.** `{"required": "yes"}` casts fine and
-compares as `NaN`, and `NaN > limit` is `false` — so a careless engine lets a
-broken rule through. Every parameter is validated before it is acted on; see
-`parameters.ts`, and do not add a handler that reads `rule.parameters` directly.
+**7. PACKING IS GATED ON `pharmacy.dispense.create`.** It IS the supply. A fourth
+online code would be a second door to that authority.
 
-### 3. THE SIGN-OFF LADDER HAS THREE LAYERS AND ONLY ONE CANNOT BE FORGOTTEN
+**8. The router is at `/v1/online-orders`, not under `/pharmacy`.** Not
+cosmetic: `route-gates.test.ts` requires every route under `/pharmacy` to carry a
+`pharmacy.dispense.*` code, and nesting there would have forced the
+order-taking desk behind the dispensing codes.
 
-```
-…SOURCE_VERIFIED → REGULATORY_REVIEW_PENDING │ REGULATORY_REVIEWED → PRODUCTION_ENABLED
-        code may set these                   │        a named human only
-```
-
-`regulatory.pack.approve` on the route · the ladder and demotion checks in
-`approveRulePack` · and `regulatory_rule_packs_review_recorded`, which refuses
-either state ARRIVING without a reviewer's name and the instant it was recorded.
-The CHECK is the one a later migration or a psql session cannot route around.
-
-⚠️ **NO SYSTEM ROLE HOLDS THE CODE, AND `ORG_OWNER` IS EXCLUDED BY NAME.** It is
-an "everything except" role and would otherwise acquire it silently — the same
-trap `CLINICAL_AUTHORING` already guards. OD-5 is resolved: the mechanism exists,
-and _which person_ holds it is a grant somebody makes out of band.
-
-⚠️ **A RULE CANNOT BE ADDED TO A SIGNED-OFF PACK.** A sign-off is a statement
-about the rules that existed when it was made; a seventeenth rule arriving
-afterwards puts the reviewer's name on something they never saw.
-
-### 4. `REGULATORY_REVIEWED` IS AN EIGHTH MATURITY THAT PI-ADR-009 DOES NOT DRAW
-
-That ADR's chain has seven states and its own prohibition names a state the chain
-omits. Reviewing the content and deciding the platform may act on it are two
-decisions; one button for both is the button pressed twice by accident. Recorded
-as a deliberate refinement, like PI-2's `EXPIRY`-is-a-MOVE and PI-3's
-document-held in-transit.
-
-### 5. ⚠️ A RULE THAT SAYS NOTHING CHECKABLE IS BROKEN, NOT PERMISSIVE
-
-The review's worst finding, and the reason `parameters.ts` now refuses a document
-that omits its rule type's essential key:
-
-```
-parameters: { require: true }   ONE TYPO   ->  PERMITTED  (before)
-                                           ->  UNDETERMINED, which refuses (now)
-```
-
-`readBoolean` cannot tell ABSENT from MISSPELLED — nothing can — and the handler
-read an absent `required` as "no prescription is required here". Worse, a
-REGIONAL rule supersedes the national rule of its type, so one typo in one state
-switched off the country's rule as well.
-
-⚠️ **THE GAP THAT LET IT SHIP: every "nothing is configured" test tested an
-absent RULE, and none tested a rule that EXISTS with an empty document.** If you
-add a rule type, add both.
-
-### 6. ⚠️ A CONCURRENCY TEST TOOK THREE ATTEMPTS AND THE FIRST TWO WERE GREEN
-
-`createRule` read the pack it decides against and wrote to a different table, with
-no lock — PI-4's lesson verbatim. All three writers now take `SELECT … FOR UPDATE`
-on the pack. What is worth carrying forward is how nearly the test lied:
-
-1. Two real calls racing under `Promise.allSettled` — **passed with the lock
-   removed.** The interleaving needs the read before the commit and the write
-   after, and transactions started microseconds apart mostly decline.
-2. Holding the row and asserting `approveRulePack` blocks — **passed with the lock
-   removed too**, because that function's own `UPDATE` takes a row lock anyway. It
-   was measuring Postgres, not the code.
-3. Only `createRule` discriminates, because its WRITE targets a different table.
-
-⚠️ **Whatever you write in PI-6, remove the lock and watch it go red before you
-keep it.** Twice here, a test that could not fail looked exactly like one that
-could.
+**9. Four things were deliberately not built** — a patient portal,
+click-and-collect, partial shipment, and substitution on an order. Each is argued
+in the header of `online-pharmacy.prisma`; each adds a nullable path through the
+phase's one irreversible write.
 
 ---
 
-## Current phase / current task / next task
+## ⚠️ The two defects PI-12 found in code it did not write
 
-|                   |                                                         |
-| ----------------- | ------------------------------------------------------- |
-| **Current phase** | PI-5 — complete. Both reviews run and acted on          |
-| **Current task**  | **Nothing.** PI-5 is done bar a browser                 |
-| **Next phase**    | PI-6 — India rule pack                                  |
-| **Next task**     | **PI-6.1 — research and populate `regulatory_sources`** |
+**1. `dispenses_prescription_has_patient` would have refused every parcel.** PI-7
+wrote it as a two-way choice between the counter's two kinds, so an `ONLINE`
+dispense satisfied neither arm. Rewritten with a third arm tying ONLINE to a
+PATIENT and deliberately not to an encounter — a parcel has to go to somebody, and
+it may or may not be against a prescription.
 
-### Before starting PI-6
-
-1. ⚠️ **DO NOT INVENT LEGAL RULES. THIS IS THE ONE THAT MATTERS MORE THAN ANY
-   ARCHITECTURE NOTE IN THIS FILE.** `regulatory_rules.source_id` is NOT NULL and
-   a source is the **regulator's own publication** — not a summary, not a vendor
-   blog, not a law-firm note, and never a model's recollection. A rule whose
-   source cannot be found is NOT WRITTEN, and the country's cell in
-   [COUNTRY_SUPPORT_MATRIX.md](COUNTRY_SUPPORT_MATRIX.md) stays
-   `RESEARCH_REQUIRED`, which is a correct and useful outcome. A hallucinated
-   schedule in a dispensing system is a patient-safety defect that will look
-   completely plausible.
-
-2. **The platform console has endpoints and no screens.** All the CRUD is at
-   `/v1/platform/regulatory/*` and is tested; PI-6 builds the admin UI alongside
-   the first pack somebody actually has to type in.
-
-3. **Wiring a call site is PI-6's job, and it is a behaviour change at every
-   clinic in that jurisdiction.** `RULES_IMPLEMENTED` means dispensing, counter
-   sale, receipt and disposal consult `evaluateFor`. Do it per jurisdiction and
-   remember what decision 2 says about what happens to clinics whose place is not
-   configured.
-
-4. **Test the DECISION, never the country.** `expect(country).toBe('IN')` is
-   forbidden; `packages/regulatory/tests/engine.test.ts` shows the shape, using a
-   fictional `TL` so that nothing in it can be read as a legal position.
-
-5. ⚠️ **`pnpm typecheck` NOW OOMs THE API CONTAINER TOO**, not just `pnpm test`.
-   Both must be run per package or by path. KNOWN_ISSUES defect 2, and it got
-   worse this session rather than better.
+**2. A PI-11 test asserted the opposite of what PI-11's own review fixed.**
+`patients.test.ts` expected a capped `dailyDose` of `500.000`, while
+`weightBasedDose` had been changed — with `499.998` written into its own code
+comment — so that the reported pair always multiplies. The suite has been red
+since PI-11 landed and nothing surfaced it. Corrected.
 
 ---
 
-## Files that must be inspected before continuing
+## Where to start on the unreviewed phases
 
-| File                                                             | Why                                                                    |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `packages/regulatory/src/engine.ts`                              | The precedence rules, and why silence never permits                    |
-| `packages/regulatory/src/selection.ts`                           | Effective dating and specificity — the "region beats country" ordering |
-| `packages/regulatory/src/parameters.ts`                          | Why a malformed rule is `UNDETERMINED` and not a cast                  |
-| `apps/api/src/services/regulatory/evaluation.service.ts`         | The seam. The only place that loads a rule row                         |
-| `apps/api/src/services/platform/regulatory.service.ts`           | The console, the ladder, and the three refusals around sign-off        |
-| `packages/db/prisma/migrations/20260818090000_…framework/`       | The two triggers, and why a grant could not do their job               |
-| `apps/api/tests/integration/tenant-isolation/regulatory.test.ts` | The width that is deliberate, and the writes that are not              |
+**⚠️ RUN THE REVIEWS FIRST** — PI-12 is done, PI-13a, PI-13, PI-15 and PI-16 are
+not. For PI-12, point a reviewer at: Point a reviewer at:
 
----
+- `confirmOnlineOrder` — the gate, the FEFO plan, the holds, and the fact that
+  the number is issued last so a refusal burns none.
+- `packOnlineOrder` — the claim-then-move order, and whether a partial claim can
+  ever leave the order and the buckets disagreeing.
+- `createDispenseWithin` and `RemoteSupply` — whether the three internal-only
+  fields are genuinely unreachable from the HTTP surface, and whether the
+  `held` map keyed by request-line OBJECT survives every path through the sort.
+- `onlineSaleGap` — whether an unrecognised position can ever fail open, and
+  whether the gate touches any transaction but `ONLINE_DISPENSE`.
+- The three tables' CHECK constraints, especially
+  `online_orders_status_is_consistent` — it encodes the whole state machine and
+  is what stops a cancellation reaching a packed order.
+- `data_access_logs` under `ONLINE_ORDER` — an order row is the broadest
+  single-row disclosure in the product, and this is the first resource that
+  carries a home address.
 
-## Known issues
-
-**1. Nothing has been clicked in a browser.** The same item PI-1 through PI-4 each
-left, now across five more screens.
-
-**2. `pnpm typecheck` and `pnpm test` both OOM the api container.** Run by
-package or by path. Worse than PI-4 recorded it.
-
-⚠️ **AND AN INTERRUPTED RUN OF A SUITE WITH PLATFORM FIXTURES POISONS THE NEXT
-ONE.** `jurisdictions` is keyed on `(country_code, region_code)`, so the fixtures
-cannot be made unique per run the way a tenant-scoped suite's can. The regulatory
-suite now cleans up BEFORE it seeds as well as after; any later suite that writes
-platform rows needs the same, or a killed run presents as a page of unrelated
-failures in `beforeAll`.
-
-**3. `regulatory.pack.approve` is held by nobody**, which is correct (OD-5) and
-means PI-6 cannot reach `PRODUCTION_ENABLED` for India until a named person is
-granted it.
-
-**4. `regulatory_decisions` does not exist.** PI-ADR-008's snapshot lands with its
-first writer — PI-7 or PI-9 — rather than as a polymorphic guess about a
-transaction that does not exist yet. The decision object already carries
-everything it needs.
-
-**5. The platform regulatory console has no screens.** Endpoints only.
-
-**6. `stock_transfer_lines` still renders in a nondeterministic order.**
-KNOWN_ISSUES defect 1, unchanged since PI-3.
-
-**7. Three permission codes are still under `pharmacy.*` and should not be.**
-Unchanged since PI-4; renaming one silently revokes it.
-
-**8. In-transit stock and stock on order are still not in `stock_balances`.**
-Unchanged; PI-22's valuation must add both.
-
-**9. The product pickers are still capped at 100 rows.** PI-23. The jurisdiction
-picker on the regulatory profile form is capped the same way and for now that is
-generous — there are ten target countries.
-
-**10. `CONSUMED` is still a reservation state nothing can reach.** PI-7, PI-9.
+**Then PI-17 (UAE rule pack)**, or PI-22 / PI-23, both of which now have more to
+do than they did — see the open items in the tracker.
 
 ---
 
-## Tests
+## Open items the online-pharmacy phase leaves behind
 
-|                        |                                                                                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Currently passing**  | 176 unit · 43 `@rcln/regulatory` · **307 isolation across 15 files** · 779 integration across 34 files. Lint and typecheck green; RLS at 89 |
-| **Currently failing**  | None.                                                                                                                                       |
-| **Migrations pending** | None. One applied this session                                                                                                              |
-
-⚠️ **THE SUITE CANNOT BE RUN IN ONE GO.** Run unit, then tenant-isolation, then
-the integration files in groups of roughly nine.
-
-⚠️ **The process traps from PI-1 through PI-4 all still apply.** Migrations replay
-in NAME order and this repository's are hand-dated ahead of the wall clock, so
-anything Prisma generates must be re-dated past the highest existing directory. An
-applied migration is checksummed including its comments. `prisma migrate diff`
-wants `--from-config-datasource --to-schema ./prisma/schema --script`, and prints
-a dotenv banner to STDOUT that has to be stripped from the generated file.
-
-⚠️ **A NEW ENUM VALUE AND A CHECK THAT NAMES IT STILL CANNOT SHIP IN ONE
-MIGRATION** — but PI-5 did not hit it, and the distinction is worth recording:
-the rule is about `ALTER TYPE … ADD VALUE`. A type CREATED in the same
-transaction may be used in a CHECK immediately, which is why
-`regulatory_rule_packs_review_recorded` names two members of a type created six
-statements above it.
+- **No sweep moves an ABANDONED order's status.** The reservation sweep releases
+  the hold by `expires_at`, but the order stays `CONFIRMED` with nothing held,
+  and only `heldQuantityBase: 0` on the screen says so. A status of its own
+  would be honest; it needs a decision about who moves it.
+- **Recall does not reach a CONFIRMED order's held stock.** PI-10 walks
+  `dispense_allocations`, so a PACKED parcel IS traced — but stock held in the
+  `RESERVED` bucket for an order nobody has packed is invisible to a recall's
+  execution. PI-22/PI-23 territory.
+- **The product picker is capped at 100** on the order form, like every other
+  picker in this programme. PI-23.
 
 ---
 
-## Unresolved questions
+## Files worth reading before touching online orders
 
-**Resolved this session:** **OD-5** — a platform admin holding
-`regulatory.pack.approve`, a code no system role carries. See
-[OPEN_DECISIONS.md](OPEN_DECISIONS.md).
-
-**Still open:** OD-3 (localisation — needed before PI-19+), OD-4 (whether the
-platform ships a seeded catalogue — **needs the user**), OD-6, OD-7, OD-8.
+|                                                                       |                                                                            |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `packages/db/prisma/schema/online-pharmacy.prisma`                    | The four acts, the four non-goals, and why the arrow points at `dispenses` |
+| `apps/api/src/services/pharmacy/online-order.service.ts`              | The gate, and why it is checked here as well as in the engine              |
+| `apps/api/src/services/pharmacy/fulfilment.service.ts`                | Claim, dispense, move on — and why that order                              |
+| `apps/api/src/services/pharmacy/dispense.service.ts`                  | `RemoteSupply`, and the three fields a client may never state              |
+| `packages/regulatory/src/selection.ts`                                | `onlineSaleGap`, and the fail-open it closes                               |
+| `apps/api/tests/integration/online-pharmacy.test.ts`                  | The gate both ways, the double-count case, the hold that went away         |
+| `apps/api/tests/integration/tenant-isolation/online-pharmacy.test.ts` | Three tables, one tenancy class, and the state machine as CHECKs           |
 
 ---
 
-## Do not
+## Files worth reading before touching recall
 
-- Do not restart PI-0 through PI-5.
-- **Do not invent a legal rule.** No source, no rule. See point 1 above.
-- Do not let anything default to permitted. `UNDETERMINED` refuses, everywhere.
-- Do not read `rule.parameters` without parsing it. A `NaN` comparison permits.
-- Do not add a rule type whose essential key is optional in its parser. See
-  decision 5 — a document that says nothing checkable must be `UNDETERMINED`.
-- Do not keep a concurrency test you have not watched fail. See decision 6.
-- Do not edit a signed-off pack, in any field. `assertPackIsOpen` is called from
-  all three writers now, and it is called for the DATES as much as the maturity.
-- Do not add a second reader of `regulatory_rules`. `evaluateFor` is the seam, and
-  a second opinion about the law diverges in the permissive direction.
-- Do not put a country code in a service, a controller, a component or a test
-  helper. A behaviour that cannot be expressed as a rule row is a gap in the
-  framework, to be fixed there.
-- Do not set `REGULATORY_REVIEWED` or `PRODUCTION_ENABLED` from a migration, a
-  seed, a script or an agent. Not once, not for a demo.
-- Do not add a rule to a pack that has been signed off. Publish a new version.
-- Do not put a tenant category, or any tenant id, on a rule.
-- Do not give the five platform tables an RLS policy. Read decision 1 first.
-- Do not compare a `@db.Date` column against an instant. Use `startOfCalendarDay`.
-- Do not add a second writer to `stock_ledger`, or write `stock_balances` from
-  application code.
-- Do not hand-name an index in a migration.
-- Do not rename `pharmacy.supplier.*` or `pharmacy.purchase_order.*`.
+|                                                              |                                                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `apps/api/src/services/recall/recall.service.ts`             | The four states, the one transaction, and what a branch-scoped executor does |
+| `apps/api/src/services/recall/trace.service.ts`              | The line between the counts and the names, and why it is two routes          |
+| `packages/db/prisma/schema/recall.prisma`                    | Why a recall is a document, and the two tenancy classes                      |
+| `apps/api/tests/integration/recall.test.ts`                  | The dispense, the procedure, the empty lot, and the serialised lot           |
+| `apps/api/tests/integration/tenant-isolation/recall.test.ts` | Two tables, two tenancy classes, and the CHECK constraints                   |
+| `.kb/PharmacyInventory/TRACEABILITY.md`                      | The nine questions. Read before changing either trace                        |
+
+---
+
+## Files worth reading before touching consumption
+
+|                                                                   |                                                                              |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `apps/api/src/services/consumption/consumption.service.ts`        | The transaction, the derived variance, and why the law is not asked          |
+| `apps/api/src/services/consumption/template.service.ts`           | Versioning, and which half of it the database holds                          |
+| `apps/api/src/services/consumption/shared.ts`                     | Why the location check differs from the dispensing one                       |
+| `packages/db/prisma/schema/consumption.prisma`                    | The anchor argument, and the two tenancy classes                             |
+| `apps/api/tests/integration/consumption.test.ts`                  | The glove and the implant, the three pairs of gloves, the correction ceiling |
+| `apps/api/tests/integration/tenant-isolation/consumption.test.ts` | Five tables, two tenancy classes, and the CHECK constraints                  |
