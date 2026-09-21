@@ -5622,7 +5622,7 @@ SCHEDULE_SELECT	const	local	apps/api/src/services/doctor/doctor-schedule.service
 scheduleBlocks	fn/async	local	apps/api/src/services/appointment/availability.service.ts:127	apps/api/services/appointment	(tx: TxClient, branchId: string, doctorProfileId: string, date: string): Promise<BlockRow[]>	
 scheduled	var	local	packages/db/prisma/seed/data/regulatory-in.ts:225	packages/db/prisma/seed/data	[ IN_CLASSIFICATIONS.scheduleH, IN_CLASSIFICATIONS.scheduleH1, IN_CLASSIFICATIONS.schedul…	
 scheduleParams	var	local	apps/api/src/routes/v1/doctors.routes.ts:105	apps/api/routes/v1	doctorParams.extend(…)	
-scheduleRecurring	fn/async	local	apps/worker/src/index.ts:321	apps/worker	(): Promise<void>	Schedule the billing sweep. Repeatable jobs are keyed by name and pattern, so re-registering on every boot is safe and …
+scheduleRecurring	fn/async	local	apps/worker/src/index.ts:342	apps/worker	(): Promise<void>	
 ScheduleRow	type	local	apps/api/src/services/doctor/doctor-schedule.service.ts:91	apps/api/services/doctor	Prisma.DoctorScheduleGetPayload<{ select: typeof SCHEDULE_SELECT }>	
 SCHEDULES	const	local	packages/db/prisma/seed/data/regulatory-us.ts:273	packages/db/prisma/seed/data	[ US_CLASSIFICATIONS.scheduleII, US_CLASSIFICATIONS.scheduleIII, US_CLASSIFICATIONS.sched…	The four DEA schedules this pack configures. Schedule I is not dispensable.
 schemas	var	local	apps/api/scripts/validate-openapi.ts:28	apps/api/scripts	(document['components'] as { schemas: Record<string, unknow…	
@@ -5841,7 +5841,7 @@ SHORT_TITLE	const	local	apps/web/src/components/tenant/onboarding/onboarding-wiz
 shortDate	fn	local	apps/web/src/components/tenant/checkout/razorpay-checkout.tsx:63	apps/web/components/tenant/checkout	(iso: string): string	`2026-08-06` -> `6 Aug 2026`. Compact, because it shares one line.
 shortDate	fn	export	apps/web/src/lib/calendar-range.ts:252	apps/web/lib	(date: string): string	"Mon, 9 Aug" — the heading on a day inside a week or month listing.
 shouldRetryNow	fn	export	packages/billing/src/engine/renewal.ts:438	packages/billing/engine	(subscription: { dunningAttempts: number; lastRenewalAt: Dat…, at: Date): boolean	
-shutdown	fn/async	local	apps/worker/src/index.ts:372	apps/worker	(signal: string): Promise<void>	
+shutdown	fn/async	local	apps/worker/src/index.ts:399	apps/worker	(signal: string): Promise<void>	
 SHUTDOWN_TIMEOUT_MS	const	local	apps/api/src/index.ts:10	apps/api	30_000	
 SIDE_MM	const	local	packages/documents/src/chrome/styles.ts:45	packages/documents/chrome	8	
 SIDECAR_SUFFIX	const	local	packages/storage/src/providers/local.ts:71	packages/storage/providers	'.meta.json'	
