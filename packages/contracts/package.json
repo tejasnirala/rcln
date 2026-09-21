@@ -24,7 +24,7 @@
   "devDependencies": {
     "@rcln/config": "workspace:*",
     "eslint": "^9.39.2",
-    "prettier": "^3.8.0",
+    "prettier": "^3.9.8",
     "typescript": "catalog:"
   }
 }
