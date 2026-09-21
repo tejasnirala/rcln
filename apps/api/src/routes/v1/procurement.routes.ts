@@ -126,6 +126,7 @@ import {
   requireAuth,
   tenantContextFrom,
 } from '../../middleware/auth.middleware.js';
+import { loadUserAccess, permissionsFor } from '../../services/auth/access.service.js';
 import { requireTenant } from '../../middleware/tenant.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import {
@@ -195,6 +196,33 @@ const auditMeta = (req: Request): { ipAddress?: string; userAgent?: string } => 
   ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
   ...(req.get('user-agent') !== undefined ? { userAgent: req.get('user-agent') as string } : {}),
 });
+
+/**
+ * `auditMeta`, plus the caller's effective permissions (PI-8, KNOWN_ISSUES #5).
+ *
+ * ⚠️ ONLY THE TWO ENDPOINTS THAT CONSULT `@rcln/regulatory` USE THIS, AND THE
+ *   REST STAY ON THE SYNCHRONOUS `auditMeta`. Resolving permissions is a cache
+ *   read, but it is a read on every request, and paperwork endpoints — creating
+ *   a draft, editing a line — reach no rule engine and would pay for something
+ *   nothing looks at.
+ *
+ * ⚠️ PERMISSION CODES FOR THE BRANCH BEING ACTED ON, resolved here rather than
+ *   inside a service, because `TenantContext` deliberately carries no
+ *   permissions — it is an isolation boundary, not an authorization one.
+ *   `authorize()` has already warmed this cache on the way in, so it is a hit.
+ */
+async function actorMeta(req: Request): Promise<{
+  ipAddress?: string;
+  userAgent?: string;
+  roleCodes: readonly string[];
+}> {
+  const ctx = tenantContextFrom(req);
+  const access = await loadUserAccess(ctx.userId, ctx.organizationId);
+  return {
+    ...auditMeta(req),
+    roleCodes: access ? permissionsFor(access, ctx.userId, req.auth?.branchId ?? null, false) : [],
+  };
+}
 
 /** Applied to each router below. Extracted so one cannot be missed. */
 function guarded(): IRouter {
@@ -693,7 +721,7 @@ goodsReceiptRoutes.post(
     const { goodsReceiptId } = req.params as z.infer<typeof receiptParams>;
     sendSuccess(
       res,
-      await postGoodsReceipt(tenantContextFrom(req), goodsReceiptId, auditMeta(req)),
+      await postGoodsReceipt(tenantContextFrom(req), goodsReceiptId, await actorMeta(req)),
       'Delivery received'
     );
   }

@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
-    "test": "echo \"no worker tests yet\" && exit 0",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "engines": {
@@ -22,6 +22,7 @@
     "@rcln/billing": "workspace:*",
     "@rcln/contracts": "workspace:*",
     "@rcln/db": "workspace:*",
+    "@rcln/notifications": "workspace:*",
     "@rcln/documents": "workspace:*",
     "@rcln/inventory": "workspace:*",
     "@rcln/invoicing": "workspace:*",
@@ -38,6 +39,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6",
     "@rcln/config": "workspace:*",
     "@types/node": "catalog:",
     "eslint": "^9.39.2",

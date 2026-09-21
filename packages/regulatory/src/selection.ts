@@ -19,9 +19,11 @@
  */
 import type {
   Jurisdiction,
+  ProductRegulatoryProfile,
   RegulatoryRequest,
   RegulatoryRule,
   RegulatoryRuleType,
+  RegulatoryTransaction,
 } from './types.js';
 
 /**
@@ -240,9 +242,8 @@ export function needsClassificationButHasNone(request: RegulatoryRequest): boole
   if (!CLASSIFIED_PRODUCT_TYPES.includes(request.product.type)) return false;
 
   const classification = request.profile?.classification ?? null;
-  if (classification !== null) return false;
 
-  return request.rules.some((rule) => {
+  const candidates = request.rules.filter((rule) => {
     if (rule.appliesToClassification === null) return false;
     if (!isInForce(rule, request.occurredAt)) return false;
     if (!coversJurisdiction(rule.jurisdiction, request.jurisdiction)) return false;
@@ -264,6 +265,35 @@ export function needsClassificationButHasNone(request: RegulatoryRequest): boole
     }
     return true;
   });
+
+  if (candidates.length === 0) return false;
+  if (classification === null) return true;
+
+  /*
+   * ⚠️ AND A CLASSIFICATION THIS JURISDICTION DOES NOT RECOGNISE IS THE SAME
+   *   QUESTION, WHICH THIS USED TO ANSWER "yes, permitted".
+   *
+   *   The test was `classification !== null` — has the product got A
+   *   classification — rather than has it got one that means anything HERE. So
+   *   a single typo defeated the whole guard: file oxycodone as `Schedule H`
+   *   instead of `SCHEDULE_H` and `coversProduct`'s exact match dropped every
+   *   classification-keyed rule, while the pack's UNCLASSIFIED rules — the
+   *   retention obligation, the "who may dispense" rule, the labelling rule,
+   *   which every real pack has — still applied and still PERMITTED. The
+   *   dispense came back `PERMITTED_WITH_CONDITIONS` with no prescription rule
+   *   anywhere in its reasons, and looked fully reasoned.
+   *
+   *   Verified open in four packs before this fix — IN, SG, US and US-CA — on
+   *   DISPENSE, and in IN, US and US-CA on COUNTER_SALE, STOCK, TRANSFER,
+   *   CONSUME and DISPOSE. `regulatory-in.ts` warns about this exact typo and
+   *   asserts it "resolves to UNDETERMINED and refuses". It did not. (PI-24.)
+   *
+   *   Recognition is defined against the rules that would otherwise have
+   *   matched this product, so it costs no new configuration: a classification
+   *   no candidate rule names is one the pack has nothing to say about, and an
+   *   unanswerable question refuses.
+   */
+  return !candidates.some((rule) => rule.appliesToClassification === classification);
 }
 
 /** Is a profile the one that applies on this day? Same window rules as a rule. */
@@ -275,4 +305,89 @@ export function isProfileInForce(
   if (startOfCalendarDay(profile.effectiveFrom).getTime() > day) return false;
   if (profile.effectiveTo === null) return true;
   return startOfCalendarDay(profile.effectiveTo).getTime() >= day;
+}
+
+/**
+ * The positions on `product_regulatory_profiles.online_sale_position` that let a
+ * remote supply be CONSIDERED at all.
+ *
+ * ⚠️ `RESTRICTED` IS IN THE LIST AND IS NOT A SECOND-CLASS PERMISSION. It means
+ *   "permitted with conditions the rules state" — a tele-consult, an
+ *   e-prescription — and those conditions are RULES, evaluated below like every
+ *   other. Excluding it here would refuse the case the member exists to describe
+ *   and leave the rules that express it inert, which is this programme's
+ *   recurring failure shape.
+ */
+const ONLINE_SALE_OPENED: readonly string[] = ['PERMITTED', 'RESTRICTED'];
+
+/** Why a remote supply cannot be considered. `null` = it can. */
+export type OnlineSaleGap = 'NO_PROFILE' | 'UNKNOWN' | 'PROHIBITED';
+
+/**
+ * Has anybody said this product may be supplied REMOTELY here?
+ *
+ * ⚠️ NO PRODUCT IS ONLINEABLE BY DEFAULT, AND THIS IS THE SENTENCE THAT MAKES
+ *   THAT TRUE (PI-12). Every other question in this package is answered by rule
+ *   rows, and a jurisdiction with no `ONLINE_DISPENSING` rule would therefore
+ *   let a remote supply through on the strength of rules written about a
+ *   counter — `SUPPLY_TO_PATIENT` in India's pack lists `ONLINE_DISPENSE`
+ *   alongside `DISPENSE` precisely so the prescription rules follow the medicine
+ *   home, and the side effect is that a pack which says NOTHING about remote
+ *   supply reads as permitting it. That is the fail-open PI-6 recorded as an
+ *   open question and left to this phase.
+ *
+ *   So the profile's `online_sale_position` becomes decisive for exactly one
+ *   transaction. It has existed since PI-5, been written by the profile screen
+ *   since PI-5, and been read by nothing — the "configured, visible and inert"
+ *   state this codebase keeps finding.
+ *
+ * ⚠️ IT IS A GAP CHECK, NOT A PERMISSION. Coming back `null` means the question
+ *   may now be put to the rules; it never means the supply is allowed. The rules
+ *   still run, and `UNDETERMINED` still refuses.
+ *
+ * ⚠️ AND AN UNRECOGNISED STRING IS `UNKNOWN`, NOT AN OPEN DOOR. `onlineSalePosition`
+ *   is typed `string` in this package on purpose (the enum lives in the database),
+ *   so a member added later that nobody wired here fails CLOSED.
+ */
+export function onlineSaleGap(
+  transaction: RegulatoryTransaction,
+  profile: ProductRegulatoryProfile | null
+): OnlineSaleGap | null {
+  if (transaction !== 'ONLINE_DISPENSE') return null;
+  if (profile === null) return 'NO_PROFILE';
+  if (ONLINE_SALE_OPENED.includes(profile.onlineSalePosition)) return null;
+  return profile.onlineSalePosition === 'PROHIBITED' ? 'PROHIBITED' : 'UNKNOWN';
+}
+
+/**
+ * The sentence the gap produces, in one place.
+ *
+ * ⚠️ IT IS EXPORTED BECAUSE TWO LAYERS SAY IT, AND THEY MUST SAY THE SAME THING.
+ *   The engine raises it as a decision reason, which is snapshotted and shown
+ *   beside the law; the API refuses an online ORDER on the same grounds days
+ *   earlier, at a point where the engine's answer would not be enforced (no pack
+ *   is `PRODUCTION_ENABLED`, so a REFUSED decision stops nothing — see
+ *   `enforcement.ts`). Two hand-written wordings of one refusal is how a clinic
+ *   ends up unable to work out which of two screens is telling the truth.
+ */
+export function onlineSaleGapMessage(gap: OnlineSaleGap, place: string): string {
+  switch (gap) {
+    case 'PROHIBITED':
+      return (
+        `This product is recorded as not permitted for remote supply in ${place}. ` +
+        'It may be dispensed at a counter and it may not be sent out.'
+      );
+    case 'NO_PROFILE':
+      return (
+        `This product has no regulatory profile for ${place}, so nothing says whether it may ` +
+        'be supplied remotely. No product is supplied online on the strength of an absence — ' +
+        "record the product's regulatory profile first."
+      );
+    case 'UNKNOWN':
+      return (
+        `Nobody has recorded whether this product may be supplied remotely in ${place}. Set its ` +
+        "position on remote supply on the product's regulatory profile for this jurisdiction; " +
+        'an unstated position is not a permission.'
+      );
+  }
 }

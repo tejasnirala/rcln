@@ -10,7 +10,7 @@ Declared at `packages/db/prisma/schema/access-control.prisma:23`.
 | tenant-scoped | yes — has `organizationId` |
 | RLS | `org` policy |
 | columns | 10 |
-| relations | 6 |
+| relations | 7 |
 
 ## Columns
 
@@ -36,6 +36,7 @@ Declared at `packages/db/prisma/schema/access-control.prisma:23`.
 | `roles` | [`MembershipRole`](MembershipRole.md) | `roles MembershipRole[]` |
 | `overrides` | [`MembershipPermissionOverride`](MembershipPermissionOverride.md) | `overrides MembershipPermissionOverride[]` |
 | `staffProfile` | [`StaffProfile`](StaffProfile.md) | `staffProfile StaffProfile?` |
+| `professionalRegistrations` | [`MembershipProfessionalRegistration`](MembershipProfessionalRegistration.md) | `professionalRegistrations MembershipProfessionalRegistration[]` |
 | `lastBranch` | [`Branch`](Branch.md) | `lastBranch Branch? @relation("MembershipLastBranch", fields: [organizationId, lastBranchId], references: [organizationId, id], onDelete: NoAction, onUpdate: NoAction)` |
 
 ## Indexes and constraints
@@ -52,5 +53,6 @@ erDiagram
     Membership }o--o{ MembershipRole : relates
     Membership }o--o{ MembershipPermissionOverride : relates
     Membership }o--o{ StaffProfile : relates
+    Membership }o--o{ MembershipProfessionalRegistration : relates
     Membership }o--o{ Branch : relates
 ```

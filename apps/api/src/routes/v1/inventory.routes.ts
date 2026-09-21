@@ -16,6 +16,8 @@
  *   creating a lot or a serial          ->  `inventory.batch.manage`
  *   recording a movement                ->  `inventory.stock.adjust`
  *   holding or recalling a lot          ->  `inventory.batch.manage`
+ *   resolving a scan (PI-23)            ->  `inventory.stock.read`
+ *                                            + `product.definition.read`   ⚠
  *
  * ⚠️ READS ARE ALL BEHIND ONE CODE, DELIBERATELY, and it is the same call
  *   `product.definition.read` makes for the catalogue masters. Every stock
@@ -61,6 +63,7 @@ import {
   recordMovementRequest,
   releaseStockReservationRequest,
   replaceStorageAreasRequest,
+  scanResolveQuery,
   serialQuery,
   stockBalanceQuery,
   stockLedgerQuery,
@@ -89,6 +92,7 @@ import {
   type RecordMovementRequest,
   type ReleaseStockReservationRequest,
   type ReplaceStorageAreasRequest,
+  type ScanResolveQuery,
   type SerialQuery,
   type StockBalanceQuery,
   type StockLedgerQuery,
@@ -108,6 +112,8 @@ import {
   requireAuth,
   tenantContextFrom,
 } from '../../middleware/auth.middleware.js';
+import { loadUserAccess, permissionsFor } from '../../services/auth/access.service.js';
+import { scanLimiter } from '../../middleware/rateLimiter.middleware.js';
 import { requireTenant } from '../../middleware/tenant.middleware.js';
 import { validate } from '../../middleware/validate.middleware.js';
 import {
@@ -159,6 +165,7 @@ import {
   reserveStock,
 } from '../../services/inventory/reservation.service.js';
 import { planStockAllocation } from '../../services/inventory/allocation.service.js';
+import { resolveScan } from '../../services/inventory/resolve.service.js';
 import { sendSuccess } from '../../utils/response.js';
 
 const READ = PERMISSIONS.STOCK_READ;
@@ -168,11 +175,46 @@ const ADJUST = PERMISSIONS.STOCK_ADJUST;
 const TRANSFER = PERMISSIONS.STOCK_TRANSFER;
 const RESERVE = PERMISSIONS.STOCK_RESERVE;
 const REASON_CODE_MANAGE = PERMISSIONS.INVENTORY_REASON_CODE_MANAGE;
+/*
+ * ⚠️ PI-23'S RESOLVER IS THE ONE ROUTE ON THIS ROUTER BEHIND TWO CODES, AND
+ *   `authorize()` ANDs THEM. It answers a catalogue question and a stock
+ *   question in one round trip, and a caller holding only one of the two would
+ *   get half an answer with no way to tell which half was missing. Both roles
+ *   that scan — BRANCH_ADMIN and PHARMACIST — hold both today.
+ */
+const CATALOGUE_READ = PERMISSIONS.PRODUCT_DEFINITION_READ;
 
 const auditMeta = (req: Request): { ipAddress?: string; userAgent?: string } => ({
   ...(req.ip !== undefined ? { ipAddress: req.ip } : {}),
   ...(req.get('user-agent') !== undefined ? { userAgent: req.get('user-agent') as string } : {}),
 });
+
+/**
+ * `auditMeta`, plus the caller's effective permissions (PI-8, KNOWN_ISSUES #5).
+ *
+ * ⚠️ ONLY THE TWO ENDPOINTS THAT CONSULT `@rcln/regulatory` USE THIS, AND THE
+ *   REST STAY ON THE SYNCHRONOUS `auditMeta`. Resolving permissions is a cache
+ *   read, but it is a read on every request, and paperwork endpoints — creating
+ *   a draft, editing a line — reach no rule engine and would pay for something
+ *   nothing looks at.
+ *
+ * ⚠️ PERMISSION CODES FOR THE BRANCH BEING ACTED ON, resolved here rather than
+ *   inside a service, because `TenantContext` deliberately carries no
+ *   permissions — it is an isolation boundary, not an authorization one.
+ *   `authorize()` has already warmed this cache on the way in, so it is a hit.
+ */
+async function actorMeta(req: Request): Promise<{
+  ipAddress?: string;
+  userAgent?: string;
+  roleCodes: readonly string[];
+}> {
+  const ctx = tenantContextFrom(req);
+  const access = await loadUserAccess(ctx.userId, ctx.organizationId);
+  return {
+    ...auditMeta(req),
+    roleCodes: access ? permissionsFor(access, ctx.userId, req.auth?.branchId ?? null, false) : [],
+  };
+}
 
 /** Applied to each router below. Extracted so one cannot be missed. */
 function guarded(): IRouter {
@@ -427,6 +469,37 @@ serialRoutes.post(
 // ---------------------------------------------------------------------------
 
 export const stockRoutes: IRouter = guarded();
+
+/**
+ * PI-23. Decode a scan and resolve it to a product, a lot and a device.
+ *
+ * ⚠️ A GET WITH THE PAYLOAD IN THE QUERY STRING, WHICH IS SAFE HERE AND WOULD
+ *   NOT BE ON MOST OF THIS ROUTER. A barcode names a trade item, a manufacturer's
+ *   lot and a device serial — it is not PHI and never identifies a person, so it
+ *   may sit in an access log and a browser history. Nothing patient-linked is
+ *   accepted or returned; see the service header, point 4.
+ *
+ * ⚠️ AND IT NEVER 404s FOR A CODE THAT MATCHED NOTHING. "This is GTIN X, lot Y,
+ *   and you have never stocked it" is a 200 with three empty arrays, because it
+ *   is the answer a storekeeper needs — a 404 would say the SCANNER failed when
+ *   what failed is the delivery.
+ */
+stockRoutes.get(
+  '/resolve',
+  /*
+   * ⚠️ ITS OWN BUDGET, AND A BIGGER ONE — see `scanLimiter`. The shared
+   *   `generalLimiter` allows 100 requests per fifteen minutes, which a
+   *   storekeeper reaches partway through unpacking one delivery.
+   *   (KNOWN_ISSUES #35, closed in PI-24.)
+   */
+  scanLimiter,
+  authorize(READ, CATALOGUE_READ),
+  validate(scanResolveQuery, 'query'),
+  async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as ScanResolveQuery;
+    sendSuccess(res, await resolveScan(tenantContextFrom(req), query));
+  }
+);
 
 stockRoutes.get(
   '/balances',
@@ -732,7 +805,7 @@ stockTransferRoutes.post(
     const body = req.body as ReceiveStockTransferRequest;
     sendSuccess(
       res,
-      await receiveTransfer(tenantContextFrom(req), transferId, body, auditMeta(req)),
+      await receiveTransfer(tenantContextFrom(req), transferId, body, await actorMeta(req)),
       'Transfer received'
     );
   }

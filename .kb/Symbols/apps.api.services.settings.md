@@ -4,7 +4,7 @@
 
 > Reading a setting's EFFECTIVE value at a point in the scope hierarchy.
 
-Files: `apps/api/src/services/settings/resolver.service.ts`
+Files: `apps/api/src/services/settings/resolver.service.ts` · `apps/api/src/services/settings/seed.service.ts`
 
 ## fn
 
@@ -14,6 +14,8 @@ Files: `apps/api/src/services/settings/resolver.service.ts`
 | `asPositiveInt` | `(value: SettingValue, fallback: number): number` | `apps/api/src/services/settings/resolver.service.ts:215` |  |
 | `resolveSettingForBranches` | `(tx: TxClient, key: string, scopes: { organizationId: string; branchIds: string[] }): Promise<Map<string, SettingValue>>` | `apps/api/src/services/settings/resolver.service.ts:166` |  |
 | `resolveSettings` | `(tx: TxClient, keys: string[], scopes: SettingScopes): Promise<Map<string, SettingValue>>` | `apps/api/src/services/settings/resolver.service.ts:69` |  |
+| `seedSettingIfUnset` | `(tx: TxClient, input: SeedSettingInput): Promise<boolean>` | `apps/api/src/services/settings/seed.service.ts:82` |  |
+| `seedSettings` | `(tx: TxClient, inputs: readonly SeedSettingInput[]): Promise<Record<string, SeedableValue>>` | `apps/api/src/services/settings/seed.service.ts:129` |  |
 
 ## const
 
@@ -25,6 +27,7 @@ Files: `apps/api/src/services/settings/resolver.service.ts`
 
 | name | signature | at | notes |
 | --- | --- | --- | --- |
+| `SeedSettingInput` | `{ key, scopeType, scopeId, value, userId }` | `apps/api/src/services/settings/seed.service.ts:60` |  |
 | `SettingScopes` | `{ organizationId, branchId, doctorProfileId, userId }` | `apps/api/src/services/settings/resolver.service.ts:41` | Which scope ids to consider. `organizationId` is required and always comes from `TenantContext`; the rest narrow the answer when they are known. |
 
 ## type
@@ -32,4 +35,6 @@ Files: `apps/api/src/services/settings/resolver.service.ts`
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `ScopeName` <sub>local</sub> | `(typeof PRECEDENCE)[number]` | `apps/api/src/services/settings/resolver.service.ts:60` |  |
+| `SeedableValue` | `Prisma.InputJsonValue` | `apps/api/src/services/settings/seed.service.ts:46` | What a setting row may hold. Matches `SettingItem['value']` in |
+| `SeedScope` | `'ORGANIZATION' \| 'BRANCH'` | `apps/api/src/services/settings/seed.service.ts:58` |  |
 | `SettingValue` | `Prisma.JsonValue` | `apps/api/src/services/settings/resolver.service.ts:35` | The contract's JSON tree. Matches `SettingItem['value']` in |

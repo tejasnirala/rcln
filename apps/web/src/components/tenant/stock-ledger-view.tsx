@@ -43,6 +43,8 @@ const MOVEMENT_LABEL: Record<string, string> = {
   RELEASE: 'Released',
   QUARANTINE: 'Put on hold',
   QUARANTINE_RELEASE: 'Taken off hold',
+  PURCHASE_RETURN: 'Returned to supplier',
+  RECALL_RELEASE: 'Recall lifted',
 };
 
 const TYPES = [

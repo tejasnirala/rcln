@@ -10,9 +10,9 @@ import { ProcurementNav } from '@/components/tenant/procurement-nav';
 import {
   decideQualityAction,
   goodsReceiptTransitionAction,
-  IDLE_FORM,
   type ProcurementFormState,
 } from '@/app/(tenant)/t/[slug]/(app)/procurement/actions';
+import { IDLE_FORM } from '@/app/(tenant)/t/[slug]/(app)/procurement/form-state';
 
 /**
  * One delivery: what it says, and whether it has reached a shelf yet.

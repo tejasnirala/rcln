@@ -8,27 +8,29 @@ Source: `apps/api/src/routes/v1/invoices.routes.ts`
 
 | method | path | middleware → handler | at |
 | --- | --- | --- | --- |
-| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/invoices.routes.ts:89` |
-| GET | `/` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(listInvoicesQuery)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:247` |
-| GET | `/:invoiceId` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:266` |
-| GET | `/:invoiceId/document` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:294` |
-| GET | `/:invoiceId/preview` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:336` |
-| GET | `/:invoiceId/pdf` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:374` |
-| POST | `/` | `authorize(PERMISSIONS.INVOICE_CREATE)` → `validate(createInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:429` |
-| PUT | `/:invoiceId` | `authorize(PERMISSIONS.INVOICE_UPDATE)` → `validate(invoiceParams)` → `validate(updateInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:467` |
-| POST | `/:invoiceId/issue` | `authorize(PERMISSIONS.INVOICE_CREATE)` → `validate(invoiceParams)` → `validate(issueInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:515` |
-| POST | `/:invoiceId/cancel` | `authorize(PERMISSIONS.INVOICE_CANCEL)` → `validate(invoiceParams)` → `validate(cancelInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:535` |
-| POST | `/:invoiceId/void` | `authorize(PERMISSIONS.INVOICE_CANCEL)` → `validate(invoiceParams)` → `validate(voidInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:564` |
+| USE | `*` | `requireTenant` → `authenticate` → `requireAuth` | `apps/api/src/routes/v1/invoices.routes.ts:95` |
+| GET | `/` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(listInvoicesQuery)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:253` |
+| GET | `/:invoiceId` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:272` |
+| GET | `/:invoiceId/document` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:300` |
+| GET | `/:invoiceId/preview` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:342` |
+| GET | `/:invoiceId/pdf` | `authorize(PERMISSIONS.INVOICE_READ)` → `validate(invoiceParams)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:380` |
+| POST | `/` | `authorize(PERMISSIONS.INVOICE_CREATE)` → `validate(createInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:435` |
+| PUT | `/:invoiceId` | `authorize(PERMISSIONS.INVOICE_UPDATE)` → `validate(invoiceParams)` → `validate(updateInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:473` |
+| POST | `/:invoiceId/issue` | `authorize(PERMISSIONS.INVOICE_CREATE)` → `validate(invoiceParams)` → `validate(issueInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:521` |
+| POST | `/:invoiceId/cancel` | `authorize(PERMISSIONS.INVOICE_CANCEL)` → `validate(invoiceParams)` → `validate(cancelInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:541` |
+| POST | `/:invoiceId/void` | `authorize(PERMISSIONS.INVOICE_CANCEL)` → `validate(invoiceParams)` → `validate(voidInvoiceRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:570` |
+| POST | `/from-charges` | `authorize(PERMISSIONS.INVOICE_CREATE)` → `validate(createInvoiceFromChargesRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:603` |
+| POST | `/:invoiceId/credit-notes` | `authorize(PERMISSIONS.CREDIT_NOTE_ISSUE)` → `validate(invoiceParams)` → `validate(createCreditNoteRequest)` → `<inline>` | `apps/api/src/routes/v1/invoices.routes.ts:639` |
 
 ## Schemas declared here
 
 | name | at |
 | --- | --- |
-| `invoiceParams` | `apps/api/src/routes/v1/invoices.routes.ts:91` |
+| `invoiceParams` | `apps/api/src/routes/v1/invoices.routes.ts:97` |
 
 ## Contracts imported from `@rcln/contracts`
 
-`CancelInvoiceRequest` · `CreateInvoiceRequest` · `DiscountInputRequest` · `InvoiceLineRequest` · `IssueInvoiceRequest` · `ListInvoicesQuery` · `UpdateInvoiceRequest` · `VoidInvoiceRequest` · `cancelInvoiceRequest` · `createInvoiceRequest` · `issueInvoiceRequest` · `listInvoicesQuery` · `updateInvoiceRequest` · `voidInvoiceRequest`
+`CancelInvoiceRequest` · `CreateCreditNoteRequest` · `CreateInvoiceFromChargesRequest` · `CreateInvoiceRequest` · `DiscountInputRequest` · `InvoiceLineRequest` · `IssueInvoiceRequest` · `ListInvoicesQuery` · `UpdateInvoiceRequest` · `VoidInvoiceRequest` · `cancelInvoiceRequest` · `createCreditNoteRequest` · `createInvoiceFromChargesRequest` · `createInvoiceRequest` · `issueInvoiceRequest` · `listInvoicesQuery` · `updateInvoiceRequest` · `voidInvoiceRequest`
 
 
 Symbols in this module: [apps.api.routes.v1.md](../Symbols/apps.api.routes.v1.md)

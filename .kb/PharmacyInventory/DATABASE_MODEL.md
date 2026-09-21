@@ -184,6 +184,31 @@ clinic.
 
 ---
 
+## PI-7 — Pharmacy
+
+| Table                      | Class         | Notes                                                                                                                                                                  |
+| -------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prescription_fulfilments` | BRANCH_SCOPED | One row per ENCOUNTER, created lazily. `status`, `verified_by_id`, `verified_at`. ⚠️ `NEW` is never stored — no row IS new                                             |
+| `dispenses`                | BRANCH_SCOPED | `dispense_number`, `kind`, `status`, `encounter_id?`, `patient_id?` ⚠️ PHI, `location_id`, `dispensed_by_id`, `dispensed_at`                                           |
+| `dispense_lines`           | CHILD         | `encounter_prescription_id?`, `product_id`, `substituted_for_product_id?`, quantities, `returned_quantity_base`, **`regulatory_decision_id` NOT NULL**                 |
+| `dispense_allocations`     | CHILD of line | Which lot the quantity came out of. Its own table because ONE line routinely spans two lots — the FEFO answer, and the recall index                                    |
+| `dispense_returns`         | BRANCH_SCOPED | `disposition` (`RESTOCKED` \| `QUARANTINED`), `location_id`, `reason`, `regulatory_decision_id?`                                                                       |
+| `dispense_return_lines`    | CHILD         | Cites the ALLOCATION, so stock goes back into the lot it came out of                                                                                                   |
+| `regulatory_decisions`     | BRANCH_SCOPED | The PI-ADR-008 snapshot, written first by this phase. Append-only: `REVOKE UPDATE, DELETE` + a trigger. `reasons`/`conditions`/`pack_versions` are JSONB **documents** |
+
+`NumberSequenceType.DISPENSE` — present since PI-4, first used here. Per branch,
+never resets, issued INSIDE the posting transaction after every line has been
+consulted, so a refusal burns no number.
+
+⚠️ **`regulatory_decisions` is the only regulatory table with an
+`organization_id`.** The law of a country is the same for everybody in it; a
+DECISION is what happened in one clinic at one counter on one day.
+
+⚠️ **No money column anywhere in this phase.** Pharmacy owns no rate (PI-ADR-005
+/ PI-ADR-006); the hand-off to billing is `charge_requests`, below, in PI-8.
+
+---
+
 ## PI-8 — Charge requests
 
 | Table             | Class               | Notes                                                                                                                                                       |
@@ -202,10 +227,26 @@ invoice engine's row rather than being written by this programme.
 | ---------------------------------- | --------------------- | ----- |
 | `consumption_templates` / `_lines` | ORG_SCOPED / CHILD    | PI-9  |
 | `consumption_records` / `_lines`   | BRANCH_SCOPED / CHILD | PI-9  |
-| `recalls` / `recall_batches`       | ORG_SCOPED            | PI-10 |
+| `recalls`                          | ORG_SCOPED            | PI-10 |
+| `recall_batches`                   | BRANCH_SCOPED         | PI-10 |
 | `animal_profiles`                  | CHILD of patient      | PI-11 |
 
+⚠️ **`animal_profiles` DID NOT ARRIVE IN PI-11.** CE-1 built it, empty and
+unreachable, long before this programme reached it. PI-11 added three columns —
+`weight_recorded_on`, `guardian_contact_id` and nothing else — and no table at
+all. It is ORG-SCOPED and deliberately NOT branch-isolated, following `patients`
+for the reason `patients` gives (ADR-0016): an animal's weight must follow it to
+whichever branch it walks into, because a dose is calculated from that weight.
+
 ---
+
+⚠️ **`recall_batches` SHIPPED BRANCH-SCOPED, NOT ORG-SCOPED AS PLANNED ABOVE, AND
+THE CHANGE IS LOAD-BEARING.** Each row names ONE lot, and a lot is held at one
+site — so a branch-scoped storekeeper executing a recall pulls the lots at their
+own branch and no others, because RLS makes the rest invisible. That is the
+correct answer: they cannot reach another site's shelf physically either. The
+NOTICE stays org-only, because a manufacturer's notice arrives once for the whole
+group. Two tenancy classes in one phase, the third time (PI-8, PI-9, PI-10).
 
 ## Non-negotiable schema rules for this programme
 

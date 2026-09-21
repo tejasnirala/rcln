@@ -80,6 +80,8 @@ export const regulatoryRuleType = z.enum([
   'QUANTITY_LIMIT',
   'REFILL_RULE',
   'AGE_RESTRICTION',
+  /** WHO it may be supplied FOR — a person, or an animal of a named species (PI-11). */
+  'SPECIES_RESTRICTION',
   'SUBSTITUTION',
   'ONLINE_DISPENSING',
   'STORAGE_REQUIREMENT',
@@ -570,6 +572,17 @@ export const evaluateRegulatoryRequest = z.object({
    */
   quantityBase: decimalString,
   priorQuantityInPeriodBase: decimalString.optional(),
+  /**
+   * How many days of treatment this supply covers, from the directions for use.
+   *
+   * ⚠️ OMITTING IT IS NOT NEUTRAL WHERE A RULE ASKS FOR IT (PI-13a). A
+   *   `QUANTITY_LIMIT` carrying `maxDaysSupply` — New York's "thirty day supply"
+   *   is the case — resolves `UNDETERMINED` without it, which REFUSES. That is
+   *   deliberate: thirty days is 30 tablets at one a day and 120 at four a day,
+   *   so the quantity alone cannot answer the rule, and guessing would enforce
+   *   something nobody wrote.
+   */
+  daysSupply: z.number().int().min(0).max(3650).optional(),
   prescription: z
     .object({
       presented: z.boolean(),
@@ -577,12 +590,40 @@ export const evaluateRegulatoryRequest = z.object({
       issuedOn: effectiveDate,
       refillsUsed: z.number().int().min(0).default(0),
       prescriberClasses: z.array(z.string().trim().max(64)).max(20).optional(),
+      /**
+       * Did the prescriber state ON THE PRESCRIPTION that it may be dispensed
+       * more than once? (PI-7.)
+       *
+       * ⚠️ ON THIS ENDPOINT IT IS A HYPOTHESIS, BECAUSE THIS ENDPOINT ANSWERS A
+       *   QUESTION AND AUTHORISES NOTHING — "what would the rules say about an
+       *   endorsed repeat" is a legitimate thing to ask. On the DISPENSING path
+       *   the pharmacy service reads it off the prescription record and never
+       *   from a client, which is the difference between modelling the
+       *   endorsement requirement and removing it.
+       */
+      repeatsAuthorised: z.boolean().optional(),
+      /** How many repeats the endorsement states, where it states a number. */
+      repeatsAuthorisedLimit: z.number().int().min(0).max(99).optional(),
     })
     .optional(),
   patient: z
     .object({
       ageYears: z.number().int().min(0).max(150).optional(),
       subjectType: z.enum(['HUMAN', 'ANIMAL']).default('HUMAN'),
+      /**
+       * The animal's species, where the subject is one (PI-11).
+       *
+       * ⚠️ FREE TEXT, MATCHING `animal_profiles.species`, AND NOT VALIDATED
+       *   AGAINST A LIST. A veterinary clinic that treats a tortoise must not
+       *   need a migration, and a closed enum here would be a second vocabulary
+       *   that drifts from the chart's.
+       *
+       * ⚠️ AND ON THE DISPENSING PATH IT IS READ OFF THE ANIMAL'S PROFILE, NEVER
+       *   FROM A CLIENT. Here it is a hypothesis, for the reason
+       *   `repeatsAuthorised` above is: this endpoint answers a question and
+       *   authorises nothing.
+       */
+      species: z.string().trim().max(64).optional(),
     })
     .optional(),
   substitution: z
@@ -593,7 +634,17 @@ export const evaluateRegulatoryRequest = z.object({
     })
     .optional(),
   locationId: uuid.optional(),
+  /**
+   * Where an online order is going. The branch's own jurisdiction is where the
+   * supply HAPPENS; this is where it ARRIVES, and `ONLINE_DISPENSING` rules
+   * restrict exactly that.
+   *
+   * ⚠️ THE REGION IS ISO 3166-2 WITHOUT THE COUNTRY PREFIX — `KA`, never `IN-KA`
+   *   — matching every other region column in this schema, and it is IGNORED
+   *   unless a country is given too: a region with no country names no place.
+   */
   destinationCountryCode: countryCode.optional(),
+  destinationRegionCode: z.string().trim().max(16).optional(),
   traceability: z
     .object({
       gtin: z.string().trim().max(64).nullish(),
@@ -618,6 +669,10 @@ export const regulatoryCondition = z.object({
     'STORE_UNDER_CONDITIONS',
     'DISPOSE_BY_METHOD',
     'REQUIRES_CONSENT',
+    // ⚠️ The two the person dispensing cannot discharge — see `RegulatoryCondition`
+    // in @rcln/regulatory. Both name a fact established before this transaction.
+    'VERIFY_PRIOR_IN_PERSON_EVALUATION',
+    'VERIFY_PRIOR_AUTHORISATION',
   ]),
   ruleId: uuid,
   ruleCode: z.string(),

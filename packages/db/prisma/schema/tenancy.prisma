@@ -80,7 +80,20 @@ model Organization {
   /// rate. Guessing VALID is revenue we never collected and cannot reclaim.
   taxIdStatus TaxIdStatus        @default(NOT_PROVIDED) @map("tax_id_status")
   ownerUserId String?            @map("owner_user_id") @db.Uuid
-  onboardedAt DateTime?          @map("onboarded_at") @db.Timestamptz(6)
+  /// When the registration form was submitted and this tenant came into being.
+  ///
+  /// ⚠️ IT WAS CALLED `onboarded_at` AND IT NEVER MEANT THAT. `register.service.ts`
+  ///   sets it inside the registration transaction, so it has always recorded
+  ///   REGISTERED — the moment a form became an organization, a branch and an
+  ///   owner. Onboarding is the seven-step wizard that runs afterwards, and
+  ///   whether it finished is `clinic_profiles.completed_at` (CO-1, ADR-0018).
+  ///
+  ///   Renaming it was the alternative to reusing it, and reusing it would have
+  ///   read every clinic already on the platform as fully onboarded — the exact
+  ///   silent-wrong-answer this codebase keeps producing. The migration does it
+  ///   with `ALTER TABLE ... RENAME COLUMN`, hand-written: Prisma Migrate
+  ///   generates DROP + ADD for a field rename, which loses every row's value.
+  registeredAt DateTime?         @map("registered_at") @db.Timestamptz(6)
   createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt   DateTime?          @map("deleted_at") @db.Timestamptz(6)
@@ -191,6 +204,54 @@ model Organization {
   // this one — is tenant data, platform-extensible like the rest of the
   // catalogue. See regulatory.prisma's header.
   productRegulatoryProfiles ProductRegulatoryProfile[]
+  /// The snapshot of every evaluation this clinic acted on (PI-7, PI-ADR-008).
+  /// Tenant data, unlike the five law tables above: it records what happened
+  /// HERE, not what the law says.
+  regulatoryDecisions       RegulatoryDecision[]
+
+  // -- Onboarding (CO-1) ------------------------------------------------------
+  /// Who this clinic said it is (ADR-0018). One org-level row plus one per
+  /// branch that answers differently.
+  clinicProfiles            ClinicProfile[]
+  clinicProfileCareContexts ClinicProfileCareContext[]
+  clinicProfileModules      ClinicProfileModule[]
+  clinicOnboardingSteps     ClinicOnboardingStep[]
+
+  // -- Pharmacy dispensing (PI-7) ---------------------------------------------
+  prescriptionFulfilments PrescriptionFulfilment[]
+  dispenses               Dispense[]
+  dispenseLines           DispenseLine[]
+  dispenseAllocations     DispenseAllocation[]
+  dispenseReturns         DispenseReturn[]
+  dispenseReturnLines     DispenseReturnLine[]
+
+  // -- Charging (PI-8) --------------------------------------------------------
+  chargePolicyRules       ChargePolicyRule[]
+  productPrices           ProductPrice[]
+  chargeRequests          ChargeRequest[]
+
+  // -- Clinical consumption (PI-9) --------------------------------------------
+  /// ⚠️ THE TEMPLATES ARE ORG-ONLY AND ARE **NOT** ON `Branch`. "A root canal
+  ///   uses two pairs of gloves" is how this organization practises, the same
+  ///   call `chargePolicyRules` makes about billability. The RECORD of what was
+  ///   used happened at a place, so the three tables below it are on both.
+  consumptionTemplates     ConsumptionTemplate[]
+  consumptionTemplateLines ConsumptionTemplateLine[]
+  clinicalConsumptions     ClinicalConsumption[]
+  consumptionLines         ConsumptionLine[]
+  consumptionAllocations   ConsumptionAllocation[]
+
+  // -- Recall & traceability (PI-10) ------------------------------------------
+  /// ⚠️ THE NOTICE IS ORG-ONLY AND IS **NOT** ON `Branch`. A manufacturer's
+  ///   notice arrives once for the whole group; which LOT is still on which
+  ///   shelf is the site's stock position, so the child below is on both.
+  recalls                  Recall[]
+  recallBatches            RecallBatch[]
+
+  // -- Online pharmacy (PI-12) ------------------------------------------------
+  onlineOrders             OnlineOrder[]
+  onlineOrderLines         OnlineOrderLine[]
+  onlineOrderShipments     OnlineOrderShipment[]
 
   // -- Clinical consultation engine (CE-1) ------------------------------------
   clinicalMasterItems          ClinicalMasterItem[]
@@ -355,6 +416,48 @@ model Branch {
   purchaseReturnLines      PurchaseReturnLine[]
   productCostAverages      ProductCostAverage[]
 
+  // -- Pharmacy dispensing (PI-7) ---------------------------------------------
+  /// ⚠️ THE BRANCH THAT DISPENSED, WHICH NEED NOT BE THE ONE THAT PRESCRIBED. A
+  ///   group's patient may take a prescription written at the main site to the
+  ///   satellite's counter, and the supply happened where the counter is.
+  prescriptionFulfilments PrescriptionFulfilment[]
+  dispenses               Dispense[]
+  dispenseLines           DispenseLine[]
+  dispenseAllocations     DispenseAllocation[]
+  dispenseReturns         DispenseReturn[]
+  dispenseReturnLines     DispenseReturnLine[]
+  regulatoryDecisions     RegulatoryDecision[]
+
+  // -- Charging (PI-8) --------------------------------------------------------
+  /// ⚠️ `charge_policy_rules` IS **NOT** HERE. A clinic's answer to "is this
+  ///   billed?" is a commercial position of the ORGANIZATION, exactly as
+  ///   `suppliers` is — a three-site group does not decide separately at each
+  ///   site that gloves are not chargeable. `product_prices` IS branch-scoped,
+  ///   because a price legitimately differs between a city clinic and a
+  ///   suburban one, and its `branch_id` is NULLABLE for the org-wide default.
+  productPrices           ProductPrice[]
+  chargeRequests          ChargeRequest[]
+
+  // -- Clinical consumption (PI-9) --------------------------------------------
+  /// ⚠️ `consumption_templates` IS **NOT** HERE, for the reason
+  ///   `charge_policy_rules` is not: a template is the organization's clinical
+  ///   practice, not one site's. What was actually USED happened at a place.
+  clinicalConsumptions    ClinicalConsumption[]
+  consumptionLines        ConsumptionLine[]
+  consumptionAllocations  ConsumptionAllocation[]
+
+  // -- Recall & traceability (PI-10) ------------------------------------------
+  /// ⚠️ `recalls` IS **NOT** HERE, for the reason `consumption_templates` is
+  ///   not: the notice is the organization's. A LOT is held at one site.
+  recallBatches           RecallBatch[]
+
+  // -- Online pharmacy (PI-12) ------------------------------------------------
+  /// All three are branch-scoped: an order is fulfilled from ONE shelf, in ONE
+  /// jurisdiction, and the parcel leaves from that site.
+  onlineOrders            OnlineOrder[]
+  onlineOrderLines        OnlineOrderLine[]
+  onlineOrderShipments    OnlineOrderShipment[]
+
   // -- Clinical consultation engine (CE-1) ------------------------------------
   followUpRecommendations EncounterFollowUpRecommendation[]
   /// Consultations conducted here (CE-3). A visit belongs to the place it
@@ -374,6 +477,12 @@ model Branch {
   /// What was found on a chart here (CE-6). Carries its own `branch_id` for the
   /// reason the eight above do.
   clinicalFindings        ClinicalFinding[]
+
+  // -- Onboarding (CO-1) ------------------------------------------------------
+  /// This site's own answer, where it differs from the organization's — the
+  /// satellite that is a standalone pharmacy. Absent for most branches, which
+  /// inherit the org-level row.
+  clinicProfiles          ClinicProfile[]
 
   @@unique([organizationId, code])
   /// Composite-FK target: children reference (organization_id, id) so a row can

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { Fragment, useActionState, useEffect, useRef, useState } from 'react';
 import type {
   BranchDetail,
   FeeScheduleView,
@@ -12,6 +12,7 @@ import { Alert, useOutcomeFocus } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input, Select, Textarea, type SelectOption } from '@/components/ui/field';
 import { ClassificationPicker } from '@/components/tenant/classification-picker';
+import { TIME_INPUT } from '@/components/tenant/doctor-sections';
 import { createDoctor, type DoctorFormState } from '@/app/(tenant)/t/[slug]/(app)/doctors/actions';
 
 /**
@@ -58,17 +59,7 @@ const DAYS = [
   'Saturday',
 ] as const;
 
-const DAY_OPTIONS: SelectOption[] = DAYS.map((day, index) => ({
-  value: String(index),
-  label: day,
-}));
-
 /** Blank inherits the clinic's setting rather than pinning a number (ADR-0015). */
-const SLOT_LENGTHS: SelectOption[] = [10, 15, 20, 30, 45, 60].map((minutes) => ({
-  value: String(minutes),
-  label: `${String(minutes)} min`,
-}));
-
 const INTERVALS: SelectOption[] = [
   { value: 'MONTHLY', label: 'A month' },
   { value: 'FORTNIGHTLY', label: 'A fortnight' },
@@ -89,16 +80,38 @@ const FEE_WORDS: Record<string, string> = {
 };
 
 /** One block of working hours, as the form holds it before it is serialised. */
-interface HoursRow {
-  /** Local only — React needs a stable key that survives removing a middle row. */
-  key: string;
-  branchId: string;
-  dayOfWeek: string;
-  startTime: string;
-  endTime: string;
+/** One row of the seven-day table. Empty strings mean "not consulting then". */
+interface WeekRow {
+  amFrom: string;
+  amTo: string;
+  pmFrom: string;
+  pmTo: string;
   slotMinutes: string;
   maxPatients: string;
-  validFrom: string;
+}
+
+type WeekRows = Record<number, WeekRow>;
+
+/** Monday first — Sunday last is how the person filling this in reads a week. */
+const WEEK = [1, 2, 3, 4, 5, 6, 0] as const;
+
+const BLANK_ROW: WeekRow = {
+  amFrom: '',
+  amTo: '',
+  pmFrom: '',
+  pmTo: '',
+  slotMinutes: '',
+  maxPatients: '',
+};
+
+const EMPTY_WEEK: WeekRows = Object.fromEntries(WEEK.map((day) => [day, BLANK_ROW]));
+
+function patchWeek(
+  set: React.Dispatch<React.SetStateAction<WeekRows>>,
+  day: number,
+  patch: Partial<WeekRow>
+): void {
+  set((prev) => ({ ...prev, [day]: { ...(prev[day] ?? BLANK_ROW), ...patch } }));
 }
 
 interface DegreeRow {
@@ -129,7 +142,7 @@ export function DoctorCreateForm({
   onCancel,
 }: {
   slug: string;
-  candidates: { userId: string; fullName: string }[];
+  candidates: { userId: string; fullName: string; email: string | null }[];
   specialties: SpecialtySummary[];
   qualifications: QualificationSummary[];
   branches: BranchDetail[];
@@ -164,7 +177,16 @@ export function DoctorCreateForm({
    */
   const [today] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const [hours, setHours] = useState<HoursRow[]>([]);
+  /*
+   * The week, as the table edits it (DS-1). Seven fixed rows keyed by day rather
+   * than a growable list: the old form let somebody add three overlapping
+   * Tuesdays and gave no view of the week at all, and the overlap was refused by
+   * a database constraint at submit — one block too late to be useful.
+   */
+  const [week, setWeek] = useState<WeekRows>(EMPTY_WEEK);
+  const [hoursBranchId, setHoursBranchId] = useState(branches[0]?.id ?? '');
+  const [hoursMode, setHoursMode] = useState<'BRANCH' | 'OWN'>('BRANCH');
+  const hoursBranch = branches.find((b) => b.id === hoursBranchId) ?? branches[0];
   const [degrees, setDegrees] = useState<DegreeRow[]>([]);
 
   const branchOptions: SelectOption[] = branches.map((b) => ({ value: b.id, label: b.name }));
@@ -181,19 +203,46 @@ export function DoctorCreateForm({
    * Nothing is trusted for being well-formed — the action re-validates both with
    * the same Zod schema the API enforces.
    */
+  /*
+   * The repeatable sections travel as ONE JSON field each, the same shape the
+   * classification picker uses and for the same reason: indexed input names
+   * (`schedules[0][startTime]`) silently renumber when a middle row is removed.
+   * Nothing is trusted for being well-formed — the action re-validates with the
+   * same Zod schema the API enforces.
+   *
+   * ⚠️ A DAY WITH NO FIRST SESSION IS A DAY OFF AND IS NOT SENT. An evening with
+   *   no morning is dropped here too rather than sent to fail validation: the
+   *   contract refuses it with a message about the missing morning, which is
+   *   true but reads as a rule rather than as the typo it usually is.
+   */
   const hoursPayload = JSON.stringify(
-    hours
-      .filter((row) => row.branchId !== '' && row.startTime !== '' && row.endTime !== '')
-      .map((row) => ({
-        branchId: row.branchId,
-        dayOfWeek: Number(row.dayOfWeek),
-        startTime: row.startTime,
-        endTime: row.endTime,
-        ...(row.slotMinutes !== '' ? { slotMinutes: Number(row.slotMinutes) } : {}),
-        ...(row.maxPatients !== '' ? { maxPatients: Number(row.maxPatients) } : {}),
-        validFrom: row.validFrom,
-        isActive: true,
-      }))
+    hoursMode === 'OWN' && hoursBranchId !== ''
+      ? WEEK.flatMap((day) => {
+          const row = week[day];
+          if (row.amFrom === '' || row.amTo === '') return [];
+
+          const common = {
+            branchId: hoursBranchId,
+            dayOfWeek: day,
+            ...(row.slotMinutes !== '' ? { slotMinutes: Number(row.slotMinutes) } : {}),
+            ...(row.maxPatients !== '' ? { maxPatients: Number(row.maxPatients) } : {}),
+            validFrom: today,
+            isActive: true,
+          };
+
+          return [
+            { ...common, startTime: row.amFrom, endTime: row.amTo },
+            ...(row.pmFrom !== '' && row.pmTo !== ''
+              ? [{ ...common, startTime: row.pmFrom, endTime: row.pmTo }]
+              : []),
+          ];
+        })
+      : []
+  );
+
+  /** The sites this doctor works the clinic's own hours at. See the contract. */
+  const followsPayload = JSON.stringify(
+    hoursMode === 'BRANCH' && hoursBranchId !== '' ? [hoursBranchId] : []
   );
 
   const degreesPayload = JSON.stringify(
@@ -212,6 +261,7 @@ export function DoctorCreateForm({
   return (
     <form ref={formRef} action={action} className="grid gap-8">
       <input type="hidden" name="schedules" value={hoursPayload} />
+      <input type="hidden" name="followsBranchHours" value={followsPayload} />
       <input type="hidden" name="qualifications" value={degreesPayload} />
 
       {state.status === 'error' && state.message ? (
@@ -228,7 +278,13 @@ export function DoctorCreateForm({
             label="Colleague"
             required
             placeholder="Choose a colleague"
-            options={candidates.map((c) => ({ value: c.userId, label: c.fullName }))}
+            options={candidates.map((c) => ({
+              value: c.userId,
+              // The email disambiguates two people with the same name, which a
+              // clinic with two Dr Sharmas has and a bare name cannot separate.
+              // Absent for a member invited by phone alone.
+              label: c.email ? `${c.fullName} — ${c.email}` : c.fullName,
+            }))}
             hint="Only people who already have a login here."
             {...errors('userId')}
           />
@@ -370,123 +426,248 @@ export function DoctorCreateForm({
           title="Working hours"
           note="What the front desk books against. A doctor with no hours offers no slots at all, so this is worth filling in now."
         >
-          {hours.length === 0 ? (
-            <Empty>
-              No hours yet — this doctor will not be bookable until some are added, here or on their
-              profile.
-            </Empty>
+          {branches.length === 0 ? (
+            <Empty>No sites to set hours for yet.</Empty>
           ) : (
-            <ul className="grid gap-3">
-              {hours.map((row) => (
-                <li
-                  key={row.key}
-                  className="border-rule bg-card rounded-[var(--radius-md)] border p-3"
-                >
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Select
-                      name={`branch-${row.key}`}
-                      label="Branch"
-                      placeholder="Choose one"
-                      options={branchOptions}
-                      value={row.branchId}
-                      onChange={(e) => patchHours(setHours, row.key, { branchId: e.target.value })}
-                    />
-                    <Select
-                      name={`day-${row.key}`}
-                      label="Day"
-                      options={DAY_OPTIONS}
-                      value={row.dayOfWeek}
-                      onChange={(e) => patchHours(setHours, row.key, { dayOfWeek: e.target.value })}
-                    />
-                    <Input
-                      name={`from-${row.key}`}
-                      label="From"
-                      type="time"
-                      value={row.startTime}
-                      onChange={(e) => patchHours(setHours, row.key, { startTime: e.target.value })}
-                    />
-                    <Input
-                      name={`to-${row.key}`}
-                      label="To"
-                      type="time"
-                      value={row.endTime}
-                      onChange={(e) => patchHours(setHours, row.key, { endTime: e.target.value })}
-                    />
-                    <Select
-                      name={`slot-${row.key}`}
-                      label="Slot length"
-                      placeholder="Use clinic setting"
-                      options={SLOT_LENGTHS}
-                      value={row.slotMinutes}
-                      onChange={(e) =>
-                        patchHours(setHours, row.key, { slotMinutes: e.target.value })
-                      }
-                      hint="Leave as-is to follow the clinic's default."
-                    />
-                    <Input
-                      name={`cap-${row.key}`}
-                      label="Patient cap"
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      placeholder="No cap"
-                      value={row.maxPatients}
-                      onChange={(e) =>
-                        patchHours(setHours, row.key, { maxPatients: e.target.value })
-                      }
-                    />
-                    <Input
-                      name={`validFrom-${row.key}`}
-                      label="Starting from"
-                      type="date"
-                      value={row.validFrom}
-                      onChange={(e) => patchHours(setHours, row.key, { validFrom: e.target.value })}
-                    />
-                  </div>
-                  <div className="mt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setHours((prev) => prev.filter((r) => r.key !== row.key))}
-                    >
-                      Remove
-                      <span className="sr-only">
-                        {' '}
-                        these hours on {DAYS[Number(row.dayOfWeek)] ?? 'this day'}
-                      </span>
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+            <div className="grid gap-5">
+              {branches.length > 1 ? (
+                <Select
+                  name="hoursBranch"
+                  label="Which site"
+                  hint="Set this one now; their other sites are set up on their profile."
+                  options={branchOptions}
+                  value={hoursBranchId}
+                  onChange={(e) => {
+                    setHoursBranchId(e.target.value);
+                  }}
+                />
+              ) : null}
 
-          <div className="mt-3">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setHours((prev) => [
-                  ...prev,
-                  {
-                    key: nextKey(),
-                    // Carried from the previous row: a week is usually the same
-                    // branch and the same times on several days, and retyping
-                    // 09:00 six times is how the sixth one becomes 19:00.
-                    branchId: prev.at(-1)?.branchId ?? branches[0]?.id ?? '',
-                    dayOfWeek: '1',
-                    startTime: prev.at(-1)?.startTime ?? '',
-                    endTime: prev.at(-1)?.endTime ?? '',
-                    slotMinutes: prev.at(-1)?.slotMinutes ?? '',
-                    maxPatients: '',
-                    validFrom: prev.at(-1)?.validFrom ?? today,
-                  },
-                ])
-              }
-            >
-              Add a block of hours
-            </Button>
-          </div>
+              <fieldset className="grid gap-2">
+                <legend className="text-ink text-[0.9375rem] font-medium">
+                  When do they consult?
+                </legend>
+
+                <label className="border-rule hover:bg-drape-tint/30 flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border p-4">
+                  <input
+                    type="radio"
+                    name="hoursMode"
+                    value="BRANCH"
+                    checked={hoursMode === 'BRANCH'}
+                    onChange={() => {
+                      setHoursMode('BRANCH');
+                    }}
+                    className="accent-drape mt-0.5 size-4 shrink-0"
+                  />
+                  <span>
+                    <span className="text-ink block text-[0.9375rem]">
+                      Whenever {hoursBranch?.name ?? 'the clinic'} is open
+                    </span>
+                    <span className="text-muted block text-[0.8125rem]">
+                      For a doctor who works here full time. If the clinic changes its opening
+                      hours, theirs change with it.
+                    </span>
+                  </span>
+                </label>
+
+                <label className="border-rule hover:bg-drape-tint/30 flex cursor-pointer items-start gap-3 rounded-[var(--radius-md)] border p-4">
+                  <input
+                    type="radio"
+                    name="hoursMode"
+                    value="OWN"
+                    checked={hoursMode === 'OWN'}
+                    onChange={() => {
+                      setHoursMode('OWN');
+                    }}
+                    className="accent-drape mt-0.5 size-4 shrink-0"
+                  />
+                  <span>
+                    <span className="text-ink block text-[0.9375rem]">Their own hours</span>
+                    <span className="text-muted block text-[0.8125rem]">
+                      For a visiting consultant, or anyone who keeps different hours from the
+                      clinic.
+                    </span>
+                  </span>
+                </label>
+              </fieldset>
+
+              {hoursMode === 'BRANCH' ? (
+                /*
+                 * ⚠️ THE CLINIC'S WEEK IS SHOWN, NOT JUST NAMED. "Same as the
+                 *   clinic" is a promise about hours the person registering a
+                 *   doctor would otherwise have to leave this form to check —
+                 *   and if the site has none set, this is where they find out,
+                 *   rather than after the first patient cannot be booked.
+                 */
+                <div className="border-rule bg-drape-tint/30 rounded-[var(--radius-md)] border p-4">
+                  <p className="text-drape-deep text-[0.875rem] font-medium">
+                    {hoursBranch?.name ?? 'This site'} is open
+                  </p>
+                  {(hoursBranch?.operatingHours.length ?? 0) === 0 ? (
+                    <p className="text-signal mt-2 text-[0.8125rem]">
+                      This site has no opening hours set yet, so this doctor would not be bookable.
+                      Set them in Branches, or give this doctor their own hours below.
+                    </p>
+                  ) : (
+                    <ul className="text-drape mt-2 space-y-1 text-[0.875rem]">
+                      {WEEK.map((day) => {
+                        const open = hoursBranch?.operatingHours.find((h) => h.dayOfWeek === day);
+                        return (
+                          <li key={day} className="flex gap-3">
+                            <span className="w-24 shrink-0">{DAYS[day]}</span>
+                            <span>
+                              {!open || open.isClosed
+                                ? 'Closed'
+                                : `${open.opensAt} – ${open.closesAt}`}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  <div className="overflow-x-auto p-1.5">
+                    <table className="w-full min-w-[49rem] border-separate border-spacing-0 text-[0.875rem]">
+                      <colgroup>
+                        {/*
+                         * ⚠️ FIVE COLUMNS, NOT SEVEN. Each session is ONE cell holding its own
+                         *   "from" and "to" — the words live in the row rather than in a
+                         *   header, so a row reads as a sentence rather than as four
+                         *   identical boxes whose meaning is two rows above them.
+                         *
+                         * ⚠️ A ONE-LINE SESSION CELL HOLDS "from", a time field, "to" and a
+                         *   second time field, and the fields are `flex-1` — the column
+                         *   width MINUS the gutter is what they share. 10.5rem of content
+                         *   is the floor, reachable only because the picker glyph is
+                         *   hidden (see `TIME_INPUT`).
+                         *
+                         * ⚠️ 12.25rem, AND THE `pr-7` ON THE SESSION CELLS IS PART OF IT.
+                         *   The fields are `flex-1`, so the column width minus that
+                         *   gutter is what they share — widening the gap without
+                         *   widening the column would just shrink the fields back into
+                         *   clipping. Day and Slot carry `pr-6` for the same reason at
+                         *   a smaller scale: with no gutters the row reads as one
+                         *   continuous run of boxes rather than five columns.
+                         */}
+                        <col className="w-[7rem]" />
+                        <col className="w-[12.25rem]" />
+                        <col className="w-[12.25rem]" />
+                        <col className="w-[7rem]" />
+                        <col className="w-[7rem]" />
+                      </colgroup>
+                      <thead>
+                        <tr className="text-muted text-left text-[0.8125rem]">
+                          <th scope="col" className="border-rule border-b py-2 pr-6 font-normal">
+                            Day
+                          </th>
+                          <th scope="col" className="border-rule border-b py-2 pr-7 font-normal">
+                            First session
+                          </th>
+                          <th scope="col" className="border-rule border-b py-2 pr-7 font-normal">
+                            Second session
+                          </th>
+                          <th scope="col" className="border-rule border-b py-2 pr-6 font-normal">
+                            Slot
+                          </th>
+                          <th scope="col" className="border-rule border-b py-2 font-normal">
+                            Cap
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {WEEK.map((day) => {
+                          const row = week[day];
+                          return (
+                            <tr key={day}>
+                              <td className="border-rule text-ink border-b py-2 pr-6">
+                                {DAYS[day]}
+                              </td>
+                              {(
+                                [
+                                  ['First', 'amFrom', 'amTo'],
+                                  ['Second', 'pmFrom', 'pmTo'],
+                                ] as const
+                              ).map(([session, fromField, toField]) => (
+                                <td key={session} className="border-rule border-b py-2 pr-7">
+                                  {/*
+                                   * ⚠️ ONE LINE, AND THE PICKER GLYPH IS HIDDEN TO PAY FOR IT — see the
+                                   *   same note on the profile panel's table. A `type="time"` field draws a
+                                   *   clock button about 1.5rem wide, and with two fields plus the words on
+                                   *   one line that button was most of the reason the column could not go
+                                   *   below 14rem. Typing and arrow keys still work; a desktop user loses
+                                   *   the dropdown, a touch device does not.
+                                   */}
+                                  <div className="flex items-center gap-1">
+                                    {(
+                                      [
+                                        ['from', fromField, 'starts at'],
+                                        ['to', toField, 'ends at'],
+                                      ] as const
+                                    ).map(([word, field, spoken]) => (
+                                      <Fragment key={field}>
+                                        <span className="text-muted shrink-0 text-[0.8125rem]">
+                                          {word}
+                                        </span>
+                                        <input
+                                          type="time"
+                                          aria-label={`${DAYS[day] ?? ''} ${session.toLowerCase()} session ${spoken}`}
+                                          value={row[field]}
+                                          onChange={(e) => {
+                                            patchWeek(setWeek, day, { [field]: e.target.value });
+                                          }}
+                                          className={TIME_INPUT}
+                                        />
+                                      </Fragment>
+                                    ))}
+                                  </div>
+                                </td>
+                              ))}
+                              <td className="border-rule border-b py-2 pr-6">
+                                <input
+                                  type="number"
+                                  min={5}
+                                  max={240}
+                                  aria-label={`${DAYS[day]} slot length in minutes`}
+                                  placeholder="Clinic"
+                                  value={row.slotMinutes}
+                                  onChange={(e) => {
+                                    patchWeek(setWeek, day, { slotMinutes: e.target.value });
+                                  }}
+                                  className="border-rule bg-card text-ink w-full rounded border px-2 py-1"
+                                />
+                              </td>
+                              <td className="border-rule border-b py-2">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={500}
+                                  aria-label={`${DAYS[day]} patient cap`}
+                                  placeholder="No cap"
+                                  value={row.maxPatients}
+                                  onChange={(e) => {
+                                    patchWeek(setWeek, day, { maxPatients: e.target.value });
+                                  }}
+                                  className="border-rule bg-card text-ink w-full rounded border px-2 py-1"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <p className="text-muted text-[0.8125rem]">
+                    Leave a day blank for a day off. The second session is for a doctor who consults
+                    morning and evening. Slot length falls back to the clinic&rsquo;s setting, and a
+                    blank cap means no limit.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </Section>
       ) : null}
 
@@ -562,14 +743,6 @@ export function DoctorCreateForm({
       </div>
     </form>
   );
-}
-
-function patchHours(
-  set: React.Dispatch<React.SetStateAction<HoursRow[]>>,
-  key: string,
-  change: Partial<HoursRow>
-): void {
-  set((prev) => prev.map((row) => (row.key === key ? { ...row, ...change } : row)));
 }
 
 function Section({

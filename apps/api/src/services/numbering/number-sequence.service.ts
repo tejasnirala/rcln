@@ -85,7 +85,48 @@ export type SequenceType =
    * ⚠️ ISSUED AT FINALIZATION, NOT AT OPEN, for the reason the four procurement
    *   counters give. A draft the doctor abandons must burn no number.
    */
-  | 'ENCOUNTER';
+  | 'ENCOUNTER'
+  /**
+   * Dispensing (PI-7). Per BRANCH, issued INSIDE the posting transaction, and it
+   * never resets.
+   *
+   * ⚠️ THE ENUM MEMBER HAS EXISTED SINCE PI-4 AND WAS UNUSED UNTIL NOW — adding
+   *   one to a Postgres enum is a migration, and that phase paid for it so this
+   *   one would not have to under live stock. This union is the half that was
+   *   missing.
+   *
+   * ⚠️ A DISPENSE HAS NO DRAFT, so "issued when the document leaves draft" — the
+   *   rule the four procurement counters follow — collapses here into "issued as
+   *   part of the one transaction that supplies". It is taken after every line
+   *   has been consulted and planned, so a regulatory refusal or a shortfall
+   *   burns no number: a gap in a dispensing series is a gap an inspector asks
+   *   about.
+   */
+  | 'DISPENSE'
+  /**
+   * Recall notices (PI-10). ⚠️ ORG-WIDE AND NEVER RESETS, unlike every
+   *   procurement counter above: a recall reaches every branch at once, so a
+   *   per-branch counter would give one notice three different numbers, and the
+   *   number is quoted back to a regulator years later.
+   *
+   * ⚠️ AND IT IS ISSUED AT CREATE, WHICH IS THE OPPOSITE OF THE PROCUREMENT
+   *   RULE. A notice EXISTS from the moment it arrives; a draft abandoned after
+   *   somebody decided the lot was not affected is a far smaller problem than a
+   *   notice nobody can cite while they are still working out what it covers.
+   */
+  | 'RECALL'
+  /**
+   * Online orders (PI-12). Per BRANCH and never resets, the shape the four
+   * procurement counters have and for the same reason: the number goes on a
+   * delivery note somebody outside the clinic reads, so it has to mean one thing
+   * for ever.
+   *
+   * ⚠️ ISSUED AT CONFIRM AND NOT AT CREATE — the procurement rule rather than the
+   *   `RECALL` one. An order somebody keys over the telephone and abandons must
+   *   burn none, and it is taken after every line has been consulted and held, so
+   *   a refusal or a shortfall burns none either.
+   */
+  | 'ONLINE_ORDER';
 
 export interface IssueNumberSpec {
   type: SequenceType;

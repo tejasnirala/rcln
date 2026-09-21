@@ -65,6 +65,41 @@ const CLINICAL_AUTHORING: PermissionCode[] = [
 const authorsClinicalNotes = (p: PermissionCode): boolean => CLINICAL_AUTHORING.includes(p);
 
 /**
+ * Attesting, as a professional, that a clinical instruction is sound.
+ *
+ * ⚠️ A THIRD "EXCEPT" LIST RATHER THAN A LINE IN `CLINICAL_AUTHORING`, because
+ *   this is not authoring. `pharmacy.dispense.verify` writes no clinical record —
+ *   it writes `prescription_fulfilments`, pharmacy's own row beside the
+ *   consultation, which is exactly what keeps invariant 7 true at the router. So
+ *   it does not belong on a list whose name and ADR are about who may write in
+ *   the chart.
+ *
+ * ⚠️ IT IS EXCLUDED FOR THE SAME STRUCTURAL REASON THOUGH: ORG_OWNER and
+ *   ORG_ADMIN are built as `ALL_PERMISSIONS.filter(...)`, so a code that is
+ *   nobody's by intention joins them silently unless it is named here.
+ *
+ * `codes.ts` defines `.verify` as "a professional reads the prescription and says
+ * it is sound — the drug, the dose, the interaction, the patient". That is
+ * clinical judgement by its own definition, and `verifyPrescription` checks the
+ * permission code and nothing else: no licence lookup, no `regulatoryActorWithin`
+ * — the licence check happens at DISPENSE time, not here. Left on the default
+ * "everything except" roles, a non-clinician owner could be recorded in
+ * `prescription_fulfilments.verified_by_id` as the professional who confirmed a
+ * controlled-substance prescription was safe, and the workspace would then treat
+ * it as cleared for supply.
+ *
+ * ⚠️ `.create` STAYING WHERE IT IS, IS NOT AN ARGUMENT FOR KEEPING `.verify`.
+ *   Handing boxes over and judging that they should be handed over are two acts,
+ *   and splitting them is the entire reason there are two codes — see PHARMACIST,
+ *   which holds both because a single-pharmacist dispensary is the ordinary shape.
+ *   A clinic whose owner IS the pharmacist grants it by cloning a role or per
+ *   membership, which is the same door every other clinical code uses.
+ */
+const PROFESSIONAL_ATTESTATION: PermissionCode[] = [P.DISPENSE_VERIFY];
+
+const attestsProfessionally = (p: PermissionCode): boolean => PROFESSIONAL_ATTESTATION.includes(p);
+
+/**
  * Signing off a jurisdiction's rule pack. NOT held by anybody, by default.
  *
  * ⚠️ NAMED HERE FOR THE SAME REASON `CLINICAL_AUTHORING` IS: ORG_OWNER and
@@ -124,12 +159,14 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
     scopeLevel: 'ORGANIZATION',
     /*
      * Everything except platform-level permissions, authoring a consultation,
-     * and signing off a regulatory rule pack.
+     * verifying a prescription as a professional, and signing off a regulatory
+     * rule pack.
      */
     permissions: ALL_PERMISSIONS.filter(
       (p) =>
         !p.startsWith('platform.') &&
         !authorsClinicalNotes(p) &&
+        !attestsProfessionally(p) &&
         !signsOffRulePacks(p) &&
         !maintainsPlatformLaw(p)
     ),
@@ -143,6 +180,7 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       (p) =>
         !p.startsWith('platform.') &&
         !authorsClinicalNotes(p) &&
+        !attestsProfessionally(p) &&
         !signsOffRulePacks(p) &&
         !maintainsPlatformLaw(p) &&
         p !== P.ORG_BILLING_MANAGE &&
@@ -222,6 +260,20 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_REGULATORY_READ,
       P.PRODUCT_REGULATORY_MANAGE,
       P.DISPENSE_READ,
+      /*
+       * Online orders (PI-12): reads them and runs the desk that takes them, at
+       * sites that have no pharmacist at all — the same reasoning that gives
+       * this role the regulatory profile codes above.
+       *
+       * ⚠️ NO `pharmacy.dispense.create`, SO NO PACKING. This role reads the
+       *   dispensing surface and has never been able to supply from it; taking
+       *   an order and putting the parcel in a courier's hands are the halves
+       *   that move no stock, and the half that DOES is gated by the code this
+       *   role deliberately does not hold.
+       */
+      P.ONLINE_ORDER_READ,
+      P.ONLINE_ORDER_MANAGE,
+      P.ONLINE_ORDER_DISPATCH,
       P.SUPPLIER_MANAGE,
       P.PURCHASE_ORDER_READ,
       P.PURCHASE_ORDER_MANAGE,
@@ -251,6 +303,29 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * store, and it decides what every future shrinkage report can aggregate.
        */
       P.INVENTORY_REASON_CODE_MANAGE,
+      /*
+       * Recall (PI-10). All four, on the two roles that run a physical store.
+       *
+       * ⚠️ `.execute` IS GRANTED EVEN THOUGH IT IS THE STRONGER HALF OF THE
+       *   SPLIT, AND THAT IS DELIBERATE RATHER THAN AN OVERSIGHT. Both of these
+       *   roles already hold `inventory.batch.manage`, which quarantines a lot
+       *   through `POST /batches/:id/hold` — so withholding `.execute` would
+       *   withhold the CONVENIENT path and leave the same act reachable one lot
+       *   at a time. What the separate code buys is that a clinic which wants
+       *   the decision escalated can revoke it without also stopping its
+       *   storekeeper recording the notice. A default, not a ceiling.
+       *
+       * ⚠️ `recall.trace.patients` IS THE PHI ONE, and it is granted here
+       *   because both roles already read the dispensing register
+       *   (`pharmacy.dispense.read`) — which is the same list, asked patient
+       *   first instead of lot first. Granting it changes what is CONVENIENT,
+       *   not what is reachable, and every read of it files a
+       *   `data_access_logs` row that a lot-number read does not.
+       */
+      P.RECALL_READ,
+      P.RECALL_CREATE,
+      P.RECALL_EXECUTE,
+      P.RECALL_TRACE_PATIENTS,
       /*
        * Both halves of the requisition split (PI-4.3), and this is the ONE
        * BRANCH-LEVEL ROLE THAT HOLDS BOTH.
@@ -291,6 +366,39 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        *   whoever can fix a typo in a bio must not thereby read the payroll.
        */
       P.FEE_SCHEDULE_READ,
+      /*
+       * The charge queue at this site (PI-8), and the decisions on it. A branch
+       * administrator reconciling the day's takings has to see the supplies that
+       * did NOT reach a bill as well as the ones that did — a suppressed charge
+       * and a missed one look identical in the revenue figure and are entirely
+       * different problems.
+       *
+       * ⚠️ NO CHARGE_POLICY_MANAGE, mirroring FEE_SCHEDULE_MANAGE and
+       *   BILLING_TAX_MANAGE immediately above. A per-branch override of what is
+       *   chargeable is how two branches under one registration start billing
+       *   the same supply differently.
+       */
+      P.CHARGE_REQUEST_READ,
+      P.CHARGE_REQUEST_MANAGE,
+      /*
+       * What the treatment rooms at this site used, and the templates that say
+       * what they were expected to use (PI-9).
+       *
+       * ⚠️ `template.manage` AND NOT `.record`, WHICH IS THE INVERSE OF THE
+       *   CLINICAL ROLES BELOW AND IS THE POINT. A branch administrator sets the
+       *   baseline a variance is measured against — a configuration act, beside
+       *   `inventory.reason_code.manage` — and does not stand in the room saying
+       *   what came off the trolley. Granting them `.record` would let the
+       *   person who defines "normal" also file the numbers measured against it.
+       *
+       * ⚠️ THE TEMPLATES ARE ORG-WIDE THOUGH, unlike most of this role. There is
+       *   no `branch_id` on `consumption_templates` — see the model — so editing
+       *   one changes what every site pre-fills. Accepted for the reason this
+       *   role's org-wide supplier and price reads are accepted, and recorded
+       *   here rather than discovered.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_TEMPLATE_MANAGE,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,
@@ -387,6 +495,19 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_DEFINITION_READ,
       P.MEDICINE_READ,
       /*
+       * Records what a procedure consumed (PI-9).
+       *
+       * ⚠️ NOT A CLINICAL AUTHORING CODE, WHICH IS WHY IT IS NOT ON THE
+       *   `CLINICAL_AUTHORING` LIST AND WHY ORG_OWNER AND ORG_ADMIN KEEP IT. A
+       *   consumption is a stock movement anchored to a consultation — the same
+       *   relationship `prescription_fulfilments` has to a prescription — and it
+       *   writes nothing in the chart. Invariant 7 is untouched: the arrow points
+       *   from the consumption into the clinical record and never back.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_RECORD,
+      P.CONSUMPTION_OVERRIDE,
+      /*
        * Reads what a jurisdiction says about what they are about to prescribe,
        * and asserts nothing (PI-5). The same line invariant 7 draws for the
        * catalogue: consulting the rule is prescribing, recording the product's
@@ -434,11 +555,26 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRESCRIPTION_READ,
       P.LAB_ORDER_READ,
       /*
-       * Reads the catalogue because a nurse draws consumables from the trolley
-       * and will record what was used once PI-9 lands. Curating it is not their
-       * job and neither is the medicine detail behind it — no MEDICINE_READ.
+       * Reads the catalogue because a nurse draws consumables from the trolley,
+       * and records what was used (PI-9 — the phase the previous version of this
+       * comment was waiting for). Curating the catalogue is not their job and
+       * neither is the medicine detail behind it — no MEDICINE_READ.
        */
       P.PRODUCT_DEFINITION_READ,
+      /*
+       * ⚠️ ALL THREE, INCLUDING THE OVERRIDE, AND THAT IS DELIBERATE. The nurse
+       *   is frequently the person actually holding the trolley, and a role that
+       *   could record a consumption but not depart from the template would stop
+       *   at the first procedure that used two swabs instead of one — at which
+       *   point the honest number goes unrecorded and the inventory quietly
+       *   stops matching reality, which is the outcome CLINICAL_CONSUMPTION.md
+       *   says is worse than any variance. The override is AUDITED, never
+       *   obstructed; a clinic that wants variances approved withholds this code
+       *   on a clone of this role.
+       */
+      P.CONSUMPTION_READ,
+      P.CONSUMPTION_RECORD,
+      P.CONSUMPTION_OVERRIDE,
       P.SETTINGS_USER_WRITE,
     ],
   },
@@ -494,6 +630,21 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.FEE_SCHEDULE_READ,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
+      /*
+       * The charge queue, and the decisions on it (PI-8). This desk is where a
+       * patient is billed for what the dispensary handed them, so it both READS
+       * what is outstanding and ANSWERS the charges whose policy is `OPTIONAL` —
+       * "is the dressing on this bill?" is a question asked at the till with the
+       * patient standing there, and routing it to an accountant means they wait
+       * or leave unbilled.
+       *
+       * ⚠️ NOT CHARGE_POLICY_MANAGE. Deciding this one charge is the front
+       *   desk's; deciding that dressings are never billed anywhere, at any
+       *   branch, for every future supply is the organization's. See the codes
+       *   file for the blast-radius argument.
+       */
+      P.CHARGE_REQUEST_READ,
+      P.CHARGE_REQUEST_MANAGE,
       P.PAYMENT_COLLECT,
       P.REPORT_DASHBOARD,
       P.SETTINGS_USER_WRITE,
@@ -596,8 +747,61 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
       P.PRODUCT_REGULATORY_READ,
       P.PRODUCT_REGULATORY_MANAGE,
       P.DISPENSE_READ,
+      /*
+       * Verifying a prescription and supplying against it (PI-7). Both, on this
+       * role, because a dispensary with one pharmacist is the ordinary shape and
+       * a split that made single-pharmacist clinics unusable would be a control
+       * on paper only. See the codes file for what the split buys a clinic that
+       * does separate them.
+       *
+       * ⚠️ NO ROLE BUT THIS ONE STARTS WITH `.create`, INCLUDING DOCTOR — and
+       *   that is a default rather than a position on who may lawfully dispense.
+       *   Several jurisdictions expressly permit a practitioner to dispense to
+       *   their own patients (India's Pharmacy Act s. 42(1) says so in the
+       *   section itself, and the regulatory engine models the proviso). A
+       *   clinic where the doctor runs the dispensary grants these by cloning a
+       *   role or per membership; handing every DOCTOR the supply codes by
+       *   default would be this platform deciding a clinic's staffing for it.
+       */
+      P.DISPENSE_VERIFY,
       P.DISPENSE_CREATE,
       P.DISPENSE_RETURN,
+      /*
+       * Online orders (PI-12). All three, on the role that also holds
+       * `.dispense.create` — which is what actually makes this the role that can
+       * carry an order all the way from the telephone to the courier. A
+       * dispensary with one pharmacist is the ordinary shape, exactly as it is
+       * for the verify/create split immediately above.
+       */
+      P.ONLINE_ORDER_READ,
+      P.ONLINE_ORDER_MANAGE,
+      P.ONLINE_ORDER_DISPATCH,
+      /*
+       * ⚠️ READ, AND POINTEDLY NOT MANAGE (PI-8). A pharmacist must be able to
+       *   see that the medicine they handed over reached the charge queue — a
+       *   supply that silently produced no charge request is invisible until the
+       *   month-end figures are short, and they are the only person who knows it
+       *   left the shelf. Whether it is BILLED is somebody else's decision, and
+       *   a dispensary that could suppress its own charges is a dispensary that
+       *   can give stock away with no second pair of eyes.
+       *
+       * This is also what puts pharmacy invoices in their view at all:
+       * `invoice-visibility.ts` derives the visible SOURCES from the modules a
+       * caller works in, and `pharmacy.dispense.read` is what says PHARMACY is
+       * theirs. That was already true before PI-8 and is why no invoice code is
+       * granted here either.
+       */
+      P.CHARGE_REQUEST_READ,
+      /*
+       * ⚠️ READ, AND POINTEDLY NOT `.record` (PI-9). A pharmacist runs the store
+       *   the treatment rooms draw from, so "what did theatre use out of my
+       *   stock this week" is their question — but the person who says a
+       *   procedure used three pairs of gloves is the person who was standing in
+       *   the room. A dispensary that could record consumption against somebody
+       *   else's procedure could move stock off its own books with no clinician
+       *   in the loop.
+       */
+      P.CONSUMPTION_READ,
       P.SUPPLIER_MANAGE,
       P.PURCHASE_ORDER_READ,
       P.PURCHASE_ORDER_MANAGE,
@@ -627,6 +831,13 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * store, and it decides what every future shrinkage report can aggregate.
        */
       P.INVENTORY_REASON_CODE_MANAGE,
+      // Recall (PI-10). See the note on BRANCH_ADMIN above — same four codes,
+      // same reasoning, and a pharmacist is usually the person the notice
+      // reaches first.
+      P.RECALL_READ,
+      P.RECALL_CREATE,
+      P.RECALL_EXECUTE,
+      P.RECALL_TRACE_PATIENTS,
       /*
        * Raises requisitions and deliberately does NOT approve them (PI-4.3).
        *
@@ -644,6 +855,25 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        *   Recorded in KNOWN_ISSUES for a clinic to narrow with a cloned role.
        */
       P.REQUISITION_CREATE,
+      /*
+       * ⚠️ READ, AND NOT MANAGE — and it was MISSING ENTIRELY until somebody
+       *   opened a product and found no Price tab. This role raises invoices and
+       *   takes money at the counter (the two codes immediately below), and the
+       *   charge queue already shows it what a supply is worth — so a pharmacist
+       *   who could bill but could not look up a price was being asked to quote
+       *   a number the software refused to show them. `/charges` compounds it:
+       *   "no price" is one of the three reasons it gives for a charge being
+       *   stuck, and the Prices screen it points at answered 403.
+       *
+       *   Every other counter-facing role — RECEPTIONIST, DOCTOR, BRANCH_ADMIN,
+       *   ACCOUNTANT — already held it, which is what makes the omission an
+       *   oversight rather than a position. MANAGE stays off: setting a price is
+       *   a commercial decision the organization takes, exactly as it is for the
+       *   fee grid (see FEE_SCHEDULE_MANAGE), and a dispensary that could price
+       *   its own stock is a dispensary that can discount without a second pair
+       *   of eyes.
+       */
+      P.FEE_SCHEDULE_READ,
       P.INVOICE_READ,
       P.INVOICE_CREATE,
       P.PAYMENT_COLLECT,
@@ -697,6 +927,16 @@ export const SYSTEM_ROLE_DEFINITIONS: SystemRoleDefinition[] = [
        * organization takes it; see FEE_SCHEDULE_MANAGE.
        */
       P.FEE_SCHEDULE_READ,
+      /*
+       * Charging, in full (PI-8) — the one role besides the two "everything
+       * except" ones that sets the POLICY as well as answering the queue.
+       * "Which products are billable at all?" is the same kind of decision as
+       * the tax card immediately above: organization-wide, commercially
+       * consequential, and taken once rather than per counter.
+       */
+      P.CHARGE_REQUEST_READ,
+      P.CHARGE_REQUEST_MANAGE,
+      P.CHARGE_POLICY_MANAGE,
       P.PAYMENT_COLLECT,
       P.CREDIT_NOTE_ISSUE,
       P.REFUND_PROCESS,

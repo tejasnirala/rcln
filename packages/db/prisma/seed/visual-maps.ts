@@ -15,6 +15,9 @@
  *   broken chart means a dentist's consultation cannot be drawn on at all.
  */
 import { parseVisualMap } from '@rcln/clinical';
+
+import type { Prisma } from '../../generated/prisma/index.js';
+
 import { prisma } from './client.js';
 import { VISUAL_MAPS } from './data/visual-maps.js';
 
@@ -121,11 +124,21 @@ export async function seedVisualMaps(): Promise<void> {
         select: { id: true },
       });
 
+      /*
+       * ⚠️ THE KEY IS OMITTED WHEN THERE IS NO METADATA, NOT SET TO `undefined`.
+       *   Under `exactOptionalPropertyTypes` those are different things, and
+       *   Prisma's JSON input accepts neither `undefined` nor a bare
+       *   `Record<string, unknown>` — an explicit `undefined` would ask it to
+       *   write a JSON value it has no representation for. Surfaced when PI-24
+       *   gave this directory a typecheck for the first time.
+       */
       const regionData = {
         label: region.label,
         parentId: parent?.id ?? null,
         displayOrder: index * 10,
-        metadata: region.metadata ?? undefined,
+        ...(region.metadata !== undefined
+          ? { metadata: region.metadata as Prisma.InputJsonObject }
+          : {}),
       };
 
       if (existingRegion) {

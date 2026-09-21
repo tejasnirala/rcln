@@ -1,6 +1,6 @@
 ---
 name: api-integration
-description: Add or change an rcln API endpoint end to end — Zod contract in @rcln/contracts, permission code, service via withTenant, route with the correct middleware chain, and the web consumer. Invoke with /api-integration <endpoint-or-feature>.
+description: Add or change an rcln API endpoint end to end — Zod contract in @rcln/contracts, permission code, service via withTenant, route with the correct middleware chain, the OpenAPI registry entry, and the web consumer. Invoke with /api-integration <endpoint-or-feature>.
 ---
 
 # API Integration (rcln)
@@ -49,19 +49,57 @@ resolveTenant → authenticate → authorize(CODE) → withTenant → handler
 - Auth-adjacent endpoints get the stricter rate limiter, not the general one.
 - Audit every mutation and every PHI read.
 
-## 5. Caching
+## 5. API reference — `apps/api/src/openapi/registry/<domain>.ts`
+
+**Not optional, and not a follow-up commit.** `apps/api/tests/unit/openapi.test.ts`
+fails on a route with no entry, and again on an entry matching no route.
+
+Key it `METHOD /full/path`, written as OpenAPI writes it — `{branchId}`, never
+`:branchId`. Introspection already supplies the method, path, permission gate and
+request schema off the router, so the entry carries only what a machine cannot
+derive:
+
+```ts
+'POST /api/v1/<domain>': {
+  summary: 'One line, imperative',
+  description: 'What it does, what it does NOT do, and anything surprising.',
+  response: <contractSchema>,          // a Zod schema from @rcln/contracts
+  status: 201,                          // when it is not 200
+  phi: true,                            // set when the call writes data_access_logs
+  errors: [409],                        // beyond what the chain implies
+  requestExamples: [{ summary: '…', value: { … } }],
+  responseExamples: [{ summary: '…', value: { success: true, message: '…', data: { … } } }],
+},
+```
+
+- Export the registry object from the file and spread it into `registry/index.ts`.
+- **A new router also needs a `MOUNTS` entry** in `openapi/mounts.ts`, or
+  `assertMountsCover()` fails.
+- **Never write a literal uuid.** Import every id from `registry/fixtures.ts` —
+  one clinic, described once, so the whole reference tells one story. Add new ids
+  there with a name and a sentence saying what they are.
+- Money in examples is minor units; times are UTC with a `Z`.
+- Citing a status needs it in `ERROR_CASES` (`openapi/envelope.ts`) first.
+- Removing an endpoint means **deleting** its entry.
+
+Depth: full treatment — long description, response schema, several worked
+examples — for anything touching PHI or money. Summary, description, response and
+one example is enough for masters and plain CRUD.
+
+## 6. Caching
 
 Redis for ids and permission metadata only — **no PHI**. Every key gets a TTL; cache negative results too so unknown hosts cannot hammer Postgres. State the invalidation trigger, not just the TTL.
 
-## 6. Web consumer — `apps/web`
+## 7. Web consumer — `apps/web`
 
 Import the request/response types from `@rcln/contracts`. Fetch in a server component where possible; independent fetches go in `Promise.all` (`[async-parallel]`). Surface errors from the normalized response shape. No PHI into `localStorage`, cookies, or query params.
 
-## 7. Verify
+## 8. Verify
 
 ```bash
 docker compose exec api pnpm typecheck
 docker compose exec api pnpm lint
+docker compose exec api pnpm --filter @rcln/api docs:validate   # coverage must read n/n
 docker compose exec api pnpm test
 ```
 

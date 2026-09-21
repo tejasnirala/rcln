@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { getAccessToken, getSession, timeFormatOf, timezoneOf } from '@/lib/session';
 import { formatClinicDate, formatClinicDateTime } from '@/lib/format';
 import { Alert } from '@/components/ui/alert';
+import { AppointmentStatusChip } from '@/components/tenant/appointment-status';
 
 export const metadata: Metadata = {
   /** ⚠️ NEVER THE PATIENT'S NAME, and never the journey's title — it is usually
@@ -172,8 +173,11 @@ export default async function EpisodePage({
                   </span>
                   <span className="text-muted text-[0.8125rem]">{visit.doctorName}</span>
                 </div>
-                <p className="text-muted mt-1 text-[0.75rem]">
-                  {STATUS_WORDS[visit.status] ?? visit.status} ·{' '}
+                <p className="text-muted mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[0.75rem]">
+                  {/* The same chip the day board and the consultation page use —
+                      a cancelled visit in a treatment journey is the one row
+                      somebody reading the timeline needs to spot. */}
+                  <AppointmentStatusChip status={visit.status} />
                   {VISIT_WORDS[visit.visitType] ?? visit.visitType}
                   {visit.parentAppointmentId === null ? null : (
                     <>
@@ -192,16 +196,6 @@ export default async function EpisodePage({
     </div>
   );
 }
-
-const STATUS_WORDS: Record<string, string> = {
-  BOOKED: 'Booked',
-  CONFIRMED: 'Confirmed',
-  CHECKED_IN: 'Checked in',
-  IN_PROGRESS: 'With the doctor',
-  COMPLETED: 'Seen',
-  CANCELLED: 'Cancelled',
-  NO_SHOW: 'Did not attend',
-};
 
 const VISIT_WORDS: Record<string, string> = {
   NEW: 'First visit',

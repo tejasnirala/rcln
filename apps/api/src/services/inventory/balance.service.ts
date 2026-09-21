@@ -28,11 +28,7 @@ import type {
   StockLedgerRow,
   VerifyBalancesResponse,
 } from '@rcln/contracts';
-import { NotFoundError } from '../../utils/errors.js';
-
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
-}
+import { assertBranchInScope } from '../shared/branch.js';
 
 const balanceInclude = Prisma.validator<Prisma.StockBalanceInclude>()({
   product: { select: { code: true, name: true, baseUnit: { select: { symbol: true } } } },

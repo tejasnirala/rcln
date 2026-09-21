@@ -4,7 +4,7 @@
 
 > Analytics seam.
 
-Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/calendar-range.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/invoice-filters.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/patient-words.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/postal.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts` · `apps/web/src/lib/theme.ts`
+Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web/src/lib/appointment-words.ts` · `apps/web/src/lib/calendar-range.ts` · `apps/web/src/lib/cn.ts` · `apps/web/src/lib/enum-words.ts` · `apps/web/src/lib/format.ts` · `apps/web/src/lib/hard-navigate.ts` · `apps/web/src/lib/invoice-filters.ts` · `apps/web/src/lib/locale-options.ts` · `apps/web/src/lib/patient-words.ts` · `apps/web/src/lib/permission-labels.ts` · `apps/web/src/lib/platform.ts` · `apps/web/src/lib/postal.ts` · `apps/web/src/lib/report-specs.ts` · `apps/web/src/lib/row-key.ts` · `apps/web/src/lib/session-cookie.ts` · `apps/web/src/lib/session.ts` · `apps/web/src/lib/taxonomy.ts` · `apps/web/src/lib/theme.ts`
 
 ## fn
 
@@ -17,6 +17,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `apiBinary` | `(path: string, request: ApiRequest): Promise<ApiFile>` | `apps/web/src/lib/api.ts:221` |  |
 | `apiHeaders` <sub>local</sub> | `(request: ApiRequest, accept: string): Promise<Record<string, string>>` | `apps/web/src/lib/api.ts:133` |  |
 | `applyTheme` | `(element: { dataset: DOMStringMap }, preference: ThemePreference, prefersDark: boolean): void` | `apps/web/src/lib/theme.ts:182` |  |
+| `asOptions` | `(values: readonly string[]): { value: string; label: string }[]` | `apps/web/src/lib/enum-words.ts:25` | The same, as `<Select options>`. |
 | `branchesInScope` | `(slug: string): Promise<BranchSummary[]>` | `apps/web/src/lib/session.ts:134` |  |
 | `buildTree` | `(nodes: SpecialtySummary[]): TaxonomyTree` | `apps/web/src/lib/taxonomy.ts:41` |  |
 | `byOrderThenName` <sub>local</sub> | `(a: SpecialtySummary, b: SpecialtySummary): number` | `apps/web/src/lib/taxonomy.ts:38` |  |
@@ -29,6 +30,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `cn` | `(inputs: ClassValue[]): string` | `apps/web/src/lib/cn.ts:9` | Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be overridden by its caller without specifici… |
 | `columnLabel` | `(nodes: SpecialtySummary[]): string` | `apps/web/src/lib/taxonomy.ts:122` |  |
 | `countryOf` | `(slug: string): Promise<string>` | `apps/web/src/lib/session.ts:160` |  |
+| `didNotHappen` | `(status: AppointmentStatusValue): boolean` | `apps/web/src/lib/appointment-words.ts:172` |  |
 | `eachDay` | `(from: string, to: string): string[]` | `apps/web/src/lib/calendar-range.ts:109` |  |
 | `emptyToNull` | `(value: FormDataEntryValue \| null): string \| null` | `apps/web/src/lib/api.ts:271` |  |
 | `endOfMonth` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:97` |  |
@@ -43,7 +45,9 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `getAccessToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:86` |  |
 | `getRefreshToken` | `(): Promise<string \| undefined>` | `apps/web/src/lib/session.ts:90` |  |
 | `hardNavigate` | `(path: string): void` | `apps/web/src/lib/hard-navigate.ts:32` |  |
+| `humanise` | `(value: string): string` | `apps/web/src/lib/enum-words.ts:18` |  |
 | `isCalendarDate` | `(value: string \| undefined): value is string` | `apps/web/src/lib/calendar-range.ts:35` |  |
+| `isFinished` | `(status: AppointmentStatusValue): boolean` | `apps/web/src/lib/appointment-words.ts:157` |  |
 | `isWithin` | `(range: DateRange, date: string): boolean` | `apps/web/src/lib/calendar-range.ts:159` |  |
 | `listTaxRegistrations` | `(): Promise<ApiResult<TaxRegistrationListResponse>>` | `apps/web/src/lib/platform.ts:44` |  |
 | `longDate` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:247` | "Monday, 9 August 2026". |
@@ -53,6 +57,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `moduleLabel` | `(module: string): string` | `apps/web/src/lib/permission-labels.ts:44` |  |
 | `moduleOf` | `(code: string): string` | `apps/web/src/lib/permission-labels.ts:40` |  |
 | `monthLabel` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:242` | "August 2026" — the heading over a month grid. |
+| `nextRowKey` | `(): string` | `apps/web/src/lib/row-key.ts:26` |  |
 | `offsetMsAt` <sub>local</sub> | `(instant: Date, timeZone: string): number` | `apps/web/src/lib/format.ts:158` | How far the zone is from UTC AT THAT INSTANT — DST included, by construction. |
 | `parse` <sub>local</sub> | `(date: string): Date` | `apps/web/src/lib/calendar-range.ts:44` |  |
 | `pathTo` | `(tree: TaxonomyTree, id: string): SpecialtySummary[]` | `apps/web/src/lib/taxonomy.ts:76` |  |
@@ -67,6 +72,8 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `shortDate` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:252` | "Mon, 9 Aug" — the heading on a day inside a week or month listing. |
 | `startOfMonth` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:93` |  |
 | `startOfWeek` | `(date: string): string` | `apps/web/src/lib/calendar-range.ts:87` |  |
+| `statusChipClass` | `(status: string): string` | `apps/web/src/lib/appointment-words.ts:102` |  |
+| `statusWord` | `(status: string): string` | `apps/web/src/lib/appointment-words.ts:54` |  |
 | `stepAnchor` | `(view: BoardView, anchor: string, direction: -1 \| 1): string` | `apps/web/src/lib/calendar-range.ts:153` | Where the arrows go: one day, one week or one month either side. |
 | `subtreeIds` | `(tree: TaxonomyTree, id: string): Set<string>` | `apps/web/src/lib/taxonomy.ts:154` | Every id at or beneath `id`. Used to filter the roster by a subtree. |
 | `themeBootScript` | `(): string` | `apps/web/src/lib/theme.ts:242` |  |
@@ -96,8 +103,15 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `APPEARANCE_COOKIE` | `'rcln_appearance'` | `apps/web/src/lib/theme.ts:113` |  |
 | `APPEARANCE_OPTIONS` | `: ReadonlyArray<{ id: Appearance; label: string; description: string; }>` | `apps/web/src/lib/theme.ts:52` |  |
 | `APPEARANCES` | `['light', 'dark', 'system'] as const` | `apps/web/src/lib/theme.ts:37` |  |
+| `APPOINTMENT_STATUS_CHIP` | `: Record<AppointmentStatusValue, string>` | `apps/web/src/lib/appointment-words.ts:76` |  |
+| `APPOINTMENT_STATUS_DOT` | `: Record<AppointmentStatusValue, string>` | `apps/web/src/lib/appointment-words.ts:139` |  |
+| `APPOINTMENT_STATUS_RAIL` | `: Record<AppointmentStatusValue, string>` | `apps/web/src/lib/appointment-words.ts:116` |  |
+| `APPOINTMENT_STATUS_WORDS` | `: Record<AppointmentStatusValue, string>` | `apps/web/src/lib/appointment-words.ts:29` |  |
+| `BASIS_FILTER` <sub>local</sub> | `: ReportFilter` | `apps/web/src/lib/report-specs.ts:64` |  |
 | `BILLING_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:38` |  |
+| `BLOOD_GROUPS` | `: SelectOption[]` | `apps/web/src/lib/patient-words.ts:51` |  |
 | `BOARD_VIEWS` | `: BoardView[]` | `apps/web/src/lib/calendar-range.ts:25` |  |
+| `BRANCH_COLUMN` <sub>local</sub> | `: ReportColumn` | `apps/web/src/lib/report-specs.ts:74` |  |
 | `CLINICAL_LOCALE` <sub>local</sub> | `'en-GB'` | `apps/web/src/lib/format.ts:90` |  |
 | `CURRENCIES` | `: LocaleOption[]` | `apps/web/src/lib/locale-options.ts:40` |  |
 | `DARK_QUERY` | `'(prefers-color-scheme: dark)'` | `apps/web/src/lib/theme.ts:173` | The media query the `system` appearance follows. One string, two callers. |
@@ -113,10 +127,16 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `INVOICE_STATUS_TONE` | `: Record<InvoiceStatusValue, string>` | `apps/web/src/lib/invoice-filters.ts:81` |  |
 | `LONG_DAY` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:212` |  |
 | `LOOKUP_TIMEOUT_MS` <sub>local</sub> | `4000` | `apps/web/src/lib/postal.ts:30` | How long we will wait for a third party before giving up and letting the customer type. |
+| `LOOSE_CHIP` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/lib/appointment-words.ts:86` |  |
+| `LOOSE_WORDS` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/lib/appointment-words.ts:52` |  |
+| `MARITAL_STATUSES` | `: SelectOption[]` | `apps/web/src/lib/patient-words.ts:64` | `maritalStatusValues`, worded for a form. Not asked of an animal. |
 | `MODULE_LABEL` <sub>local</sub> | `: Record<string, string>` | `apps/web/src/lib/permission-labels.ts:16` |  |
 | `MONTH_YEAR` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:227` |  |
+| `PRODUCT_COLUMNS` <sub>local</sub> | `: readonly ReportColumn[]` | `apps/web/src/lib/report-specs.ts:75` |  |
 | `REFRESH_COOKIE` | `'rcln_rt'` | `apps/web/src/lib/session-cookie.ts:16` |  |
 | `REFRESH_MAX_AGE` | `30 * 24 * 60 * 60` | `apps/web/src/lib/session-cookie.ts:19` | Refresh tokens live 30 days server-side; the cookie must not outlive that. |
+| `REPORT_PATHS` | `: Record<string, string>` | `apps/web/src/lib/report-specs.ts:344` | Where each report is served from, relative to `/api/v1`. |
+| `REPORT_SPECS` | `: Record<string, ReportSpec>` | `apps/web/src/lib/report-specs.ts:80` |  |
 | `ROOT_DOMAIN` <sub>local</sub> | `process.env['NEXT_PUBLIC_ROOT_DOMAIN'] ?? 'lvh.me'` | `apps/web/src/lib/api.ts:32` |  |
 | `ROOTS` | `'__roots__'` | `apps/web/src/lib/taxonomy.ts:36` |  |
 | `SHORT_DAY` <sub>local</sub> | `new Intl.DateTimeFormat(…)` | `apps/web/src/lib/calendar-range.ts:220` |  |
@@ -131,6 +151,7 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | name | signature | at | notes |
 | --- | --- | --- | --- |
 | `baseCookie` | `{ httpOnly: true, // Lax, not Strict: Strict would drop the cookie on the cross-host redi…` | `apps/web/src/lib/session-cookie.ts:21` |  |
+| `counter` <sub>local</sub> | `0` | `apps/web/src/lib/row-key.ts:24` |  |
 | `getPlatformSession` | `cache(…)` | `apps/web/src/lib/session.ts:273` |  |
 | `getSession` | `cache(…)` | `apps/web/src/lib/session.ts:108` |  |
 | `listPlatformOrganizations` | `cache(…)` | `apps/web/src/lib/platform.ts:26` |  |
@@ -147,6 +168,9 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `DateRange` | `{ from, to }` | `apps/web/src/lib/calendar-range.ts:28` | An inclusive span of calendar days, both ends `YYYY-MM-DD`. |
 | `LocaleOption` | `{ value, label }` | `apps/web/src/lib/locale-options.ts:20` |  |
 | `PostalLookup` | `{ city, region, regionCode }` | `apps/web/src/lib/postal.ts:21` | What a postcode told us about where it is. Every field optional — a lookup that resolves the state but not the city is still worth having. |
+| `ReportColumn` | `{ header, field, kind }` | `apps/web/src/lib/report-specs.ts:36` |  |
+| `ReportFilter` | `{ name, label, kind, options, placeholder }` | `apps/web/src/lib/report-specs.ts:42` |  |
+| `ReportSpec` | `{ title, blurb, dated, caveat, filters, columns }` | `apps/web/src/lib/report-specs.ts:50` |  |
 | `TaxonomyTree` | `{ byId, childrenOf }` | `apps/web/src/lib/taxonomy.ts:22` |  |
 | `ThemePreference` | `{ appearance, accent }` | `apps/web/src/lib/theme.ts:147` |  |
 
@@ -160,4 +184,5 @@ Files: `apps/web/src/lib/analytics.ts` · `apps/web/src/lib/api.ts` · `apps/web
 | `BoardView` | `'day' \| 'week' \| 'month'` | `apps/web/src/lib/calendar-range.ts:23` | How much of the diary is on screen. |
 | `InvoiceFilterKey` | `(typeof INVOICE_FILTER_KEYS)[number]` | `apps/web/src/lib/invoice-filters.ts:32` |  |
 | `InvoiceFilters` | `Partial<Record<InvoiceFilterKey, string>>` | `apps/web/src/lib/invoice-filters.ts:33` |  |
+| `ReportFieldKind` | `\| 'text' /** An identifier a person reads character by character — a lot, a code. */ \| 'mono' /** A quantity in base units, right-aligned. Arrives as a decimal…` | `apps/web/src/lib/report-specs.ts:20` |  |
 | `ResolvedAppearance` | `'light' \| 'dark'` | `apps/web/src/lib/theme.ts:41` | What the page is actually painted as. `system` resolves to one of these. |

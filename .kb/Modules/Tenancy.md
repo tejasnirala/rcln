@@ -47,6 +47,8 @@ Resolves which organization a request belongs to, and keeps every other tenant's
 ## Source files
 
 - `apps/api/src/middleware/tenant.middleware.ts`
+- `apps/api/src/services/organization/clinic-profile.service.ts`
+- `apps/api/src/services/organization/onboarding.service.ts`
 - `apps/api/src/services/organization/organization.service.ts`
 - `apps/api/src/services/organization/register.service.ts`
 - `apps/api/src/services/organization/setting.service.ts`
@@ -69,22 +71,34 @@ Resolves which organization a request belongs to, and keeps every other tenant's
 | --- | --- | --- |
 | `assertRlsActive` | fn | `packages/db/src/client.ts:61` |
 | `clearSetting` | fn | `apps/api/src/services/organization/setting.service.ts:353` |
+| `completeOnboarding` | fn | `apps/api/src/services/organization/onboarding.service.ts:807` |
 | `createDbClient` | fn | `packages/db/src/client.ts:23` |
 | `DbConfig` | interface | `packages/db/src/client.ts:13` |
 | `disconnectDb` | fn | `packages/db/src/client.ts:106` |
+| `EMPTY_CLINIC_PROFILE` | const | `apps/api/src/services/organization/clinic-profile.service.ts:55` |
 | `forTenant` | fn | `packages/db/src/tenant.ts:200` |
 | `getDbClient` | fn | `packages/db/src/client.ts:43` |
+| `getOnboardingState` | fn | `apps/api/src/services/organization/onboarding.service.ts:197` |
 | `getOrganization` | fn | `apps/api/src/services/organization/organization.service.ts:142` |
 | `invalidateTenantCache` | fn | `apps/api/src/middleware/tenant.middleware.ts:167` |
 | `isSlugAvailable` | fn | `apps/api/src/services/organization/register.service.ts:84` |
 | `listSettings` | fn | `apps/api/src/services/organization/setting.service.ts:212` |
+| `OnboardingActionOptions` | interface | `apps/api/src/services/organization/onboarding.service.ts:69` |
 | `OrganizationActionOptions` | interface | `apps/api/src/services/organization/organization.service.ts:39` |
 | `RegisterOptions` | interface | `apps/api/src/services/organization/register.service.ts:50` |
 | `registerOrganization` | fn | `apps/api/src/services/organization/register.service.ts:95` |
 | `RegisterResult` | interface | `apps/api/src/services/organization/register.service.ts:57` |
 | `requireTenant` | fn | `apps/api/src/middleware/tenant.middleware.ts:147` |
+| `resolveClinicProfiles` | fn | `apps/api/src/services/organization/clinic-profile.service.ts:85` |
+| `ResolvedClinicProfiles` | interface | `apps/api/src/services/organization/clinic-profile.service.ts:61` |
 | `ResolvedTenant` | interface | `apps/api/src/middleware/tenant.middleware.ts:18` |
 | `resolveTenant` | fn | `apps/api/src/middleware/tenant.middleware.ts:116` |
+| `saveCareContextStep` | fn | `apps/api/src/services/organization/onboarding.service.ts:474` |
+| `saveIdentityStep` | fn | `apps/api/src/services/organization/onboarding.service.ts:407` |
+| `saveLocaleStep` | fn | `apps/api/src/services/organization/onboarding.service.ts:659` |
+| `saveModuleStep` | fn | `apps/api/src/services/organization/onboarding.service.ts:572` |
+| `saveStaffStep` | fn | `apps/api/src/services/organization/onboarding.service.ts:777` |
+| `saveTaxStep` | fn | `apps/api/src/services/organization/onboarding.service.ts:724` |
 | `setSetting` | fn | `apps/api/src/services/organization/setting.service.ts:248` |
 | `setTenantContext` | fn | `packages/db/src/tenant.ts:149` |
 | `SettingActionOptions` | interface | `apps/api/src/services/organization/setting.service.ts:39` |

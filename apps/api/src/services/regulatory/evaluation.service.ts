@@ -38,6 +38,8 @@ import {
   evaluate,
   formatJurisdiction,
   isProfileInForce,
+  parseQuantityLimit,
+  selectApplicableRules,
   type Jurisdiction,
   type ProductRegulatoryProfile,
   type RegulatoryRequest,
@@ -161,7 +163,7 @@ async function loadRules(tx: TxClient, place: Jurisdiction, on: Date): Promise<R
  *   wins with `take: 1`, and every regional profile is configured, visible and
  *   unreachable. That is not a hypothetical: it shipped in `resolveTaxCategory`.
  */
-async function loadProfile(
+export async function loadProfile(
   tx: TxClient,
   productId: string,
   place: Jurisdiction,
@@ -243,6 +245,17 @@ export interface RegulatoryActorInput {
    */
   roleCodes: readonly string[];
   licenceTypes?: readonly string[];
+  /**
+   * Is this caller the prescriber of the prescription being dispensed? (PI-7.)
+   *
+   * ⚠️ DERIVED BY THE SERVICE FROM THE ENCOUNTER AND `ctx.userId`, NEVER SENT BY
+   *   A CLIENT, which is why it lives on this interface and not on
+   *   `EvaluateRegulatoryRequest`. It exempts nothing by itself: a rule has to
+   *   opt in with `exemptWhenActorIsPrescriber`, and several jurisdictions do —
+   *   India's Pharmacy Act s. 42(1) excludes a practitioner dispensing to their
+   *   own patients from the section outright.
+   */
+  isPrescriber?: boolean;
 }
 
 /**
@@ -266,7 +279,8 @@ export async function evaluateWithin(
   tx: TxClient,
   ctx: TenantContext,
   input: EvaluateRegulatoryRequest,
-  actor: RegulatoryActorInput
+  actor: RegulatoryActorInput,
+  supplements: EvaluationSupplements = {}
 ): Promise<RegulatoryDecisionResponse> {
   const product = await tx.product.findUnique({
     where: { id: input.productId },
@@ -367,12 +381,20 @@ export async function evaluateWithin(
     actor: {
       roleCodes: actor.roleCodes,
       ...(actor.licenceTypes ? { licenceTypes: actor.licenceTypes } : {}),
+      ...(actor.isPrescriber !== undefined ? { isPrescriber: actor.isPrescriber } : {}),
     },
     quantityBase: input.quantityBase,
     occurredAt,
     ...(input.priorQuantityInPeriodBase !== undefined
       ? { priorQuantityInPeriodBase: input.priorQuantityInPeriodBase }
       : {}),
+    /*
+     * ⚠️ PASSED THROUGH, NEVER DERIVED (PI-13a). Nothing in this programme parses
+     *   a dosage instruction, so the days' supply can only come from a caller
+     *   that worked it out. Where a rule needs it and it is absent the engine
+     *   answers `UNDETERMINED`, which refuses — see `maxDaysSupply`.
+     */
+    ...(input.daysSupply !== undefined ? { daysSupply: input.daysSupply } : {}),
     ...(input.prescription
       ? {
           prescription: {
@@ -382,6 +404,19 @@ export async function evaluateWithin(
             refillsUsed: input.prescription.refillsUsed,
             ...(input.prescription.prescriberClasses
               ? { prescriberClasses: input.prescription.prescriberClasses }
+              : {}),
+            /*
+             * ⚠️ ABSENT STAYS ABSENT, for the reason `ageYears` does. A repeat
+             *   endorsement nobody stated must not arrive as `false` either —
+             *   the refill rule distinguishes "the prescriber said nothing"
+             *   from "the prescriber said no", and only the first is the
+             *   default position rule 65(11)(a) describes.
+             */
+            ...(input.prescription.repeatsAuthorised !== undefined
+              ? { repeatsAuthorised: input.prescription.repeatsAuthorised }
+              : {}),
+            ...(input.prescription.repeatsAuthorisedLimit !== undefined
+              ? { repeatsAuthorisedLimit: input.prescription.repeatsAuthorisedLimit }
               : {}),
           },
         }
@@ -397,6 +432,18 @@ export async function evaluateWithin(
              *   the answer a missing date of birth deserves.
              */
             ...(input.patient.ageYears !== undefined ? { ageYears: input.patient.ageYears } : {}),
+            /*
+             * ⚠️ ABSENT STAYS ABSENT HERE TOO, AND FOR A SHARPER REASON (PI-11).
+             *   `SPECIES_RESTRICTION` answers `UNDETERMINED` for an animal whose
+             *   species nobody recorded — which refuses — and an empty string
+             *   arriving as a species would be compared against the rule's list,
+             *   match nothing, and REFUSE with a message claiming the animal is
+             *   the wrong species. Two different failures, and only one of them
+             *   tells the clinic what to fix.
+             */
+            ...(input.patient.species !== undefined && input.patient.species !== ''
+              ? { species: input.patient.species }
+              : {}),
           },
         }
       : {}),
@@ -427,8 +474,18 @@ export async function evaluateWithin(
           },
         }
       : {}),
+    /*
+     * ⚠️ THE REGION IS ONLY MEANINGFUL WITH A COUNTRY, AND IS DROPPED WITHOUT ONE
+     *   (PI-12). `KA` alone names no place; carrying it would put a half a
+     *   jurisdiction into a decision snapshot that a later report groups by.
+     */
     ...(input.destinationCountryCode
-      ? { destination: { countryCode: input.destinationCountryCode, regionCode: null } }
+      ? {
+          destination: {
+            countryCode: input.destinationCountryCode,
+            regionCode: input.destinationRegionCode ?? null,
+          },
+        }
       : {}),
     ...(input.traceability
       ? {
@@ -444,7 +501,13 @@ export async function evaluateWithin(
       : {}),
   };
 
-  const decision = evaluate(request);
+  /*
+   * ⚠️ THE PRIOR QUANTITY IS RESOLVED AFTER THE REQUEST IS BUILT AND BEFORE IT IS
+   *   EVALUATED, BECAUSE THE WINDOW IS A PROPERTY OF THE RULES. See
+   *   `resolvePriorQuantity`. A caller that supplied one explicitly is left
+   *   alone.
+   */
+  const decision = evaluate(await withPriorQuantity(request, supplements));
 
   return {
     outcome: decision.outcome,
@@ -462,7 +525,134 @@ export async function evaluateWithin(
 export async function evaluateFor(
   ctx: TenantContext,
   input: EvaluateRegulatoryRequest,
-  actor: RegulatoryActorInput
+  actor: RegulatoryActorInput,
+  supplements: EvaluationSupplements = {}
 ): Promise<RegulatoryDecisionResponse> {
-  return withTenant(ctx, async (tx) => evaluateWithin(tx, ctx, input, actor));
+  return withTenant(ctx, async (tx) => evaluateWithin(tx, ctx, input, actor, supplements));
+}
+
+// ---------------------------------------------------------------------------
+// The prior quantity (PI-8, closing KNOWN_ISSUES #10)
+// ---------------------------------------------------------------------------
+
+export interface EvaluationSupplements {
+  /**
+   * How much this subject has ALREADY been supplied of this product, over a
+   * window the RULES decide.
+   *
+   * ⚠️ A CALLBACK RATHER THAN A VALUE, AND THAT IS THE WHOLE DESIGN PROBLEM
+   *   THIS SOLVES. `QUANTITY_LIMIT` measures over `periodDays`, which is a
+   *   parameter ON THE RULE — so a caller cannot know the window until the rules
+   *   have been loaded and the applicable ones selected, and by then it is too
+   *   late to go and ask a question it should have asked before. Passing a
+   *   function lets the window travel the other way: the rules name it, and the
+   *   caller — who is the only one who knows WHO the subject is — answers.
+   *
+   * ⚠️ AND IT KEEPS `@rcln/regulatory` PURE (PI-ADR-007). The engine still holds
+   *   no Prisma client and reads no database; the lookup lives in `apps/api`
+   *   with the caller. Putting the query in the package would have been the
+   *   obvious shortcut and would have made the engine untestable without a
+   *   tenant.
+   *
+   * Returns a decimal string in the product's BASE units. Never a float.
+   */
+  priorQuantityInPeriod?: (windowDays: number) => Promise<string>;
+}
+
+/**
+ * Fill in `priorQuantityInPeriodBase` when the rules ask for one.
+ *
+ * ⚠️ IT USES THE ENGINE'S OWN `selectApplicableRules`, NOT A SECOND COPY OF
+ *   "WHICH RULES APPLY". A rule that does not cover this product, transaction or
+ *   jurisdiction must not get to decide the window — and re-implementing that
+ *   selection here is how the window and the limit start disagreeing about which
+ *   rule they came from.
+ *
+ * ⚠️ ONE SCALAR CANNOT SERVE TWO DIFFERENT WINDOWS, SO TWO DIFFERENT WINDOWS ARE
+ *   REFUSED RATHER THAN RECONCILED. `RegulatoryRequest` carries a single
+ *   `priorQuantityInPeriodBase`; if a 30-day rule and a 90-day rule both apply,
+ *   no one number is right for both. Taking the longer window over-counts for
+ *   the shorter rule and refuses lawful supplies; taking the shorter one
+ *   UNDER-counts for the longer rule and PERMITS what the law forbids, which is
+ *   the direction this domain may never fail in. So the value is left absent, the
+ *   engine answers `UNDETERMINED`, and `UNDETERMINED` refuses — exactly what
+ *   happened before this function existed. The single-window case, which is every
+ *   real pack, is now answered properly.
+ *
+ * ⚠️ AN EXPLICIT VALUE FROM THE CALLER ALWAYS WINS. `POST /v1/regulatory/evaluate`
+ *   is a what-if surface and a caller asking "what if they had already had 40?"
+ *   must not have their number replaced by a lookup.
+ */
+async function withPriorQuantity(
+  request: RegulatoryRequest,
+  supplements: EvaluationSupplements
+): Promise<RegulatoryRequest> {
+  if (request.priorQuantityInPeriodBase !== undefined) return request;
+  if (!supplements.priorQuantityInPeriod) return request;
+
+  const windows = new Set<number>();
+  for (const rule of selectApplicableRules(request)) {
+    if (rule.ruleType !== 'QUANTITY_LIMIT') continue;
+    const parsed = parseQuantityLimit(rule.parameters);
+    /*
+     * A rule whose parameters do not parse is the engine's problem to report,
+     * not this function's to work around — it will say so in its own reason.
+     */
+    if (!parsed.ok) continue;
+    if (parsed.value.maxPerPeriodBase === undefined) continue;
+    if (parsed.value.periodDays === undefined) continue;
+    windows.add(parsed.value.periodDays);
+  }
+
+  /* No period limit applies, so there is nothing to look up. */
+  if (windows.size === 0) return request;
+  /* Two windows, one slot. See the header — absent means UNDETERMINED. */
+  if (windows.size > 1) return request;
+
+  /*
+   * Narrowed by a guard rather than by `as number`. `windows.size === 1` above
+   * already proves this is present; a cast to say so is a `!` with a different
+   * spelling, and the checklist bans the pattern rather than the punctuation.
+   */
+  const windowDays = [...windows][0];
+  if (windowDays === undefined) return request;
+
+  const prior = await supplements.priorQuantityInPeriod(windowDays);
+  return { ...request, priorQuantityInPeriodBase: prior };
+}
+
+// ---------------------------------------------------------------------------
+// The jurisdiction a branch is in (PI-12)
+// ---------------------------------------------------------------------------
+
+/**
+ * Where a branch is, as the rules see it.
+ *
+ * ⚠️ EXPORTED SO THE ONLINE-ORDER SERVICE ASKS THE SAME QUESTION `evaluateWithin`
+ *   ASKS, RATHER THAN A SECOND ONE. That service refuses an order for a product
+ *   nobody has cleared for remote supply — a gate it cannot leave to the engine,
+ *   because a REFUSED decision enforces nothing until a human signs the
+ *   jurisdiction's pack off (`enforcement.ts`) — and it has to look the profile
+ *   up in exactly the place the engine will. Two spellings of "which
+ *   jurisdiction is this branch in" is how a gate refuses a product the engine
+ *   permits, or worse.
+ */
+export async function branchJurisdictionWithin(
+  tx: TxClient,
+  organizationId: string,
+  branchId: string
+): Promise<Jurisdiction> {
+  /*
+   * ⚠️ `organizationId` EXPLICIT, NOT LEFT TO RLS (ADR-0005). The policy would
+   *   catch it, and the tenant column is stated anyway because that is the rule
+   *   for every tenant read in this codebase — `branches` carries
+   *   `@@unique([organizationId, id])` precisely so the second layer is free.
+   *   The first draft of this function used a bare `findUnique` on the id.
+   */
+  const branch = await tx.branch.findFirst({
+    where: { id: branchId, organizationId },
+    select: { countryCode: true, regionCode: true },
+  });
+  if (!branch) throw new NotFoundError('Branch');
+  return { countryCode: branch.countryCode, regionCode: branch.regionCode };
 }

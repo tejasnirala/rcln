@@ -58,8 +58,6 @@ export type StockFormState = {
   createdId?: string;
 };
 
-export const IDLE_FORM: StockFormState = { status: 'idle' };
-
 /**
  * One place where an API refusal becomes a form state.
  *

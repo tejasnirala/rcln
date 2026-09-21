@@ -302,3 +302,143 @@ describe('the clinical vocabulary and the treatment journey', () => {
     ).rejects.toThrow(/foreign key/i); // the appointment id is fake; the CHECK passed
   });
 });
+
+/**
+ * `animal_profiles` (PI-11).
+ *
+ * ⚠️ THE TABLE WAS NAMED IN THIS FILE'S HEADER FROM CE-1 AND HAD NO CASE, WHICH
+ *   IS EXACTLY THE SHAPE OF THE FAILURE `db:rls:check` EXISTS TO CATCH AND
+ *   CANNOT: the policy was there, nothing read the table, and a missing policy
+ *   would have produced no error and broken no single-tenant test. PI-11 is the
+ *   phase that gave it rows, so it is the phase that owes it the case.
+ *
+ * ORG-SCOPED and deliberately NOT branch-isolated, following `patients` for the
+ * reason `patients` gives (ADR-0016): an animal's species and weight must follow
+ * it to whichever branch it walks into, and a dose is calculated from that
+ * weight.
+ *
+ * The two CHECK constraints are here too, because both encode a CLINICAL rule —
+ * a weight with no date cannot be dosed from, and one owner recorded two ways is
+ * two owners — and a rule that lives only in a service is a rule a fixture, a
+ * backfill or a second service will eventually route around.
+ */
+describe('animal profiles', () => {
+  const PATIENT_A = 'aaaacccc-3333-4333-8333-0000000000a1';
+  const PATIENT_B = 'aaaacccc-3333-4333-8333-0000000000b1';
+  const PROFILE_A = 'aaaacccc-5555-4555-8555-0000000000a1';
+  const PROFILE_B = 'aaaacccc-5555-4555-8555-0000000000b1';
+  const CONTACT_A = 'aaaacccc-6666-4666-8666-0000000000a1';
+  const CONTACT_B = 'aaaacccc-6666-4666-8666-0000000000b1';
+  /** A third animal in org A with NO profile, so the CHECK below is the only
+   *  thing that can refuse the insert — the unique (org, patient) key would
+   *  otherwise raise first and the test would pass for the wrong reason. */
+  const PATIENT_A_BARE = 'aaaacccc-3333-4333-8333-0000000000a2';
+
+  beforeAll(async () => {
+    await owner.query(
+      `INSERT INTO patients (id, organization_id, uhid, first_name, subject_type, updated_at)
+       VALUES ($1, $2, 'ISOVETA', 'Kaapi', 'ANIMAL', now()),
+              ($3, $4, 'ISOVETB', 'Filter', 'ANIMAL', now()),
+              ($5, $6, 'ISOVETC', 'Decoct', 'ANIMAL', now())
+       ON CONFLICT DO NOTHING`,
+      [PATIENT_A, ORG_A, PATIENT_B, ORG_B, PATIENT_A_BARE, ORG_A]
+    );
+    await owner.query(
+      `INSERT INTO patient_contacts
+         (id, organization_id, patient_id, relation, name, phone, updated_at)
+       VALUES ($1, $2, $3, 'Owner', 'A owner', '+919800000001', now()),
+              ($4, $5, $6, 'Owner', 'B owner', '+919800000002', now())
+       ON CONFLICT DO NOTHING`,
+      [CONTACT_A, ORG_A, PATIENT_A, CONTACT_B, ORG_B, PATIENT_B]
+    );
+    await owner.query(
+      `INSERT INTO animal_profiles
+         (id, organization_id, patient_id, species, weight_kg, weight_recorded_on,
+          guardian_contact_id, updated_at)
+       VALUES ($1, $2, $3, 'Dog', 18.400, DATE '2027-01-04', $4, now()),
+              ($5, $6, $7, 'Cat',  3.200, DATE '2027-01-04', $8, now())
+       ON CONFLICT DO NOTHING`,
+      [PROFILE_A, ORG_A, PATIENT_A, CONTACT_A, PROFILE_B, ORG_B, PATIENT_B, CONTACT_B]
+    );
+  });
+
+  it('shows a clinic only its own animals', async () => {
+    const seen = await asTenant(ORG_A, async () => {
+      const { rows } = await app.query('SELECT id FROM animal_profiles WHERE id = ANY($1)', [
+        [PROFILE_A, PROFILE_B],
+      ]);
+      return rows.map((r) => r.id as string);
+    });
+
+    expect(seen).toEqual([PROFILE_A]);
+  });
+
+  it('refuses to write an animal profile into another clinic', async () => {
+    await expect(
+      asTenant(ORG_A, () =>
+        app.query(
+          `INSERT INTO animal_profiles (id, organization_id, patient_id, species, updated_at)
+           VALUES (gen_random_uuid(), $1, $2, 'Horse', now())`,
+          [ORG_B, PATIENT_B]
+        )
+      )
+    ).rejects.toThrow(/row-level security/i);
+  });
+
+  /**
+   * ⚠️ THE COMPOSITE FK, DOING THE ONE THING IT IS THERE FOR (ADR-0004). An
+   *   owner at another clinic is not merely refused — it is UNREPRESENTABLE,
+   *   because the tenant column is inside the key. This runs as the OWNER, which
+   *   bypasses RLS entirely, so the only thing that can stop it is the
+   *   constraint.
+   */
+  it('cannot name another clinic’s contact as an owner, even as the owner role', async () => {
+    await expect(
+      owner.query('UPDATE animal_profiles SET guardian_contact_id = $1 WHERE id = $2', [
+        CONTACT_B,
+        PROFILE_A,
+      ])
+    ).rejects.toThrow(/foreign key|violates/i);
+  });
+
+  /**
+   * ⚠️ THE HAZARDOUS DIRECTION, AND THE ONE THE FIRST VERSION OF THE CONSTRAINT
+   *   LET THROUGH. `..090500` wrote `weight_recorded_on IS NULL OR weight_kg IS
+   *   NOT NULL`, which refuses a date that says nothing and accepts a weight
+   *   nobody can date — the state a dose then gets calculated from without
+   *   anybody being able to see how old it is. This test is what found it, and
+   *   `..091000` made the pair symmetric.
+   */
+  it('refuses a weight with no day it was taken', async () => {
+    await expect(
+      owner.query(
+        `INSERT INTO animal_profiles (id, organization_id, patient_id, weight_kg, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, 4.500, now())`,
+        [ORG_A, PATIENT_A_BARE]
+      )
+    ).rejects.toThrow(/weight_and_date_together/i);
+  });
+
+  it('refuses a date with no weight against it', async () => {
+    await expect(
+      owner.query(
+        `UPDATE animal_profiles SET weight_kg = NULL, weight_recorded_on = DATE '2027-02-01'
+         WHERE id = $1`,
+        [PROFILE_A]
+      )
+    ).rejects.toThrow(/weight_and_date_together/i);
+  });
+
+  /**
+   * One owner, recorded one way. Two spellings of one owner is how a recall
+   * notice gets posted to the wrong address.
+   */
+  it('refuses an owner recorded as a contact and as free text at once', async () => {
+    await expect(
+      owner.query('UPDATE animal_profiles SET guardian_name = $1 WHERE id = $2', [
+        'Somebody Else',
+        PROFILE_A,
+      ])
+    ).rejects.toThrow(/one_guardian_form/i);
+  });
+});

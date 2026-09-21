@@ -310,7 +310,6 @@ model SupplierTaxIdentifier {
   /// exactly as `issuer_tax_registrations` argues at length.
   @@unique([organizationId, supplierId, countryCode, scheme, registrationNumber])
   @@unique([organizationId, id])
-  @@index([organizationId, supplierId])
   @@map("supplier_tax_identifiers")
 }
 
@@ -558,7 +557,6 @@ model PurchaseRequisitionLine {
   @@unique([organizationId, requisitionId, productId])
   @@unique([organizationId, requisitionId, lineNumber])
   @@unique([organizationId, id])
-  @@index([organizationId, requisitionId])
   @@index([organizationId, productId])
   @@map("purchase_requisition_lines")
 }
@@ -761,7 +759,6 @@ model PurchaseOrderLine {
   @@unique([organizationId, purchaseOrderId, productId])
   @@unique([organizationId, purchaseOrderId, lineNumber])
   @@unique([organizationId, id])
-  @@index([organizationId, purchaseOrderId])
   @@index([organizationId, productId])
   @@map("purchase_order_lines")
 }
@@ -1021,7 +1018,6 @@ model GoodsReceiptLine {
   @@unique([organizationId, goodsReceiptId, productId, lotNumber, serialNumber])
   @@unique([organizationId, goodsReceiptId, lineNumber])
   @@unique([organizationId, id])
-  @@index([organizationId, goodsReceiptId])
   @@index([organizationId, productId])
   @@index([organizationId, purchaseOrderLineId])
   /// "What is waiting for inspection" — the quality screen.
@@ -1182,7 +1178,6 @@ model PurchaseReturnLine {
   @@unique([organizationId, purchaseReturnId, productId, batchId, serialId])
   @@unique([organizationId, purchaseReturnId, lineNumber])
   @@unique([organizationId, id])
-  @@index([organizationId, purchaseReturnId])
   @@index([organizationId, productId])
   @@index([organizationId, goodsReceiptLineId])
   @@map("purchase_return_lines")
@@ -1252,6 +1247,5 @@ model ProductCostAverage {
   /// The upsert arbiter. `currency` is NOT NULL, so no NULLS NOT DISTINCT rewrite
   /// is needed here.
   @@unique([organizationId, branchId, productId, currency])
-  @@index([organizationId, branchId, productId])
   @@map("product_cost_averages")
 }

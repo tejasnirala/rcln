@@ -32,6 +32,7 @@ import type {
 import { ConflictError, NotFoundError, ValidationError } from '../../utils/errors.js';
 import { recordAudit } from '../audit/audit.service.js';
 import type { CatalogueActionOptions } from '../product/unit.service.js';
+import { assertBranchInScope } from '../shared/branch.js';
 
 const summaryInclude = Prisma.validator<Prisma.InventoryLocationInclude>()({
   branch: { select: { name: true } },
@@ -83,18 +84,6 @@ function toDetail(row: DetailRow): InventoryLocationDetail {
       })),
     })),
   };
-}
-
-/**
- * A branch the caller may actually touch.
- *
- * ⚠️ NOT FOUND, NEVER FORBIDDEN. A branch outside the caller's scope is already
- *   invisible to RLS, so it is indistinguishable from one that does not exist,
- *   and a 403 would confirm the id is real to somebody probing for it. The rule
- *   the whole codebase follows.
- */
-function assertBranchInScope(ctx: TenantContext, branchId: string): void {
-  if (!ctx.branchIds.includes(branchId)) throw new NotFoundError('Branch');
 }
 
 async function findLocationOrThrow(tx: TxClient, id: string): Promise<DetailRow> {
