@@ -26,7 +26,7 @@
     "@types/node": "catalog:",
     "eslint": "^9.39.2",
     "jest": "^30.5.1",
-    "prettier": "^3.8.0",
+    "prettier": "^3.9.8",
     "ts-jest": "^29.4.6",
     "typescript": "catalog:"
   }
