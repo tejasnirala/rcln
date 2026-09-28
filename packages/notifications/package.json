@@ -20,7 +20,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "nodemailer": "^9.0.5"
+    "nodemailer": "^10.0.10"
   },
   "devDependencies": {
     "@rcln/config": "workspace:*",
