@@ -451,7 +451,7 @@ the bill.
           data: {
             appointmentId: APPOINTMENT_ID,
             currency: 'INR',
-            feeType: 'CONSULTATION',
+            feeType: 'NEW',
             amountMinor: CONSULTATION_FEE_PAISE,
             followUpFree: false,
             invoice: null,
@@ -466,7 +466,7 @@ the bill.
           data: {
             appointmentId: APPOINTMENT_ID,
             currency: 'INR',
-            feeType: 'CONSULTATION',
+            feeType: 'NEW',
             amountMinor: CONSULTATION_FEE_PAISE,
             followUpFree: false,
             invoice: { id: INVOICE_ID, status: 'DRAFT' },
@@ -499,10 +499,10 @@ A visit that already has a live invoice is \`409\`.
     requestExamples: [
       { summary: 'Just the consultation', value: {} },
       {
-        summary: 'With an extra line',
-        value: {
-          lines: [{ description: 'Dressing', quantity: 1, unitPriceMinor: 15000 }],
-        },
+        summary: 'Charge what was agreed',
+        description:
+          'Overrides the fee schedule for this one visit. Extra items go on through `PUT /api/v1/invoices/{invoiceId}` while the invoice is a draft.',
+        value: { unitPriceMinor: 40000, notes: 'Senior citizen rate agreed at the desk.' },
       },
     ],
   },

@@ -484,7 +484,7 @@ AuthenticationError	class	export	apps/api/src/utils/errors.ts:45	apps/api/utils	
 authLimiter	var	export	apps/api/src/middleware/rateLimiter.middleware.ts:79	apps/api/middleware	rateLimit(…)	Auth endpoints are the ones worth brute-forcing, so they get their own budget.
 AUTHORISED_PDF	const	local	packages/db/prisma/seed/data/regulatory-au-vic.ts:152	packages/db/prisma/seed/data	'https://content.legislation.vic.gov.au/sites/default/files…	
 AuthoritiesPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/regulatory/authorities/page.tsx:12	apps/web/app/(tenant)/t/[slug]/(app)/regulatory/authorities	({ params, searchParams, }: { params: Promise<{ slug: string…)	<slug>.rcln.com/regulatory/authorities — NO PHI.
-AUTHORITY_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:520	apps/api/openapi/registry	'a70b4d16-8e39-4c85-9a02-5f1d7b3c6e94'	
+AUTHORITY_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:526	apps/api/openapi/registry	'a70b4d16-8e39-4c85-9a02-5f1d7b3c6e94'	
 AuthorityList	component	export	apps/web/src/components/tenant/regulatory-lists.tsx:156	apps/web/components/tenant	({ authorities, meta, }: { authorities: RegulatoryAuthorityL…)	
 AuthorityParameters	interface	export	packages/regulatory/src/parameters.ts:340	packages/regulatory	{ permittedRoleCodes, permittedLicenceTypes, permittedPrescriberClasses, exemptWhenActorIsPrescriber }	
 AuthorityRow	interface	export	apps/api/src/services/regulatory/shared.ts:65	apps/api/services/regulatory	{ id, jurisdictionId, code, name, websiteUrl, remit, isActive, jurisdiction }	
@@ -786,8 +786,8 @@ Card	component	local	apps/web/src/components/tenant/patient-chart.tsx:341	apps/w
 cardFor	fn/async	local	apps/api/tests/integration/clinic-tax.test.ts:235	apps/api/tests/integration	(category: string): Promise<CategoryCard | undefined>	
 CARDIOLOGY	const	local	apps/api/src/openapi/registry/clinical-taxonomy.ts:65	apps/api/openapi/registry	{ id: SPECIALTY_CARDIOLOGY_ID, code: 'CARDIOLOGY', name: 'Cardiology', parentId: SPECIALT…	
 CARE_CONTEXT_CODE	const	local	apps/api/src/services/clinical/consultation-config.service.ts:72	apps/api/services/clinical	: Readonly<Record<string, string>>	
-CARE_CONTEXT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:487	apps/api/openapi/registry	'd3f9b247-8e05-4a61-9c73-5b1d2e8a6c40'	The `HUMAN` care context — the platform `CARE_CONTEXT` node at the root of the specialty taxonomy, seeded in `seed/data…
-CARE_CONTEXT_VET_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:493	apps/api/openapi/registry	'1f6b3d95-7a20-4e48-8c31-9b5d0a2e7c64'	
+CARE_CONTEXT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:493	apps/api/openapi/registry	'd3f9b247-8e05-4a61-9c73-5b1d2e8a6c40'	The `HUMAN` care context — the platform `CARE_CONTEXT` node at the root of the specialty taxonomy, seeded in `seed/data…
+CARE_CONTEXT_VET_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:499	apps/api/openapi/registry	'1f6b3d95-7a20-4e48-8c31-9b5d0a2e7c64'	
 careContextFor	fn/async	local	apps/api/src/services/clinical/consultation-config.service.ts:171	apps/api/services/clinical	(tx: TxClient, subjectType: string): Promise<CareContextRow>	
 careContextId	fn/async	local	apps/api/tests/integration/onboarding.test.ts:113	apps/api/tests/integration	(code: string): Promise<string>	The two platform care contexts, by code, as `seed/data/specialties.ts` names them.
 careContextOption	zod	export	packages/contracts/src/onboarding-wizard.ts:181	packages/contracts	z.object(…)	One care context the clinic may pick — a platform row, or its own.
@@ -813,8 +813,8 @@ CataloguePermission	type	local	apps/web/src/components/tenant/role-list.tsx:26	a
 CATEGORIES	const	export	packages/db/prisma/seed/data/product-masters.ts:152	packages/db/prisma/seed/data	: SeedCategory[]	
 CategoriesPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/categories/page.tsx:19	apps/web/app/(tenant)/t/[slug]/(app)/products/categories	({ params }: { params: Promise<{ slug: string }> })	<slug>.rcln.com/products/categories The API returns the tree already flattened and in order, each row carrying its `dep…
 CATEGORY	const	local	apps/api/src/openapi/registry/catalogue-masters.ts:79	apps/api/openapi/registry	{ id: CATEGORY_ID, code: 'ANTIBIOTICS', name: 'Antibiotics', parentId: null, description:…	
-CATEGORY_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:548	apps/api/openapi/registry	'ANTIBIOTIC'	The category `CATEGORY_ID` is known by.
-CATEGORY_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:527	apps/api/openapi/registry	'6f2b8d05-3a94-4c17-8e60-1d7c5a9b2e43'	
+CATEGORY_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:556	apps/api/openapi/registry	'ANTIBIOTIC'	The category `CATEGORY_ID` is known by.
+CATEGORY_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:533	apps/api/openapi/registry	'6f2b8d05-3a94-4c17-8e60-1d7c5a9b2e43'	
 CategoryAncestorRow	interface	local	apps/api/src/services/regulatory/evaluation.service.ts:51	apps/api/services/regulatory	{ id }	
 CategoryFields	component	local	apps/web/src/components/tenant/product-category-list.tsx:137	apps/web/components/tenant	({ errors, categories, category, }: { errors: (name: string)…)	
 categoryPath	fn/async	local	apps/api/src/services/regulatory/evaluation.service.ts:64	apps/api/services/regulatory	(tx: TxClient, categoryId: string | null): Promise<string[]>	
@@ -842,10 +842,10 @@ CHANNELS	component	local	apps/web/src/components/tenant/online-order-form.tsx:78
 CHANNELS	component	local	apps/web/src/components/tenant/online-order-list.tsx:41	apps/web/components/tenant	[ { value: '', label: 'However it arrived' }, { value: 'WEB', label: 'Web' }, { value: 'P…	
 Charge	component	local	apps/web/src/components/tenant/appointment-billing-panel.tsx:204	apps/web/components/tenant	({ charge, currency, billing, }: { charge: ConsultationCharg…)	
 CHARGE_MANAGE	const	local	apps/api/src/routes/v1/charging.routes.ts:95	apps/api/routes/v1	PERMISSIONS.CHARGE_REQUEST_MANAGE	
-CHARGE_POLICY_RULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:583	apps/api/openapi/registry	'72e5b0d3-9a48-4c16-8f27-1d6c3b5a0e94'	
+CHARGE_POLICY_RULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:591	apps/api/openapi/registry	'72e5b0d3-9a48-4c16-8f27-1d6c3b5a0e94'	
 CHARGE_READ	const	local	apps/api/src/routes/v1/charging.routes.ts:94	apps/api/routes/v1	PERMISSIONS.CHARGE_REQUEST_READ	
 CHARGE_REQUEST	const	local	apps/api/src/openapi/registry/charging.ts:67	apps/api/openapi/registry	{ id: CHARGE_REQUEST_ID, branchId: BRANCH_ID, kind: 'SUPPLY', status: 'PENDING', patientI…	
-CHARGE_REQUEST_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:582	apps/api/openapi/registry	'ab41e097-5c62-4d38-9e15-3b7a0c4f2d68'	
+CHARGE_REQUEST_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:590	apps/api/openapi/registry	'ab41e097-5c62-4d38-9e15-3b7a0c4f2d68'	
 CHARGE_SELECT	const	local	apps/api/src/services/invoicing/charge-billing.service.ts:46	apps/api/services/invoicing	{ id: true, branchId: true, sourceType: true, kind: true, s…	
 CHARGE_STATUS	const	local	packages/payments/src/providers/cashfree.ts:122	packages/payments/providers	: Readonly<Record<string, ChargeStatus>>	Cashfree's terminal payment states, mapped onto ours.
 ChargeableLine	interface	export	apps/api/src/services/charging/charge-request.service.ts:69	apps/api/services/charging	{ dispenseLineId, dispenseReturnLineId, consumptionLineId, productId, quantityBase }	One supplied, consumed — or returned — line, as the caller already has it.
@@ -982,7 +982,7 @@ client	var	local	packages/db/src/client.ts:21	packages/db	: PrismaClient | undef
 clientAddress	fn/async	local	apps/web/src/lib/api.ts:85	apps/web/lib	(): Promise<string | undefined>	
 clientAddress	fn	local	apps/web/src/proxy.ts:97	apps/web	(request: NextRequest): Record<string, string>	The browser's address, as a header to pass on — or nothing if we do not know it. A chain of proxies appends, so the ori…
 CLINIC_MODULES	const	export	packages/contracts/src/onboarding.ts:74	packages/contracts	: readonly { key: ClinicModule; label: string; /** The `plan_features` key that g…	
-CLINIC_PROFILE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:502	apps/api/openapi/registry	'5a7c1e94-3b60-4d28-9f45-2e8b0c6a3d71'	Alpha Clinic's organization-level profile row — the one whose `branch_id` is NULL, recording what the clinic as a whole…
+CLINIC_PROFILE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:508	apps/api/openapi/registry	'5a7c1e94-3b60-4d28-9f45-2e8b0c6a3d71'	Alpha Clinic's organization-level profile row — the one whose `branch_id` is NULL, recording what the clinic as a whole…
 CLINICAL	const	local	apps/api/src/routes/v1/reports.routes.ts:107	apps/api/routes/v1	PERMISSIONS.REPORT_CLINICAL	
 CLINICAL_AUTHORING	const	local	packages/permissions/src/roles.ts:57	packages/permissions	: PermissionCode[]	
 CLINICAL_LOCALE	const	local	apps/web/src/lib/format.ts:90	apps/web/lib	'en-GB'	
@@ -1061,7 +1061,7 @@ CLOSURE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:78	apps/api/op
 cn	fn	export	apps/web/src/lib/cn.ts:9	apps/web/lib	(inputs: ClassValue[]): string	Conditional class names with later Tailwind utilities winning over earlier ones, so a component's own classes can be ov…
 CODE_PATTERN	const	local	packages/clinical/src/definition.ts:43	packages/clinical	/^[A-Z][A-Z0-9_]*$/	A taxonomy or map code, spelled the way every other code in this repo is.
 CODE_SETTABLE_MATURITIES	const	export	packages/regulatory/src/types.ts:61	packages/regulatory	[ 'ARCHITECTURE_SUPPORTED', 'RULES_CONFIGURED', 'RULES_IMPLEMENTED', 'AUTOMATED_TESTED', …	
-CODED_OR_TYPED	const	local	apps/api/src/openapi/registry/encounters.ts:115	apps/api/openapi/registry	` **Either a coded term or your own words — never both and …	
+CODED_OR_TYPED	const	local	apps/api/src/openapi/registry/encounters.ts:118	apps/api/openapi/registry	` **Either a coded term or your own words — never both and …	
 CODED_OR_TYPED_MESSAGE	const	local	packages/contracts/src/encounter-content.ts:160	packages/contracts	{ message: 'Give either a clinical term or your own words — not both and not neither', }	
 codedOrTypedRule	fn	local	packages/contracts/src/encounter-content.ts:155	packages/contracts	(body: { itemId?: string | undefined; customText?: string | …): boolean	
 codedOrTypedShape	var	local	packages/contracts/src/encounter-content.ts:150	packages/contracts	{ itemId: uuid.optional(), customText: z.string().trim().min(1).max(255).optional(), }	
@@ -1080,8 +1080,8 @@ CodeSettableMaturity	type	export	packages/contracts/src/regulatory.ts:715	packag
 codingsFor	fn/async	local	apps/api/src/services/clinical/master.service.ts:53	apps/api/services/clinical	(tx: TxClient, itemIds: string[]): Promise<Map<string, ClinicalMasterItem['codings']>>	
 ColGroup	component	local	packages/documents/src/invoice/items.tsx:208	packages/documents/invoice	({ fixed, taxColumns, }: { /** Every column except the descr…): JSX.Element	
 collectEndpoints	fn	local	apps/api/src/openapi/document.ts:51	apps/api/openapi	(): Endpoint[]	Every documented endpoint, in mount order.
-Collection	interface	local	apps/api/src/openapi/registry/encounters.ts:102	apps/api/openapi/registry	{ path, noun, what, immutable, createExample, updateExample, errors }	
-COLLECTIONS	const	local	apps/api/src/openapi/registry/encounters.ts:123	apps/api/openapi/registry	: readonly Collection[]	
+Collection	interface	local	apps/api/src/openapi/registry/encounters.ts:105	apps/api/openapi/registry	{ path, noun, what, immutable, createExample, updateExample, errors }	
+COLLECTIONS	const	local	apps/api/src/openapi/registry/encounters.ts:126	apps/api/openapi/registry	: readonly Collection[]	
 COLLECTIONS	const	local	apps/api/src/routes/v1/encounters.routes.ts:301	apps/api/routes/v1	[ { path: 'symptoms', create: createEncounterSymptomRequest, update: updateEncounterSympt…	
 Column	component	local	apps/web/src/components/tenant/classification-picker.tsx:441	apps/web/components/tenant	({ nodes, openId, alreadyChosen, tree, onOpen, onChoose, }: …)	
 columnLabel	fn	export	apps/web/src/lib/taxonomy.ts:122	apps/web/lib	(nodes: SpecialtySummary[]): string	
@@ -1098,8 +1098,8 @@ complaint	fn	local	packages/clinical/tests/definition.test.ts:18	packages/clinic
 completeOnboarding	fn/async	export	apps/api/src/services/organization/onboarding.service.ts:807	apps/api/services/organization	(ctx: TenantContext, options: OnboardingActionOptions): Promise<void>	
 composeMandateId	fn	local	packages/payments/src/providers/razorpay.ts:1472	packages/payments/providers	(customerId: string, tokenId: string): string	
 COMPOSITION	const	local	apps/api/src/openapi/registry/catalogue-masters.ts:111	apps/api/openapi/registry	{ id: COMPOSITION_ID, code: 'AMOX_500_CAP', name: 'Amoxicillin 500mg capsule', dosageForm…	
-COMPOSITION_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:552	apps/api/openapi/registry	'AMOXICILLIN-500'	The composition `COMPOSITION_ID` is known by — what the medicine IS.
-COMPOSITION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:529	apps/api/openapi/registry	'e93c6a17-2b48-4d05-9f81-7a0e4b6c3d52'	
+COMPOSITION_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:560	apps/api/openapi/registry	'AMOXICILLIN_500'	The composition `COMPOSITION_ID` is known by — what the medicine IS.
+COMPOSITION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:535	apps/api/openapi/registry	'e93c6a17-2b48-4d05-9f81-7a0e4b6c3d52'	
 CompositionForm	component	export	apps/web/src/components/tenant/composition-form.tsx:94	apps/web/components/tenant	({ slug, ingredients, units, composition, canManage }: Props)	
 compositionInclude	var	local	apps/api/src/services/product/catalogue.service.ts:340	apps/api/services/product	{ ingredients: { include: { ingredient: { select: { name: true, innName: true } }, streng…	
 compositionIngredientDetail	zod	export	packages/contracts/src/products.ts:386	packages/contracts	z.object(…)	
@@ -1215,13 +1215,13 @@ consultForSupply	fn/async	export	apps/api/src/services/pharmacy/consult.ts:107	a
 consultingWeek	fn	local	apps/web/src/components/tenant/working-day-picker.tsx:343	apps/web/components/tenant	(days: WorkingDay[]): string	
 consumeChallenge	fn/async	export	apps/api/src/services/auth/challenge.service.ts:98	apps/api/services/auth	(input: { purpose: AuthTokenPurpose; identifier: string; cod…): Promise<string>	
 CONSUMPTION_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:276	apps/api/routes/v1	: readonly CsvColumn<ConsumptionCostRow>[]	
-CONSUMPTION_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:589	apps/api/openapi/registry	'0c9e5b74-2a18-4f63-8d05-7b3a1c6e9d42'	
+CONSUMPTION_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:597	apps/api/openapi/registry	'0c9e5b74-2a18-4f63-8d05-7b3a1c6e9d42'	
 CONSUMPTION_READ	const	local	apps/api/src/routes/v1/consumption.routes.ts:91	apps/api/routes/v1	PERMISSIONS.CONSUMPTION_READ	
 CONSUMPTION_RECORD	const	local	apps/api/src/routes/v1/consumption.routes.ts:92	apps/api/routes/v1	PERMISSIONS.CONSUMPTION_RECORD	
-CONSUMPTION_RECORD_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:587	apps/api/openapi/registry	'4b8a1d67-0c39-4e85-8b74-6f2c5a9e3d10'	
+CONSUMPTION_RECORD_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:595	apps/api/openapi/registry	'4b8a1d67-0c39-4e85-8b74-6f2c5a9e3d10'	
 CONSUMPTION_SIGN	const	local	apps/api/src/services/reports/activity-reports.service.ts:279	apps/api/services/reports	Prisma.sql` CASE WHEN cc.kind = 'CONSUMPTION_REVERSAL' THEN…	
-CONSUMPTION_TEMPLATE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:585	apps/api/openapi/registry	'1e0d5c86-3b74-4a29-9f51-8c2a6b0e4d37'	
-CONSUMPTION_TEMPLATE_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:586	apps/api/openapi/registry	'95c7b230-8f16-4d54-9a83-2e0b7c1a5f69'	
+CONSUMPTION_TEMPLATE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:593	apps/api/openapi/registry	'1e0d5c86-3b74-4a29-9f51-8c2a6b0e4d37'	
+CONSUMPTION_TEMPLATE_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:594	apps/api/openapi/registry	'95c7b230-8f16-4d54-9a83-2e0b7c1a5f69'	
 ConsumptionActionOptions	interface	export	apps/api/src/services/consumption/shared.ts:69	apps/api/services/consumption	{ route, ipAddress, userAgent, actingBranchId, permissionCodes }	What every consumption route hands its service.
 consumptionAllocationDetail	zod	export	packages/contracts/src/consumption.ts:345	packages/contracts	z.object(…)	
 ConsumptionAllocationDetail	type	export	packages/contracts/src/consumption.ts:475	packages/contracts	z.infer<typeof consumptionAllocationDetail>	
@@ -1600,7 +1600,7 @@ createVisualMapRequest	zod	export	packages/contracts/src/visual-mapping.ts:136	p
 CreateVisualMapRequest	type	export	packages/contracts/src/visual-mapping.ts:147	packages/contracts	z.infer<typeof createVisualMapRequest>	
 createVisualRegionRequest	zod	export	packages/contracts/src/visual-mapping.ts:162	packages/contracts	z.object(…)	
 CreateVisualRegionRequest	type	export	packages/contracts/src/visual-mapping.ts:170	packages/contracts	z.infer<typeof createVisualRegionRequest>	
-CREDIT_NOTE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:595	apps/api/openapi/registry	'3d6e0a95-8b27-4c14-9f83-2b7a5c0e1d46'	
+CREDIT_NOTE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:603	apps/api/openapi/registry	'3d6e0a95-8b27-4c14-9f83-2b7a5c0e1d46'	
 CREDITABLE_STATUSES	const	local	apps/api/src/services/invoicing/credit-note.service.ts:66	apps/api/services/invoicing	['ISSUED', 'PARTIALLY_PAID', 'PAID'] as const	
 creditedPerLine	fn/async	local	apps/api/src/services/invoicing/credit-note.service.ts:414	apps/api/services/invoicing	(tx: TxClient, ctx: TenantContext, invoiceId: string): Promise<Map<string, Prisma.Decimal>>	
 creditInvoice	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invoices/actions.ts:294	apps/web/app/(tenant)/t/[slug]/(app)/invoices	(slug: string, invoiceId: string, reason: string, lines: { invoiceItemId: string; quantity?: string | undefin…): Promise<InvoiceFormState>	
@@ -1759,7 +1759,7 @@ deliverOnlineOrder	fn/async	export	apps/api/src/services/pharmacy/fulfilment.ser
 deliverOnlineOrderAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/orders/actions.ts:299	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy/orders	(slug: string, orderId: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>	
 deliverOnlineOrderRequest	zod	export	packages/contracts/src/online-pharmacy.ts:298	packages/contracts	z.object(…)	
 DeliverOnlineOrderRequest	type	export	packages/contracts/src/online-pharmacy.ts:444	packages/contracts	z.infer<typeof deliverOnlineOrderRequest>	
-DELIVERY_ADDRESS	const	export	apps/api/src/openapi/registry/fixtures.ts:632	apps/api/openapi/registry	{ recipientName: 'Ravi Subramanian', recipientPhone: '+919845067890', addressLine1: '42 L…	Where the parcel goes. ⚠️ PHI in every field but the two jurisdiction codes.
+DELIVERY_ADDRESS	const	export	apps/api/src/openapi/registry/fixtures.ts:640	apps/api/openapi/registry	{ recipientName: 'Ravi Subramanian', recipientPhone: '+919845067890', addressLine1: '42 L…	Where the parcel goes. ⚠️ PHI in every field but the two jurisdiction codes.
 DEMO_RECEIPT	const	local	apps/api/src/openapi/registry/public.ts:19	apps/api/openapi/registry	{ type: 'object', required: ['received'], properties: { received: { type: 'boolean', cons…	
 DemoForm	component	export	apps/web/src/components/marketing/demo-form.tsx:10	apps/web/components/marketing	()	
 DemoFormState	type	export	apps/web/src/app/(marketing)/actions.ts:18	apps/web/app/(marketing)	{ status: 'idle' | 'booked' | 'error'; message?: string; fieldErrors?: Record<string, string[]>; }	
@@ -1872,16 +1872,16 @@ discountOf	fn	local	apps/api/src/services/invoicing/invoice.service.ts:968	apps/
 dispatch	fn/async	local	apps/api/src/services/billing/webhook.service.ts:127	apps/api/services/billing	(event: WebhookEvent): Promise<'processed' | 'ignored'>	
 dispatchTransfer	fn/async	export	apps/api/src/services/inventory/transfer.service.ts:821	apps/api/services/inventory	(ctx: TenantContext, id: string, options: CatalogueActionOptions): Promise<StockTransferDetail>	
 dispatchTransferAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:471	apps/web/app/(tenant)/t/[slug]/(app)/stock	(slug: string, transferId: string, _prev: StockFormState): Promise<StockFormState>	
-DISPENSE_ALLOCATION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:508	apps/api/openapi/registry	'7b0c4e18-2f95-4a63-8d51-6e9a3c0b5d27'	
+DISPENSE_ALLOCATION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:514	apps/api/openapi/registry	'7b0c4e18-2f95-4a63-8d51-6e9a3c0b5d27'	
 DISPENSE_CREATE	const	local	apps/api/src/routes/v1/online-pharmacy.routes.ts:98	apps/api/routes/v1	PERMISSIONS.DISPENSE_CREATE	
 DISPENSE_CREATE	const	local	apps/api/src/routes/v1/pharmacy.routes.ts:96	apps/api/routes/v1	PERMISSIONS.DISPENSE_CREATE	
 DISPENSE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:74	apps/api/openapi/registry	'0b8e3d57-2f91-4a64-9c38-7d5a0e1b6c92'	
-DISPENSE_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:507	apps/api/openapi/registry	'e2f7a504-8c61-4b39-9d70-3a5c1e8b6f42'	
+DISPENSE_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:513	apps/api/openapi/registry	'e2f7a504-8c61-4b39-9d70-3a5c1e8b6f42'	
 DISPENSE_LINE_PAISE	const	export	apps/api/src/openapi/registry/fixtures.ts:367	apps/api/openapi/registry	24000	
-DISPENSE_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:506	apps/api/openapi/registry	'DSP-2026-011204'	
+DISPENSE_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:512	apps/api/openapi/registry	'DSP-2026-011204'	
 DISPENSE_READ	const	local	apps/api/src/routes/v1/pharmacy.routes.ts:94	apps/api/routes/v1	PERMISSIONS.DISPENSE_READ	
 DISPENSE_RETURN	const	local	apps/api/src/routes/v1/pharmacy.routes.ts:97	apps/api/routes/v1	PERMISSIONS.DISPENSE_RETURN	
-DISPENSE_RETURN_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:509	apps/api/openapi/registry	'c5983a26-0d47-4e81-9b32-8f6c1a4e7b90'	
+DISPENSE_RETURN_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:515	apps/api/openapi/registry	'c5983a26-0d47-4e81-9b32-8f6c1a4e7b90'	
 DISPENSE_SUMMARY	const	local	apps/api/src/openapi/registry/pharmacy.ts:55	apps/api/openapi/registry	{ id: DISPENSE_ID, dispenseNumber: DISPENSE_NUMBER, kind: 'PRESCRIPTION', status: 'DISPEN…	
 DISPENSE_VERIFY	const	local	apps/api/src/routes/v1/pharmacy.routes.ts:95	apps/api/routes/v1	PERMISSIONS.DISPENSE_VERIFY	
 dispenseAction	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/pharmacy/actions.ts:181	apps/web/app/(tenant)/t/[slug]/(app)/pharmacy	(slug: string, _previous: PharmacyFormState, form: FormData): Promise<PharmacyFormState>	
@@ -2011,7 +2011,7 @@ doctorWeekResponse	zod	export	packages/contracts/src/doctors.ts:754	packages/con
 DoctorWeekResponse	type	export	packages/contracts/src/doctors.ts:786	packages/contracts	z.infer<typeof doctorWeekResponse>	
 document	var	local	apps/api/scripts/validate-openapi.ts:25	apps/api/scripts	buildOpenApiDocument(…)	
 document	fn	local	packages/clinical/tests/definition.test.ts:39	packages/clinical/tests	(over: Record<string, unknown>): Record<string, unknown>	
-DOCUMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:476	apps/api/openapi/registry	'5c1e8a37-0b94-4d26-9f73-6a2b8c4e1d05'	A stored document the consultation attaches.
+DOCUMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:482	apps/api/openapi/registry	'5c1e8a37-0b94-4d26-9f73-6a2b8c4e1d05'	A stored document the consultation attaches.
 DOCUMENT_JOB	const	export	packages/queue/src/index.ts:149	packages/queue	{ INVOICE_PDF: 'INVOICE_PDF', } as const	
 DOCUMENT_LIMITS	const	export	packages/clinical/src/validate.ts:317	packages/clinical	{ fieldsPerSection: MAX_FIELDS_PER_SECTION, keyLength: MAX_KEY_LENGTH, textLength: MAX_TE…	
 DOCUMENT_SELECT	const	local	apps/api/src/services/invoicing/invoice.service.ts:680	apps/api/services/invoicing	{ fileId: true, generatedAt: true, file: { select: { status…	
@@ -2128,14 +2128,14 @@ emptyCounts	fn	local	apps/api/src/services/appointment/appointment.service.ts:35
 EmptyLedger	component	local	apps/web/src/components/tenant/invoice-list.tsx:467	apps/web/components/tenant	({ filtered }: { filtered: boolean })	
 emptyToNull	fn	export	apps/web/src/lib/api.ts:271	apps/web/lib	(value: FormDataEntryValue | null): string | null	
 encodeBranchScope	fn	local	packages/db/src/tenant.ts:43	packages/db	(branchIds: string[]): string	
-ENCOUNTER_EXAMPLE	const	local	apps/api/src/openapi/registry/encounters.ts:53	apps/api/openapi/registry	{ id: ENCOUNTER_ID, status: 'DRAFT', encounterNumber: null, branchId: BRANCH_ID, patientI…	
+ENCOUNTER_EXAMPLE	const	local	apps/api/src/openapi/registry/encounters.ts:56	apps/api/openapi/registry	{ id: ENCOUNTER_ID, status: 'DRAFT', encounterNumber: null, branchId: BRANCH_ID, patientI…	
 ENCOUNTER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:64	apps/api/openapi/registry	'9c2f6d18-7a43-4e95-8b01-3d6a2e9f4c57'	
-ENCOUNTER_NOTE	const	local	apps/api/src/openapi/registry/encounters.ts:47	apps/api/openapi/registry	'The consultation, as `POST /api/v1/encounters` or `GET /ap…	
+ENCOUNTER_NOTE	const	local	apps/api/src/openapi/registry/encounters.ts:50	apps/api/openapi/registry	'The consultation, as `POST /api/v1/encounters` or `GET /ap…	
 ENCOUNTER_NOTE	const	local	apps/api/src/openapi/registry/pharmacy.ts:53	apps/api/openapi/registry	'The consultation the prescription was written on, as the q…	
 ENCOUNTER_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:464	apps/api/openapi/registry	'ENC-2026-002877'	
 ENCOUNTER_OPENED_AT	const	export	apps/api/src/openapi/registry/fixtures.ts:97	apps/api/openapi/registry	'2026-03-17T04:04:00.000Z'	
 ENCOUNTER_PREFIX	const	local	apps/api/src/services/clinical/encounter.service.ts:59	apps/api/services/clinical	'ENC'	
-ENCOUNTER_PROCEDURE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:588	apps/api/openapi/registry	'8f3c6a02-7d51-4b96-9e48-0b5a2c7e1d63'	
+ENCOUNTER_PROCEDURE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:596	apps/api/openapi/registry	'8f3c6a02-7d51-4b96-9e48-0b5a2c7e1d63'	
 ENCOUNTER_SUMMARY_SELECT	const	local	apps/api/src/services/clinical/visit-history.service.ts:71	apps/api/services/clinical	{ id: true, status: true, encounterNumber: true, startedAt:…	
 ENCOUNTER_WORDS	const	local	apps/web/src/components/tenant/visit-history.tsx:29	apps/web/components/tenant	: Record<string, string>	
 encounterAdvice	zod	export	packages/contracts/src/encounter-content.ts:499	packages/contracts	z.object(…)	
@@ -2151,7 +2151,7 @@ encounterDetail	zod	export	packages/contracts/src/encounters.ts:192	packages/con
 EncounterDetail	type	export	packages/contracts/src/encounters.ts:235	packages/contracts	z.infer<typeof encounterDetail>	
 encounterDiagnosis	zod	export	packages/contracts/src/encounter-content.ts:254	packages/contracts	z.object(…)	
 EncounterDiagnosis	type	export	packages/contracts/src/encounter-content.ts:263	packages/contracts	z.infer<typeof encounterDiagnosis>	
-encounterDocs	var	export	apps/api/src/openapi/registry/encounters.ts:277	apps/api/openapi/registry	: DocRegistry	
+encounterDocs	var	export	apps/api/src/openapi/registry/encounters.ts:287	apps/api/openapi/registry	: DocRegistry	
 encounterInvestigation	zod	export	packages/contracts/src/encounter-content.ts:457	packages/contracts	z.object(…)	
 EncounterInvestigation	type	export	packages/contracts/src/encounter-content.ts:466	packages/contracts	z.infer<typeof encounterInvestigation>	
 encounterParams	zod	local	apps/api/src/routes/v1/encounters.routes.ts:113	apps/api/routes/v1	z.object(…)	
@@ -2394,6 +2394,7 @@ findDuplicates	fn/async	export	apps/api/src/services/patient/patient.service.ts:
 findExpiredBuckets	fn/async	export	packages/inventory/src/expiry.ts:114	packages/inventory	(tx: TxClient, branchId: string): Promise<ExpiredBucket[]>	
 findFinalized	fn/async	local	apps/api/src/services/clinical/visit-history.service.ts:393	apps/api/services/clinical	(tx: TxClient, filter: { patientId: string; appointmentId?: string; clinic…): Promise<Prisma.EncounterGetPayload<{ select: typeof PREVIOU…	
 FINDING_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:132	apps/api/services/clinical	{ id: true, sectionKey: true, diagnosisId: true, severity: true, notes: true, metadata: t…	
+FINDING_TERM_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:480	apps/api/openapi/registry	'dc1c921f-4d48-46e9-bb90-f08b93d418e4'	"Caries" — a `FINDING_TYPE` word, what is marked on a chart region.
 FindingDots	component	local	apps/web/src/components/tenant/visual-mapping.tsx:217	apps/web/components/tenant	({ x, y, count }: { x: number; y: number; count: number })	One dot per finding, up to three, then a plus.
 findingRegionRef	zod	export	packages/contracts/src/visual-mapping.ts:199	packages/contracts	z.object(…)	Where on the map, as the chart needs to render it.
 FindingRegionRef	type	export	packages/contracts/src/visual-mapping.ts:204	packages/contracts	z.infer<typeof findingRegionRef>	
@@ -2501,7 +2502,7 @@ fromDateString	fn	export	apps/api/src/services/procurement/shared.ts:305	apps/ap
 fromMajor	fn	export	packages/payments/src/money.ts:160	packages/payments	(value: string | number, currency: string): Money	
 fromTime	fn	local	apps/api/src/services/branch/branch.service.ts:117	apps/api/services/branch	(value: Date): string	
 fromTime	fn	local	apps/api/src/services/doctor/doctor-schedule.service.ts:46	apps/api/services/doctor	(value: Date): string	
-FULFILMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:511	apps/api/openapi/registry	'9d3e5b71-6a08-4f42-8c95-1b7d0e2a6c53'	
+FULFILMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:517	apps/api/openapi/registry	'9d3e5b71-6a08-4f42-8c95-1b7d0e2a6c53'	
 fulfilRecommendation	fn/async	local	apps/api/src/services/appointment/appointment.service.ts:1561	apps/api/services/appointment	(tx: TxClient, recommendationId: string, appointmentId: string, patientId: string): Promise<void>	
 fullNameOf	fn	local	apps/api/src/services/patient/patient.service.ts:186	apps/api/services/patient	(firstName: string, lastName: string | null): string	
 fullPath	fn	local	apps/api/src/openapi/document.ts:28	apps/api/openapi	(prefix: string, path: string): string	Join a mount prefix to a router-relative path without doubling the slash.
@@ -2611,7 +2612,7 @@ GIVE_UP_AFTER_MS	const	local	apps/web/src/components/tenant/payment-return.tsx:3
 giveRole	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:41	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, _previous: MemberFormState, formData: FormData): Promise<MemberFormState>	
 GiveRoleForm	component	local	apps/web/src/components/tenant/member-list.tsx:421	apps/web/components/tenant	({ slug, member, roles, branches, canAssignOrgWide, }: { slu…)	
 GOODS_RECEIPT	const	local	apps/api/src/openapi/registry/procurement.ts:145	apps/api/openapi/registry	{ id: GOODS_RECEIPT_ID, goodsReceiptNumber: 'GRN-2026-000589', branchId: BRANCH_ID, suppl…	
-GOODS_RECEIPT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:573	apps/api/openapi/registry	'58a2c714-6e03-4b89-9d25-0f7c3a1b6e48'	
+GOODS_RECEIPT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:581	apps/api/openapi/registry	'58a2c714-6e03-4b89-9d25-0f7c3a1b6e48'	
 goodsReceiptDetail	var	export	packages/contracts/src/procurement.ts:844	packages/contracts	goodsReceiptSummary.extend(…)	
 GoodsReceiptDetail	type	export	packages/contracts/src/procurement.ts:1079	packages/contracts	z.infer<typeof goodsReceiptDetail>	
 GoodsReceiptForm	component	export	apps/web/src/components/tenant/goods-receipt-form.tsx:106	apps/web/components/tenant	({ slug, branches, suppliers, locations, manufacturers, orde…)	
@@ -2649,7 +2650,7 @@ GrantRow	interface	local	packages/db/scripts/apply-grants.ts:89	packages/db/scri
 GRID	component	local	apps/web/src/components/tenant/consultation-content.tsx:935	apps/web/components/tenant	'grid gap-3 sm:grid-cols-2 2xl:grid-cols-3'	
 GRID_CELLS	const	local	apps/web/src/components/tenant/working-day-picker.tsx:57	apps/web/components/tenant	42	A month grid is six weeks of seven days, always — a fixed height never jumps.
 gridKeys	fn	local	apps/api/src/services/fees/fee-schedule.service.ts:193	apps/api/services/fees	(rows: EntryRow[]): string[]	
-GRN_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:574	apps/api/openapi/registry	'f39b6d51-0c84-4e27-9a63-5d1b8a2e7c40'	
+GRN_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:582	apps/api/openapi/registry	'f39b6d51-0c84-4e27-9a63-5d1b8a2e7c40'	
 Group	component	local	apps/web/src/components/shell/theme-settings.tsx:160	apps/web/components/shell	({ legend, hint, children, }: { legend: string; hint: string…)	
 groupByModule	fn	local	apps/web/src/components/tenant/role-list.tsx:28	apps/web/components/tenant	(permissions: PermissionCatalogue): [string, CataloguePermission[]][]	
 GROUPING_LOCALE	const	local	packages/documents/src/invoice/format.ts:53	packages/documents/invoice	: Readonly<Record<string, string>>	
@@ -2742,7 +2743,7 @@ HUMAN_ONLY	const	export	apps/api/src/services/regulatory/shared.ts:38	apps/api/s
 HUMAN_ONLY_MATURITIES	const	export	packages/regulatory/src/types.ts:71	packages/regulatory	['REGULATORY_REVIEWED', 'PRODUCTION_ENABLED'] as const	The two states only a named human may set.
 HUMAN_STEPS	const	local	apps/web/src/components/tenant/maturity-rail.tsx:34	apps/web/components/tenant	2	Where the platform's work ends and a person's begins.
 humanise	fn	export	apps/web/src/lib/enum-words.ts:18	apps/web/lib	(value: string): string	
-IDENTIFIER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:555	apps/api/openapi/registry	'5a9d1c48-0f36-4e72-9b85-4c7a2e6b1d03'	
+IDENTIFIER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:563	apps/api/openapi/registry	'5a9d1c48-0f36-4e72-9b85-4c7a2e6b1d03'	
 IDENTIFIER_TYPES	const	local	apps/web/src/components/tenant/product-panel.tsx:77	apps/web/components/tenant	[ { value: 'GTIN', label: 'GTIN' }, { value: 'EAN', label: 'EAN' }, { value: 'UPC', label…	
 identifierCandidates	fn	local	apps/api/src/services/inventory/resolve.service.ts:60	apps/api/services/inventory	(decoded: DecodedPayload): string[]	
 identifierParams	var	local	apps/api/src/routes/v1/products.routes.ts:109	apps/api/routes/v1	productParams.extend(…)	
@@ -2829,7 +2830,7 @@ indianInvoice	var	export	packages/documents/src/invoice/samples.ts:28	packages/d
 INGEST_RESULT	const	local	apps/api/src/openapi/registry/webhooks.ts:16	apps/api/openapi/registry	{ type: 'object', required: ['outcome'], properties: { outcome: { type: 'string', enum: […	
 ingestWebhook	fn/async	export	apps/api/src/services/billing/webhook.service.ts:53	apps/api/services/billing	(raw: RawWebhook): Promise<WebhookOutcome>	
 INGREDIENT	const	local	apps/api/src/openapi/registry/catalogue-masters.ts:101	apps/api/openapi/registry	{ id: INGREDIENT_ID, code: 'AMOXICILLIN', name: 'Amoxicillin', innName: 'amoxicillin', sy…	
-INGREDIENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:530	apps/api/openapi/registry	'4d8f0c62-5e73-4a91-8b24-6c1a9d3e7b05'	
+INGREDIENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:536	apps/api/openapi/registry	'4d8f0c62-5e73-4a91-8b24-6c1a9d3e7b05'	
 IngredientFields	component	local	apps/web/src/components/tenant/ingredient-list.tsx:127	apps/web/components/tenant	({ errors, ingredient, }: { errors: (name: string) => string…)	
 IngredientList	component	export	apps/web/src/components/tenant/ingredient-list.tsx:43	apps/web/components/tenant	({ slug, ingredients, canManage }: Props)	
 IngredientRow	component	local	apps/web/src/components/tenant/ingredient-list.tsx:83	apps/web/components/tenant	({ slug, ingredient, canManage, }: { slug: string; ingredien…)	
@@ -2895,6 +2896,7 @@ InventoryLocationSummary	type	export	packages/contracts/src/inventory.ts:864	pac
 invert	fn	export	packages/inventory/src/units.ts:129	packages/inventory	(a: Rational): Rational	
 INVESTIGATION_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:169	apps/api/services/clinical	{ id: true, reason: true, priority: true, instructions: true, status: true, displayOrder:…	
 INVESTIGATION_STATUSES	const	local	apps/web/src/components/tenant/consultation-content.tsx:1585	apps/web/components/tenant	[ { value: 'ORDERED', label: 'Ordered' }, { value: 'COLLECTED', label: 'Sample taken' }, …	
+INVESTIGATION_TERM_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:478	apps/api/openapi/registry	'f4182143-b5a0-42fa-9135-62f9044dfe83'	"Complete blood count (CBC)" — a coded `INVESTIGATION` term.
 investigationPriority	zod	export	packages/contracts/src/encounter-content.ts:79	packages/contracts	z.enum(…)	
 InvestigationPriorityValue	type	export	packages/contracts/src/encounter-content.ts:80	packages/contracts	z.infer<typeof investigationPriority>	
 InvestigationSection	component	export	apps/web/src/components/tenant/consultation-content.tsx:1592	apps/web/components/tenant	(props: ContentSectionProps)	
@@ -2927,9 +2929,9 @@ InviteMemberRequest	type	export	packages/contracts/src/tenancy.ts:977	packages/c
 INVOICE_DETAIL_EXAMPLE	const	local	apps/api/src/openapi/registry/invoices.ts:69	apps/api/openapi/registry	{ ...INVOICE_SUMMARY, notes: null, customer: { name: PATIENT.fullName, phone: PATIENT.pho…	
 INVOICE_FILTER_KEYS	const	export	apps/web/src/lib/invoice-filters.ts:21	apps/web/lib	[ 'status', 'sourceType', 'branchId', 'patientId', 'invoiceNumber', 'from', 'to', 'page',…	
 INVOICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:73	apps/api/openapi/registry	'c74a2e60-9b38-4f15-8d07-5e2c1a9b3f68'	
-INVOICE_ITEM_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:594	apps/api/openapi/registry	'af2c7b81-0e46-4d95-8a37-5c1b9e0a6d24'	
+INVOICE_ITEM_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:602	apps/api/openapi/registry	'af2c7b81-0e46-4d95-8a37-5c1b9e0a6d24'	
 INVOICE_NOTE	const	local	apps/api/src/openapi/registry/invoices.ts:47	apps/api/openapi/registry	"The invoice. One outside the caller's visible sources is a…	
-INVOICE_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:593	apps/api/openapi/registry	'INV-2026-0004417'	
+INVOICE_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:601	apps/api/openapi/registry	'INV-2026-0004417'	
 INVOICE_SOURCE_LABELS	const	export	apps/web/src/lib/invoice-filters.ts:61	apps/web/lib	: Record<InvoiceSourceTypeValue, string>	
 INVOICE_SOURCE_TYPES	const	export	apps/api/src/services/invoicing/invoice-visibility.ts:41	apps/api/services/invoicing	[ 'APPOINTMENT', 'PROCEDURE', 'SERVICE', 'LAB', 'PHARMACY',…	
 INVOICE_STATUS	const	local	packages/payments/src/providers/razorpay.ts:230	packages/payments/providers	: Readonly<Record<string, MandateStatus>>	The auth link's invoice, before there is a token to read.
@@ -3119,8 +3121,8 @@ Json	type	export	packages/payments/src/providers/shared.ts:19	packages/payments/
 JsonSchema	type	export	apps/api/src/openapi/schema.ts:22	apps/api/openapi	Record<string, unknown>	
 Jurisdiction	interface	export	packages/regulatory/src/types.ts:107	packages/regulatory	{ countryCode, regionCode }	
 Jurisdiction	interface	export	packages/tax/src/types.ts:63	packages/tax	{ countryCode, regionCode }	
-JURISDICTION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:517	apps/api/openapi/registry	'3e0a7c95-1d68-4b24-8f37-9c5b2a6e0d81'	
-JURISDICTION_KA_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:519	apps/api/openapi/registry	'1a5c8e04-6b27-4d93-8f10-7e2a9c3b5d68'	Karnataka, the region beneath .
+JURISDICTION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:523	apps/api/openapi/registry	'3e0a7c95-1d68-4b24-8f37-9c5b2a6e0d81'	
+JURISDICTION_KA_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:525	apps/api/openapi/registry	'1a5c8e04-6b27-4d93-8f10-7e2a9c3b5d68'	Karnataka, the region beneath .
 JurisdictionFields	component	local	apps/web/src/components/tenant/branch-list.tsx:80	apps/web/components/tenant	({ idPrefix, countryCode, onCountryChange, regionCode, onReg…)	
 jurisdictionLabel	fn	export	apps/api/src/services/regulatory/shared.ts:23	apps/api/services/regulatory	(jurisdiction: { countryCode: string; regionCode: string | n…): string	`IN-KA` or `IN`. Formatted once so no screen has to decide.
 JurisdictionList	component	export	apps/web/src/components/tenant/regulatory-lists.tsx:108	apps/web/components/tenant	({ jurisdictions, meta, }: { jurisdictions: JurisdictionList…)	
@@ -3370,7 +3372,7 @@ LocalStorageConfig	interface	export	packages/storage/src/providers/local.ts:73	p
 LocalStorageProvider	class	export	packages/storage/src/providers/local.ts:78	packages/storage/providers	{ name, rootDir, realRoot, put, get, head, exists, remove, getSignedUrl, lexicalPath, safePath, assertRealPathWithinRoot, assertPrefixed, resolveRoot, readFailure }	
 locate	fn/async	local	apps/api/src/services/billing/webhook.service.ts:190	apps/api/services/billing	(kind: 'intent' | 'mandate', reference: string): Promise<Located | null>	
 Located	interface	local	apps/api/src/services/billing/webhook.service.ts:176	apps/api/services/billing	{ id, ctx, slug }	
-LOCATION	const	local	apps/api/src/openapi/registry/inventory.ts:80	apps/api/openapi/registry	{ id: LOCATION_ID, branchId: BRANCH_ID, kind: 'PHARMACY_STORE', code: 'IND-PH-MAIN', name…	
+LOCATION	const	local	apps/api/src/openapi/registry/inventory.ts:80	apps/api/openapi/registry	{ id: LOCATION_ID, branchId: BRANCH_ID, kind: 'MAIN_PHARMACY', code: 'IND_PH_MAIN', name:…	
 LOCATION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:69	apps/api/openapi/registry	'2a9f7c34-6d18-4b50-8e73-1c5a9d2f6b87'	
 LOCATION_MANAGE	const	local	apps/api/src/routes/v1/inventory.routes.ts:172	apps/api/routes/v1	PERMISSIONS.INVENTORY_LOCATION_MANAGE	
 LocationForm	component	export	apps/web/src/components/tenant/location-form.tsx:59	apps/web/components/tenant	({ slug, branches, storageProfiles, location }: Props)	
@@ -3472,7 +3474,7 @@ makeTerm	fn/async	local	apps/api/tests/integration/reference-configurations.test
 makeTerm	fn/async	local	apps/api/tests/integration/visual-mapping.test.ts:140	apps/api/tests/integration	(kind: string, code: string, name: string): Promise<string>	
 MANAGE	const	local	apps/api/src/routes/v1/product-catalogue.routes.ts:94	apps/api/routes/v1	PERMISSIONS.PRODUCT_DEFINITION_MANAGE	
 MANDATE_HEADROOM_MULTIPLIER	const	export	packages/billing/src/policy.ts:62	packages/billing	3	
-MANDATE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:609	apps/api/openapi/registry	'1d7f5c28-4a09-4b63-8e91-2f6a0c9b7d34'	
+MANDATE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:617	apps/api/openapi/registry	'1d7f5c28-4a09-4b63-8e91-2f6a0c9b7d34'	
 MANDATE_STATUS	const	local	packages/payments/src/providers/cashfree.ts:140	packages/payments/providers	: Readonly<Record<string, MandateStatus>>	
 mandateCeiling	fn	export	packages/billing/src/policy.ts:64	packages/billing	(periodPrice: Money): Money	
 mandateParams	zod	local	apps/api/src/routes/v1/billing.routes.ts:182	apps/api/routes/v1	z.object(…)	
@@ -3487,8 +3489,8 @@ MandateView	interface	export	packages/billing/src/engine/read.ts:142	packages/bi
 manualMovementType	zod	export	packages/contracts/src/inventory.ts:149	packages/contracts	z.enum(…)	
 ManualMovementType	type	export	packages/contracts/src/inventory.ts:859	packages/contracts	z.infer<typeof manualMovementType>	
 MANUFACTURER	const	local	apps/api/src/openapi/registry/catalogue-masters.ts:90	apps/api/openapi/registry	{ id: MANUFACTURER_ID, code: 'CIPLA', name: 'Cipla Ltd', countryCode: 'IN', licenceNumber…	
-MANUFACTURER_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:550	apps/api/openapi/registry	'MFR-CIPLA'	The manufacturer `MANUFACTURER_ID` is known by.
-MANUFACTURER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:528	apps/api/openapi/registry	'0a4e7b31-9d26-4f58-8c73-5b2a6e1d0c94'	
+MANUFACTURER_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:558	apps/api/openapi/registry	'MFR_CIPLA'	The manufacturer `MANUFACTURER_ID` is known by.
+MANUFACTURER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:534	apps/api/openapi/registry	'0a4e7b31-9d26-4f58-8c73-5b2a6e1d0c94'	
 ManufacturerFields	component	local	apps/web/src/components/tenant/manufacturer-list.tsx:134	apps/web/components/tenant	({ errors, manufacturer, }: { errors: (name: string) => stri…)	
 ManufacturerList	component	export	apps/web/src/components/tenant/manufacturer-list.tsx:41	apps/web/components/tenant	({ slug, manufacturers, canManage }: Props)	
 manufacturerRoutes	var	export	apps/api/src/routes/v1/product-catalogue.routes.ts:256	apps/api/routes/v1	: IRouter	
@@ -3890,11 +3892,11 @@ oneClassificationForm	fn	local	packages/contracts/src/doctors.ts:96	packages/con
 oneQuantityBasis	fn	local	packages/contracts/src/procurement.ts:115	packages/contracts	(v: { unitId?: string | null | undefined; packagingLevel?: n…): boolean	
 oneQuantityBasisMessage	var	local	packages/contracts/src/procurement.ts:120	packages/contracts	'give either a unit or a packaging level, not both — a quan…	
 ONLINE_DISPENSERS	const	local	packages/db/prisma/seed/data/regulatory-bd.ts:494	packages/db/prisma/seed/data	['GRADE_A_PHARMACIST']	
-ONLINE_ORDER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:623	apps/api/openapi/registry	'c47a0e93-6b25-4f81-9d30-8a1c5e7b2f04'	
-ONLINE_ORDER_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:624	apps/api/openapi/registry	'2f95c108-7d43-4b60-8e19-5a0c3b6e9d72'	
-ONLINE_ORDER_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:625	apps/api/openapi/registry	'ORD-2026-000318'	
+ONLINE_ORDER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:631	apps/api/openapi/registry	'c47a0e93-6b25-4f81-9d30-8a1c5e7b2f04'	
+ONLINE_ORDER_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:632	apps/api/openapi/registry	'2f95c108-7d43-4b60-8e19-5a0c3b6e9d72'	
+ONLINE_ORDER_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:633	apps/api/openapi/registry	'ORD-2026-000318'	
 ONLINE_SALE_OPENED	const	local	packages/regulatory/src/selection.ts:321	packages/regulatory	: readonly string[]	
-ONLINE_SHIPMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:626	apps/api/openapi/registry	'6a3d0b57-1e94-4c28-8f65-9b2c7a0e4d13'	
+ONLINE_SHIPMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:634	apps/api/openapi/registry	'6a3d0b57-1e94-4c28-8f65-9b2c7a0e4d13'	
 OnlineDispensingParameters	interface	export	packages/regulatory/src/parameters.ts:294	packages/regulatory	{ permitted, excludedClassifications, destinationCountryCodes, requiresPriorInPersonEvaluation, requiresDistanceSellingAuthorisation, distanceSellingAuthority }	
 OnlineOrderActionCard	component	export	apps/web/src/components/tenant/online-order-action-card.tsx:29	apps/web/components/tenant	({ title, blurb, submitLabel, variant, action, children, }: …)	
 onlineOrderAddress	zod	export	packages/contracts/src/online-pharmacy.ts:111	packages/contracts	z.object(…)	
@@ -4022,7 +4024,7 @@ OwnProfilePage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/p
 OwnRuleRow	component	local	apps/web/src/components/tenant/tax-rate-card.tsx:647	apps/web/components/tenant	({ slug, rule, canManage, canReadHistory, pending, onEnd, }:…)	
 P	const	local	packages/permissions/src/roles.ts:35	packages/permissions	PERMISSIONS	
 packageRoot	var	local	packages/db/scripts/setup-test-db.ts:50	packages/db/scripts	fileURLToPath(…)	
-PACKAGING_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:534	apps/api/openapi/registry	'7e2c5f90-6d18-4b43-8a07-9c1b3e5d0a62'	
+PACKAGING_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:542	apps/api/openapi/registry	'7e2c5f90-6d18-4b43-8a07-9c1b3e5d0a62'	
 packagingFactorToBase	fn	export	packages/inventory/src/units.ts:419	packages/inventory	(levels: PackagingLevelRow[], level: number): Rational	
 PackagingLevelRow	interface	export	packages/inventory/src/units.ts:395	packages/inventory	{ level, unitId, quantityOfChild }	
 PackagingTab	component	local	apps/web/src/components/tenant/product-panel.tsx:548	apps/web/components/tenant	({ product, units, editable, pending, onSave, }: { product: …)	
@@ -4108,7 +4110,7 @@ PathShape	interface	export	packages/clinical/src/regions.ts:100	packages/clinica
 pathTo	fn	export	apps/web/src/lib/taxonomy.ts:76	apps/web/lib	(tree: TaxonomyTree, id: string): SpecialtySummary[]	
 patient	fn	local	packages/tax/tests/rules.test.ts:53	packages/tax/tests	(over: Partial<TaxableCustomer>): TaxableCustomer	A walk-in patient: no GSTIN, and their address is not the place of supply.
 PATIENT	const	export	apps/api/src/openapi/registry/fixtures.ts:190	apps/api/openapi/registry	{ id: PATIENT_ID, uhid: 'ALP-000241', subjectType: 'HUMAN', fullName: 'Ravi Subramanian',…	
-PATIENT_ADDRESS_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:627	apps/api/openapi/registry	'9e4b2c76-0a38-4d51-8c97-3f1b6a5e0d24'	
+PATIENT_ADDRESS_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:635	apps/api/openapi/registry	'9e4b2c76-0a38-4d51-8c97-3f1b6a5e0d24'	
 PATIENT_ANIMAL	const	export	apps/api/src/openapi/registry/fixtures.ts:244	apps/api/openapi/registry	{ id: PATIENT_ANIMAL_ID, uhid: 'ALP-000402', subjectType: 'ANIMAL', fullName: 'Kaapi Subr…	
 PATIENT_ANIMAL_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:58	apps/api/openapi/registry	'c5e21b74-9a30-4d68-8f52-1b7e0c4a3d96'	
 PATIENT_EXAMPLE	const	local	apps/api/src/openapi/registry/patients.ts:45	apps/api/openapi/registry	{ id: PATIENT_ID, uhid: 'ALP-000241', fullName: 'Ravi Subramanian', firstName: 'Ravi', la…	
@@ -4240,7 +4242,7 @@ payload	fn	local	apps/api/tests/integration/us-rule-pack.test.ts:90	apps/api/tes
 payload	fn	local	apps/api/tests/integration/verification.test.ts:51	apps/api/tests/integration	(slug: string, label: string, phone: string)	
 payload	fn	local	apps/api/tests/integration/visit-history.test.ts:75	apps/api/tests/integration	(slug: string, label: string)	
 payload	fn	local	apps/api/tests/integration/visual-mapping.test.ts:72	apps/api/tests/integration	(slug: string, label: string)	
-PAYMENT_INTENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:608	apps/api/openapi/registry	'c92a4f60-7b15-4e83-9d24-6c0b8a3e5f17'	
+PAYMENT_INTENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:616	apps/api/openapi/registry	'c92a4f60-7b15-4e83-9d24-6c0b8a3e5f17'	
 PAYMENT_STATUS	const	local	packages/payments/src/providers/razorpay.ts:176	packages/payments/providers	: Readonly<Record<string, ChargeStatus>>	
 PaymentConfigurationError	class	export	packages/payments/src/errors.ts:70	packages/payments	{ }	Configuration is missing or nonsensical. Thrown at construction, not at use.
 PaymentDeclinedError	class	export	packages/payments/src/errors.ts:29	packages/payments	{ }	
@@ -4310,7 +4312,7 @@ PickerSearch	type	export	apps/web/src/components/tenant/consultation-content.tsx
 Placeholder	component	export	apps/web/src/components/marketing/legal.tsx:22	apps/web/components/marketing	({ children }: { children: ReactNode })	
 placeOfSupplyFor	fn	export	packages/tax/src/selection.ts:27	packages/tax	(supply: { customer: Jurisdiction; placeOfSupply?: Jurisdict…): Jurisdiction	
 PLAN_CODES	const	local	apps/web/src/components/platform/demo-request-list.tsx:33	apps/web/components/platform	: SelectOption[]	The plans a clinic can be provisioned onto. Codes are the API's.
-PLAN_PRICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:607	apps/api/openapi/registry	'5b1e7a94-0c38-4d26-8f75-3a9c2b6e0d41'	⚠️ WHAT THE CLINIC PAYS **US** — never what a patient is charged.
+PLAN_PRICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:615	apps/api/openapi/registry	'5b1e7a94-0c38-4d26-8f75-3a9c2b6e0d41'	⚠️ WHAT THE CLINIC PAYS **US** — never what a patient is charged.
 planAllocation	fn	export	packages/inventory/src/allocate.ts:180	packages/inventory	(candidates: AllocationCandidate[], requestedQuantityBase: string, strategy: AllocationStrategy): AllocationPlan	
 planConsumption	fn/async	export	apps/api/src/services/consumption/consumption.service.ts:317	apps/api/services/consumption	(ctx: TenantContext, query: ConsumptionPlanQuery, options: ConsumptionActionOptions): Promise<ConsumptionPlanResponse>	
 planDescription	fn	export	packages/billing/src/engine/shared.ts:432	packages/billing/engine	(planName: string, interval: 'MONTH' | 'YEAR'): string	
@@ -4345,7 +4347,7 @@ PlatformTaxes	component/async	export	apps/web/src/app/(platform)/platform/taxes/
 plexMono	var	local	apps/web/src/app/layout.tsx:26	apps/web/app	IBM_Plex_Mono(…)	
 plexSans	var	local	apps/web/src/app/layout.tsx:15	apps/web/app	IBM_Plex_Sans(…)	
 plexSerif	var	local	apps/web/src/app/layout.tsx:20	apps/web/app	IBM_Plex_Serif(…)	
-PO_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:571	apps/api/openapi/registry	'2c6e9b40-8a37-4d15-9e72-1b8a0c5d3f64'	
+PO_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:579	apps/api/openapi/registry	'2c6e9b40-8a37-4d15-9e72-1b8a0c5d3f64'	
 POLICIES	component	local	apps/web/src/components/tenant/charge-policy-list.tsx:34	apps/web/components/tenant	[ { value: 'SEPARATELY_BILLABLE', label: 'Billed as its own line' }, { value: 'NEVER_BILL…	
 POLICY_LABEL	const	local	apps/web/src/components/tenant/charge-policy-list.tsx:43	apps/web/components/tenant	Object.fromEntries(…)	
 POLICY_LABEL	const	local	apps/web/src/components/tenant/charge-queue.tsx:52	apps/web/components/tenant	: Record<string, string>	
@@ -4447,6 +4449,7 @@ PrivacyPolicyPage	component	export	apps/web/src/app/(marketing)/legal/privacy/pa
 problem	fn	local	packages/clinical/tests/dosing.test.ts:21	packages/clinical/tests	(request: DoseRequest): string	
 PROCEDURE_SELECT	const	local	apps/api/src/services/clinical/encounter-content.service.ts:114	apps/api/services/clinical	{ id: true, diagnosisId: true, performedOn: true, status: true, notes: true, displayOrder…	
 PROCEDURE_STATUSES	const	local	apps/web/src/components/tenant/consultation-content.tsx:1150	apps/web/components/tenant	[ { value: 'PLANNED', label: 'Planned' }, { value: 'PERFORMED', label: 'Performed' }, { v…	
+PROCEDURE_TERM_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:476	apps/api/openapi/registry	'3b6ef5bd-7128-4e5c-923e-dd70ec390d19'	"Throat swab" — a coded `PROCEDURE` term. Procedures cannot be typed free text.
 procedureContributionQuery	var	export	packages/contracts/src/reports.ts:724	packages/contracts	datedReportScope.extend(…)	
 ProcedureContributionQuery	type	export	packages/contracts/src/reports.ts:729	packages/contracts	z.infer<typeof procedureContributionQuery>	
 procedureContributionReport	var	export	packages/contracts/src/reports.ts:759	packages/contracts	reportEnvelope.extend(…)	
@@ -4465,14 +4468,14 @@ procurementDocs	var	export	apps/api/src/openapi/registry/procurement.ts:183	apps
 ProcurementFormState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/actions.ts:57	apps/web/app/(tenant)/t/[slug]/(app)/procurement	{ status: 'idle' | 'error' | 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set on a successful create, so the form can navigate to wha…	
 ProcurementNav	component	export	apps/web/src/components/tenant/procurement-nav.tsx:40	apps/web/components/tenant	()	
 producer	var	local	apps/api/src/queue/producer.ts:23	apps/api/queue	: JobProducer | null	
-PRODUCT	const	export	apps/api/src/openapi/registry/fixtures.ts:308	apps/api/openapi/registry	{ id: PRODUCT_ID, name: 'Amoxicillin 500mg Capsule', code: 'MED-AMOX-500', productType: '…	
+PRODUCT	const	export	apps/api/src/openapi/registry/fixtures.ts:308	apps/api/openapi/registry	{ id: PRODUCT_ID, name: 'Amoxicillin 500mg Capsule', code: 'MED_AMOX_500', productType: '…	
 PRODUCT_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:175	apps/api/routes/v1	[ { header: 'Product', field: 'productName' }, { header: 'Code', field: 'productCode' }, …	
 PRODUCT_COLUMNS	const	local	apps/web/src/lib/report-specs.ts:75	apps/web/lib	: readonly ReportColumn[]	
 PRODUCT_GTIN	const	export	apps/api/src/openapi/registry/fixtures.ts:341	apps/api/openapi/registry	'08901234567890'	
 PRODUCT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:67	apps/api/openapi/registry	'5b3e9a04-8c71-4d62-9f85-2a7c1e6b3d94'	
-PRODUCT_NOTE	const	local	apps/api/src/openapi/registry/products.ts:61	apps/api/openapi/registry	'The product, as `GET /api/v1/products` lists it. A platfor…	
-PRODUCT_PRICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:584	apps/api/openapi/registry	'd6a83f15-4e07-4b92-8c36-0a5b1e7d2c48'	
-PRODUCT_SUMMARY	const	local	apps/api/src/openapi/registry/products.ts:64	apps/api/openapi/registry	{ id: PRODUCT_ID, type: 'MEDICINE', code: PRODUCT.code, name: PRODUCT.name, brandName: 'A…	
+PRODUCT_NOTE	const	local	apps/api/src/openapi/registry/products.ts:63	apps/api/openapi/registry	'The product, as `GET /api/v1/products` lists it. A platfor…	
+PRODUCT_PRICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:592	apps/api/openapi/registry	'd6a83f15-4e07-4b92-8c36-0a5b1e7d2c48'	
+PRODUCT_SUMMARY	const	local	apps/api/src/openapi/registry/products.ts:66	apps/api/openapi/registry	{ id: PRODUCT_ID, type: 'MEDICINE', code: PRODUCT.code, name: PRODUCT.name, brandName: 'A…	
 PRODUCT_TYPES	const	local	apps/web/src/components/tenant/charge-policy-list.tsx:45	apps/web/components/tenant	[ 'MEDICINE', 'VACCINE', 'CONSUMABLE', 'SURGICAL_SUPPLY', 'MEDICAL_DEVICE', 'IMPLANT', 'D…	
 productCategory	zod	export	packages/contracts/src/products.ts:263	packages/contracts	z.object(…)	
 ProductCategory	type	export	packages/contracts/src/products.ts:975	packages/contracts	z.infer<typeof productCategory>	
@@ -4492,7 +4495,7 @@ productCount	fn/async	local	apps/api/tests/integration/product-import.test.ts:10
 ProductCreateForm	component	export	apps/web/src/components/tenant/product-create-form.tsx:73	apps/web/components/tenant	({ slug, units, categories, manufacturers, compositions, sto…)	
 productDetail	var	export	packages/contracts/src/products.ts:917	packages/contracts	productSummary.extend(…)	
 ProductDetail	type	export	packages/contracts/src/products.ts:1000	packages/contracts	z.infer<typeof productDetail>	
-productDocs	var	export	apps/api/src/openapi/registry/products.ts:84	apps/api/openapi/registry	: DocRegistry	
+productDocs	var	export	apps/api/src/openapi/registry/products.ts:86	apps/api/openapi/registry	: DocRegistry	
 ProductForLine	interface	export	apps/api/src/services/procurement/shared.ts:111	apps/api/services/procurement	{ id, code, name, baseUnitId, baseUnitCode, trackingMode, isExpiryControlled }	What a document line needs to know about the product it names.
 ProductFormState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/products/actions.ts:62	apps/web/app/(tenant)/t/[slug]/(app)/products	{ status: 'idle' | 'error' | 'saved'; message?: string; fieldErrors?: Record<string, string[]>; /** Set when a product was just created, so the form can offer …	
 productIdentifierDetail	zod	export	packages/contracts/src/products.ts:811	packages/contracts	z.object(…)	
@@ -4652,10 +4655,10 @@ publishVersion	fn/async	export	apps/api/src/services/clinical/template.service.t
 publishVersion	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/consultation-templates/actions.ts:111	apps/web/app/(tenant)/t/[slug]/(app)/consultation-templates	(slug: string, templateId: string, versionId: string): Promise<TemplateFormState>	Put the draft live, retiring the version it replaces.
 PURCHASE_ORDER	const	local	apps/api/src/openapi/registry/procurement.ts:127	apps/api/openapi/registry	{ id: PURCHASE_ORDER_ID, purchaseOrderNumber: PURCHASE_ORDER_NUMBER, branchId: BRANCH_ID,…	
 PURCHASE_ORDER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:71	apps/api/openapi/registry	'3f5d8b19-0e64-4c27-9a83-4d1b7e2c6a95'	
-PURCHASE_ORDER_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:570	apps/api/openapi/registry	'PO-2026-000742'	
+PURCHASE_ORDER_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:578	apps/api/openapi/registry	'PO-2026-000742'	
 PURCHASE_RETURN	const	local	apps/api/src/openapi/registry/procurement.ts:166	apps/api/openapi/registry	{ id: PURCHASE_RETURN_ID, purchaseReturnNumber: 'PRT-2026-000041', branchId: BRANCH_ID, s…	
-PURCHASE_RETURN_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:575	apps/api/openapi/registry	'6d0a4e92-7b15-4c68-8f31-2a9c5b3e0d47'	
-PURCHASE_RETURN_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:578	apps/api/openapi/registry	'3f7a0d64-8c25-4e91-9b38-6d0c2a5e7b14'	
+PURCHASE_RETURN_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:583	apps/api/openapi/registry	'6d0a4e92-7b15-4c68-8f31-2a9c5b3e0d47'	
+PURCHASE_RETURN_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:586	apps/api/openapi/registry	'3f7a0d64-8c25-4e91-9b38-6d0c2a5e7b14'	
 purchaseOrderDetail	var	export	packages/contracts/src/procurement.ts:613	packages/contracts	purchaseOrderSummary.extend(…)	
 PurchaseOrderDetail	type	export	packages/contracts/src/procurement.ts:1068	packages/contracts	z.infer<typeof purchaseOrderDetail>	
 PurchaseOrderForm	component	export	apps/web/src/components/tenant/purchase-order-form.tsx:74	apps/web/components/tenant	({ slug, branches, suppliers, locations, priceBook, requisit…)	
@@ -4821,16 +4824,16 @@ readSynonyms	fn	local	apps/api/src/services/product/catalogue.service.ts:198	app
 readTaxClassifications	fn/async	local	apps/api/src/services/product/tax-classification.service.ts:65	apps/api/services/product	(tx: TxClient, productId: string): Promise<ProductTaxClassificationDetail[]>	The read, INSIDE a caller's transaction — see `readPackagings` in `packaging.service.ts` for why the write path must no…
 realignUnbilledCurrency	fn/async	export	packages/billing/src/engine/lifecycle.ts:645	packages/billing/engine	(tx: TxClient, ctx: TenantContext, currency: string): Promise<{ subscriptionId: string; from: string; to: string …	
 realTax	fn	local	packages/invoicing/tests/pricing.test.ts:80	packages/invoicing/tests	(rules: TaxRule[]): InvoicePricingInput['quoteTax']	The real engine, wired the way `taxForItem` wires it: place of supply is the branch.
-REASON_CODE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:563	apps/api/openapi/registry	'c8e05b39-2a67-4d84-9c15-7b3f6a0e1d52'	
+REASON_CODE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:571	apps/api/openapi/registry	'c8e05b39-2a67-4d84-9c15-7b3f6a0e1d52'	
 REASON_CODE_MANAGE	const	local	apps/api/src/routes/v1/inventory.routes.ts:177	apps/api/routes/v1	PERMISSIONS.INVENTORY_REASON_CODE_MANAGE	
 REASON_WORDS	const	local	apps/web/src/components/tenant/working-day-picker.tsx:49	apps/web/components/tenant	: Record<WorkingDayReason, string>	
 reasonCode	var	export	packages/contracts/src/inventory.ts:194	packages/contracts	z .string() .trim() .min(2) .max(64) .regex(…)	
 reasonCodeParams	zod	local	apps/api/src/routes/v1/inventory.routes.ts:594	apps/api/routes/v1	z.object(…)	
 RECALL_BATCH	const	local	apps/api/src/openapi/registry/recalls.ts:74	apps/api/openapi/registry	{ id: RECALL_BATCH_ID, batchId: BATCH_ID, lotNumber: BATCH.batchNumber, expiresOn: BATCH.…	
-RECALL_BATCH_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:602	apps/api/openapi/registry	'b1c86e40-3f97-4a25-8d63-0e5a7c2b9f18'	
+RECALL_BATCH_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:610	apps/api/openapi/registry	'b1c86e40-3f97-4a25-8d63-0e5a7c2b9f18'	
 RECALL_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:75	apps/api/openapi/registry	'6e2b9f41-5c07-4d83-a196-0f8c3b7e2a54'	
 RECALL_NOTE	const	local	apps/api/src/openapi/registry/recalls.ts:53	apps/api/openapi/registry	'The recall notice, as `GET /api/v1/recalls` lists it.'	
-RECALL_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:601	apps/api/openapi/registry	'RCL-2026-000017'	
+RECALL_NUMBER	const	export	apps/api/src/openapi/registry/fixtures.ts:609	apps/api/openapi/registry	'RCL-2026-000017'	
 RECALL_SUMMARY	const	local	apps/api/src/openapi/registry/recalls.ts:57	apps/api/openapi/registry	{ id: RECALL_ID, recallNumber: RECALL_NUMBER, productId: PRODUCT_ID, productName: PRODUCT…	
 recallAccess	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts:30	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	(slug: string): Promise<RecallAccess>	
 RecallAccess	interface	export	apps/web/src/app/(tenant)/t/[slug]/(app)/product-recalls/guard.ts:21	apps/web/app/(tenant)/t/[slug]/(app)/product-recalls	{ canRead, canCreate, canExecute, canSeePatients, any }	
@@ -5016,7 +5019,7 @@ RegistrationsPanel	component	local	apps/web/src/components/tenant/patient-chart.
 REGISTRY	const	local	packages/clinical/src/registry.ts:50	packages/clinical	: Readonly<Record<ConsultationSectionType, SectionCapability>>	
 REGULATORY_MANAGE	const	local	apps/api/src/routes/v1/platform.routes.ts:491	apps/api/routes/v1	PERMISSIONS.REGULATORY_MANAGE	
 REGULATORY_SIGN_OFF	const	local	packages/permissions/src/roles.ts:123	packages/permissions	: PermissionCode[]	
-REGULATORY_SOURCE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:523	apps/api/openapi/registry	'8f6d2c47-0a15-4e93-b782-3c9e5b1a4d60'	
+REGULATORY_SOURCE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:529	apps/api/openapi/registry	'8f6d2c47-0a15-4e93-b782-3c9e5b1a4d60'	
 regulatoryAccess	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/regulatory/guard.ts:15	apps/web/app/(tenant)/t/[slug]/(app)/regulatory	(slug: string): Promise<{ canRead: boolean }>	
 RegulatoryActor	interface	export	packages/regulatory/src/types.ts:198	packages/regulatory	{ roleCodes, licenceTypes, isPrescriber }	Who is standing at the counter, on our side of it.
 RegulatoryActorInput	interface	export	apps/api/src/services/regulatory/evaluation.service.ts:234	apps/api/services/regulatory	{ roleCodes, licenceTypes, isPrescriber }	
@@ -5205,7 +5208,7 @@ requireTenant	fn	export	apps/api/src/middleware/tenant.middleware.ts:147	apps/ap
 REQUISITION	const	local	apps/api/src/openapi/registry/procurement.ts:113	apps/api/openapi/registry	{ id: REQUISITION_ID, requisitionNumber: 'REQ-2026-000315', branchId: BRANCH_ID, status: …	
 REQUISITION_APPROVE	const	local	apps/api/src/routes/v1/procurement.routes.ts:189	apps/api/routes/v1	PERMISSIONS.REQUISITION_APPROVE	
 REQUISITION_CREATE	const	local	apps/api/src/routes/v1/procurement.routes.ts:188	apps/api/routes/v1	PERMISSIONS.REQUISITION_CREATE	
-REQUISITION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:572	apps/api/openapi/registry	'b47d0f28-3c69-4a51-8e94-6b2a5c1d0e73'	
+REQUISITION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:580	apps/api/openapi/registry	'b47d0f28-3c69-4a51-8e94-6b2a5c1d0e73'	
 RequisitionForm	component	export	apps/web/src/components/tenant/requisition-form.tsx:42	apps/web/components/tenant	({ slug, branches, suppliers }: Props)	
 RequisitionList	component	export	apps/web/src/components/tenant/requisition-list.tsx:46	apps/web/components/tenant	({ requisitions, meta, branches, canCreate }: Props)	
 RequisitionPage	component/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/procurement/requisitions/[requisitionId]/page.tsx:11	apps/web/app/(tenant)/t/[slug]/(app)/procurement/requisitions/[requisitionId]	({ params, }: { params: Promise<{ slug: string; requisitionI…)	
@@ -5225,7 +5228,7 @@ RescheduleInitiatorValue	type	export	packages/contracts/src/appointments.ts:190	
 ResendButton	component	local	apps/web/src/components/tenant/invitation-list.tsx:206	apps/web/components/tenant	({ slug, invitation }: { slug: string; invitation: Invitatio…)	
 resendInvitation	fn/async	export	apps/api/src/services/invitation/invitation.service.ts:439	apps/api/services/invitation	(ctx: TenantContext, invitationId: string, options: InvitationActionOptions): Promise<InvitationSummary>	
 resendInvitation	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/invitations/actions.ts:121	apps/web/app/(tenant)/t/[slug]/(app)/invitations	(slug: string, invitationId: string, _previous: InviteFormState): Promise<InviteFormState>	Send it again — with a new link. Worth saying in the UI, because it is not what "resend" usually means: the previous li…
-RESERVATION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:562	apps/api/openapi/registry	'61d3c8a0-7e94-4b25-9f38-0c5a8b2e6d71'	
+RESERVATION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:570	apps/api/openapi/registry	'61d3c8a0-7e94-4b25-9f38-0c5a8b2e6d71'	
 RESERVATION_SWEEP_CRON	const	export	packages/queue/src/index.ts:280	packages/queue	'30 * * * *'	
 RESERVATION_SWEEP_JOB	const	export	packages/queue/src/index.ts:267	packages/queue	'RESERVATION_SWEEP'	
 ReservationList	component	export	apps/web/src/components/tenant/reservation-list.tsx:63	apps/web/components/tenant	({ slug, reservations, meta, branches, timezone, timeFormat,…)	
@@ -5479,7 +5482,7 @@ Row	type	local	apps/web/src/components/marketing/journey-rail.tsx:17	apps/web/co
 Row	interface	local	apps/web/src/components/tenant/composition-form.tsx:68	apps/web/components/tenant	{ key, ingredientId, strength, strengthUnitId, perQuantity }	
 Row	component	export	apps/web/src/components/tenant/consultation-content.tsx:118	apps/web/components/tenant	({ title, subtitle, onRemove, readOnly, children, }: { title…)	
 Row	component	local	apps/web/src/components/tenant/transfer-detail.tsx:210	apps/web/components/tenant	({ label, children }: { label: string; children: React.React…)	
-ROW_NOTE	const	local	apps/api/src/openapi/registry/encounters.ts:50	apps/api/openapi/registry	"The row's own id, from the encounter's `content`. Not the …	
+ROW_NOTE	const	local	apps/api/src/openapi/registry/encounters.ts:53	apps/api/openapi/registry	"The row's own id, from the encounter's `content`. Not the …	
 RowDate	component	local	apps/web/src/components/tenant/consultation-content.tsx:1293	apps/web/components/tenant	({ label, value, disabled, onCommit, }: { label: string; val…)	A calendar date on a recorded row. ⚠️ `YYYY-MM-DD`, never a locale format.
 RowNumber	component	local	apps/web/src/components/tenant/consultation-content.tsx:878	apps/web/components/tenant	({ label, value, disabled, min, onCommit, }: { label: string…)	A number box on a recorded row.
 rowParams	var	local	apps/api/src/routes/v1/encounters.routes.ts:288	apps/api/routes/v1	encounterParams.extend(…)	
@@ -5495,8 +5498,8 @@ rule	fn	local	packages/regulatory/tests/fail-open.test.ts:19	packages/regulatory
 rule	fn	local	packages/regulatory/tests/profile-gap.test.ts:25	packages/regulatory/tests	(over: Partial<RegulatoryRule>): RegulatoryRule	
 rule	fn	local	packages/tax/tests/countries.test.ts:36	packages/tax/tests	(over: Partial<TaxRule>): TaxRule	
 rule	fn	local	packages/tax/tests/rules.test.ts:30	packages/tax/tests	(over: Partial<TaxRule>): TaxRule	
-RULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:522	apps/api/openapi/registry	'd41f9b60-7c58-4a37-9e14-2b6a8d0c5e73'	
-RULE_PACK_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:521	apps/api/openapi/registry	'5c8e1a73-4b26-4f90-8d65-0a3c9e7b2f18'	
+RULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:528	apps/api/openapi/registry	'd41f9b60-7c58-4a37-9e14-2b6a8d0c5e73'	
+RULE_PACK_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:527	apps/api/openapi/registry	'5c8e1a73-4b26-4f90-8d65-0a3c9e7b2f18'	
 RULE_SELECT	const	local	apps/api/src/services/charging/policy.service.ts:278	apps/api/services/charging	{ id: true, policy: true, note: true, productId: true, prod…	
 RULE_SELECT	const	local	apps/api/src/services/tax/clinic-tax.service.ts:79	apps/api/services/tax	{ id: true, countryCode: true, regionCode: true, scheme: true, taxCategory: true, descrip…	
 ruleFor	fn	export	packages/tax/src/selection.ts:122	packages/tax	(rules: readonly TaxRule[], registration: IssuerRegistration, taxCategory: string, at: Date): TaxRule | null	
@@ -5662,8 +5665,8 @@ searchReferralSpecialties	fn/async	export	apps/web/src/app/(tenant)/t/[slug]/(ap
 searchReferralTargets	fn/async	export	apps/api/src/services/doctor/doctor.service.ts:1213	apps/api/services/doctor	(ctx: TenantContext, query: ReferralTargetQuery): Promise<ReferralTarget[]>	
 SearchRow	interface	local	apps/api/src/services/patient/patient.service.ts:1161	apps/api/services/patient	{ id, total }	
 SearchState	type	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:58	apps/web/app/(tenant)/t/[slug]/(app)/patients	{ status: 'idle' | 'error' | 'done'; message?: string; patients: PatientSummary[]; /** Echoed back so the results can say what they are results for. */ scope: …	
-SECOND_PRODUCT_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:554	apps/api/openapi/registry	'MED-PARA-650'	A second product, so an import example can show more than one row.
-section	fn	local	apps/api/src/openapi/registry/encounters.ts:231	apps/api/openapi/registry	(c: Collection): DocRegistry	The three endpoints one collection contributes.
+SECOND_PRODUCT_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:562	apps/api/openapi/registry	'MED_PARA_650'	A second product, so an import example can show more than one row.
+section	fn	local	apps/api/src/openapi/registry/encounters.ts:241	apps/api/openapi/registry	(c: Collection): DocRegistry	The three endpoints one collection contributes.
 Section	component	export	apps/web/src/components/marketing/section.tsx:18	apps/web/components/marketing	({ id, tone = 'paper', className, children, }: { id?: string…)	
 Section	component	local	apps/web/src/components/tenant/doctor-create-form.tsx:748	apps/web/components/tenant	({ title, note, children, }: { title: string; note?: string;…)	
 SECTION_KEYS	const	local	packages/clinical/src/definition.ts:52	packages/clinical	: readonly string[]	
@@ -5727,7 +5730,7 @@ SEPARATOR_ALIASES	const	local	packages/inventory/src/gs1.ts:52	packages/inventor
 SequenceRow	interface	local	apps/api/src/services/numbering/number-sequence.service.ts:153	apps/api/services/numbering	{ last_number, prefix, padding }	
 SequenceType	type	export	apps/api/src/services/numbering/number-sequence.service.ts:39	apps/api/services/numbering	| 'UHID' | 'MRN' | 'APPOINTMENT' | 'QUEUE_TOKEN' | 'EMPLOYEE' /** * Treatment journeys (CE-1). * * ⚠️ THE ONLY COUNTER HERE THAT IS PER ORGANIZATION RATHER THA…	Matches the `NumberSequenceType` enum in schema.prisma.
 SERIAL	const	local	apps/api/src/openapi/registry/inventory.ts:106	apps/api/openapi/registry	{ id: SERIAL_ID, branchId: BRANCH_ID, productId: PRODUCT_ID, productName: 'Titanium bone …	
-SERIAL_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:559	apps/api/openapi/registry	'3c7e0b58-9a24-4d61-8f95-2e6b4a0c7d13'	
+SERIAL_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:567	apps/api/openapi/registry	'3c7e0b58-9a24-4d61-8f95-2e6b4a0c7d13'	
 serialDetail	var	export	packages/contracts/src/inventory.ts:574	packages/contracts	serialSummary.extend(…)	
 SerialDetail	type	export	packages/contracts/src/inventory.ts:884	packages/contracts	z.infer<typeof serialDetail>	
 SerialForm	component	export	apps/web/src/components/tenant/serial-form.tsx:77	apps/web/components/tenant	({ slug, branches, locations }: Props)	
@@ -6018,11 +6021,11 @@ stepAnchor	fn	export	apps/web/src/lib/calendar-range.ts:153	apps/web/lib	(view: 
 stepForError	fn	local	apps/web/src/components/marketing/signup-form.tsx:144	apps/web/components/marketing	(key: string): number	
 StepProps	interface	export	apps/web/src/components/tenant/onboarding/onboarding-steps.tsx:31	apps/web/components/tenant/onboarding	{ state, pending, errorsFor, onBack }	
 STEPS	component	local	apps/web/src/components/marketing/signup-form.tsx:80	apps/web/components/marketing	[ { id: 'clinic', label: 'Clinic' }, { id: 'address', label: 'Address' }, { id: 'branch',…	
-STOCK_MOVEMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:564	apps/api/openapi/registry	'4e91a7c6-3d05-4b78-8f42-6a0c5e2b9d31'	
+STOCK_MOVEMENT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:572	apps/api/openapi/registry	'4e91a7c6-3d05-4b78-8f42-6a0c5e2b9d31'	
 STOCK_READ	const	local	apps/api/src/routes/v1/procurement.routes.ts:193	apps/api/routes/v1	PERMISSIONS.STOCK_READ	
 STOCK_STATUS_LABEL	const	export	apps/web/src/components/tenant/stock-status.tsx:34	apps/web/components/tenant	: Record<StockStatus, string>	Statuses in the order they are drawn, and the words used for them. Sentence case, and the clinic's vocabulary rather th…
 STOCK_STATUSES	const	local	apps/web/src/components/tenant/adjustment-form.tsx:94	apps/web/components/tenant	[ { value: 'AVAILABLE', label: 'Available' }, { value: 'QUARANTINED', label: 'On hold' },…	
-STOCK_TRANSFER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:560	apps/api/openapi/registry	'a05b8e42-6c37-4915-8d70-1f4c9b2a6e58'	
+STOCK_TRANSFER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:568	apps/api/openapi/registry	'a05b8e42-6c37-4915-8d70-1f4c9b2a6e58'	
 stockBalanceListResponse	zod	export	packages/contracts/src/inventory.ts:708	packages/contracts	z.object(…)	
 StockBalanceListResponse	type	export	packages/contracts/src/inventory.ts:892	packages/contracts	z.infer<typeof stockBalanceListResponse>	
 stockBalanceQuery	zod	export	packages/contracts/src/inventory.ts:679	packages/contracts	z.object(…)	
@@ -6091,10 +6094,10 @@ StopImpersonationInput	interface	export	apps/api/src/services/platform/impersona
 stopMedication	fn/async	export	apps/api/src/services/patient/patient-history.service.ts:389	apps/api/services/patient	(ctx: TenantContext, patientId: string, medicationId: string, stoppedOn: string | undefined, options: PatientActionOptions): Promise<void>	
 stopMedication	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/patients/actions.ts:590	apps/web/app/(tenant)/t/[slug]/(app)/patients	(slug: string, patientId: string, medicationId: string): Promise<void>	Stop a medicine. Its own call, because `isOngoing` and `stoppedOn` move together.
 stopMedicationRequest	zod	local	apps/api/src/routes/v1/patients.routes.ts:117	apps/api/routes/v1	z.object(…)	
-STORAGE_AREA_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:565	apps/api/openapi/registry	'7a5c0e93-8b14-4f26-9d80-3c6b1a4e7d59'	
-STORAGE_BIN_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:566	apps/api/openapi/registry	'0d6b3f81-4a29-4e57-9c04-8b1e5a7d2c63'	
+STORAGE_AREA_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:573	apps/api/openapi/registry	'7a5c0e93-8b14-4f26-9d80-3c6b1a4e7d59'	
+STORAGE_BIN_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:574	apps/api/openapi/registry	'0d6b3f81-4a29-4e57-9c04-8b1e5a7d2c63'	
 STORAGE_PROFILE	const	local	apps/api/src/openapi/registry/catalogue-masters.ts:131	apps/api/openapi/registry	{ id: STORAGE_PROFILE_ID, code: 'AMBIENT_DRY', name: 'Ambient, dry', minTemperatureC: nul…	
-STORAGE_PROFILE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:531	apps/api/openapi/registry	'2b5a9e84-7c01-4f36-9d58-0e3b6a1c4d79'	
+STORAGE_PROFILE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:537	apps/api/openapi/registry	'2b5a9e84-7c01-4f36-9d58-0e3b6a1c4d79'	
 STORAGE_PROFILES	const	export	packages/db/prisma/seed/data/product-masters.ts:213	packages/db/prisma/seed/data	: SeedStorageProfile[]	
 storageAreaDetail	zod	export	packages/contracts/src/inventory.ts:285	packages/contracts	z.object(…)	
 StorageAreaDetail	type	export	packages/contracts/src/inventory.ts:867	packages/contracts	z.infer<typeof storageAreaDetail>	
@@ -6139,10 +6142,10 @@ SUBSCRIBABLE_STATUSES	const	local	packages/billing/src/policy.ts:143	packages/bi
 subscribeToScheme	fn	local	apps/web/src/components/shell/theme-settings.tsx:145	apps/web/components/shell	(onChange: () => void): () => void	
 SUBSCRIPTION_API_VERSION	const	local	packages/payments/src/providers/cashfree.ts:82	packages/payments/providers	'2025-01-01'	
 SUBSCRIPTION_INCLUDE	const	export	packages/billing/src/engine/shared.ts:155	packages/billing/engine	{ plan: { include: { features: true, prices: true } }, planPrice: true, featureOverrides:…	
-SUBSCRIPTION_INVOICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:610	apps/api/openapi/registry	'8e0c3b47-2d95-4a18-9f62-5b7a1c0e4d38'	
+SUBSCRIPTION_INVOICE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:618	apps/api/openapi/registry	'8e0c3b47-2d95-4a18-9f62-5b7a1c0e4d38'	
 SubscriptionSummary	interface	export	packages/contracts/src/billing.ts:136	packages/contracts	{ id, status, isActive, plan, planPriceId, currency, interval, amountMinor, currentPeriodStart, currentPeriodEnd, trialEndsAt, gracePeriodEnd, cancelAtPeriodEnd, cancelAt, autoRenew, entitlements, ma…	
 SubscriptionView	interface	export	packages/billing/src/engine/read.ts:110	packages/billing/engine	{ id, status, isActive, plan, planPriceId, currency, interval, amountMinor, currentPeriodStart, currentPeriodEnd, trialEndsAt, gracePeriodEnd, cancelAtPeriodEnd, cancelAt, autoRenew, entitlements, ma…	
-SUBSTITUTE_PRODUCT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:513	apps/api/openapi/registry	'6c2a9e83-5f14-4d70-8b96-1e7c3a0b5d48'	A different brand, same composition — what a substitution supplies instead.
+SUBSTITUTE_PRODUCT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:519	apps/api/openapi/registry	'6c2a9e83-5f14-4d70-8b96-1e7c3a0b5d48'	A different brand, same composition — what a substitution supplies instead.
 substituteLabel	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:154	apps/web/components/tenant	(candidate: SubstitutionCandidate): string	
 substitutionCandidate	zod	export	packages/contracts/src/pharmacy.ts:307	packages/contracts	z.object(…)	
 SubstitutionCandidate	type	export	packages/contracts/src/pharmacy.ts:662	packages/contracts	z.infer<typeof substitutionCandidate>	
@@ -6184,14 +6187,14 @@ sumQuantities	fn	local	apps/api/src/services/inventory/batch.service.ts:83	apps/
 sumQuantities	fn	local	apps/api/src/services/recall/recall.service.ts:111	apps/api/services/recall	(balances: { status: string; quantity: Prisma.Decimal }[], onlyStatus: string): string	
 sumQuantities	fn	local	apps/web/src/components/tenant/dispensing-workspace.tsx:122	apps/web/components/tenant	(values: readonly string[]): string	Add decimal quantity strings without going through a float. ⚠️ SIX PLACES, BECAUSE THAT IS `stock_ledger`'s SCALE. Fixe…
 sumRationals	fn	local	packages/inventory/src/costing.ts:282	packages/inventory	(a: Rational, b: Rational): Rational	
-SUPPLIER	const	export	apps/api/src/openapi/registry/fixtures.ts:349	apps/api/openapi/registry	{ id: SUPPLIER_ID, name: 'MedSource Distributors', code: 'SUP-MEDSRC', gstin: '29AABCM123…	
+SUPPLIER	const	export	apps/api/src/openapi/registry/fixtures.ts:349	apps/api/openapi/registry	{ id: SUPPLIER_ID, name: 'MedSource Distributors', code: 'SUP_MEDSRC', gstin: '29AABCM123…	
 SUPPLIER_COLUMNS	const	local	apps/api/src/routes/v1/reports.routes.ts:248	apps/api/routes/v1	: readonly CsvColumn<SupplierPerformanceRow>[]	
 SUPPLIER_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:70	apps/api/openapi/registry	'e6c0b382-1f47-4a95-8d26-7b3e5a1c9f40'	
 SUPPLIER_MANAGE	const	local	apps/api/src/routes/v1/procurement.routes.ts:187	apps/api/routes/v1	PERMISSIONS.SUPPLIER_MANAGE	
 SUPPLIER_PRODUCT	const	local	apps/api/src/openapi/registry/procurement.ts:93	apps/api/openapi/registry	{ id: SUPPLIER_PRODUCT_ID, supplierId: SUPPLIER_ID, supplierName: SUPPLIER.name, productI…	
-SUPPLIER_PRODUCT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:576	apps/api/openapi/registry	'9b5f1c07-3a24-4e60-8d91-5c7b2e0a4f38'	
+SUPPLIER_PRODUCT_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:584	apps/api/openapi/registry	'9b5f1c07-3a24-4e60-8d91-5c7b2e0a4f38'	
 SUPPLIER_SUMMARY	const	local	apps/api/src/openapi/registry/procurement.ts:75	apps/api/openapi/registry	{ id: SUPPLIER_ID, code: SUPPLIER.code, name: SUPPLIER.name, legalName: 'MedSource Distri…	
-SUPPLIER_TAX_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:577	apps/api/openapi/registry	'4e8b3a07-1d56-4f92-8c40-7b2e9a6c5d13'	
+SUPPLIER_TAX_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:585	apps/api/openapi/registry	'4e8b3a07-1d56-4f92-8c40-7b2e9a6c5d13'	
 supplierDetail	var	export	packages/contracts/src/procurement.ts:228	packages/contracts	supplierSummary.extend(…)	
 SupplierDetail	type	export	packages/contracts/src/procurement.ts:1039	packages/contracts	z.infer<typeof supplierDetail>	
 SupplierForm	component	export	apps/web/src/components/tenant/supplier-form.tsx:44	apps/web/components/tenant	({ slug, supplier, currencies, countryCode }: Props)	
@@ -6289,10 +6292,10 @@ takeOrder	fn/async	local	apps/api/tests/integration/online-pharmacy.test.ts:164	
 takeRoleAway	action/async	export	apps/web/src/app/(tenant)/t/[slug]/(app)/members/actions.ts:81	apps/web/app/(tenant)/t/[slug]/(app)/members	(slug: string, membershipId: string, assignmentId: string, _previous: MemberFormState): Promise<MemberFormState>	
 targetOrganizationId	fn	local	apps/api/src/routes/v1/auth.routes.ts:89	apps/api/routes/v1	(req: Request): string | null	The tenant this request is signing in to, or null on the apex/admin host.
 TAX_REGISTRATION	const	local	apps/api/src/openapi/registry/invoices.ts:97	apps/api/openapi/registry	{ id: TAX_REGISTRATION_ID, countryCode: 'IN', regionCode: 'KA', scheme: 'GST', registrati…	
-TAX_REGISTRATION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:596	apps/api/openapi/registry	'e04b9c37-5a18-4e62-8d70-1a6c4b2e9f53'	
+TAX_REGISTRATION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:604	apps/api/openapi/registry	'e04b9c37-5a18-4e62-8d70-1a6c4b2e9f53'	
 TAX_REGISTRATION_STATUSES	const	export	packages/contracts/src/tax.ts:137	packages/contracts	['SCHEDULED', 'ACTIVE', 'LAPSED'] as const	
 TAX_RULE	const	local	apps/api/src/openapi/registry/invoices.ts:111	apps/api/openapi/registry	{ id: TAX_RULE_ID, countryCode: 'IN', regionCode: 'KA', scheme: 'GST', taxCategory: 'GST_…	
-TAX_RULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:597	apps/api/openapi/registry	'7f1a3e58-2c60-4b97-9d24-8e5b0a6c3f12'	
+TAX_RULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:605	apps/api/openapi/registry	'7f1a3e58-2c60-4b97-9d24-8e5b0a6c3f12'	
 TAX_WIDTH_MM	const	local	packages/documents/src/invoice/items.tsx:270	packages/documents/invoice	17	
 TaxableCustomer	interface	export	packages/tax/src/types.ts:212	packages/tax	{ taxId, taxIdStatus }	Who is being supplied, and what we know about them.
 TaxableSupply	interface	export	packages/tax/src/types.ts:218	packages/tax	{ net, customer, registrations, suppliedAt, placeOfSupply, taxCategory, rules, providerQuote }	
@@ -6365,7 +6368,7 @@ temperatureSymbol	fn	export	packages/contracts/src/locale.ts:1228	packages/contr
 TemperatureUnit	type	export	packages/contracts/src/locale.ts:253	packages/contracts	'C' | 'F'	How a body temperature is written down. Never how it is stored.
 temperatureUnitFor	fn	export	packages/contracts/src/locale.ts:1217	packages/contracts	(code: string | null | undefined): TemperatureUnit	
 TEMPLATE	const	local	apps/api/src/openapi/registry/charging.ts:88	apps/api/openapi/registry	{ id: CONSUMPTION_TEMPLATE_ID, itemId: ENCOUNTER_PROCEDURE_ID, itemName: 'Wound dressing'…	
-TEMPLATE_DRAFT_VERSION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:482	apps/api/openapi/registry	'2a8c5f60-7b31-4d94-8e26-0c9b4a7e3f18'	
+TEMPLATE_DRAFT_VERSION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:488	apps/api/openapi/registry	'2a8c5f60-7b31-4d94-8e26-0c9b4a7e3f18'	
 TEMPLATE_EXAMPLE	const	local	apps/api/src/openapi/registry/clinical-config.ts:68	apps/api/openapi/registry	{ id: TEMPLATE_ID, code: 'GEN_MED_OPD', name: 'General Medicine — OPD', description: 'The…	
 TEMPLATE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:469	apps/api/openapi/registry	'f0a6c384-1e59-4d70-8b26-7c4d9a0b3e15'	
 TEMPLATE_MANAGE	const	local	apps/api/src/routes/v1/consumption.routes.ts:93	apps/api/routes/v1	PERMISSIONS.CONSUMPTION_TEMPLATE_MANAGE	
@@ -6633,14 +6636,14 @@ track	fn	export	apps/web/src/lib/analytics.ts:24	apps/web/lib	(event: AnalyticsE
 TRACKED_BY_LOT	const	local	apps/web/src/components/tenant/lot-form.tsx:41	apps/web/components/tenant	['LOT_BATCH', 'LOT_AND_SERIAL']	The two tracking modes a lot may belong to. `LOT_AND_SERIAL` counts: a device with both still arrives in a lot.
 TRACKED_BY_SERIAL	const	local	apps/web/src/components/tenant/serial-form.tsx:48	apps/web/components/tenant	['SERIAL', 'LOT_AND_SERIAL']	A serial belongs to a product tracked one of these two ways.
 TRACKING	component	local	apps/web/src/components/tenant/product-create-form.tsx:57	apps/web/components/tenant	[ { value: 'NONE', label: 'Not tracked individually' }, { value: 'LOT_BATCH', label: 'By …	
-TRACKING_REFERENCE	const	export	apps/api/src/openapi/registry/fixtures.ts:629	apps/api/openapi/registry	'BLR7742199814'	A consignment note, quoted back by the patient on the telephone.
+TRACKING_REFERENCE	const	export	apps/api/src/openapi/registry/fixtures.ts:637	apps/api/openapi/registry	'BLR7742199814'	A consignment note, quoted back by the patient on the telephone.
 trackingMode	zod	export	packages/contracts/src/products.ts:45	packages/contracts	z.enum(…)	
 TrackingMode	type	export	packages/contracts/src/products.ts:958	packages/contracts	z.infer<typeof trackingMode>	
 Trail	component	local	apps/web/src/components/tenant/record-history.tsx:179	apps/web/components/tenant	({ history, timezone, timeFormat, }: { history: AuditHistory…)	
 trailFor	fn/async	local	apps/api/tests/integration/invoice-audit.test.ts:284	apps/api/tests/integration	(invoiceId: string): Promise<AuditRow[]>	Every row for one invoice, oldest first — the order the life happened in.
 TRANSFER	const	local	apps/api/src/openapi/registry/inventory.ts:119	apps/api/openapi/registry	{ id: STOCK_TRANSFER_ID, transferNumber: 'TRF-2026-000318', status: 'DRAFT', fromBranchId…	
 TRANSFER	const	local	apps/api/src/routes/v1/inventory.routes.ts:175	apps/api/routes/v1	PERMISSIONS.STOCK_TRANSFER	
-TRANSFER_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:561	apps/api/openapi/registry	'9f4a2d76-0b58-4c31-8e69-5a7c3b1e0d24'	
+TRANSFER_LINE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:569	apps/api/openapi/registry	'9f4a2d76-0b58-4c31-8e69-5a7c3b1e0d24'	
 TransferDetail	component	export	apps/web/src/components/tenant/transfer-detail.tsx:56	apps/web/components/tenant	({ slug, transfer, locations, timezone, timeFormat, branchId…)	
 TransferForm	component	export	apps/web/src/components/tenant/transfer-form.tsx:70	apps/web/components/tenant	({ slug, branches, locations }: Props)	
 transferLinesFrom	fn	local	apps/web/src/app/(tenant)/t/[slug]/(app)/stock/actions.ts:400	apps/web/app/(tenant)/t/[slug]/(app)/stock	(formData: FormData): StockTransferLineRequest[]	
@@ -6669,11 +6672,12 @@ undetermined	fn	local	packages/regulatory/src/engine.ts:93	packages/regulatory	(
 UNIFIED_PLATFORM	const	local	packages/db/prisma/seed/data/regulatory-ae-az.ts:236	packages/db/prisma/seed/data	'the DOH unified platform system'	
 UNIFIED_PLATFORM	const	local	packages/db/prisma/seed/data/regulatory-ae-du.ts:178	packages/db/prisma/seed/data	'the Unified Controlled Medication Platform'	
 UNISSUABLE_TREATMENTS	const	export	packages/tax/src/types.ts:33	packages/tax	['UNRATED', 'PROVIDER_REQUIRED'] as const	
-UNIT_CAPSULE_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:546	apps/api/openapi/registry	'CAP'	The unit `UNIT_CAPSULE_ID` is known by on a catalogue sheet.
-UNIT_CAPSULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:510	apps/api/openapi/registry	'4a1f6d80-9b23-4c57-8e64-2d0b7a5c3f19'	
-UNIT_CONVERSION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:533	apps/api/openapi/registry	'f16d8b03-4a52-4c97-8e61-2b9d0c5a7e38'	
+UNIT_BOX_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:540	apps/api/openapi/registry	'12e29ce1-5043-4b6d-812d-caa14e714673'	The box — ten strips — at the top of the amoxicillin packaging ladder.
+UNIT_CAPSULE_CODE	const	export	apps/api/src/openapi/registry/fixtures.ts:554	apps/api/openapi/registry	'CAP'	The unit `UNIT_CAPSULE_ID` is known by on a catalogue sheet.
+UNIT_CAPSULE_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:516	apps/api/openapi/registry	'4a1f6d80-9b23-4c57-8e64-2d0b7a5c3f19'	
+UNIT_CONVERSION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:541	apps/api/openapi/registry	'f16d8b03-4a52-4c97-8e61-2b9d0c5a7e38'	
 UNIT_CONVERSIONS	const	export	packages/db/prisma/seed/data/product-masters.ts:118	packages/db/prisma/seed/data	: SeedConversion[]	
-UNIT_STRIP_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:532	apps/api/openapi/registry	'8c30f4a5-1b67-4e29-9a84-3d5c7b0e2f16'	
+UNIT_STRIP_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:538	apps/api/openapi/registry	'8c30f4a5-1b67-4e29-9a84-3d5c7b0e2f16'	
 UNIT_WORDS	const	local	apps/web/src/components/tenant/previous-visit-summary.tsx:56	apps/web/components/tenant	: Record<string, string>	
 UNIT_WORDS	const	local	apps/web/src/components/tenant/recall-list.tsx:51	apps/web/components/tenant	: Record<string, string>	
 unitClass	zod	export	packages/contracts/src/products.ts:26	packages/contracts	z.enum(…)	
@@ -7027,9 +7031,9 @@ VisitHistoryResponse	type	export	packages/contracts/src/visit-history.ts:127	pac
 visitHistoryVisit	zod	export	packages/contracts/src/visit-history.ts:89	packages/contracts	z.object(…)	
 VisitHistoryVisit	type	export	packages/contracts/src/visit-history.ts:104	packages/contracts	z.infer<typeof visitHistoryVisit>	
 visitOrder	fn	local	apps/api/src/services/clinical/visit-history.service.ts:178	apps/api/services/clinical	(a: VisitHistoryVisit, b: VisitHistoryVisit): number	
-VISUAL_MAP_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:494	apps/api/openapi/registry	'b8025e73-4c19-4f86-9a52-7d3e0b6c1a94'	
+VISUAL_MAP_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:500	apps/api/openapi/registry	'b8025e73-4c19-4f86-9a52-7d3e0b6c1a94'	
 VISUAL_MAPS	const	export	packages/db/prisma/seed/data/visual-maps.ts:363	packages/db/prisma/seed/data	: VisualMapSeed[]	
-VISUAL_REGION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:478	apps/api/openapi/registry	'9e4b2c70-6a15-4f83-8d29-3c7b0e5a1f46'	A region on a body chart — where a finding was marked.
+VISUAL_REGION_ID	const	export	apps/api/src/openapi/registry/fixtures.ts:484	apps/api/openapi/registry	'9e4b2c70-6a15-4f83-8d29-3c7b0e5a1f46'	A region on a body chart — where a finding was marked.
 visualMap	zod	export	packages/contracts/src/visual-mapping.ts:87	packages/contracts	z.object(…)	
 VisualMap	type	export	packages/contracts/src/visual-mapping.ts:111	packages/contracts	z.infer<typeof visualMap>	
 VisualMapActionOptions	interface	export	apps/api/src/services/clinical/visual-map.service.ts:57	apps/api/services/clinical	{ ipAddress, userAgent }	

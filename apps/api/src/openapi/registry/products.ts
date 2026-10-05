@@ -43,6 +43,7 @@ import {
   CATEGORY_ID,
   COMPOSITION_ID,
   IDENTIFIER_ID,
+  JURISDICTION_ID,
   COMPOSITION_CODE,
   MANUFACTURER_CODE,
   MANUFACTURER_ID,
@@ -53,6 +54,7 @@ import {
   SECOND_PRODUCT_CODE,
   STORAGE_PROFILE_ID,
   SUBSTITUTE_PRODUCT_ID,
+  UNIT_BOX_ID,
   UNIT_CAPSULE_CODE,
   UNIT_CAPSULE_ID,
   UNIT_STRIP_ID,
@@ -112,7 +114,7 @@ box can carry several and knowing which one scanned matters when they disagree.
               id: IDENTIFIER_ID,
               type: 'GTIN',
               value: '08901234567890',
-              packagingId: PACKAGING_ID,
+              isPrimary: true,
             },
           },
         },
@@ -191,7 +193,7 @@ box can carry several and knowing which one scanned matters when they disagree.
                 ...PRODUCT_SUMMARY,
                 id: SUBSTITUTE_PRODUCT_ID,
                 name: 'Amoxil 500mg Capsule',
-                code: 'MED-AMOXIL-500',
+                code: 'MED_AMOXIL_500',
               },
             ],
           },
@@ -244,7 +246,7 @@ box can carry several and knowing which one scanned matters when they disagree.
                 id: IDENTIFIER_ID,
                 type: 'GTIN',
                 value: '08901234567890',
-                packagingId: PACKAGING_ID,
+                isPrimary: true,
               },
             ],
           },
@@ -382,7 +384,7 @@ own permissions.
         summary: 'A consumable with no tracking',
         value: {
           type: 'CONSUMABLE',
-          code: 'CON-GLOVE-M',
+          code: 'CON_GLOVE_M',
           name: 'Nitrile examination glove, medium',
           baseUnitId: UNIT_CAPSULE_ID,
           trackingMode: 'NONE',
@@ -459,7 +461,7 @@ one spreadsheet column cannot honestly mean both.
               manufacturerCode: MANUFACTURER_CODE,
               compositionCode: COMPOSITION_CODE,
               barcode: PRODUCT_GTIN,
-              trackingMode: 'BATCH',
+              trackingMode: 'LOT_BATCH',
               isExpiryControlled: true,
               isStockItem: true,
             },
@@ -468,7 +470,7 @@ one spreadsheet column cannot honestly mean both.
               code: SECOND_PRODUCT_CODE,
               name: 'Paracetamol 650mg Tablet',
               baseUnitCode: UNIT_CAPSULE_CODE,
-              trackingMode: 'BATCH',
+              trackingMode: 'LOT_BATCH',
               isExpiryControlled: true,
               isStockItem: true,
             },
@@ -526,7 +528,7 @@ make a scan ambiguous.
     requestExamples: [
       {
         summary: 'With a new code',
-        value: { code: 'MED-AMOX-500-LOCAL', name: 'Amoxicillin 500mg (house)' },
+        value: { code: 'MED_AMOX_500_LOCAL' },
       },
     ],
     responseExamples: [
@@ -535,7 +537,7 @@ make a scan ambiguous.
         value: {
           success: true,
           message: 'Success',
-          data: { ...PRODUCT_SUMMARY, status: 'DRAFT', code: 'MED-AMOX-500-LOCAL', isOwn: true },
+          data: { ...PRODUCT_SUMMARY, status: 'DRAFT', code: 'MED_AMOX_500_LOCAL', isOwn: true },
         },
       },
     ],
@@ -550,8 +552,10 @@ Set how the product is packed, whole.
 only meaningful complete.** Level 3 with no level 2 is a box containing nothing,
 and a partial update is how that state gets created.
 
-Each level's \`quantityInBase\` is its factor down to the product's base unit, so
-a strip of 10 capsules is \`"10"\`.
+Levels run \`0, 1, 2 …\` with no gaps, and each uses a different unit. Level
+\`0\` is the base unit itself and contains exactly \`"1"\`. Every level above it
+gives \`quantityOfChild\` — how many of the level **below** it fit inside — so a
+box of 10 strips of 10 capsules is \`"10"\` at both levels 1 and 2.
 `.trim(),
     errors: [409],
     params: { productId: PRODUCT_NOTE },
@@ -559,9 +563,10 @@ a strip of 10 capsules is \`"10"\`.
       {
         summary: 'Strip of 10, box of 10 strips',
         value: {
-          packagings: [
-            { level: 1, unitId: UNIT_STRIP_ID, quantityInBase: '10' },
-            { level: 2, unitId: UNIT_STRIP_ID, quantityInBase: '100' },
+          levels: [
+            { level: 0, unitId: UNIT_CAPSULE_ID, quantityOfChild: '1' },
+            { level: 1, unitId: UNIT_STRIP_ID, quantityOfChild: '10', isDefaultSale: true },
+            { level: 2, unitId: UNIT_BOX_ID, quantityOfChild: '10', isDefaultPurchase: true },
           ],
         },
       },
@@ -571,15 +576,15 @@ a strip of 10 capsules is \`"10"\`.
   'POST /api/v1/products/{productId}/identifiers': {
     summary: 'Add an identifier',
     description:
-      'Attach a barcode, GTIN or catalogue number. `packagingId` ties it to a packaging level, because the strip and the box carry different barcodes. Behind `product.identifier.manage`, separate from the product code — scanning accuracy is its own responsibility. A value already in use is `409`.',
+      'Attach a barcode, GTIN or catalogue number to the product. A barcode that belongs to one packaging level — the strip and the box carry different ones — is set as `barcode` on that level through `PUT /api/v1/products/{productId}/packagings`. Behind `product.identifier.manage`, separate from the product code — scanning accuracy is its own responsibility. A value already in use is `409`.',
     response: productIdentifierDetail,
     status: 201,
     errors: [409],
     params: { productId: PRODUCT_NOTE },
     requestExamples: [
       {
-        summary: 'A GTIN on the strip',
-        value: { type: 'GTIN', value: '08901234567890', packagingId: PACKAGING_ID },
+        summary: 'The primary GTIN',
+        value: { type: 'GTIN', value: '08901234567890', countryCode: 'IN', isPrimary: true },
       },
     ],
     responseExamples: [
@@ -592,7 +597,7 @@ a strip of 10 capsules is \`"10"\`.
             id: IDENTIFIER_ID,
             type: 'GTIN',
             value: '08901234567890',
-            packagingId: PACKAGING_ID,
+            isPrimary: true,
           },
         },
       },
@@ -633,8 +638,8 @@ that applied on the day.
           classifications: [
             {
               countryCode: 'IN',
-              taxCategoryCode: 'GST_12',
-              hsnCode: PRODUCT.hsnCode,
+              taxCategory: 'GST_12',
+              itemCode: PRODUCT.hsnCode,
               effectiveFrom: '2026-01-01',
             },
           ],
@@ -667,9 +672,9 @@ difference between a lawful refusal and an unlawful supply.
         value: {
           profiles: [
             {
-              countryCode: 'IN',
-              scheduleClass: 'H',
-              prescriptionRequirement: 'REQUIRED',
+              jurisdictionId: JURISDICTION_ID,
+              classification: 'SCHEDULE_H',
+              prescriptionRequirement: 'PRESCRIPTION_REQUIRED',
               onlineSalePosition: 'RESTRICTED',
               registrationStatus: 'REGISTERED',
               effectiveFrom: '2026-01-01',
@@ -683,7 +688,7 @@ difference between a lawful refusal and an unlawful supply.
   'PUT /api/v1/products/{productId}/medicine': {
     summary: 'Set the medicine detail',
     description:
-      'Record the pharmacy facet — dosage form, route, release type, light sensitivity, narcotic status. Behind `pharmacy.medicine.manage`: a lab manager maintaining reagents and a dental store manager maintaining materials both hold the product code, and neither should be recording a prescription classification.',
+      'Record the pharmacy facet — dosage form, route, release type, label instructions and the default course length. Strength lives on the composition, storage conditions on the storage profile, and controlled-drug status on the regulatory profile. Behind `pharmacy.medicine.manage`: a lab manager maintaining reagents and a dental store manager maintaining materials both hold the product code, and neither should be recording a prescription classification.',
     response: medicineDetail,
     errors: [409],
     params: { productId: PRODUCT_NOTE },
@@ -692,11 +697,10 @@ difference between a lawful refusal and an unlawful supply.
         summary: 'An oral capsule',
         value: {
           dosageForm: 'CAPSULE',
-          administrationRoute: 'ORAL',
+          route: 'ORAL',
           releaseType: 'IMMEDIATE',
-          strength: '500mg',
-          lightSensitivity: 'NONE',
-          isNarcotic: false,
+          labelInstructions: 'Complete the full course, even if you feel better.',
+          defaultCourseDays: 5,
         },
       },
     ],

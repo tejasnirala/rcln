@@ -103,11 +103,11 @@ distinguishing them turns this endpoint into an account-enumeration oracle.
     requestExamples: [
       {
         summary: 'By email',
-        value: { identifier: 'meera@alphaclinic.in', password: 'correct-horse-battery-staple' },
+        value: { identifier: 'meera@alphaclinic.in', password: 'Correct-Horse-Battery-42' },
       },
       {
         summary: 'By phone',
-        value: { identifier: '+919845012345', password: 'correct-horse-battery-staple' },
+        value: { identifier: '+919845012345', password: 'Correct-Horse-Battery-42' },
       },
     ],
     errors: [401, 429],
@@ -239,8 +239,17 @@ out and sign in as the invitee.
 Turns an invitation into a membership and hands back a session, so the invitee
 lands signed in rather than at a login form.
 
-Send \`password\` when the preview said \`needsAccount: true\`; omit it when the
-person already has an account and is simply joining another clinic.
+\`password\` is always required, and means one of two things:
+
+- **A new account** (the preview said \`needsAccount: true\`) — send \`fullName\`
+  and the password to set. It must meet the password rules: at least 12
+  characters with a lowercase letter, an uppercase letter and a digit.
+- **An existing account** — a locum joining a second clinic — send their
+  **existing** password and no name. They have no session on this clinic's
+  address yet, so the password is the only credential they can present.
+
+Which path applies is decided by whether the invited email already has a login,
+never by the request.
 
 Answers \`201\`: a membership is created.
 `.trim(),
@@ -252,12 +261,16 @@ Answers \`201\`: a membership is created.
         value: {
           token: 'inv_9f4c2a7e51b3486d90fa2e7c1d8b5043',
           fullName: 'Arjun Rao',
-          password: 'correct-horse-battery-staple',
+          password: 'Correct-Horse-Battery-42',
         },
       },
       {
         summary: 'Someone who already has an account',
-        value: { token: 'inv_9f4c2a7e51b3486d90fa2e7c1d8b5043' },
+        description: 'Their existing password, checked rather than set. No `fullName`.',
+        value: {
+          token: 'inv_9f4c2a7e51b3486d90fa2e7c1d8b5043',
+          password: 'the-password-they-already-use',
+        },
       },
     ],
     errors: [404, 409, 429],

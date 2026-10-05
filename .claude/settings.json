@@ -43,7 +43,16 @@
       "Read(./apps/web/.env)",
       "Read(./apps/web/.env.local)",
       "Read(./apps/worker/.env)",
-      "Read(./packages/db/.env)"
+      "Read(./packages/db/.env)",
+      "Bash(npm install*)",
+      "Bash(npm i *)",
+      "Bash(npm ci*)",
+      "Bash(npm uninstall*)",
+      "Bash(yarn*)",
+      "Edit(package-lock.json)",
+      "Write(package-lock.json)",
+      "Edit(yarn.lock)",
+      "Write(yarn.lock)"
     ]
   },
   "hooks": {

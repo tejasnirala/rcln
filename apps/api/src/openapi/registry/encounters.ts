@@ -33,9 +33,12 @@ import {
   ENCOUNTER_NUMBER,
   ENCOUNTER_OPENED_AT,
   EPISODE_ID,
+  FINDING_TERM_ID,
+  INVESTIGATION_TERM_ID,
   PATIENT_ID,
   PRESCRIPTION_ROW_ID,
   PRESCRIPTION_SIGNED_AT,
+  PROCEDURE_TERM_ID,
   PRODUCT,
   PRODUCT_ID,
   SYMPTOM_ROW_ID,
@@ -63,7 +66,7 @@ const ENCOUNTER_EXAMPLE = {
   templateVersionId: TEMPLATE_VERSION_ID,
   chiefComplaint: 'Fever and sore throat',
   chiefComplaintDurationValue: 3,
-  chiefComplaintDurationUnit: 'DAY',
+  chiefComplaintDurationUnit: 'DAYS',
   onset: 'GRADUAL',
   clinicalNotes: null,
   startedAt: ENCOUNTER_OPENED_AT,
@@ -130,7 +133,7 @@ const COLLECTIONS: readonly Collection[] = [
     createExample: {
       itemId: CLINICAL_TERM_ID,
       durationValue: 3,
-      durationUnit: 'DAY',
+      durationUnit: 'DAYS',
       severity: 'MODERATE',
       frequency: 'Constant',
     },
@@ -154,15 +157,15 @@ const COLLECTIONS: readonly Collection[] = [
   {
     path: 'procedures',
     noun: 'procedure',
-    what: `What was done at this visit.\n\n${CODED_OR_TYPED}\n\n**Recording a procedure here is a clinical statement, not a charge.** What the patient is billed for is decided on the invoice, and what the procedure consumed from the shelf is recorded through Charging & consumption. The three are deliberately not derived from one another.`,
-    immutable: '`itemId` and `customText`.',
-    createExample: { customText: 'Throat swab taken', notes: 'Sent for culture' },
+    what: `What was done at this visit.\n\n⚠️ **Coded only — \`itemId\` is required, unlike on a symptom or a diagnosis.** A procedure is billed, consumed from stock and reported on, and a free-text one is a line nothing downstream can price or count. A clinic whose vocabulary lacks the word adds it to its own vocabulary first.\n\n**Recording a procedure here is a clinical statement, not a charge.** What the patient is billed for is decided on the invoice, and what the procedure consumed from the shelf is recorded through Charging & consumption. The three are deliberately not derived from one another.`,
+    immutable: '`itemId`.',
+    createExample: { itemId: PROCEDURE_TERM_ID, status: 'PERFORMED', notes: 'Sent for culture' },
     updateExample: { notes: 'Culture negative' },
   },
   {
     path: 'prescriptions',
     noun: 'prescription',
-    what: `A medicine, as written.\n\n⚠️ **\`dose\` and \`quantity\` are STRINGS, not numbers.** Half a tablet is \`"0.5"\` and has to stay exactly that — a float would round it, and a rounded dose is a dosing error.\n\n\`strength\` is a **snapshot of what was written**, not a live reference to the catalogue, because a catalogue strength can be corrected afterwards and the prescription must still say what the prescriber said.\n\n⚠️ **\`isRepeatable\` has THREE states and \`null\` is not \`false\`.** \`null\` — the default — is "the prescriber did not address repeats", which the dispensing engine reads as no endorsement. \`false\` is a positive instruction that this may **not** be repeated. Collapsing them would make every prescription ever written carry an endorsement nobody gave.\n\n\`isPrn\` ("as needed") is not the same as a null frequency.`,
+    what: `A medicine, as written.\n\n⚠️ **\`dose\` and \`quantity\` are STRINGS, not numbers.** Half a tablet is \`"0.5"\` and has to stay exactly that — a float would round it, and a rounded dose is a dosing error.\n\n\`strength\` is a **snapshot of what was written**, not a live reference to the catalogue, because a catalogue strength can be corrected afterwards and the prescription must still say what the prescriber said.\n\n⚠️ **\`repeatsAuthorised\` has THREE states and \`null\` is not \`false\`.** \`null\` — the default — is "the prescriber did not address repeats", which the dispensing engine reads as no endorsement. \`false\` is a positive instruction that this may **not** be repeated. Collapsing them would make every prescription ever written carry an endorsement nobody gave.\n\n\`isPrn\` ("as needed") is not the same as a null frequency.`,
     immutable: '`productId`. A different medicine is a different line.',
     createExample: {
       productId: PRODUCT_ID,
@@ -171,9 +174,9 @@ const COLLECTIONS: readonly Collection[] = [
       doseUnit: 'capsule',
       route: 'ORAL',
       frequency: 3,
-      frequencyUnit: 'PER_DAY',
+      frequencyUnit: 'DAY',
       durationValue: 5,
-      durationUnit: 'DAY',
+      durationUnit: 'DAYS',
       foodRelation: 'AFTER_FOOD',
       quantity: '15',
       isPrn: false,
@@ -183,19 +186,23 @@ const COLLECTIONS: readonly Collection[] = [
   {
     path: 'investigations',
     noun: 'investigation',
-    what: `What was ordered — bloods, imaging, a swab.\n\n${CODED_OR_TYPED}\n\nOrdering an investigation records the request. It does not book it, bill it, or carry a result.`,
-    immutable: '`itemId` and `customText`.',
-    createExample: { customText: 'Full blood count', notes: 'Fasting not required' },
-    updateExample: { notes: 'Urgent — same day' },
+    what: `What was ordered — bloods, imaging, a swab.\n\n**Coded only — \`itemId\` is required.** \`priority\` is \`ROUTINE\`, \`URGENT\` or \`STAT\`; \`instructions\` carries what the coded word cannot.\n\nOrdering an investigation records the request. It does not book it, bill it, or carry a result.`,
+    immutable: '`itemId`.',
+    createExample: {
+      itemId: INVESTIGATION_TERM_ID,
+      priority: 'ROUTINE',
+      instructions: 'Fasting not required',
+    },
+    updateExample: { priority: 'URGENT', instructions: 'Same day, please' },
   },
   {
     path: 'advice',
     noun: 'advice note',
-    what: 'What the patient was told to do — rest, fluids, when to come back, what to watch for. Free text, because advice is prose and an enum of it would be a worse record than no record.',
+    what: `What the patient was told to do — rest, fluids, when to come back, what to watch for.\n\n${CODED_OR_TYPED} A coded piece comes from the clinic's advice library; editing its \`customText\` afterwards tailors it to this patient.`,
     createExample: {
-      text: 'Rest, plenty of fluids. Return if the fever persists beyond 48 hours.',
+      customText: 'Rest, plenty of fluids. Return if the fever persists beyond 48 hours.',
     },
-    updateExample: { text: 'Rest and fluids. Return sooner if breathing becomes difficult.' },
+    updateExample: { customText: 'Rest and fluids. Return sooner if breathing becomes difficult.' },
   },
   {
     path: 'referrals',
@@ -211,19 +218,22 @@ const COLLECTIONS: readonly Collection[] = [
   {
     path: 'attachments',
     noun: 'attachment',
-    what: 'A document or image filed against this consultation — a scanned report, a photograph. The bytes are uploaded separately through Documents; this records the reference and what it is.',
-    createExample: { documentId: DOCUMENT_ID, label: 'Chest X-ray' },
-    updateExample: { label: 'Chest X-ray (PA view)' },
+    what: 'A document or image filed against this consultation — a scanned report, a photograph. The bytes are uploaded separately through Documents; this records the `storedFileId` that upload returned, its `kind` and a `caption`.',
+    createExample: { storedFileId: DOCUMENT_ID, kind: 'SCAN', caption: 'Chest X-ray' },
+    updateExample: { caption: 'Chest X-ray (PA view)' },
   },
   {
     path: 'findings',
     noun: 'finding',
     what: `A mark on a body chart — where on the diagram something was observed.\n\n⚠️ **Behind \`clinical.encounter.create\`, NOT \`clinical.visual_map.manage\`.** Drawing on a chart is writing up the consultation; the manage code says what the chart IS, and a DOCTOR holds neither it nor a need for it.`,
     createExample: {
-      regionId: VISUAL_REGION_ID,
-      note: 'Tenderness on palpation',
+      sectionKey: 'odontogram',
+      visualRegionId: VISUAL_REGION_ID,
+      findingItemId: FINDING_TERM_ID,
+      severity: 'MODERATE',
+      notes: 'Occlusal surface',
     },
-    updateExample: { note: 'Tenderness resolved on review' },
+    updateExample: { severity: 'SEVERE', notes: 'Extends into dentine on review' },
   },
 ];
 
@@ -366,7 +376,7 @@ codes that would let them alter what they are reading.
                   term: { id: CLINICAL_TERM_ID, code: 'R50.9', name: 'Fever' },
                   customText: null,
                   durationValue: 3,
-                  durationUnit: 'DAY',
+                  durationUnit: 'DAYS',
                   severity: 'MODERATE',
                   frequency: 'Constant',
                   site: null,
@@ -394,9 +404,9 @@ codes that would let them alter what they are reading.
                   doseUnit: 'capsule',
                   route: 'ORAL',
                   frequency: 3,
-                  frequencyUnit: 'PER_DAY',
+                  frequencyUnit: 'DAY',
                   durationValue: 5,
-                  durationUnit: 'DAY',
+                  durationUnit: 'DAYS',
                   foodRelation: 'AFTER_FOOD',
                   timing: null,
                   quantity: '15',
@@ -445,7 +455,7 @@ to answer.
         value: {
           chiefComplaint: 'Fever and sore throat',
           chiefComplaintDurationValue: 3,
-          chiefComplaintDurationUnit: 'DAY',
+          chiefComplaintDurationUnit: 'DAYS',
           onset: 'GRADUAL',
         },
       },
@@ -616,7 +626,12 @@ booking are recorded by different people, days or weeks apart.
 **\`PUT\`, so there is at most one per consultation** — the doctor's instruction,
 replaced if restated, rather than a growing list of half-decisions.
 
-Send \`null\` to clear it.
+**\`isRequired: false\` is a real answer, not a way to clear it** — "no follow-up
+needed" is a clinical decision, and it carries no timing. Signing refuses a
+consultation whose follow-up has not been answered either way.
+
+When one is needed, give **either** \`intervalValue\` + \`intervalUnit\` **or**
+\`recommendedDate\` — never both.
 `.trim(),
     phi: true,
     errors: [409],
@@ -624,9 +639,14 @@ Send \`null\` to clear it.
     requestExamples: [
       {
         summary: 'Review in two weeks',
-        value: { intervalValue: 2, intervalUnit: 'WEEK', reason: 'Review after antibiotics' },
+        value: {
+          isRequired: true,
+          intervalValue: 2,
+          intervalUnit: 'WEEKS',
+          reason: 'Review after antibiotics',
+        },
       },
-      { summary: 'Clear it', value: { recommendation: null } },
+      { summary: 'No follow-up needed', value: { isRequired: false } },
     ],
   },
 };

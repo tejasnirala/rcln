@@ -308,7 +308,7 @@ export const ANIMAL_PROFILE = {
 export const PRODUCT = {
   id: PRODUCT_ID,
   name: 'Amoxicillin 500mg Capsule',
-  code: 'MED-AMOX-500',
+  code: 'MED_AMOX_500',
   productType: 'MEDICINE',
   hsnCode: '30041020',
   scheduleClass: 'H',
@@ -349,7 +349,7 @@ export const SCAN_PAYLOAD_BRACKETED = `(01)${PRODUCT_GTIN}(17)270831(10)${BATCH.
 export const SUPPLIER = {
   id: SUPPLIER_ID,
   name: 'MedSource Distributors',
-  code: 'SUP-MEDSRC',
+  code: 'SUP_MEDSRC',
   gstin: '29AABCM1234F1Z7',
   phone: '+918041237788',
   email: 'orders@medsource.in',
@@ -472,6 +472,12 @@ export const TEMPLATE_VERSION_ID = '6b2d8f41-3a07-4e95-9c68-0d5b1e7a4c32';
 export const CLINICAL_TERM_ID = 'a4e7b019-5c36-4f82-8d40-2b9c6e1a7d53';
 /** The amended consultation — a NEW draft citing {@link ENCOUNTER_ID}. */
 export const AMENDED_ENCOUNTER_ID = '4f0b7d29-8e63-4a51-9c07-2d5a1b8e6c34';
+/** "Throat swab" — a coded `PROCEDURE` term. Procedures cannot be typed free text. */
+export const PROCEDURE_TERM_ID = '3b6ef5bd-7128-4e5c-923e-dd70ec390d19';
+/** "Complete blood count (CBC)" — a coded `INVESTIGATION` term. */
+export const INVESTIGATION_TERM_ID = 'f4182143-b5a0-42fa-9135-62f9044dfe83';
+/** "Caries" — a `FINDING_TYPE` word, what is marked on a chart region. */
+export const FINDING_TERM_ID = 'dc1c921f-4d48-46e9-bb90-f08b93d418e4';
 /** A stored document the consultation attaches. */
 export const DOCUMENT_ID = '5c1e8a37-0b94-4d26-9f73-6a2b8c4e1d05';
 /** A region on a body chart — where a finding was marked. */
@@ -530,6 +536,8 @@ export const COMPOSITION_ID = 'e93c6a17-2b48-4d05-9f81-7a0e4b6c3d52';
 export const INGREDIENT_ID = '4d8f0c62-5e73-4a91-8b24-6c1a9d3e7b05';
 export const STORAGE_PROFILE_ID = '2b5a9e84-7c01-4f36-9d58-0e3b6a1c4d79';
 export const UNIT_STRIP_ID = '8c30f4a5-1b67-4e29-9a84-3d5c7b0e2f16';
+/** The box — ten strips — at the top of the amoxicillin packaging ladder. */
+export const UNIT_BOX_ID = '12e29ce1-5043-4b6d-812d-caa14e714673';
 export const UNIT_CONVERSION_ID = 'f16d8b03-4a52-4c97-8e61-2b9d0c5a7e38';
 export const PACKAGING_ID = '7e2c5f90-6d18-4b43-8a07-9c1b3e5d0a62';
 
@@ -547,11 +555,11 @@ export const UNIT_CAPSULE_CODE = 'CAP';
 /** The category `CATEGORY_ID` is known by. */
 export const CATEGORY_CODE = 'ANTIBIOTIC';
 /** The manufacturer `MANUFACTURER_ID` is known by. */
-export const MANUFACTURER_CODE = 'MFR-CIPLA';
+export const MANUFACTURER_CODE = 'MFR_CIPLA';
 /** The composition `COMPOSITION_ID` is known by — what the medicine IS. */
-export const COMPOSITION_CODE = 'AMOXICILLIN-500';
+export const COMPOSITION_CODE = 'AMOXICILLIN_500';
 /** A second product, so an import example can show more than one row. */
-export const SECOND_PRODUCT_CODE = 'MED-PARA-650';
+export const SECOND_PRODUCT_CODE = 'MED_PARA_650';
 export const IDENTIFIER_ID = '5a9d1c48-0f36-4e72-9b85-4c7a2e6b1d03';
 
 /* ────────────────────────────── inventory ────────────────────────────── */

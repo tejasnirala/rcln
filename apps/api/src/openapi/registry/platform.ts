@@ -77,14 +77,14 @@ const LAW: readonly LawResource[] = [
     noun: 'legal source',
     what: 'The document rules were drawn from — an act, a schedule, a circular — with a citation a clinic can follow. This is what makes a refusal accountable rather than merely automatic.',
     createExample: {
-      code: 'IN-DC-RULES-1945',
       title: 'Drugs and Cosmetics Rules, 1945',
+      documentReference: 'G.S.R. 1945',
       authorityId: AUTHORITY_ID,
       jurisdictionId: JURISDICTION_ID,
-      citationUrl: 'https://cdsco.gov.in/',
+      sourceUrl: 'https://cdsco.gov.in/',
       effectiveFrom: '1945-12-21',
     },
-    updateExample: { status: 'SUPERSEDED' },
+    updateExample: { reviewStatus: 'SUPERSEDED' },
   },
 ];
 
@@ -150,7 +150,7 @@ does — a session cookie must be scoped to the host that owns it.
             fullName: 'Dr Anita Desai',
             email: 'anita@sunrisedental.in',
             phone: '+919845099887',
-            password: 'correct-horse-battery-staple',
+            password: 'Correct-Horse-Battery-42',
           },
           acceptedTerms: true,
         },
@@ -322,7 +322,7 @@ this one is ours, for billing subscriptions.
           regionCode: 'KA',
           scheme: 'GST',
           registrationNumber: '29AAACR5678D1ZQ',
-          legalName: 'rcln Technologies Pvt Ltd',
+          standardRateBps: 1800,
           effectiveFrom: '2024-04-01',
         },
       },
@@ -466,11 +466,10 @@ is bulkier and gets imported, so it gets a review gate.
       {
         summary: 'An Indian schedule pack',
         value: {
-          code: 'IN-CDSCO-SCHEDULES',
-          version: '2026.1',
+          name: 'CDSCO drug schedules',
+          version: '2026.1.0',
           jurisdictionId: JURISDICTION_ID,
           authorityId: AUTHORITY_ID,
-          sourceId: REGULATORY_SOURCE_ID,
           effectiveFrom: '2026-01-01',
         },
       },
@@ -509,7 +508,8 @@ distinguishable from one resting on a production pack.
         summary: 'Enable it in production',
         value: {
           maturity: 'PRODUCTION_ENABLED',
-          note: 'Reviewed against the 2026 schedules by retained counsel, 14 January 2026.',
+          reviewedBy: 'Adv. R. Nair, retained regulatory counsel',
+          reviewNotes: 'Reviewed against the 2026 schedules on 14 January 2026.',
         },
       },
     ],
@@ -535,10 +535,14 @@ distinguishable from one resting on a production pack.
     description: `
 Write one rule.
 
-⚠️ **\`message\` is read aloud to the person being refused**, so it is written for
+⚠️ **\`statement\` is read aloud to the person being refused**, so it is written for
 them and not for a developer: "A Schedule H medicine requires a valid
 prescription", never "SCHEDULE_H_RX_REQUIRED". A refusal arrives at the counter
 as a \`422\` carrying this exact text.
+
+\`sourceId\` names the legal source the rule rests on — a rule nobody can trace to
+a published text is not one a pharmacist can defend. \`appliesToTransactions\`
+says where it is checked; leave it out to check it everywhere.
 
 The rule takes effect when its pack is approved and its own \`effectiveFrom\`
 arrives.
@@ -550,11 +554,11 @@ arrives.
       {
         summary: 'Schedule H needs a prescription',
         value: {
-          code: 'IN-CDSCO-SCHEDULE-H-RX',
+          code: 'IN_CDSCO_SCHEDULE_H_RX',
           ruleType: 'PRESCRIPTION_REQUIRED',
-          transaction: 'DISPENSE',
-          outcome: 'REFUSED',
-          message: 'A Schedule H medicine requires a valid prescription.',
+          statement: 'A Schedule H medicine requires a valid prescription.',
+          appliesToTransactions: ['DISPENSE', 'COUNTER_SALE'],
+          sourceId: REGULATORY_SOURCE_ID,
           effectiveFrom: '2026-01-01',
         },
       },
@@ -570,7 +574,7 @@ arrives.
     requestExamples: [
       {
         summary: 'Improve the wording shown to patients',
-        value: { message: 'This medicine can only be supplied against a valid prescription.' },
+        value: { statement: 'This medicine can only be supplied against a valid prescription.' },
       },
       { summary: 'Withdraw it', value: { status: 'WITHDRAWN', effectiveTo: '2026-03-31' } },
     ],

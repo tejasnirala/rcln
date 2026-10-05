@@ -225,7 +225,7 @@ export const procurementDocs: DocRegistry = {
                 id: SUPPLIER_TAX_ID,
                 countryCode: 'IN',
                 regionCode: 'KA',
-                scheme: 'GSTIN',
+                scheme: 'GST',
                 registrationNumber: SUPPLIER.gstin,
                 legalName: 'MedSource Distributors Pvt Ltd',
                 effectiveFrom: '2020-04-01',
@@ -316,7 +316,7 @@ the list.
         value: {
           countryCode: 'IN',
           regionCode: 'KA',
-          scheme: 'GSTIN',
+          scheme: 'GST',
           registrationNumber: SUPPLIER.gstin,
           effectiveFrom: '2020-04-01',
         },
@@ -531,9 +531,7 @@ buyer decides.
         value: {
           branchId: BRANCH_ID,
           requiredBy: '2026-03-24',
-          lines: [
-            { productId: PRODUCT_ID, quantityBase: '1000', suggestedSupplierId: SUPPLIER_ID },
-          ],
+          lines: [{ productId: PRODUCT_ID, quantity: '1000', suggestedSupplierId: SUPPLIER_ID }],
         },
       },
     ],
@@ -711,7 +709,7 @@ nothing, and the contract refuses one without the other.
             {
               productId: PRODUCT_ID,
               supplierProductId: SUPPLIER_PRODUCT_ID,
-              quantityBase: '1000',
+              quantity: '1000',
               pricePerPackMinor: 14000,
               packQuantityBase: '10',
               taxRateBps: 1200,
@@ -882,7 +880,7 @@ of a batch is not simply its invoice price.
             {
               productId: PRODUCT_ID,
               purchaseOrderLineId: PO_LINE_ID,
-              quantityBase: '1000',
+              quantity: '1000',
               lotNumber: BATCH.batchNumber,
               manufacturedOn: BATCH.manufacturedOn,
               expiresOn: BATCH.expiresOn,
@@ -1078,8 +1076,8 @@ deliberately does not name the patient — this router discloses nobody.
               productId: PRODUCT_ID,
               goodsReceiptLineId: GRN_LINE_ID,
               batchId: BATCH_ID,
-              quantityBase: '100',
-              statusFrom: 'QUARANTINE',
+              quantity: '100',
+              statusFrom: 'QUARANTINED',
             },
           ],
         },

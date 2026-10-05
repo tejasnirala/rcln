@@ -661,7 +661,7 @@ act.
                   {
                     locationId: LOCATION_ID,
                     batchId: BATCH_ID,
-                    quantityBase: 2,
+                    quantityBase: '2',
                     isOverride: false,
                   },
                 ],

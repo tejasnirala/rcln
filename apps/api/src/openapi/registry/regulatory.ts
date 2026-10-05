@@ -258,7 +258,7 @@ how it can tell.
               {
                 id: RULE_ID,
                 packId: RULE_PACK_ID,
-                code: 'IN-CDSCO-SCHEDULE-H-RX',
+                code: 'IN_CDSCO_SCHEDULE_H_RX',
                 ruleType: 'PRESCRIPTION_REQUIRED',
                 transaction: 'DISPENSE',
                 status: 'ACTIVE',
@@ -367,7 +367,7 @@ text is written to be shown to the person being refused, not paraphrased.
             reasons: [
               {
                 ruleId: RULE_ID,
-                ruleCode: 'IN-CDSCO-SCHEDULE-H-RX',
+                ruleCode: 'IN_CDSCO_SCHEDULE_H_RX',
                 ruleType: 'PRESCRIPTION_REQUIRED',
                 packId: RULE_PACK_ID,
                 packVersion: '2026.1',

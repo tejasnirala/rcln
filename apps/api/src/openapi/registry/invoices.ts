@@ -466,8 +466,11 @@ the generic create does not.** Deciding whether a supply is billed at all is a
 different act behind \`billing.charge_request.manage\` on the charging router.
 
 ⚠️ **Mounted here rather than under \`/charging\`, because what it returns is an
-invoice and what it enforces is the invoice engine's rules** — the branch, the
-patient, the currency and the source must all agree. A create endpoint returning
+invoice and what it enforces is the invoice engine's rules.**
+
+Send only the charge ids. The branch, the patient, the currency and the source
+are read off the charges themselves — so they must all agree, or the request is
+refused. A create endpoint returning
 an invoice from a router the invoice permissions do not gate is how a second door
 into billing gets written.
 
@@ -481,12 +484,8 @@ Charges must be \`PENDING\` and already decided \`BILL\`. They move to
       {
         summary: "Bill a visit's approved charges",
         value: {
-          branchId: BRANCH_ID,
-          patientId: PATIENT_ID,
-          sourceType: 'PHARMACY',
-          suppliedOn: TODAY,
-          customer: { name: PATIENT.fullName, phone: PATIENT.phone },
           chargeRequestIds: [CHARGE_REQUEST_ID],
+          notes: 'Dressings and consumables from the procedure room.',
         },
       },
     ],
@@ -802,7 +801,7 @@ is different from a price of zero.
             currency: 'INR',
             doctorProfileId: DOCTOR_ID,
             branchId: BRANCH_ID,
-            feeType: 'CONSULTATION',
+            feeType: 'NEW',
             amountMinor: CONSULTATION_FEE_PAISE,
             resolvedFrom: 'DOCTOR',
           },
@@ -827,7 +826,7 @@ is different from a price of zero.
                 scopeLevel: 'ORGANIZATION',
                 branchId: null,
                 doctorProfileId: null,
-                feeType: 'CONSULTATION',
+                feeType: 'NEW',
                 amountMinor: 50000,
                 currency: 'INR',
               },
@@ -857,7 +856,7 @@ is different from a price of zero.
             currency: 'INR',
             rows: [
               {
-                feeType: 'CONSULTATION',
+                feeType: 'NEW',
                 amountMinor: 50000,
                 inheritedFrom: 'ORGANIZATION',
                 isOverridden: true,
@@ -889,13 +888,13 @@ code that reads a quote.
     requestExamples: [
       {
         summary: 'Clinic-wide consultation fee',
-        value: { branchId: null, fees: [{ feeType: 'CONSULTATION', amountMinor: 50000 }] },
+        value: { branchId: null, fees: [{ feeType: 'NEW', amountMinor: 50000 }] },
       },
       {
         summary: 'A higher fee at one branch',
         value: {
           branchId: BRANCH_KOCHI_ID,
-          fees: [{ feeType: 'CONSULTATION', amountMinor: 55000 }],
+          fees: [{ feeType: 'NEW', amountMinor: 55000 }],
         },
       },
     ],
