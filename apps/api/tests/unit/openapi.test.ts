@@ -241,6 +241,64 @@ describe('OpenAPI document', () => {
     expect([...strays]).toEqual([]);
   });
 
+  /**
+   * ⚠️ EVERY REQUEST EXAMPLE IS A REQUEST THE ROUTE ACCEPTS, FIELD FOR FIELD.
+   *
+   *   Nothing else checked this, and 74 of 347 examples had drifted: a renamed
+   *   field, an enum value that changed (`DAY` → `DAYS`), a code with a hyphen
+   *   the pattern refuses. An integrator copies an example first, so a wrong one
+   *   is a 400 on their first call.
+   *
+   *   The worse half is the field the schema DROPS. Zod strips unknown keys, so
+   *   `specialties` on `POST /api/v1/doctors` parsed cleanly, answered `201`, and
+   *   saved a doctor with no specialty at all. Parsing alone cannot see that;
+   *   comparing what went in with what came out can.
+   *
+   *   A route with no body schema — the webhook simulator reads its raw body —
+   *   has nothing to check against and is skipped.
+   */
+  it('gives only request examples the route itself accepts', () => {
+    const dropped = (input: unknown, output: unknown, at: string, into: string[]): void => {
+      if (Array.isArray(input) && Array.isArray(output)) {
+        input.forEach((entry, index) => {
+          dropped(entry, output[index], `${at}[${String(index)}]`, into);
+        });
+        return;
+      }
+      if (typeof input !== 'object' || input === null) return;
+      if (typeof output !== 'object' || output === null) return;
+      for (const [key, value] of Object.entries(input)) {
+        if (!(key in output)) into.push(`${at}.${key}`);
+        else dropped(value, (output as Record<string, unknown>)[key], `${at}.${key}`, into);
+      }
+    };
+
+    const wrong: string[] = [];
+    for (const mount of MOUNTS) {
+      for (const route of introspectRouter(mount.router)) {
+        const path = toOpenApiPath(`${mount.prefix}${route.path === '/' ? '' : route.path}`);
+        const key = endpointKey(route.method, path);
+        const body = route.validated.find((shape) => shape.source === 'body');
+        if (body === undefined) continue;
+
+        for (const example of DOCS[key]?.requestExamples ?? []) {
+          const label = `${key} [${example.summary}]`;
+          const parsed = body.schema.safeParse(example.value);
+          if (!parsed.success) {
+            const issues = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+            wrong.push(`${label} rejected — ${issues.join('; ')}`);
+            continue;
+          }
+          const lost: string[] = [];
+          dropped(example.value, parsed.data, '', lost);
+          if (lost.length > 0) wrong.push(`${label} silently drops ${lost.join(', ')}`);
+        }
+      }
+    }
+
+    expect(wrong).toEqual([]);
+  });
+
   it('gives every operation a tag drawn from the declared set', () => {
     const paths = document['paths'] as Record<string, Record<string, { tags?: string[] }>>;
     const known = new Set<string>(TAGS);

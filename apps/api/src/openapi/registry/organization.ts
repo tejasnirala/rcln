@@ -68,6 +68,11 @@ Changing \`countryCode\` or \`regionCode\` changes the default jurisdiction that
 and does not touch invoices already raised — those recorded the jurisdiction
 that applied on the day.
 
+**Not here: contact details or a tax number.** A phone number and an email
+belong to a place, so they are set per branch through
+\`PATCH /api/v1/branches/{branchId}\`. A tax number is a registration with its
+own effective dates, recorded through \`POST /api/v1/tax/registrations\`.
+
 Writes an \`audit_logs\` row with the caller, their IP and their user agent.
 `.trim(),
     response: organizationProfile,
@@ -75,13 +80,13 @@ Writes an \`audit_logs\` row with the caller, their IP and their user agent.
     errors: [409],
     requestExamples: [
       {
-        summary: 'Correct the contact details',
-        value: { phone: '+918041234567', email: 'reception@alphaclinic.in' },
+        summary: 'Correct the registered name',
+        value: { legalName: 'Alpha Clinic Healthcare Private Limited' },
       },
       {
-        summary: 'Register for tax after the fact',
-        description: 'A clinic that signed up without a number and has since received one.',
-        value: { taxId: '29AAACA1234C1ZP' },
+        summary: 'Rename the clinic',
+        description: 'What patients and staff see. The subdomain does not change.',
+        value: { displayName: 'Alpha Family Clinic' },
       },
     ],
     responseExamples: [

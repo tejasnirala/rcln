@@ -212,7 +212,6 @@ Advisory: it never blocks a registration.
         summary: 'What the desk has typed so far',
         value: {
           firstName: 'Ravi',
-          lastName: 'Subramanian',
           phone: '+919845067890',
           dateOfBirth: '1979-02-14',
         },
@@ -527,9 +526,10 @@ log, the referrer header and browser history beside a patient id.
     requestExamples: [
       { summary: 'Correct a phone number', value: { phone: '+919845000111' } },
       {
-        summary: 'Record a death',
-        description: 'Sets the record to `DECEASED`; the history stays readable.',
-        value: { status: 'DECEASED', deceasedOn: '2026-08-01' },
+        summary: 'Record a blood group',
+        description:
+          'Only the field sent changes; everything else on the record is left as it was.',
+        value: { bloodGroup: 'B_POSITIVE' },
       },
     ],
     errors: [409],
@@ -617,10 +617,10 @@ log, the referrer header and browser history beside a patient id.
       {
         summary: 'Spouse',
         value: {
-          fullName: 'Priya Subramanian',
-          relationship: 'SPOUSE',
+          relation: 'Spouse',
+          name: 'Priya Subramanian',
           phone: '+919845077665',
-          isPrimary: true,
+          isEmergency: true,
         },
       },
     ],
@@ -765,7 +765,8 @@ is \`/visit-history\`.
       {
         summary: 'Drug allergy',
         value: {
-          substance: 'Penicillin',
+          allergenType: 'DRUG',
+          allergenText: 'Penicillin',
           reaction: 'Urticaria and facial swelling',
           severity: 'SEVERE',
           notedOn: '2025-06-11',
@@ -796,10 +797,10 @@ is \`/visit-history\`.
       {
         summary: 'A chronic condition',
         value: {
-          name: 'Type 2 diabetes mellitus',
-          status: 'ACTIVE',
-          onsetOn: '2019-03-01',
-          notes: 'Diet-controlled since 2023.',
+          conditionText: 'Type 2 diabetes mellitus',
+          status: 'CHRONIC',
+          onsetDate: '2019-03-01',
+          note: 'Diet-controlled since 2023.',
         },
       },
     ],
@@ -818,10 +819,10 @@ is \`/visit-history\`.
       {
         summary: 'Mark it resolved',
         value: {
-          name: 'Type 2 diabetes mellitus',
+          conditionText: 'Type 2 diabetes mellitus',
           status: 'RESOLVED',
-          onsetOn: '2019-03-01',
-          resolvedOn: '2026-05-20',
+          onsetDate: '2019-03-01',
+          resolvedDate: '2026-05-20',
         },
       },
     ],
@@ -850,11 +851,10 @@ is \`/visit-history\`.
       {
         summary: 'Prescribed elsewhere',
         value: {
-          name: 'Metformin 500mg',
-          dose: '500 mg',
-          frequency: 'Twice daily',
+          medicineText: 'Metformin 500mg',
+          dosage: '1 tablet twice daily, after food',
           startedOn: '2019-03-05',
-          notes: 'Started by external endocrinologist.',
+          isOngoing: true,
         },
       },
     ],
@@ -872,7 +872,7 @@ is \`/visit-history\`.
     requestExamples: [
       {
         summary: 'Stopped last month',
-        value: { stoppedOn: '2026-07-15', reason: 'Switched to insulin.' },
+        value: { stoppedOn: '2026-07-15' },
       },
     ],
   },

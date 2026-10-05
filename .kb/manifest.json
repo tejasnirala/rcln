@@ -197,7 +197,7 @@
   "Database/VisualMap.md": "2cd7ab66df84",
   "Database/VisualRegion.md": "0dc796f1ad95",
   "Database/_index.md": "f01ae5db3cdf",
-  "INDEX.md": "ac7d0e96af40",
+  "INDEX.md": "7c002eccc6a0",
   "Modules/Appointments.md": "10435bcd5d13",
   "Modules/Audit.md": "b3f68270f276",
   "Modules/Authentication.md": "fafd436c14a7",
@@ -220,7 +220,7 @@
   "Symbols/apps.api.md": "915e6f354410",
   "Symbols/apps.api.middleware.md": "f3672f71c87e",
   "Symbols/apps.api.openapi.md": "ffc37e0c88ea",
-  "Symbols/apps.api.openapi.registry.md": "4de823f8a119",
+  "Symbols/apps.api.openapi.registry.md": "01725c6db1df",
   "Symbols/apps.api.queue.md": "19ec8c61a1b6",
   "Symbols/apps.api.routes.md": "8af4619d8551",
   "Symbols/apps.api.routes.v1.md": "75e5207304fc",
@@ -435,5 +435,5 @@
   "Symbols/packages.storage.tests.md": "c31a93895ee4",
   "Symbols/packages.tax.md": "cbc43c0bb035",
   "Symbols/packages.tax.tests.md": "660ddf75a449",
-  "symbols.tsv": "4ffbe2ae0891"
+  "symbols.tsv": "ed4f47f03115"
 }

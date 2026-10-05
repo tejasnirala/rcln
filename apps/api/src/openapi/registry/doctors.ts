@@ -386,8 +386,9 @@ added", and believes it was recorded. Refusing says which part was refused so
 the form can stop offering it.
 
 The doctor must already be a member of this clinic — this creates the
-practitioner profile on an existing membership, it does not invite anybody. Use
-\`POST /api/v1/invitations\` first.
+practitioner profile for an existing member, named by their \`userId\`, and it
+does not invite anybody. \`GET /api/v1/doctors/candidates\` lists the members
+who can be added; use \`POST /api/v1/invitations\` first for anyone else.
 `.trim(),
     response: doctorDetail,
     status: 201,
@@ -398,11 +399,12 @@ practitioner profile on an existing membership, it does not invite anybody. Use
         summary: 'Profile only',
         description: 'Needs `doctor.create` and nothing more.',
         value: {
-          membershipId: MEMBERSHIP_ID,
+          userId: USER_ID,
           registrationNumber: 'KMC-58214',
           registrationCouncil: 'Karnataka Medical Council',
           experienceYears: 14,
-          specialties: [{ specialtyId: SPECIALTY_GENERAL_MEDICINE_ID, isPrimary: true }],
+          specialtyIds: [SPECIALTY_GENERAL_MEDICINE_ID],
+          primarySpecialtyId: SPECIALTY_GENERAL_MEDICINE_ID,
         },
       },
       {
@@ -410,11 +412,12 @@ practitioner profile on an existing membership, it does not invite anybody. Use
         description:
           'Needs all five codes. Missing any one of them is a `403` naming the section that was refused.',
         value: {
-          membershipId: MEMBERSHIP_ID,
+          userId: USER_ID,
           registrationNumber: 'KMC-58214',
           registrationCouncil: 'Karnataka Medical Council',
           experienceYears: 14,
-          specialties: [{ specialtyId: SPECIALTY_GENERAL_MEDICINE_ID, isPrimary: true }],
+          specialtyIds: [SPECIALTY_GENERAL_MEDICINE_ID],
+          primarySpecialtyId: SPECIALTY_GENERAL_MEDICINE_ID,
           qualifications: [
             {
               qualificationId: QUALIFICATION_MD_ID,
@@ -432,7 +435,7 @@ practitioner profile on an existing membership, it does not invite anybody. Use
               validFrom: '2026-01-01',
             },
           ],
-          fees: [{ feeType: 'CONSULTATION', amountMinor: CONSULTATION_FEE_PAISE }],
+          fees: [{ feeType: 'NEW', amountMinor: CONSULTATION_FEE_PAISE }],
           compensation: { amountMinor: 25000000, interval: 'MONTHLY' },
         },
       },
@@ -467,12 +470,11 @@ own code. Archiving is \`DELETE\`, not \`status: 'ARCHIVED'\` here.
       },
       {
         summary: 'Add a second specialty',
-        description: 'Exactly one entry may be `isPrimary`.',
+        description:
+          '`specialtyIds` replaces the whole set, so send the specialty already held as well. `primarySpecialtyId` must be one of them.',
         value: {
-          specialties: [
-            { specialtyId: SPECIALTY_GENERAL_MEDICINE_ID, isPrimary: true },
-            { specialtyId: SPECIALTY_CARDIOLOGY_ID, isPrimary: false },
-          ],
+          specialtyIds: [SPECIALTY_GENERAL_MEDICINE_ID, SPECIALTY_CARDIOLOGY_ID],
+          primarySpecialtyId: SPECIALTY_GENERAL_MEDICINE_ID,
         },
       },
     ],
@@ -730,7 +732,7 @@ Amounts are in minor units.
             currency: 'INR',
             rows: [
               {
-                feeType: 'CONSULTATION',
+                feeType: 'NEW',
                 amountMinor: CONSULTATION_FEE_PAISE,
                 inheritedFrom: 'DOCTOR',
                 isOverridden: true,
@@ -753,13 +755,20 @@ Amounts are in minor units.
     description: `
 Override prices for this practitioner specifically.
 
-**\`PUT\`, so the doctor-level set is REPLACED.** A fee type you omit stops being
-overridden here and falls back to the branch or clinic price — it does not keep
-its previous doctor-level amount. That is how an override is removed: leave it
-out.
+**Row by row, not a replacement.** Each entry in \`fees\` sets one fee type; a
+fee type you leave out keeps whatever override it already had. To remove an
+override, send that fee type with \`amountMinor: null\` — it then falls back to
+the branch or clinic price.
+
+\`feeType\` is keyed by visit type — \`NEW\`, \`FOLLOW_UP\`, \`WALK_IN\` and so on —
+because billing looks the price up by the appointment's visit type. A
+\`FOLLOW_UP\` with no price of its own is billed at \`NEW\`.
+
+\`branchId\` picks the scope: \`null\` (the default) is this doctor everywhere, a
+branch id is this doctor at that branch only.
 
 Amounts are in minor units, and \`0\` is a real price meaning free — distinct
-from omitting the row, which means "inherit".
+from \`null\`, which means "inherit".
 
 Returns the resolved view, so the caller sees what each fee type ended up at and
 which level it came from.
@@ -772,16 +781,24 @@ which level it came from.
       {
         summary: 'Charge ₹600, follow-ups free',
         value: {
-          amounts: [
-            { feeType: 'CONSULTATION', amountMinor: CONSULTATION_FEE_PAISE },
+          branchId: null,
+          fees: [
+            { feeType: 'NEW', amountMinor: CONSULTATION_FEE_PAISE },
             { feeType: 'FOLLOW_UP', amountMinor: 0 },
           ],
         },
       },
       {
-        summary: 'Drop every override',
-        description: 'An empty list. Every fee type falls back to the branch or clinic price.',
-        value: { amounts: [] },
+        summary: 'Drop both overrides',
+        description:
+          '`null` removes the row. Both fee types fall back to the branch or clinic price.',
+        value: {
+          branchId: null,
+          fees: [
+            { feeType: 'NEW', amountMinor: null },
+            { feeType: 'FOLLOW_UP', amountMinor: null },
+          ],
+        },
       },
     ],
     responseExamples: [
@@ -797,7 +814,7 @@ which level it came from.
             currency: 'INR',
             rows: [
               {
-                feeType: 'CONSULTATION',
+                feeType: 'NEW',
                 amountMinor: CONSULTATION_FEE_PAISE,
                 inheritedFrom: 'DOCTOR',
                 isOverridden: true,

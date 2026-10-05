@@ -190,7 +190,7 @@ starts returning other clinics' patient records.
 
 ## The API reference is part of the endpoint, not a follow-up
 
-`/docs` serves a generated OpenAPI 3.1 document. **Every one of the 425 endpoints
+`/docs` serves a generated OpenAPI 3.1 document. **Every one of the 462 endpoints
 carries hand-written prose, and a test enforces that** — so touching the HTTP
 surface is not done until the reference matches it.
 
@@ -213,18 +213,23 @@ consumers write against it and find out at runtime.
 **When you remove an endpoint** — delete the entry. A key matching no route is a
 paragraph about something that no longer exists, and the test fails on it.
 
-Three gates in `apps/api/tests/unit/openapi.test.ts` hold this:
+Four gates in `apps/api/tests/unit/openapi.test.ts` hold this:
 
-| Case                                                          | Fails when                |
-| ------------------------------------------------------------- | ------------------------- |
-| `has a registry entry for every route the API serves`         | a route has no prose      |
-| `has no registry entry for a route that does not exist`       | prose outlives its route  |
-| `draws every identifier in its examples from the fixture set` | an example invents a uuid |
+| Case                                                          | Fails when                                                |
+| ------------------------------------------------------------- | --------------------------------------------------------- |
+| `has a registry entry for every route the API serves`         | a route has no prose                                      |
+| `has no registry entry for a route that does not exist`       | prose outlives its route                                  |
+| `draws every identifier in its examples from the fixture set` | an example invents a uuid                                 |
+| `gives only request examples the route itself accepts`        | an example is refused, or carries a field Zod would strip |
+
+The last one only checks the example against the schema. Prose that names a
+field, a default or a behaviour is still yours to keep true — read the contract
+and the service, not the old example.
 
 ⚠️ **NEVER WRITE A LITERAL UUID IN A REGISTRY FILE.** Every id comes from
 `registry/fixtures.ts`, which is one clinic described once — the same patient,
 doctor, batch and invoice throughout, so the reference tells one story end to end
-rather than 425 unrelated fragments. Add the id there, with a name and a sentence
+rather than 462 unrelated fragments. Add the id there, with a name and a sentence
 saying what it is, then import it. A stray uuid is invisible in review because
 one uuid looks exactly like another.
 

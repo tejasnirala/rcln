@@ -282,11 +282,12 @@ endpoint exists for the cases where the episode is decided first.
         summary: 'A named episode',
         value: {
           patientId: PATIENT_ID,
+          branchId: BRANCH_ID,
           title: 'Recurrent sore throat',
           primarySpecialtyId: SPECIALTY_GENERAL_MEDICINE_ID,
         },
       },
-      { summary: 'Unnamed', value: { patientId: PATIENT_ID } },
+      { summary: 'Unnamed', value: { patientId: PATIENT_ID, branchId: BRANCH_ID } },
     ],
     responseExamples: [
       { summary: 'Opened', value: { success: true, message: 'Success', data: EPISODE_EXAMPLE } },

@@ -80,8 +80,8 @@ const BRANCH_404 =
 const LOCATION = {
   id: LOCATION_ID,
   branchId: BRANCH_ID,
-  kind: 'PHARMACY_STORE',
-  code: 'IND-PH-MAIN',
+  kind: 'MAIN_PHARMACY',
+  code: 'IND_PH_MAIN',
   name: 'Indiranagar pharmacy — main store',
   isDispensingPoint: true,
   requiresControlledAccess: false,
@@ -170,7 +170,7 @@ export const inventoryDocs: DocRegistry = {
                 id: STORAGE_AREA_ID,
                 code: 'A1',
                 name: 'Rack A, shelf 1',
-                bins: [{ id: STORAGE_BIN_ID, code: 'A1-01', name: 'Bin 1' }],
+                bins: [{ id: STORAGE_BIN_ID, code: 'A1_01', label: 'Bin 1', isActive: true }],
               },
             ],
           },
@@ -201,8 +201,8 @@ is what makes a cold-chain compliance check possible at all.
         summary: 'A dispensing store',
         value: {
           branchId: BRANCH_ID,
-          kind: 'PHARMACY_STORE',
-          code: 'IND-PH-MAIN',
+          kind: 'MAIN_PHARMACY',
+          code: 'IND_PH_MAIN',
           name: 'Indiranagar pharmacy — main store',
           isDispensingPoint: true,
           storageProfileId: STORAGE_PROFILE_ID,
@@ -213,7 +213,7 @@ is what makes a cold-chain compliance check possible at all.
         value: {
           branchId: BRANCH_ID,
           kind: 'CONTROLLED_CABINET',
-          code: 'IND-PH-CD',
+          code: 'IND_PH_CD',
           name: 'Controlled drugs cabinet',
           requiresControlledAccess: true,
         },
@@ -255,8 +255,8 @@ is what makes a cold-chain compliance check possible at all.
               code: 'A1',
               name: 'Rack A, shelf 1',
               bins: [
-                { code: 'A1-01', name: 'Bin 1' },
-                { code: 'A1-02', name: 'Bin 2' },
+                { code: 'A1_01', label: 'Bin 1' },
+                { code: 'A1_02', label: 'Bin 2' },
               ],
             },
           ],
@@ -400,11 +400,11 @@ This is the endpoint a recall reaches for when it takes a lot off the shelf.
     requestExamples: [
       {
         summary: 'Quarantine it',
-        value: { status: 'QUARANTINED', reasonNote: 'Manufacturer notice pending investigation' },
+        value: { action: 'QUARANTINE', reason: 'Manufacturer notice pending investigation' },
       },
       {
         summary: 'Release it back',
-        value: { status: 'AVAILABLE', reasonNote: 'Notice withdrawn' },
+        value: { action: 'QUARANTINE_RELEASE', reason: 'Notice withdrawn' },
       },
     ],
     responseExamples: [
@@ -476,7 +476,7 @@ a disclosure, and reads that could answer it are logged.
           branchId: BRANCH_ID,
           productId: PRODUCT_ID,
           serialNumber: 'TBP-7742',
-          locationId: LOCATION_ID,
+          currentLocationId: LOCATION_ID,
         },
       },
     ],
@@ -492,7 +492,9 @@ a disclosure, and reads that could answer it are logged.
     response: serialSummary,
     errors: [409],
     params: { serialId: `The serial. ${BRANCH_404}` },
-    requestExamples: [{ summary: 'Move it to another shelf', value: { locationId: LOCATION_ID } }],
+    requestExamples: [
+      { summary: 'Move it to another shelf', value: { currentLocationId: LOCATION_ID } },
+    ],
     responseExamples: [
       { summary: 'Updated', value: { success: true, message: 'Success', data: SERIAL } },
     ],
@@ -911,10 +913,10 @@ both has two answers.
           productId: PRODUCT_ID,
           batchId: BATCH_ID,
           locationId: LOCATION_ID,
-          movementType: 'STATUS_CHANGE',
+          movementType: 'QUARANTINE_RELEASE',
           quantity: '480',
           unitId: UNIT_CAPSULE_ID,
-          statusFrom: 'QUARANTINE',
+          statusFrom: 'QUARANTINED',
           statusTo: 'AVAILABLE',
         },
       },
@@ -977,7 +979,7 @@ both has two answers.
     requestExamples: [
       {
         summary: 'A decrease reason',
-        value: { code: 'DAMAGED', name: 'Damaged', direction: 'DECREASE' },
+        value: { code: 'DAMAGED', label: 'Damaged', direction: 'DECREASE' },
       },
     ],
     responseExamples: [

@@ -362,7 +362,7 @@ actually on the shelf rather than what merely exists in the catalogue.
                     batchId: BATCH_ID,
                     batchNumber: BATCH.batchNumber,
                     serialId: null,
-                    quantityBase: 15,
+                    quantityBase: '15',
                     isOverride: false,
                   },
                 ],
@@ -457,7 +457,7 @@ busy pharmacy rather than an error.
                 {
                   locationId: LOCATION_ID,
                   batchId: BATCH_ID,
-                  quantityBase: 15,
+                  quantityBase: '15',
                   isOverride: true,
                   overrideReason: 'Nearer expiry cleared with the pharmacist',
                 },
@@ -509,7 +509,7 @@ required.
             {
               dispenseLineId: DISPENSE_LINE_ID,
               dispenseAllocationId: DISPENSE_ALLOCATION_ID,
-              quantityBase: 15,
+              quantityBase: '15',
             },
           ],
         },
@@ -518,7 +518,7 @@ required.
         summary: 'Partial return',
         value: {
           reason: 'Patient returned the unused half of the course.',
-          lines: [{ dispenseLineId: DISPENSE_LINE_ID, quantityBase: 6 }],
+          lines: [{ dispenseLineId: DISPENSE_LINE_ID, quantityBase: '6' }],
         },
       },
     ],
