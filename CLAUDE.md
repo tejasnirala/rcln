@@ -260,6 +260,9 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
 - **`security-reviewer`** subagent — tenant isolation, PHI, authz, injection,
   secrets. Use it whenever the diff touches the schema, tenancy, auth,
   permissions, patient data, billing, or raw SQL.
+- **`seo-auditor`** subagent — titles, descriptions, canonicals and OG cards on
+  the `(marketing)` pages, and — the part that matters most — that no tenant,
+  platform or sign-in page can be indexed. Read-only.
 - **`/new-feature <name>`** — scaffold an end-to-end vertical slice, ending at the
   tenant-isolation test rather than at a 200 response.
 - **`/db-migration <change>`** — the schema-change sequence: model conventions,
@@ -270,17 +273,44 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
   consumer.
 - **`/code-review [path]`** — `pnpm validate` + `db:rls:check` + both reviewer
   subagents, consolidated into one report.
+- **`/verify`** — the check sequence from § Order of work, run once at the end:
+  lint + format → typecheck → `db:rls:check` / `docs:validate` when they apply →
+  tests. Lighter than `/code-review`; no reviewer subagents, no build.
 - **`frontend-design`** — aesthetic direction for UI: palette, typography, layout,
   and a signature element, plus interface copy. **Load it before writing any new
   screen, component, or CSS in `apps/web`** — before the first line of JSX, not as
   a polish pass afterwards. It decides what you build; retrofitting a visual
   direction onto finished markup means rewriting the markup. Lives in
   `.agents/skills/frontend-design/`.
-- **`vercel-react-best-practices`** — 68 React/Next.js performance rules from
+- **`vercel-react-best-practices`** — 70 React/Next.js performance rules from
   Vercel Engineering (waterfalls, bundle size, server perf, re-renders). Consult
   it when writing or reviewing anything in `apps/web`. Rules live in
   `.claude/skills/vercel-react-best-practices/rules/`; the compiled guide is
   `AGENTS.md` in that folder. Pinned in `skills-lock.json`.
+- **UI craft and motion** (Emil Kowalski's set) — `emil-design-eng` (polish and
+  the invisible details), `apple-design` (fluid, physical interfaces),
+  `mobile-native` (making `apps/web` feel right on a phone or tablet),
+  `animate` (build one motion),
+  `review-animations` (critique a diff), `improve-animations` (audit and plan),
+  `find-animation-opportunities` (propose, read-only) and `animation-vocabulary`
+  (name an effect). `pick-ui-library` and `prototype` run only when invoked by
+  name. These sit **under** `frontend-design`, which still decides the visual
+  direction; and in a clinical screen, motion never delays or hides the data a
+  clinician is reading.
+- **Engineering judgement** (Matt Pocock's set) — `codebase-design` (deep-module
+  vocabulary), `improve-codebase-architecture` (find deepening opportunities,
+  then grill one), `grilling` (stress-test a plan before it becomes a slice), and
+  `domain-modeling` (terminology, glossary, ADRs). ⚠️ For `domain-modeling`, rcln's
+  ADRs live in `.kb/Architecture/decisions/` and its glossary is
+  `.kb/17_Glossary.md` — follow the format already in those files, not the
+  skill's templates.
+- **`security-audit`** (Cloudflare) — the full audit and pen-test methodology,
+  for an explicit whole-codebase or pre-release audit. Day-to-day diff review is
+  still the `security-reviewer` subagent.
+- These third-party skills live in `.agents/skills/`, are symlinked from
+  `.claude/skills/`, and are pinned by hash in `skills-lock.json`. Do not edit
+  them in place — the edit is lost on the next update and the hash stops
+  matching.
 - **codebase-memory / tokensave MCP** — a code knowledge graph is available.
   Prefer it for structural exploration (who calls this, what does this depend on)
   over blind grepping. Index the repo first if it is not indexed.

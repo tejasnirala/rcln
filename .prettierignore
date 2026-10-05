@@ -1,7 +1,25 @@
-# Vendored agent skill. Pinned by content hash in skills-lock.json — reformatting
-# it changes the hash and breaks upstream sync. Leave it exactly as shipped.
+# Vendored agent skills. Pinned by content hash in skills-lock.json — reformatting
+# them changes the hash and breaks upstream sync. Leave them exactly as shipped.
+# They live in .agents/skills/; .claude/skills/ holds symlinks (and one copy) to
+# them, listed too so the formatter cannot reach them by either path.
+.agents/skills/
+.claude/skills/animate/
+.claude/skills/animation-vocabulary/
+.claude/skills/apple-design/
+.claude/skills/codebase-design/
+.claude/skills/domain-modeling/
+.claude/skills/emil-design-eng/
+.claude/skills/find-animation-opportunities/
+.claude/skills/frontend-design/
+.claude/skills/grilling/
+.claude/skills/improve-animations/
+.claude/skills/improve-codebase-architecture/
+.claude/skills/mobile-native/
+.claude/skills/pick-ui-library/
+.claude/skills/prototype/
+.claude/skills/review-animations/
+.claude/skills/security-audit/
 .claude/skills/vercel-react-best-practices/
-.agents/skills/vercel-react-best-practices/
 
 # Generated
 packages/db/generated/
