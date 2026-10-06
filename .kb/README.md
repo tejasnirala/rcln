@@ -54,20 +54,21 @@ reference.
 | 16  | [Product Roadmap](16_Product_Roadmap.md)                               | Phases 2–7, blockers                                     |
 | 17  | [Glossary](17_Glossary.md)                                             | Domain, tenancy and India-specific terms                 |
 
-| Directory                                           | Holds                                                                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| [`AI/`](AI/Agent_Instructions.md)                   | **Highest priority.** How an agent should think, build, refactor and verify here                                    |
-| [`Architecture/`](Architecture/how-it-works.md)     | The tour, the target design, conventions, pitfalls, 17 ADRs                                                         |
-| [`Database/`](Database/_index.md)                   | Per-model pages _(generated)_ + the full schema design document                                                     |
-| [`APIs/`](APIs/_index.md)                           | Per-route-group pages _(generated)_                                                                                 |
-| [`Modules/`](06_Module_Catalog.md)                  | Per-module pages _(generated)_                                                                                      |
-| [`BusinessRules/`](BusinessRules/README.md)         | Per-module rule indexes                                                                                             |
-| [`Security/`](Security/README.md)                   | Tenant isolation, threat model                                                                                      |
-| [`Integrations/`](Integrations/README.md)           | External services — all stubs today                                                                                 |
-| [`Infrastructure/`](Infrastructure/README.md)       | What is provisioned (little) and what is designed                                                                   |
-| [`Symbols/`](INDEX.md)                              | Per-directory symbol tables _(generated)_                                                                           |
-| [`notes/`](notes/README.md)                         | Hand-written per-module reuse notes                                                                                 |
-| [`PharmacyInventory/`](PharmacyInventory/README.md) | The Product · Inventory · Pharmacy · Consumption · Procurement · Regulatory programme — plan, decisions and tracker |
+| Directory                                           | Holds                                                                                                                  |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [`AI/`](AI/Agent_Instructions.md)                   | **Highest priority.** How an agent should think, build, refactor and verify here                                       |
+| [`Architecture/`](Architecture/how-it-works.md)     | The tour, the target design, conventions, pitfalls, 17 ADRs                                                            |
+| [`Database/`](Database/_index.md)                   | Per-model pages _(generated)_ + the full schema design document                                                        |
+| [`APIs/`](APIs/_index.md)                           | Per-route-group pages _(generated)_                                                                                    |
+| [`Modules/`](06_Module_Catalog.md)                  | Per-module pages _(generated)_                                                                                         |
+| [`BusinessRules/`](BusinessRules/README.md)         | Per-module rule indexes                                                                                                |
+| [`Security/`](Security/README.md)                   | Tenant isolation, threat model                                                                                         |
+| [`Integrations/`](Integrations/README.md)           | External services — all stubs today                                                                                    |
+| [`Infrastructure/`](Infrastructure/README.md)       | What is provisioned (little) and what is designed                                                                      |
+| [`Symbols/`](INDEX.md)                              | Per-directory symbol tables _(generated)_                                                                              |
+| [`notes/`](notes/README.md)                         | Hand-written per-module reuse notes                                                                                    |
+| [`ModularRevamp/`](ModularRevamp/README.md)         | **In flight on `feat/module-revamp`.** Independent purchasable modules + navigation revamp — spec (D1–D24) and tracker |
+| [`PharmacyInventory/`](PharmacyInventory/README.md) | The Product · Inventory · Pharmacy · Consumption · Procurement · Regulatory programme — plan, decisions and tracker    |
 
 ---
 

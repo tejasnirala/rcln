@@ -48,6 +48,7 @@ directory is pointer stubs.
 | [`.kb/Architecture/PITFALLS.md`](.kb/Architecture/PITFALLS.md)         | Something behaves strangely — it may already be documented                                |
 | [`.kb/Database/schema-design.md`](.kb/Database/schema-design.md)       | Touching the database. Full ERD for all domains                                           |
 | [`.kb/Architecture/architecture.md`](.kb/Architecture/architecture.md) | The **target** infrastructure design — mostly not built. Cite it as intent, never as fact |
+| [`.kb/ModularRevamp/`](.kb/ModularRevamp/README.md)                    | Working on the modular / navigation revamp (branch `feat/module-revamp`) — spec + tracker |
 | [`.kb/README.md`](.kb/README.md)                                       | The KnowledgeBase index — 17 numbered documents plus the generated indexes                |
 | [`README.md`](README.md)                                               | Setup and day-to-day commands                                                             |
 
