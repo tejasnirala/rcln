@@ -55,18 +55,18 @@ them. Change a decision only by editing it here with a dated note.
 
 ### Navigation and screens
 
-| #   | Decision                                                                                                                                                                                                                                            |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D10 | **Header = module dropdowns + core items** (option A). Built so an **app switcher** (option B) can be added later as a new header component over the same registry — see § 6.                                                                       |
-| D11 | **Flatten when one module is visible.** If a user can see only one module, its screens become plain top-level links. Decided per user, after permissions.                                                                                           |
-| D12 | **Doctors stays inside Clinic.** Each module keeps its own professional list (doctors; pharmacists with registration; lab signatories). A shared "Practitioners" registry may be extracted later. One person = one login with a profile per module. |
-| D13 | **A bought module's parts can be switched on per branch** (e.g. a branch with Appointments but no Consultations).                                                                                                                                   |
-| D14 | **Clinic includes Inventory, off by default per branch.** Switched on in Setup.                                                                                                                                                                     |
-| D19 | **One Reports page**, a section per module, filtered by what is bought and the user's report permissions. A module may add a shortcut to its section.                                                                                               |
-| D21 | **Compliance** = Tax + Rules. Tax always shown; Rules shown when any module dealing in regulated products is bought (Pharmacy, Lab) — declared by the module.                                                                                       |
-| D22 | **Module configuration lives in the Admin page**, in a section per module, never in the daily dropdowns.                                                                                                                                            |
-| D23 | **⚙ Admin is a page with a left sidebar** (Organization · Team & access · Compliance · Subscription · one section per module), not a nested dropdown.                                                                                               |
-| D24 | **Home is one dashboard of module tiles**, filtered by permissions. "Land on my main module" may become a per-user preference later.                                                                                                                |
+| #   | Decision                                                                                                                                                                                                                                                                                                                           |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D10 | **Header = two-tier: modules + core items in the bar, the active item's screens as tabs in a sub-bar** (option A; changed 2026-10-06 from dropdowns to keep the existing design-system pattern). Built so an **app switcher** (option B) can be added later as a new header component over the same registry — see § 6.            |
+| D11 | **Flatten when one module is visible and it has ≤ 4 screens.** Its screens become plain bar items (clinic-only: Appointments · Doctors · Recall). A bigger module (Pharmacy, 5) stays one item, opens active, sub-bar beneath — flattening it overflows the bar (found in Paper, 2026-10-06). Decided per user, after permissions. |
+| D12 | **Doctors stays inside Clinic.** Each module keeps its own professional list (doctors; pharmacists with registration; lab signatories). A shared "Practitioners" registry may be extracted later. One person = one login with a profile per module.                                                                                |
+| D13 | **A bought module's parts can be switched on per branch** (e.g. a branch with Appointments but no Consultations).                                                                                                                                                                                                                  |
+| D14 | **Clinic includes Inventory, off by default per branch.** Switched on in Setup.                                                                                                                                                                                                                                                    |
+| D19 | **One Reports page**, a section per module, filtered by what is bought and the user's report permissions. A module may add a shortcut to its section.                                                                                                                                                                              |
+| D21 | **Compliance** = Tax + Rules. Tax always shown; Rules shown when any module dealing in regulated products is bought (Pharmacy, Lab) — declared by the module.                                                                                                                                                                      |
+| D22 | **Module configuration lives in the Admin page**, in a section per module, never in the daily dropdowns.                                                                                                                                                                                                                           |
+| D23 | **⚙ Admin is a page with a left sidebar** (Organization · Team & access · Compliance · Subscription · one section per module), not a nested dropdown.                                                                                                                                                                              |
+| D24 | **Home is one dashboard of module tiles**, filtered by permissions. "Land on my main module" may become a per-user preference later.                                                                                                                                                                                               |
 
 ### Migration and lifecycle
 
@@ -101,8 +101,12 @@ child becomes a plain link; a user with one visible module gets it flattened (D1
 ### 5.1 Header — tenant with every module
 
 ```text
-[Logo → Home]  Patients · Clinic ▾ · Pharmacy ▾ · Lab ▾ · HR ▾ · Invoicing ▾ · Inventory ▾ · Reports        ⚙  👤
+[Logo → Home]  Patients · Clinic · Pharmacy · Lab · HR · Invoicing · Inventory · Reports        ⚙  👤
+──────────────────────────────────────────────────────────────────────────────────────────────
+sub-bar: the active item's screens as tabs, e.g. Pharmacy → Counter · Waiting · Dispensed · Counter sale · Deliveries
 ```
+
+An item with one screen shows no sub-bar. `▾` below means "has a sub-bar", not a dropdown.
 
 | Item        | Kind             | Children                                                  |
 | ----------- | ---------------- | --------------------------------------------------------- |
@@ -119,12 +123,14 @@ child becomes a plain link; a user with one visible module gets it flattened (D1
 
 ### 5.2 Admin page (left sidebar, D22, D23)
 
+Core groups first; below a rule, **Settings by area** (Clinic, Invoicing, Inventory, then any module). The gear shows to anyone holding at least one Admin permission; each link shows only for its own permission. Designed in Paper: page "Admin (⚙ /admin)", AD1–AD3.
+
 | Section       | Screens                                                                                           |
 | ------------- | ------------------------------------------------------------------------------------------------- |
-| Organization  | Clinic profile · Branches · Setup (modules per branch)                                            |
+| Organization  | Profile · Branches · Modules (what is bought, and what each branch runs)                          |
 | Team & access | Staff · Roles (codes grouped by module, D8) · Invitations                                         |
 | Compliance    | Tax · Rules (Places · Regulators · Rule packs · Sources)                                          |
-| Subscription  | Billing (rcln's plan and invoices to the clinic)                                                  |
+| Subscription  | Plan and billing (rcln's plan and invoices to the clinic)                                         |
 | Clinic        | Clinical terms · Consultation templates · Charts                                                  |
 | Invoicing     | Prices · Charge policy (moved from the Charges page tabs)                                         |
 | Inventory     | Catalogue lists (manufacturers, ingredients, compositions, categories, storage) · Usage templates |
@@ -136,7 +142,7 @@ child becomes a plain link; a user with one visible module gets it flattened (D1
 | Who                                        | Header                                                                                                              |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
 | Clinic-only tenant                         | `Patients · Appointments · Doctors · Recall · Invoicing ▾ · Inventory ▾ · Reports · ⚙`                              |
-| Pharmacy-only tenant                       | `Patients · Counter · Waiting · Dispensed · Counter sale · Deliveries · Invoicing ▾ · Inventory ▾ · Reports · ⚙`    |
+| Pharmacy-only tenant                       | `Patients · Pharmacy · Invoicing · Inventory · Reports · ⚙` — Pharmacy active, its 5 screens in the sub-bar (D11)   |
 | Default pharmacist in an enterprise tenant | Pharmacy flattened; Inventory (holds stock read); Clinic, Lab, HR hidden; invoices: Pharmacy + Inventory only (D20) |
 
 ### 5.4 Where today's 25 header links go
