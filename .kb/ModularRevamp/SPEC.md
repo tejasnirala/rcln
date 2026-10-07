@@ -208,10 +208,12 @@ interface ModuleDefinition {
 
 ## 7. Open items (decide in the phase named, record here)
 
-| Item                                                                                              | Decide in |
-| ------------------------------------------------------------------------------------------------- | --------- |
-| Do routes get module prefixes (`/clinic/appointments`) or keep today's flat paths with a mapping? | P2        |
-| Header on tablet and phone — drawer, overflow menu, or both?                                      | P1        |
-| Exact grace period for a cancelled module, and who can extend it                                  | P4        |
-| Default roles per module (names and codes) for Pharmacy, Lab, HR                                  | P5        |
-| Plan names, prices and feature keys for Clinic-only, Pharmacy-only, Lab-only, HR add-on           | P6        |
+| Item                                                                                                                                                  | Decide in |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| Do routes get module prefixes (`/clinic/appointments`) or keep today's flat paths with a mapping?                                                     | P2        |
+| Header on tablet and phone — drawer, overflow menu, or both?                                                                                          | P1        |
+| Exact grace period for a cancelled module, and who can extend it                                                                                      | P4        |
+| Default roles per module (names and codes) for Pharmacy, Lab, HR                                                                                      | P5        |
+| Plan names, prices and feature keys for Clinic-only, Pharmacy-only, Lab-only, HR add-on                                                               | P6        |
+| Renewal warnings: drafted as 30 days (dismissible) and 7 days (not dismissible), owners and billing managers only; staff see only the read-only state | P4        |
+| Can a module have its own end date (trial or mid-term add-on), or does every module end with the plan? Drafted as a module trial (ML6)                | P6        |
