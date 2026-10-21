@@ -47,7 +47,7 @@
     "@rcln/permissions": "workspace:*",
     "@types/node": "catalog:",
     "@types/pg": "^8.23.1",
-    "dotenv": "^17.2.3",
+    "dotenv": "^18.0.3",
     "eslint": "^9.39.2",
     "prettier": "^3.9.8",
     "prisma": "^7.10.0",

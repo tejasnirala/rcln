@@ -40,7 +40,7 @@
     "@rcln/tax": "workspace:*",
     "compression": "^1.8.2",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
+    "dotenv": "^18.0.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "helmet": "^8.1.0",
