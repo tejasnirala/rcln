@@ -15,22 +15,15 @@ BullMQ · TypeScript everywhere.
 
 ## Agent persona
 
-You are a **senior full-stack engineer (10+ years)** on a multi-tenant
-healthcare platform. Concretely:
+Global persona, workflow, testing and documentation defaults come from
+`~/.claude/kit` (claude-kit) — this repo is wired to the `common` + `web`
+stacks via `CLAUDE.local.md`. The one thing those defaults cannot know:
 
-- **Think before you type.** Find the existing pattern in the area you are
-  touching, read one sibling that already does it well, and match it. Inventing
-  a second way to do something is worse than the first way being imperfect.
-- **Smallest correct change.** Leave the code cleaner than you found it, but do
-  not rewrite unrelated things. One bug, one fix.
-- **Be explicit about trade-offs.** If a request conflicts with an invariant or
-  an ADR, say so and propose the idiomatic alternative rather than quietly
-  bending it.
-- **Don't guess at domain behaviour** — tenancy, RBAC, RLS, GST, ABDM. Read the
-  ADR or the code, or ask.
 - **This is PHI in a shared database.** The realistic worst case is one clinic
   reading another clinic's patient records. Every schema change is a security
-  change until proven otherwise.
+  change until proven otherwise. When a request conflicts with an invariant or
+  an ADR below, say so and propose the idiomatic alternative rather than
+  quietly bending it.
 
 ## Where things are
 
@@ -281,37 +274,35 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
   and a signature element, plus interface copy. **Load it before writing any new
   screen, component, or CSS in `apps/web`** — before the first line of JSX, not as
   a polish pass afterwards. It decides what you build; retrofitting a visual
-  direction onto finished markup means rewriting the markup. Lives in
-  `.agents/skills/frontend-design/`.
+  direction onto finished markup means rewriting the markup. From the
+  `web@tejas-kit` plugin (installed globally — no project copy needed).
 - **`vercel-react-best-practices`** — 70 React/Next.js performance rules from
   Vercel Engineering (waterfalls, bundle size, server perf, re-renders). Consult
-  it when writing or reviewing anything in `apps/web`. Rules live in
-  `.claude/skills/vercel-react-best-practices/rules/`; the compiled guide is
-  `AGENTS.md` in that folder. Pinned in `skills-lock.json`.
+  it when writing or reviewing anything in `apps/web`. From `web@tejas-kit`.
 - **UI craft and motion** (Emil Kowalski's set) — `emil-design-eng` (polish and
-  the invisible details), `apple-design` (fluid, physical interfaces),
-  `mobile-native` (making `apps/web` feel right on a phone or tablet),
-  `animate` (build one motion),
-  `review-animations` (critique a diff), `improve-animations` (audit and plan),
+  the invisible details), `apple-design` (fluid, physical interfaces), `animate`
+  (build one motion), `review-animations` (critique a diff), `improve-animations`
+  (audit and plan) — from the `design-eng@tejas-kit` plugin. `mobile-native`
+  (making `apps/web` feel right on a phone or tablet), `pick-ui-library` and
+  `prototype` (run only when invoked by name) — from `web@tejas-kit`.
   `find-animation-opportunities` (propose, read-only) and `animation-vocabulary`
-  (name an effect). `pick-ui-library` and `prototype` run only when invoked by
-  name. These sit **under** `frontend-design`, which still decides the visual
-  direction; and in a clinical screen, motion never delays or hides the data a
-  clinician is reading.
+  (name an effect) — from `shared-skills@tejas-kit`. These sit **under**
+  `frontend-design`, which still decides the visual direction; and in a clinical
+  screen, motion never delays or hides the data a clinician is reading.
 - **Engineering judgement** (Matt Pocock's set) — `codebase-design` (deep-module
   vocabulary), `improve-codebase-architecture` (find deepening opportunities,
   then grill one), `grilling` (stress-test a plan before it becomes a slice), and
-  `domain-modeling` (terminology, glossary, ADRs). ⚠️ For `domain-modeling`, rcln's
-  ADRs live in `.kb/Architecture/decisions/` and its glossary is
-  `.kb/17_Glossary.md` — follow the format already in those files, not the
-  skill's templates.
+  `domain-modeling` (terminology, glossary, ADRs) — from `eng-core@tejas-kit`.
+  ⚠️ For `domain-modeling`, rcln's ADRs live in `.kb/Architecture/decisions/` and
+  its glossary is `.kb/17_Glossary.md` — follow the format already in those
+  files, not the skill's templates.
 - **`security-audit`** (Cloudflare) — the full audit and pen-test methodology,
   for an explicit whole-codebase or pre-release audit. Day-to-day diff review is
-  still the `security-reviewer` subagent.
-- These third-party skills live in `.agents/skills/`, are symlinked from
-  `.claude/skills/`, and are pinned by hash in `skills-lock.json`. Do not edit
-  them in place — the edit is lost on the next update and the hash stops
-  matching.
+  still the `security-reviewer` subagent. From `shared-skills@tejas-kit`.
+- All the skills above are installed once, globally, via kit plugins — no project
+  copy, no `.agents/skills/`, nothing to pin by hash. `verify`, `new-feature`,
+  `api-integration`, `db-migration`, `code-review` in `.claude/skills/` are real,
+  rcln-specific (the first two intentionally override same-named plugin skills).
 - **codebase-memory / tokensave MCP** — a code knowledge graph is available.
   Prefer it for structural exploration (who calls this, what does this depend on)
   over blind grepping. Index the repo first if it is not indexed.
@@ -333,8 +324,6 @@ Configured in `.claude/`. Prefer them over improvising an equivalent workflow.
 - Never use a float for money, or `isDeleted Boolean` for soft delete.
 - Never add new `any`, or silence `noUncheckedIndexedAccess` with `!`.
 - Never interpolate user input into `$queryRaw` — parameterize.
-- Never add a dependency without calling it out and justifying it.
-- Never claim something is verified when you only edited it.
 - Never add, change or delete an endpoint without updating its entry in
   `apps/api/src/openapi/registry/` — and never write a literal uuid in one;
   import it from `registry/fixtures.ts`.

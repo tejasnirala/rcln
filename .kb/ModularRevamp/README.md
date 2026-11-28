@@ -16,10 +16,11 @@ BLOCKERS:        none
 
 ## Files
 
-| File                     | What it is                                                                  |
-| ------------------------ | --------------------------------------------------------------------------- |
-| [SPEC.md](SPEC.md)       | **The source of truth.** Every decision (D1–D24), the navigation, the rules |
-| [TRACKER.md](TRACKER.md) | Phases, checklists, session log — what is done, what is next                |
+| File                             | What it is                                                                                    |
+| -------------------------------- | --------------------------------------------------------------------------------------------- |
+| [SPEC.md](SPEC.md)               | **The source of truth.** Every decision (D1–D24), the navigation, the rules                   |
+| [TRACKER.md](TRACKER.md)         | Phases, checklists, session log — what is done, what is next                                  |
+| [CLINIC_FLOW.md](CLINIC_FLOW.md) | The Clinic tenant's journey, sign-up to daily use, in order — design + build tracker per step |
 
 ## Starting a new session on this work
 
